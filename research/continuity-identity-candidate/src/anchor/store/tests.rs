@@ -1354,3 +1354,523 @@ fn current_authority_observation_is_fresh_scoped_and_never_a_mutation_receipt() 
     assert_eq!(observed.outcome(), AnchorOutcome::Current);
     assert_eq!(observed.observed_head(), expected);
 }
+
+fn credential_case() -> Case {
+    case_with_peer(
+        crate::bootstrap::tests::fixture_with_public_and_credential_validity(
+            PrekeyQuality::OneTimeBoth,
+            Validity::new(100, 200).expect("roster"),
+            Validity::new(100, 155).expect("advertisement"),
+            Validity::new(100, 160).expect("original credential"),
+        ),
+    )
+}
+fn credential_grant(
+    c: &Case,
+    previous: &VerifiedDevice,
+    version: u64,
+    until: u64,
+) -> crate::VerifiedCredentialRenewal {
+    let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("independent root");
+    let (policy, original, _) = c.peer.responder.inventory_inputs();
+    let origin = root
+        .issue_device(original.description.clone(), original.key.clone())
+        .expect("original body");
+    crate::durable::tests::grant(
+        &root,
+        &origin,
+        previous,
+        until,
+        version,
+        [u8::try_from(160 + version).expect("operation"); 32],
+        policy.checkpoint().digest(),
+    )
+}
+fn credential_grant_first(c: &Case) -> crate::VerifiedCredentialRenewal {
+    credential_grant(c, c.peer.responder.inventory_inputs().1, 2, 180)
+}
+
+#[test]
+fn credential_authority_renewal_preserves_subject_head_and_last_command_across_expiry_and_roster_refresh(
+) {
+    let mut c = credential_case();
+    let first = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [171; 32]).expect("advance"),
+    );
+    let head = apply_request(&mut c, &first).applied_head().expect("head");
+    let fenced = request(&c, AnchorOperation::fence_writer(head).expect("fence"));
+    let head = apply_request(&mut c, &fenced)
+        .applied_head()
+        .expect("fenced");
+    let grant = credential_grant_first(&c);
+    let (policy, original, _) = c.peer.responder.inventory_inputs();
+    assert!(matches!(
+        c.store.update_roster_authority(
+            c.genesis.subject(),
+            original.roster().checkpoint(),
+            grant.successor_device(),
+            policy,
+            170
+        ),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    let admit_next = AnchorRequest::new(
+        &c.pin,
+        c.genesis.subject(),
+        AnchorOperation::admit_authority(grant.successor_device().authority_binding())
+            .expect("target"),
+        &c.peer.signer_r,
+    )
+    .expect("request");
+    let denied = c
+        .store
+        .handle(admit_next.as_bytes(), 170)
+        .expect("authenticated refusal");
+    assert_eq!(
+        c.pin
+            .verify_reply(&admit_next, &denied)
+            .expect("reply")
+            .outcome(),
+        AnchorOutcome::AuthorityDenied
+    );
+    let before = c.store.image().expect("before").revision;
+    assert_eq!(
+        c.store
+            .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+            .expect("root-authorized renewal"),
+        grant.successor_device().roster().checkpoint()
+    );
+    let image = c.store.image().expect("committed");
+    let entry = image
+        .entries
+        .get(&c.genesis.subject.id(&c.pin.binding))
+        .expect("original subject");
+    assert_eq!(
+        (entry.subject, entry.head, entry.last, entry.genesis),
+        (
+            c.genesis.subject,
+            head,
+            Some(fenced.command_id()),
+            c.genesis.digest
+        )
+    );
+    assert_eq!(
+        entry.credential_owner,
+        storage_owner(grant.successor_device())
+    );
+    assert_ne!(entry.credential_owner, entry.subject.owner);
+    assert_eq!(image.revision, before + 1);
+    c.store.close();
+    c.store = reopen(&c.server);
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+        .expect("current target retry");
+    assert_eq!(
+        c.store.image().expect("no second commit").revision,
+        before + 1
+    );
+    let admit_next = AnchorRequest::new(
+        &c.pin,
+        c.genesis.subject(),
+        admit_next.operation,
+        &c.peer.signer_r,
+    )
+    .expect("fresh authority attempt after the denied attempt was consumed");
+    let permitted = c
+        .store
+        .handle(admit_next.as_bytes(), 170)
+        .expect("authority reply");
+    assert_eq!(
+        c.pin
+            .verify_reply(&admit_next, &permitted)
+            .expect("verified")
+            .outcome(),
+        AnchorOutcome::AuthorityCurrent
+    );
+    let successor_roster = renewed_device(
+        grant.successor_device(),
+        3,
+        Validity::new(100, 195).expect("later roster"),
+    );
+    c.store
+        .update_roster_authority(
+            c.genesis.subject(),
+            grant.successor_device().roster().checkpoint(),
+            &successor_roster,
+            policy,
+            175,
+        )
+        .expect("same renewed credential roster update");
+    assert!(matches!(
+        c.store.renew_credential_authority(
+            c.genesis.subject(),
+            &grant,
+            grant.operation(),
+            policy,
+            175
+        ),
+        Err(DurableError::Conflict)
+    ));
+    let fenced_retry = AnchorRequest::new(
+        &c.pin,
+        c.genesis.subject(),
+        fenced.operation,
+        &c.peer.signer_r,
+    )
+    .expect("fresh historical exact-command attempt");
+    assert_eq!(fenced_retry.command_id(), fenced.command_id());
+    let exact = c
+        .store
+        .handle(fenced_retry.as_bytes(), 180)
+        .expect("historical exact command after expiry");
+    assert_eq!(
+        c.pin
+            .verify_reply(&fenced_retry, &exact)
+            .expect("verified")
+            .outcome(),
+        AnchorOutcome::AlreadyAppliedExact
+    );
+    assert!(matches!(
+        c.store.renew_credential_authority(
+            c.genesis.subject(),
+            &grant,
+            grant.operation(),
+            policy,
+            180
+        ),
+        Err(DurableError::Protocol(Error::Validity))
+    ));
+    let next = credential_grant(&c, &successor_roster, 4, 195);
+    let policy = c.peer.responder.inventory_inputs().0;
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &next, next.operation(), policy, 185)
+        .expect("second expired predecessor renewal");
+    let entry = c
+        .store
+        .image()
+        .expect("second image")
+        .entries
+        .remove(&c.genesis.subject.id(&c.pin.binding))
+        .expect("entry");
+    assert_eq!(
+        (entry.subject, entry.head, entry.last, entry.genesis),
+        (
+            c.genesis.subject,
+            head,
+            Some(fenced.command_id()),
+            c.genesis.digest
+        )
+    );
+}
+
+#[test]
+fn credential_authority_renewal_refuses_wrong_scope_operation_predecessor_and_fork() {
+    let mut c = credential_case();
+    let grant = credential_grant_first(&c);
+    let fork = credential_grant(&c, c.peer.responder.inventory_inputs().1, 2, 190);
+    let policy = c.peer.responder.inventory_inputs().0;
+    let before = c.store.image().expect("before").digest;
+    let wrong_operation =
+        crate::CredentialRenewalId::from_trusted_state([199; 32]).expect("other op");
+    assert!(matches!(
+        c.store.renew_credential_authority(
+            c.genesis.subject(),
+            &grant,
+            wrong_operation,
+            policy,
+            170
+        ),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    for field in 0..3 {
+        let mut subject = c.genesis.subject();
+        match field {
+            0 => subject.owner = [201; 32],
+            1 => subject.policy = [202; 32],
+            _ => subject.journal = [203; 32],
+        }
+        assert!(c
+            .store
+            .renew_credential_authority(subject, &grant, grant.operation(), policy, 170)
+            .is_err());
+    }
+    assert_eq!(c.store.image().expect("unchanged").digest, before);
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+        .expect("one winner");
+    let after = c.store.image().expect("after").digest;
+    assert!(matches!(
+        c.store.renew_credential_authority(
+            c.genesis.subject(),
+            &fork,
+            fork.operation(),
+            policy,
+            170
+        ),
+        Err(DurableError::Conflict)
+    ));
+    assert_eq!(c.store.image().expect("fork refused").digest, after);
+    policy.close();
+    assert!(matches!(
+        c.store.renew_credential_authority(
+            c.genesis.subject(),
+            &grant,
+            grant.operation(),
+            policy,
+            170
+        ),
+        Err(DurableError::Protocol(Error::Closed))
+    ));
+}
+
+#[test]
+fn credential_authority_renewal_upgrades_authenticated_original_witness_storage_without_reset() {
+    let mut c = credential_case();
+    let image = c.store.image().expect("original");
+    assert_eq!(image.entries.len(), 1);
+    let active = c.store.active.as_ref().expect("active");
+    let mut legacy = encode(&active.wrapping, &active.pin, &image).expect("v2 image");
+    legacy.truncate(legacy.len() - 32);
+    legacy.splice(..8, *b"QPANC001");
+    let credential_offset = 8 + 32 + 8 + 2 + 32 + 96 + PUBLIC_KEY_BYTES;
+    legacy.drain(credential_offset..credential_offset + 32);
+    let mut auth = authenticator(&active.wrapping).expect("original key");
+    auth.update(&legacy);
+    legacy.extend_from_slice(&auth.finalize().into_bytes());
+    let tx = transaction(&active.db).expect("legacy write");
+    tx.open_table(TABLE)
+        .expect("table")
+        .insert("image", legacy.as_slice())
+        .expect("original bytes");
+    tx.commit().expect("legacy durable image");
+    c.store.close();
+    c.store = reopen(&c.server);
+    let legacy_image = c.store.image().expect("old reader contract");
+    let entry = legacy_image
+        .entries
+        .get(&c.genesis.subject.id(&c.pin.binding))
+        .expect("legacy entry");
+    assert_eq!(entry.credential_owner, entry.subject.owner);
+    assert_eq!(
+        (entry.head, entry.genesis, legacy_image.revision),
+        (initial(&c), c.genesis.digest, image.revision)
+    );
+    let grant = credential_grant_first(&c);
+    let policy = c.peer.responder.inventory_inputs().0;
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+        .expect("migrate once with renewal");
+    c.store.close();
+    c.store = reopen(&c.server);
+    let active = c.store.active.as_ref().expect("reopened");
+    let tx = active.db.begin_read().expect("read");
+    let table = tx.open_table(TABLE).expect("table");
+    let saved = table.get("image").expect("value").expect("image");
+    assert_eq!(saved.value().get(..8), Some(b"QPANC002".as_slice()));
+    drop(saved);
+    drop(table);
+    drop(tx);
+    assert_eq!(
+        c.store.image().expect("one transition").revision,
+        image.revision + 1
+    );
+}
+
+#[test]
+fn credential_authority_renewal_each_sync_fault_reconciles_current_target_without_reset() {
+    let mut calibration = credential_case();
+    let (_, count) = with_fault_database(&mut calibration, false);
+    let grant = credential_grant_first(&calibration);
+    let policy = calibration.peer.responder.inventory_inputs().0;
+    count.store(0, Ordering::SeqCst);
+    calibration
+        .store
+        .renew_credential_authority(
+            calibration.genesis.subject(),
+            &grant,
+            grant.operation(),
+            policy,
+            170,
+        )
+        .expect("calibrate");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!((2..=8).contains(&barriers));
+    for after in [false, true] {
+        for cut in 1..=barriers {
+            let mut c = credential_case();
+            let first = request(
+                &c,
+                AnchorOperation::advance(initial(&c), [174; 32]).expect("advance"),
+            );
+            let head = apply_request(&mut c, &first).applied_head().expect("head");
+            let grant = credential_grant_first(&c);
+            let (remaining, _) = with_fault_database(&mut c, after);
+            let policy = c.peer.responder.inventory_inputs().0;
+            let before = c.store.image().expect("before").revision;
+            remaining.store(cut, Ordering::SeqCst);
+            let result = c.store.renew_credential_authority(
+                c.genesis.subject(),
+                &grant,
+                grant.operation(),
+                policy,
+                170,
+            );
+            crate::durable::tests::assert_sync_failure(result, after);
+            assert!(c.store.active.is_none());
+            c.store = reopen(&c.server);
+            c.store
+                .renew_credential_authority(
+                    c.genesis.subject(),
+                    &grant,
+                    grant.operation(),
+                    policy,
+                    170,
+                )
+                .expect("original target reconciliation");
+            let image = c.store.image().expect("recovered");
+            let entry = image
+                .entries
+                .get(&c.genesis.subject.id(&c.pin.binding))
+                .expect("same entry");
+            assert_eq!(image.revision, before + 1);
+            assert_eq!(
+                (entry.head, entry.last, entry.genesis),
+                (head, Some(first.command_id()), c.genesis.digest)
+            );
+            assert_eq!(
+                entry.credential_owner,
+                storage_owner(grant.successor_device())
+            );
+        }
+    }
+    eprintln!(
+        "ANCHOR_CREDENTIAL_RENEWAL_SYNC barriers={barriers} before_after_faults={}",
+        barriers * 2
+    );
+}
+
+#[test]
+fn credential_authority_renewal_process_child() {
+    let Some(path) = std::env::var_os("QPERIAPT_ANCHOR_CREDENTIAL_DIR") else {
+        return;
+    };
+    let path = Path::new(&path);
+    let peer = crate::bootstrap::tests::fixture_with_public_and_credential_validity(
+        PrekeyQuality::OneTimeBoth,
+        Validity::new(100, 200).expect("roster"),
+        Validity::new(100, 155).expect("advertisement"),
+        Validity::new(100, 160).expect("credential"),
+    );
+    let (policy, previous, _) = peer.responder.inventory_inputs();
+    let subject = AnchorSubject::from_trusted_state(
+        &fs::read(path.join("renewal-subject")).expect("original public subject"),
+    )
+    .expect("subject");
+    let checkpoint = fs::read(path.join("renewal-target")).expect("retained independent pin");
+    let mut d = Decoder::new(&checkpoint);
+    let checkpoint = crate::RosterCheckpoint::from_trusted_state(
+        d.u64().expect("version"),
+        d.array().expect("digest"),
+    )
+    .expect("checkpoint");
+    d.finish().expect("exact target");
+    let pin = crate::AccountPin::new(
+        previous.account_id(),
+        previous.authority_key.clone(),
+        checkpoint,
+        previous.description.family,
+    )
+    .expect("independently retained account pin");
+    let wire = fs::read(path.join("renewal-grant")).expect("original public bytes");
+    let grant =
+        crate::VerifiedCredentialRenewal::verify(&wire, &pin, policy.checkpoint().digest(), 170)
+            .expect("same independently verified grant");
+    let operation = crate::CredentialRenewalId::from_trusted_state(
+        fs::read(path.join("renewal-operation"))
+            .expect("retained operation")
+            .try_into()
+            .expect("operation width"),
+    )
+    .expect("operation");
+    let mut store = reopen(path);
+    store
+        .renew_credential_authority(subject, &grant, operation, policy, 170)
+        .expect("trusted authority update");
+    fs::write(path.join("returned-renewal"), b"current target").expect("result");
+}
+
+#[test]
+fn credential_authority_renewal_process_loss_recovers_original_grant_before_any_result() {
+    let mut c = credential_case();
+    let first = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [175; 32]).expect("advance"),
+    );
+    let head = apply_request(&mut c, &first).applied_head().expect("head");
+    let grant = credential_grant_first(&c);
+    let checkpoint = grant.successor_device().roster().checkpoint();
+    let mut target = checkpoint.version().to_be_bytes().to_vec();
+    target.extend_from_slice(&checkpoint.digest());
+    fs::write(
+        c.server.join("renewal-subject"),
+        c.genesis.subject().to_bytes(),
+    )
+    .expect("original subject");
+    fs::write(c.server.join("renewal-target"), target).expect("independent target pin");
+    fs::write(c.server.join("renewal-grant"), grant.as_bytes()).expect("original grant");
+    fs::write(
+        c.server.join("renewal-operation"),
+        grant.operation().as_bytes(),
+    )
+    .expect("original operation");
+    let before = c.store.image().expect("before").revision;
+    c.store.close();
+    let log = fs::File::create_new(c.server.join("credential-child.log")).expect("log");
+    let mut child = ChildGuard(
+        Process::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "anchor::store::tests::credential_authority_renewal_process_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_ANCHOR_CREDENTIAL_DIR", &c.server)
+            .env("QPERIAPT_ANCHOR_SERVER_DIR", &c.server)
+            .env("QPERIAPT_ANCHOR_CRASH_REVISION", (before + 1).to_string())
+            .stdout(Stdio::from(log.try_clone().expect("clone")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned child"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !c.server.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "credential child deadline"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!c.server.join("returned-renewal").exists());
+    child.0.kill().expect("kill owned child");
+    assert!(!child.0.wait().expect("reap").success());
+    c.store = reopen(&c.server);
+    let policy = c.peer.responder.inventory_inputs().0;
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+        .expect("reconcile exact target");
+    let image = c.store.image().expect("current image");
+    let entry = image
+        .entries
+        .get(&c.genesis.subject.id(&c.pin.binding))
+        .expect("original subject");
+    assert_eq!(image.revision, before + 1);
+    assert_eq!(
+        (entry.head, entry.last, entry.genesis),
+        (head, Some(first.command_id()), c.genesis.digest)
+    );
+    assert_eq!(
+        entry.credential_owner,
+        storage_owner(grant.successor_device())
+    );
+    eprintln!("ANCHOR_CREDENTIAL_RENEWAL_PROCESS original_grant=true original_subject=true original_head=true original_last_command=true result_not_returned=true");
+}

@@ -21,6 +21,7 @@ mod tests;
 struct Entry {
     subject: AnchorSubject,
     device: PublicKey,
+    credential_owner: [u8; 32],
     authority: [u8; 32],
     validity: Validity,
     genesis: [u8; 32],
@@ -133,6 +134,7 @@ impl AnchorStore {
         if let Some(entry) = image.entries.get(&id) {
             return if entry.subject == subject
                 && entry.device == device.key
+                && entry.credential_owner == storage_owner(device)
                 && entry.validity == validity
                 && entry.authority == device.authority_binding()
                 && entry.genesis == genesis
@@ -157,6 +159,7 @@ impl AnchorStore {
             Entry {
                 subject,
                 device: device.key.clone(),
+                credential_owner: storage_owner(device),
                 authority: device.authority_binding(),
                 validity,
                 genesis,
@@ -173,6 +176,18 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<Validity, DurableError> {
+        if subject.owner != storage_owner(device) || subject.policy != policy.checkpoint().digest()
+        {
+            return Err(Error::Scope.into());
+        }
+        self.admit_current_device(device, policy, now)
+    }
+    fn admit_current_device(
+        &self,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<Validity, DurableError> {
         let quality = [
             PrekeyQuality::OneTimeBoth,
             PrekeyQuality::ReusableBoth,
@@ -184,10 +199,6 @@ impl AnchorStore {
         .ok_or(Error::PolicyDenied)?;
         policy.check_mode(quality, now)?;
         policy.check_device(device, now)?;
-        if subject.owner != storage_owner(device) || subject.policy != policy.checkpoint().digest()
-        {
-            return Err(Error::Scope.into());
-        }
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         if policy
             .anchor_requirement()
@@ -226,7 +237,10 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<crate::RosterCheckpoint, DurableError> {
-        let validity = self.admit_enrollment(subject, next, policy, now)?;
+        if subject.policy != policy.checkpoint().digest() {
+            return Err(Error::Scope.into());
+        }
+        let validity = self.admit_current_device(next, policy, now)?;
         if next.checkpoint.version() <= previous.version() {
             return Err(Error::Checkpoint.into());
         }
@@ -235,6 +249,9 @@ impl AnchorStore {
         let id = subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
+        if entry.credential_owner != storage_owner(next) {
+            return Err(Error::Scope.into());
+        }
         if entry.subject != subject || entry.device != next.key {
             return Err(DurableError::Conflict);
         }
@@ -244,6 +261,60 @@ impl AnchorStore {
         if entry.authority != expected {
             return Err(DurableError::Conflict);
         }
+        entry.authority = next.authority_binding();
+        entry.validity = validity;
+        self.persist(&mut image)?;
+        Ok(next.checkpoint)
+    }
+    /// Independently adopt a root-authorized same-key credential renewal for the
+    /// ORIGINAL witness subject. The operator verifies the grant against current
+    /// independent account/roster/policy pins and retains its operation before
+    /// calling this trusted control-plane method. Ordinary requests cannot call it.
+    ///
+    /// Compare the exact predecessor credential, roster authority and validity,
+    /// or observe an already-current exact target. Preserve subject, genesis,
+    /// head, fence and last data-plane command. A returned checkpoint confirms
+    /// current state, not which invocation committed it. Errors during storage
+    /// close the owner; reopen the same store and reconcile the original inputs.
+    /// Expired targets cannot renew authority, even on a previously applied retry.
+    pub fn renew_credential_authority(
+        &mut self,
+        subject: AnchorSubject,
+        grant: &crate::VerifiedCredentialRenewal,
+        operation: crate::CredentialRenewalId,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, DurableError> {
+        if grant.operation() != operation
+            || subject.owner != grant.original_storage_owner()
+            || subject.policy != grant.policy_digest()
+            || subject.policy != policy.checkpoint().digest()
+        {
+            return Err(Error::Scope.into());
+        }
+        let next = grant.successor_device();
+        let previous = grant.previous_device();
+        let validity = self.admit_current_device(next, policy, now)?;
+        let id = subject.id(&self.pin()?.binding);
+        let mut image = self.image()?;
+        let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
+        if entry.subject != subject || entry.device != next.key || entry.device != previous.key {
+            return Err(DurableError::Conflict);
+        }
+        let next_owner = storage_owner(next);
+        if entry.credential_owner == next_owner
+            && entry.authority == next.authority_binding()
+            && entry.validity == validity
+        {
+            return Ok(next.checkpoint);
+        }
+        if entry.credential_owner != storage_owner(previous)
+            || entry.authority != previous.authority_binding()
+            || entry.validity != enrollment_validity(previous, policy)?
+        {
+            return Err(DurableError::Conflict);
+        }
+        entry.credential_owner = next_owner;
         entry.authority = next.authority_binding();
         entry.validity = validity;
         self.persist(&mut image)?;
@@ -383,7 +454,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
-    let mut bytes = b"QPANC001".to_vec();
+    let mut bytes = b"QPANC002".to_vec();
     bytes.extend_from_slice(&pin.binding);
     bytes.extend_from_slice(&image.revision.to_be_bytes());
     bytes.extend_from_slice(&(image.entries.len() as u16).to_be_bytes());
@@ -391,6 +462,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         bytes.extend_from_slice(id);
         entry.subject.encode(&mut bytes);
         bytes.extend_from_slice(&entry.device.encode());
+        bytes.extend_from_slice(&entry.credential_owner);
         bytes.extend_from_slice(&entry.authority);
         entry.validity.encode(&mut bytes);
         bytes.extend_from_slice(&entry.genesis);
@@ -416,7 +488,8 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPANC001" || d.array::<32>()? != pin.binding {
+        let version = d.array::<8>()?;
+        if (version != *b"QPANC001" && version != *b"QPANC002") || d.array::<32>()? != pin.binding {
             return Err(DurableError::Conflict);
         }
         let revision = d.u64()?;
@@ -436,6 +509,13 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             previous = Some(id);
             let subject = AnchorSubject::decode(&mut d)?;
             let device = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
+            let credential_owner = if version == *b"QPANC002" {
+                let owner = d.array()?;
+                nonzero(&owner)?;
+                owner
+            } else {
+                subject.owner
+            };
             let authority = d.array()?;
             nonzero(&authority)?;
             let validity = Validity::decode(&mut d)?;
@@ -455,6 +535,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 Entry {
                     subject,
                     device,
+                    credential_owner,
                     authority,
                     validity,
                     genesis,

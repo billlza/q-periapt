@@ -1,0 +1,20 @@
+{
+  "files": {
+    "qualification.json": "19f811f7f3c650646f19eac5a6912cee115af47277f7496775066c8ea590cf33",
+    "run-development-before-doc.py": "dca660bc1b6755c940f57c53fd8a49e04f49526c630f56a69d5219d030370900",
+    "run-development.py": "5b3bc3dadd4f2c9cec6f4674406cd158d3df829d8b9b32befb42e8e7041ece11",
+    "witness-renewal-clippy-01.json": "39fd38bc9fff74696f9d45b1970441b1db320661c2b4edfc2dfe3124c192285b",
+    "witness-renewal-clippy-01.log.gz": "06b24499258ee3a886229af692b7655eab5b025840c1b2157b1639c0dc22dac3",
+    "witness-renewal-doc-01.json": "22086bb57fd8d60826d2e412957e58e292e5c7775cf60b72eddebc1f6b2f20c1",
+    "witness-renewal-doc-01.log.gz": "ea0423881a6884b110a01f38c0a19923fcc5d7b969b5c5208fdff799e89f586c",
+    "witness-renewal-format-check-01.json": "0dc25f4a29875a1abf2d44dd579b11d98e04fe0c852eb6d224f23033e239cce6",
+    "witness-renewal-format-check-01.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "witness-renewal-regression-01.json": "731cfbe2a3080e1b1e1ec301506ae5b05cfbb9ea173091085b7187a69748e6d3",
+    "witness-renewal-regression-01.log.gz": "81cb66c81d7c1c9519a2f40a5ccd4e75f73fcbfc273bf7da23eb96f130d93f6e",
+    "witness-renewal-store-tests-01.json": "bd6f2528abfc88a70f9906e4725f71973480836aa6e1a9c44931ab90ad8b3532",
+    "witness-renewal-store-tests-01.log.gz": "76b176f4f35b660c2227788533b70a23aa94d82e632e625a3012ad0b6fdf4284",
+    "witness-renewal-store-tests-02.json": "2865ad8ddf26e345205eb91ed9071d66531e46c9c92c39edccfa75cb68d8edac",
+    "witness-renewal-store-tests-02.log.gz": "6eb6921461b5e5bf8e1a174ac01ac80e118b1e379fffc65ea45b4c0ddb7a29ce"
+  },
+  "release_claim_eligible": false
+}

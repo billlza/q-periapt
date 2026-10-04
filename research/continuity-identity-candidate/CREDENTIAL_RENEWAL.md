@@ -45,10 +45,57 @@ request and journal/archive identities. Do not provision replacement files.
    Admit them through `service.admit_peer` before ordinary protocol operations.
 
 The local renewal path currently supports the explicit local-only policy. A required
-witness policy returns `AnchorRequired`: the independent witness must gain its own
+witness policy returns `AnchorRequired`: although the native witness now has an
+explicit [credential-authority transaction](ANCHOR_WITNESS.md#explicit-same-key-credential-renewal),
+the original enrollment must integrate that independently adopted authority with its own
 credential/subject-adoption transaction before that path can be enabled. No failure
 selects a local fallback. Peer renewal preserves the owning service's existing
 policy/witness checks and cannot be used to renew its local device.
+
+### Required-witness integration gate
+
+The witness control-plane transaction is not sufficient to enable the device
+path. Source inspection identifies this split-state trace: witness adopts
+`C0 -> C1`, the original device journal remains at `C0`, then `C1` expires.
+The local journal can prove that it never committed the target, but that fact
+does not prove that witness adoption was uncommitted. A later `C0 -> C2` grant
+conflicts with the witness's retained `C1`; `C1 -> C2` conflicts with the device's
+retained `C0`. The current `AnchorRequired` guards prevent this composition from
+being reached through required-witness enrollment. This is a source-derived
+integration counterexample, not a reproduced failure of an enabled public path.
+
+The preferred next construction couples authority adoption with the original
+journal head transition. The journal must reserve and authenticate-read-back the
+exact sealed target before exposing its digest. `seal` uses a random nonce;
+reopening must reuse the original target bytes rather than reseal them. A prepared
+witness transaction must bind original subject, root grant, operation/statement,
+strict predecessor authority, and exact expected/next head. Applying it must
+atomically change the witness head and authority. Only an already-applied exact
+transition may be recovered after target expiry, and historical recovery must
+still refuse an expired operational owner.
+
+This requires a durable renewal-intent discriminator and separate recovery path.
+Today `write_intent::commit` immediately dispatches after reservation, and
+`open_anchored` automatically reconciles every pending write as ordinary Advance.
+Reusing that path after a crash before witness preparation could advance the
+journal head without adopting the target authority. Ordinary Advance/Fence must
+never accidentally consume a renewal preparation. Fresh, exact preparation and
+closure observations are also required: Query confirms only the journal head;
+AdmitAuthority returning Denied is not evidence of an unapplied renewal.
+
+Cancellation/expiry closure must be mutually exclusive with applying the exact
+transition. A closed preparation cannot later become an ordinary Advance, and
+late control-plane retries cannot recreate a pruned preparation. The bounded
+retention/floor and acknowledgement contract must be fixed before implementation;
+absence of a retained record cannot become NoCommit. Device pending bytes may
+be removed only after its corresponding terminal outcome is durably retained.
+
+Required native/process tests include reservation before preparation, lost
+preparation reply, atomic witness commit before local apply followed by expiry,
+and races among closure, ordinary Advance, writer Fence and renewal commit.
+Each must check original sealed bytes, command/head/authority identities and
+owner-release refusal, followed by installed C/Swift/Kotlin and real-carrier
+qualification. This construction and these integration tests remain unimplemented.
 
 `credential_renewal_status` reports historical progress, never traffic permission:
 

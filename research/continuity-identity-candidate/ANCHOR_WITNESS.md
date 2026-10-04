@@ -66,8 +66,8 @@ idempotent readback, so an expired/future target or closed policy is not a succe
 The transaction changes only the enrollment-authority digest and the intersection
 of credential, next-roster and policy validity. A newer authorized roster can
 shorten or extend that interval within those limits. Subject, original genesis,
-journal head, writer fence, last data-plane command, witness key and `QPANC001`
-encoding remain unchanged. No entry is created by this method. A storage error
+journal head, writer fence, last data-plane command and witness key remain
+unchanged. The stored-image upgrade is described below. No entry is created by this method. A storage error
 closes the witness owner; reopen its original database/key and retry the original
 subject, predecessor and target. If the exact target is already current, the
 returned checkpoint confirms that state without another write. It does not prove
@@ -101,6 +101,36 @@ complete credential-renewal protocol. Independent current-roster admission,
 authenticated operator transport, deployment/device qualification and credential,
 policy or witness-key replacement remain separate product work. No global discovery
 of unseen revocations or physical power-loss guarantee is claimed.
+
+### Explicit same-key credential renewal
+
+`AnchorStore::renew_credential_authority(subject, grant, operation, policy, now)`
+adopts an independently verified root grant for the original subject. It checks
+the expected operation, original credential owner and exact policy, then compares
+the stored current credential owner, roster authority and validity with the
+grant's exact predecessor. The successor must pass live device, mode, policy and
+witness-signer separation checks. Ordinary signed data-plane requests cannot
+invoke this control-plane method. The operator remains responsible for verifying
+the grant against independent current account/roster pins and retaining the
+original request before dispatch.
+
+Only the current credential owner, enrollment authority and validity change.
+Original subject, genesis, journal head, writer fence and last command survive.
+An exact current target can be read back without another write; the returned
+checkpoint describes current state, not which invocation committed it. Expired
+targets fail even on retry. Another renewal or intervening roster update prevents
+an old grant from overwriting newer authority. The same-credential roster method
+continues to work under the new credential, while credential replacement still
+requires this separately verified root grant.
+
+Native tests exercise two renewals around expiry, intervening roster refresh,
+fork/scope/operation refusal, actual old-format reopen and upgrade, both sides of
+each measured sync barrier, and process termination after commit before any
+result returned. The process test retains and re-verifies the original grant,
+target pin and operation rather than creating a new request. These tests qualify
+the witness control plane only. Original enrollment activation, expired-intent
+recovery and installed foreign consumers under required-witness credential
+renewal remain gated until their complete cross-store flow is integrated.
 
 ## Heads, commands and attempts
 
@@ -178,13 +208,21 @@ require `has_last=1`. No trailing bytes or unknown discriminants are accepted.
 The private, bounded host-store backend provides an exclusive database lease. The
 single `continuity_anchor_candidate_v1` table contains exactly one `image` row:
 
-`QPANC001[8] || authority_binding[32] || store_revision:u64 || count:u16 || entries || HMAC[32]`
+`QPANC002[8] || authority_binding[32] || store_revision:u64 || count:u16 || entries || HMAC[32]`
 
 Entries are strictly sorted by subject index and contain:
 
-`index[32] || subject[96] || device_public[1985] || enrollment_authority[32] || validity[16] || genesis_digest[32] || head[48] || has_last:u8 || last_command[32]`
+`index[32] || subject[96] || device_public[1985] || current_credential_owner[32] || enrollment_authority[32] || validity[16] || genesis_digest[32] || head[48] || has_last:u8 || last_command[32]`
 
-Each is 2274 bytes. There are at most 256 entries, a 1 MiB authenticated-image cap
+Each is 2306 bytes. The reader also accepts the authenticated `QPANC001` layout,
+whose 2274-byte entry omits `current_credential_owner`: before credential renewal
+it equals the original subject owner. Opening does not write or reset state. The
+next ordinary transaction writes the complete `QPANC002` image under the existing
+durable commit and unknown-outcome recovery contract. An old reader rejects the
+new tag; rolling back software must not silently recreate or reinterpret that
+store. This is witness-image compatibility, not a redb file-format migration.
+
+There are at most 256 entries, a 1 MiB authenticated-image cap
 and the shared 64 MiB database cap. No eviction resets a head. The image contains
 public commitments/verification metadata, not journal roots or signing secrets;
 its contents are authenticated rather than encrypted. HKDF-SHA256 with default zero
