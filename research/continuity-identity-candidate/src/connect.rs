@@ -262,6 +262,10 @@ mod tests {
         // the test pause. In that case the owned socket must close with no data.
         match listener.accept() {
             Ok((mut accepted, _)) => {
+                // Darwin can inherit the listener's nonblocking flag. A read
+                // timeout alone would still return WouldBlock before FIN is
+                // delivered, instead of checking bounded EOF with no data.
+                accepted.set_nonblocking(false)?;
                 accepted.set_read_timeout(Some(Duration::from_secs(1)))?;
                 assert_eq!(accepted.read(&mut [0; 1])?, 0);
             }
