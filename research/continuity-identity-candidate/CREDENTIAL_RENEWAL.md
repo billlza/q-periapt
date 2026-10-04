@@ -111,6 +111,24 @@ no-SDK Pending interval contains only two exact historical Status/Prepared
 exchanges; it cannot hide a new Commit behind a final Pending output. The first
 terminal response must answer the unique Commit or Close before Status and ACK.
 
+A second mandatory workload waits for the original signed policy to expire on
+real wall time, while its SDK binding and successor credential/roster stay live.
+The policy is signed before the original registration and is never replaced.
+Each selected foreign owner reopens the exact proposal, refuses activation with
+Validity (104), and either recovers Applied with Status/ACK or refuses a new
+Commit before explicit Close/ACK. The public reader checks every expired command's
+wire interval, both activation refusals, SDK binding, unchanged proposal and exact
+image commitments. No Commit may appear after the expiry observation. Four cases
+cover signed TCP/mutual TLS and Applied/Closed for each language/profile.
+
+For Applied setup, a native public enrollment coordinator sends the original
+Commit through a transport that withholds its Applied result. A fresh independently
+verified signed Status confirms Applied while the authenticated local image and
+pending record remain unchanged. The selected foreign process then performs the
+expired recovery. This qualifies historical foreign recovery; it does not qualify
+unknown-result handling of a Commit initiated by the foreign facade. No-proposal
+closure and the wider foreign fault matrix remain separate obligations.
+
 TLS evidence uses `AnchorTlsServer::serve_recorded`, an additive entry point on
 the existing TLS/admission/store driver. It returns immutable public signed bytes
 only after server-side send and close succeed; no observer callback or alternate

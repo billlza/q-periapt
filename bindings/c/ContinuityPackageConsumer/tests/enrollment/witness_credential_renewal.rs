@@ -5,7 +5,7 @@ use redb::{ReadableDatabase, TableDefinition};
 use sha3::{Digest, Sha3_256};
 use std::{io::Read, os::unix::fs::MetadataExt};
 
-fn public_file(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
+pub(super) fn public_file(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
     // This closed private test fixture includes legitimate empty stderr and TLS
     // plaintext-transcript files. The product's nonempty state opener must not
     // be relaxed for evidence. Bind the opened regular file to its observed inode.
@@ -28,7 +28,7 @@ fn public_file(path: &Path, name: &str, maximum: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn image_digest(image: &[u8]) -> Result<[u8; 32]> {
+pub(super) fn image_digest(image: &[u8]) -> Result<[u8; 32]> {
     let domain = b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2";
     let mut hash = Sha3_256::new();
     hash.update(u64::try_from(domain.len())?.to_be_bytes());
@@ -105,7 +105,7 @@ fn export_public(path: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
-fn pending_journal(path: &Path) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+pub(super) fn pending_journal(path: &Path) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
     let db = open_private_database(&path.join("journal.redb"))?;
     let read = db.begin_read()?;
     let table = read.open_table(TableDefinition::<&str, &[u8]>::new(
@@ -119,7 +119,7 @@ fn pending_journal(path: &Path) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
     let pending = table.get("pending")?.map(|v| v.value().to_vec());
     Ok((image, pending))
 }
-fn expected(proof: &p::VerifiedCredentialRenewal, phase: u32) -> String {
+pub(super) fn expected(proof: &p::VerifiedCredentialRenewal, phase: u32) -> String {
     let hex = |v: &[u8]| v.iter().map(|b| format!("{b:02x}")).collect::<String>();
     let checkpoint = proof.successor_device().roster().checkpoint();
     format!(
@@ -134,6 +134,88 @@ fn expected(proof: &p::VerifiedCredentialRenewal, phase: u32) -> String {
         })
     )
 }
+pub(super) fn provision_renewal(
+    registration: &Registration,
+) -> Result<(p::VerifiedCredentialRenewal, p::AccountPin, p::Validity)> {
+    let path = &registration.path;
+    let request = p::VerifiedEnrollmentRequest::verify(
+        &registration.request,
+        &registration.intent,
+        fixture::now()?,
+    )?;
+    let family = fixture::array(path, "family")?;
+    let original_certificate = fixture::read(path, "grant-certificate", 8192)?;
+    let original_roster = fixture::read(path, "grant-roster", 8192)?;
+    let at = fixture::now()?;
+    let validity = p::Validity::new(
+        registration.validity.from(),
+        at.checked_add(2100).ok_or("clock overflow")?,
+    )?;
+    let root = &registration.root;
+    let successor = root.issue_device(
+        p::DeviceDescription::new(
+            registration.original.device_id(),
+            registration.original.generation(),
+            family,
+            validity,
+        )?,
+        request.public_key().clone(),
+    )?;
+    let target = root.issue_roster(2, validity, &[root.roster_entry(&successor)?])?;
+    let target_pin = p::AccountPin::new(
+        root.account_id()?,
+        root.public_key()?,
+        target.checkpoint(),
+        family,
+    )?;
+    let mut sdk = fixture::sdk(path)?;
+    let policy = fixture::protocol_policy(path, &sdk)?;
+    let operation = p::CredentialRenewalId::generate()?;
+    let grant = root.issue_credential_renewal(
+        p::CredentialRenewalMaterials {
+            original_credential: &original_certificate,
+            previous_credential: &original_certificate,
+            successor_credential: &successor,
+            previous_roster: &original_roster,
+            successor_roster: target.as_bytes(),
+        },
+        &p::CredentialRenewalAuthorization {
+            operation,
+            previous: registration.original.roster().checkpoint(),
+            policy_digest: policy.checkpoint().digest(),
+        },
+        &target_pin,
+        at,
+    )?;
+    let proof = p::VerifiedCredentialRenewal::verify(
+        grant.as_bytes(),
+        &target_pin,
+        policy.checkpoint().digest(),
+        at,
+    )?;
+    policy.close();
+    sdk.close();
+    for name in ["renewal-version", "renewal-digest"] {
+        fs::rename(
+            path.join(name),
+            path.join(format!("unused-roster-refresh-{name}")),
+        )?;
+    }
+    for (name, bytes) in [
+        ("credential-renewal", grant.as_bytes().to_vec()),
+        ("credential-operation", operation.as_bytes().to_vec()),
+        ("credential-statement", proof.statement_digest().to_vec()),
+        (
+            "renewal-version",
+            target.checkpoint().version().to_be_bytes().to_vec(),
+        ),
+        ("renewal-digest", target.checkpoint().digest().to_vec()),
+    ] {
+        fixture::store(path, name, &bytes)?;
+    }
+    Ok((proof, target_pin, validity))
+}
+
 #[test]
 fn original_witnessed_credential_renewal_recovers_applied_and_closed_without_sdk_runtime(
 ) -> Result<()> {
@@ -184,81 +266,8 @@ fn original_witnessed_credential_renewal_recovers_applied_and_closed_without_sdk
                 &arguments(path, "status", Some(endpoint)),
             )?)?;
             let original_journal = pending_journal(path)?;
-            let request = p::VerifiedEnrollmentRequest::verify(
-                &registration.request,
-                &registration.intent,
-                fixture::now()?,
-            )?;
-            let family = fixture::array(path, "family")?;
-            let original_certificate = fixture::read(path, "grant-certificate", 8192)?;
-            let original_roster = fixture::read(path, "grant-roster", 8192)?;
-            let at = fixture::now()?;
-            let validity = p::Validity::new(
-                registration.validity.from(),
-                at.checked_add(2100).ok_or("clock overflow")?,
-            )?;
-            let root = &registration.root;
-            let successor = root.issue_device(
-                p::DeviceDescription::new(
-                    registration.original.device_id(),
-                    registration.original.generation(),
-                    family,
-                    validity,
-                )?,
-                request.public_key().clone(),
-            )?;
-            let target = root.issue_roster(2, validity, &[root.roster_entry(&successor)?])?;
-            let target_pin = p::AccountPin::new(
-                root.account_id()?,
-                root.public_key()?,
-                target.checkpoint(),
-                family,
-            )?;
-            let mut sdk = fixture::sdk(path)?;
-            let policy = fixture::protocol_policy(path, &sdk)?;
-            let operation = p::CredentialRenewalId::generate()?;
-            let grant = root.issue_credential_renewal(
-                p::CredentialRenewalMaterials {
-                    original_credential: &original_certificate,
-                    previous_credential: &original_certificate,
-                    successor_credential: &successor,
-                    previous_roster: &original_roster,
-                    successor_roster: target.as_bytes(),
-                },
-                &p::CredentialRenewalAuthorization {
-                    operation,
-                    previous: registration.original.roster().checkpoint(),
-                    policy_digest: policy.checkpoint().digest(),
-                },
-                &target_pin,
-                at,
-            )?;
-            let proof = p::VerifiedCredentialRenewal::verify(
-                grant.as_bytes(),
-                &target_pin,
-                policy.checkpoint().digest(),
-                at,
-            )?;
-            policy.close();
-            sdk.close();
-            for name in ["renewal-version", "renewal-digest"] {
-                fs::rename(
-                    path.join(name),
-                    path.join(format!("unused-roster-refresh-{name}")),
-                )?;
-            }
-            for (name, bytes) in [
-                ("credential-renewal", grant.as_bytes().to_vec()),
-                ("credential-operation", operation.as_bytes().to_vec()),
-                ("credential-statement", proof.statement_digest().to_vec()),
-                (
-                    "renewal-version",
-                    target.checkpoint().version().to_be_bytes().to_vec(),
-                ),
-                ("renewal-digest", target.checkpoint().digest().to_vec()),
-            ] {
-                fixture::store(path, name, &bytes)?;
-            }
+            let (proof, _, _) = provision_renewal(&registration)?;
+            let operation = proof.operation();
             assert_eq!(
                 run(
                     path,

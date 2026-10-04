@@ -119,7 +119,7 @@ def witness_fixture(root, carrier):
     return ("C_ENROLLMENT_WITNESS_COMPLETE carrier=" + carrier + " journal=" + journal.hex()
             + " next_account=" + activated.splitlines()[1].decode() + "\n"
             + "test " + enrollment.WITNESS_TESTS[carrier] + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
 
 
 class CEnrollmentEvidenceTests(unittest.TestCase):
@@ -268,6 +268,28 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
                     path.write_bytes(b"device-created\n")
                     with self.assertRaises(ValueError): verify(root, language)
                     with self.assertRaises(ValueError): verify(root, "unknown")
+
+    def test_missing_or_changed_lifecycle_cohort_refuses_before_foreign_execution(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(); outside = root / "outside"; output = root / "output"
+            output.mkdir(); build = outside / "build/debug"; (build / "deps").mkdir(parents=True)
+            receipts = {}
+            for target in ("enrollment", "enrollment_witness"):
+                binary = build / "deps" / (target + "-exact"); binary.write_bytes(target.encode())
+                receipts[target] = dict(sha256=hashlib.sha256(binary.read_bytes()).hexdigest(), bytes=binary.stat().st_size)
+                message = dict(reason="compiler-artifact", target=dict(name=target, kind=["test"],
+                    src_path=str(outside / "c-consumer/tests" / (target + ".rs"))), executable=str(binary))
+                (output / ("c-" + target.replace("_", "-") + "-build-debug.stdout")).write_text(json.dumps(message) + "\n")
+            native = dict(enrollment=dict(binary=receipts["enrollment"]), enrollment_witness={
+                carrier:dict(binary=receipts["enrollment_witness"]) for carrier in ("signed-tcp", "mutual-tls")},
+                witnessed_credential_renewal=dict(binary=receipts["enrollment_witness"]))
+            def forbidden(*args, **kwargs): self.fail("unqualified foreign harness executed")
+            with self.assertRaisesRegex(ValueError, "lacks witnessed_policy_expiry"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_policy_expiry"] = dict(binary=receipts["enrollment"])
+            with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
 
     def test_changed_native_harness_refuses_before_executing_foreign_client(self):
         with tempfile.TemporaryDirectory() as temporary:

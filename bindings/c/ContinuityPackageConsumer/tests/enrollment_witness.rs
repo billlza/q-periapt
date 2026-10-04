@@ -6,6 +6,8 @@ mod fixture;
 mod witness;
 #[path = "enrollment/witness_credential_renewal.rs"]
 mod witness_credential_renewal;
+#[path = "enrollment/witness_policy_expiry.rs"]
+mod witness_policy_expiry;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
 
@@ -144,6 +146,15 @@ fn lease_released(path: &Path) -> Result<()> {
 }
 
 fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registration> {
+    prepare_with_policy_lifetime(s, witness, None)
+}
+// Sign the original policy before any registration request or journal exists.
+// This test option never replaces a policy already bound to an installation.
+fn prepare_with_policy_lifetime(
+    s: &fixture::Setup,
+    witness: &witness::Witness,
+    lifetime: Option<u64>,
+) -> Result<Registration> {
     let path = s
         .initiator
         .parent()
@@ -164,6 +175,14 @@ fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registratio
         "tls-cert",
         "tls-key",
     ] {
+        if lifetime.is_some()
+            && matches!(
+                name,
+                "family" | "policy-root" | "policy-version" | "policy-digest" | "protocol-policy"
+            )
+        {
+            continue;
+        }
         fs::copy(s.initiator.join(name), path.join(name))?;
     }
     let mut sdk = PolicyStore::provision(
@@ -173,6 +192,43 @@ fn prepare(s: &fixture::Setup, witness: &witness::Witness) -> Result<Registratio
         &fixture::read(&path, "sdk-root", 8192)?,
         q_periapt_sdk::Limits::default(),
     )?;
+    if let Some(seconds) = lifetime {
+        let at = fixture::now()?;
+        let mut authority = p::PolicySigningKey::generate()?;
+        let pin = witness
+            .configured
+            .store
+            .lock()
+            .map_err(|_| "witness poisoned")?
+            .pin()?;
+        let runtime = sdk.runtime()?;
+        let issued = authority.issue_session_policy(
+            &runtime,
+            p::SessionPolicyParameters::new(
+                1,
+                p::Validity::new(
+                    at.saturating_sub(1),
+                    at.checked_add(seconds).ok_or("policy time overflow")?,
+                )?,
+                p::AllowedPrekeyModes::new(&[p::PrekeyQuality::OneTimeBoth])?,
+                p::AnchorRequirement::required(&pin),
+                p::ApplicationSendBudget::new(1024)?,
+            )?,
+        )?;
+        for (name, bytes) in [
+            ("family", authority.policy_family()?.to_vec()),
+            ("policy-root", authority.public_key()?.encode()),
+            (
+                "policy-version",
+                issued.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            ("policy-digest", issued.checkpoint().digest().to_vec()),
+            ("protocol-policy", issued.as_bytes().to_vec()),
+        ] {
+            fixture::store(&path, name, &bytes)?;
+        }
+        authority.close();
+    }
     sdk.close();
     let root = p::RootSigningKey::generate()?;
     let at = fixture::now()?;

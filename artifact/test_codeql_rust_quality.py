@@ -1406,6 +1406,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "crates/q-periapt-ffi/src/sdk.rs",
             "bindings/rust/SDKPackageConsumer/src/lib.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_credential_renewal.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_expiry.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)

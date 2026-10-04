@@ -142,16 +142,18 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
            memcmp(status.statement,again.statement,32) || status.checkpoint.version!=again.checkpoint.version ||
            memcmp(status.checkpoint.digest,again.checkpoint.digest,32) || status.observed_at!=again.observed_at)
             fail("renewal stage differs from authenticated readback");
-    } else if(!strcmp(operation,"enrollment-credential-witness-commit-no-sdk")) {
+    } else if(!strcmp(operation,"enrollment-credential-witness-commit-no-sdk") ||
+              !strcmp(operation,"enrollment-credential-witness-commit-policy-expired")) {
+        int32_t wanted=!strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ? QPC_VALIDITY : 702;
         uint8_t id[32],statement[32];qpc_credential_renewal_status_v1 untouched;
         enrollment_exact(path,"credential-operation",id,32);
         enrollment_exact(path,"credential-statement",statement,32);
         memset(&status,0xa5,sizeof(status));memcpy(&untouched,&status,sizeof(status));
         int32_t code=qpc_enrollment_v1_commit_witnessed_credential_renewal(handle,id,statement,&status,&error);record(code,&error);
-        if(code!=702 || memcmp(&status,&untouched,sizeof(status))) fail("historical metadata authorized new commit or published failed output");
+        if(code!=wanted || memcmp(&status,&untouched,sizeof(status))) fail("historical metadata authorized new commit or published failed output");
         code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_CLOSED) fail("failed witnessed commit retained owner");
-        close_owner(handle);puts("credential-witness-commit-refused:702");return 0;
+        close_owner(handle);printf("credential-witness-commit-refused:%d\n",wanted);return 0;
     } else if(!strcmp(operation,"enrollment-credential-witness-prepare")) {
         qpc_credential_renewal_proposal_v1 proposal,again;
         require(qpc_enrollment_v1_prepare_witnessed_credential_renewal(handle,&proposal,&error),&error);
@@ -275,17 +277,18 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
         if(status.phase!=6 || status.previous.version!=old.checkpoint.version || status.next.version!=next.checkpoint.version)
             fail("refresh did not retain predecessor/target");
     } else if(!strcmp(argv[1],"enrollment-activate-error")) {
-        if(argc!=4 || (strcmp(argv[3],"216") && strcmp(argv[3],"218") && strcmp(argv[3],"702")))
+        if(argc!=4 || (strcmp(argv[3],"216") && strcmp(argv[3],"218") && strcmp(argv[3],"702") && strcmp(argv[3],"104")))
             fail("expected enrollment activation error");
         int32_t wanted=!strcmp(argv[3],"216") ? QPC_ANCHOR_REQUIRED :
-            (!strcmp(argv[3],"218") ? QPC_ANCHOR : 702);
+            (!strcmp(argv[3],"218") ? QPC_ANCHOR : (!strcmp(argv[3],"104") ? QPC_VALIDITY : 702));
         int32_t code=qpc_enrollment_v1_activate(handle,&error);record(code,&error);
         if(code!=wanted) {
             fprintf(stderr,"activation refusal expected=%d observed=%d\n",wanted,code);
             fail("required activation boundary did not refuse as specified");
         }
         enrollment_write(path,wanted==QPC_ANCHOR ? "enrollment-authority-refusal" :
-            (wanted==QPC_ANCHOR_REQUIRED ? "enrollment-required-refusal" : "enrollment-activation-refusal"),error.message,error.length);
+            (wanted==QPC_ANCHOR_REQUIRED ? "enrollment-required-refusal" :
+            (wanted==QPC_VALIDITY ? "enrollment-policy-refusal" : "enrollment-activation-refusal")),error.message,error.length);
         code=qpc_enrollment_v1_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_CLOSED) fail("refused activation kept registration owner");
         uint8_t batch[32];code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);

@@ -9,7 +9,7 @@ from continuity_c_witness import commit
 from test_continuity_enrollment import u64, wire
 
 
-def fixture(directory):
+def fixture(directory, *, policy_validity=(100, 400)):
     directory.mkdir()
     for ordinal, case in enumerate(renewal.CASES, 1):
         folder = directory / case; folder.mkdir()
@@ -35,7 +35,7 @@ def fixture(directory):
         next_checkpoint = u64(2) + commit(b"Q-PERIAPT-CONTINUITY-ROSTER-CANDIDATE/v1", new_roster)
         suite = commit(b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-SUITE-CANDIDATE/v1",
                        b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;HKDF-SHA-256;HMAC-SHA-256")
-        policy = (b"QPSESP03" + family + u64(1) + u64(100) + u64(400) + suite
+        policy = (b"QPSESP03" + family + u64(1) + u64(policy_validity[0]) + u64(policy_validity[1]) + suite
                   + b"z" * 32 + (1).to_bytes(4, "big") + b"q" * 32 + b"\1\1" + authority + b"\0\1")
         policy_id = commit(b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1", policy)
         statement = (b"QPCRNW01" + operation + account + device + generation + family
@@ -102,7 +102,7 @@ def fixture(directory):
     lines = [f"C_WITNESSED_RENEWAL carrier={case.split('-')[0]} terminal={case.split('-')[1]} "
              "original_proposal=true original_owner=true no_sdk_historical=true current_activation=true" for case in renewal.CASES]
     return ("\n".join(lines) + "\ntest " + renewal.TEST + " ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
 
 
 class WitnessedRenewalEvidenceTests(unittest.TestCase):

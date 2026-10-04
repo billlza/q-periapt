@@ -21,6 +21,14 @@ Close or reconcile the original operation. Historical cleanup uses an independen
 pinned signed policy snapshot; new Commit and activation require current authority.
 Native/API source integration is not an installed archive qualification.
 
+A separate witnessed-policy workload signs the original short-lived policy before
+registration and waits for actual expiry with SDK state still enabled. C, Swift
+and Kotlin then recover the exact Applied/Closed proposal over signed TCP and
+mutual TLS while rejecting new Commit and activation without current policy.
+Applied setup uses a native public coordinator with a withheld reply and a fresh
+signed Status; the foreign client performs the expired historical recovery.
+This does not yet cover a Commit-result fault initiated through the foreign facade.
+
 The C renewal workload uses actual host-clock expiry. It checks exact pending and
 terminal fields, preserves Committed after expiry, queries status in a new process
 with SDK policy/TLS files unavailable, and recovers the original registration with

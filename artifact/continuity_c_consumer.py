@@ -456,6 +456,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
         result["execution"][profile]["witnessed_credential_renewal"] = qualify_witnessed_renewal(
             outside, output, profile, runtime, enrollment_witness_binary, run)
+        from continuity_witnessed_policy_expiry import qualify as qualify_policy_expiry
+        result["execution"][profile]["witnessed_policy_expiry"] = qualify_policy_expiry(
+            outside, output, profile, runtime, enrollment_witness_binary, run)
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

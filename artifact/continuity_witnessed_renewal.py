@@ -5,6 +5,7 @@ reader checks canonical public commitments, cross-file scope and signed-message
 framing; it is not a second signature implementation or a source of approval.
 """
 from pathlib import Path
+from dataclasses import dataclass
 import re
 
 import rust_sdk_profile as sdk
@@ -59,15 +60,28 @@ def proposal(wire: bytes, authority: bytes, subject: bytes, operation: bytes, st
     return expected, target, commit(b"Q-PERIAPT-ANCHOR-CREDENTIAL-PROPOSAL/v1", wire)
 
 
-def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target,
-         closed: bool, authorities: tuple[bytes, bytes], pending_range: tuple[int, int]) -> dict:
+@dataclass(frozen=True)
+class WitnessExchange:
+    wire: bytes
+    operation: bytes
+    kind: int
+    outcome: int
+    observed: tuple[int, int, bytes]
+    has_last: int
+    last: bytes
+    commit_id: bytes
+
+
+def exchange_frames(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target):
+    """Canonical signed-message framing and original-command commitments only.
+
+    Native endpoints perform signature verification. Each workload separately
+    enforces its permitted order, currentness and operation-specific windows.
+    """
     sdk.require(data and len(data) % RECORD_BYTES == 0 and len(data) <= RECORD_BYTES * 4096,
                 "renewal signed exchange framing differs")
-    challenges, operations, outcomes = set(), [], []
+    challenges = set()
     commit_id = commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", authority + subject + b"\x05" + binding + bytes(64))
-    terminal = 9 if closed else 8
-    seen_terminal = seen_ack = False
-    prepared = 0
     for offset in range(0, len(data), RECORD_BYTES):
         row = data[offset:offset + RECORD_BYTES]
         sdk.require(row[0] == 1, "unqualified lost response in basic renewal transcript")
@@ -86,6 +100,18 @@ def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: byte
         sdk.require((flag == 0 and last == bytes(32)) or (flag == 1 and any(last)), "renewal last-command encoding differs")
         sdk.require((observed == expected and flag == 0) or (observed == target and flag == 1 and last == commit_id),
                     "renewal head lacks its exact original or committed history")
+        yield WitnessExchange(row, op, kind, outcome, observed, flag, last, commit_id)
+
+
+def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target,
+         closed: bool, authorities: tuple[bytes, bytes], pending_range: tuple[int, int]) -> dict:
+    operations, outcomes = [], []
+    terminal = 9 if closed else 8
+    seen_terminal = seen_ack = False
+    prepared = 0
+    for frame in exchange_frames(data, authority, subject, binding, expected, target):
+        op, kind, outcome, observed = frame.operation, frame.kind, frame.outcome, frame.observed
+        flag, last, commit_id = frame.has_last, frame.last, frame.commit_id
         operations.append(kind); outcomes.append(outcome)
         if kind == 1:
             sdk.require(op[1:] == bytes(96) and outcome == 1 and observed == (expected if closed or not seen_terminal else target),
@@ -119,27 +145,37 @@ def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: byte
     return dict(requests=len(operations), operations=operations, outcomes=outcomes, prepared_observations=prepared)
 
 
-def _case(read, case: str) -> dict:
-    closed, tls = case.endswith("closed"), case.startswith("tls")
+@dataclass(frozen=True)
+class RenewalMaterials:
+    original: dict
+    policy: bytes
+    credential_validity: tuple[int, int]
+    roster_validity: tuple[int, int]
+    authority: bytes
+    subject: bytes
+    expected: tuple[int, int, bytes]
+    target: tuple[int, int, bytes]
+    binding: bytes
+    operation: bytes
+    statement: bytes
+    target_version: int
+    target_digest: bytes
+    authorities: tuple[bytes, bytes]
+
+    def status(self, phase: int) -> bytes:
+        sdk.require(phase in (1, 2, 4), "unsupported witnessed renewal phase")
+        return (f"credential-phase:{phase}\n{self.operation.hex()}\n{self.statement.hex()}\ncredential-head:"
+                f"{0 if phase == 1 else self.target_version}\n"
+                f"{bytes(32).hex() if phase == 1 else self.target_digest.hex()}\ncredential-observed:0\n").encode()
+
+
+def verify_materials(read, case: str, active: tuple[bytes, bytes], *, image_name="renewal-image-digests") -> RenewalMaterials:
+    """One canonical registration/grant/policy/proposal binding for both workloads."""
+    closed = case.endswith("closed")
     def fixed(name, size, nonzero=False):
         value = read(name, size)
         sdk.require(len(value) == size and (not nonzero or any(value)), "renewal field width differs: " + name)
         return value
-    def command(label, expected=None):
-        value = read(f"witness-enrollment-{label}.stdout", 65536)
-        sdk.require(read(f"witness-enrollment-{label}.stderr", 65536) == b""
-                    and (expected is None or value == expected), "renewal command readback differs: " + label)
-        return value
-    def state(label, phase):
-        match = re.fullmatch(rb"enrollment-phase:([1-6])\n([0-9a-f]{64})\n([0-9a-f]{64})\n", command(label))
-        sdk.require(match is not None and int(match[1]) == phase, "renewal original enrollment phase differs")
-        return bytes.fromhex(match[2].decode()), bytes.fromhex(match[3].decode())
-    command("key", b"enrollment-key\n")
-    created = state("create", 1)
-    sdk.require(created == state("request", 2) == state("request-retry", 2) and created[1] == bytes(32), "renewal changed pending identity")
-    active = state("renewal-original-status", 5)
-    sdk.require(active == state("accept", 3) == state("storage", 3) == state("renewal-final-status", 5)
-                and active[0] == created[0] and all(any(v) for v in active), "renewal replaced original enrollment/journal")
     intent = fixed("enrollment-intent", 72)
     request = envelope(read("enrollment-request"), b"QPENRQ01", 2129)
     virtual = {"signer-id":active[0], "public-key":request[144:], "local-device":intent[:16],
@@ -204,13 +240,41 @@ def _case(read, case: str) -> dict:
     wire = fixed("credential-proposal", 296)
     sdk.require(wire == fixed("credential-proposal-original", 296), "renewal restart resealed its proposal")
     expected, target, binding = proposal(wire, authority, subject, operation, statement_id)
-    images = fixed("renewal-image-digests", 96)
+    images = fixed(image_name, 96)
     sdk.require(expected[:2] == (1, 1) and expected[2] == fixed("enrollment-genesis-digest", 32)
                 and images == expected[2] * 2 + (expected[2] if closed else target[2]), "renewal image observations differ from exact proposal")
-    def status(phase):
-        return (f"credential-phase:{phase}\n{operation.hex()}\n{statement_id.hex()}\ncredential-head:"
-                f"{0 if phase == 1 else int.from_bytes(next_version, 'big')}\n"
-                f"{bytes(32).hex() if phase == 1 else next_digest.hex()}\ncredential-observed:0\n").encode()
+    authorities = tuple(commit(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", old[8:40] + checkpoint + family)
+                        for checkpoint in (fixed("trusted-roster-version", 8) + fixed("trusted-roster-digest", 32), next_version + next_digest))
+    return RenewalMaterials(original, policy, (next_start, next_until), (a, b), authority, subject,
+                            expected, target, binding, operation, statement_id, int.from_bytes(next_version, "big"), next_digest, authorities)
+
+
+def _case(read, case: str) -> dict:
+    closed, tls = case.endswith("closed"), case.startswith("tls")
+    def fixed(name, size, nonzero=False):
+        value = read(name, size)
+        sdk.require(len(value) == size and (not nonzero or any(value)), "renewal field width differs: " + name)
+        return value
+    def command(label, expected=None):
+        value = read(f"witness-enrollment-{label}.stdout", 65536)
+        sdk.require(read(f"witness-enrollment-{label}.stderr", 65536) == b""
+                    and (expected is None or value == expected), "renewal command readback differs: " + label)
+        return value
+    def state(label, phase):
+        match = re.fullmatch(rb"enrollment-phase:([1-6])\n([0-9a-f]{64})\n([0-9a-f]{64})\n", command(label))
+        sdk.require(match is not None and int(match[1]) == phase, "renewal original enrollment phase differs")
+        return bytes.fromhex(match[2].decode()), bytes.fromhex(match[3].decode())
+    command("key", b"enrollment-key\n")
+    created = state("create", 1)
+    sdk.require(created == state("request", 2) == state("request-retry", 2) and created[1] == bytes(32), "renewal changed pending identity")
+    active = state("renewal-original-status", 5)
+    sdk.require(active == state("accept", 3) == state("storage", 3) == state("renewal-final-status", 5)
+                and active[0] == created[0] and all(any(v) for v in active), "renewal replaced original enrollment/journal")
+    materials = verify_materials(read, case, active)
+    original, authority, subject = materials.original, materials.authority, materials.subject
+    expected, target, binding = materials.expected, materials.target, materials.binding
+    operation, statement_id = materials.operation, materials.statement
+    status = materials.status
     for label in ("renewal-stage", "pending-no-sdk-history"): command(label, status(1))
     for label in ("renewal-prepare", "renewal-prepare-reopened"): command(label, b"credential-witness-prepared\n")
     command("pending-no-sdk-commit", b"credential-witness-commit-refused:702\n")
@@ -224,8 +288,7 @@ def _case(read, case: str) -> dict:
     tcp_counts = [int.from_bytes(counts[n:n + 8], "big") for n in range(32, 64, 8)]
     trace = read("renewal-witness-transcript", RECORD_BYTES * 4096)
     tls_trace = read("renewal-tls-transcript", RECORD_BYTES * 4096)
-    authorities = tuple(commit(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", old[8:40] + checkpoint + family)
-                        for checkpoint in (fixed("trusted-roster-version", 8) + fixed("trusted-roster-digest", 32), next_version + next_digest))
+    authorities = materials.authorities
     if tls:
         sdk.require(trace == b"" and tcp_counts == [0] * 4
                     and admissions[0] == 0 < admissions[1] < admissions[2] < admissions[3]
@@ -237,7 +300,7 @@ def _case(read, case: str) -> dict:
                     "TCP renewal carrier accounting differs")
         carrier = _signed_records(trace, authority, subject, binding, expected, target, closed, authorities, (tcp_counts[1], tcp_counts[2]))
         carrier["transport"] = "signed-tcp"
-    return dict(original=original, target_version=int.from_bytes(next_version, "big"), operation=operation.hex(),
+    return dict(original=original, target_version=materials.target_version, operation=operation.hex(),
                 statement=statement_id.hex(), proposal=binding.hex(), terminal="Closed" if closed else "Committed", carrier=carrier)
 
 
@@ -250,7 +313,7 @@ def verify(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     for line in lines: text = text.replace(line + "\n", "")
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and len(re.findall(r"^test result:", text, re.MULTILINE)) == 1
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "witnessed renewal test did not complete")
     sdk.require(directory.is_dir() and not directory.is_symlink() and {p.name for p in directory.iterdir()} == set(CASES),
                 "witnessed renewal case inventory differs")

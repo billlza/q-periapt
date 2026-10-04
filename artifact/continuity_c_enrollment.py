@@ -195,7 +195,7 @@ def verify_witness(stdout: bytes, directory: Path, carrier: str, *, language: st
     sdk.require(carrier in WITNESS_TESTS, "unsupported C enrollment witness carrier")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [WITNESS_TESTS[carrier]]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "C witnessed enrollment workload was not executed completely")
     prefix, public = "enrolled-witness", {}
 
@@ -323,6 +323,10 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         sdk.require(observed.sha256 == expected["sha256"] and observed.size == expected["bytes"],
                     "foreign registration native harness changed before execution")
         binaries[target] = (binary, observed.sha256)
+    for key in ("witnessed_credential_renewal", "witnessed_policy_expiry"):
+        sdk.require(key in native, "C cohort lacks " + key + " qualification")
+        sdk.require(native[key]["binary"] == native["enrollment_witness"]["signed-tcp"]["binary"],
+                    "foreign witnessed lifecycle must use the C-qualified original harness")
     variant = "-" + collector.lower() if collector else ""
     result = {}
     for carrier, test in {"local": TEST, **WITNESS_TESTS}.items():
@@ -357,10 +361,10 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
                                         foreign_client_sha256=client_identity.sha256)
     from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
     binary, identity = binaries["enrollment_witness"]
-    sdk.require("witnessed_credential_renewal" in native, "C cohort lacks witnessed credential renewal qualification")
-    sdk.require(native["witnessed_credential_renewal"]["binary"] == native["enrollment_witness"]["signed-tcp"]["binary"],
-                "foreign witnessed renewal must use the C-qualified original harness")
     result["witnessed_credential_renewal"] = qualify_witnessed_renewal(
+        outside, output, profile, runtime, binary, run, language=language, variant=variant)
+    from continuity_witnessed_policy_expiry import qualify as qualify_policy_expiry
+    result["witnessed_policy_expiry"] = qualify_policy_expiry(
         outside, output, profile, runtime, binary, run, language=language, variant=variant)
     sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result

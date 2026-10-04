@@ -43,12 +43,13 @@ private fun renewalStatus(value: CredentialRenewalStatus): String {
 internal fun credentialEnrollment(owner: ContinuityEnrollment, records: FixtureRecords, mode: String,
                                    original: EnrollmentStatus): String {
     val status = when (mode) {
-        "enrollment-credential-witness-commit-no-sdk" -> {
+        "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired" -> {
+            val expected = if (mode == "enrollment-credential-witness-commit-policy-expired") 104 else 702
             val operation = renewalOperation(records)
             val statement = CredentialRenewalStatementID(records.enrollmentExact("credential-statement", 32))
-            refused(setOf(702)) { owner.commitWitnessedCredentialRenewal(operation, statement) }
+            refused(setOf(expected)) { owner.commitWitnessedCredentialRenewal(operation, statement) }
             refused(setOf(2)) { owner.credentialRenewalStatus() }
-            return "credential-witness-commit-refused:702"
+            return "credential-witness-commit-refused:$expected"
         }
         "enrollment-credential-witness-prepare" -> {
             val proposal = owner.prepareWitnessedCredentialRenewal()

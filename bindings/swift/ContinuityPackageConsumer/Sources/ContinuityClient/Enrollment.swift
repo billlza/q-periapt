@@ -315,7 +315,8 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
             let refusal = try refusedEnrollmentActivation(owner, code: expected)
             _ = try expectedEnrollmentFailure(2) { try owner.status() }
             let name = expected == 218 ? "enrollment-authority-refusal" :
-                (expected == 216 ? "enrollment-required-refusal" : "enrollment-activation-refusal")
+                (expected == 216 ? "enrollment-required-refusal" :
+                (expected == 104 ? "enrollment-policy-refusal" : "enrollment-activation-refusal"))
             try inputs.publish(name, Array(refusal.message.utf8))
             return "enrollment-activation-refused:\(expected)"
         case "enrollment-cancel":
@@ -354,12 +355,13 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
     mode: String, original: EnrollmentStatus) throws -> String {
     let status: CredentialRenewalStatus
     switch mode {
-    case "enrollment-credential-witness-commit-no-sdk":
+    case "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired":
+        let expected: Int32 = mode == "enrollment-credential-witness-commit-policy-expired" ? 104 : 702
         let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
         let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
-        _ = try expectedEnrollmentFailure(702) { try owner.commitWitnessedCredentialRenewal(operation: operation, statement: statement) }
+        _ = try expectedEnrollmentFailure(expected) { try owner.commitWitnessedCredentialRenewal(operation: operation, statement: statement) }
         _ = try expectedEnrollmentFailure(2) { try owner.credentialRenewalStatus() }
-        return "credential-witness-commit-refused:702"
+        return "credential-witness-commit-refused:\(expected)"
     case "enrollment-credential-witness-prepare":
         let proposal = try owner.prepareWitnessedCredentialRenewal()
         try require(proposal == owner.prepareWitnessedCredentialRenewal(), "witness preparation changed original target")
