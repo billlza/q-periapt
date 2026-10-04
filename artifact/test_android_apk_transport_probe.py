@@ -17,7 +17,7 @@ from bounded_process import BoundedProcessError, BoundedResult
 
 
 def process_stat(pid, name, *, parent=1, started=20, state="S"):
-    return (f"{pid} ({name}) {state} {parent} " + "0 "*17 + str(started) + "\n").encode()
+    return (f"{pid} ({name}) {state} {parent} " + "0 "*17 + str(started) + " 0"*30 + "\n").encode()
 
 
 class ApkTransportProbeTests(unittest.TestCase):
@@ -160,9 +160,25 @@ class ApkTransportProbeTests(unittest.TestCase):
         self.assertEqual(probe.process_identity(valid,b"880",b"system_server"),(b"880",b"system_server",99,20))
         for value in (valid.replace(b"880",b"881"), valid.replace(b"system_server",b"other"),
                       process_stat(880,"system_server",state="Z"),process_stat(880,"system_server",state="?"),
-                      process_stat(880,"system_server",started=0), b"880 (system_server) S\n"):
+                      process_stat(880,"system_server",started=0), b"880 (system_server) S\n",
+                      valid[:-1],valid + valid,valid + b"880 (system_server) Z 99\n",
+                      valid.replace(b" 0 ",b" garbage ",1),valid.replace(b" 0 ",b" \t0 ",1),
+                      b"880 (system_server) S 99 " + b"0 "*17 + b"20\n",
+                      valid[:-3] + b"\n",valid[:-1] + b" 0\n"):
             with self.subTest(value=value),self.assertRaises(ValueError):
                 probe.process_identity(value,b"880",b"system_server")
+        signed=valid.replace(b" 0 ",b" -1 ",1)
+        self.assertEqual(probe.process_identity(signed,b"880",b"system_server"),(b"880",b"system_server",99,20))
+
+    def test_failed_or_empty_stat_does_not_establish_identity(self):
+        census=b"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n442\n880\n3.00 0.00\n"
+        for result in (BoundedResult(1,b""),BoundedResult(0,b"")):
+            with tempfile.TemporaryDirectory() as temporary:
+                experiment=self.experiment(temporary,"apk-path-only")
+                with mock.patch.object(experiment,"query",side_effect=[BoundedResult(0,census),result]):
+                    with self.assertRaises((ValueError,RuntimeError)):
+                        experiment.identity("bad-stat")
+                self.assertIsNone(experiment.guest_identity)
 
 
 if __name__ == "__main__": unittest.main()

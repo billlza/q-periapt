@@ -75,8 +75,12 @@ def process_identity(data: bytes, pid: bytes, name: bytes) -> tuple[bytes, bytes
     prefix = pid + b" (" + name + b") "
     if not data.startswith(prefix):
         raise ValueError("tracked guest process name or PID differs")
-    fields = data[len(prefix):].split()
-    if (len(fields) < 20 or fields[0] not in (b"R", b"S", b"D", b"T", b"t", b"I", b"W", b"K", b"P")
+    # This fixed API35 kernel emits all 52 proc stat fields and one final LF.
+    # An exit-zero truncated cat is still an invalid observation.
+    fields = data[len(prefix):-1].split(b" ")
+    if (not data.endswith(b"\n") or data.count(b"\n") != 1 or len(fields) != 50
+            or fields[0] not in (b"R", b"S", b"D", b"T", b"t", b"I", b"W", b"K", b"P")
+            or any(re.fullmatch(rb"-?[0-9]+", value) is None for value in fields[1:])
             or not fields[1].isdigit() or not fields[19].isdigit() or int(fields[19]) == 0):
         raise ValueError("tracked guest process is dead or has malformed identity")
     return pid, name, int(fields[1]), int(fields[19])
