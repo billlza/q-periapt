@@ -332,12 +332,17 @@ commits, four before/after-sync failures and an independently killed/reopened wi
 process. They cover fresh challenges, stale fences, same-target/different-command
 conflicts, role-component reuse, malformed and contradictory signed messages,
 cancelled/duplicate/concurrent receipt admission, storage corruption and bounds.
-An OpenSSL/Python oracle independently checks 12 witness envelopes, 60 signature
-negative controls, canonical scope/command/attempt hashes and six transitions. The
-existing bootstrap oracle separately authenticates the same enrollment fixtures.
-These oracle vectors cover the earlier command set; independent public-vector
-verification of the joint-renewal commands remains an open qualification gate. The
-hosted macOS lane runs both and archives both results.
+The OpenSSL/Python oracle now requires 57 signed envelopes and 285 signature
+negative controls. It checks the original six witness requests, then independently
+decodes the complete root renewal statement and credential/roster relation and
+twenty joint requests across Applied and Closed flows. Both flows include fresh
+exact retries, the opposite terminal command, status, repeated acknowledgement,
+and unavailable status/commit after pruning. It recomputes proposal, command and
+attempt hashes and checks every observed head and last commit identity. These
+vectors use explicit opaque target expectations; actual sealed-image recovery is
+covered separately by native tests. They are not an independent protocol engine.
+The existing bootstrap oracle separately authenticates the same enrollment and
+policy fixtures. The hosted macOS lane runs both and archives both results.
 
 The witness must retain its own state independently of client journal snapshots.
 A retained counterexample restores the witness database itself and obtains an old

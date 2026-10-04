@@ -110,7 +110,11 @@ class Oracle:
         return result.stdout
 
     def envelope(self, name: str, purpose: int, key: bytes) -> bytes:
-        wire = Reader(self.read(name + ".bin"))
+        return self.envelope_bytes(name, self.read(name + ".bin"), purpose, key)
+
+    def envelope_bytes(self, name: str, data: bytes, purpose: int, key: bytes) -> bytes:
+        """Authenticate an exact nested envelope already retained by read()."""
+        wire = Reader(data)
         size = wire.integer(4)
         require(size <= 16384, "signed body bound")
         body = wire.take(size)

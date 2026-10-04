@@ -283,6 +283,17 @@ fn bootstrap_vectors(directory: &Path, anchors: bool, rekey: bool) -> Result<(),
             &format!("bootstrap-{role}-roster.bin"),
             roster.as_bytes(),
         )?;
+        if anchors && role == "r" {
+            joint_anchor_vectors(
+                directory,
+                &root,
+                &cert,
+                roster.as_bytes(),
+                &device,
+                &verified,
+                &pr,
+            )?;
+        }
         devices.push((device, verified));
     }
     let (signer_i, device_i) = devices.first().ok_or("initiator missing")?;
@@ -630,4 +641,197 @@ fn anchor_vectors(
     _: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
 ) -> Result<(), Box<dyn Error>> {
     Err("anchor witness vectors require the private Unix storage adapter".into())
+}
+
+#[cfg(unix)]
+fn joint_anchor_vectors(
+    directory: &Path,
+    root: &RootSigningKey,
+    original: &[u8],
+    previous_roster: &[u8],
+    signer: &DeviceSigningKey,
+    device: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+    policy: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+) -> Result<(), Box<dyn Error>> {
+    use q_periapt_continuity_identity_candidate::{
+        AnchorCredentialRenewalProposal, AnchorCredentialRenewalState as State, AnchorIdentity,
+        AnchorOperation, AnchorRequest, AnchorSigningKey, AnchorStore,
+        CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
+        DeviceJournal, JournalKey, VerifiedCredentialRenewal,
+    };
+    use std::os::unix::fs::PermissionsExt;
+    let successor = root.issue_device(
+        DeviceDescription::new(
+            device.device_id(),
+            device.generation(),
+            policy.family(),
+            Validity::new(100, 300)?,
+        )?,
+        signer.public_key()?,
+    )?;
+    let roster = root.issue_roster(
+        2,
+        Validity::new(100, 300)?,
+        &[root.roster_entry(&successor)?],
+    )?;
+    let target_pin = AccountPin::new(
+        root.account_id()?,
+        root.public_key()?,
+        roster.checkpoint(),
+        policy.family(),
+    )?;
+    let operation = CredentialRenewalId::generate()?;
+    let issued = root.issue_credential_renewal(
+        CredentialRenewalMaterials {
+            original_credential: original,
+            previous_credential: original,
+            successor_credential: &successor,
+            previous_roster,
+            successor_roster: roster.as_bytes(),
+        },
+        &CredentialRenewalAuthorization {
+            operation,
+            previous: device.roster().checkpoint(),
+            policy_digest: policy.checkpoint().digest(),
+        },
+        &target_pin,
+        150,
+    )?;
+    let grant = VerifiedCredentialRenewal::verify(
+        issued.as_bytes(),
+        &target_pin,
+        policy.checkpoint().digest(),
+        150,
+    )?;
+    save(directory, "anchor-renewal-grant.bin", issued.as_bytes())?;
+    save(
+        directory,
+        "anchor-renewal-operation.id",
+        operation.as_bytes(),
+    )?;
+    for (flow, applied, target_byte) in [("applied", true, 51u8), ("closed", false, 52u8)] {
+        let private = tempfile::Builder::new()
+            .prefix("joint-anchor-vector-")
+            .permissions(fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let path = private.path().canonicalize()?;
+        let mut journal = DeviceJournal::provision(
+            &path.join("journal"),
+            JournalKey::provision(&path.join("journal-key"))?,
+            device,
+            retain_journal_identity(&path.join("journal-id"))?,
+        )?;
+        let genesis = journal.anchor_genesis(device, policy)?;
+        let identity = AnchorIdentity::generate()?;
+        let mut witness = AnchorStore::provision(
+            &path.join("witness"),
+            JournalKey::provision(&path.join("witness-key"))?,
+            AnchorSigningKey::generate()?,
+            identity,
+        )?;
+        witness.enroll(&genesis, device, policy, 150)?;
+        let pin = witness.pin()?;
+        // Public opaque head expectations for the independent wire oracle.
+        // Actual sealed journal target recovery has separate native tests.
+        let mut wire = b"QPCRNP01".to_vec();
+        wire.extend_from_slice(&pin.binding());
+        wire.extend_from_slice(&genesis.subject().to_bytes());
+        wire.extend_from_slice(operation.as_bytes());
+        wire.extend_from_slice(&grant.statement_digest());
+        for (revision, digest) in [(1u64, genesis.image_digest()), (2, [target_byte; 32])] {
+            wire.extend_from_slice(&1u64.to_be_bytes());
+            wire.extend_from_slice(&revision.to_be_bytes());
+            wire.extend_from_slice(&digest);
+        }
+        let proposal = AnchorCredentialRenewalProposal::from_trusted_state(&wire)?;
+        let prefix = format!("joint-{flow}");
+        save(
+            directory,
+            &format!("{prefix}-witness.pub"),
+            &pin.public_key().encode(),
+        )?;
+        save(
+            directory,
+            &format!("{prefix}-instance.id"),
+            identity.as_bytes(),
+        )?;
+        save(
+            directory,
+            &format!("{prefix}-journal.id"),
+            journal.identity()?.as_bytes(),
+        )?;
+        save(
+            directory,
+            &format!("{prefix}-genesis.digest"),
+            &genesis.image_digest(),
+        )?;
+        save(directory, &format!("{prefix}-proposal.bin"), &wire)?;
+        save(
+            directory,
+            &format!("{prefix}-proposal.digest"),
+            &proposal.binding(),
+        )?;
+        let commit = AnchorOperation::commit_credential_renewal(&proposal);
+        let close = AnchorOperation::close_credential_renewal(&proposal);
+        let status = AnchorOperation::credential_renewal_status(&proposal);
+        let ack = AnchorOperation::acknowledge_credential_renewal(&proposal);
+        let terminal = if applied {
+            State::Applied
+        } else {
+            State::Closed
+        };
+        let transition = if applied { commit } else { close };
+        let opposite = if applied { close } else { commit };
+        let operations = [
+            status, status, transition, transition, opposite, status, ack, ack, status, commit,
+        ];
+        let expected = [
+            State::Unavailable,
+            State::Prepared,
+            terminal,
+            terminal,
+            terminal,
+            terminal,
+            State::Acknowledged,
+            State::Acknowledged,
+            State::Unavailable,
+            State::Unavailable,
+        ];
+        for (index, (operation, expected)) in operations.into_iter().zip(expected).enumerate() {
+            if index == 1
+                && witness.prepare_credential_renewal(proposal, &grant, policy, 150)?
+                    != State::Prepared
+            {
+                return Err("joint preparation state differs".into());
+            }
+            let request = AnchorRequest::new(&pin, genesis.subject(), operation, signer)?;
+            let response = witness.handle(request.as_bytes(), if index < 3 { 150 } else { 201 })?;
+            let reply = pin.verify_reply(&request, &response)?;
+            if reply.credential_renewal_state(&proposal)? != expected
+                || reply.applied_head().is_ok()
+            {
+                return Err("joint public observation differs".into());
+            }
+            save(
+                directory,
+                &format!("{prefix}-{index}-request.bin"),
+                request.as_bytes(),
+            )?;
+            save(directory, &format!("{prefix}-{index}-reply.bin"), &response)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn joint_anchor_vectors(
+    _: &Path,
+    _: &RootSigningKey,
+    _: &[u8],
+    _: &[u8],
+    _: &DeviceSigningKey,
+    _: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+    _: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+) -> Result<(), Box<dyn Error>> {
+    Err("joint witness vectors require the private Unix storage adapter".into())
 }

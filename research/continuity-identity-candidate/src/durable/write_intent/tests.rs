@@ -377,12 +377,12 @@ pub(super) fn after_intent(pending: &PendingWrite, image: &Image) {
     let Ok(phase) = std::env::var("QPERIAPT_WRITE_INTENT_CRASH_PHASE") else {
         return;
     };
-    if !(phase == "credential-renewal" && pending.renewal.is_some())
-        && !image
-            .records
-            .values()
-            .any(|record| phase == (record.phase as u8).to_string())
-    {
+    let matches_renewal = phase == "credential-renewal" && pending.renewal.is_some();
+    let matches_record = image
+        .records
+        .values()
+        .any(|record| phase == (record.phase as u8).to_string());
+    if !(matches_renewal || matches_record) {
         return;
     }
     let path = std::env::var_os("QPERIAPT_JOURNAL_CRASH_DIR").expect("owned directory");
