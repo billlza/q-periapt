@@ -149,7 +149,8 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
         if(code!=QPC_OWNER_KIND) fail("expiry reconciliation published a device");
     } else fail("unknown credential renewal command");
     credential_status_print(&status);close_owner(handle);
-    if(fflush(stdout)) fail("credential status output");return 0;
+    if(fflush(stdout)) fail("credential status output");
+    return 0;
 }
 struct EnrollmentActivation { uint64_t handle; int32_t code; qpc_error_v1 error; };
 static void *enrollment_activation(void *opaque) {
