@@ -285,6 +285,10 @@ HEADER_SOURCE="$ROOT/crates/q-periapt-ffi/include/q_periapt.h"
 FIXTURE_SOURCE="$ROOT/bindings/c/signed_policy_fixture.h"
 VENDOR_ROOT="$ROOT/crates/q-periapt-mlkem-native-sys/vendor"
 HOST=$(rustc -vV | awk '/^host: / { print $2 }')
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ] && [ "$HOST" = "x86_64-apple-darwin" ]; then
+	printf 'error: SDK 0.2.0 macOS support requires Apple Silicon\n' >&2
+	exit 2
+fi
 if [ "$VERIFY_ONLY" = "0" ]; then
 	VERSION=$(cargo metadata --locked --format-version 1 | python3 -c '
 import json

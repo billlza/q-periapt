@@ -9,8 +9,10 @@ table and the original nine declarations/status values/library names retained.
 sh artifact/swift-xcframework.sh --profile sdk-020
 ```
 
-The producer requires the pinned Rust/Cargo version, all five Apple Rust
-targets, cbindgen and Xcode. The ordinary profile requires a clean checkout;
+The producer runs on Apple Silicon and requires the pinned Rust/Cargo version,
+cbindgen, Xcode and four Apple Rust targets: `aarch64-apple-darwin`,
+`aarch64-apple-ios`, `aarch64-apple-ios-sim` and `x86_64-apple-ios`.
+Intel macOS is outside the 0.2.0 support matrix. The ordinary profile requires a clean checkout;
 local uncommitted implementation checks can explicitly select diagnostic mode:
 
 ```sh
@@ -60,7 +62,7 @@ success markers does not establish a successful package check.
 
 The producer checks every architecture separately, preserving the existing
 thin-archive symbol parser and duplicate/missing/extra-symbol rejection. It then
-links real Swift executables for macOS arm64/x86_64, iOS arm64 and simulator
+links real Swift executables for macOS arm64, iOS arm64 and simulator
 arm64/x86_64, checking the final platform/minimum version and selected archive
 bytes. Generic iOS destinations perform compilation/linking only; they do not
 launch a simulator or establish physical-device execution.

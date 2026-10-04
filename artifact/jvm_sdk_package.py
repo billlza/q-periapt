@@ -361,8 +361,8 @@ def build(args: argparse.Namespace) -> dict:
             and versions["javac"].startswith("javac 25"), "JVM SDK candidate requires JDK 25")
     require("\nGradle 9.8.0\n" in versions["gradle"], "JVM SDK candidate requires Gradle 9.8.0")
     host = re.search(r"^host: (.+)$", versions["rustc"], re.MULTILINE).group(1)
-    require(host in ("aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
-            "JVM SDK package qualification supports 64-bit macOS and GNU/Linux hosts")
+    require(host in ("aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
+            "JVM SDK package qualification supports Apple Silicon macOS and 64-bit GNU/Linux hosts")
     native_name = f"q-periapt-c-abi2-{VERSION}-{host}"
     native_archive = args.native_archive.resolve(strict=True)
     native_audit = extract_tar_gz(native_archive, output / "native-build", root_name=native_name,

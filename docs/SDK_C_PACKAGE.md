@@ -11,7 +11,8 @@ Windows uses a [separate MSVC producer and manifest](SDK_WINDOWS_PACKAGE.md).
 sh artifact/c-package.sh --profile sdk-020
 ```
 
-The producer supports native macOS and GNU Linux targets. The observed local
+The 0.2.0 producer supports native Apple Silicon macOS and 64-bit GNU Linux targets.
+Intel macOS is outside the support matrix. The observed local
 run is macOS ARM64; Linux execution is still pending. A release build requires
 a clean standalone Git checkout. A diagnostic build can explicitly use
 `QPERIAPT_ALLOW_DIRTY_C_PACKAGE=1` and a fresh `QPERIAPT_C_PACKAGE_OUT_DIR` under
