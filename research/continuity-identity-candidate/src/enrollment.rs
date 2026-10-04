@@ -792,7 +792,13 @@ fn take(d: &mut Decoder<'_>) -> Result<Vec<u8>, DurableError> {
     Ok(d.take(length)?.to_vec())
 }
 fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = if image.renewal.as_ref().is_some_and(LocalRenewal::witnessed) {
+    let mut bytes = if image
+        .renewal
+        .as_ref()
+        .is_some_and(LocalRenewal::cancellation)
+    {
+        b"QPENST05"
+    } else if image.renewal.as_ref().is_some_and(LocalRenewal::witnessed) {
         b"QPENST04"
     } else if image.renewal.as_ref().is_some_and(LocalRenewal::extended) {
         b"QPENST03"
@@ -878,7 +884,11 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
-    if (tag != *b"QPENST01" && tag != *b"QPENST02" && tag != *b"QPENST03" && tag != *b"QPENST04")
+    if (tag != *b"QPENST01"
+        && tag != *b"QPENST02"
+        && tag != *b"QPENST03"
+        && tag != *b"QPENST04"
+        && tag != *b"QPENST05")
         || d.array::<32>()? != binding
         || (tag == *b"QPENST01" && wire.len() > MAX_IMAGE)
     {
@@ -922,24 +932,27 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         }
         _ => return Err(DurableError::Corrupt),
     };
-    let renewal = if tag == *b"QPENST02" || tag == *b"QPENST03" || tag == *b"QPENST04" {
-        if !matches!(
-            phase,
-            Phase::Accepted {
-                stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
-                ..
+    let renewal =
+        if tag == *b"QPENST02" || tag == *b"QPENST03" || tag == *b"QPENST04" || tag == *b"QPENST05"
+        {
+            if !matches!(
+                phase,
+                Phase::Accepted {
+                    stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
+                    ..
+                }
+            ) {
+                return Err(DurableError::Corrupt);
             }
-        ) {
-            return Err(DurableError::Corrupt);
-        }
-        Some(LocalRenewal::decode(
-            &mut d,
-            tag != *b"QPENST02",
-            tag == *b"QPENST04",
-        )?)
-    } else {
-        None
-    };
+            Some(LocalRenewal::decode(
+                &mut d,
+                tag != *b"QPENST02",
+                tag == *b"QPENST04" || tag == *b"QPENST05",
+                tag == *b"QPENST05",
+            )?)
+        } else {
+            None
+        };
     d.finish()?;
     Ok(Image {
         identity,

@@ -9,8 +9,35 @@ const INTENT_HEADER: usize = 8 + 32 + 32 + 8 + 32 + 8 + 32 + 4;
 const MAX_TARGET: usize = HEADER + MAX_IMAGE + 16;
 const RENEWAL_BINDING_BYTES: usize = 64;
 
+mod credential_cancellation;
 #[cfg(all(test, unix))]
 pub(super) mod tests;
+use credential_cancellation::PendingCancellation;
+pub(crate) use credential_cancellation::WitnessedCredentialIntent;
+
+enum PendingIntent {
+    Write(PendingWrite),
+    Cancellation(PendingCancellation),
+}
+impl PendingIntent {
+    fn wire(&self) -> &[u8] {
+        match self {
+            Self::Write(p) => &p.wire,
+            Self::Cancellation(p) => &p.wire,
+        }
+    }
+    fn credential_intent(&self, image: &Image) -> Result<WitnessedCredentialIntent, DurableError> {
+        match self {
+            Self::Write(p) => Ok(WitnessedCredentialIntent::Proposal(
+                p.credential_proposal(image)?,
+            )),
+            Self::Cancellation(p) => {
+                p.check_current(image)?;
+                Ok(WitnessedCredentialIntent::Cancellation(p.cancellation))
+            }
+        }
+    }
+}
 
 pub(super) struct PendingWrite {
     expected_revision: u64,
@@ -223,6 +250,20 @@ fn load_snapshot_as(
     owner: [u8; 32],
     admission: SnapshotAdmission,
 ) -> Result<(Image, Option<PendingWrite>), DurableError> {
+    let (image, pending) = load_pending_snapshot(db, key, owner, admission)?;
+    match pending {
+        Some(PendingIntent::Cancellation(_)) => Err(DurableError::Suspended),
+        Some(PendingIntent::Write(p)) => Ok((image, Some(p))),
+        None => Ok((image, None)),
+    }
+}
+
+fn load_pending_snapshot(
+    db: &Database,
+    key: &JournalKey,
+    owner: [u8; 32],
+    admission: SnapshotAdmission,
+) -> Result<(Image, Option<PendingIntent>), DurableError> {
     let read = db.begin_read().map_err(storage)?;
     let table = image_table(&read)?;
     let value = table
@@ -235,9 +276,18 @@ fn load_snapshot_as(
         return Err(DurableError::Corrupt);
     }
     let pending = pending
-        .map(|bytes| PendingWrite::decode(key, owner, image.id, bytes.value()))
+        .map(|bytes| {
+            if bytes.value().starts_with(b"QPWINT03") {
+                PendingCancellation::decode(key, bytes.value()).map(PendingIntent::Cancellation)
+            } else {
+                PendingWrite::decode(key, owner, image.id, bytes.value()).map(PendingIntent::Write)
+            }
+        })
         .transpose()?;
-    if let Some(intent) = &pending {
+    if let Some(PendingIntent::Cancellation(intent)) = &pending {
+        intent.check_current(&image)?;
+    }
+    if let Some(PendingIntent::Write(intent)) = &pending {
         if matches!(admission, SnapshotAdmission::CredentialRecovery)
             && intent.renewal.is_some()
             && value.value() == intent.target
@@ -351,20 +401,27 @@ impl DeviceJournal {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
     ) -> Result<Option<crate::AnchorCredentialRenewalProposal>, DurableError> {
-        let policy = policy.as_ref();
+        Self::inspect_witnessed_credential_intent(path, key, original, policy, expected_id)?
+            .map(WitnessedCredentialIntent::proposal)
+            .transpose()
+    }
+    pub(crate) fn inspect_witnessed_credential_intent(
+        path: &Path,
+        key: JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+        expected_id: JournalIdentity,
+    ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let db = open_private_database(path)?;
-        let owner = bootstrap::storage_owner(original);
-        let (image, pending) =
-            load_snapshot_as(&db, &key, owner, SnapshotAdmission::CredentialRecovery)?;
-        if image.id != expected_id.0 || image.local_account != original.account_id() {
-            return Err(DurableError::Conflict);
-        }
-        image.protection.check_policy(policy)?;
-        if !matches!(image.protection, Protection::Required { .. }) {
-            return Err(DurableError::AnchorRequired);
-        }
+        let (image, pending) = load_pending_snapshot(
+            &db,
+            &key,
+            bootstrap::storage_owner(original),
+            SnapshotAdmission::CredentialRecovery,
+        )?;
+        credential_cancellation::check_scope(&image, original, policy.as_ref(), expected_id)?;
         pending
-            .map(|intent| intent.credential_proposal(&image))
+            .map(|intent| intent.credential_intent(&image))
             .transpose()
     }
 
@@ -400,16 +457,37 @@ pub(super) fn recover_credential_renewal(
     proposal: crate::AnchorCredentialRenewalProposal,
     client: &mut crate::AnchorClient,
 ) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
-    use crate::{AnchorCredentialRenewalState as State, AnchorOperation};
+    recover_witnessed_credential_intent(
+        db,
+        key,
+        original,
+        policy,
+        expected_id,
+        WitnessedCredentialIntent::Proposal(proposal),
+        client,
+    )
+}
+
+pub(super) fn recover_witnessed_credential_intent(
+    db: &Database,
+    key: &JournalKey,
+    original: &crate::VerifiedDevice,
+    policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+    expected_id: JournalIdentity,
+    proposal: WitnessedCredentialIntent,
+    client: &mut crate::AnchorClient,
+) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
+    use crate::AnchorCredentialRenewalState as State;
     let policy = policy.as_ref();
     let owner = bootstrap::storage_owner(original);
-    let (image, pending) = load_snapshot_as(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+    let (image, pending) =
+        load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
     if image.id != expected_id.0 || image.local_account != original.account_id() {
         return Err(DurableError::Conflict);
     }
     image.protection.check_policy(policy)?;
     let pending = pending.ok_or(DurableError::Conflict)?;
-    if pending.credential_proposal(&image)? != proposal
+    if pending.credential_intent(&image)? != proposal
         || client.pin().binding() != proposal.witness_binding()
     {
         return Err(DurableError::Conflict);
@@ -423,26 +501,26 @@ pub(super) fn recover_credential_renewal(
     {
         return Err(Error::Scope.into());
     }
-    let reply = client.exchange(
-        proposal.subject(),
-        AnchorOperation::credential_renewal_status(&proposal),
-    )?;
-    let observed = reply.credential_renewal_state(&proposal)?;
+    let reply = client.exchange(proposal.subject(), proposal.status_operation())?;
+    let observed = proposal.interpret(&reply)?;
     match observed {
         State::Applied => {
-            apply_credential_target(db, &pending)?;
+            let PendingIntent::Write(pending) = &pending else {
+                return Err(DurableError::Conflict);
+            };
+            apply_credential_target(db, pending)?;
             #[cfg(all(test, unix))]
             tests::after_credential_recovery();
             let (current, readback) =
-                load_snapshot_as(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+                load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
             if current.revision != pending.next_revision
                 || current.digest != pending.next_digest
-                || readback.ok_or(DurableError::Conflict)?.wire != pending.wire
+                || readback.ok_or(DurableError::Conflict)?.wire() != pending.wire
             {
                 return Err(DurableError::Conflict);
             }
         }
-        State::Prepared | State::Closed if image.digest != pending.expected_digest => {
+        State::Prepared | State::Closed if image.digest != proposal.expected_head().digest() => {
             return Err(DurableError::Conflict);
         }
         State::Prepared | State::Closed | State::Unavailable => {}
@@ -484,17 +562,17 @@ impl DeviceJournal {
         terminal: &crate::enrollment::PersistedRenewalTerminal,
         client: &mut crate::AnchorClient,
     ) -> Result<(), DurableError> {
-        use crate::{AnchorCredentialRenewalState as State, AnchorOperation};
+        use crate::AnchorCredentialRenewalState as State;
         let policy = policy.as_ref();
         let (proposal, terminal) = terminal.parts();
         let expected = match terminal {
-            State::Applied => proposal.target_head(),
+            State::Applied => proposal.proposal()?.target_head(),
             State::Closed => proposal.expected_head(),
             _ => return Err(DurableError::Conflict),
         };
         let owner = bootstrap::storage_owner(original);
         let (image, pending) =
-            load_snapshot_as(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+            load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
         image.protection.check_policy(policy)?;
         if image.id != expected_id.0
             || image.local_account != original.account_id()
@@ -507,7 +585,7 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         if let Some(pending) = &pending {
-            if pending.credential_proposal(&image)? != proposal {
+            if pending.credential_intent(&image)? != proposal {
                 return Err(DurableError::Conflict);
             }
         }
@@ -520,11 +598,8 @@ impl DeviceJournal {
         {
             return Err(Error::Scope.into());
         }
-        let reply = client.exchange(
-            proposal.subject(),
-            AnchorOperation::acknowledge_credential_renewal(&proposal),
-        )?;
-        match reply.credential_renewal_state(&proposal)? {
+        let reply = client.exchange(proposal.subject(), proposal.acknowledge_operation())?;
+        match proposal.interpret(&reply)? {
             State::Acknowledged | State::Unavailable => {}
             _ => return Err(DurableError::Conflict),
         }
@@ -547,7 +622,7 @@ impl DeviceJournal {
             match (saved.as_ref(), pending.as_ref()) {
                 (None, None) if table.len().map_err(storage)? == 1 => return Ok(()),
                 (Some(saved), Some(pending))
-                    if saved.value() == pending.wire && table.len().map_err(storage)? == 2 => {}
+                    if saved.value() == pending.wire() && table.len().map_err(storage)? == 2 => {}
                 _ => return Err(DurableError::Conflict),
             }
             drop(saved);
@@ -604,7 +679,14 @@ fn apply_credential_target(db: &Database, pending: &PendingWrite) -> Result<(), 
 }
 
 fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> {
-    let tx = transaction(&active.db)?;
+    reserve_bytes(&active.db, pending.expected_digest, &pending.wire)
+}
+fn reserve_bytes(
+    db: &Database,
+    expected_digest: [u8; 32],
+    wire: &[u8],
+) -> Result<(), DurableError> {
+    let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
         if table.len().map_err(storage)? != 1 || table.get("pending").map_err(storage)?.is_some() {
@@ -614,13 +696,11 @@ fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> 
             .get("image")
             .map_err(storage)?
             .ok_or(DurableError::Corrupt)?;
-        if image_hash(current.value()) != pending.expected_digest {
+        if image_hash(current.value()) != expected_digest {
             return Err(DurableError::Conflict);
         }
         drop(current);
-        table
-            .insert("pending", pending.wire.as_slice())
-            .map_err(storage)?;
+        table.insert("pending", wire).map_err(storage)?;
     }
     tx.commit().map_err(DurableError::CommitUncertain)
 }

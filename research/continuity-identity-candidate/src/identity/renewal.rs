@@ -538,6 +538,9 @@ impl HistoricalCredentialRenewal {
     pub fn successor_checkpoint(&self) -> RosterCheckpoint {
         self.statement.successor_roster
     }
+    pub(crate) fn original_credential_digest(&self) -> [u8; 32] {
+        self.statement.original
+    }
     pub(crate) fn previous_device(&self) -> &VerifiedDevice {
         &self.previous
     }

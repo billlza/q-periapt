@@ -517,3 +517,138 @@ fn process_kill_between_intent_and_state_commit_restores_exact_bytes_and_real_co
         );
     }
 }
+
+#[test]
+fn cancellation_snapshot_authentication_scope_and_ordinary_recovery_exclusion() {
+    use crate::{
+        AnchorIdentity, AnchorPin, AnchorRequirement, AnchorSigningKey, ApplicationSendBudget,
+    };
+    let signer = AnchorSigningKey::generate().expect("witness signer");
+    let pin = AnchorPin::new(
+        AnchorIdentity::generate().expect("identity"),
+        signer.public_key().expect("public"),
+    );
+    let f = crate::bootstrap::tests::fixture_with_anchor_and_budget(
+        PrekeyQuality::OneTimeBoth,
+        AnchorRequirement::required(&pin),
+        ApplicationSendBudget::new(1024).expect("budget"),
+    );
+    let dir = directory();
+    let path = dir.path().canonicalize().expect("path");
+    let id = crate::durable::tests::retain_new_identity(&path.join("store-id"));
+    let store = DeviceJournal::provision_anchored(
+        &path.join("state.redb"),
+        JournalKey::provision(&path.join("key")).expect("key"),
+        f.local_device(),
+        f.responder.policy(),
+        id,
+        150,
+    )
+    .expect("genesis");
+    let active = store.active.as_ref().expect("active");
+    let mut image = load(&active.db, &active.key, active.owner).expect("original image");
+    let original = disk_image(&active.db);
+    let mut descriptor = b"QPCRNC01".to_vec();
+    descriptor.extend_from_slice(&pin.binding());
+    descriptor.extend_from_slice(
+        &crate::AnchorSubject::for_device(id, f.local_device(), f.responder.policy())
+            .expect("subject")
+            .to_bytes(),
+    );
+    descriptor.extend_from_slice(&[31; 32]);
+    descriptor.extend_from_slice(&[32; 32]);
+    let head = image
+        .protection
+        .head(image.revision, image.digest)
+        .expect("head");
+    descriptor.extend_from_slice(&head.fence().to_be_bytes());
+    descriptor.extend_from_slice(&head.revision().to_be_bytes());
+    descriptor.extend_from_slice(&head.digest());
+    let cancellation = crate::AnchorCredentialRenewalCancellation::from_trusted_state(&descriptor)
+        .expect("metadata");
+    let mut wire = b"QPWINT03".to_vec();
+    wire.extend_from_slice(&image.local_account);
+    wire.extend_from_slice(&descriptor);
+    let mut mac = authenticator(&active.key).expect("MAC");
+    mac.update(&wire);
+    wire.extend_from_slice(&mac.finalize().into_bytes());
+    image.revision += 1;
+    let target = seal(&active.key, &image).expect("different real sealed target");
+    let ordinary = PendingWrite::new(active, &image, &target).expect("ordinary intent");
+    reserve_bytes(&active.db, head.digest(), &wire).expect("target-free fixture reservation");
+    assert!(matches!(
+        load_snapshot(&active.db, &active.key, active.owner),
+        Err(DurableError::Suspended)
+    ));
+    assert!(matches!(
+        load_snapshot_as(
+            &active.db,
+            &active.key,
+            active.owner,
+            SnapshotAdmission::CredentialRecovery
+        ),
+        Err(DurableError::Suspended)
+    ));
+    assert!(matches!(
+        load_cleanup_snapshot(&active.db, &active.key, id),
+        Err(DurableError::Suspended)
+    ));
+    assert!(matches!(
+        recover(&active.db, &active.key, active.owner, id),
+        Err(DurableError::Suspended)
+    ));
+    assert!(matches!(
+        reserve(active, &ordinary),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        apply(&active.db, &ordinary),
+        Err(DurableError::Conflict)
+    ));
+    assert!(PendingWrite::decode(&active.key, active.owner, active.id, &wire).is_err());
+    let (current, pending) = load_pending_snapshot(
+        &active.db,
+        &active.key,
+        active.owner,
+        SnapshotAdmission::CredentialRecovery,
+    )
+    .expect("typed snapshot");
+    assert_eq!(
+        pending
+            .expect("intent")
+            .credential_intent(&current)
+            .expect("typed"),
+        WitnessedCredentialIntent::Cancellation(cancellation)
+    );
+    // Authenticate adversarial fixtures so these exercise complete scope checks,
+    // not merely the MAC rejection. Every descriptor dimension is independent.
+    for offset in [8, 48, 80, 112, 144, 247, 255, 256] {
+        let mut changed = wire.clone();
+        *changed.get_mut(offset).expect("field byte") ^= 1;
+        let mut mac = authenticator(&active.key).expect("MAC");
+        mac.update(changed.get(..288).expect("body"));
+        changed
+            .get_mut(288..)
+            .expect("tag")
+            .copy_from_slice(&mac.finalize().into_bytes());
+        let rejected = PendingCancellation::decode(&active.key, &changed)
+            .and_then(|pending| pending.check_current(&current));
+        assert!(rejected.is_err(), "scope byte {offset}");
+    }
+    let mut unauthenticated = wire.clone();
+    *unauthenticated.get_mut(208).expect("statement") ^= 1;
+    assert!(matches!(
+        PendingCancellation::decode(&active.key, &unauthenticated),
+        Err(DurableError::Authentication)
+    ));
+    for bytes in [
+        wire.get(..319).expect("truncated").to_vec(),
+        [wire.as_slice(), &[0]].concat(),
+    ] {
+        assert!(matches!(
+            PendingCancellation::decode(&active.key, &bytes),
+            Err(DurableError::Corrupt)
+        ));
+    }
+    assert_eq!(disk_image(&active.db), original);
+}

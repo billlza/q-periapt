@@ -39,6 +39,51 @@ pub(super) fn check_credential_renewal_intent(
     Ok(())
 }
 
+// Historical reservation needs the exact predecessor, including an authenticated
+// prior local completion. It neither advances the roster nor admits a runtime.
+pub(super) fn check_credential_cancellation(
+    image: &Image,
+    grant: &crate::HistoricalCredentialRenewal,
+    completed: Option<&LocalRenewalCommit>,
+) -> Result<(), DurableError> {
+    let Protection::Required { policy, .. } = image.protection else {
+        return Err(DurableError::AnchorRequired);
+    };
+    let saved = get(image, &image.local_account)?;
+    let previous = grant.previous_device();
+    if image.owner != grant.original_storage_owner()
+        || image.local_account != previous.account_id()
+        || policy != grant.policy_digest()
+        || saved.local_commit.as_ref() != completed
+        || !saved.roster.same_authority(previous.roster())
+        || saved.roster.checkpoint() != previous.roster().checkpoint()
+        || !saved.roster.contains_member(
+            previous.device_id(),
+            previous.generation(),
+            previous.credential_digest(),
+        )
+        || saved.history.get(&previous.device_id())
+            != Some(&(previous.generation(), previous.credential_digest()))
+        || saved
+            .renewals
+            .get(&previous.device_id())
+            .is_some_and(|current| {
+                current.original_credential_digest() != grant.original_credential_digest()
+                    || current.policy_digest() != grant.policy_digest()
+            })
+        || completed.is_some_and(|c| {
+            c.operation == grant.operation()
+                || c.credential != previous.credential_digest()
+                || c.owner != image.owner
+                || c.policy != policy
+                || c.target.version() > previous.roster().checkpoint().version()
+        })
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
 #[cfg(all(test, unix))]
 pub(crate) mod tests;
 

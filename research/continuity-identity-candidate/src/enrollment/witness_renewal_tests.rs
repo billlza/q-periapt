@@ -704,7 +704,25 @@ fn enrollment_crash_child() -> Result<(), &'static str> {
     let root = Path::new(&root);
     let f = fixture();
     let proof = grant(&f, &f.original, 2, 190);
-    let proposal = prepare(&f, &proof, 150);
+    use crate::durable::WitnessedCredentialIntent;
+    let mode = std::env::var("QPERIAPT_WITNESS_ENROLLMENT_CLOSED").expect("mode");
+    let proposal = if mode == "2" {
+        open(&f.c)
+            .stage_credential_renewal(&proof, proof.operation(), &f.c.policy, 150)
+            .expect("stage");
+        let cancellation = open(&f.c)
+            .prepare_witnessed_credential_cancellation(&f.c.policy, 150)
+            .expect("reserve");
+        f.carrier
+            .store
+            .lock()
+            .expect("witness")
+            .close_unprepared_credential_renewal(cancellation, &proof, &f.c.policy)
+            .expect("independent close");
+        WitnessedCredentialIntent::Cancellation(cancellation)
+    } else {
+        WitnessedCredentialIntent::Proposal(prepare(&f, &proof, 150))
+    };
     fs::write(
         root.join("enrollment-path"),
         f.c.paths
@@ -727,7 +745,14 @@ fn enrollment_crash_child() -> Result<(), &'static str> {
     .expect("witness path");
     fs::write(root.join("witness-id"), f.pin.identity().as_bytes()).expect("witness identity");
     fs::write(root.join("trusted-root"), f.c.intent.root.encode()).expect("account root");
-    fs::write(root.join("proposal"), proposal.to_bytes()).expect("proposal");
+    fs::write(
+        root.join("proposal"),
+        match proposal {
+            WitnessedCredentialIntent::Proposal(p) => p.to_bytes(),
+            WitnessedCredentialIntent::Cancellation(c) => c.to_bytes(),
+        },
+    )
+    .expect("proposal");
     let (authority, issued, _, _) = crate::tests::session_policy_fixture_with_anchor(
         &[PrekeyQuality::OneTimeBoth],
         crate::AnchorRequirement::required(&f.pin),
@@ -751,7 +776,17 @@ fn enrollment_crash_child() -> Result<(), &'static str> {
     fs::write(root.join("target-checkpoint"), bytes).expect("target");
     let mut owner = open(&f.c);
     let mut anchor = client(&f, &mut owner, 150);
-    if std::env::var("QPERIAPT_WITNESS_ENROLLMENT_CLOSED").expect("mode") == "1" {
+    if mode == "2" {
+        owner
+            .reconcile_witnessed_credential_renewal(
+                proof.operation(),
+                proof.statement_digest(),
+                &f.c.policy,
+                150,
+                &mut anchor,
+            )
+            .expect("cancellation closure");
+    } else if mode == "1" {
         owner
             .close_witnessed_credential_renewal(
                 proof.operation(),
@@ -779,7 +814,8 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
     use crate::durable::tests::ChildGuard;
     use std::process::{Command, Stdio};
     let mut cuts = 0;
-    for closed in [false, true] {
+    for mode in ["0", "1", "2"] {
+        let closed = mode != "0";
         for stage in [
             "witness-observed",
             "witness-terminal",
@@ -800,10 +836,7 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
                     .env("QPERIAPT_WITNESS_ENROLLMENT_CHILD", &root)
                     .env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT", &root)
                     .env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE", stage)
-                    .env(
-                        "QPERIAPT_WITNESS_ENROLLMENT_CLOSED",
-                        if closed { "1" } else { "0" },
-                    )
+                    .env("QPERIAPT_WITNESS_ENROLLMENT_CLOSED", mode)
                     .stdout(Stdio::from(log.try_clone().expect("log clone")))
                     .stderr(Stdio::from(log))
                     .spawn()
@@ -881,9 +914,17 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
                 cut: Arc::new(Mutex::new(None)),
                 requests: Arc::new(Mutex::new(Vec::new())),
             };
-            let proposal =
-                Proposal::from_trusted_state(&fs::read(root.join("proposal")).expect("proposal"))
-                    .expect("proposal");
+            let wire = fs::read(root.join("proposal")).expect("original intent");
+            let proposal = if mode == "2" {
+                crate::durable::WitnessedCredentialIntent::Cancellation(
+                    crate::AnchorCredentialRenewalCancellation::from_trusted_state(&wire)
+                        .expect("cancellation"),
+                )
+            } else {
+                crate::durable::WitnessedCredentialIntent::Proposal(
+                    Proposal::from_trusted_state(&wire).expect("proposal"),
+                )
+            };
             let bytes = fs::read(root.join("target-checkpoint")).expect("target");
             let mut d = Decoder::new(&bytes);
             let target = RosterCheckpoint::from_trusted_state(
@@ -932,7 +973,7 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
             cuts += 1;
         }
     }
-    assert_eq!(cuts, 8);
+    assert_eq!(cuts, 12);
     eprintln!("witness enrollment real process cuts={cuts}");
 }
 
@@ -1217,3 +1258,6 @@ fn every_pending_retirement_sync_cut_preserves_terminal_image_and_retries_withou
     }
     eprintln!("witness intent retirement injected cuts={injected}");
 }
+
+#[path = "witness_cancellation_tests.rs"]
+mod cancellation;

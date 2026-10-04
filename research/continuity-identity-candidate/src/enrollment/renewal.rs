@@ -3,23 +3,23 @@
 use super::*;
 mod expiry;
 mod witness;
-use crate::durable::{LocalRenewalCommit, LocalRenewalResolution};
+use crate::durable::{LocalRenewalCommit, LocalRenewalResolution, WitnessedCredentialIntent};
 use crate::{CredentialRenewalId, RetainedInstallationAuthority, VerifiedCredentialRenewal};
 
 // Constructed only by the original enrollment coordinator after authenticated
 // durable terminal readback. Other modules cannot promote public metadata to it.
 pub(crate) struct PersistedRenewalTerminal {
-    proposal: crate::AnchorCredentialRenewalProposal,
+    intent: WitnessedCredentialIntent,
     state: crate::AnchorCredentialRenewalState,
 }
 impl PersistedRenewalTerminal {
     pub(crate) fn parts(
         &self,
     ) -> (
-        crate::AnchorCredentialRenewalProposal,
+        WitnessedCredentialIntent,
         crate::AnchorCredentialRenewalState,
     ) {
-        (self.proposal, self.state)
+        (self.intent, self.state)
     }
 }
 
@@ -111,6 +111,12 @@ impl LocalRenewal {
     }
     pub(super) fn witnessed(&self) -> bool {
         self.witness.is_some()
+    }
+    pub(super) fn cancellation(&self) -> bool {
+        self.witness
+            .as_ref()
+            .and_then(|w| w.coordination)
+            .is_some_and(|c| matches!(c.intent, WitnessedCredentialIntent::Cancellation(_)))
     }
     fn check_time_floor(&self, now: u64) -> Result<(), DurableError> {
         if now < self.time_floor {
@@ -206,6 +212,7 @@ impl LocalRenewal {
         d: &mut Decoder<'_>,
         extended: bool,
         witnessed: bool,
+        cancellation: bool,
     ) -> Result<Self, DurableError> {
         let origin = Origin {
             certificate: take(d)?,
@@ -262,7 +269,7 @@ impl LocalRenewal {
             time_floor,
             expired,
             witness: if witnessed {
-                Some(witness::WitnessRenewal::decode(d)?)
+                Some(witness::WitnessRenewal::decode(d, cancellation)?)
             } else {
                 None
             },

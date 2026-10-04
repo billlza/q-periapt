@@ -65,6 +65,7 @@ pub use messages::{
     SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
+pub(crate) use write_intent::WitnessedCredentialIntent;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[repr(u8)]

@@ -90,11 +90,10 @@ local proposal and repairs missing enrollment coordination after a configuration
 write fails. It sends no witness request and does not reseal or erase journal
 bytes. A retained coordination with a missing/mismatched intent is a conflict.
 When only the staged grant exists and no proposal was ever persisted, recovery
-returns `None` and leaves Pending intact. The independent witness now has a grant-only cancellation transaction described
-below. Original enrollment coordination and foreign-owner integration of that
-transaction remain incomplete; the existing owner still leaves this case
-Pending/Suspended. Neither local absence nor an unavailable witness establishes
-NoCommit.
+returns `None` and leaves Pending intact. The grant-only cancellation path below
+is an explicit independent operation; neither local absence nor an unavailable
+witness establishes NoCommit. Proposal-only inspection refuses a retained
+cancellation instead of reporting that no preparation exists.
 
 `HistoricalCredentialRenewal::verify` authenticates original grant bytes against
 an independently retained exact account/root/target-roster pin and policy digest.
@@ -116,11 +115,32 @@ hidden proposal or reconstructs missing target bytes. A pruned old version is
 Retired, not Closed. Fresh device-signed Status/ACK use the separate cancellation
 binding; ordinary device requests cannot create the cancellation.
 
-The original enrollment must still gain durable cancellation-intent retention,
-exact old-image checks, terminal-before-ACK recovery and foreign APIs. Until that
-integration is implemented and validated, the witness primitive is not a complete
-user-facing recovery path. In particular, never construct a new expected head
-while retrying the same cancellation after an unknown result.
+`DeviceEnrollment::prepare_witnessed_credential_cancellation` reserves the staged
+grant in the original journal before publishing its descriptor. Under the original
+enrollment, installation and journal leases, it checks the exact predecessor roster,
+member history, original owner/policy, and any prior local completion. Historical
+policy suffices; this operation neither opens a runtime owner nor dispatches to the
+witness. It creates no target image and does not increment the image revision.
+
+The same exclusive pending slot retains canonical `QPWINT03`: tag (8), original
+local account (32), cancellation descriptor (248), and the existing derived intent
+HMAC (32). Exact old head, journal, owner, policy and witness must match the
+unchanged authenticated image. Existing QPWINT01/02 grammars remain unchanged.
+Every ordinary snapshot/open/recovery/cleanup path refuses this reservation with
+Suspended. A full proposal and a cancellation cannot replace one another.
+
+After a configuration write failure, retry recovers the exact reservation;
+reconciliation also discovers it without inventing a new expected head. A retained
+coordination whose journal reservation is missing or differs fails explicitly.
+Fresh Closed is saved in original enrollment with the successor-version floor
+before ACK. The existing retirement path then removes only the exact pending bytes,
+leaves the old image unchanged, and retires coordination. Unavailable without a
+saved terminal remains Pending; with that authenticated terminal it can complete
+metadata cleanup. Commit cannot dispatch against cancellation. Closed preserves
+any still-live preceding C0/C1 credential and its prior completion receipt.
+
+This is the native candidate path. Cancellation entry points and actual installed
+C/Swift/Kotlin consumer flows still require integration and qualification.
 
 The candidate C facade exposes preparation, Commit, Close and reconciliation on
 the original enrollment owner, with Swift and Kotlin wrappers. Preparation returns
@@ -167,7 +187,11 @@ The evidence export excludes databases and all wrapping, signing and TLS keys.
 
 Conditional QPENST04 retains the complete proposal while coordinating, Applied or
 Closed terminal disposition, bounded Closed history and the permanent signed
-successor-version floor. Existing local-only QPENST01/02/03 bytes are unchanged.
+successor-version floor. Conditional QPENST05 uses a distinct coordination tag for
+the target-free descriptor and permits only Pending or Closed. Old QPENST04 cannot
+decode that tag. After cancellation coordination retires, the remaining floor and
+Closed history use the existing QPENST04 grammar. Existing local-only
+QPENST01/02/03 bytes are unchanged.
 Closed can precede credential expiry: it leaves the preceding C0/C1 admission
 unchanged and must not be reported as ExpiredUncommitted. The historical completed
 operation remains distinguishable from a later closed operation on exact retry.
