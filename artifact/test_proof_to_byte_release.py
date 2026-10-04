@@ -1345,7 +1345,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             ),
             0,
         )
-        self.assertIn('test "$(uname -m)" = arm64', source)
+        self.assertIn('test "$(/usr/sbin/sysctl -n hw.optional.arm64)" = 1', source)
         self.assertNotIn("lipo -create", source)
         self.assertIn(
             "cp target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a "

@@ -197,7 +197,10 @@ jobs:
         # to arm64 and provide its static library. SDK 0.2.0 supports Apple
         # Silicon macOS only; XCTest has no runtime dylib dependency.
         run: |
-          test "$(uname -m)" = arm64
+          # The tracer can launch a translated shell on Apple Silicon. Check
+          # hardware capability; the Rust target and Swift triple below bind output.
+          test "$(/usr/sbin/sysctl -n hw.optional.arm64)" = 1
+          printf 'CODEQL_SWIFT_PROCESS_ARCH=%s\n' "$(uname -m)"
           rustup target add aarch64-apple-darwin
           cargo build --locked -p q-periapt-ffi --release --target aarch64-apple-darwin
           mkdir -p target/release
