@@ -2393,6 +2393,82 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             any("post-package-state" in note for note in raised.exception.__notes__)
         )
 
+    def test_expired_listener_after_query_is_inconclusive_instead_of_structural(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE]
+        def guard(_capability, *, deadline):
+            commands._remaining_adb_listener_timeout(deadline)
+        with (
+            mock.patch.object(commands.time, "monotonic", side_effect=[100.0,100.0,105.0]),
+            mock.patch.object(commands,"_validate_owned_adb_server_for_client",side_effect=guard) as check,
+            mock.patch.object(commands,"_observe_package_state",return_value=BoundedResult(0,b"present\n")),
+        ):
+            result = commands._invoke_package_state(capability,spec,timeout_seconds=5)
+        self.assertEqual(result,BoundedResult(0,b"retryable:query-timeout\n"))
+        self.assertEqual(check.call_count,2)
+
+    def test_package_state_listener_budget_exhaustion_returns_no_package_fact(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE]
+        for before_expired, after_expired in ((True, True), (True, False), (False, True)):
+            effects = [commands.AdbValidationDeadlineExpired("original deadline") if expired else None
+                       for expired in (before_expired, after_expired)]
+            with (
+                self.subTest(before=before_expired, after=after_expired),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=effects) as guard,
+                mock.patch.object(commands, "_observe_package_state", return_value=BoundedResult(0, b"present\n")) as observe,
+            ):
+                result = commands._invoke_package_state(capability, spec, timeout_seconds=5)
+            self.assertEqual(result, BoundedResult(0, b"retryable:query-timeout\n"))
+            self.assertEqual(guard.call_count, 2)
+            self.assertEqual(observe.call_count, int(not before_expired))
+            self.assertEqual(guard.call_args_list[0].kwargs["deadline"], guard.call_args_list[1].kwargs["deadline"])
+
+    def test_package_state_budget_failure_never_masks_structural_postcheck_or_primary(self) -> None:
+        capability = self.load_capability()
+        spec = commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE]
+        for first, second, query_error in (
+            (commands.AdbValidationDeadlineExpired("deadline"), commands.AndroidCommandError("server drift"), None),
+            (commands.AndroidCommandError("server drift"), commands.AdbValidationDeadlineExpired("deadline"), None),
+            (None, commands.AdbValidationDeadlineExpired("deadline"), commands.AndroidCommandError("malformed package")),
+            (commands.AndroidCommandError("owned adb server validation deadline expired"), None, None),
+        ):
+            with (
+                self.subTest(first=first, second=second, query_error=query_error),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=[first, second]) as guard,
+                mock.patch.object(commands, "_observe_package_state", side_effect=query_error, return_value=BoundedResult(0,b"absent\n")),
+                self.assertRaises(commands.AndroidCommandError) as raised,
+            ):
+                commands._invoke_package_state(capability, spec, timeout_seconds=5)
+            self.assertIs(raised.exception, first if first is not None else query_error)
+            self.assertEqual(guard.call_count, 2)
+            if second is not None:
+                self.assertTrue(any("post-package-state" in note for note in raised.exception.__notes__))
+
+    def test_package_state_annotated_budget_failure_remains_fatal(self) -> None:
+        error = commands.AdbValidationDeadlineExpired("deadline")
+        error.add_note("structural cleanup failure already attached")
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=[error, None]),
+            mock.patch.object(commands, "_observe_package_state") as observe,
+            self.assertRaises(commands.AdbValidationDeadlineExpired) as raised,
+        ):
+            commands._invoke_package_state(self.load_capability(),
+                commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE], timeout_seconds=5)
+        self.assertIs(raised.exception,error)
+        observe.assert_not_called()
+
+    def test_listener_budget_uses_typed_expiry_and_rejects_nonfinite_input(self) -> None:
+        with mock.patch.object(commands.time,"monotonic",return_value=100.0):
+            for deadline in (99.0,100.0,100.9):
+                with self.subTest(deadline=deadline), self.assertRaises(commands.AdbValidationDeadlineExpired):
+                    commands._remaining_adb_listener_timeout(deadline)
+            for deadline in (float("nan"),float("inf"),float("-inf")):
+                with self.subTest(deadline=deadline), self.assertRaises(commands.AndroidCommandError) as raised:
+                    commands._remaining_adb_listener_timeout(deadline)
+                self.assertNotIsInstance(raised.exception,commands.AdbValidationDeadlineExpired)
+            self.assertEqual(commands._remaining_adb_listener_timeout(103.0),3)
+
     def test_package_state_pre_query_and_postcheck_share_one_deadline(self) -> None:
         capability = self.load_capability()
         spec = commands.OPERATION_SPECS[commands.AndroidOperation.PACKAGE_STATE]

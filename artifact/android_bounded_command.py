@@ -10,6 +10,7 @@ import enum
 import errno
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -121,6 +122,10 @@ EMULATOR_CONSOLE_RESPONSE_TIMEOUT_SECONDS = 5
 
 class AndroidCommandError(RuntimeError):
     """The private Android command capability or requested operation is invalid."""
+
+
+class AdbValidationDeadlineExpired(AndroidCommandError):
+    """The original observation budget cannot admit another owned-listener check."""
 
 
 class InstalledApkRetryReason(str, enum.Enum):
@@ -1646,7 +1651,9 @@ def _remaining_adb_listener_timeout(deadline: float | None) -> int:
     if deadline is None:
         return 5
     remaining = deadline - time.monotonic()
-    _require(remaining >= 1, "owned adb server validation deadline expired")
+    _require(math.isfinite(remaining), "owned adb server validation deadline is not finite")
+    if remaining < 1:
+        raise AdbValidationDeadlineExpired("owned adb server validation deadline expired")
     return min(5, int(remaining))
 
 
@@ -3968,6 +3975,7 @@ def _invoke_package_state(
     deadline = time.monotonic() + timeout_seconds
     result: BoundedResult | None = None
     primary: BaseException | None = None
+    deadline_only = False
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
         result = _observe_package_state(
@@ -3978,17 +3986,23 @@ def _invoke_package_state(
         )
     except BaseException as exc:
         primary = exc
+        deadline_only = isinstance(exc, AdbValidationDeadlineExpired) and not getattr(exc, "__notes__", None)
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
     except BaseException as postcheck_error:
+        postcheck_deadline = isinstance(postcheck_error, AdbValidationDeadlineExpired) and not getattr(postcheck_error, "__notes__", None)
         if primary is None:
             primary = postcheck_error
+            deadline_only = postcheck_deadline
         else:
+            deadline_only = deadline_only and postcheck_deadline
             primary.add_note(
                 "owned adb server post-package-state validation also failed: "
                 f"{postcheck_error}"
             )
     if primary is not None:
+        if deadline_only:
+            return BoundedResult(0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii"))
         raise primary
     _require(result is not None, "Android package-state observation produced no result")
     return result
