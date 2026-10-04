@@ -355,8 +355,9 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
     mode: String, original: EnrollmentStatus) throws -> String {
     let status: CredentialRenewalStatus
     switch mode {
-    case "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation":
-        let expected: Int32 = mode == "enrollment-credential-witness-commit-cancellation" ? 215 :
+    case "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation", "enrollment-credential-witness-commit-transport-error":
+        let expected: Int32 = mode == "enrollment-credential-witness-commit-transport-error" ? 218 :
+            mode == "enrollment-credential-witness-commit-cancellation" ? 215 :
             mode == "enrollment-credential-witness-commit-policy-expired" ? 104 : 702
         let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
         let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))

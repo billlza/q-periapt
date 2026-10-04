@@ -1947,6 +1947,7 @@ jobs:
             target/continuity-installed-rust/c-witnessed-renewal-public/**
             target/continuity-installed-rust/c-witnessed-policy-expiry-public/**
             target/continuity-installed-rust/c-witnessed-cancellation-public/**
+            target/continuity-installed-rust/c-witnessed-commit-error-public/**
             target/continuity-installed-rust/c-opening-public/**
             target/continuity-installed-rust/c-witness-public/**
             target/continuity-installed-rust/c-witness-tls-public/**
@@ -2057,12 +2058,15 @@ jobs:
             target/continuity-installed-swift/c-witnessed-renewal-public/**
             target/continuity-installed-swift/c-witnessed-policy-expiry-public/**
             target/continuity-installed-swift/c-witnessed-cancellation-public/**
+            target/continuity-installed-swift/c-witnessed-commit-error-public/**
             target/continuity-installed-swift/swift-witnessed-renewal-public/**
             target/continuity-installed-swift/swift-witnessed-policy-expiry-public/**
             target/continuity-installed-swift/swift-witnessed-cancellation-public/**
+            target/continuity-installed-swift/swift-witnessed-commit-error-public/**
             target/continuity-installed-swift/kotlin-witnessed-renewal-public/**
             target/continuity-installed-swift/kotlin-witnessed-policy-expiry-public/**
             target/continuity-installed-swift/kotlin-witnessed-cancellation-public/**
+            target/continuity-installed-swift/kotlin-witnessed-commit-error-public/**
             target/continuity-installed-swift/swift-enrollment-public/**
             target/continuity-installed-swift/kotlin-enrollment-public/**
             target/continuity-installed-swift/kotlin-owner-tests*.xml

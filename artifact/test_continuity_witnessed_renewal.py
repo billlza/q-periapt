@@ -102,7 +102,7 @@ def fixture(directory, *, policy_validity=(100, 400)):
     lines = [f"C_WITNESSED_RENEWAL carrier={case.split('-')[0]} terminal={case.split('-')[1]} "
              "original_proposal=true original_owner=true no_sdk_historical=true current_activation=true" for case in renewal.CASES]
     return ("\n".join(lines) + "\ntest " + renewal.TEST + " ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
 
 
 class WitnessedRenewalEvidenceTests(unittest.TestCase):

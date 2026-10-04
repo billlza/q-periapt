@@ -104,6 +104,13 @@ impl Witness {
                 // Inspect only the public signed outcome AFTER the real witness
                 // authenticated the request and durably applied its transition.
                 let advanced = reply.get(204) == Some(&2);
+                // Fault 9 exposes the transport error to the live foreign owner;
+                // fault 5 holds the same committed reply until that owner dies.
+                let commit_error = request.get(204) == Some(&5)
+                    && reply.get(204) == Some(&8)
+                    && pending
+                        .compare_exchange(9, 0, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok();
                 let mut delivered = true;
                 if (advanced
                     && pending
@@ -125,6 +132,7 @@ impl Witness {
                         && pending
                             .compare_exchange(5, 0, Ordering::AcqRel, Ordering::Acquire)
                             .is_ok())
+                    || commit_error
                 {
                     let marker = held
                         .lock()
@@ -147,9 +155,11 @@ impl Witness {
                             .to_str()
                             .ok_or("marker encoding")?,
                     )?;
-                    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-                    let mut byte = [0];
-                    require_held_peer_disconnect(stream.read(&mut byte))?;
+                    if !commit_error {
+                        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+                        let mut byte = [0];
+                        require_held_peer_disconnect(stream.read(&mut byte))?;
+                    }
                     delivered = false;
                 } else if advanced
                     && pending

@@ -195,7 +195,7 @@ def verify_witness(stdout: bytes, directory: Path, carrier: str, *, language: st
     sdk.require(carrier in WITNESS_TESTS, "unsupported C enrollment witness carrier")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [WITNESS_TESTS[carrier]]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
                 "C witnessed enrollment workload was not executed completely")
     prefix, public = "enrolled-witness", {}
 
@@ -323,7 +323,7 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         sdk.require(observed.sha256 == expected["sha256"] and observed.size == expected["bytes"],
                     "foreign registration native harness changed before execution")
         binaries[target] = (binary, observed.sha256)
-    for key in ("witnessed_credential_renewal", "witnessed_policy_expiry", "witnessed_cancellation"):
+    for key in ("witnessed_credential_renewal", "witnessed_policy_expiry", "witnessed_cancellation", "witnessed_commit_error"):
         sdk.require(key in native, "C cohort lacks " + key + " qualification")
         sdk.require(native[key]["binary"] == native["enrollment_witness"]["signed-tcp"]["binary"],
                     "foreign witnessed lifecycle must use the C-qualified original harness")
@@ -368,6 +368,9 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         outside, output, profile, runtime, binary, run, language=language, variant=variant)
     from continuity_witnessed_cancellation import qualify as qualify_cancellation
     result["witnessed_cancellation"] = qualify_cancellation(
+        outside, output, profile, runtime, binary, run, language=language, variant=variant)
+    from continuity_witnessed_commit_error import qualify as qualify_commit_error
+    result["witnessed_commit_error"] = qualify_commit_error(
         outside, output, profile, runtime, binary, run, language=language, variant=variant)
     sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result

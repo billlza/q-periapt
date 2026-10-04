@@ -75,7 +75,7 @@ def fixture(directory, *, tls_failure=False):
             lines.append(f"WITNESSED_CANCELLATION case={case} original_reservation=true no_target=true no_sdk_prepare=true "
                          f"killed_owner=true local_cut_phase={4 if ack else 1} closed=true policy_expired={str(expired).lower()}")
     return ("\n".join(lines) + "\ntest " + cancellation.TEST + " ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
 
 
 class CancellationEvidenceTests(unittest.TestCase):
@@ -154,7 +154,7 @@ class CancellationEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "runtime"; stdout = fixture(root)
             for value in (stdout + stdout, stdout.replace(b"1 passed", b"0 passed"),
-                          stdout.replace(b"7 filtered", b"6 filtered"), stdout.replace(b"killed_owner=true", b"killed_owner=false")):
+                          stdout.replace(b"8 filtered", b"6 filtered"), stdout.replace(b"killed_owner=true", b"killed_owner=false")):
                 with self.assertRaises(ValueError): cancellation.verify(value, root)
             for name, value in (("witness-enrollment-cancel-cut.stdout", b"credential-phase:4\n"),
                                 ("witness-enrollment-cancel-cut.stderr", b"timeout\n"), ("wrap.key", b"private")):

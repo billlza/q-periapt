@@ -146,15 +146,17 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
             fail("renewal stage differs from authenticated readback");
     } else if(!strcmp(operation,"enrollment-credential-witness-commit-no-sdk") ||
               !strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ||
+              !strcmp(operation,"enrollment-credential-witness-commit-transport-error") ||
               !strcmp(operation,"enrollment-credential-witness-commit-cancellation")) {
-        int32_t wanted=!strcmp(operation,"enrollment-credential-witness-commit-cancellation") ? QPC_SUSPENDED :
+        int32_t wanted=!strcmp(operation,"enrollment-credential-witness-commit-transport-error") ? QPC_ANCHOR :
+            !strcmp(operation,"enrollment-credential-witness-commit-cancellation") ? QPC_SUSPENDED :
             !strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ? QPC_VALIDITY : 702;
         uint8_t id[32],statement[32];qpc_credential_renewal_status_v1 untouched;
         enrollment_exact(path,"credential-operation",id,32);
         enrollment_exact(path,"credential-statement",statement,32);
         memset(&status,0xa5,sizeof(status));memcpy(&untouched,&status,sizeof(status));
         int32_t code=qpc_enrollment_v1_commit_witnessed_credential_renewal(handle,id,statement,&status,&error);record(code,&error);
-        if(code!=wanted || memcmp(&status,&untouched,sizeof(status))) fail("historical metadata authorized new commit or published failed output");
+        if(code!=wanted || memcmp(&status,&untouched,sizeof(status))) fail("witnessed commit refusal differs or published failed output");
         code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_CLOSED) fail("failed witnessed commit retained owner");
         close_owner(handle);printf("credential-witness-commit-refused:%d\n",wanted);return 0;

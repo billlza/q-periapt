@@ -463,6 +463,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_witnessed_cancellation import qualify as qualify_cancellation
         result["execution"][profile]["witnessed_cancellation"] = qualify_cancellation(
             outside, output, profile, runtime, enrollment_witness_binary, run)
+        from continuity_witnessed_commit_error import qualify as qualify_commit_error
+        result["execution"][profile]["witnessed_commit_error"] = qualify_commit_error(
+            outside, output, profile, runtime, enrollment_witness_binary, run)
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

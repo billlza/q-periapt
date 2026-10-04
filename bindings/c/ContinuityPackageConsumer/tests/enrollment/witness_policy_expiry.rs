@@ -90,7 +90,7 @@ const LABELS: &[&str] = &[
     "expiry-commit-cut",
 ];
 
-fn transport(path: &Path, endpoint: Endpoint) -> Result<Box<dyn AnchorTransport>> {
+pub(super) fn transport(path: &Path, endpoint: Endpoint) -> Result<Box<dyn AnchorTransport>> {
     if !endpoint.tls {
         return Ok(Box::new(p::AnchorTcpTransport::new(endpoint.address)));
     }
@@ -114,7 +114,7 @@ fn transport(path: &Path, endpoint: Endpoint) -> Result<Box<dyn AnchorTransport>
         p::Cancellation::default(),
     )?))
 }
-fn enrollment_paths(path: &Path) -> Result<p::EnrollmentPaths> {
+pub(super) fn enrollment_paths(path: &Path) -> Result<p::EnrollmentPaths> {
     Ok(p::EnrollmentPaths::new(
         &path.join("wrap.key"),
         &path.join("signer.key"),
@@ -152,7 +152,7 @@ fn commitment(domain: &[u8], value: &[u8]) -> io::Result<[u8; 32]> {
     h.update(value);
     Ok(h.finalize().into())
 }
-fn validate_commit_exchange(
+pub(super) fn validate_commit_exchange(
     proposal: p::AnchorCredentialRenewalProposal,
     request: &[u8],
     reply: &[u8],
@@ -196,27 +196,33 @@ fn validate_commit_exchange(
     Ok(())
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(super) enum CommitReplyLoss {
+    Kill,
+    TransportError,
+}
 struct HeldCommit {
     proposal: p::AnchorCredentialRenewalProposal,
     marker: PathBuf,
     released: Arc<AtomicBool>,
+    loss: CommitReplyLoss,
 }
-struct Release(Arc<AtomicBool>);
+pub(super) struct Release(Arc<AtomicBool>);
 impl Drop for Release {
     fn drop(&mut self) {
         self.0.store(true, Ordering::Release);
     }
 }
-struct CommitTlsWitness {
-    address: SocketAddr,
-    admitted: Arc<AtomicUsize>,
-    records: Arc<Mutex<Vec<witness::Capture>>>,
+pub(super) struct CommitTlsWitness {
+    pub(super) address: SocketAddr,
+    pub(super) admitted: Arc<AtomicUsize>,
+    pub(super) records: Arc<Mutex<Vec<witness::Capture>>>,
     hold: Arc<Mutex<Option<HeldCommit>>>,
     stop: Arc<AtomicBool>,
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
 impl CommitTlsWitness {
-    fn start(store: Arc<Mutex<p::AnchorStore>>, path: &Path) -> Result<Self> {
+    pub(super) fn start(store: Arc<Mutex<p::AnchorStore>>, path: &Path) -> Result<Self> {
         let configured = witness_tls::provision([path])?;
         let server = configured.native;
         drop((configured.certificate, configured.key));
@@ -279,7 +285,9 @@ impl CommitTlsWitness {
                     // the parent that has reaped SIGKILL may release this hold;
                     // local read shutdown is not evidence of peer termination.
                     let deadline = Instant::now() + Duration::from_secs(5);
-                    while !held.released.load(Ordering::Acquire) {
+                    while held.loss == CommitReplyLoss::Kill
+                        && !held.released.load(Ordering::Acquire)
+                    {
                         if Instant::now() >= deadline {
                             return Err("TLS Commit hold expired".into());
                         }
@@ -312,10 +320,11 @@ impl CommitTlsWitness {
             worker: Some(worker),
         })
     }
-    fn arm(
+    pub(super) fn arm(
         &self,
         proposal: p::AnchorCredentialRenewalProposal,
         marker: PathBuf,
+        loss: CommitReplyLoss,
     ) -> Result<Release> {
         let mut saved = self.hold.lock().map_err(|_| "TLS hold lock")?;
         if saved.is_some() {
@@ -326,10 +335,11 @@ impl CommitTlsWitness {
             proposal,
             marker,
             released: Arc::clone(&released),
+            loss,
         });
         Ok(Release(released))
     }
-    fn finish(&mut self) -> Result<()> {
+    pub(super) fn finish(&mut self) -> Result<()> {
         self.stop.store(true, Ordering::Release);
         self.worker
             .take()
@@ -388,7 +398,7 @@ fn apply_without_local_recovery(
     let before = pending_journal(path)?;
     let marker = path.join("expiry-commit-ready");
     let release = if let Some(server) = tls {
-        Some(server.arm(proposal, marker.clone())?)
+        Some(server.arm(proposal, marker.clone(), CommitReplyLoss::Kill)?)
     } else {
         let mut held = witness.hold_marker.lock().map_err(|_| "TCP hold lock")?;
         if held.replace(marker.clone()).is_some() {

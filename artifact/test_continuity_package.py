@@ -107,8 +107,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_witnessed_renewal as witnessed_renewal
         import continuity_witnessed_policy_expiry as policy_expiry
         import continuity_witnessed_cancellation as cancellation
+        import continuity_witnessed_commit_error as commit_error
         sources = package.source_inputs()['files']
-        for module in (signed, tls, loss, delivery, setup, renewal, enrollment, c_enrollment, witnessed_renewal, policy_expiry, cancellation):
+        for module in (signed, tls, loss, delivery, setup, renewal, enrollment, c_enrollment, witnessed_renewal, policy_expiry, cancellation, commit_error):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):

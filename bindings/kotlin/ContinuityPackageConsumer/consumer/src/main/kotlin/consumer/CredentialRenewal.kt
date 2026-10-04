@@ -43,8 +43,9 @@ private fun renewalStatus(value: CredentialRenewalStatus): String {
 internal fun credentialEnrollment(owner: ContinuityEnrollment, records: FixtureRecords, mode: String,
                                    original: EnrollmentStatus): String {
     val status = when (mode) {
-        "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation" -> {
+        "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation", "enrollment-credential-witness-commit-transport-error" -> {
             val expected = when (mode) {
+                "enrollment-credential-witness-commit-transport-error" -> 218
                 "enrollment-credential-witness-commit-cancellation" -> 215
                 "enrollment-credential-witness-commit-policy-expired" -> 104
                 else -> 702
