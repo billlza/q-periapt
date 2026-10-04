@@ -69,3 +69,20 @@ boot, installation, observations and bounded cleanup. Completion describes only
 these finite samples; absence of a reproduced failure does not establish a root
 cause or qualify Android cleanup stability. Physical devices and installed SDK
 instrumentation remain separate from this transport experiment.
+
+Run `37228953002` reproduced a zero-exit short transfer in the direct-file arm:
+sample17 returned 12,570,112 bytes of the expected 13,608,912, followed by offline.
+The only traced kill was a later logcat timeout, after the disconnect. The bounded
+PIPE collector is therefore not necessary for that observed failure; the underlying
+transport cause is still unproven. Another arm stopped because `pidof system_server`
+returned both the original PID and a second same-name process. Its process table
+still contained the original service, so that observation does not prove restart.
+
+Subsequent probes retain the complete name census but verify the original service
+PID, process name, parent, start ticks and boot ID through `/proc/PID/stat`. An
+ambiguous initial identity, missing original PID, reused PID, changed parent or
+dead process refuses. Extra same-name PIDs cannot replace the tracked service.
+Kernel output is captured outside the ADB channel, and the crash log buffer is
+read separately so ordinary framework traffic cannot displace its final records.
+These observations strengthen diagnosis without changing SDK admission or retry
+policy; the earlier failed trials remain part of the evidence.

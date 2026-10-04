@@ -16,6 +16,10 @@ import android_apk_transport_probe as probe
 from bounded_process import BoundedProcessError, BoundedResult
 
 
+def process_stat(pid, name, *, parent=1, started=20, state="S"):
+    return (f"{pid} ({name}) {state} {parent} " + "0 "*17 + str(started) + "\n").encode()
+
+
 class ApkTransportProbeTests(unittest.TestCase):
     def experiment(self, directory, mode):
         work = Path(directory) / "work";work.mkdir(mode=0o700)
@@ -114,11 +118,51 @@ class ApkTransportProbeTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,"package-path command failed"):
                     experiment.path("failed")
             first=b"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n442\n880\n3.00 0.00\n"
-            with mock.patch.object(experiment,"query",return_value=BoundedResult(0,first)):
+            def observed(label, args):
+                if label.endswith("-adbd-stat"): return BoundedResult(0,process_stat(442,"adbd"))
+                if label.endswith("-system_server-stat"): return BoundedResult(0,process_stat(880,"system_server",parent=99))
+                return BoundedResult(0,first)
+            with mock.patch.object(experiment,"query",side_effect=observed):
                 experiment.identity("before")
             with mock.patch.object(experiment,"query",return_value=BoundedResult(0,first.replace(b"442",b"443"))):
                 with self.assertRaisesRegex(RuntimeError,"identity changed"):
                     experiment.identity("after")
+
+    def test_same_name_child_does_not_replace_original_process_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            experiment=self.experiment(temporary,"apk-path-only")
+            observed_pids=b"880";started=20;parent=99
+            def observed(label,args):
+                if label.endswith("-adbd-stat"): return BoundedResult(0,process_stat(442,"adbd"))
+                if label.endswith("-system_server-stat"):
+                    self.assertEqual(args[-1],"/proc/880/stat")
+                    return BoundedResult(0,process_stat(880,"system_server",parent=parent,started=started))
+                return BoundedResult(0,b"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n442\n"+observed_pids+b"\n3.00 0.00\n")
+            with mock.patch.object(experiment,"query",side_effect=observed):
+                experiment.identity("before")
+                observed_pids=b"880 990"
+                experiment.identity("additional-name-match")
+                started=21
+                with self.assertRaisesRegex(RuntimeError,"start time changed"):
+                    experiment.identity("reused-pid")
+                started=20;parent=1
+                with self.assertRaisesRegex(RuntimeError,"parent or start time"):
+                    experiment.identity("changed-parent")
+                parent=99;observed_pids=b"990"
+                with self.assertRaisesRegex(RuntimeError,"identity changed"):
+                    experiment.identity("original-gone")
+                experiment.guest_identity=None;observed_pids=b"880 990"
+                with self.assertRaisesRegex(RuntimeError,"baseline guest service identity is ambiguous"):
+                    experiment.identity("ambiguous-baseline")
+
+    def test_process_stat_rejects_replacement_dead_and_malformed_records(self):
+        valid=process_stat(880,"system_server",parent=99,started=20)
+        self.assertEqual(probe.process_identity(valid,b"880",b"system_server"),(b"880",b"system_server",99,20))
+        for value in (valid.replace(b"880",b"881"), valid.replace(b"system_server",b"other"),
+                      process_stat(880,"system_server",state="Z"),process_stat(880,"system_server",state="?"),
+                      process_stat(880,"system_server",started=0), b"880 (system_server) S\n"):
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                probe.process_identity(value,b"880",b"system_server")
 
 
 if __name__ == "__main__": unittest.main()

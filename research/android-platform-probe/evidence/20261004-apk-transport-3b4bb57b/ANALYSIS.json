@@ -1,0 +1,142 @@
+{
+  "run": 37228953002,
+  "head": "3b4bb57bf113c63b710d6fa6e6ae2ce71f659f41",
+  "same_tool_and_image_hashes": {
+    "/usr/local/lib/android/sdk/platform-tools/adb": "a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01",
+    "/usr/local/lib/android/sdk/emulator/emulator": "27e9a8cbd545529ba2c1aca973e5bc060f50b36a68d2c03296b0162291a16b83",
+    "/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless": "23b788a3b87b3228558924de4cb5477e2818b3b9415d6ce27d6438cf3e462b98",
+    "/usr/local/lib/android/sdk/system-images/android-35/google_apis_ps16k/x86_64/kernel-ranchu": "987818a35792fb62f6ea6aa604d5fa476e1e85c84fc1cbac3979e1ae26965f46",
+    "/usr/local/lib/android/sdk/system-images/android-35/google_apis_ps16k/x86_64/system.img": "5c5dabeee5c63652e485947e62f2849f4ae3fba5d425eeba9df24c3f1e5f042c"
+  },
+  "cases": {
+    "android-apk-transport-apk-pipe-copy-1": {
+      "artifact_id": 11313477010,
+      "zip_sha256": "078d9b565f729f3a637cdd8bbcb18c52e3c5c49edcd843c30a76c1b1eb0e6c36",
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "copies": 24,
+      "exact_copies": 24,
+      "copy_zero_exits": 24,
+      "failure": [],
+      "host_disconnects": [],
+      "kill_syscalls": []
+    },
+    "android-apk-transport-apk-path-only-2": {
+      "artifact_id": 11313292568,
+      "zip_sha256": "d41bb6a2ffd47a064f873fbd300befbc730ac0d29062f4b55a24cdea4f9ff77e",
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "copies": 0,
+      "exact_copies": 0,
+      "copy_zero_exits": 0,
+      "failure": [],
+      "host_disconnects": [],
+      "kill_syscalls": []
+    },
+    "android-apk-transport-apk-path-only-1": {
+      "artifact_id": 11313158070,
+      "zip_sha256": "27e2efca44e2494e46318959649d119644082b869d6654de56fd2950a15b9d89",
+      "completed_samples": 9,
+      "status": "observation_failed",
+      "copies": 0,
+      "exact_copies": 0,
+      "copy_zero_exits": 0,
+      "failure": [
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791142960594372625,
+          "monotonic_ns": 155718178916,
+          "failure_type": "RuntimeError",
+          "failure": "guest identity unavailable or malformed"
+        }
+      ],
+      "host_disconnects": [],
+      "kill_syscalls": [],
+      "ambiguous_processes": [
+        "shell          436     1   10963444  11176 0                   0 S adbd",
+        "system         561   356   18301476 472252 0                   0 S system_server",
+        "system        2771     1   18228100 137912 0                   0 t system_server"
+      ]
+    },
+    "android-apk-transport-apk-pipe-copy-2": {
+      "artifact_id": 11313123215,
+      "zip_sha256": "1daf3ee9f0baa4fa8d83b211ae066191d91a750fba73fa28f9bc434dabf84eb3",
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "copies": 24,
+      "exact_copies": 24,
+      "copy_zero_exits": 24,
+      "failure": [],
+      "host_disconnects": [],
+      "kill_syscalls": []
+    },
+    "android-apk-transport-apk-file-copy-1": {
+      "artifact_id": 11312633002,
+      "zip_sha256": "654070f575cbfc7a4556f1453ad21f00b5824ccbf765771bffc2928139126363",
+      "completed_samples": 16,
+      "status": "observation_failed",
+      "copies": 17,
+      "exact_copies": 16,
+      "copy_zero_exits": 17,
+      "failure": [
+        {
+          "label": "experiment-failed",
+          "wall_time_ns": 1791143027998137233,
+          "monotonic_ns": 262146604886,
+          "failure_type": "RuntimeError",
+          "failure": "package-path command failed: sample-17-after"
+        }
+      ],
+      "host_disconnects": [
+        "10-04 19:43:47.937  3018  3156 I adb     : transport.cpp:1222 emulator-5584: connection terminated: read failed"
+      ],
+      "kill_syscalls": [
+        "3549  1791143033.017238 kill(-3737, SIGKILL) = 0"
+      ],
+      "short_copy": {
+        "label": "sample-17-copy",
+        "wall_time_ns": 1791143027982974252,
+        "monotonic_ns": 262131442366,
+        "elapsed_ns": 434807620,
+        "returncode": 0,
+        "client_pid": 3732,
+        "client_process_group": 2932,
+        "bytes": 12570112,
+        "sha256": "a263186c44ada436f85dcac5b75ab3e12ef5687718975bca5d35428fcbde9325",
+        "exact": false,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_prefix": "",
+        "stderr_truncated": false
+      }
+    },
+    "android-apk-transport-apk-file-copy-2": {
+      "artifact_id": 11312503282,
+      "zip_sha256": "770245bc91a4741d884271971dee98cce74595ad14630858bfd6469cfd845911",
+      "completed_samples": 24,
+      "status": "observations_completed",
+      "copies": 24,
+      "exact_copies": 24,
+      "copy_zero_exits": 24,
+      "failure": [],
+      "host_disconnects": [],
+      "kill_syscalls": []
+    }
+  },
+  "requested_samples": 144,
+  "completed_samples": 121,
+  "copy_attempts": 89,
+  "exact_copies": 88,
+  "conclusions": [
+    "Direct-file cat returned zero with 1,038,800 missing bytes and subsequent offline; bounded PIPE is not necessary for this observed failure.",
+    "The captured SIGKILL occurred 5.080s after host disconnect and targeted a later logcat client, not the copy client. Normal close(3) ordering within the same millisecond remains unresolved.",
+    "Path-only failure was a two-PID shape refusal, not observed replacement of the original system_server. Original 561 remained with PPID 356; second 2771 had PPID 1 and state t. Its origin is unknown.",
+    "Four complete trials and exact hash enforcement do not establish stable cleanup or explain why the guest/emulator transport closed."
+  ],
+  "not_proven": [
+    "Underlying guest/emulator/host transport cause",
+    "Same APK identity as the original failed push",
+    "Current product archive/device qualification"
+  ],
+  "release_claim_eligible": false
+}

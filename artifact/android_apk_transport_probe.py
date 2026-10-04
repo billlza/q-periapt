@@ -71,6 +71,17 @@ def copy_observation(path: Path) -> dict:
     return dict(bytes=size, sha256=value, exact=size == APK_BYTES and value == APK_SHA256)
 
 
+def process_identity(data: bytes, pid: bytes, name: bytes) -> tuple[bytes, bytes, int, int]:
+    prefix = pid + b" (" + name + b") "
+    if not data.startswith(prefix):
+        raise ValueError("tracked guest process name or PID differs")
+    fields = data[len(prefix):].split()
+    if (len(fields) < 20 or fields[0] not in (b"R", b"S", b"D", b"T", b"t", b"I", b"W", b"K", b"P")
+            or not fields[1].isdigit() or not fields[19].isdigit() or int(fields[19]) == 0):
+        raise ValueError("tracked guest process is dead or has malformed identity")
+    return pid, name, int(fields[1]), int(fields[19])
+
+
 def direct_copy(argv, destination: Path, errors: Path, timeout: int, environment) -> dict:
     """Comparison arm: same command/deadline, stdout directly to a size-limited file.
 
@@ -177,12 +188,33 @@ class Experiment:
         program = "cat /proc/sys/kernel/random/boot_id; pidof adbd; pidof system_server; cat /proc/uptime"
         state = self.query(label, ["shell", "sh", "-c", shlex.quote(program)])
         lines = state.stdout.splitlines()
-        if (state.returncode or len(lines) != 4 or re.fullmatch(rb"[0-9a-f-]{36}", lines[0]) is None
-                or any(re.fullmatch(rb"[1-9][0-9]*", line) is None for line in lines[1:3])):
+        if (state.returncode or len(lines) != 4 or re.fullmatch(rb"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", lines[0]) is None
+                or any(re.fullmatch(rb"[1-9][0-9]*(?: [1-9][0-9]*){0,15}", line) is None for line in lines[1:3])):
             raise RuntimeError("guest identity unavailable or malformed")
-        identity = lines[:3]
+        candidates = [line.split() for line in lines[1:3]]
+        if any(len(values) != len(set(values)) for values in candidates):
+            raise RuntimeError("guest process census contains duplicate PIDs")
+        if self.guest_identity is None:
+            if any(len(values) != 1 for values in candidates):
+                raise RuntimeError("baseline guest service identity is ambiguous")
+            selected = [values[0] for values in candidates]
+        else:
+            boot, previous = self.guest_identity
+            selected = [value[0] for value in previous]
+            if boot != lines[0] or any(pid not in values for pid, values in zip(selected, candidates, strict=True)):
+                raise RuntimeError("guest boot/adbd/system_server identity changed")
+        observed = []
+        for pid, name in zip(selected, (b"adbd", b"system_server"), strict=True):
+            result = self.query(label + "-" + name.decode() + "-stat", ["shell", "cat", "/proc/" + pid.decode() + "/stat"])
+            if result.returncode:
+                raise RuntimeError("tracked guest process stat unavailable")
+            observed.append(process_identity(result.stdout, pid, name))
+        identity = (lines[0], observed)
         if self.guest_identity is not None and identity != self.guest_identity:
-            raise RuntimeError("guest boot/adbd/system_server identity changed")
+            raise RuntimeError("tracked guest process parent or start time changed")
+        # Name matching alone can include a second transient/traced process.
+        # Keep that census in the event; continuity requires the original PID,
+        # name, parent, start time and boot ID, not selecting a replacement PID.
         self.guest_identity = identity
 
     def run(self):
@@ -199,7 +231,8 @@ class Experiment:
         finally:
             diagnostics = {}
             for name, args in [("final-state", ["shell", "sh", "-c", shlex.quote("ps -A; cat /proc/meminfo; cat /proc/uptime")]),
-                               ("final-logcat", ["logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-t", "200", "-v", "threadtime"])]:
+                               ("final-logcat", ["logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-t", "200", "-v", "threadtime"]),
+                               ("final-crash", ["logcat", "-d", "-b", "crash", "-t", "200", "-v", "threadtime"])]:
                 try:
                     result = self.query(name, args, diagnostic=True)
                     diagnostics[name] = dict(returncode=result.returncode)
