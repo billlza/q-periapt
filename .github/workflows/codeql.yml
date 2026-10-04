@@ -164,6 +164,8 @@ jobs:
           config: |
             threat-models: [local]
           db-location: ${{ runner.temp }}/qperiapt-codeql-database
+          debug: ${{ matrix.language == 'swift' }}
+          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics
           languages: ${{ matrix.language }}
           queries: security-extended
           tools: linked
@@ -191,12 +193,9 @@ jobs:
 
       - name: Build Swift binding
         if: matrix.language == 'swift'
-        # The CodeQL Swift extractor may drive the SwiftPM build for a
-        # different architecture than the runner host (observed: an
-        # x86_64-apple-macosx SwiftPM triple on an arm64 runner). Pin SwiftPM
-        # to arm64 and provide its static library. Start SwiftPM itself natively
-        # too: --triple alone leaves its XCTest loader under Rosetta. SDK 0.2.0
-        # supports Apple Silicon macOS only; no universal archive is required.
+        # Compiled CodeQL extraction on Apple Silicon uses Rosetta. Keep the
+        # build in that traced process tree, targeting only arm64. XCTest must
+        # then run natively from the exact same freshly built test products.
         run: |
           # The tracer can launch a translated shell on Apple Silicon. Check
           # hardware capability; the Rust target and Swift triple below bind output.
@@ -208,7 +207,9 @@ jobs:
           rm -f target/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.dylib
           cp target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.a
           lipo -info target/release/libq_periapt_ffi_abi2.a
-          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --package-path bindings/swift --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
+          codeql_swift_scratch="$(mktemp -d "$RUNNER_TEMP/qperiapt-codeql-swift.XXXXXX")"
+          swift build --build-tests --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
+          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
 
       - name: Analyze
         id: codeql_analyze

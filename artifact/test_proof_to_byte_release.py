@@ -1316,11 +1316,17 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail",
             source,
         )
-        self.assertIn(
-            "/usr/bin/arch -arm64 /usr/bin/xcrun swift test --package-path bindings/swift --triple arm64-apple-macosx13.0 -Xlinker "
-            "-L${{ github.workspace }}/target/release",
-            source,
+        swift_common = (
+            ' --package-path bindings/swift --scratch-path "$codeql_swift_scratch"'
+            ' --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release'
         )
+        self.assertIn('codeql_swift_scratch="$(mktemp -d "$RUNNER_TEMP/qperiapt-codeql-swift.XXXXXX")"', source)
+        self.assertIn("          swift build --build-tests" + swift_common, source)
+        self.assertIn("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common, source)
+        self.assertLess(source.index("          swift build --build-tests" + swift_common),
+                        source.index("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common))
+        self.assertIn("          debug: ${{ matrix.language == 'swift' }}", source)
+        self.assertIn("          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics", source)
         # Kotlin builds its host library; the 0.2.0 Swift tracer and static
         # archive are both explicitly bound to Apple Silicon macOS.
         self.assertEqual(
