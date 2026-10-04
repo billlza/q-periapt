@@ -4811,3 +4811,26 @@ regressions and 31 collector/source-cohort tests. Evidence is sealed under
 This closes a diagnosed fixture gap, not current-head hosted archive, platform,
 full lifecycle, security-analysis, performance, external-review or 0.2.0 release
 gates. macOS scope remains Apple Silicon only.
+
+
+At `864cc594`, installed-APK observation records a known byte mismatch before a
+later package-path query can mask it as package unavailability. The current
+private-file snapshot and final path/byte recheck remain mandatory; a copy
+modified during the final query still refuses. No ADB protocol, observation
+budget, retry policy, native SDK or ABI changes. The original implementation
+failed empty, short and same-width-corrupt copy precedence controls; the changed
+implementation passed all194 bounded-command tests and two real shell ownership
+loop regressions. This is error preservation, not an Android transport fix.
+The motivating owned API35/16KiB comparison at diagnostic `5ab0698d` completed
+73 exact copies in75 attempts: raw exec-out returned zero for an empty copy,
+whereas shell-v2 returned255 for a4096-byte truncated copy. Both had a failing
+trial, so shell-v2 completion did not repair disconnection. All four preflights
+verified actual routes, separated streams/exit7 and independent guest log
+capture. Source and original artifacts are sealed in
+`research/sdk-alpha1/evidence/20261004-installed-apk-copy-observation-864cc594/`.
+Separately, product `4126bb5b` runtime16KiB failed in the second configuration's
+installation. Its matching crash-dumper was already present in the installation
+baseline: the captured system_server SIGSEGV preceded SDK installation. This
+framework failure and earlier copy/offline observations are not asserted to
+share a cause. Exact new-head hosted qualification and the full0.2.0 lifecycle,
+platform, security, performance and external-review gates remain open.
