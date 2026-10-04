@@ -312,6 +312,23 @@ typedef struct {
     uint64_t version;
     uint8_t digest[32];
 } qpc_roster_checkpoint_v1;
+/* Historical renewal axis, separate from enrollment's six phases.
+ * phase 0=Absent: all remaining fields zero.
+ * phase 1=Pending: operation/statement set, checkpoint/observed_at zero;
+ *                this does NOT imply the journal has not committed.
+ * phase 2=Committed: operation/statement and historical target checkpoint set,
+ *                   observed_at zero; current traffic authority may be denied.
+ * phase 3=ExpiredUncommitted: operation/statement, observed journal checkpoint
+ *                           and trusted observation time set.
+ * Output is usable only after success; a nonzero return writes no success fact.
+ */
+typedef struct {
+    uint32_t phase;
+    uint8_t operation[32];
+    uint8_t statement[32];
+    qpc_roster_checkpoint_v1 checkpoint;
+    uint64_t observed_at;
+} qpc_credential_renewal_status_v1;
 typedef struct {
     uint8_t account[32];
     const uint8_t *root;
@@ -352,6 +369,44 @@ int32_t qpc_enrollment_v1_refresh_roster(uint64_t handle,
     const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
     const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_activate(uint64_t handle, qpc_error_v1 *error);
+/* Same-key local renewal uses the original enrollment intent and installed files.
+ * Close/join the original device/children, prepare_resume the original intent,
+ * stage the independently verified target, then call the same consuming activate.
+ * Never replace local-* files or provision to recover this operation.
+ * wire is nonempty and at most 65536 bytes. pin is obtained independently of it;
+ * operation[32] is retained before submission. The exact configured policy is used.
+ * Required-witness LOCAL renewal remains explicitly refused, with no fallback.
+ * New mutations use enrollment's existing consume-on-admitted-failure rule.
+ */
+int32_t qpc_enrollment_v1_credential_renewal_status(uint64_t handle,
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_stage_credential_renewal(uint64_t handle,
+    const uint8_t *wire, size_t wire_length, const qpc_account_pin_v1 *pin,
+    const uint8_t operation[32], qpc_credential_renewal_status_v1 *status,
+    qpc_error_v1 *error);
+/* Resolve original operation/statement; do not reverify an expired target first.
+ * Uses the original configured policy and publishes no Device. Exact retained
+ * commits win over expiry/revocation. NoCommit requires native monotonic-history
+ * proof; missing receipts alone never suffice. The last abandonment is retained
+ * until another abandonment or later completion; older outcomes are not invented.
+ * Passive renewal_status needs no live policy or TLS configuration.
+ */
+int32_t qpc_enrollment_v1_reconcile_expired_credential_renewal(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Admit a remote grant on the same Device service. It cannot renew the local
+ * identity, replace policy, create/reopen a session or update cached Peer views.
+ * After success explicitly reopen each original peer/session with its original
+ * bundle/pins. Existing peers remain subject to native current-grant checks.
+ * Input bounds and independent pin/operation requirements match local staging.
+ * On unknown commit, close/reopen original owners and reconcile the same operation;
+ * failure is not absence and never authorizes a new journal or new operation ID.
+ */
+int32_t qpc_device_v1_admit_peer_credential_renewal(uint64_t handle,
+    const uint8_t *wire, size_t wire_length, const qpc_account_pin_v1 *pin,
+    const uint8_t operation[32], qpc_roster_checkpoint_v1 *checkpoint,
+    qpc_error_v1 *error);
+
 /* A device parent opens only an already Active original installation using its
  * independently configured local-* identity, SDK/protocol policy and witness.
  * It does not read a bootstrap bundle, select a peer, provision, or activate a

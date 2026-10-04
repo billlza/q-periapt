@@ -308,6 +308,7 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "account_client.c"
 #include "setup_client.c"
 #include "enrollment_client.c"
+#include "credential_peer_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -334,6 +335,10 @@ int main(int argc, char **argv) {
             fail("existing session requires an operational command");
     }
     self_check();
+    if (!strcmp(argv[1],"credential-peer-check")) {
+        if (device_path || existing || witness) fail("credential peer check owns its local-only parent");
+        return credential_peer_check(argc,argv);
+    }
     if (!strncmp(argv[1],"enrollment-",11)) {
         if(device_path || existing) fail("enrollment command owns its registration");
         return enrollment_command(argc,argv,witness,witness_tls);

@@ -40,9 +40,10 @@ EXPORTS |= {"qpc_setup_v1_" + name for name in
             ("prepare_create", "prepare_resume", "status", "prepare_storage", "activate")}
 EXPORTS |= {"qpc_enrollment_v1_" + name for name in
             ("provision_wrapping_key", "prepare_create", "prepare_resume", "status", "request", "accept",
-             "prepare_storage", "refresh_roster", "activate")}
+             "prepare_storage", "refresh_roster", "activate", "credential_renewal_status",
+             "stage_credential_renewal", "reconcile_expired_credential_renewal")}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
-            "qpc_device_v1_send_account_member"}
+            "qpc_device_v1_send_account_member", "qpc_device_v1_admit_peer_credential_renewal"}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
     "account_member", "account_reserved", "account_epoch", "account_unconfirmed", "account_delivery",
     "account_skipped", "account_acknowledge", "account_retire")}
@@ -419,6 +420,19 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
         result["execution"][profile]["enrollment"] = registration
+        from continuity_c_enrollment import verify_renewal_execution
+        renewal_runtime = dict(runtime)
+        # Each parallel renewal case owns an independent temporary installation.
+        # The original registration export above has a single shared evidence path.
+        renewal_runtime.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
+        renewal_stdout = run([str(enrollment_binary), "credential_renewal::", "--nocapture"],
+                              "credential-renewal-trace-" + profile, runtime=renewal_runtime)
+        renewed = verify_renewal_execution(renewal_stdout)
+        sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
+                    "C credential renewal test binary changed")
+        renewed["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
+        sdk.write_json(output / ("C_CREDENTIAL_RENEWAL_" + profile.upper() + ".json"), renewed)
+        result["execution"][profile]["credential_renewal"] = renewed
         from continuity_c_enrollment import WITNESS_TESTS as enrollment_witness_tests, export_witness as export_enrollment_witness
         enrollment_witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment_witness", "--no-run",
                                        "--message-format=json", "-j", "2", *extra], "enrollment-witness-build-" + profile)

@@ -5,6 +5,9 @@ _Static_assert(sizeof(qpc_account_pin_v1)==120,"account pin ABI");
 _Static_assert(sizeof(qpc_enrollment_status_v1)==152,"enrollment status ABI");
 _Static_assert(offsetof(qpc_enrollment_status_v1,previous)==72,"checkpoint ABI alignment");
 _Static_assert(sizeof(qpc_enrollment_request_v1)==8196,"request ABI");
+_Static_assert(sizeof(qpc_credential_renewal_status_v1)==120,"credential renewal status ABI");
+_Static_assert(offsetof(qpc_credential_renewal_status_v1,checkpoint)==72,"renewal checkpoint ABI");
+_Static_assert(offsetof(qpc_credential_renewal_status_v1,observed_at)==112,"renewal observation ABI");
 static void enrollment_path(char out[4096],const char *path,const char *name) {
     int n=snprintf(out,4096,"%s/%s",path,name);
     if(n<=0 || n>=4096) fail("enrollment test path");
@@ -87,6 +90,67 @@ static void enrollment_status(uint64_t handle,qpc_enrollment_status_v1 *status) 
     if(status->phase!=6 && (status->previous.version || status->next.version ||
        memcmp(status->previous.digest,zero,32) || memcmp(status->next.digest,zero,32))) fail("unexpected refresh status");
 }
+static void credential_status_print(const qpc_credential_renewal_status_v1 *status) {
+    uint8_t zero[32]={0};
+    if(status->phase>3) fail("unknown credential renewal phase");
+    if(status->phase==0 && (memcmp(status->operation,zero,32) || memcmp(status->statement,zero,32)))
+        fail("absent renewal has an operation");
+    if(status->phase!=0 && (!memcmp(status->operation,zero,32) || !memcmp(status->statement,zero,32)))
+        fail("renewal is missing its original identity");
+    if(status->phase<2 && (status->checkpoint.version || memcmp(status->checkpoint.digest,zero,32)))
+        fail("pending renewal fabricated a checkpoint");
+    if(status->phase>=2 && (!status->checkpoint.version || !memcmp(status->checkpoint.digest,zero,32)))
+        fail("terminal renewal has no observed checkpoint");
+    if((status->phase==3) != (status->observed_at!=0)) fail("renewal observation belongs only to abandonment");
+    printf("credential-phase:%u\n",status->phase);encode(status->operation);encode(status->statement);
+    printf("credential-head:%llu\n",(unsigned long long)status->checkpoint.version);encode(status->checkpoint.digest);
+    printf("credential-observed:%llu\n",(unsigned long long)status->observed_at);
+}
+static int credential_command(uint64_t handle,const char *path,const char *operation) {
+    qpc_error_v1 error;qpc_credential_renewal_status_v1 status;
+    if(!strcmp(operation,"enrollment-credential-activate-refused")) {
+        int32_t code=qpc_enrollment_v1_activate(handle,&error);record(code,&error);
+        if(code!=QPC_VALIDITY) fail("expired target did not refuse activation");
+        code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
+        if(code!=QPC_CLOSED) fail("failed expired activation retained owner");
+        close_owner(handle);puts("credential-expired-activation-refused");return 0;
+    } else if(!strcmp(operation,"enrollment-credential-status")) {
+        require(qpc_enrollment_v1_credential_renewal_status(handle,&status,&error),&error);
+    } else if(!strcmp(operation,"enrollment-credential-stage") || !strcmp(operation,"enrollment-credential-reject")) {
+        uint8_t wire[65536],root[1985],id[32];
+        size_t length=enrollment_read(path,"credential-renewal",wire,sizeof(wire));
+        enrollment_exact(path,"credential-operation",id,32);
+        qpc_account_pin_v1 pin=enrollment_pin(path,root,1);
+        int32_t code=qpc_enrollment_v1_stage_credential_renewal(handle,NULL,0,&pin,id,&status,&error);
+        record(code,&error);if(code!=QPC_ARGUMENT) fail("empty renewal did not reject before ownership transfer");
+        qpc_enrollment_status_v1 retained;enrollment_status(handle,&retained);
+        int reject=!strcmp(operation,"enrollment-credential-reject");
+        if(reject) wire[length-1]^=1;
+        code=qpc_enrollment_v1_stage_credential_renewal(handle,wire,length,&pin,id,&status,&error);record(code,&error);
+        if(reject) {
+            if(code!=QPC_AUTHENTICATION) fail("invalid renewal signature did not fail authentication");
+            code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
+            if(code!=QPC_CLOSED) fail("admitted renewal failure retained original enrollment owner");
+            close_owner(handle);puts("credential-signature-refused");return 0;
+        }
+        require(code,&error);
+        qpc_credential_renewal_status_v1 again;
+        require(qpc_enrollment_v1_credential_renewal_status(handle,&again,&error),&error);
+        if(status.phase!=again.phase || memcmp(status.operation,again.operation,32) ||
+           memcmp(status.statement,again.statement,32) || status.checkpoint.version!=again.checkpoint.version ||
+           memcmp(status.checkpoint.digest,again.checkpoint.digest,32) || status.observed_at!=again.observed_at)
+            fail("renewal stage differs from authenticated readback");
+    } else if(!strcmp(operation,"enrollment-credential-reconcile")) {
+        uint8_t id[32],statement[32];
+        enrollment_exact(path,"credential-operation",id,32);
+        enrollment_exact(path,"credential-statement",statement,32);
+        require(qpc_enrollment_v1_reconcile_expired_credential_renewal(handle,id,statement,&status,&error),&error);
+        uint8_t batch[32];int32_t code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);
+        if(code!=QPC_OWNER_KIND) fail("expiry reconciliation published a device");
+    } else fail("unknown credential renewal command");
+    credential_status_print(&status);close_owner(handle);
+    if(fflush(stdout)) fail("credential status output");return 0;
+}
 struct EnrollmentActivation { uint64_t handle; int32_t code; qpc_error_v1 error; };
 static void *enrollment_activation(void *opaque) {
     struct EnrollmentActivation *call=opaque;
@@ -116,6 +180,10 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
     int create=!strcmp(argv[1],"enrollment-create");
     uint64_t handle=enrollment_open(path,create,witness,tls);
     enrollment_status(handle,&status);
+    if(!strncmp(argv[1],"enrollment-credential-",22)) {
+        if(argc!=3) fail("credential renewal arguments");
+        return credential_command(handle,path,argv[1]);
+    }
     if(create) {
         if(status.phase!=1) fail("new enrollment not Preparing");
     } else if(!strcmp(argv[1],"enrollment-request")) {

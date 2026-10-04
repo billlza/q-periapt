@@ -251,6 +251,31 @@ impl Shared {
         Ok(poisoned)
     }
 
+    pub(crate) fn admit_peer_credential_renewal(
+        &self,
+        deadline: Instant,
+        wire: &[u8],
+        pin: &p::AccountPin,
+        operation: p::CredentialRenewalId,
+    ) -> Result<p::RosterCheckpoint> {
+        self.with_device(deadline, &self.cancel, |device| {
+            let policy = Arc::clone(&device.environment.authority.policy);
+            let grant = p::VerifiedCredentialRenewal::verify(
+                wire,
+                pin,
+                policy.checkpoint().digest(),
+                now().map_err(Failure::configuration)?,
+            )?;
+            opening::check(&self.cancel, deadline)?;
+            Ok(device.native.parts()?.0.admit_peer_credential_renewal(
+                &grant,
+                operation,
+                &policy,
+                now().map_err(Failure::configuration)?,
+            )?)
+        })
+    }
+
     pub(crate) fn with_journal<T>(
         &self,
         deadline: Instant,
@@ -347,23 +372,21 @@ impl Peer {
                             .context(),
                     )
                 }
-                owner::Admission::Existing { session, .. } => {
-                    let request = bundle.request_reopen(
-                        Arc::clone(&device.environment.authority.policy),
-                        required,
-                        role,
-                        session,
-                        time,
-                    )?;
-                    Arc::clone(
-                        device
-                            .native
-                            .parts()?
-                            .0
-                            .reopen_peer(request, time)?
-                            .context(),
-                    )
-                }
+                owner::Admission::Existing { session, .. } => Arc::clone(
+                    device
+                        .native
+                        .parts()?
+                        .0
+                        .reopen_peer_bundle(
+                            &bundle,
+                            Arc::clone(&device.environment.authority.policy),
+                            required,
+                            role,
+                            session,
+                            time,
+                        )?
+                        .context(),
+                ),
             };
             let mut peer = Self {
                 parent: Arc::clone(&parent),

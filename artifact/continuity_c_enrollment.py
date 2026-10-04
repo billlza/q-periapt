@@ -20,6 +20,33 @@ WITNESS_TESTS = {
     "signed-tcp": "c_registration_signed_tcp_requires_current_witness_and_recovers_cancelled_activation",
     "mutual-tls": "c_registration_mutual_tls_requires_current_witness_authority",
 }
+RENEWAL_TESTS = {
+    "credential_renewal::c_original_registration_stages_current_root_grant_and_retains_signer_and_installation",
+    "credential_renewal::c_real_clock_expired_pending_reconciles_without_policy_or_tls_for_status_and_recovers_original_registration",
+    "credential_renewal::peer_credential_renewal::c_peer_grants_restore_original_expired_session_and_fence_cached_children",
+}
+
+
+def verify_renewal_execution(stdout: bytes) -> dict:
+    """Validate the selected real C workload; this is not signature verification."""
+    text = stdout.decode()
+    names = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
+    sdk.require(len(names) == 3 and set(names) == RENEWAL_TESTS
+                and len(re.findall(r"^test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE)) == 1,
+                "C credential renewal workloads were not executed completely")
+    sdk.require(re.findall(r"^C_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
+        "C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true"],
+        "C committed credential renewal scope differs")
+    sdk.require(re.findall(r"^C_PEER_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
+        "C_PEER_CREDENTIAL_RENEWAL original_tls_session=true actual_expiry=true wrong_pin_and_operation_refused=true cached_child_fenced=true persisted_grant=true exact_outbox_readback=true"],
+        "C peer credential renewal scope differs")
+    expiry = re.findall(r"^C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=([0-9]+) observed_at=([0-9]+) no_policy_status=true same_registration=true separate_root_operation=true$", text, re.MULTILINE)
+    sdk.require(len(expiry) == 1 and 0 < int(expiry[0][0]) <= int(expiry[0][1]),
+                "C expiry observation precedes its real target lifetime")
+    return dict(completed=True, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
+                target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
+                scope="C ABI runtime assertions with original-registration and historical peer readbacks; same native engine; no renewed TLS delivery, required-witness local renewal or independent-engine claim",
+                release_claim_eligible=False)
 
 
 def owner_transfer(read, prefix: str, language: str) -> dict:
@@ -73,7 +100,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],

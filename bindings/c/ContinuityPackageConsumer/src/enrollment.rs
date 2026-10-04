@@ -100,6 +100,61 @@ pub struct Status {
     pub previous: Checkpoint,
     pub next: Checkpoint,
 }
+/// Historical renewal progress. Conditional zero fields are defined by the C header.
+#[repr(C)]
+pub struct RenewalStatus {
+    pub phase: u32,
+    pub operation: [u8; 32],
+    pub statement: [u8; 32],
+    pub checkpoint: Checkpoint,
+    pub observed_at: u64,
+}
+impl RenewalStatus {
+    fn observed(status: p::CredentialRenewalStatus) -> Self {
+        match status {
+            p::CredentialRenewalStatus::Absent => Self {
+                phase: 0,
+                operation: [0; 32],
+                statement: [0; 32],
+                checkpoint: Checkpoint::empty(),
+                observed_at: 0,
+            },
+            p::CredentialRenewalStatus::Pending {
+                operation,
+                statement,
+            } => Self {
+                phase: 1,
+                operation: *operation.as_bytes(),
+                statement,
+                checkpoint: Checkpoint::empty(),
+                observed_at: 0,
+            },
+            p::CredentialRenewalStatus::Committed {
+                operation,
+                statement,
+                target,
+            } => Self {
+                phase: 2,
+                operation: *operation.as_bytes(),
+                statement,
+                checkpoint: Checkpoint::observed(target),
+                observed_at: 0,
+            },
+            p::CredentialRenewalStatus::ExpiredUncommitted {
+                operation,
+                statement,
+                observed_head,
+                observed_at,
+            } => Self {
+                phase: 3,
+                operation: *operation.as_bytes(),
+                statement,
+                checkpoint: Checkpoint::observed(observed_head),
+                observed_at,
+            },
+        }
+    }
+}
 #[repr(C)]
 pub struct RequestBytes {
     pub length: u32,
@@ -484,6 +539,167 @@ pub unsafe extern "C" fn qpc_enrollment_v1_activate(handle: u64, error: *mut Err
             *slot = Some(Owned::Device(device));
             Ok(())
         })
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Read the original renewal fact without loading TLS, a grant or a live policy.
+/// # Safety
+/// Status/error are distinct aligned writable invocation-local records.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_credential_renewal_status(
+    handle: u64,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        let result = with_owner(handle, deadline, |owner, _| {
+            Ok(RenewalStatus::observed(
+                owner.enrollment.credential_renewal_status()?,
+            ))
+        })?;
+        // SAFETY: validated exclusive caller output, written only after success.
+        unsafe { put(status, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Verify independent current authority and durably stage the original local renewal.
+/// # Safety
+/// Grant/pin/root are immutable readable input, operation is 32 readable bytes,
+/// and status/error are distinct aligned writable records. All regions are disjoint.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_stage_credential_renewal(
+    handle: u64,
+    wire: *const u8,
+    wire_length: usize,
+    pin: *const Pin,
+    operation: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        if wire_length == 0 {
+            return Err(Failure::argument());
+        }
+        // SAFETY: bounded immutable public inputs obey the header pointer contract.
+        let (wire, pin, operation) = unsafe {
+            (
+                bytes(wire, wire_length, p::MAX_CREDENTIAL_RENEWAL_BYTES)?,
+                Pin::read(pin)?,
+                p::CredentialRenewalId::from_trusted_state(fixed(operation)?)?,
+            )
+        };
+        let result = with_owner(handle, deadline, |owner, cancel| {
+            owner.ensure_policy(cancel, deadline)?;
+            let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
+            let grant = p::VerifiedCredentialRenewal::verify(
+                &wire,
+                &pin,
+                policy.checkpoint().digest(),
+                owner::now().map_err(Failure::configuration)?,
+            )?;
+            opening::check(cancel, deadline)?;
+            Ok(RenewalStatus::observed(
+                owner.enrollment.stage_credential_renewal(
+                    &grant,
+                    operation,
+                    &policy,
+                    owner::now().map_err(Failure::configuration)?,
+                )?,
+            ))
+        })?;
+        // SAFETY: validated exclusive caller output, never inferred from an error.
+        unsafe { put(status, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Reconcile an exact expired original operation, publishing a fact but no device.
+/// # Safety
+/// Operation/statement are 32 readable bytes each; status/error are distinct
+/// aligned writable invocation-local records, disjoint from the inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_reconcile_expired_credential_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    status: *mut RenewalStatus,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        // SAFETY: exact original public identities, checked before taking an owner.
+        let (operation, statement) = unsafe {
+            (
+                p::CredentialRenewalId::from_trusted_state(fixed(operation)?)?,
+                fixed(statement)?,
+            )
+        };
+        if statement == [0; 32] {
+            return Err(Failure::argument());
+        }
+        let result = with_owner(handle, deadline, |owner, cancel| {
+            owner.ensure_policy(cancel, deadline)?;
+            let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
+            // Native recovery authenticates the retained wire historically. Requiring
+            // a newly verified live target here would strand the expired intent.
+            Ok(RenewalStatus::observed(
+                owner.enrollment.reconcile_expired_credential_renewal(
+                    operation,
+                    statement,
+                    &policy,
+                    owner::now().map_err(Failure::configuration)?,
+                )?,
+            ))
+        })?;
+        // SAFETY: validated exclusive caller output.
+        unsafe { put(status, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Admit a peer's independent root grant through the original device parent.
+/// # Safety
+/// Grant/pin/root are immutable readable inputs; operation is 32 readable bytes.
+/// Checkpoint/error are distinct aligned writable records, disjoint from all inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_admit_peer_credential_renewal(
+    handle: u64,
+    wire: *const u8,
+    wire_length: usize,
+    pin: *const Pin,
+    operation: *const u8,
+    checkpoint: *mut Checkpoint,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(checkpoint)?;
+        if wire_length == 0 {
+            return Err(Failure::argument());
+        }
+        // SAFETY: bounded immutable inputs are copied before parent admission.
+        let (wire, pin, operation) = unsafe {
+            (
+                bytes(wire, wire_length, p::MAX_CREDENTIAL_RENEWAL_BYTES)?,
+                Pin::read(pin)?,
+                p::CredentialRenewalId::from_trusted_state(fixed(operation)?)?,
+            )
+        };
+        let result = device::parent(handle, deadline)?
+            .admit_peer_credential_renewal(deadline, &wire, &pin, operation)?;
+        // SAFETY: validated exclusive output; a failed/unknown commit writes no success.
+        unsafe { put(checkpoint, Checkpoint::observed(result)) };
+        Ok(())
     };
     // SAFETY: forwarded invocation-local diagnostic.
     unsafe { boundary(error, false, action) }

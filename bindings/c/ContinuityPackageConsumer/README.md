@@ -1,5 +1,38 @@
 # Installed Continuity C owner candidate
 
+The current source adds same-key credential renewal on the original registration.
+Resume the original enrollment intent, call `qpc_enrollment_v1_stage_credential_renewal`
+with the exact grant, independent target pin and retained operation, then use the
+existing consuming activation. `qpc_enrollment_v1_credential_renewal_status` reports
+historical progress without loading policy/TLS. If a target expires while Pending,
+`qpc_enrollment_v1_reconcile_expired_credential_renewal` distinguishes an actual commit
+from proven expired NoCommit; it returns no Device. See the header's conditional
+status fields and [native contract](../../../research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md).
+
+Peer grants enter through `qpc_device_v1_admit_peer_credential_renewal` on the same
+parent service. Existing-session children use the service's historical-bundle path,
+so current journal grants can authorize an original expired credential. Fresh
+children retain ordinary current verification. Reopen a child after its grant
+changes; cached views are never updated into new permission. Original registration,
+policy, signer, journal and archive leases remain authoritative. Required-witness
+local credential adoption is not enabled by these C entries. Native/API source
+integration is not yet an installed C/Swift/Kotlin renewal qualification.
+
+The C renewal workload uses actual host-clock expiry. It checks exact pending and
+terminal fields, preserves Committed after expiry, queries status in a new process
+with SDK policy/TLS files unavailable, and recovers the original registration with
+a separate root operation. The peer case establishes a real TLS session before
+expiry, then exercises root-grant admission, independent-pin and operation refusal,
+historical reopening and cached-child invalidation across two grants. A public
+native readback compares the original outbox bytes after the C process exits.
+Post-renewal application delivery over TLS remains a separate check.
+
+The package collector selects all three `credential_renewal::` tests in each C
+profile, using separate temporary installations, and refuses missing/ignored cases
+or impossible expiry observations. Development runs of this workload do not
+qualify archive installation, Swift/Kotlin renewal or an independent engine.
+
+
 This is an unpublished `qpc-owner/1` consumer of the same Rust Continuity engine,
 not an addition to product ABI 2 or a frozen C API. Its header is
 [`qpc_owner.h`](qpc_owner.h). The collector builds it outside the checkout from a
@@ -15,8 +48,10 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration route has nine `qpc_enrollment_v1_*` exports, bringing this
-unpublished C interface to 64 exports. It retains the whole native
+The registration route has twelve `qpc_enrollment_v1_*` exports. Together with
+peer-grant admission on the existing Device parent, this unpublished candidate
+interface now declares 68 exports. The new renewal route still requires its own
+installed-package qualification. It retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that
 owner. Product ABI 2 and the legacy constructors remain separate.

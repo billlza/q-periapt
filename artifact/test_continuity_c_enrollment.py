@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -216,6 +216,25 @@ class CWitnessEnrollmentEvidenceTests(unittest.TestCase):
                     with self.subTest(name=name), self.assertRaises(ValueError):
                         enrollment.verify_witness(stdout, root, carrier)
                     path.write_bytes(saved)
+
+
+class RenewalExecutionTests(unittest.TestCase):
+    def test_missing_cases_and_impossible_expiry_cannot_qualify(self):
+        output = ("C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true\n"
+                  "C_PEER_CREDENTIAL_RENEWAL original_tls_session=true actual_expiry=true wrong_pin_and_operation_refused=true cached_child_fenced=true persisted_grant=true exact_outbox_readback=true\n"
+                  "C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=150 observed_at=151 no_policy_status=true same_registration=true separate_root_operation=true\n"
+                  + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
+                  + "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+        self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
+        first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
+        for invalid in (output.replace(first, b"other_case"),
+                        output + b"test " + first + b" ... ok\n",
+                        output.replace(b"0 ignored", b"1 ignored"),
+                        output.replace(b"observed_at=151", b"observed_at=149"),
+                        output.replace(b"expired_committed_preserved=true", b"expired_committed_preserved=false"),
+                        output.replace(b"exact_outbox_readback=true", b"exact_outbox_readback=false")):
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                enrollment.verify_renewal_execution(invalid)
 
 
 class ForeignEnrollmentEvidenceTests(unittest.TestCase):

@@ -500,3 +500,6 @@ fn c_registration_owns_original_identity_through_connection_and_roster_refresh()
     println!("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true");
     Ok(())
 }
+
+#[path = "enrollment/credential_renewal.rs"]
+mod credential_renewal;
