@@ -9,6 +9,8 @@ _Static_assert(sizeof(qpc_credential_renewal_status_v1)==120,"credential renewal
 _Static_assert(offsetof(qpc_credential_renewal_status_v1,checkpoint)==72,"renewal checkpoint ABI");
 _Static_assert(offsetof(qpc_credential_renewal_status_v1,observed_at)==112,"renewal observation ABI");
 _Static_assert(sizeof(qpc_credential_renewal_proposal_v1)==296,"renewal proposal ABI");
+_Static_assert(sizeof(qpc_credential_renewal_cancellation_v1)==248,"renewal cancellation ABI");
+_Static_assert(_Alignof(qpc_credential_renewal_cancellation_v1)==1,"renewal cancellation alignment");
 _Static_assert(_Alignof(qpc_credential_renewal_proposal_v1)==1,"renewal proposal alignment");
 static void enrollment_path(char out[4096],const char *path,const char *name) {
     int n=snprintf(out,4096,"%s/%s",path,name);
@@ -143,8 +145,10 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
            memcmp(status.checkpoint.digest,again.checkpoint.digest,32) || status.observed_at!=again.observed_at)
             fail("renewal stage differs from authenticated readback");
     } else if(!strcmp(operation,"enrollment-credential-witness-commit-no-sdk") ||
-              !strcmp(operation,"enrollment-credential-witness-commit-policy-expired")) {
-        int32_t wanted=!strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ? QPC_VALIDITY : 702;
+              !strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ||
+              !strcmp(operation,"enrollment-credential-witness-commit-cancellation")) {
+        int32_t wanted=!strcmp(operation,"enrollment-credential-witness-commit-cancellation") ? QPC_SUSPENDED :
+            !strcmp(operation,"enrollment-credential-witness-commit-policy-expired") ? QPC_VALIDITY : 702;
         uint8_t id[32],statement[32];qpc_credential_renewal_status_v1 untouched;
         enrollment_exact(path,"credential-operation",id,32);
         enrollment_exact(path,"credential-statement",statement,32);
@@ -154,6 +158,19 @@ static int credential_command(uint64_t handle,const char *path,const char *opera
         code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_CLOSED) fail("failed witnessed commit retained owner");
         close_owner(handle);printf("credential-witness-commit-refused:%d\n",wanted);return 0;
+    } else if(!strcmp(operation,"enrollment-credential-witness-cancel-prepare")) {
+        qpc_credential_renewal_cancellation_v1 cancellation,again;
+        int32_t refused=qpc_enrollment_v1_prepare_witnessed_credential_cancellation(handle,NULL,&error);record(refused,&error);
+        if(refused!=QPC_ARGUMENT) fail("null cancellation output did not reject before admission");
+        require(qpc_enrollment_v1_credential_renewal_status(handle,&status,&error),&error);
+        require(qpc_enrollment_v1_prepare_witnessed_credential_cancellation(handle,&cancellation,&error),&error);
+        require(qpc_enrollment_v1_prepare_witnessed_credential_cancellation(handle,&again,&error),&error);
+        if(memcmp(cancellation.bytes,again.bytes,sizeof(cancellation.bytes)) || memcmp(cancellation.bytes,"QPCRNC01",8))
+            fail("witness cancellation reservation changed or malformed");
+        enrollment_write(path,"credential-cancellation",cancellation.bytes,sizeof(cancellation.bytes));
+        uint8_t batch[32];int32_t code=qpc_device_v1_next_account(handle,batch,&error);record(code,&error);
+        if(code!=QPC_OWNER_KIND) fail("cancellation reservation published a device");
+        close_owner(handle);puts("credential-witness-cancel-reserved");return 0;
     } else if(!strcmp(operation,"enrollment-credential-witness-prepare")) {
         qpc_credential_renewal_proposal_v1 proposal,again;
         require(qpc_enrollment_v1_prepare_witnessed_credential_renewal(handle,&proposal,&error),&error);

@@ -47,6 +47,7 @@ class OwnerTests {
             "enrollment_status" to (152L to 8L), "enrollment_request" to (8196L to 4L),
             "credential_renewal_status" to (120L to 8L),
             "credential_renewal_proposal" to (296L to 1L),
+            "credential_renewal_cancellation" to (248L to 1L),
             "served" to (72L to 4L), "header" to (200L to 8L), "epoch" to (104L to 8L),
             "reserved" to (48L to 8L), "unconfirmed" to (64L to 1L),
             "delivery" to (48L to 8L), "status" to (36L to 4L),

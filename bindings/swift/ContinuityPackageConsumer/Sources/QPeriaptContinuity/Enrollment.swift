@@ -267,6 +267,17 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
+    /// Reserve the staged grant without a target or witness dispatch. Independent
+    /// approval and historical reconciliation must finish before journal work resumes.
+    public func prepareWitnessedCredentialCancellation() throws -> CredentialRenewalCancellation {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_cancellation_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_prepare_witnessed_credential_cancellation(handle, &raw, &error), &error)
+                return try CredentialRenewalCancellation(nativeBytes: withUnsafeBytes(of: &raw.bytes) { Array($0) })
+            }
+        }
+    }
     /// A new Commit requires current authority. A retained terminal is history only.
     public func commitWitnessedCredentialRenewal(operation: CredentialRenewalID,
         statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {

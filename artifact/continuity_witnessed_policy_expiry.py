@@ -187,7 +187,7 @@ def verify(stdout: bytes, directory: Path, *, language="C") -> dict:
     for line in lines: text = text.replace(line + "\n", "")
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and len(re.findall(r"^test result:", text, re.MULTILINE)) == 1
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
                 "expiry test did not complete")
     sdk.require(directory.is_dir() and not directory.is_symlink() and {p.name for p in directory.iterdir()} == set(CASES),
                 "expiry case inventory differs")

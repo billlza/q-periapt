@@ -10,6 +10,29 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 
 class CredentialRenewalTests {
+    @Test fun cancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead() {
+        val bytes = ByteArray(248) { 1 }
+        "QPCRNC01".toByteArray(Charsets.US_ASCII).copyInto(bytes)
+        fun number(wire: ByteArray, offset: Int, value: Long) {
+            ByteBuffer.wrap(wire).order(ByteOrder.BIG_ENDIAN).putLong(offset, value)
+        }
+        number(bytes, 200, -2L); number(bytes, 208, -2L)
+        val original = bytes.clone(); val cancellation = CredentialRenewalCancellation.decode(bytes)
+        bytes.fill(0); cancellation.encoded().fill(0)
+        assertContentEquals(original, cancellation.encoded())
+        assertContentEquals(original.copyOfRange(136, 168), cancellation.operation.encoded())
+        assertContentEquals(original.copyOfRange(168, 200), cancellation.statement.encoded())
+        assertFailsWith<ContinuityBoundaryFailure> { CredentialRenewalProposal.decode(original) }
+        val invalid = mutableListOf(original.copyOf(247), original + byteArrayOf(0), original + ByteArray(48) { 1 })
+        for (offset in listOf(0, 8, 40, 72, 104, 136, 168, 216)) {
+            invalid.add(original.clone().also { it.fill(0, offset, offset + if (offset == 0) 8 else 32) })
+        }
+        for (offset in listOf(200, 208)) {
+            for (value in listOf(0L, -1L)) invalid.add(original.clone().also { number(it, offset, value) })
+        }
+        invalid.add(original.clone().also { "QPCRNP01".toByteArray(Charsets.US_ASCII).copyInto(it) })
+        for (wrong in invalid) assertFailsWith<ContinuityBoundaryFailure> { CredentialRenewalCancellation.decode(wrong) }
+    }
     @Test fun witnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads() {
         val bytes = ByteArray(296) { 1 }
         "QPCRNP01".toByteArray(Charsets.US_ASCII).copyInto(bytes)

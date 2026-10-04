@@ -57,6 +57,7 @@ internal object ContinuityNative {
     private val credentialRenewalStatusLayout = struct("phase" to JAVA_INT, "operation" to array(32),
         "statement" to array(32), "checkpoint" to checkpointLayout, "observed_at" to JAVA_LONG)
     private val credentialRenewalProposalLayout = struct("bytes" to array(296))
+    private val credentialRenewalCancellationLayout = struct("bytes" to array(248))
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -120,6 +121,8 @@ internal object ContinuityNative {
         "reconcile_expired_credential_renewal" to function("qpc_enrollment_v1_reconcile_expired_credential_renewal",
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "prepare_witnessed_credential_renewal" to function("qpc_enrollment_v1_prepare_witnessed_credential_renewal",
+            JAVA_LONG, ADDRESS, ADDRESS),
+        "prepare_witnessed_credential_cancellation" to function("qpc_enrollment_v1_prepare_witnessed_credential_cancellation",
             JAVA_LONG, ADDRESS, ADDRESS),
         "commit_witnessed_credential_renewal" to function("qpc_enrollment_v1_commit_witnessed_credential_renewal",
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
@@ -480,6 +483,12 @@ internal object ContinuityNative {
             val output = arena.allocate(credentialRenewalProposalLayout)
             invoke(arena, "prepare_witnessed_credential_renewal", handle, output)
             CredentialRenewalProposal.decode(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun prepareWitnessedCredentialCancellation(handle: Long): CredentialRenewalCancellation =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalCancellationLayout)
+            invoke(arena, "prepare_witnessed_credential_cancellation", handle, output)
+            CredentialRenewalCancellation.decode(output.toArray(JAVA_BYTE))
         }
     internal enum class WitnessRenewalAction(val function: String) {
         COMMIT("commit_witnessed_credential_renewal"), CLOSE("close_witnessed_credential_renewal"),
@@ -879,6 +888,7 @@ internal object ContinuityNative {
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
         "credential_renewal_status" to credentialRenewalStatusLayout,
         "credential_renewal_proposal" to credentialRenewalProposalLayout,
+        "credential_renewal_cancellation" to credentialRenewalCancellationLayout,
         "setup_status" to setupStatusLayout, "setup_preparation" to setupPreparationLayout,
         "served" to servedLayout, "header" to headerLayout, "epoch" to epochLayout,
         "reserved" to reservedLayout, "unconfirmed" to unconfirmedLayout,

@@ -391,3 +391,16 @@ authority; terminal history can be recovered without an SDK runtime through the
 original pinned signed policy. `Closed` rejects only the exact target and may leave
 the preceding credential live. The source TCP/TLS Applied/Closed workload is
 separate from installed archives, expiry/fault coverage and physical platforms.
+
+For a staged grant without a proposal, `prepareWitnessedCredentialCancellation()`
+returns an immutable 248-byte descriptor for independent cancellation approval.
+It reserves the original journal without a target image, SDK database or witness
+request; the original pinned historical policy is sufficient after expiry. Resume
+the same enrollment and reconcile the original operation/statement after the
+witness approves `Closed`. `Unavailable` keeps the reservation pending. Durable
+local `Closed` precedes ACK and exact reservation removal; an interrupted ACK is
+retried on reopen. The descriptor does not grant current device authority.
+The package collector requires the eight real-process cancellation cases described
+in the [C consumer](../../c/ContinuityPackageConsumer/README.md), using this Swift
+client and the shared native engine. macOS scope is Apple Silicon; independent
+protocol-implementation and physical-device qualification remain separate.

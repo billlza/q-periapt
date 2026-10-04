@@ -404,6 +404,18 @@ int32_t qpc_enrollment_v1_reconcile_expired_credential_renewal(uint64_t handle,
 typedef struct { uint8_t bytes[296]; } qpc_credential_renewal_proposal_v1;
 int32_t qpc_enrollment_v1_prepare_witnessed_credential_renewal(uint64_t handle,
     qpc_credential_renewal_proposal_v1 *proposal, qpc_error_v1 *error);
+/* Canonical QPCRNC01 target-free expectation, exactly 248 public bytes. Reserve
+ * the original staged grant for independent control-plane cancellation; retry
+ * retains the same descriptor and head. No target image or current authority is
+ * created, and no witness request is sent. Ordinary journal work is suspended
+ * while retained. Historical policy suffices, including after runtime expiry.
+ * The independent witness must approve Closed before reconciliation can finish;
+ * absence/Unavailable is not NoCommit. A full proposal conflicts. After durable
+ * Closed, existing reconciliation ACKs and removes only this exact reservation.
+ */
+typedef struct { uint8_t bytes[248]; } qpc_credential_renewal_cancellation_v1;
+int32_t qpc_enrollment_v1_prepare_witnessed_credential_cancellation(uint64_t handle,
+    qpc_credential_renewal_cancellation_v1 *cancellation, qpc_error_v1 *error);
 /* All operations bind the original enrollment, configured witness and exact
  * operation/statement. They borrow the owner and publish no Device. Commit of a
  * new target requires current valid authority; historical reconciliation and

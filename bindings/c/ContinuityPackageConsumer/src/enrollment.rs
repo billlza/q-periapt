@@ -172,6 +172,12 @@ pub struct RenewalProposal {
     pub bytes: [u8; 296],
 }
 
+/// Canonical target-free QPCRNC01 expectation, never an approval or terminal fact.
+#[repr(C)]
+pub struct RenewalCancellation {
+    pub bytes: [u8; 248],
+}
+
 #[repr(C)]
 pub struct RequestBytes {
     pub length: u32,
@@ -765,6 +771,36 @@ pub unsafe extern "C" fn qpc_enrollment_v1_prepare_witnessed_credential_renewal(
     // SAFETY: forwarded invocation-local diagnostic.
     unsafe { boundary(error, false, action) }
 }
+/// Reserve the original staged grant for independent witness cancellation. This
+/// uses historical policy only, creates no target image and dispatches no command.
+/// # Safety
+/// Cancellation/error are distinct aligned writable invocation-local records.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_prepare_witnessed_credential_cancellation(
+    handle: u64,
+    cancellation: *mut RenewalCancellation,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(cancellation)?;
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let historical = owner.historical_policy(entry, deadline)?;
+            let value = owner.enrollment.prepare_witnessed_credential_cancellation(
+                &historical,
+                owner::now().map_err(Failure::configuration)?,
+            )?;
+            Ok(RenewalCancellation {
+                bytes: value.to_bytes().try_into().map_err(|_| failure(5))?,
+            })
+        })?;
+        // SAFETY: publish only after durable readback and the final invocation check.
+        unsafe { put(cancellation, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
 #[derive(Clone, Copy)]
 enum WitnessRenewalAction {
     Commit,

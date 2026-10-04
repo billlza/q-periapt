@@ -42,6 +42,36 @@ class CredentialRenewalProposal private constructor(private val value: ByteArray
     }
 }
 
+/** Immutable target-free expectation for independent cancellation approval.
+ * These bytes do not prove Closed or grant operational/cleanup authority.
+ */
+class CredentialRenewalCancellation private constructor(private val value: ByteArray) {
+    val operation = CredentialRenewalID(value.copyOfRange(136, 168))
+    val statement = CredentialRenewalStatementID(value.copyOfRange(168, 200))
+    fun encoded(): ByteArray = value.clone()
+    override fun equals(other: Any?): Boolean = other is CredentialRenewalCancellation && value.contentEquals(other.value)
+    override fun hashCode(): Int = value.contentHashCode()
+    companion object {
+        @JvmSynthetic internal fun decode(bytes: ByteArray): CredentialRenewalCancellation {
+            val wire = bytes.clone()
+            fun check(valid: Boolean) {
+                if (!valid) throw ContinuityBoundaryFailure("malformed credential renewal cancellation")
+            }
+            check(wire.size == 248)
+            check(wire.copyOfRange(0, 8).contentEquals("QPCRNC01".toByteArray(Charsets.US_ASCII)))
+            for (offset in listOf(8, 40, 72, 104, 136, 168, 216)) {
+                check(wire.copyOfRange(offset, offset + 32).any { it != 0.toByte() })
+            }
+            val input = ByteBuffer.wrap(wire).order(ByteOrder.BIG_ENDIAN)
+            for (offset in listOf(200, 208)) {
+                val value = input.getLong(offset)
+                check(value != 0L && value != -1L)
+            }
+            return CredentialRenewalCancellation(wire)
+        }
+    }
+}
+
 /** Historical progress only. Pending does not mean uncommitted; Committed does
  * not grant traffic after expiry, revocation or a later successor.
  */

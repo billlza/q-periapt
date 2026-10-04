@@ -446,3 +446,16 @@ authority; terminal history can use the original pinned signed policy without an
 SDK runtime. `Closed` rejects the exact target while its predecessor may remain
 live. Source TCP/TLS Applied/Closed checks are separate from installed archives,
 the complete expiry/fault matrix and physical platforms.
+
+For a staged grant without a proposal, `prepareWitnessedCredentialCancellation()`
+returns an immutable 248-byte descriptor for independent cancellation approval.
+It reserves the original journal without a target image, SDK database or witness
+request; the original pinned historical policy is sufficient after expiry. Resume
+the same enrollment and reconcile the original operation/statement after the
+witness approves `Closed`. `Unavailable` keeps the reservation pending. Durable
+local `Closed` precedes ACK and exact reservation removal; an interrupted ACK is
+retried on reopen. The descriptor does not grant current device authority.
+The package collector requires the eight real-process cancellation cases described
+in the [C consumer](../../c/ContinuityPackageConsumer/README.md), using this Kotlin
+client and the shared native engine. This remains separate from Android and
+independent protocol-implementation qualification.

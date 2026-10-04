@@ -52,6 +52,32 @@ public struct CredentialRenewalProposal: Sendable, Equatable {
     }
 }
 
+/// Immutable target-free cancellation expectation for independent approval.
+/// It neither proves Closed nor grants permission to erase state or use a device.
+public struct CredentialRenewalCancellation: Sendable, Equatable {
+    public let bytes: [UInt8]
+    public let operation: CredentialRenewalID
+    public let statement: CredentialRenewalStatementID
+
+    init(nativeBytes bytes: [UInt8]) throws {
+        guard bytes.count == 248, Array(bytes[0..<8]) == Array("QPCRNC01".utf8) else {
+            throw ContinuityBoundaryError.malformedOutput
+        }
+        for offset in [8, 40, 72, 104, 136, 168, 216] {
+            guard bytes[offset..<(offset + 32)].contains(where: { $0 != 0 }) else {
+                throw ContinuityBoundaryError.malformedOutput
+            }
+        }
+        for offset in [200, 208] {
+            let value = bytes[offset..<(offset + 8)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
+            guard value > 0, value < UInt64.max else { throw ContinuityBoundaryError.malformedOutput }
+        }
+        self.bytes = bytes
+        operation = try CredentialRenewalID(bytes: Array(bytes[136..<168]))
+        statement = try CredentialRenewalStatementID(bytes: Array(bytes[168..<200]))
+    }
+}
+
 /// Historical progress only. No case supplies current operational permission.
 public enum CredentialRenewalStatus: Sendable, Equatable {
     case absent

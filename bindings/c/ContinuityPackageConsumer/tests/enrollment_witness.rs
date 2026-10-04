@@ -4,6 +4,8 @@
 mod fixture;
 #[path = "common/witness.rs"]
 mod witness;
+#[path = "enrollment/witness_cancellation.rs"]
+mod witness_cancellation;
 #[path = "enrollment/witness_credential_renewal.rs"]
 mod witness_credential_renewal;
 #[path = "enrollment/witness_policy_expiry.rs"]

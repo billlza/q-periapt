@@ -63,12 +63,20 @@ pub(crate) struct TlsWitness {
     stop: Arc<AtomicBool>,
     pub(crate) admitted: Arc<AtomicUsize>,
     pub(crate) records: Arc<Mutex<Vec<p::anchor_tls::AnchorTlsRecord>>>,
+    pub(crate) failed_admissions: Arc<Mutex<Vec<Option<usize>>>>,
     worker: Option<thread::JoinHandle<Result<Vec<String>>>>,
 }
 impl TlsWitness {
     pub(crate) fn start<const N: usize>(
         store: Arc<Mutex<p::AnchorStore>>,
         paths: [&Path; N],
+    ) -> Result<Self> {
+        Self::start_with_clock(store, paths, || Ok(fixture::now()?))
+    }
+    pub(crate) fn start_with_clock<const N: usize>(
+        store: Arc<Mutex<p::AnchorStore>>,
+        paths: [&Path; N],
+        mut time: impl FnMut() -> Result<u64> + Send + 'static,
     ) -> Result<Self> {
         let Provisioned {
             native: server,
@@ -87,6 +95,8 @@ impl TlsWitness {
         let calls = Arc::clone(&admitted);
         let records = Arc::new(Mutex::new(Vec::new()));
         let observed = Arc::clone(&records);
+        let failed_admissions = Arc::new(Mutex::new(Vec::new()));
+        let failed = Arc::clone(&failed_admissions);
         let worker = thread::spawn(move || -> Result<Vec<String>> {
             let mut failures = Vec::new();
             while !control.load(Ordering::Acquire) {
@@ -98,9 +108,10 @@ impl TlsWitness {
                     }
                     Err(error) => return Err(error.into()),
                 };
+                let before = calls.load(Ordering::Acquire);
                 let mut clock = || {
                     calls.fetch_add(1, Ordering::AcqRel);
-                    fixture::now().map_err(io::Error::other)
+                    time().map_err(io::Error::other)
                 };
                 match server.serve_recorded(
                     stream,
@@ -124,6 +135,10 @@ impl TlsWitness {
                         if failures.len() > 8 {
                             return Err("unexpected TLS failure capacity".into());
                         }
+                        failed
+                            .lock()
+                            .map_err(|_| "TLS failure lock poisoned")?
+                            .push((calls.load(Ordering::Acquire) == before + 1).then_some(before));
                     }
                 }
             }
@@ -134,6 +149,7 @@ impl TlsWitness {
             stop,
             admitted,
             records,
+            failed_admissions,
             worker: Some(worker),
         })
     }
@@ -146,16 +162,23 @@ impl TlsWitness {
             .join()
             .map_err(|_| "TLS worker panicked")??;
         // Some rejected connections never reach the clock, and an admitted
-        // connection may fail after commit. Only successful server completion
-        // produces a record, so it cannot outnumber admitted requests.
-        if self
+        // connection may fail after commit. Every admission must have exactly
+        // one successful record or an indexed failure at normal completion.
+        let admitted = self.admitted.load(Ordering::Acquire);
+        let failed = self
+            .failed_admissions
+            .lock()
+            .map_err(|_| "TLS failure lock poisoned")?;
+        let recorded = self
             .records
             .lock()
             .map_err(|_| "TLS record lock poisoned")?
-            .len()
-            > self.admitted.load(Ordering::Acquire)
+            .len();
+        if failed.len() != failures.len()
+            || failed.iter().flatten().any(|index| *index >= admitted)
+            || recorded + failed.iter().flatten().count() != admitted
         {
-            return Err("TLS record without admitted request".into());
+            return Err("TLS admission success/failure accounting differs".into());
         }
         Ok(failures)
     }

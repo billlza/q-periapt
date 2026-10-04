@@ -97,6 +97,10 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     /** Recover or prepare the exact original target for independent witness approval. */
     fun prepareWitnessedCredentialRenewal(): CredentialRenewalProposal =
         reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedCredentialRenewal(it) } }
+    /** Reserve the staged grant without a target or witness dispatch. Independent
+     * Closed approval and historical reconciliation must finish before journal use. */
+    fun prepareWitnessedCredentialCancellation(): CredentialRenewalCancellation =
+        reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedCredentialCancellation(it) } }
     /** New Commit requires current authority; terminal history releases no device. */
     fun commitWitnessedCredentialRenewal(operation: CredentialRenewalID,
                                         statement: CredentialRenewalStatementID): CredentialRenewalStatus =

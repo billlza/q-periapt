@@ -119,7 +119,7 @@ def witness_fixture(root, carrier):
     return ("C_ENROLLMENT_WITNESS_COMPLETE carrier=" + carrier + " journal=" + journal.hex()
             + " next_account=" + activated.splitlines()[1].decode() + "\n"
             + "test " + enrollment.WITNESS_TESTS[carrier] + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
 
 
 class CEnrollmentEvidenceTests(unittest.TestCase):
@@ -288,6 +288,12 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "lacks witnessed_policy_expiry"):
                 enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
             native["witnessed_policy_expiry"] = dict(binary=receipts["enrollment"])
+            with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_policy_expiry"] = dict(binary=receipts["enrollment_witness"])
+            with self.assertRaisesRegex(ValueError, "lacks witnessed_cancellation"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_cancellation"] = dict(binary=receipts["enrollment"])
             with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
                 enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
 

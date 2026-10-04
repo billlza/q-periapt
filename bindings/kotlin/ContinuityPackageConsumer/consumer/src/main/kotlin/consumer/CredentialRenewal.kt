@@ -43,13 +43,24 @@ private fun renewalStatus(value: CredentialRenewalStatus): String {
 internal fun credentialEnrollment(owner: ContinuityEnrollment, records: FixtureRecords, mode: String,
                                    original: EnrollmentStatus): String {
     val status = when (mode) {
-        "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired" -> {
-            val expected = if (mode == "enrollment-credential-witness-commit-policy-expired") 104 else 702
+        "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation" -> {
+            val expected = when (mode) {
+                "enrollment-credential-witness-commit-cancellation" -> 215
+                "enrollment-credential-witness-commit-policy-expired" -> 104
+                else -> 702
+            }
             val operation = renewalOperation(records)
             val statement = CredentialRenewalStatementID(records.enrollmentExact("credential-statement", 32))
             refused(setOf(expected)) { owner.commitWitnessedCredentialRenewal(operation, statement) }
             refused(setOf(2)) { owner.credentialRenewalStatus() }
             return "credential-witness-commit-refused:$expected"
+        }
+        "enrollment-credential-witness-cancel-prepare" -> {
+            val cancellation = owner.prepareWitnessedCredentialCancellation()
+            check(cancellation == owner.prepareWitnessedCredentialCancellation()) { "cancellation reservation changed original head" }
+            check(records.retain("credential-cancellation", cancellation.encoded(), true)) { "cancellation output already exists" }
+            check(owner.status() == original) { "cancellation reservation replaced registration" }
+            return "credential-witness-cancel-reserved"
         }
         "enrollment-credential-witness-prepare" -> {
             val proposal = owner.prepareWitnessedCredentialRenewal()

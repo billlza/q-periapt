@@ -61,7 +61,7 @@ def proposal(wire: bytes, authority: bytes, subject: bytes, operation: bytes, st
 
 
 @dataclass(frozen=True)
-class WitnessExchange:
+class BoundExchange:
     wire: bytes
     operation: bytes
     kind: int
@@ -69,10 +69,9 @@ class WitnessExchange:
     observed: tuple[int, int, bytes]
     has_last: int
     last: bytes
-    commit_id: bytes
 
 
-def exchange_frames(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target):
+def bound_exchange_frames(data: bytes, authority: bytes, subject: bytes):
     """Canonical signed-message framing and original-command commitments only.
 
     Native endpoints perform signature verification. Each workload separately
@@ -81,10 +80,9 @@ def exchange_frames(data: bytes, authority: bytes, subject: bytes, binding: byte
     sdk.require(data and len(data) % RECORD_BYTES == 0 and len(data) <= RECORD_BYTES * 4096,
                 "renewal signed exchange framing differs")
     challenges = set()
-    commit_id = commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", authority + subject + b"\x05" + binding + bytes(64))
     for offset in range(0, len(data), RECORD_BYTES):
         row = data[offset:offset + RECORD_BYTES]
-        sdk.require(row[0] == 1, "unqualified lost response in basic renewal transcript")
+        sdk.require(row[0] in (0, 1), "invalid signed exchange delivery flag")
         rq = envelope(row[1:3675], b"QPANRQ01", 297)
         rs = envelope(row[3675:], b"QPANRS01", 282)
         sdk.require(rq[8:40] == rs[8:40] == authority and rq[40:136] == rs[40:136] == subject,
@@ -98,9 +96,23 @@ def exchange_frames(data: bytes, authority: bytes, subject: bytes, binding: byte
         kind, outcome, observed = op[0], rs[200], head(rs[201:249])
         flag, last = rs[249], rs[250:282]
         sdk.require((flag == 0 and last == bytes(32)) or (flag == 1 and any(last)), "renewal last-command encoding differs")
-        sdk.require((observed == expected and flag == 0) or (observed == target and flag == 1 and last == commit_id),
+        yield BoundExchange(row, op, kind, outcome, observed, flag, last)
+
+
+@dataclass(frozen=True)
+class WitnessExchange(BoundExchange):
+    commit_id: bytes
+
+
+def exchange_frames(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target):
+    commit_id = commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1", authority + subject + b"\x05" + binding + bytes(64))
+    for frame in bound_exchange_frames(data, authority, subject):
+        sdk.require(frame.wire[0] == 1, "unqualified lost response in basic renewal transcript")
+        sdk.require((frame.observed == expected and frame.has_last == 0)
+                    or (frame.observed == target and frame.has_last == 1 and frame.last == commit_id),
                     "renewal head lacks its exact original or committed history")
-        yield WitnessExchange(row, op, kind, outcome, observed, flag, last, commit_id)
+        yield WitnessExchange(frame.wire, frame.operation, frame.kind, frame.outcome,
+                              frame.observed, frame.has_last, frame.last, commit_id)
 
 
 def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: bytes, expected, target,
@@ -146,16 +158,13 @@ def _signed_records(data: bytes, authority: bytes, subject: bytes, binding: byte
 
 
 @dataclass(frozen=True)
-class RenewalMaterials:
+class GrantMaterials:
     original: dict
     policy: bytes
     credential_validity: tuple[int, int]
     roster_validity: tuple[int, int]
     authority: bytes
     subject: bytes
-    expected: tuple[int, int, bytes]
-    target: tuple[int, int, bytes]
-    binding: bytes
     operation: bytes
     statement: bytes
     target_version: int
@@ -169,9 +178,15 @@ class RenewalMaterials:
                 f"{bytes(32).hex() if phase == 1 else self.target_digest.hex()}\ncredential-observed:0\n").encode()
 
 
-def verify_materials(read, case: str, active: tuple[bytes, bytes], *, image_name="renewal-image-digests") -> RenewalMaterials:
-    """One canonical registration/grant/policy/proposal binding for both workloads."""
-    closed = case.endswith("closed")
+@dataclass(frozen=True)
+class RenewalMaterials(GrantMaterials):
+    expected: tuple[int, int, bytes]
+    target: tuple[int, int, bytes]
+    binding: bytes
+
+
+def verify_grant_materials(read, case: str, active: tuple[bytes, bytes]) -> GrantMaterials:
+    """Canonical registration and signed grant scope, independent of a target image."""
     def fixed(name, size, nonzero=False):
         value = read(name, size)
         sdk.require(len(value) == size and (not nonzero or any(value)), "renewal field width differs: " + name)
@@ -237,16 +252,29 @@ def verify_materials(read, case: str, active: tuple[bytes, bytes], *, image_name
     owner = commit(b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/storage-owner", old[8:64] + bytes.fromhex(original["credential"]))
     subject = active[1] + owner + policy_id
     sdk.require(subject == fixed("witness-subject", 96) == fixed("enrollment-genesis-subject", 96), "renewal original subject differs")
-    wire = fixed("credential-proposal", 296)
-    sdk.require(wire == fixed("credential-proposal-original", 296), "renewal restart resealed its proposal")
-    expected, target, binding = proposal(wire, authority, subject, operation, statement_id)
-    images = fixed(image_name, 96)
-    sdk.require(expected[:2] == (1, 1) and expected[2] == fixed("enrollment-genesis-digest", 32)
-                and images == expected[2] * 2 + (expected[2] if closed else target[2]), "renewal image observations differ from exact proposal")
     authorities = tuple(commit(b"Q-PERIAPT-CONTINUITY-AUTHORITY-CANDIDATE/v1", old[8:40] + checkpoint + family)
                         for checkpoint in (fixed("trusted-roster-version", 8) + fixed("trusted-roster-digest", 32), next_version + next_digest))
-    return RenewalMaterials(original, policy, (next_start, next_until), (a, b), authority, subject,
-                            expected, target, binding, operation, statement_id, int.from_bytes(next_version, "big"), next_digest, authorities)
+    return GrantMaterials(original, policy, (next_start, next_until), (a, b), authority, subject,
+                          operation, statement_id, int.from_bytes(next_version, "big"), next_digest, authorities)
+
+
+def verify_materials(read, case: str, active: tuple[bytes, bytes], *, image_name="renewal-image-digests") -> RenewalMaterials:
+    """Original grant plus its exact prepared sealed-image transition."""
+    grant = verify_grant_materials(read, case, active)
+    def fixed(name, size):
+        value = read(name, size)
+        sdk.require(len(value) == size, "renewal field width differs: " + name)
+        return value
+    wire = fixed("credential-proposal", 296)
+    sdk.require(wire == fixed("credential-proposal-original", 296), "renewal restart resealed its proposal")
+    expected, target, binding = proposal(wire, grant.authority, grant.subject, grant.operation, grant.statement)
+    images = fixed(image_name, 96)
+    sdk.require(expected[:2] == (1, 1) and expected[2] == fixed("enrollment-genesis-digest", 32)
+                and images == expected[2] * 2 + (expected[2] if case.endswith("closed") else target[2]),
+                "renewal image observations differ from exact proposal")
+    return RenewalMaterials(grant.original, grant.policy, grant.credential_validity, grant.roster_validity,
+                            grant.authority, grant.subject, grant.operation, grant.statement, grant.target_version,
+                            grant.target_digest, grant.authorities, expected, target, binding)
 
 
 def _case(read, case: str) -> dict:
@@ -313,7 +341,7 @@ def verify(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     for line in lines: text = text.replace(line + "\n", "")
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and len(re.findall(r"^test result:", text, re.MULTILINE)) == 1
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;", text, re.MULTILINE),
                 "witnessed renewal test did not complete")
     sdk.require(directory.is_dir() and not directory.is_symlink() and {p.name for p in directory.iterdir()} == set(CASES),
                 "witnessed renewal case inventory differs")

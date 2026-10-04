@@ -69,6 +69,7 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "EnrollmentTests.testPendingRegistrationSharesQuotaAndPreservesCloseAfterRefusal",
              "CredentialRenewalTests.testRenewalStatusPreservesHistoricalBindingAndRejectsMalformedCombinations",
              "CredentialRenewalTests.testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads",
+             "CredentialRenewalTests.testCancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead",
              "CredentialRenewalTests.testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]

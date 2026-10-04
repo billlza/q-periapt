@@ -54,6 +54,7 @@ TEST_NAMES = frozenset({
     "originalEnrollmentRequestPersistsWithoutPolicyOrTlsConfiguration",
 })
 RENEWAL_TEST_NAMES = frozenset({
+    "cancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead",
     "witnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads",
     "renewalIdentitiesAreDistinctImmutableAndNonzero",
     "historicalRenewalStatesRetainExactFieldsAndUnsignedTime",

@@ -118,7 +118,7 @@ fn enrollment_paths(path: &Path) -> Result<p::EnrollmentPaths> {
         )?,
     )?)
 }
-fn policy_pin(path: &Path) -> Result<p::PolicyPin> {
+pub(super) fn policy_pin(path: &Path) -> Result<p::PolicyPin> {
     Ok(p::PolicyPin::new(
         fixture::array(path, "family")?,
         p::PublicKey::decode(&fixture::read(path, "policy-root", 8192)?)?,
@@ -344,7 +344,7 @@ impl Trace<'_> {
         Ok(bytes)
     }
 }
-fn expired_authority(
+pub(super) fn expired_authority(
     path: &Path,
     pin: &p::PolicyPin,
     historical: &p::HistoricalSessionPolicy,

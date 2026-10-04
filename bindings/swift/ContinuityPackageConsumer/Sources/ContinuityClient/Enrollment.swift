@@ -355,13 +355,20 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
     mode: String, original: EnrollmentStatus) throws -> String {
     let status: CredentialRenewalStatus
     switch mode {
-    case "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired":
-        let expected: Int32 = mode == "enrollment-credential-witness-commit-policy-expired" ? 104 : 702
+    case "enrollment-credential-witness-commit-no-sdk", "enrollment-credential-witness-commit-policy-expired", "enrollment-credential-witness-commit-cancellation":
+        let expected: Int32 = mode == "enrollment-credential-witness-commit-cancellation" ? 215 :
+            mode == "enrollment-credential-witness-commit-policy-expired" ? 104 : 702
         let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
         let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
         _ = try expectedEnrollmentFailure(expected) { try owner.commitWitnessedCredentialRenewal(operation: operation, statement: statement) }
         _ = try expectedEnrollmentFailure(2) { try owner.credentialRenewalStatus() }
         return "credential-witness-commit-refused:\(expected)"
+    case "enrollment-credential-witness-cancel-prepare":
+        let cancellation = try owner.prepareWitnessedCredentialCancellation()
+        try require(cancellation == owner.prepareWitnessedCredentialCancellation(), "cancellation reservation changed original head")
+        try inputs.publish("credential-cancellation", cancellation.bytes)
+        try require(owner.status() == original, "cancellation reservation replaced registration")
+        return "credential-witness-cancel-reserved"
     case "enrollment-credential-witness-prepare":
         let proposal = try owner.prepareWitnessedCredentialRenewal()
         try require(proposal == owner.prepareWitnessedCredentialRenewal(), "witness preparation changed original target")

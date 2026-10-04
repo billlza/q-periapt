@@ -21,6 +21,25 @@ Close or reconcile the original operation. Historical cleanup uses an independen
 pinned signed policy snapshot; new Commit and activation require current authority.
 Native/API source integration is not an installed archive qualification.
 
+If a staged grant has no prepared proposal, reserve its cancellation with
+`qpc_enrollment_v1_prepare_witnessed_credential_cancellation`. Keep the original
+248-byte descriptor for independent witness approval. This call needs the original
+pinned historical policy, including after expiry, but no SDK database or witness
+connection. It reserves the original journal without preparing a target image.
+Retry or reopen the same enrollment; do not replace the intent or reset its stores.
+Once the independent witness has approved `Closed`, use the existing reconciliation
+operation. `Unavailable` leaves the reservation pending. Local `Closed` is durable
+before ACK; recovery retries the exact ACK before removing the reservation. New
+Commit cannot use a cancellation descriptor, and an existing proposal conflicts.
+
+The cancellation workload executes eight cases per language: signed TCP and
+mutual TLS, live and actually expired policy, and SIGKILL at Status and ACK.
+It checks the original reservation, unchanged image, exact terminal and no-SDK
+cleanup. TLS cuts occur at request admission; TCP cuts withhold a processed reply.
+Server completion does not prove the killed peer consumed the response. The
+package collectors require the workload from the archive-derived harness for
+C, Swift and Kotlin; source execution alone is not installed-package evidence.
+
 A separate witnessed-policy workload signs the original short-lived policy before
 registration and waits for actual expiry with SDK state still enabled. C, Swift
 and Kotlin then recover the exact Applied/Closed proposal over signed TCP and
@@ -59,9 +78,9 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration route has sixteen `qpc_enrollment_v1_*` exports. Together with
+The registration route has seventeen `qpc_enrollment_v1_*` exports. Together with
 peer-grant admission on the existing Device parent, this unpublished candidate
-interface now declares 72 exports. The new renewal route still requires its own
+interface now declares 73 exports. The new renewal route still requires its own
 installed-package qualification. It retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that

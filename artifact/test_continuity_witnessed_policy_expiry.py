@@ -70,7 +70,7 @@ def fixture(directory):
         lines.append(f"WITNESSED_POLICY_EXPIRY case={case} policy_until=150 observed=150 credential_until=300 "
                      f"sdk_present=true original_policy=true no_new_commit=true native_applied_setup={str(applied).lower()}")
     return ("\n".join(lines) + "\ntest " + expiry.TEST + " ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out;\n").encode()
 
 
 class PolicyExpiryEvidenceTests(unittest.TestCase):
@@ -133,7 +133,7 @@ class PolicyExpiryEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary); stdout = fixture(root / "runtime")
             for changed in (stdout+stdout, stdout.replace(b"0 failed",b"1 failed"), stdout.replace(b"0 ignored",b"1 ignored"),
-                            stdout.replace(b"6 filtered",b"5 filtered"),stdout.replace(b"observed=150",b"observed=149")):
+                            stdout.replace(b"7 filtered",b"5 filtered"),stdout.replace(b"observed=150",b"observed=149")):
                 with self.assertRaises(ValueError): expiry.verify(changed,root / "runtime")
             folder = root / "runtime/tls-applied"
             extra = folder / "wrap.key";extra.write_bytes(b"private")
