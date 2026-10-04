@@ -45,16 +45,16 @@ class TlsLossTests(unittest.TestCase):
     def test_language_specific_workload_cannot_omit_or_reassign_exchanges(self):
         for language, offset in (("C", 0), ("Swift", 6), ("Kotlin", 5)):
             # Synthetic census only, not a claim of TLS execution.
-            row = dict(exchanges=178 + offset, native_advances=36,
-                       lost_indices=[130 + offset, 139 + offset, 155 + offset, 167 + offset],
+            row = dict(exchanges=182 + offset, native_advances=36,
+                       lost_indices=[134 + offset, 143 + offset, 159 + offset, 171 + offset],
                        stages={phase: dict(first_exchange=a + offset, after_last_exchange=b + offset,
                                            lost_exchange=c + offset)
                                for phase, (a, b, c) in zip(loss.PHASES,
-                                   ((121, 131, 130), (136, 140, 139), (149, 156, 155), (164, 168, 167)), strict=True)})
+                                   ((121, 135, 134), (140, 144, 143), (153, 160, 159), (168, 172, 171)), strict=True)})
             loss.require_workload(row, language)
             shifted = copy.deepcopy(row)
             shifted['stages']['reservation']['first_exchange'] += 1
-            for bad in (dict(row, exchanges=row['exchanges'] - 1), dict(row, native_advances=35), shifted):
+            for bad in (dict(row, exchanges=row['exchanges'] - 1), dict(row, native_advances=35), dict(row, exchanges=178 + offset), shifted):
                 with self.subTest(language=language, row=bad), self.assertRaisesRegex(ValueError, 'workload differs'):
                     loss.require_workload(bad, language)
             with self.assertRaisesRegex(ValueError, 'workload differs'):
@@ -75,7 +75,7 @@ class TlsLossTests(unittest.TestCase):
     def test_own_cleanup_requires_its_selected_target_and_account_layout(self):
         stdout=(f'test {loss.OWN_TLS_LOSS_TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
         peer=dict(schema_version=2,language='C',account_layout='peer',completed=True,batch='11'*32,report='22'*32,
-                  carrier='q-periapt-anchor/1',lost_advances=4,witness_exchanges=178,release_claim_eligible=False)
+                  carrier='q-periapt-anchor/1',lost_advances=4,witness_exchanges=182,release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); (root/'account-tls-loss-result.json').write_text(json.dumps(peer))
             with self.assertRaisesRegex(ValueError,'scope differs'):

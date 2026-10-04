@@ -54,12 +54,15 @@ def exchanges(data: bytes, stage_bytes: bytes) -> dict:
 def require_workload(observed: dict, language: str) -> None:
     scope(language)
     offset = {"C": 0, "Swift": 6, "Kotlin": 5}[language]
+    # Reservation reopens two retained peer sessions. Each preparation authenticates
+    # one image and checks its release fence: four Query exchanges before Advance.
+    # Those checks change no native mutation or post-commit loss counts.
     stages = {phase: dict(first_exchange=first + offset, after_last_exchange=after + offset,
                           lost_exchange=lost + offset)
               for phase, (first, after, lost) in zip(PHASES,
-                  ((121, 131, 130), (136, 140, 139), (149, 156, 155), (164, 168, 167)), strict=True)}
-    sdk.require(observed == dict(exchanges=178 + offset, native_advances=36, stages=stages,
-                                lost_indices=[130 + offset, 139 + offset, 155 + offset, 167 + offset]),
+                  ((121, 135, 134), (140, 144, 143), (153, 160, 159), (168, 172, 171)), strict=True)}
+    sdk.require(observed == dict(exchanges=182 + offset, native_advances=36, stages=stages,
+                                lost_indices=[134 + offset, 143 + offset, 159 + offset, 171 + offset]),
                 "TLS loss admitted exchange workload differs")
 
 

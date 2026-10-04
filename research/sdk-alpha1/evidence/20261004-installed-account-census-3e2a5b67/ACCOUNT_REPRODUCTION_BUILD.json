@@ -1,0 +1,37 @@
+{
+  "completed": true,
+  "commands": [
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clean",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-continuity-c-consumer",
+        "-p",
+        "q-periapt-continuity-identity-candidate"
+      ],
+      "exit": 0,
+      "seconds": 0.34958604199346155
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "account_witness",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit": 0,
+      "seconds": 37.34981833293568
+    }
+  ],
+  "source_record": "ARCHIVE_C_QUALIFICATION.json",
+  "helper": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/account-renewal-archive-test",
+  "sha256": "332d8f4b1ccc8ddf19a9e527e48f06aba26dbf55fdb8140aada957841ffe8cb7",
+  "release_claim_eligible": false
+}

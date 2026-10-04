@@ -50,22 +50,22 @@ class AccountDeliveryTests(unittest.TestCase):
                     delivery.verify_execution(value, Path(folder))
 
     def test_same_total_cannot_hide_work_moved_across_original_phases(self):
-        # Synthetic metadata only. Keep 283 total while moving one admission
+        # Synthetic metadata only. Keep 307 total while moving one admission
         # from bootstrap to batch: the generic monotonic parser still accepts it.
-        data = (b'bootstrap 0 120 0\nbatch 120 126 0\nrefusal 126 143 0\nunknown 143 191 0\nstatus 191 195 0\n'
-                b'delivery0 195 228 0\nretained0 228 238 0\ndelivery1 238 273 0\nretained1 273 283 0\n')
-        self.assertEqual(delivery.tls.phases(data, expected_phases=delivery.PHASES)['retained1']['after_last_admission'], 283)
+        data = (b'bootstrap 0 120 0\nbatch 120 126 0\nrefusal 126 147 0\nunknown 147 199 0\nstatus 199 203 0\n'
+                b'delivery0 203 240 0\nretained0 240 254 0\ndelivery1 254 293 0\nretained1 293 307 0\n')
+        self.assertEqual(delivery.tls.phases(data, expected_phases=delivery.PHASES)['retained1']['after_last_admission'], 307)
         with self.assertRaisesRegex(ValueError, 'phase workload differs'):
             delivery.phase_workload(data, 'C')
 
     def test_carrier_language_census_and_completion_cannot_be_relabelled(self):
         stdout = (f'test {delivery.TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
-        base = dict(schema_version=2, account_layout='peer', language='C', completed=True, carrier='q-periapt-anchor/1', witness_admissions=283,
+        base = dict(schema_version=2, account_layout='peer', language='C', completed=True, carrier='q-periapt-anchor/1', witness_admissions=307,
                     batch='11' * 32, release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); (root/'initiator').mkdir()
             for row, language in ((base, 'Swift'), (base, 'Kotlin'), (list(base), 'C'), (dict(base, completed=1), 'C'),
-                    (dict(base, witness_admissions=265), 'C'), (dict(base, carrier='signed-tcp'), 'C'),
+                    (dict(base, witness_admissions=265), 'C'), (dict(base, witness_admissions=283), 'C'), (dict(base, carrier='signed-tcp'), 'C'),
                     (dict(base, release_claim_eligible=True), 'C'), (dict(base, schema_version=True), 'C')):
                 (root/'initiator/account-delivery-result.json').write_text(json.dumps(row))
                 with self.subTest(row=row, language=language), self.assertRaisesRegex(ValueError, 'scope or census'):
@@ -74,7 +74,7 @@ class AccountDeliveryTests(unittest.TestCase):
     def test_own_account_requires_its_own_executed_target_and_report_scope(self):
         stdout = (f'test {delivery.OWN_DELIVERY_TEST} ... ok\n' + 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
         peer = dict(schema_version=2, account_layout='peer', language='C', completed=True, carrier='q-periapt-anchor/1',
-                    witness_admissions=283, batch='11' * 32, release_claim_eligible=False)
+                    witness_admissions=307, batch='11' * 32, release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); (root/'initiator').mkdir(); (root/'initiator/account-delivery-result.json').write_text(json.dumps(peer))
             with self.assertRaisesRegex(ValueError, 'scope or census'):

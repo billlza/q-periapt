@@ -1317,7 +1317,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             source,
         )
         self.assertIn(
-            "swift test --package-path bindings/swift --triple arm64-apple-macosx13.0 -Xlinker "
+            "/usr/bin/arch -arm64 /usr/bin/xcrun swift test --package-path bindings/swift --triple arm64-apple-macosx13.0 -Xlinker "
             "-L${{ github.workspace }}/target/release",
             source,
         )
