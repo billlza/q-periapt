@@ -1407,6 +1407,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/rust/SDKPackageConsumer/src/lib.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_credential_renewal.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_expiry.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_cancellation_tests.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
