@@ -29,6 +29,7 @@ RENEWAL_TESTS = {
     "credential_renewal::policy_continuation::c_second_policy_adoption_uses_original_owner_and_explicit_t1_predecessor",
 }
 POLICY_WITNESS_TEST = "witness_policy_continuation::foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness"
+POLICY_CANCELLATION_TEST = "witness_policy_continuation::foreign_policy_continuation_cancels_without_target_or_sdk"
 
 
 def _require_execution(text: str, names: set[str], filtered: int, message: str) -> None:
@@ -214,7 +215,7 @@ def verify_witness(stdout: bytes, directory: Path, carrier: str, *, language: st
     sdk.require(carrier in WITNESS_TESTS, "unsupported C enrollment witness carrier")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [WITNESS_TESTS[carrier]]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE),
                 "C witnessed enrollment workload was not executed completely")
     prefix, public = "enrolled-witness", {}
 
@@ -342,7 +343,7 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         sdk.require(observed.sha256 == expected["sha256"] and observed.size == expected["bytes"],
                     "foreign registration native harness changed before execution")
         binaries[target] = (binary, observed.sha256)
-    for key in ("witnessed_credential_renewal", "witnessed_policy_expiry", "witnessed_cancellation", "witnessed_commit_error", "witnessed_policy_continuation"):
+    for key in ("witnessed_credential_renewal", "witnessed_policy_expiry", "witnessed_cancellation", "witnessed_commit_error", "witnessed_policy_continuation", "witnessed_policy_cancellation"):
         sdk.require(key in native, "C cohort lacks " + key + " qualification")
         sdk.require(native[key]["binary"] == native["enrollment_witness"]["signed-tcp"]["binary"],
                     "foreign witnessed lifecycle must use the C-qualified original harness")
@@ -393,23 +394,32 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
         outside, output, profile, runtime, binary, run, language=language, variant=variant)
     result["witnessed_policy_continuation"] = qualify_policy_witness(
         output, profile, runtime, binary, run, language=language, variant=variant)
+    result["witnessed_policy_cancellation"] = qualify_policy_witness(
+        output, profile, runtime, binary, run, language=language, variant=variant, cancellation=True)
     sdk.write_json(output / (language.upper() + "_ENROLLMENT_" + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result
 
 
-def verify_policy_witness_execution(stdout: bytes, *, language: str = "C") -> dict:
+def verify_policy_witness_execution(stdout: bytes, *, language: str = "C", cancellation: bool = False) -> dict:
     """Execution receipt only. The archive-bound harness verifies signatures,
     sealed journal readback and actual transport; this is not a wire oracle.
     """
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported policy witness language")
     text = stdout.decode()
-    _require_execution(text, {POLICY_WITNESS_TEST}, 9,
+    test = POLICY_CANCELLATION_TEST if cancellation else POLICY_WITNESS_TEST
+    _require_execution(text, {test}, 10,
                        "foreign witnessed policy continuation did not execute completely")
-    expected = ["C_WITNESSED_POLICY_CONTINUATION carrier=" + carrier
-        + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true"
+    prefix = "C_WITNESSED_POLICY_CANCELLATION" if cancellation else "C_WITNESSED_POLICY_CONTINUATION"
+    fields = (" original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
+        if cancellation else " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true")
+    expected = [prefix + " carrier=" + carrier + fields
         for carrier in ("tcp", "tls")]
-    sdk.require(re.findall(r"^C_WITNESSED_POLICY_CONTINUATION.*$", text, re.MULTILINE) == expected,
+    sdk.require(re.findall(r"^C_WITNESSED_POLICY_(?:CONTINUATION|CANCELLATION).*$", text, re.MULTILINE) == expected,
                 "witnessed policy continuation omitted or changed a required carrier outcome")
+    if cancellation:
+        return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
+                    original_cancellation_bytes=281, release_claim_eligible=False,
+                    scope=language + " original G1/T1 cancellation without SDK database or target policy directory; independently authorized close, original journal readback and native witness status/ACK over TCP and TLS; same engine, no independent wire oracle or process-loss qualification")
     return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
                 original_proposal_bytes=329, credential_successor_carries_t1=True,
                 release_claim_eligible=False,
@@ -417,7 +427,7 @@ def verify_policy_witness_execution(stdout: bytes, *, language: str = "C") -> di
 
 
 def qualify_policy_witness(output: Path, profile: str, runtime: dict, binary: Path, run,
-                           *, language: str = "C", variant: str = "") -> dict:
+                           *, language: str = "C", variant: str = "", cancellation: bool = False) -> dict:
     import continuity_c_consumer as c
     sdk.require(profile in {"debug", "release"} and
                 ((language in {"C", "Swift"} and variant == "") or
@@ -431,14 +441,16 @@ def qualify_policy_witness(output: Path, profile: str, runtime: dict, binary: Pa
     client_identity = sdk.snapshot(client, maximum=c.MAX_BINARY)
     selected = dict(runtime)
     selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
-    stdout = run([str(binary), "--exact", POLICY_WITNESS_TEST, "--nocapture"],
-                 "witnessed-policy-continuation-" + profile + variant, runtime=selected)
-    checked = verify_policy_witness_execution(stdout, language=language)
+    test = POLICY_CANCELLATION_TEST if cancellation else POLICY_WITNESS_TEST
+    scenario = "cancellation" if cancellation else "continuation"
+    stdout = run([str(binary), "--exact", test, "--nocapture"],
+                 "witnessed-policy-" + scenario + "-" + profile + variant, runtime=selected)
+    checked = verify_policy_witness_execution(stdout, language=language, cancellation=cancellation)
     sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == identity.sha256
                 and sdk.snapshot(client, maximum=c.MAX_BINARY).sha256 == client_identity.sha256,
                 "policy witness harness or client changed during execution")
     result = dict(execution=checked, binary=dict(sha256=identity.sha256, bytes=identity.size),
                   foreign_client_sha256=client_identity.sha256)
-    sdk.write_json(output / (language.upper() + "_WITNESSED_POLICY_CONTINUATION_"
+    sdk.write_json(output / (language.upper() + "_WITNESSED_POLICY_" + scenario.upper() + "_"
         + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result

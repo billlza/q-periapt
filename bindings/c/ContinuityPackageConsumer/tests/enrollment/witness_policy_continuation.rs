@@ -248,7 +248,126 @@ fn carry_renewal(
     Ok(())
 }
 
-fn exercise(tls: bool) -> Result<()> {
+fn cancel_pending(
+    registration: &Registration,
+    first: &ProvisionedRenewal,
+    witness: &witness::Witness,
+    endpoint: Endpoint,
+    scope: &p::PolicyContinuationScope,
+    transaction: [u8; 32],
+) -> Result<()> {
+    let path = &registration.path;
+    let target = path.join("continued-sdk");
+    let original = pending_journal(path)?;
+    assert!(
+        original.1.is_none(),
+        "staging sealed a target before cancellation"
+    );
+    let historical = witness_policy_expiry::policy_pin(path)?.verify_historical(&fixture::read(
+        path,
+        "protocol-policy",
+        8192,
+    )?)?;
+    let target_policy = witness_policy_expiry::policy_pin(&target)?
+        .verify_historical(&fixture::read(&target, "protocol-policy", 8192)?)?;
+    let grant = p::HistoricalCredentialRenewal::verify(
+        &fixture::read(path, "credential-renewal", 65536)?,
+        &first.pin,
+        historical.checkpoint().digest(),
+    )?;
+    let materials = p::HistoricalPolicyContinuationMaterials {
+        original: &historical,
+        previous: &historical,
+        target: &target_policy,
+        credential: &grant,
+    };
+    let continuation = p::HistoricalPolicyContinuation::from_bytes(
+        &fixture::read(path, "policy-approvals", 7746)?,
+        scope,
+        &materials,
+    )?;
+    fixture::store(
+        path,
+        "policy-credential-statement",
+        &first.proof.statement_digest(),
+    )?;
+    fs::rename(path.join("sdk.redb"), path.join("sdk-cancel-retained.redb"))?;
+    fs::rename(&target, path.join("continued-sdk-cancel-retained"))?;
+    assert_eq!(
+        run(
+            path,
+            "joint-cancel-prepare",
+            &arguments(path, "policy-witness-cancel-prepare", Some(endpoint))
+        )?,
+        "policy-witness-cancellation-prepared\n"
+    );
+    let bytes = fixture::read(path, "policy-cancellation", 281)?;
+    assert_eq!(bytes.len(), 281);
+    let cancellation = p::AnchorCredentialRenewalCancellation::from_trusted_state(&bytes)?;
+    assert_eq!(cancellation.subject(), registration.subject);
+    assert_eq!(cancellation.operation(), first.proof.operation());
+    assert_eq!(cancellation.statement(), first.proof.statement_digest());
+    assert_eq!(cancellation.transaction_statement(), transaction);
+    assert_eq!(cancellation.policy_continuation(), Some(transaction));
+    assert!(cancellation.adopts_policy());
+    assert_eq!(
+        cancellation.expected_head().digest(),
+        image_digest(&original.0)?
+    );
+    let reserved = pending_journal(path)?;
+    assert_eq!(reserved.0, original.0);
+    assert!(reserved.1.is_some());
+    assert!(!path.join("policy-proposal").exists());
+    fs::rename(
+        path.join("policy-cancellation"),
+        path.join("policy-cancellation-original"),
+    )?;
+    assert_eq!(
+        run(
+            path,
+            "joint-cancel-prepare-reopen",
+            &arguments(path, "policy-witness-cancel-prepare", Some(endpoint))
+        )?,
+        "policy-witness-cancellation-prepared\n"
+    );
+    assert_eq!(fixture::read(path, "policy-cancellation", 281)?, bytes);
+    assert_eq!(pending_journal(path)?, reserved);
+    assert_eq!(
+        witness
+            .configured
+            .store
+            .lock()
+            .map_err(|_| "witness poisoned")?
+            .close_unprepared_policy_continuation(cancellation, &continuation, &materials)?,
+        p::AnchorCredentialCancellationState::Closed
+    );
+    for label in ["joint-cancel-reconcile", "joint-cancel-reconcile-reopen"] {
+        assert_eq!(
+            run(
+                path,
+                label,
+                &arguments(path, "credential-witness-reconcile", Some(endpoint))
+            )?,
+            expected(&first.proof, transaction, 4)
+        );
+        assert_eq!(pending_journal(path)?, original);
+    }
+    assert_eq!(
+        run(
+            path,
+            "joint-cancel-closed-readback",
+            &arguments(path, "credential-status", Some(endpoint))
+        )?,
+        expected(&first.proof, transaction, 4)
+    );
+    assert!(!target.exists());
+    assert!(!path.join("sdk.redb").exists());
+    fs::rename(path.join("sdk-cancel-retained.redb"), path.join("sdk.redb"))?;
+    fs::rename(path.join("continued-sdk-cancel-retained"), &target)?;
+    Ok(())
+}
+
+fn exercise(tls: bool, cancellation: bool) -> Result<()> {
     let mut witness = witness::Witness::start()?;
     let setup = fixture::setup_with_witness(Some(&witness.configured))?;
     let authority = p::PolicySigningKey::generate()?;
@@ -388,127 +507,147 @@ fn exercise(tls: bool) -> Result<()> {
         )?,
         expected(grant, transaction, 1)
     );
-    assert_eq!(
-        run(
-            path,
-            "joint-prepare",
-            &arguments(path, "policy-witness-prepare", Some(endpoint))
-        )?,
-        "policy-witness-prepared\n"
-    );
-    let encoded = fixture::read(path, "policy-proposal", 329)?;
-    assert_eq!(encoded.len(), 329);
-    assert_eq!(encoded.get(..8), Some(b"QPCRNP02".as_slice()));
-    let proposal = p::AnchorCredentialRenewalProposal::from_trusted_state(&encoded)?;
-    assert_eq!(proposal.subject(), registration.subject);
-    assert_eq!(proposal.operation(), grant.operation());
-    assert_eq!(proposal.statement(), grant.statement_digest());
-    assert!(proposal.adopts_policy());
-    assert_eq!(proposal.transaction_statement(), transaction);
-    assert_eq!(proposal.policy_continuation(), Some(transaction));
-    let pending = pending_journal(path)?;
-    assert_eq!(pending.0, original_image.0);
-    assert!(pending.1.is_some());
-    fs::rename(
-        path.join("policy-proposal"),
-        path.join("policy-proposal-original"),
-    )?;
-    assert_eq!(
-        run(
-            path,
-            "joint-prepare-reopen",
-            &arguments(path, "policy-witness-prepare", Some(endpoint))
-        )?,
-        "policy-witness-prepared\n"
-    );
-    assert_eq!(fixture::read(path, "policy-proposal", 329)?, encoded);
-    assert_eq!(pending_journal(path)?, pending);
+    if cancellation {
+        cancel_pending(
+            &registration,
+            &first,
+            &witness,
+            endpoint,
+            &scope,
+            transaction,
+        )?;
+        assert_eq!(pending_journal(path)?, original_image);
+        assert_eq!(
+            state(&run(
+                path,
+                "cancel-final-status",
+                &arguments(path, "status", Some(endpoint))
+            )?)?,
+            active
+        );
+    } else {
+        assert_eq!(
+            run(
+                path,
+                "joint-prepare",
+                &arguments(path, "policy-witness-prepare", Some(endpoint))
+            )?,
+            "policy-witness-prepared\n"
+        );
+        let encoded = fixture::read(path, "policy-proposal", 329)?;
+        assert_eq!(encoded.len(), 329);
+        assert_eq!(encoded.get(..8), Some(b"QPCRNP02".as_slice()));
+        let proposal = p::AnchorCredentialRenewalProposal::from_trusted_state(&encoded)?;
+        assert_eq!(proposal.subject(), registration.subject);
+        assert_eq!(proposal.operation(), grant.operation());
+        assert_eq!(proposal.statement(), grant.statement_digest());
+        assert!(proposal.adopts_policy());
+        assert_eq!(proposal.transaction_statement(), transaction);
+        assert_eq!(proposal.policy_continuation(), Some(transaction));
+        let pending = pending_journal(path)?;
+        assert_eq!(pending.0, original_image.0);
+        assert!(pending.1.is_some());
+        fs::rename(
+            path.join("policy-proposal"),
+            path.join("policy-proposal-original"),
+        )?;
+        assert_eq!(
+            run(
+                path,
+                "joint-prepare-reopen",
+                &arguments(path, "policy-witness-prepare", Some(endpoint))
+            )?,
+            "policy-witness-prepared\n"
+        );
+        assert_eq!(fixture::read(path, "policy-proposal", 329)?, encoded);
+        assert_eq!(pending_journal(path)?, pending);
 
-    // Independent witness admission reconstructs both pinned documents and G/T.
-    let mut original_sdk = fixture::sdk(path)?;
-    let original_policy = fixture::protocol_policy(path, &original_sdk)?;
-    let mut target_sdk = fixture::sdk(&target)?;
-    let target_policy = fixture::protocol_policy(&target, &target_sdk)?;
-    let materials = p::PolicyContinuationMaterials {
-        original: original_policy.historical(),
-        previous: original_policy.historical(),
-        target: &target_policy,
-        credential: grant,
-    };
-    let continuation = p::VerifiedPolicyContinuation::from_bytes(
-        &fixture::read(path, "policy-approvals", 7746)?,
-        &scope,
-        &materials,
-        fixture::now()?,
-    )?;
-    witness
-        .configured
-        .store
-        .lock()
-        .map_err(|_| "witness poisoned")?
-        .prepare_policy_continuation(proposal, &continuation, &materials, fixture::now()?)?;
-    target_policy.close();
-    original_policy.close();
-    drop(target_policy);
-    drop(original_policy);
-    target_sdk.close();
-    original_sdk.close();
-    drop(target_sdk);
-    drop(original_sdk);
-    assert_eq!(
-        run(
-            path,
-            "joint-commit",
-            &arguments(path, "policy-witness-commit", Some(endpoint))
-        )?,
-        expected(grant, transaction, 2)
-    );
-    let terminal = pending_journal(path)?;
-    assert!(terminal.1.is_none());
-    assert_ne!(terminal.0, original_image.0);
-    assert_eq!(image_digest(&terminal.0)?, proposal.target_head().digest());
-    assert_eq!(
-        run(
-            path,
-            "joint-commit-retry",
-            &arguments(path, "policy-witness-commit", Some(endpoint))
-        )?,
-        expected(grant, transaction, 2)
-    );
-    assert_eq!(pending_journal(path)?, terminal);
-    assert_eq!(
-        run(
-            path,
-            "joint-activate",
-            &arguments(path, "policy-activate", Some(endpoint))
-        )?,
-        "policy-device-active\n"
-    );
-    assert_eq!(
-        state(&run(
-            path,
-            "joint-final-status",
-            &arguments(path, "status", Some(endpoint))
-        )?)?,
-        active
-    );
-    assert_eq!(pending_journal(path)?, terminal);
-    carry_renewal(
-        &registration,
-        &first,
-        &witness,
-        endpoint,
-        &target,
-        transaction,
-    )?;
-    assert_eq!(
-        state(&run(
-            path,
-            "carry-final-status",
-            &arguments(path, "status", Some(endpoint))
-        )?)?,
-        active
-    );
+        // Independent witness admission reconstructs both pinned documents and G/T.
+        let mut original_sdk = fixture::sdk(path)?;
+        let original_policy = fixture::protocol_policy(path, &original_sdk)?;
+        let mut target_sdk = fixture::sdk(&target)?;
+        let target_policy = fixture::protocol_policy(&target, &target_sdk)?;
+        let materials = p::PolicyContinuationMaterials {
+            original: original_policy.historical(),
+            previous: original_policy.historical(),
+            target: &target_policy,
+            credential: grant,
+        };
+        let continuation = p::VerifiedPolicyContinuation::from_bytes(
+            &fixture::read(path, "policy-approvals", 7746)?,
+            &scope,
+            &materials,
+            fixture::now()?,
+        )?;
+        witness
+            .configured
+            .store
+            .lock()
+            .map_err(|_| "witness poisoned")?
+            .prepare_policy_continuation(proposal, &continuation, &materials, fixture::now()?)?;
+        target_policy.close();
+        original_policy.close();
+        drop(target_policy);
+        drop(original_policy);
+        target_sdk.close();
+        original_sdk.close();
+        drop(target_sdk);
+        drop(original_sdk);
+        assert_eq!(
+            run(
+                path,
+                "joint-commit",
+                &arguments(path, "policy-witness-commit", Some(endpoint))
+            )?,
+            expected(grant, transaction, 2)
+        );
+        let terminal = pending_journal(path)?;
+        assert!(terminal.1.is_none());
+        assert_ne!(terminal.0, original_image.0);
+        assert_eq!(image_digest(&terminal.0)?, proposal.target_head().digest());
+        assert_eq!(
+            run(
+                path,
+                "joint-commit-retry",
+                &arguments(path, "policy-witness-commit", Some(endpoint))
+            )?,
+            expected(grant, transaction, 2)
+        );
+        assert_eq!(pending_journal(path)?, terminal);
+        assert_eq!(
+            run(
+                path,
+                "joint-activate",
+                &arguments(path, "policy-activate", Some(endpoint))
+            )?,
+            "policy-device-active\n"
+        );
+        assert_eq!(
+            state(&run(
+                path,
+                "joint-final-status",
+                &arguments(path, "status", Some(endpoint))
+            )?)?,
+            active
+        );
+        assert_eq!(pending_journal(path)?, terminal);
+        carry_renewal(
+            &registration,
+            &first,
+            &witness,
+            endpoint,
+            &target,
+            transaction,
+        )?;
+        assert_eq!(
+            state(&run(
+                path,
+                "carry-final-status",
+                &arguments(path, "status", Some(endpoint))
+            )?)?,
+            active
+        );
+    }
     assert!(
         Zeroizing::new(fs::read(path.join("signer.key"))?).as_slice() == signer.as_slice(),
         "original signer changed"
@@ -536,10 +675,19 @@ fn exercise(tls: bool) -> Result<()> {
     } else {
         assert!(
             tcp.iter().any(|c| c.delivered
-                && c.request.get(204) == Some(&5)
-                && c.reply.get(204) == Some(&8)),
-            "real witness Commit/Applied exchange not observed"
+                && c.request.get(204) == Some(&(if cancellation { 6 } else { 5 }))
+                && c.reply.get(204) == Some(&(if cancellation { 9 } else { 8 }))),
+            "real witness terminal exchange not observed"
         );
+        if cancellation {
+            assert!(
+                tcp.iter().all(|c| c.request.get(204) != Some(&5)),
+                "cancellation dispatched a commit"
+            );
+            assert!(tcp.iter().any(|c| c.delivered
+                && c.request.get(204) == Some(&8)
+                && c.reply.get(204) == Some(&11)));
+        }
     }
     drop(captured);
     if let Some(server) = tls_witness.as_mut() {
@@ -547,22 +695,41 @@ fn exercise(tls: bool) -> Result<()> {
         let records = server.records.lock().map_err(|_| "TLS records poisoned")?;
         assert_eq!(records.len(), server.admitted.load(Ordering::Acquire));
         assert!(
-            records
-                .iter()
-                .any(|r| r.request().get(204) == Some(&5) && r.reply().get(204) == Some(&8)),
-            "authenticated TLS Commit/Applied exchange not observed"
+            records.iter().any(|r| r.request().get(204)
+                == Some(&(if cancellation { 6 } else { 5 }))
+                && r.reply().get(204) == Some(&(if cancellation { 9 } else { 8 }))),
+            "authenticated TLS terminal exchange not observed"
         );
+        if cancellation {
+            assert!(
+                records.iter().all(|r| r.request().get(204) != Some(&5)),
+                "TLS cancellation dispatched a commit"
+            );
+            assert!(records
+                .iter()
+                .any(|r| r.request().get(204) == Some(&8) && r.reply().get(204) == Some(&11)));
+        }
         assert!(records
             .iter()
             .all(|r| r.request().get(44..140) == Some(subject.as_slice())));
     }
     witness.join()?;
-    println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" });
+    if cancellation {
+        println!("C_WITNESSED_POLICY_CANCELLATION carrier={} original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true", if tls { "tls" } else { "tcp" });
+    } else {
+        println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" });
+    }
     Ok(())
 }
 
 #[test]
 fn foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness() -> Result<()> {
-    exercise(false)?;
-    exercise(true)
+    exercise(false, false)?;
+    exercise(true, false)
+}
+
+#[test]
+fn foreign_policy_continuation_cancels_without_target_or_sdk() -> Result<()> {
+    exercise(false, true)?;
+    exercise(true, true)
 }

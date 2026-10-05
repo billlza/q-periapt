@@ -474,6 +474,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_c_enrollment import qualify_policy_witness
         result["execution"][profile]["witnessed_policy_continuation"] = qualify_policy_witness(
             output, profile, runtime, enrollment_witness_binary, run)
+        result["execution"][profile]["witnessed_policy_cancellation"] = qualify_policy_witness(
+            output, profile, runtime, enrollment_witness_binary, run, cancellation=True)
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

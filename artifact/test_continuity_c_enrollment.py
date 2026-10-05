@@ -119,7 +119,7 @@ def witness_fixture(root, carrier):
     return ("C_ENROLLMENT_WITNESS_COMPLETE carrier=" + carrier + " journal=" + journal.hex()
             + " next_account=" + activated.splitlines()[1].decode() + "\n"
             + "test " + enrollment.WITNESS_TESTS[carrier] + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
 
 
 class CEnrollmentEvidenceTests(unittest.TestCase):
@@ -317,13 +317,19 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
             native["witnessed_policy_continuation"] = dict(binary=receipts["enrollment"])
             with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
                 enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_policy_continuation"] = dict(binary=receipts["enrollment_witness"])
+            with self.assertRaisesRegex(ValueError, "lacks witnessed_policy_cancellation"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_policy_cancellation"] = dict(binary=receipts["enrollment"])
+            with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
 
     def test_policy_witness_requires_both_complete_carriers(self):
         lines = ["C_WITNESSED_POLICY_CONTINUATION carrier=" + carrier
             + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true"
             for carrier in ("tcp", "tls")]
         output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_WITNESS_TEST + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         for language in ("C", "Swift", "Kotlin"):
             result = enrollment.verify_policy_witness_execution(output, language=language)
             self.assertEqual(result["language"], language)
@@ -333,7 +339,7 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
         variants += [output + (lines[0] + "\n").encode(), output.replace(b"carrier=tls", b"carrier=tcp"),
                      output + b"test another_case ... FAILED\n",
                      output + b"test another_case ... FAILED with details\n",
-                     output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out;\n",
+                     output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out;\n",
                      output.replace(b"current_activation=true", b"current_activation=false"),
                      output.replace(b" credential_successor_carries_t1=true", b""),
                      output.replace(b"credential_successor_carries_t1=true", b"credential_successor_carries_t1=false"),
@@ -342,6 +348,33 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
         for invalid in variants:
             with self.subTest(output=invalid), self.assertRaises(ValueError):
                 enrollment.verify_policy_witness_execution(invalid)
+
+    def test_policy_cancellation_requires_original_target_free_close_on_both_carriers(self):
+        lines = ["C_WITNESSED_POLICY_CANCELLATION carrier=" + carrier
+            + " original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
+            for carrier in ("tcp", "tls")]
+        output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_CANCELLATION_TEST + " ... ok\n"
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
+        for language in ("C", "Swift", "Kotlin"):
+            result = enrollment.verify_policy_witness_execution(output, language=language, cancellation=True)
+            self.assertEqual(result["language"], language)
+            self.assertEqual(result["original_cancellation_bytes"], 281)
+            self.assertFalse(result["release_claim_eligible"])
+        variants = [output.replace((line + "\n").encode(), b"") for line in lines]
+        variants += [output.replace(b"carrier=tls", b"carrier=tcp"),
+                     output.replace(b"original_281_byte_reservation=true", b"original_248_byte_reservation=true"),
+                     output.replace(b"no_target_or_SDK=true", b"no_target_or_SDK=false"),
+                     output.replace(b"no_commit=true", b"no_commit=false"),
+                     output.replace(b"independent_G_T_close=true ", b""),
+                     output.replace(enrollment.POLICY_CANCELLATION_TEST.encode(), enrollment.POLICY_WITNESS_TEST.encode()),
+                     output.replace(b"10 filtered", b"9 filtered"),
+                     output + b"test another_case ... FAILED\n",
+                     output + b"C_WITNESSED_POLICY_CONTINUATION carrier=tcp\n"]
+        for invalid in variants:
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                enrollment.verify_policy_witness_execution(invalid, cancellation=True)
+        with self.assertRaises(ValueError):
+            enrollment.verify_policy_witness_execution(output)
 
     def test_changed_native_harness_refuses_before_executing_foreign_client(self):
         with tempfile.TemporaryDirectory() as temporary:

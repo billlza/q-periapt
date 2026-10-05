@@ -15,10 +15,23 @@ private fun policyDocument(path: Path): PolicyDocument {
 
 internal fun policyEnrollment(owner: ContinuityEnrollment, path: String, records: FixtureRecords,
                               mode: String, original: EnrollmentStatus): String {
-    val targetPath = Path.of(path).resolve("continued-sdk")
-    val target = policyDocument(targetPath)
     fun operation() = CredentialRenewalID(records.enrollmentExact("credential-operation", 32))
     fun statement() = CredentialRenewalStatementID(records.enrollmentExact("credential-statement", 32))
+    if (mode == "enrollment-policy-witness-cancel-prepare") {
+        val cancellation = owner.prepareWitnessedPolicyCancellation()
+        check(cancellation == owner.prepareWitnessedPolicyCancellation()) { "policy cancellation changed original reservation" }
+        val bytes = cancellation.encoded()
+        val credential = CredentialRenewalStatementID(records.enrollmentExact("policy-credential-statement", 32))
+        check(bytes.size == 281 && cancellation.adoptsPolicy && cancellation.operation == operation() &&
+            cancellation.statement == statement() && cancellation.credentialStatement == credential) {
+            "policy cancellation differs from original joint operation"
+        }
+        check(records.retain("policy-cancellation", bytes, true)) { "policy cancellation output already exists" }
+        check(owner.status() == original) { "policy cancellation changed registration" }
+        return "policy-witness-cancellation-prepared"
+    }
+    val targetPath = Path.of(path).resolve("continued-sdk")
+    val target = policyDocument(targetPath)
     if (mode == "enrollment-policy-recover-history" || mode == "enrollment-policy-history-pending") {
         if (mode == "enrollment-policy-history-pending") {
             refused(setOf(215)) { owner.recoverHistoricalPolicyContinuation(operation(), statement(), target) }

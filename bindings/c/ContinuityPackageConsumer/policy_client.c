@@ -16,6 +16,22 @@ static qpc_policy_document_v1 policy_document(const char *path,uint8_t root[1985
 }
 static int policy_command(uint64_t handle,const char *path,const char *operation) {
     qpc_error_v1 error;
+    if(!strcmp(operation,"enrollment-policy-witness-cancel-prepare")) {
+        qpc_enrollment_status_v1 before,after;enrollment_status(handle,&before);
+        qpc_policy_renewal_cancellation_v1 cancellation,again;
+        uint8_t id[32],statement[32],credential[32];
+        enrollment_exact(path,"credential-operation",id,32);
+        enrollment_exact(path,"credential-statement",statement,32);
+        enrollment_exact(path,"policy-credential-statement",credential,32);
+        require(qpc_enrollment_v1_prepare_witnessed_policy_cancellation(handle,&cancellation,&error),&error);
+        require(qpc_enrollment_v1_prepare_witnessed_policy_cancellation(handle,&again,&error),&error);
+        if(cancellation.length!=281 || again.length!=281 || memcmp(cancellation.bytes,again.bytes,281)) fail("policy cancellation changed original reservation");
+        if(memcmp(cancellation.bytes,"QPCRNC02",8) || cancellation.bytes[248]!=1 || memcmp(cancellation.bytes+136,id,32) || memcmp(cancellation.bytes+168,credential,32) || memcmp(cancellation.bytes+249,statement,32)) fail("policy cancellation identity");
+        enrollment_write(path,"policy-cancellation",cancellation.bytes,cancellation.length);
+        enrollment_status(handle,&after);
+        if(before.phase!=after.phase || memcmp(before.signing_id,after.signing_id,32) || memcmp(before.journal,after.journal,32)) fail("policy cancellation changed registration");
+        close_owner(handle);puts("policy-witness-cancellation-prepared");return 0;
+    }
     char target_path[4096];enrollment_path(target_path,path,"continued-sdk");
     uint8_t target_root[1985],target_wire[8192];
     qpc_policy_document_v1 target=policy_document(target_path,target_root,target_wire);

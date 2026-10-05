@@ -428,6 +428,20 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
 
 private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String,
     inputs: EnrollmentInputs, mode: String) throws -> String {
+    if mode == "enrollment-policy-witness-cancel-prepare" {
+        let original = try owner.status()
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
+        let credential = try CredentialRenewalStatementID(bytes: inputs.exact("policy-credential-statement", count: 32))
+        let cancellation = try owner.prepareWitnessedPolicyCancellation()
+        try require(cancellation == owner.prepareWitnessedPolicyCancellation(), "policy cancellation changed original reservation")
+        try require(cancellation.bytes.count == 281 && cancellation.adoptsPolicy && cancellation.operation == operation &&
+            cancellation.statement == statement && cancellation.credentialStatement == credential,
+            "policy cancellation differs from original joint operation")
+        try inputs.publish("policy-cancellation", cancellation.bytes)
+        try require(owner.status() == original, "policy cancellation changed registration")
+        return "policy-witness-cancellation-prepared"
+    }
     let targetPath = URL(fileURLWithPath: path).appendingPathComponent("continued-sdk").path
     let target = try EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument()
     if mode == "enrollment-policy-recover-history" || mode == "enrollment-policy-history-pending" {
