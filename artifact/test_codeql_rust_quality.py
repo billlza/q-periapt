@@ -1412,6 +1412,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/common/witness_tls_relay.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_cancellation_tests.rs",
+            "research/continuity-identity-candidate/src/bootstrap_bundle/tests/historical.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/fanout/policy_continuation.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/policy_continuation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/policy_continuation_owner_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/policy_continuation_tests.rs",
+            "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs",
+            "research/continuity-identity-candidate/src/session_policy/continuation.rs",
+            "research/continuity-identity-candidate/src/session_policy/continuation/tests.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
