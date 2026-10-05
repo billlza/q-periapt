@@ -234,6 +234,7 @@ class RenewalExecutionTests(unittest.TestCase):
                             "C_BOTH_EXPIRED_WITNESSED_CLOCK carrier=" + carrier + " p0_until=300 left_until=301 right_until=302 resumed_at=304 expired_at=303\n" for carrier in ("tcp", "tls"))
                   + "".join("C_BOTH_EXPIRED_UNKNOWN_DELIVERY carrier=" + carrier + " committed_before_expiry=true receiver_exit_after_effect=true committed_after_renewal_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true committed_at=" + committed + " expired_at=" + expired + " recovered_at=" + recovered + "\n"
                             for carrier, committed, expired, recovered in (("local", "199", "203", "204"), ("tcp", "299", "303", "304"), ("tls", "299", "303", "304")))
+                  + "".join("C_BOTH_EXPIRED_REKEY carrier=" + carrier + " original_session=true network_epoch=1 both_direction_messages=true epoch_sequence_checked=true peer_effects=true acknowledged_after_reopen=true original_acknowledgements_retained=true\n" for carrier in ("local", "tcp", "tls"))
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
                   + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
@@ -245,6 +246,12 @@ class RenewalExecutionTests(unittest.TestCase):
                         output + b"C_BOTH_EXPIRED_POLICY_CLOCK malformed\n",
                         output + b"C_BOTH_EXPIRED_WITNESSED_CLOCK malformed\n",
                         output + b"C_BOTH_EXPIRED_UNKNOWN_DELIVERY malformed\n",
+                        output + b"C_BOTH_EXPIRED_REKEY malformed\n",
+                        output.replace(b"C_BOTH_EXPIRED_REKEY carrier=local", b"C_BOTH_EXPIRED_REKEY carrier=tcp"),
+                        output.replace(b"network_epoch=1", b"network_epoch=0"),
+                        output.replace(b"both_direction_messages=true", b"both_direction_messages=false"),
+                        output.replace(b"epoch_sequence_checked=true", b"epoch_sequence_checked=false"),
+                        output.replace(b"original_acknowledgements_retained=true", b"original_acknowledgements_retained=false"),
                         output.replace(b"committed_before_expiry=true", b"committed_before_expiry=false"),
                         output.replace(b"committed_after_renewal_reopen=true", b"committed_after_renewal_reopen=false"),
                         output.replace(b"committed_at=199", b"committed_at=200"),

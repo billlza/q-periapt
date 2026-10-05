@@ -113,13 +113,18 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
                     and expired == authority["expired_at"] <= recovered <= authority["resumed_at"],
                     "original message was not committed before expiry and recovered after both-owner renewal")
         recovery_clocks[carrier] = dict(committed_at=committed, expired_at=expired, recovered_at=recovered)
+    rekey_carriers = re.findall(r"^C_BOTH_EXPIRED_REKEY carrier=(local|tcp|tls) original_session=true network_epoch=1 both_direction_messages=true epoch_sequence_checked=true peer_effects=true acknowledged_after_reopen=true original_acknowledgements_retained=true$", text, re.MULTILINE)
+    sdk.require(sorted(rekey_carriers) == ["local", "tcp", "tls"]
+                and len(re.findall(r"^C_BOTH_EXPIRED_REKEY.*$", text, re.MULTILINE)) == 3,
+                "both-owner renewed session did not retain acknowledgements and exchange epoch1 traffic in both directions")
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
                 both_expired_clock=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
                                         expired_at=expired_at, resumed_at=resumed_at),
                 both_expired_witnessed_clocks=witnessed_clocks,
                 both_expired_unknown_delivery_clocks=recovery_clocks,
-                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original identities; separate two-owner local-only and required-witness scenarios wait for shared P0 and both C0 expiries, refuse missing peer grants, then recover a message committed before expiry after receiver exit and deliver a second original-session message with fresh ACKs; recovery retains the original host file effect and retries the same message ID; required-witness scenarios also refuse missing witness and independently approve exact joint proposals, using signed TCP or mTLS for runtime operations after signed-TCP preparation, with no mTLS-to-TCP fallback; same native engine/host, no independent-engine or arbitrary exactly-once claim; raw C output-buffer checks apply only to C",
+                both_expired_rekey=dict(carriers=sorted(rekey_carriers), network_epoch=1, bidirectional=True),
+                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original identities; separate two-owner local-only and required-witness scenarios wait for shared P0 and both C0 expiries, refuse missing peer grants, then recover a message committed before expiry after receiver exit and deliver a second original-session message with fresh ACKs; recovery retains the original host file effect and retries the same message ID; all three profiles then perform network epoch0-to1 rekey, exchange new epoch1/sequence0 messages in both directions, and retain old/new ACKs across reopen; required-witness scenarios also refuse missing witness and independently approve exact joint proposals, using signed TCP or mTLS for runtime operations after signed-TCP preparation, with no mTLS-to-TCP fallback; same native engine/host, no independent-engine or arbitrary exactly-once claim; raw C output-buffer checks apply only to C",
                 release_claim_eligible=False)
 
 

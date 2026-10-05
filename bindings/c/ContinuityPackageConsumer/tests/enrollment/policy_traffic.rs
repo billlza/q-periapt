@@ -228,6 +228,165 @@ fn finish(mut server: Server, session: [u8; 32], message: [u8; 32], created: u8)
     );
     Ok(())
 }
+fn message_position(message: [u8; 32]) -> Result<(u64, u64)> {
+    // Public candidate MessageId correlation bytes: epoch || sequence || binding.
+    // Actual send/receive still verifies the full session/direction binding.
+    Ok((
+        u64::from_be_bytes(message.get(..8).ok_or("message epoch")?.try_into()?),
+        u64::from_be_bytes(message.get(8..16).ok_or("message sequence")?.try_into()?),
+    ))
+}
+
+fn continued_rekey(
+    left: &Registered,
+    left_peer: &Path,
+    right: &Registered,
+    right_peer: &Path,
+    session: [u8; 32],
+    previous: [[u8; 32]; 2],
+) -> Result<()> {
+    for message in previous {
+        assert_eq!(message_position(message)?.0, 0);
+    }
+    let (mut server, address) = serve(
+        right,
+        "rekey",
+        &peer_args(
+            right,
+            right_peer,
+            2,
+            true,
+            Some(session),
+            "serve",
+            vec!["rekey".into(), fixture::hex(&session).into()],
+        ),
+    )?;
+    assert_eq!(
+        run(
+            &left.path,
+            "two-rekey",
+            &peer_args(
+                left,
+                left_peer,
+                1,
+                true,
+                Some(session),
+                "rekey",
+                vec![address.to_string().into(), fixture::hex(&session).into()]
+            )
+        )?,
+        "rekey-1-confirmed\n"
+    );
+    assert!(fixture::wait(&mut server.child)?.success());
+    assert!(fs::read_to_string(&server.stderr)?.is_empty());
+    let output = fs::read_to_string(&server.stdout)?;
+    assert_eq!(
+        output.split_once('\n').ok_or("rekey readiness")?.1,
+        "server-rekey-1\n"
+    );
+    let mut issued = Vec::new();
+    for (sender, sending_peer, sending_role, receiver, receiving_peer, receiving_role, direction) in [
+        (left, left_peer, 1, right, right_peer, 2, "forward"),
+        (right, right_peer, 2, left, left_peer, 1, "reverse"),
+    ] {
+        let message = decode_id(
+            run(
+                &sender.path,
+                &format!("two-rekey-{direction}-next"),
+                &peer_args(
+                    sender,
+                    sending_peer,
+                    sending_role,
+                    true,
+                    Some(session),
+                    "next",
+                    vec![fixture::hex(&session).into()],
+                ),
+            )?
+            .trim_end(),
+        )?;
+        assert_eq!(message_position(message)?, (1, 0));
+        assert!(!previous.contains(&message) && !issued.contains(&message));
+        issued.push(message);
+        let (server, address) = serve(
+            receiver,
+            &format!("rekey-{direction}"),
+            &peer_args(
+                receiver,
+                receiving_peer,
+                receiving_role,
+                true,
+                Some(session),
+                "serve",
+                vec!["message".into()],
+            ),
+        )?;
+        assert_eq!(
+            run(
+                &sender.path,
+                &format!("two-rekey-{direction}-send"),
+                &peer_args(
+                    sender,
+                    sending_peer,
+                    sending_role,
+                    true,
+                    Some(session),
+                    "send",
+                    vec![
+                        address.to_string().into(),
+                        fixture::hex(&session).into(),
+                        fixture::hex(&message).into()
+                    ]
+                )
+            )?,
+            "consumed\n"
+        );
+        finish(server, session, message, 1)?;
+        fixture::effect(
+            receiving_peer,
+            session,
+            p::MessageId::from_trusted_state(message)?,
+            b"persisted before process exit",
+        )?;
+        assert_eq!(
+            run(
+                &sender.path,
+                &format!("two-rekey-{direction}-ack"),
+                &peer_args(
+                    sender,
+                    sending_peer,
+                    sending_role,
+                    true,
+                    Some(session),
+                    "status",
+                    vec![fixture::hex(&session).into(), fixture::hex(&message).into()]
+                )
+            )?,
+            "3\n"
+        );
+    }
+    // Epoch cutover preserves the already acknowledged original outgoing IDs.
+    for (index, message) in previous.into_iter().enumerate() {
+        assert_eq!(
+            run(
+                &left.path,
+                &format!("two-rekey-old-ack-{index}"),
+                &peer_args(
+                    left,
+                    left_peer,
+                    1,
+                    true,
+                    Some(session),
+                    "status",
+                    vec![fixture::hex(&session).into(), fixture::hex(&message).into()]
+                )
+            )?,
+            "3\n"
+        );
+    }
+    Ok(())
+}
+
 fn grant_inputs(local: &Registered, remote: &PreparedJoint) -> Result<PathBuf> {
     let path = local.path.join("peer-renewal");
     fs::DirBuilder::new().mode(0o700).create(&path)?;
@@ -781,6 +940,14 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
         )?,
         "3\n"
     );
+    continued_rekey(
+        &left.c,
+        &left_peer,
+        &right.c,
+        &right_peer,
+        session,
+        [uncertain_message, message],
+    )?;
     for ((side, peer), (signer, wrapping)) in [(&left, &left_peer), (&right, &right_peer)]
         .into_iter()
         .zip(originals)
@@ -807,6 +974,7 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
     } else {
         "local"
     };
+    println!("C_BOTH_EXPIRED_REKEY carrier={carrier} original_session=true network_epoch=1 both_direction_messages=true epoch_sequence_checked=true peer_effects=true acknowledged_after_reopen=true original_acknowledgements_retained=true");
     println!("C_BOTH_EXPIRED_UNKNOWN_DELIVERY carrier={carrier} committed_before_expiry=true receiver_exit_after_effect=true committed_after_renewal_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true committed_at={committed_at} expired_at={expired_at} recovered_at={recovered_at}");
     if let Some(witness) = witness {
         let subjects = [&left, &right]
