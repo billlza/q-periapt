@@ -1988,9 +1988,10 @@ jobs:
     name: continuity-installed-${{ matrix.consumer }}
     needs: rust-publish-contract
     runs-on: macos-15
-    # Each language keeps the complete Rust/C archive and fault prerequisites.
-    # Their combined serial workload exceeds two hours; bound them separately.
-    timeout-minutes: 120
+    # Keep every Rust/C prerequisite and both Kotlin profiles/GC variants.
+    # Kotlin reached the two-hour limit before the additional real-expiry
+    # matrices. Bound its complete job separately; command deadlines stay fixed.
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 180 || 120 }}
     strategy:
       fail-fast: false
       matrix:
