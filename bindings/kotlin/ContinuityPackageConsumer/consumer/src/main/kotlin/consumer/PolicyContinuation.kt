@@ -36,7 +36,7 @@ internal fun policyEnrollment(owner: ContinuityEnrollment, path: String, records
     }
     owner.selectContinuedPolicy(targetPath.toString(), target)
     val result = when (mode) {
-        "enrollment-policy-stage", "enrollment-policy-carry-stage" -> {
+        "enrollment-policy-stage", "enrollment-policy-carry-stage", "enrollment-policy-stage-conflict" -> {
             val grant = records.read("credential-renewal")
             val pin = enrollmentPin(records, true)
             val staged = if (mode == "enrollment-policy-carry-stage") {
@@ -46,8 +46,16 @@ internal fun policyEnrollment(owner: ContinuityEnrollment, path: String, records
                 check(kind == 0 || kind == 1) { "policy predecessor kind" }
                 val previousT = if (kind == 1) PolicyContinuationStatementID(
                     records.enrollmentExact("policy-predecessor-statement", 32)) else null
-                owner.stagePolicyContinuation(grant, pin, operation(), records.read("policy-approvals"),
-                    policyDocument(Path.of(path).resolve("previous-policy")), previousT)
+                val id = operation()
+                val approvals = records.read("policy-approvals")
+                val previous = policyDocument(Path.of(path).resolve("previous-policy"))
+                val stage = { owner.stagePolicyContinuation(grant, pin, id, approvals, previous, previousT) }
+                if (mode == "enrollment-policy-stage-conflict") {
+                    refused(setOf(211)) { stage() }
+                    refused(setOf(2)) { owner.status() }
+                    return "policy-stage-conflict"
+                }
+                stage()
             }
             check(staged is CredentialRenewalStatus.Pending) { "policy stage did not retain Pending" }
             check(staged == owner.credentialRenewalStatus()) { "policy stage differs from original-operation readback" }

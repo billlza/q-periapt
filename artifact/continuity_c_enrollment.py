@@ -26,6 +26,7 @@ RENEWAL_TESTS = {
     "credential_renewal::peer_credential_renewal::c_peer_grants_restore_original_expired_session_and_fence_cached_children",
     "credential_renewal::policy_continuation::c_local_policy_continuation_reopens_original_enrollment_and_carries_t1_into_g2",
     "credential_renewal::policy_continuation::c_historical_policy_recovery_after_real_p1_expiry_needs_no_sdk_or_tls",
+    "credential_renewal::policy_continuation::c_second_policy_adoption_uses_original_owner_and_explicit_t1_predecessor",
 }
 POLICY_WITNESS_TEST = "witness_policy_continuation::foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness"
 
@@ -59,9 +60,12 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     sdk.require(re.findall(r"^C_HISTORICAL_POLICY_RECOVERY.*$", text, re.MULTILINE) == [
         "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true"],
         "foreign expired policy history did not retain exact committed and pending outcomes")
+    sdk.require(re.findall(r"^C_SECOND_POLICY_ADOPTION.*$", text, re.MULTILINE) == [
+        "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true"],
+        "foreign second policy adoption did not bind the approved predecessor to retained history")
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
-                scope=language + " owner runtime assertions with original-registration and historical peer readbacks, local G/T adoption, G2 carrying T1, and actual P1 expiry without SDK/TLS history; raw C output-buffer checks apply only to C; same native engine; no continued application delivery or independent-engine claim",
+                scope=language + " owner runtime assertions with original-registration and historical peer readbacks, local G/T adoption, G2 carrying T1, G2/T2 with exact retained predecessor and conflicting approved predecessor refusal, and actual P1 expiry without SDK/TLS history; raw C output-buffer checks apply only to C; same native engine; no continued application delivery or independent-engine claim",
                 release_claim_eligible=False)
 
 
@@ -116,7 +120,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],

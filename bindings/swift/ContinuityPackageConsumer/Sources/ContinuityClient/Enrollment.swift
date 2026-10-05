@@ -453,7 +453,7 @@ private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String
     try owner.selectContinuedPolicy(path: targetPath, target: target)
     let status: CredentialRenewalStatus
     switch mode {
-    case "enrollment-policy-stage", "enrollment-policy-carry-stage":
+    case "enrollment-policy-stage", "enrollment-policy-carry-stage", "enrollment-policy-stage-conflict":
         let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
         let grant = try inputs.read("credential-renewal", maximum: 65536), pin = try inputs.pin(renewal: true)
         if mode == "enrollment-policy-carry-stage" {
@@ -464,8 +464,17 @@ private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String
             let kind = try inputs.exact("policy-predecessor-kind", count: 1)[0]
             try require(kind <= 1, "policy predecessor kind")
             let previousT = try kind == 0 ? nil : PolicyContinuationStatementID(bytes: inputs.exact("policy-predecessor-statement", count: 32))
-            status = try owner.stagePolicyContinuation(grant: grant, pin: pin, operation: operation,
-                approvals: inputs.read("policy-approvals", maximum: 7746), previous: previous, previousAuthorization: previousT)
+            let approvals = try inputs.read("policy-approvals", maximum: 7746)
+            let stage = {
+                try owner.stagePolicyContinuation(grant: grant, pin: pin, operation: operation,
+                    approvals: approvals, previous: previous, previousAuthorization: previousT)
+            }
+            if mode == "enrollment-policy-stage-conflict" {
+                _ = try expectedEnrollmentFailure(211, stage)
+                _ = try expectedEnrollmentFailure(2) { try owner.status() }
+                return "policy-stage-conflict"
+            }
+            status = try stage()
         }
         guard case .pending = status else { throw ProbeFailure.contract("policy stage did not retain Pending") }
     case "enrollment-policy-witness-prepare":

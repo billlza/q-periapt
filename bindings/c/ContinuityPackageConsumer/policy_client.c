@@ -61,7 +61,7 @@ static int policy_command(uint64_t handle,const char *path,const char *operation
         enrollment_exact(path,"credential-statement",statement,32);
         require(qpc_enrollment_v1_commit_witnessed_policy_continuation(handle,id,statement,&status,&error),&error);
         if(status.phase!=2) fail("policy witness commit did not retain Committed");
-    } else if(!strcmp(operation,"enrollment-policy-stage") || !strcmp(operation,"enrollment-policy-carry-stage")) {
+    } else if(!strcmp(operation,"enrollment-policy-stage") || !strcmp(operation,"enrollment-policy-carry-stage") || !strcmp(operation,"enrollment-policy-stage-conflict")) {
         uint8_t grant[65536],root[1985],id[32];
         size_t length=enrollment_read(path,"credential-renewal",grant,sizeof(grant));
         enrollment_exact(path,"credential-operation",id,32);
@@ -76,7 +76,15 @@ static int policy_command(uint64_t handle,const char *path,const char *operation
             if(kind[0]) enrollment_exact(path,"policy-predecessor-statement",previous_t,32);
             char previous_path[4096];enrollment_path(previous_path,path,"previous-policy");
             qpc_policy_document_v1 previous=policy_document(previous_path,previous_root,previous_wire);
-            require(qpc_enrollment_v1_stage_policy_continuation(handle,grant,length,&pin,id,approvals,approvals_length,&previous,kind[0] ? previous_t : NULL,&status,&error),&error);
+            int32_t code=qpc_enrollment_v1_stage_policy_continuation(handle,grant,length,&pin,id,approvals,approvals_length,&previous,kind[0] ? previous_t : NULL,&status,&error);
+            if(!strcmp(operation,"enrollment-policy-stage-conflict")) {
+                record(code,&error);if(code!=QPC_SCOPE_CONFLICT) fail("incorrect policy predecessor did not report Conflict");
+                qpc_enrollment_status_v1 registration;
+                code=qpc_enrollment_v1_status(handle,&registration,&error);record(code,&error);
+                if(code!=QPC_CLOSED) fail("conflicting admitted policy stage retained owner");
+                close_owner(handle);puts("policy-stage-conflict");return 0;
+            }
+            require(code,&error);
         }
         if(status.phase!=1) fail("policy stage did not retain Pending");
     } else if(!strcmp(operation,"enrollment-policy-reconcile")) {

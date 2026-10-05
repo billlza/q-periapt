@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -225,8 +225,9 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=150 observed_at=151 no_policy_status=true same_registration=true separate_root_operation=true\n"
                   "C_POLICY_CONTINUATION local_only=true joint_stage_readback=true joint_commit_readback=true current_owner=true same_signer=true same_wrapping_key=true same_journal=true credential_successor_carries_t1=true original_policy_inputs_unchanged=true\n"
                   "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true\n"
+                  "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true\n"
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+                  + "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),
@@ -239,6 +240,7 @@ class RenewalExecutionTests(unittest.TestCase):
                         output.replace(b"expired_committed_preserved=true", b"expired_committed_preserved=false"),
                         output.replace(b"credential_successor_carries_t1=true", b"credential_successor_carries_t1=false"),
                         output.replace(b"uncommitted_remains_pending=true", b"uncommitted_remains_pending=false"),
+                        output.replace(b"approved_wrong_predecessor_refused=true", b"approved_wrong_predecessor_refused=false"),
                         output.replace(b"exact_outbox_readback=true", b"exact_outbox_readback=false")):
             with self.subTest(output=invalid), self.assertRaises(ValueError):
                 enrollment.verify_renewal_execution(invalid)

@@ -172,6 +172,7 @@ fn original_identity(c: &Registered, label: &str, signer: &[u8], wrapping: &[u8]
 }
 
 struct PreparedJoint {
+    policy_root: p::PolicySigningKey,
     c: Registered,
     g1: Successor,
     original_checkpoint: p::PolicyCheckpoint,
@@ -331,6 +332,7 @@ fn prepare_joint(original_seconds: u64, target_seconds: u64) -> Result<PreparedJ
     drop(original_sdk);
 
     Ok(PreparedJoint {
+        policy_root,
         c,
         g1,
         original_checkpoint,
@@ -467,6 +469,225 @@ fn c_local_policy_continuation_reopens_original_enrollment_and_carries_t1_into_g
         target_checkpoint.digest()
     );
     println!("C_POLICY_CONTINUATION local_only=true joint_stage_readback=true joint_commit_readback=true current_owner=true same_signer=true same_wrapping_key=true same_journal=true credential_successor_carries_t1=true original_policy_inputs_unchanged=true");
+    Ok(())
+}
+
+#[test]
+fn c_second_policy_adoption_uses_original_owner_and_explicit_t1_predecessor() -> Result<()> {
+    let prepared = prepare_joint(300, 2400)?;
+    let c = &prepared.c;
+    let signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);
+    let wrapping = Zeroizing::new(fs::read(c.path.join("wrap.key"))?);
+    assert_eq!(
+        observed(c, "t1-stage", "policy-stage")?,
+        pending(&prepared.g1, prepared.t1_statement)
+    );
+    assert_eq!(
+        observed(c, "t1-commit", "policy-reconcile")?,
+        committed(&prepared.g1, prepared.t1_statement)
+    );
+    assert_eq!(
+        run(&c.path, "t1-activate", &command(&c.path, "policy-activate"))?,
+        "policy-device-active\n"
+    );
+    original_identity(c, "t1-identity", &signer, &wrapping)?;
+
+    let g2 = successor(
+        c,
+        &prepared.g1.certificate,
+        &prepared.g1.roster,
+        3,
+        c.at.checked_add(1800).ok_or("clock overflow")?,
+        prepared.original_checkpoint,
+    )?;
+    assert_ne!(g2.grant.operation(), prepared.g1.grant.operation());
+    assert_eq!(
+        g2.grant.previous_device().credential_digest(),
+        prepared.g1.grant.successor_device().credential_digest()
+    );
+    let target = c.path.join("continued-sdk");
+    let previous = c.path.join("previous-policy");
+    // Change only the explicitly provisioned public invocation documents. The
+    // original enrollment's P0 and the existing SDK database remain in place.
+    for name in POLICY_DOCUMENT_FILES {
+        fs::write(
+            previous.join(name),
+            prepared
+                .target_inputs
+                .get(name)
+                .ok_or("retained P1 document")?,
+        )?;
+    }
+    let mut original_sdk = fixture::sdk(&c.path)?;
+    let original_policy = fixture::protocol_policy(&c.path, &original_sdk)?;
+    let mut target_sdk = fixture::sdk(&target)?;
+    let previous_policy = fixture::protocol_policy(&target, &target_sdk)?;
+    assert_eq!(previous_policy.checkpoint(), prepared.target_checkpoint);
+    let target_runtime = target_sdk.runtime()?;
+    let issued = prepared.policy_root.issue_session_policy(
+        &target_runtime,
+        p::SessionPolicyParameters::new(
+            3,
+            p::Validity::new(
+                previous_policy.validity().from(),
+                c.at.checked_add(3600).ok_or("clock overflow")?,
+            )?,
+            previous_policy.allowed_modes(),
+            previous_policy.anchor_requirement(),
+            previous_policy.application_send_budget(),
+        )?,
+    )?;
+    let p2_inputs = [
+        ("family", c.family.to_vec()),
+        ("policy-root", prepared.policy_root.public_key()?.encode()),
+        (
+            "policy-version",
+            issued.checkpoint().version().to_be_bytes().to_vec(),
+        ),
+        ("policy-digest", issued.checkpoint().digest().to_vec()),
+        ("protocol-policy", issued.as_bytes().to_vec()),
+    ];
+    for (name, bytes) in &p2_inputs {
+        fs::write(target.join(name), bytes)?;
+    }
+    let target_policy = fixture::protocol_policy(&target, &target_sdk)?;
+    let scope = p::PolicyContinuationScope {
+        operation: g2.grant.operation(),
+        journal: p::JournalIdentity::from_trusted_state(c.accepted.2)?,
+        original_owner: g2.grant.original_storage_owner(),
+        original_credential: g2.grant.original_credential_digest(),
+        previous_credential: g2.grant.previous_device().credential_digest(),
+        previous_roster: prepared.g1.roster.checkpoint(),
+        original_policy: prepared.original_checkpoint,
+        previous_policy: prepared.target_checkpoint,
+        previous_authorization: Some(prepared.t1_statement),
+    };
+    let materials = p::PolicyContinuationMaterials {
+        original: original_policy.historical(),
+        previous: previous_policy.historical(),
+        target: &target_policy,
+        credential: &g2.grant,
+    };
+    let statement = p::PolicyContinuationStatement::new(&scope, &materials, fixture::now()?)?;
+    let t2 = p::VerifiedPolicyContinuation::verify(
+        &c.root.approve_policy_continuation(&statement)?,
+        &prepared
+            .policy_root
+            .approve_policy_continuation(&statement)?,
+        &scope,
+        &materials,
+        fixture::now()?,
+    )?;
+    let t2_statement = t2.statement_digest();
+    assert_ne!(t2_statement, prepared.t1_statement);
+    assert_ne!(t2_statement, g2.grant.statement_digest());
+    // Both roots also sign a structurally valid but incorrect predecessor.
+    // Public signature verification alone cannot establish retained T history.
+    let wrong_predecessor = prepared.g1.grant.statement_digest();
+    assert_ne!(wrong_predecessor, prepared.t1_statement);
+    let wrong_scope = p::PolicyContinuationScope {
+        previous_authorization: Some(wrong_predecessor),
+        ..scope.clone()
+    };
+    let wrong_statement =
+        p::PolicyContinuationStatement::new(&wrong_scope, &materials, fixture::now()?)?;
+    let wrong_t2 = p::VerifiedPolicyContinuation::verify(
+        &c.root.approve_policy_continuation(&wrong_statement)?,
+        &prepared
+            .policy_root
+            .approve_policy_continuation(&wrong_statement)?,
+        &wrong_scope,
+        &materials,
+        fixture::now()?,
+    )?;
+    assert_ne!(wrong_t2.statement_digest(), t2_statement);
+    fs::write(c.path.join("policy-approvals"), t2.as_bytes())?;
+    fs::write(c.path.join("policy-predecessor-kind"), [1])?;
+    fixture::store(
+        &c.path,
+        "policy-predecessor-statement",
+        &prepared.t1_statement,
+    )?;
+    publish_grant(&c.path, &g2, t2_statement)?;
+    target_policy.close();
+    previous_policy.close();
+    original_policy.close();
+    drop(target_policy);
+    drop(previous_policy);
+    drop(original_policy);
+    drop(target_runtime);
+    target_sdk.close();
+    original_sdk.close();
+    drop(target_sdk);
+    drop(original_sdk);
+
+    fs::write(c.path.join("policy-approvals"), wrong_t2.as_bytes())?;
+    fs::write(
+        c.path.join("policy-predecessor-statement"),
+        wrong_predecessor,
+    )?;
+    publish_grant(&c.path, &g2, wrong_t2.statement_digest())?;
+    assert_eq!(
+        run(
+            &c.path,
+            "t2-wrong-predecessor",
+            &command(&c.path, "policy-stage-conflict")
+        )?,
+        "policy-stage-conflict\n"
+    );
+    assert_eq!(
+        observed(c, "t1-retained-after-conflict", "credential-status")?,
+        committed(&prepared.g1, prepared.t1_statement)
+    );
+    original_identity(c, "t1-identity-after-conflict", &signer, &wrapping)?;
+    // Resume the same G2 operation using its correct independently approved T2.
+    fs::write(c.path.join("policy-approvals"), t2.as_bytes())?;
+    fs::write(
+        c.path.join("policy-predecessor-statement"),
+        prepared.t1_statement,
+    )?;
+    publish_grant(&c.path, &g2, t2_statement)?;
+    let pending2 = pending(&g2, t2_statement);
+    let committed2 = committed(&g2, t2_statement);
+    assert_eq!(observed(c, "t2-stage", "policy-stage")?, pending2);
+    lease(&c.path, false)?;
+    assert_eq!(
+        observed(c, "t2-pending-reopen", "credential-status")?,
+        pending2
+    );
+    assert_eq!(observed(c, "t2-commit", "policy-reconcile")?, committed2);
+    assert_eq!(
+        observed(c, "t2-committed-reopen", "credential-status")?,
+        committed2
+    );
+    assert_eq!(
+        run(&c.path, "t2-activate", &command(&c.path, "policy-activate"))?,
+        "policy-device-active\n"
+    );
+    original_identity(c, "t2-identity", &signer, &wrapping)?;
+    for (name, bytes) in &prepared.original_inputs {
+        assert_eq!(fs::read(c.path.join(name))?, *bytes);
+    }
+    for name in POLICY_DOCUMENT_FILES {
+        assert_eq!(
+            fs::read(previous.join(name))?,
+            *prepared.target_inputs.get(name).ok_or("P1 readback")?
+        );
+    }
+    for (name, bytes) in p2_inputs {
+        assert_eq!(fs::read(target.join(name))?, bytes);
+    }
+    for name in ["sdk-policy", "sdk-signature", "sdk-root"] {
+        assert_eq!(
+            fs::read(target.join(name))?,
+            *prepared.target_inputs.get(name).ok_or("SDK input")?
+        );
+    }
+    assert_eq!(
+        fixture::array::<32>(&c.path, "policy-predecessor-statement")?,
+        prepared.t1_statement
+    );
+    println!("C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true");
     Ok(())
 }
 
