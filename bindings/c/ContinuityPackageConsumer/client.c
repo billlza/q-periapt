@@ -318,9 +318,10 @@ int main(int argc, char **argv) {
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
-    const char *device_path=NULL; uint32_t device_role=0; int enrolled_parent=0;
-    if (!strcmp(argv[1], "--device-parent") || !strcmp(argv[1], "--enrollment-parent")) {
-        enrolled_parent=!strcmp(argv[1], "--enrollment-parent");
+    const char *device_path=NULL; uint32_t device_role=0; int enrolled_parent=0,continued_parent=0;
+    if (!strcmp(argv[1], "--device-parent") || !strcmp(argv[1], "--enrollment-parent") || !strcmp(argv[1], "--continued-enrollment-parent")) {
+        continued_parent=!strcmp(argv[1], "--continued-enrollment-parent");
+        enrolled_parent=continued_parent || !strcmp(argv[1], "--enrollment-parent");
         if (argc < 7) fail("device parent arguments");
         device_path=argv[2];
         device_role=!strcmp(argv[3],"1") ? 1U : !strcmp(argv[3],"2") ? 2U : 0U;
@@ -334,6 +335,9 @@ int main(int argc, char **argv) {
         if (!strncmp(argv[1],"recover-",8) || !strcmp(argv[1],"self-check"))
             fail("existing session requires an operational command");
     }
+    if(continued_parent && (!existing || !strcmp(argv[1],"connect") ||
+        (!strcmp(argv[1],"serve") && argc>3 && !strcmp(argv[3],"bootstrap"))))
+        fail("continued enrollment requires an existing operational session");
     self_check();
     if (!strcmp(argv[1],"credential-peer-check")) {
         if (device_path || existing || witness) fail("credential peer check owns its local-only parent");
@@ -374,8 +378,8 @@ int main(int argc, char **argv) {
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t parent = device_path ? (enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) :
-        device_open(device_path,witness,witness_tls)) : 0;
+    uint64_t parent = device_path ? (continued_parent ? continued_enrollment_parent(device_path,witness,witness_tls) :
+        enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls)) : 0;
     uint64_t handle = parent ? device_peer_open(parent,argv[2],device_role,existing) :
         open_owner(argv[2],witness,witness_tls,existing);
     qpc_error_v1 error;

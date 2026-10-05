@@ -389,6 +389,16 @@ pub(crate) struct Setup {
     pub(crate) initiator: PathBuf,
     pub(crate) responder: PathBuf,
     pub(crate) issuer: SdkIssuer,
+    /// Independent test control-plane owner, transferable for later policy authorization.
+    /// Device runtimes receive only its public pin and signed documents.
+    pub(crate) policy_issuer: Option<p::PolicySigningKey>,
+}
+impl Drop for Setup {
+    fn drop(&mut self) {
+        if let Some(issuer) = self.policy_issuer.as_mut() {
+            issuer.close();
+        }
+    }
 }
 pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
     match kind {
@@ -553,7 +563,7 @@ fn setup_devices_for(
     if advertisement.until() > validity.until() {
         return Err("advertisement exceeds credential".into());
     }
-    let mut authority = p::PolicySigningKey::generate()?;
+    let authority = p::PolicySigningKey::generate()?;
     let sdk = stores.first().ok_or("SDK owner")?.runtime()?;
     let issued = authority.issue_session_policy(
         &sdk,
@@ -589,7 +599,6 @@ fn setup_devices_for(
             store(path, name, &bytes)?;
         }
     }
-    authority.close();
     let mut devices = Vec::new();
     let mut credentials = Vec::new();
     let mut rosters = Vec::new();
@@ -781,6 +790,7 @@ fn setup_devices_for(
                 initiator: left,
                 responder: right,
                 issuer,
+                policy_issuer: Some(authority),
             },
             extra,
         ));
@@ -898,6 +908,7 @@ fn setup_devices_for(
             initiator: left,
             responder: right,
             issuer,
+            policy_issuer: Some(authority),
         },
         extra,
     ))

@@ -5,7 +5,7 @@ import dev.qperiapt.continuity.*
 import java.nio.ByteBuffer
 import java.nio.file.Path
 
-private fun policyDocument(path: Path): PolicyDocument {
+internal fun policyDocument(path: Path): PolicyDocument {
     val records = FixtureRecords(path)
     val version = Counter64.parse(java.lang.Long.toUnsignedString(ByteBuffer.wrap(
         records.enrollmentExact("policy-version", 8)).long))

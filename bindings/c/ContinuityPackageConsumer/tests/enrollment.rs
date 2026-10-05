@@ -342,9 +342,14 @@ fn c_registration_owns_original_identity_through_connection_and_roster_refresh()
     let mut observation = u64::from(held.0.id()).to_be_bytes().to_vec();
     observation.extend_from_slice(&u64::from(std::process::id()).to_be_bytes());
     fixture::store(&path, "enrollment-lease-observation", &observation)?;
-    fixture::store(&path, "release-enrollment", b"1")?;
-    assert!(fixture::wait(&mut held)?.success());
-    assert!(fs::read(path.join("enrollment-held.stderr"))?.is_empty());
+    fixture::publish_marker(&path, "release-enrollment")?;
+    let held_status = fixture::wait(&mut held)?;
+    let held_error = fs::read(path.join("enrollment-held.stderr"))?;
+    assert!(
+        held_status.success() && held_error.is_empty(),
+        "held enrolled owner: {held_status}; {}",
+        String::from_utf8_lossy(&held_error)
+    );
     lease(&path, false)?;
     let active = state(&run(&path, "active", &command(&path, "status"))?)?;
     assert_eq!((active.0, active.1, active.2), (5, accepted.1, accepted.2));

@@ -122,16 +122,21 @@ func waitMarker(_ path: String) throws {
             case "--session":
                 try require(existing == nil && args.count >= 4, "existing session arguments")
                 existing = try decode(args[1]); args.removeFirst(2)
-            case "--enrollment-parent":
+            case "--enrollment-parent", "--continued-enrollment-parent":
                 try require(enrollmentParent == nil && args.count >= 5, "enrollment parent arguments")
                 guard let number = UInt32(args[2]), String(number) == args[2],
                       let role = BootstrapRole(rawValue: number) else { throw ProbeFailure.contract("enrollment parent role") }
-                enrollmentParent = EnrollmentParentSelection(path: args[1], role: role)
+                enrollmentParent = EnrollmentParentSelection(path: args[1], role: role, continued: option == "--continued-enrollment-parent")
                 args.removeFirst(3)
             default: throw ProbeFailure.contract("unknown option")
             }
         }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
+        if enrollmentParent?.continued == true {
+            try require(existing != nil && command != "connect" &&
+                !(command == "serve" && args.count > 2 && args[2] == "bootstrap"),
+                "continued enrollment requires an existing operational session")
+        }
         try require(enrollmentParent == nil || ["serve", "connect", "next", "status", "rekey", "send", "uncertain-send",
             "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open"].contains(command),
             "enrollment parent requires an operational command")

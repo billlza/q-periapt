@@ -66,8 +66,8 @@ private func expectedEnrollmentFailure<T>(_ code: Int32, _ body: () throws -> T)
     }
     throw ProbeFailure.contract("enrollment failure \(code) was accepted")
 }
-private func refusedEnrollmentActivation(_ owner: ContinuityEnrollment, code: Int32) throws -> ContinuityFailure {
-    switch Result(catching: { try owner.activate() }) {
+private func refusedEnrollmentActivation(_ owner: ContinuityEnrollment, code: Int32, continued: Bool = false) throws -> ContinuityFailure {
+    switch Result(catching: { try continued ? owner.activatePolicyContinuation() : owner.activate() }) {
     case let .failure(error):
         guard let native = error as? ContinuityFailure, native.code == code else { throw error }
         return native
@@ -90,19 +90,24 @@ private final class WeakEnrollment {
     weak var value: ContinuityEnrollment?
     init(_ owner: ContinuityEnrollment) { value = owner }
 }
-private func transferEnrollment(_ path: String, witness: WitnessCarrier) throws -> (ContinuityDevice, WeakEnrollment) {
+private func transferEnrollment(_ path: String, witness: WitnessCarrier, continued: Bool) throws -> (ContinuityDevice, WeakEnrollment) {
     let owner = try prepareEnrollment(path, witness: witness, create: false)
     let old = WeakEnrollment(owner)
     let device = try disposingEnrollment(owner) {
         try owner.finishOpen()
-        let device = try owner.activate()
+        if continued {
+            let targetPath = URL(fileURLWithPath: path).appendingPathComponent("continued-sdk").path
+            let target = try EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument()
+            try owner.selectContinuedPolicy(path: targetPath, target: target)
+        }
+        let device = try continued ? owner.activatePolicyContinuation() : owner.activate()
         do {
             try owner.close()
             _ = try expectedEnrollmentFailure(2) { try owner.status() }
             _ = try expectedEnrollmentFailure(2) { try owner.request() }
             _ = try expectedEnrollmentFailure(2) { try owner.prepareStorage() }
             _ = try expectedEnrollmentFailure(2) { try owner.cancel() }
-            _ = try refusedEnrollmentActivation(owner, code: 2)
+            _ = try refusedEnrollmentActivation(owner, code: 2, continued: continued)
             return device
         } catch {
             let original = error
@@ -113,12 +118,12 @@ private func transferEnrollment(_ path: String, witness: WitnessCarrier) throws 
     }
     return (device, old)
 }
-private func activatedEnrollment(_ path: String, witness: WitnessCarrier) throws -> ContinuityDevice {
-    let (device, old) = try transferEnrollment(path, witness: witness)
+private func activatedEnrollment(_ path: String, witness: WitnessCarrier, continued: Bool = false) throws -> ContinuityDevice {
+    let (device, old) = try transferEnrollment(path, witness: witness, continued: continued)
     do {
         try require(old.value == nil, "old enrollment wrapper retained after transfer")
         _ = try device.nextAccountOperation()
-        _ = try FixtureRecords(path: path).retain("swift-enrollment-transfer",
+        _ = try FixtureRecords(path: path).retain(continued ? "swift-policy-enrollment-transfer" : "swift-enrollment-transfer",
             bytes: Array("old-registration-released original-device-live\n".utf8), create: true)
         return device
     } catch {
@@ -132,8 +137,10 @@ private func activatedEnrollment(_ path: String, witness: WitnessCarrier) throws
 struct EnrollmentParentSelection {
     let path: String
     let role: BootstrapRole
+    let continued: Bool
     func openPeer(path peerPath: String, session: SessionID?, witness: WitnessCarrier) throws -> ConfiguredClientOwner {
-        let device = try activatedEnrollment(path, witness: witness)
+        try require(!continued || session != nil, "continued enrollment requires an original session")
+        let device = try activatedEnrollment(path, witness: witness, continued: continued)
         do {
             let peer = try session.map {
                 try device.preparePeerReopen(path: peerPath, quality: .oneTimeBoth, role: role, session: $0)

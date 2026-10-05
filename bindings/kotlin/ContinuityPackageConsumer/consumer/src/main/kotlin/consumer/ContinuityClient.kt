@@ -51,7 +51,8 @@ private fun run(arguments: List<String>): String {
             else WitnessCarrier.MutualTLS(args[1], 3000)
         args = args.drop(2)
     }
-    val enrolled = if (args.firstOrNull() == "--enrollment-parent") {
+    val continued = args.firstOrNull() == "--continued-enrollment-parent"
+    val enrolled = if (continued || args.firstOrNull() == "--enrollment-parent") {
         require(args.size >= 6) { "registered parent arguments" }
         val role = when (args[2]) {
             "1" -> BootstrapRole.INITIATOR
@@ -65,6 +66,10 @@ private fun run(arguments: List<String>): String {
         SessionID(decode(args[1])).also { args = args.drop(2) }
     } else null
     require(args.isNotEmpty()) { "command required" }
+    require(!continued || existing != null) { "continued enrollment parent requires an original session" }
+    require(!continued || (args[0] != "connect" && !(args[0] == "serve" && args.getOrNull(2) == "bootstrap"))) {
+        "continued enrollment parent cannot bootstrap a fresh session"
+    }
     require(enrolled == null || (!inFlightGC && !interruptOpening && args[0] in setOf(
         "connect", "next", "send", "uncertain-send", "status", "rekey", "serve", "serve-rekey",
         "busy-cancel", "cancel-send", "reject-open", "witness-failed-send"))) { "registered parent requires an ordinary peer operation" }
@@ -110,7 +115,7 @@ private fun run(arguments: List<String>): String {
         return account(args, witness)
     }
     return if (enrolled == null) ordinary(args, witness, existing)
-        else enrollmentParent(enrolled.first, witness).use { ordinary(args, witness, existing, it, enrolled.second) }
+        else enrollmentParent(enrolled.first, witness, continued).use { ordinary(args, witness, existing, it, enrolled.second) }
 }
 private fun ordinary(args: List<String>, witness: WitnessCarrier, existing: SessionID?,
                      device: ContinuityDevice? = null, role: BootstrapRole = BootstrapRole.INITIATOR): String {

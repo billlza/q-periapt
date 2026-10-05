@@ -40,14 +40,19 @@ internal fun enrollmentShapeRefusal(operation: () -> Unit) {
     error("invalid enrollment shape was accepted")
 }
 private data class TransferredEnrollment(val device: ContinuityDevice, val old: WeakReference<ContinuityEnrollment>)
-private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueue<ContinuityEnrollment>): TransferredEnrollment =
+private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueue<ContinuityEnrollment>,
+                     continued: Boolean): TransferredEnrollment =
     ContinuityEnrollment.resume(path, intent(FixtureRecords(Path.of(path))), witness).use { owner ->
         val old = WeakReference(owner, queue)
-        val device = owner.activate()
+        val device = if (continued) {
+            val target = Path.of(path).resolve("continued-sdk")
+            owner.selectContinuedPolicy(target.toString(), policyDocument(target))
+            owner.activatePolicyContinuation()
+        } else owner.activate()
         try {
             owner.close()
             refused(setOf(2)) { owner.status() }
-            refused(setOf(2)) { owner.activate() }
+            refused(setOf(2)) { if (continued) owner.activatePolicyContinuation() else owner.activate() }
             refused(setOf(2)) { owner.cancel() }
             TransferredEnrollment(device, old)
         } catch (failure: Throwable) {
@@ -59,9 +64,9 @@ private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueu
 /** Drop the old public registration wrapper, then prove its one native owner
  * remains usable through the successor. This is a bounded GC observation only.
  */
-internal fun enrollmentParent(path: String, witness: WitnessCarrier): ContinuityDevice {
+internal fun enrollmentParent(path: String, witness: WitnessCarrier, continued: Boolean = false): ContinuityDevice {
     val queue = ReferenceQueue<ContinuityEnrollment>()
-    val transferred = transfer(path, witness, queue)
+    val transferred = transfer(path, witness, queue, continued)
     try {
         val before = collectionCount()
         var queued = false
@@ -77,7 +82,8 @@ internal fun enrollmentParent(path: String, witness: WitnessCarrier): Continuity
         }
         check(queued && transferred.old.get() == null && collectionCount() > before) { "old enrollment not collected within 32 rounds" }
         transferred.device.nextAccountOperation()
-        FixtureRecords(Path.of(path)).retain("kotlin-enrollment-transfer",
+        val marker = if (continued) "kotlin-policy-enrollment-transfer" else "kotlin-enrollment-transfer"
+        FixtureRecords(Path.of(path)).retain(marker,
             "old-registration-collected original-device-live\n".toByteArray(), true)
         return transferred.device
     } catch (failure: Throwable) {
