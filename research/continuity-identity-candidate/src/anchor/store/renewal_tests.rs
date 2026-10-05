@@ -59,6 +59,34 @@ fn prepare(
         )
         .expect("independent root approval")
 }
+#[test]
+fn credential_only_preparation_refuses_an_unverified_policy_proposal_without_mutation() {
+    let mut c = credential_case();
+    let g = credential_grant_first(&c);
+    let original = proposal(&c, &g, 228);
+    let mut wire = original.to_bytes();
+    wire.get_mut(..8)
+        .expect("version tag")
+        .copy_from_slice(b"QPCRNP02");
+    wire.push(1);
+    wire.extend_from_slice(&[11; 32]);
+    let joint = AnchorCredentialRenewalProposal::from_trusted_state(&wire)
+        .expect("metadata is not independent policy approval");
+    let before = c.store.image().expect("original state");
+    let result = c.store.prepare_credential_renewal(
+        joint,
+        &g,
+        c.peer.responder.current_policy().expect("actual P0"),
+        170,
+    );
+    assert!(matches!(result, Err(DurableError::Conflict)));
+    let after = c.store.image().expect("unchanged state");
+    assert_eq!(
+        (after.revision, after.digest),
+        (before.revision, before.digest)
+    );
+    assert_eq!(prepare(&mut c, original, &g, 170), State::Prepared);
+}
 fn status(c: &mut Case, p: &AnchorCredentialRenewalProposal, now: u64) -> State {
     exchange(c, p, AnchorOperation::credential_renewal_status(p), now)
 }

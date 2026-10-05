@@ -27,8 +27,8 @@ impl WitnessedCredentialIntent {
     }
     pub(crate) fn statement(self) -> [u8; 32] {
         match self {
-            Self::Proposal(p) => p.statement(),
-            Self::Cancellation(c) => c.statement(),
+            Self::Proposal(p) => p.transaction_statement(),
+            Self::Cancellation(c) => c.transaction_statement(),
         }
     }
     pub(crate) fn subject(self) -> AnchorSubject {
@@ -79,13 +79,24 @@ pub(super) struct PendingCancellation {
     pub(super) wire: Vec<u8>,
     local_account: [u8; 32],
 }
+pub(crate) struct CredentialCancellationTarget<'a> {
+    pub(crate) grant: &'a crate::HistoricalCredentialRenewal,
+    pub(crate) continuation: Option<&'a crate::HistoricalPolicyContinuation>,
+    pub(crate) adopts: bool,
+    pub(crate) completed: Option<&'a LocalRenewalCommit>,
+}
 impl PendingCancellation {
     fn new(
         key: &JournalKey,
         image: &Image,
         cancellation: Cancellation,
     ) -> Result<Self, DurableError> {
-        let mut wire = b"QPWINT03".to_vec();
+        let mut wire = if cancellation.policy_continuation().is_some() {
+            b"QPWINT05"
+        } else {
+            b"QPWINT03"
+        }
+        .to_vec();
         wire.extend_from_slice(&image.local_account);
         wire.extend_from_slice(&cancellation.to_bytes());
         let mut auth = authenticator(key)?;
@@ -96,21 +107,27 @@ impl PendingCancellation {
         Ok(pending)
     }
     pub(super) fn decode(key: &JournalKey, wire: &[u8]) -> Result<Self, DurableError> {
-        if wire.len() != 320 {
+        if ![320, 353].contains(&wire.len()) {
             return Err(DurableError::Corrupt);
         }
-        let (body, tag) = wire.split_at(288);
+        let (body, tag) = wire.split_at(wire.len() - 32);
         let mut auth = authenticator(key)?;
         auth.update(body);
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPWINT03" {
+        let tag = d.array::<8>()?;
+        if (tag != *b"QPWINT03" || wire.len() != 320) && (tag != *b"QPWINT05" || wire.len() != 353)
+        {
             return Err(DurableError::Corrupt);
         }
         let local_account = d.array()?;
         crate::codec::nonzero(&local_account)?;
-        let cancellation = Cancellation::from_trusted_state(d.take(248)?)?;
+        let cancellation = Cancellation::from_trusted_state(d.take(if tag == *b"QPWINT05" {
+            281
+        } else {
+            248
+        })?)?;
         d.finish()?;
         Ok(Self {
             cancellation,
@@ -176,6 +193,17 @@ impl DeviceJournal {
             &db, &key, original, policy, id, grant, completed,
         )
     }
+    pub(crate) fn reserve_enrollment_policy_cancellation(
+        path: &Path,
+        key: JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        id: JournalIdentity,
+        target: CredentialCancellationTarget<'_>,
+    ) -> Result<Cancellation, DurableError> {
+        let db = open_private_database(path)?;
+        Self::reserve_bound_cancellation_in_database(&db, &key, original, policy, id, target)
+    }
     pub(crate) fn reserve_credential_cancellation_in_database(
         db: &Database,
         key: &JournalKey,
@@ -185,22 +213,35 @@ impl DeviceJournal {
         grant: &crate::HistoricalCredentialRenewal,
         completed: Option<&LocalRenewalCommit>,
     ) -> Result<Cancellation, DurableError> {
+        Self::reserve_bound_cancellation_in_database(
+            db,
+            key,
+            original,
+            policy,
+            id,
+            CredentialCancellationTarget {
+                grant,
+                continuation: None,
+                adopts: false,
+                completed,
+            },
+        )
+    }
+    fn reserve_bound_cancellation_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        id: JournalIdentity,
+        target: CredentialCancellationTarget<'_>,
+    ) -> Result<Cancellation, DurableError> {
+        let grant = target.grant;
         let owner = bootstrap::storage_owner(original);
         let (image, pending) =
             load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
         check_scope(&image, original, policy, id)?;
-        rosters::check_credential_cancellation(&image, grant, completed)?;
-        if let Some(pending) = pending {
-            return match pending {
-                PendingIntent::Cancellation(p)
-                    if p.cancellation.operation() == grant.operation()
-                        && p.cancellation.statement() == grant.statement_digest() =>
-                {
-                    Ok(p.cancellation)
-                }
-                _ => Err(DurableError::Conflict),
-            };
-        }
+        rosters::check_credential_cancellation(&image, grant, target.completed)?;
+        rosters::check_policy_cancellation(&image, grant, target.continuation, target.adopts)?;
         let mut bytes = b"QPCRNC01".to_vec();
         bytes.extend_from_slice(
             &policy
@@ -215,7 +256,20 @@ impl DeviceJournal {
         bytes.extend_from_slice(&head.fence().to_be_bytes());
         bytes.extend_from_slice(&head.revision().to_be_bytes());
         bytes.extend_from_slice(&head.digest());
-        let cancellation = Cancellation::from_trusted_state(&bytes)?;
+        let base = Cancellation::from_trusted_state(&bytes)?;
+        let cancellation = match target.continuation {
+            Some(t) if target.adopts => base.with_policy_continuation(t)?,
+            Some(t) => base.with_retained_policy_continuation(t)?,
+            None => base,
+        };
+        if let Some(pending) = pending {
+            return match pending {
+                PendingIntent::Cancellation(p) if p.cancellation == cancellation => {
+                    Ok(cancellation)
+                }
+                _ => Err(DurableError::Conflict),
+            };
+        }
         let pending = PendingCancellation::new(key, &image, cancellation)?;
         reserve_bytes(db, image.digest, &pending.wire)?;
         let (image, readback) =

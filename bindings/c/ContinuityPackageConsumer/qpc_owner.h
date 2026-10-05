@@ -371,6 +371,82 @@ int32_t qpc_enrollment_v1_refresh_roster(uint64_t handle,
     const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
     const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_activate(uint64_t handle, qpc_error_v1 *error);
+/* Independently trusted policy pin and signed public document. All pointed
+ * regions are immutable, disjoint and readable for the invocation; they are
+ * copied before owner admission. Incoming approval bytes cannot select the pin. */
+typedef struct {
+    const uint8_t *root;
+    size_t root_length;
+    uint8_t family[32];
+    uint64_t version;
+    uint8_t digest[32];
+    const uint8_t *wire;
+    size_t wire_length;
+} qpc_policy_document_v1;
+/* The original P0 files remain at the enrollment path. Select once per resumed
+ * enrollment owner using independently provisioned SDK policy storage at sdk_path
+ * (sdk.redb, sdk-policy, sdk-signature, sdk-root) and the explicit target document.
+ * No protocol-policy/pin files from sdk_path are consulted. The complete target
+ * PolicyStore/runtime is retained until close or transferred to the Device.
+ * Selection alone writes no renewal and grants no session permission. Calling
+ * selection again conflicts. Admitted failures consume the enrollment resource
+ * as with existing mutations; close and explicitly resume the original owner.
+ * After every resume, select current policy again before new current work.
+ * Historical witnessed close/reconcile and retained preparation need no selection. */
+int32_t qpc_enrollment_v1_select_continued_policy(uint64_t handle,
+    const uint8_t *sdk_path, size_t sdk_path_length,
+    const qpc_policy_document_v1 *target, qpc_error_v1 *error);
+/* previous is independently pinned historical P0 or the last adopted policy.
+ * previous_t is NULL exactly for P0, otherwise points to the retained32-byte T.
+ * Journal/original owner/credential are checked against the original enrollment
+ * and verified G. The native coordinator compares exact predecessor state. */
+int32_t qpc_enrollment_v1_stage_policy_continuation(uint64_t handle,
+    const uint8_t *grant, size_t grant_length, const qpc_account_pin_v1 *pin,
+    const uint8_t operation[32], const uint8_t *approvals, size_t approvals_length,
+    const qpc_policy_document_v1 *previous, const uint8_t *previous_t,
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_stage_continued_credential_renewal(uint64_t handle,
+    const uint8_t *grant, size_t grant_length, const qpc_account_pin_v1 *pin,
+    const uint8_t operation[32], qpc_credential_renewal_status_v1 *status,
+    qpc_error_v1 *error);
+/* Length is exactly296/329 for proposals and248/281 for cancellations. The
+ * unused tail is zero. These are public coordination metadata, never approvals
+ * or terminal receipts. Existing fixed296/248 ABI types remain unchanged. */
+typedef struct { uint32_t length; uint8_t bytes[329]; } qpc_policy_renewal_proposal_v1;
+typedef struct { uint32_t length; uint8_t bytes[281]; } qpc_policy_renewal_cancellation_v1;
+int32_t qpc_enrollment_v1_prepare_witnessed_policy_continuation(uint64_t handle,
+    qpc_policy_renewal_proposal_v1 *proposal, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_prepare_witnessed_policy_cancellation(uint64_t handle,
+    qpc_policy_renewal_cancellation_v1 *cancellation, qpc_error_v1 *error);
+/* Local-only reconciliation can complete the original authorized transaction;
+ * it returns history, never a Device. Required protection is explicitly refused.
+ * Witnessed commit first observes original history and loads no current policy
+ * for an already terminal operation. New commit requires selected current P1.
+ * Existing witnessed close/reconcile functions accept the exact transaction
+ * operation/statement for G/T as well, without loading any live target runtime. */
+int32_t qpc_enrollment_v1_reconcile_policy_continuation(uint64_t handle,
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Finish only a matching already-committed LOCAL journal target after P1 expiry.
+ * target is independently signature-verified history; no selection, SDK runtime,
+ * SDK storage or TLS files are needed. The same handle remains Enrollment.
+ * A Pending target without its exact receipt returns SUSPENDED and stays Pending,
+ * never ExpiredUncommitted. Required witness recovery uses the existing separate
+ * witnessed close/reconcile calls. No new target or operating owner is created. */
+int32_t qpc_enrollment_v1_recover_historical_policy_continuation(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    const qpc_policy_document_v1 *target,
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_commit_witnessed_policy_continuation(uint64_t handle,
+    const uint8_t operation[32], const uint8_t statement[32],
+    qpc_credential_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Converts the same registration handle to a continued Device after native
+ * current G/T/roster/runtime admission. Local protection reconciles its original
+ * transaction; required protection requires completed ACK and fresh witness
+ * admission, never implicit commit. Existing-session child reopen uses immutable
+ * P0 and selected P1. Fresh-bootstrap children are refused. Parent close closes
+ * the enrolled signer, storage and complete target runtime owner. */
+int32_t qpc_enrollment_v1_activate_policy_continuation(uint64_t handle,
+    qpc_error_v1 *error);
 /* Same-key local renewal uses the original enrollment intent and installed files.
  * Close/join the original device/children, prepare_resume the original intent,
  * stage the independently verified target, then call the same consuming activate.

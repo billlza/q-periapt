@@ -404,3 +404,33 @@ The package collector requires the eight real-process cancellation cases describ
 in the [C consumer](../../c/ContinuityPackageConsumer/README.md), using this Swift
 client and the shared native engine. macOS scope is Apple Silicon; independent
 protocol-implementation and physical-device qualification remain separate.
+
+### Explicit policy continuation
+
+Keep the original P0 registration files. Supply P1 as an independently pinned
+`PolicyDocument` (root, family, `PolicyCheckpoint` and signed wire), then call
+`selectContinuedPolicy(path:target:)` on each resumed enrollment. The native owner
+retains that SDK store/runtime until close or transfers it on successful activation.
+Selecting a document alone grants no session authority.
+
+`stagePolicyContinuation` takes the account grant, both policy approvals and the
+independent previous document; `previousAuthorization` is absent only for original
+P0. `stageContinuedCredentialRenewal` advances G while carrying the adopted T.
+Use `reconcilePolicyContinuation` for local coordination or prepare an exact
+`PolicyRenewalProposal`, obtain independent witness approval, and call
+`commitWitnessedPolicyContinuation` with the original operation and transaction
+statement. The proposal keeps G and T separate; `statement` selects T for adoption
+and G for carry. Old fixed-width credential metadata APIs retain their contract.
+
+`recoverHistoricalPolicyContinuation` takes pinned history without selecting P1
+and completes only an already committed local transaction. It never creates a
+device or a new target; an uncommitted operation remains pending. Operational
+activation separately uses `activatePolicyContinuation`, transfers the same owner
+and requires current authority. Continued devices restore existing sessions; this
+does not grant fresh bootstrap permission. After a failed admitted call, close
+the wrapper and resume the original enrollment, retaining its operation identity.
+
+The consumer exposes the shared `enrollment-policy-*` local/history commands and
+`enrollment-policy-witness-prepare` / `enrollment-policy-witness-commit` TCP/TLS
+commands. See the [C consumer](../../c/ContinuityPackageConsumer/README.md) for the
+public input layout and remaining candidate qualification boundaries.

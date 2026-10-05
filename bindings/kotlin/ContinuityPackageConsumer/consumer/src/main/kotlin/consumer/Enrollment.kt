@@ -134,6 +134,10 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
         else ContinuityEnrollment.resume(path, intent(records), witness)
     return owner.use {
         val original = it.status()
+        if (mode.startsWith("enrollment-policy-")) {
+            require(args.size == 2) { "policy continuation arguments" }
+            return@use policyEnrollment(it, path, records, mode, original)
+        }
         if (mode.startsWith("enrollment-credential-")) {
             require(args.size == 2) { "credential renewal arguments" }
             return@use credentialEnrollment(it, records, mode, original)

@@ -459,3 +459,50 @@ The package collector requires the eight real-process cancellation cases describ
 in the [C consumer](../../c/ContinuityPackageConsumer/README.md), using this Kotlin
 client and the shared native engine. This remains separate from Android and
 independent protocol-implementation qualification.
+
+
+### Explicit policy continuation
+
+`PolicyDocument` owns a copied signed document plus the independently supplied
+policy root, family and `PolicyCheckpoint`. A checkpoint is not a roster head,
+and reading a document is not a current-authority claim. Keep the original P0
+configuration at the enrollment path. On each resumed enrollment select P1 with
+`selectContinuedPolicy(sdkPath, targetDocument)`; C retains that SDK store/runtime
+until close or transfers it with the original signer to the activated device.
+
+Stage the original account grant and both policy approvals with
+`stagePolicyContinuation(grant, accountPin, operation, approvals, previousDocument,
+previousT)`. `previousT` is null only for original P0. `stageContinuedCredentialRenewal`
+advances G while carrying the already adopted T. Local coordination uses
+`reconcilePolicyContinuation`; required witness coordination uses
+`prepareWitnessedPolicyContinuation` and an independently approved exact proposal
+before `commitWitnessedPolicyContinuation`. Target-free reservation uses
+`prepareWitnessedPolicyCancellation`; the existing witnessed close/reconcile calls
+accept the original transaction operation/statement for both G and G/T.
+
+`PolicyRenewalProposal` and `PolicyRenewalCancellation` retain exact public bytes,
+G, optional T and adopt/carry mode. Their `statement` is T for adopt and G for
+carry or legacy. These are neither approvals nor terminal receipts. The old
+296/248-byte credential metadata types remain unchanged. New native output
+records check exact supported lengths, grammar and unused byte-array tails;
+C alignment padding is not part of this wire contract.
+
+`recoverHistoricalPolicyContinuation(operation, statement, targetDocument)` loads
+independently pinned history without selecting P1 or opening its runtime. It can
+finish only an already committed local target and never publishes a device.
+`activatePolicyContinuation` transfers the same `NativeOwner` only after native
+current G/T admission. The old registration becomes closed to operations and its
+close is harmless after transfer. On an admitted failure, close the original
+wrapper and explicitly resume the same stored registration; retain the original
+operation and statement after unknown outcomes. Continued devices restore
+existing sessions; this does not authorize fresh bootstrap.
+
+The consumer exposes `enrollment-policy-stage`, `enrollment-policy-carry-stage`,
+`enrollment-policy-reconcile`, `enrollment-policy-activate`,
+`enrollment-policy-current-refused`, `enrollment-policy-recover-history` and
+`enrollment-policy-history-pending` using the shared C fixture file convention.
+`enrollment-policy-witness-prepare` retains the exact 329-byte joint proposal;
+after independent witness approval, `enrollment-policy-witness-commit` submits
+the original operation and transaction statement through the selected TCP/TLS carrier.
+The original P0 documents stay in the registered directory; P1 and its SDK store
+are in `continued-sdk`, and independent predecessor metadata is in `previous-policy`.

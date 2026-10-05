@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -119,7 +119,7 @@ def witness_fixture(root, carrier):
     return ("C_ENROLLMENT_WITNESS_COMPLETE carrier=" + carrier + " journal=" + journal.hex()
             + " next_account=" + activated.splitlines()[1].decode() + "\n"
             + "test " + enrollment.WITNESS_TESTS[carrier] + " ... ok\n"
-            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 class CEnrollmentEvidenceTests(unittest.TestCase):
@@ -223,15 +223,22 @@ class RenewalExecutionTests(unittest.TestCase):
         output = ("C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true\n"
                   "C_PEER_CREDENTIAL_RENEWAL original_tls_session=true actual_expiry=true wrong_pin_and_operation_refused=true cached_child_fenced=true persisted_grant=true exact_outbox_readback=true\n"
                   "C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=150 observed_at=151 no_policy_status=true same_registration=true separate_root_operation=true\n"
+                  "C_POLICY_CONTINUATION local_only=true joint_stage_readback=true joint_commit_readback=true current_owner=true same_signer=true same_wrapping_key=true same_journal=true credential_successor_carries_t1=true original_policy_inputs_unchanged=true\n"
+                  "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true\n"
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+                  + "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),
                         output + b"test " + first + b" ... ok\n",
+                        output + b"test another_case ... FAILED\n",
+                        output + b"test another_case ... FAILED with details\n",
+                        output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out;\n",
                         output.replace(b"0 ignored", b"1 ignored"),
                         output.replace(b"observed_at=151", b"observed_at=149"),
                         output.replace(b"expired_committed_preserved=true", b"expired_committed_preserved=false"),
+                        output.replace(b"credential_successor_carries_t1=true", b"credential_successor_carries_t1=false"),
+                        output.replace(b"uncommitted_remains_pending=true", b"uncommitted_remains_pending=false"),
                         output.replace(b"exact_outbox_readback=true", b"exact_outbox_readback=false")):
             with self.subTest(output=invalid), self.assertRaises(ValueError):
                 enrollment.verify_renewal_execution(invalid)
@@ -302,6 +309,34 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
             native["witnessed_commit_error"] = dict(binary=receipts["enrollment"])
             with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
                 enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_commit_error"] = dict(binary=receipts["enrollment_witness"])
+            with self.assertRaisesRegex(ValueError, "lacks witnessed_policy_continuation"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+            native["witnessed_policy_continuation"] = dict(binary=receipts["enrollment"])
+            with self.assertRaisesRegex(ValueError, "C-qualified original harness"):
+                enrollment.qualify_foreign(outside, output, "debug", {}, native, forbidden, language="Swift")
+
+    def test_policy_witness_requires_both_complete_carriers(self):
+        lines = ["C_WITNESSED_POLICY_CONTINUATION carrier=" + carrier
+            + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true"
+            for carrier in ("tcp", "tls")]
+        output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_WITNESS_TEST + " ... ok\n"
+            + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
+        for language in ("C", "Swift", "Kotlin"):
+            result = enrollment.verify_policy_witness_execution(output, language=language)
+            self.assertEqual(result["language"], language)
+            self.assertFalse(result["release_claim_eligible"])
+        variants = [output.replace((line + "\n").encode(), b"") for line in lines]
+        variants += [output + (lines[0] + "\n").encode(), output.replace(b"carrier=tls", b"carrier=tcp"),
+                     output + b"test another_case ... FAILED\n",
+                     output + b"test another_case ... FAILED with details\n",
+                     output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out;\n",
+                     output.replace(b"current_activation=true", b"current_activation=false"),
+                     output.replace(b"0 failed", b"1 failed"), output.replace(b"0 ignored", b"1 ignored"),
+                     output.replace(enrollment.POLICY_WITNESS_TEST.encode(), b"another_case")]
+        for invalid in variants:
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                enrollment.verify_policy_witness_execution(invalid)
 
     def test_changed_native_harness_refuses_before_executing_foreign_client(self):
         with tempfile.TemporaryDirectory() as temporary:

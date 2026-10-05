@@ -110,6 +110,7 @@ static void credential_status_print(const qpc_credential_renewal_status_v1 *stat
     printf("credential-head:%llu\n",(unsigned long long)status->checkpoint.version);encode(status->checkpoint.digest);
     printf("credential-observed:%llu\n",(unsigned long long)status->observed_at);
 }
+#include "policy_client.c"
 static int credential_command(uint64_t handle,const char *path,const char *operation) {
     qpc_error_v1 error;qpc_credential_renewal_status_v1 status;
     if(!strcmp(operation,"enrollment-credential-activate-refused")) {
@@ -239,6 +240,10 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
     int create=!strcmp(argv[1],"enrollment-create");
     uint64_t handle=enrollment_open(path,create,witness,tls);
     enrollment_status(handle,&status);
+    if(!strncmp(argv[1],"enrollment-policy-",18)) {
+        if(argc!=3) fail("policy continuation arguments");
+        return policy_command(handle,path,argv[1]);
+    }
     if(!strncmp(argv[1],"enrollment-credential-",22)) {
         if(argc!=3) fail("credential renewal arguments");
         return credential_command(handle,path,argv[1]);

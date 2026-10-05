@@ -192,6 +192,43 @@ impl Active {
 }
 
 impl DeviceJournal {
+    // Fresh G/T admission is an operational release fence. Historical queries,
+    // terminal reconciliation and metadata cleanup deliberately keep check_release.
+    pub(super) fn check_operational_release(
+        &mut self,
+        image: &Image,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        let result = (|| {
+            let Some((operation, current)) =
+                rosters::continued_witness_admission(image, policy, now)?
+            else {
+                return self.check_release(image);
+            };
+            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+            let expected = active.protection.head(image.revision, image.digest)?;
+            let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
+            let reply = anchor.client.exchange(anchor.subject, operation)?;
+            if reply.observed_head() != expected {
+                return Err(AnchorClientError::Conflict.into());
+            }
+            match reply.outcome() {
+                AnchorOutcome::AuthorityCurrent => {}
+                AnchorOutcome::AuthorityDenied => {
+                    return Err(AnchorClientError::AuthorityDenied.into())
+                }
+                _ => return Err(Error::State.into()),
+            }
+            policy.check_device(&current, now)?;
+            crate::installation::admit_policy(policy, now)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     pub(super) fn check_release(&mut self, image: &Image) -> Result<(), DurableError> {
         let result = self
             .active

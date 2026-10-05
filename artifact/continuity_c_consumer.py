@@ -45,6 +45,11 @@ EXPORTS |= {"qpc_enrollment_v1_" + name for name in
              "prepare_witnessed_credential_renewal", "prepare_witnessed_credential_cancellation",
              "commit_witnessed_credential_renewal",
              "close_witnessed_credential_renewal", "reconcile_witnessed_credential_renewal")}
+EXPORTS |= {"qpc_enrollment_v1_" + name for name in
+            ("select_continued_policy", "stage_policy_continuation", "stage_continued_credential_renewal",
+             "prepare_witnessed_policy_continuation", "prepare_witnessed_policy_cancellation",
+             "reconcile_policy_continuation", "commit_witnessed_policy_continuation",
+             "recover_historical_policy_continuation", "activate_policy_continuation")}
 EXPORTS |= {"qpc_device_v1_next_account", "qpc_device_v1_account_status",
             "qpc_device_v1_send_account_member", "qpc_device_v1_admit_peer_credential_renewal"}
 EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_begin", "account_status",
@@ -466,6 +471,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_witnessed_commit_error import qualify as qualify_commit_error
         result["execution"][profile]["witnessed_commit_error"] = qualify_commit_error(
             outside, output, profile, runtime, enrollment_witness_binary, run)
+        from continuity_c_enrollment import qualify_policy_witness
+        result["execution"][profile]["witnessed_policy_continuation"] = qualify_policy_witness(
+            output, profile, runtime, enrollment_witness_binary, run)
         device_evidence = outside / ("c-" + profile + "-device-runtime")
         runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(device_evidence)
         tested = run([str(trace), "--exact", device.TEST, "--nocapture"], "device-trace-" + profile, runtime=runtime)

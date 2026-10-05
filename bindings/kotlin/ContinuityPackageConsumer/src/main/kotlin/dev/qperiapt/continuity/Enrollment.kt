@@ -116,6 +116,51 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
                                            statement: CredentialRenewalStatementID): CredentialRenewalStatus =
         reference.call { owner -> owner.call { ContinuityNative.witnessedCredentialRenewal(it, operation, statement,
             ContinuityNative.WitnessRenewalAction.RECONCILE) } }
+    /** Select once per resumed owner. Original P0 stays in the enrollment files;
+     * independently pinned P1 and its SDK runtime remain owned by native code.
+     * Selection alone gives no session authority. */
+    fun selectContinuedPolicy(path: String, document: PolicyDocument) =
+        reference.call { owner -> owner.call { ContinuityNative.selectContinuedPolicy(it, path, document) } }
+    /** Persist the exact G/T pair. previousT is absent only for original P0.
+     * Both issuer approvals and the previous document are independent inputs. */
+    fun stagePolicyContinuation(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID,
+        approvals: ByteArray, previousDocument: PolicyDocument,
+        previousT: PolicyContinuationStatementID? = null): CredentialRenewalStatus {
+        val grantCopy = wire.clone(); val approvalsCopy = approvals.clone()
+        return reference.call { owner -> owner.call {
+            ContinuityNative.stagePolicyContinuation(it, grantCopy, pin, operation, approvalsCopy, previousDocument, previousT)
+        } }
+    }
+    /** Advance G while carrying the already adopted T under selected current P1. */
+    fun stageContinuedCredentialRenewal(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID): CredentialRenewalStatus {
+        val copy = wire.clone()
+        return reference.call { owner -> owner.call { ContinuityNative.stageContinuedCredentialRenewal(it, copy, pin, operation) } }
+    }
+    fun prepareWitnessedPolicyContinuation(): PolicyRenewalProposal =
+        reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedPolicyContinuation(it) } }
+    fun prepareWitnessedPolicyCancellation(): PolicyRenewalCancellation =
+        reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedPolicyCancellation(it) } }
+    /** Local original-transaction coordination only; returns metadata, no Device. */
+    fun reconcilePolicyContinuation(): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.reconcilePolicyContinuation(it) } }
+    /** New Commit needs selected current P1. Retain operation and transaction
+     * statement after every unknown result; historical completion creates no owner. */
+    fun commitWitnessedPolicyContinuation(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.commitWitnessedPolicyContinuation(it, operation, statement) } }
+    /** Complete only an exact existing local journal commit using pinned history.
+     * Requires no policy selection, SDK runtime or TLS; never starts a new target. */
+    fun recoverHistoricalPolicyContinuation(operation: CredentialRenewalID, statement: CredentialRenewalStatementID,
+        targetDocument: PolicyDocument): CredentialRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.recoverHistoricalPolicyContinuation(it, operation, statement, targetDocument) } }
+    /** Transfer the same controlled signer/storage/P1 runtime after current native
+     * G/T admission. Failure retains this sole closable wrapper; resume original
+     * state after close. Existing sessions only; no fresh bootstrap capability. */
+    fun activatePolicyContinuation(): ContinuityDevice = reference.transfer { owner ->
+        val device = ContinuityDevice.activated(owner)
+        owner.call { ContinuityNative.simple(it, "activate_policy_continuation") }
+        device
+    }
     /** Move the sole owning reference after native activation. On failure, close
      * this wrapper and resume the original state, which may already be Active.
      */

@@ -51,7 +51,7 @@ def fixture(directory):
         lines.append(f"WITNESSED_COMMIT_ERROR case={case} returned=218 owner_closed=true normal_exit=true original_pending=true "
                      f"committed=true policy_expired={str(case.endswith('expired')).lower()}")
     return ("\n".join(lines) + "\ntest " + error.TEST + " ... ok\n"
-            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 class CommitErrorEvidenceTests(unittest.TestCase):
@@ -121,7 +121,8 @@ class CommitErrorEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);stdout=fixture(root/"runtime")
             for value in (stdout+stdout,stdout.replace(b"0 failed",b"1 failed"),stdout.replace(b"0 ignored",b"1 ignored"),
-                          stdout.replace(b"8 filtered",b"7 filtered"),stdout.replace(b"normal_exit=true",b"normal_exit=false")):
+                          stdout.replace(b"9 filtered",b"7 filtered"),stdout.replace(b"normal_exit=true",b"normal_exit=false")):
+                self.assertNotEqual(value, stdout)
                 with self.assertRaises(ValueError):error.verify(value,root/"runtime")
             (root/"runtime/tcp-live/unexpected.stdout").write_bytes(b"")
             with self.assertRaises(ValueError):error.verify(stdout,root/"runtime")

@@ -13,6 +13,7 @@ pub(crate) struct Authority {
 }
 pub(crate) struct Environment {
     pub(crate) authority: PolicyAuthority,
+    pub(crate) original_policy: Option<p::HistoricalSessionPolicy>,
     certificate: Vec<u8>,
     tls_key: Zeroizing<Vec<u8>>,
 }
@@ -98,6 +99,7 @@ impl Environment {
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
         let value = Self {
             authority,
+            original_policy: None,
             certificate: read(&directory, "tls-cert", 8192)?,
             tls_key: owner::private_bytes(&directory, "tls-key", 8192)?,
         };
@@ -106,6 +108,30 @@ impl Environment {
     }
 }
 impl PolicyAuthority {
+    pub(crate) fn from_pinned_input(
+        path: &Path,
+        pin: &p::PolicyPin,
+        wire: &[u8],
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<Self> {
+        opening::check(cancel, deadline)?;
+        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+        let policy_store = owner::configured_sdk_store(path, &directory)?;
+        opening::check(cancel, deadline)?;
+        let policy = Arc::new(pin.verify(
+            wire,
+            policy_store.runtime()?,
+            now().map_err(Failure::configuration)?,
+        )?);
+        let result = Self {
+            family: policy.family(),
+            policy,
+            policy_store,
+        };
+        opening::check(cancel, deadline)?;
+        Ok(result)
+    }
     pub(crate) fn load(path: &Path, cancel: &Cancellation, deadline: Instant) -> Result<Self> {
         opening::check(cancel, deadline)?;
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
@@ -263,7 +289,10 @@ impl Shared {
             let grant = p::VerifiedCredentialRenewal::verify(
                 wire,
                 pin,
-                policy.checkpoint().digest(),
+                device.environment.original_policy.as_ref().map_or_else(
+                    || policy.checkpoint().digest(),
+                    |original| original.checkpoint().digest(),
+                ),
                 now().map_err(Failure::configuration)?,
             )?;
             opening::check(&self.cancel, deadline)?;
@@ -358,6 +387,9 @@ impl Peer {
             let time = now().map_err(Failure::configuration)?;
             let context = match admission {
                 owner::Admission::Bootstrap(_) => {
+                    if device.environment.original_policy.is_some() {
+                        return Err(p::Error::PolicyDenied.into());
+                    }
                     let context = Arc::new(bundle.verify(
                         Arc::clone(&device.environment.authority.policy),
                         required,
@@ -372,12 +404,22 @@ impl Peer {
                             .context(),
                     )
                 }
-                owner::Admission::Existing { session, .. } => Arc::clone(
-                    device
-                        .native
-                        .parts()?
-                        .0
-                        .reopen_peer_bundle(
+                owner::Admission::Existing { session, .. } => {
+                    let peer = if let Some(original) = &device.environment.original_policy {
+                        let request = bundle.request_historical_reopen(
+                            Arc::new(original.clone()),
+                            required,
+                            role,
+                            session,
+                            time,
+                        )?;
+                        device.native.parts()?.0.reopen_continued_peer(
+                            request,
+                            Arc::clone(&device.environment.authority.policy),
+                            time,
+                        )?
+                    } else {
+                        device.native.parts()?.0.reopen_peer_bundle(
                             &bundle,
                             Arc::clone(&device.environment.authority.policy),
                             required,
@@ -385,8 +427,9 @@ impl Peer {
                             session,
                             time,
                         )?
-                        .context(),
-                ),
+                    };
+                    Arc::clone(peer.context())
+                }
             };
             let mut peer = Self {
                 parent: Arc::clone(&parent),

@@ -1,0 +1,592 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Actual C owner integration with independent account and policy issuers.
+//!
+//! Requires registered_with_policy(lifetime, Some(&policy_root)): the supplied
+//! independent root signs P0 before the original C registration starts. This
+//! test never rewrites the original installation's protocol-policy inputs.
+//! The C policy commands select continued-sdk using its independent P1 pin.
+//! All stage/reconcile/activate operations run in actual client subprocesses;
+//! Rust acts only as the independent account and policy issuer.
+use super::*;
+
+const POLICY_DOCUMENT_FILES: [&str; 5] = [
+    "family",
+    "policy-root",
+    "policy-version",
+    "policy-digest",
+    "protocol-policy",
+];
+
+struct Successor {
+    certificate: Vec<u8>,
+    roster: p::IssuedRoster,
+    wire: Vec<u8>,
+    grant: p::VerifiedCredentialRenewal,
+}
+
+fn successor(
+    c: &Registered,
+    previous_certificate: &[u8],
+    previous_roster: &p::IssuedRoster,
+    version: u64,
+    until: u64,
+    original_policy: p::PolicyCheckpoint,
+) -> Result<Successor> {
+    let previous_pin = p::AccountPin::new(
+        c.root.account_id()?,
+        c.root.public_key()?,
+        previous_roster.checkpoint(),
+        c.family,
+    )?;
+    let previous = previous_pin.verify_device(
+        previous_certificate,
+        previous_roster.as_bytes(),
+        fixture::now()?,
+    )?;
+    let certificate = c.root.issue_device(
+        p::DeviceDescription::new(
+            previous.device_id(),
+            previous.generation(),
+            c.family,
+            p::Validity::new(c.validity.from(), until)?,
+        )?,
+        c.verified.public_key().clone(),
+    )?;
+    let roster = c.root.issue_roster(
+        version,
+        c.roster_validity,
+        &[c.root.roster_entry(&certificate)?],
+    )?;
+    let target_pin = p::AccountPin::new(
+        c.root.account_id()?,
+        c.root.public_key()?,
+        roster.checkpoint(),
+        c.family,
+    )?;
+    let issued = c.root.issue_credential_renewal(
+        p::CredentialRenewalMaterials {
+            original_credential: &c.certificate,
+            previous_credential: previous_certificate,
+            successor_credential: &certificate,
+            previous_roster: previous_roster.as_bytes(),
+            successor_roster: roster.as_bytes(),
+        },
+        &p::CredentialRenewalAuthorization {
+            operation: p::CredentialRenewalId::generate()?,
+            previous: previous_roster.checkpoint(),
+            policy_digest: original_policy.digest(),
+        },
+        &target_pin,
+        fixture::now()?,
+    )?;
+    let grant = p::VerifiedCredentialRenewal::verify(
+        issued.as_bytes(),
+        &target_pin,
+        original_policy.digest(),
+        fixture::now()?,
+    )?;
+    Ok(Successor {
+        certificate,
+        roster,
+        wire: issued.as_bytes().to_vec(),
+        grant,
+    })
+}
+
+fn publish_grant(path: &Path, target: &Successor, transaction: [u8; 32]) -> Result<()> {
+    // These are public, independently provisioned invocation inputs. Updating
+    // them never changes an enrollment, installation, signer or journal file.
+    for (name, bytes) in [
+        ("credential-renewal", target.wire.clone()),
+        (
+            "credential-operation",
+            target.grant.operation().as_bytes().to_vec(),
+        ),
+        ("credential-statement", transaction.to_vec()),
+        (
+            "renewal-version",
+            target.roster.checkpoint().version().to_be_bytes().to_vec(),
+        ),
+        (
+            "renewal-digest",
+            target.roster.checkpoint().digest().to_vec(),
+        ),
+    ] {
+        if path.join(name).try_exists()? {
+            fs::write(path.join(name), bytes)?;
+        } else {
+            fixture::store(path, name, &bytes)?;
+        }
+    }
+    Ok(())
+}
+
+fn observed(c: &Registered, label: &str, operation: &str) -> Result<RenewalObservation> {
+    observation(&run(&c.path, label, &command(&c.path, operation))?)
+}
+
+fn pending(target: &Successor, statement: [u8; 32]) -> RenewalObservation {
+    RenewalObservation {
+        phase: 1,
+        operation: *target.grant.operation().as_bytes(),
+        statement,
+        version: 0,
+        digest: [0; 32],
+        observed_at: 0,
+    }
+}
+
+fn committed(target: &Successor, statement: [u8; 32]) -> RenewalObservation {
+    RenewalObservation {
+        phase: 2,
+        operation: *target.grant.operation().as_bytes(),
+        statement,
+        version: target.roster.checkpoint().version(),
+        digest: target.roster.checkpoint().digest(),
+        observed_at: 0,
+    }
+}
+
+fn original_identity(c: &Registered, label: &str, signer: &[u8], wrapping: &[u8]) -> Result<()> {
+    assert_eq!(
+        state(&run(&c.path, label, &command(&c.path, "status"))?)?,
+        (5, c.accepted.1, c.accepted.2),
+        "continued activation must retain the original registration and journal"
+    );
+    let current_signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);
+    let current_wrapping = Zeroizing::new(fs::read(c.path.join("wrap.key"))?);
+    // Avoid printing secret bytes in a failed assertion's diagnostic.
+    assert!(
+        current_signer.as_slice() == signer,
+        "original signer changed"
+    );
+    assert!(
+        current_wrapping.as_slice() == wrapping,
+        "original wrapping key changed"
+    );
+    assert!(
+        !c.path.join("local-certificate").exists(),
+        "continued activation must not choose a replacement device-file layout"
+    );
+    lease(&c.path, false)
+}
+
+struct PreparedJoint {
+    c: Registered,
+    g1: Successor,
+    original_checkpoint: p::PolicyCheckpoint,
+    t1_statement: [u8; 32],
+    t1_wire: Vec<u8>,
+    original_inputs: BTreeMap<&'static str, Vec<u8>>,
+    target_inputs: BTreeMap<&'static str, Vec<u8>>,
+    target_checkpoint: p::PolicyCheckpoint,
+    target_until: u64,
+}
+fn prepare_joint(original_seconds: u64, target_seconds: u64) -> Result<PreparedJoint> {
+    let policy_root = p::PolicySigningKey::generate()?;
+    let c = registered_with_policy_duration(600, Some(&policy_root), original_seconds)?;
+    assert_eq!(c.family, policy_root.policy_family()?);
+    assert_ne!(c.accepted.1, [0; 32]);
+    assert_ne!(c.accepted.2, [0; 32]);
+    let original_inputs: BTreeMap<_, _> = POLICY_DOCUMENT_FILES
+        .into_iter()
+        .chain([
+            "sdk-policy",
+            "sdk-signature",
+            "sdk-root",
+            "enrollment-root",
+            "enrollment-intent",
+            "enrollment-request",
+            "grant-certificate",
+            "grant-roster",
+        ])
+        .map(|name| Ok((name, fs::read(c.path.join(name))?)))
+        .collect::<Result<_>>()?;
+
+    let target_path = c.path.join("continued-sdk");
+    let previous_path = c.path.join("previous-policy");
+    for path in [&target_path, &previous_path] {
+        fs::DirBuilder::new().mode(0o700).create(path)?;
+    }
+    for name in POLICY_DOCUMENT_FILES {
+        fixture::store(&previous_path, name, &fs::read(c.path.join(name))?)?;
+    }
+    for name in ["sdk-policy", "sdk-signature", "sdk-root"] {
+        fixture::store(&target_path, name, &fs::read(c.path.join(name))?)?;
+    }
+
+    // Both runtimes are real PolicyStores with the same authenticated SDK
+    // binding. Neither runtime nor an open database lease crosses a C command.
+    let mut original_sdk = fixture::sdk(&c.path)?;
+    let original_policy = fixture::protocol_policy(&c.path, &original_sdk)?;
+    let original_checkpoint = original_policy.checkpoint();
+    assert_eq!(original_checkpoint.version(), 1);
+    // The fixture signs P0 before it timestamps the device intent; these two
+    // real wall-clock reads need not fall in the same second.
+    assert_eq!(
+        original_policy.validity().until(),
+        original_policy
+            .validity()
+            .from()
+            .checked_add(original_seconds.checked_add(1).ok_or("clock overflow")?)
+            .ok_or("clock overflow")?
+    );
+    assert_eq!(
+        original_policy.anchor_requirement(),
+        p::AnchorRequirement::local_only()
+    );
+    let mut target_sdk = PolicyStore::provision(
+        &target_path.join("sdk.redb"),
+        &fixture::read(&target_path, "sdk-policy", 4096)?,
+        &fixture::read(&target_path, "sdk-signature", 8192)?,
+        &fixture::read(&target_path, "sdk-root", 8192)?,
+        q_periapt_sdk::Limits::default(),
+    )?;
+    let target_runtime = target_sdk.runtime()?;
+    let target_until = c.at.checked_add(target_seconds).ok_or("clock overflow")?;
+    let issued_policy = policy_root.issue_session_policy(
+        &target_runtime,
+        p::SessionPolicyParameters::new(
+            2,
+            p::Validity::new(original_policy.validity().from(), target_until)?,
+            original_policy.allowed_modes(),
+            original_policy.anchor_requirement(),
+            original_policy.application_send_budget(),
+        )?,
+    )?;
+    for (name, bytes) in [
+        ("family", c.family.to_vec()),
+        ("policy-root", policy_root.public_key()?.encode()),
+        (
+            "policy-version",
+            issued_policy.checkpoint().version().to_be_bytes().to_vec(),
+        ),
+        (
+            "policy-digest",
+            issued_policy.checkpoint().digest().to_vec(),
+        ),
+        ("protocol-policy", issued_policy.as_bytes().to_vec()),
+    ] {
+        fixture::store(&target_path, name, &bytes)?;
+    }
+    let target_policy = fixture::protocol_policy(&target_path, &target_sdk)?;
+    assert_eq!(original_policy.sdk_binding(), target_policy.sdk_binding());
+    assert_eq!(original_policy.family(), target_policy.family());
+    let target_inputs: BTreeMap<_, _> = POLICY_DOCUMENT_FILES
+        .into_iter()
+        .chain(["sdk-policy", "sdk-signature", "sdk-root"])
+        .map(|name| Ok((name, fs::read(target_path.join(name))?)))
+        .collect::<Result<_>>()?;
+
+    let g1 = successor(
+        &c,
+        &c.certificate,
+        &c.roster,
+        2,
+        c.at.checked_add(1200).ok_or("clock overflow")?,
+        original_checkpoint,
+    )?;
+    let scope = p::PolicyContinuationScope {
+        operation: g1.grant.operation(),
+        journal: p::JournalIdentity::from_trusted_state(c.accepted.2)?,
+        original_owner: g1.grant.original_storage_owner(),
+        original_credential: g1.grant.original_credential_digest(),
+        previous_credential: g1.grant.previous_device().credential_digest(),
+        previous_roster: c.roster.checkpoint(),
+        original_policy: original_checkpoint,
+        previous_policy: original_checkpoint,
+        previous_authorization: None,
+    };
+    let materials = p::PolicyContinuationMaterials {
+        original: original_policy.historical(),
+        previous: original_policy.historical(),
+        target: &target_policy,
+        credential: &g1.grant,
+    };
+    let statement = p::PolicyContinuationStatement::new(&scope, &materials, fixture::now()?)?;
+    let account_approval = c.root.approve_policy_continuation(&statement)?;
+    let policy_approval = policy_root.approve_policy_continuation(&statement)?;
+    let t1 = p::VerifiedPolicyContinuation::verify(
+        &account_approval,
+        &policy_approval,
+        &scope,
+        &materials,
+        fixture::now()?,
+    )?;
+    let t1_statement = t1.statement_digest();
+    let t1_wire = t1.as_bytes().to_vec();
+    assert_ne!(t1_statement, g1.grant.statement_digest());
+    fixture::store(&c.path, "policy-approvals", &t1_wire)?;
+    fixture::store(&c.path, "policy-predecessor-kind", &[0])?;
+    assert!(!c.path.join("policy-predecessor-statement").exists());
+    publish_grant(&c.path, &g1, t1_statement)?;
+    target_policy.close();
+    original_policy.close();
+    drop(target_policy);
+    drop(original_policy);
+    drop(target_runtime);
+    target_sdk.close();
+    original_sdk.close();
+    drop(target_sdk);
+    drop(original_sdk);
+
+    Ok(PreparedJoint {
+        c,
+        g1,
+        original_checkpoint,
+        t1_statement,
+        t1_wire,
+        original_inputs,
+        target_inputs,
+        target_checkpoint: issued_policy.checkpoint(),
+        target_until,
+    })
+}
+
+#[test]
+fn c_local_policy_continuation_reopens_original_enrollment_and_carries_t1_into_g2() -> Result<()> {
+    let PreparedJoint {
+        c,
+        g1,
+        original_checkpoint,
+        t1_statement,
+        t1_wire,
+        original_inputs,
+        target_inputs,
+        target_checkpoint,
+        ..
+    } = prepare_joint(300, 2400)?;
+    let target_path = c.path.join("continued-sdk");
+    let previous_path = c.path.join("previous-policy");
+    let signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);
+    let wrapping = Zeroizing::new(fs::read(c.path.join("wrap.key"))?);
+    let pending1 = pending(&g1, t1_statement);
+    let committed1 = committed(&g1, t1_statement);
+    assert_eq!(observed(&c, "policy-g1-stage", "policy-stage")?, pending1);
+    lease(&c.path, false)?;
+    // A different executable invocation reopens the original registration.
+    assert_eq!(
+        observed(&c, "policy-g1-pending-reopen", "credential-status")?,
+        pending1
+    );
+    assert_eq!(
+        observed(&c, "policy-g1-reconcile", "policy-reconcile")?,
+        committed1
+    );
+    assert_eq!(
+        observed(&c, "policy-g1-committed-reopen", "credential-status")?,
+        committed1
+    );
+    assert_eq!(
+        run(
+            &c.path,
+            "policy-g1-activate",
+            &command(&c.path, "policy-activate")
+        )?,
+        "policy-device-active\n"
+    );
+    original_identity(&c, "policy-g1-original-identity", &signer, &wrapping)?;
+
+    // Only the account root signs this second transition. No T2 is constructed,
+    // issued or staged: the independently pinned P1 and original T1 stay exact.
+    let g2 = successor(
+        &c,
+        &g1.certificate,
+        &g1.roster,
+        3,
+        c.at.checked_add(1800).ok_or("clock overflow")?,
+        original_checkpoint,
+    )?;
+    assert_eq!(
+        g2.grant.original_storage_owner(),
+        g1.grant.original_storage_owner()
+    );
+    assert_eq!(
+        g2.grant.original_credential_digest(),
+        g1.grant.original_credential_digest()
+    );
+    assert_eq!(
+        g2.grant.previous_device().credential_digest(),
+        g1.grant.successor_device().credential_digest()
+    );
+    assert_ne!(g2.grant.operation(), g1.grant.operation());
+    let g2_statement = g2.grant.statement_digest();
+    publish_grant(&c.path, &g2, g2_statement)?;
+    let pending2 = pending(&g2, g2_statement);
+    let committed2 = committed(&g2, g2_statement);
+    assert_eq!(
+        observed(&c, "policy-g2-carry-stage", "policy-carry-stage")?,
+        pending2
+    );
+    lease(&c.path, false)?;
+    assert_eq!(
+        observed(&c, "policy-g2-pending-reopen", "credential-status")?,
+        pending2
+    );
+    assert_eq!(
+        observed(&c, "policy-g2-reconcile", "policy-reconcile")?,
+        committed2
+    );
+    assert_eq!(
+        observed(&c, "policy-g2-committed-reopen", "credential-status")?,
+        committed2
+    );
+    assert_eq!(
+        run(
+            &c.path,
+            "policy-g2-activate",
+            &command(&c.path, "policy-activate")
+        )?,
+        "policy-device-active\n"
+    );
+    original_identity(&c, "policy-g2-original-identity", &signer, &wrapping)?;
+    assert_eq!(fs::read(c.path.join("policy-approvals"))?, t1_wire);
+    for (name, bytes) in original_inputs {
+        assert_eq!(
+            fs::read(c.path.join(name))?,
+            bytes,
+            "original input {name} changed"
+        );
+    }
+    for (name, bytes) in target_inputs {
+        assert_eq!(
+            fs::read(target_path.join(name))?,
+            bytes,
+            "independently pinned P1 input {name} changed"
+        );
+    }
+    for name in POLICY_DOCUMENT_FILES {
+        assert_eq!(
+            fs::read(previous_path.join(name))?,
+            fs::read(c.path.join(name))?,
+            "independently retained P0 document {name} changed"
+        );
+    }
+    assert_eq!(
+        fixture::array::<32>(&target_path, "policy-digest")?,
+        target_checkpoint.digest()
+    );
+    println!("C_POLICY_CONTINUATION local_only=true joint_stage_readback=true joint_commit_readback=true current_owner=true same_signer=true same_wrapping_key=true same_journal=true credential_successor_carries_t1=true original_policy_inputs_unchanged=true");
+    Ok(())
+}
+
+#[test]
+fn c_historical_policy_recovery_after_real_p1_expiry_needs_no_sdk_or_tls() -> Result<()> {
+    let cases = [prepare_joint(60, 75)?, prepare_joint(60, 75)?];
+    for (index, prepared) in cases.iter().enumerate() {
+        assert_eq!(
+            observed(&prepared.c, "history-stage", "policy-stage")?,
+            pending(&prepared.g1, prepared.t1_statement)
+        );
+        if index == 0 {
+            assert_eq!(
+                observed(&prepared.c, "history-commit", "policy-reconcile")?,
+                committed(&prepared.g1, prepared.t1_statement)
+            );
+        }
+    }
+    let until = cases
+        .iter()
+        .map(|p| p.target_until)
+        .max()
+        .ok_or("no target interval")?;
+    wait_until_expired(until)?;
+    for (index, prepared) in cases.iter().enumerate() {
+        let c = &prepared.c;
+        assert!(fixture::now()? >= prepared.target_until);
+        assert_eq!(
+            run(
+                &c.path,
+                "expired-current",
+                &command(&c.path, "policy-current-refused")
+            )?,
+            "policy-expired-current-refused\n"
+        );
+        let signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);
+        let wrapping = Zeroizing::new(fs::read(c.path.join("wrap.key"))?);
+        let target = c.path.join("continued-sdk");
+        for directory in [&c.path, &target] {
+            for name in ["sdk.redb", "sdk-policy", "sdk-signature", "sdk-root"] {
+                fs::rename(
+                    directory.join(name),
+                    directory.join(format!("retained-{name}")),
+                )?;
+                assert!(!directory.join(name).exists());
+            }
+        }
+        for name in ["tls-cert", "tls-key"] {
+            fs::rename(c.path.join(name), c.path.join(format!("retained-{name}")))?;
+            assert!(!c.path.join(name).exists());
+        }
+        for attempt in 0..2 {
+            if index == 0 {
+                assert_eq!(
+                    observed(
+                        c,
+                        &format!("historical-committed-{attempt}"),
+                        "policy-recover-history"
+                    )?,
+                    committed(&prepared.g1, prepared.t1_statement)
+                );
+            } else {
+                assert_eq!(
+                    run(
+                        &c.path,
+                        &format!("historical-pending-{attempt}"),
+                        &command(&c.path, "policy-history-pending")
+                    )?,
+                    "policy-history-pending\n"
+                );
+                assert_eq!(
+                    observed(
+                        c,
+                        &format!("pending-readback-{attempt}"),
+                        "credential-status"
+                    )?,
+                    pending(&prepared.g1, prepared.t1_statement)
+                );
+            }
+            original_identity(c, &format!("history-owner-{attempt}"), &signer, &wrapping)?;
+        }
+        let pin = p::AccountPin::new(
+            c.root.account_id()?,
+            c.root.public_key()?,
+            c.roster.checkpoint(),
+            c.family,
+        )?;
+        let original = pin.verify_device(&c.certificate, c.roster.as_bytes(), fixture::now()?)?;
+        let mut journal = p::DeviceJournal::open(
+            &c.path.join("journal.redb"),
+            p::JournalKey::open(&c.path.join("wrap.key"))?,
+            &original,
+            p::JournalIdentity::from_trusted_state(c.accepted.2)?,
+        )?;
+        assert_eq!(
+            journal.roster_checkpoint(c.root.account_id()?)?,
+            if index == 0 {
+                prepared.g1.roster.checkpoint()
+            } else {
+                c.roster.checkpoint()
+            }
+        );
+        journal.close();
+        for name in POLICY_DOCUMENT_FILES {
+            assert_eq!(
+                fs::read(c.path.join(name))?,
+                *prepared
+                    .original_inputs
+                    .get(name)
+                    .ok_or("original policy input")?
+            );
+            assert_eq!(
+                fs::read(target.join(name))?,
+                *prepared
+                    .target_inputs
+                    .get(name)
+                    .ok_or("target policy input")?
+            );
+        }
+    }
+    println!("C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true");
+    Ok(())
+}

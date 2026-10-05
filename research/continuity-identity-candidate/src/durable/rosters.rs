@@ -14,26 +14,53 @@ pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, Local
 
 pub(super) fn check_credential_renewal_intent(
     image: &Image,
-    operation: CredentialRenewalId,
-    statement: [u8; 32],
+    binding: write_intent::RenewalBinding,
 ) -> Result<(), DurableError> {
     let Protection::Required { policy, .. } = image.protection else {
         return Err(DurableError::AnchorRequired);
     };
     let saved = get(image, &image.local_account)?;
     let receipt = saved.local_commit.as_ref().ok_or(DurableError::Corrupt)?;
-    if receipt.operation != operation
-        || receipt.statement != statement
+    if receipt.operation != binding.operation
+        || receipt.statement != binding.transaction_statement()
         || receipt.owner != image.owner
         || receipt.policy != policy
         || receipt.target != saved.roster.checkpoint()
-        || saved
-            .renewals
-            .values()
-            .filter(|grant| LocalRenewalCommit::for_grant(grant) == *receipt)
-            .count()
-            != 1
     {
+        return Err(DurableError::Conflict);
+    }
+    let continuation = match (binding.policy, saved.policy_continuation.as_ref()) {
+        (None, None) => None,
+        (Some(intent), Some(t)) if intent.statement() == t.statement_digest() => {
+            if intent.adopts() {
+                if t.scope().operation != binding.operation {
+                    return Err(DurableError::Conflict);
+                }
+                Some(t)
+            } else {
+                if t.scope().operation == binding.operation {
+                    return Err(DurableError::Conflict);
+                }
+                None
+            }
+        }
+        _ => return Err(DurableError::Conflict),
+    };
+    let mut matches = 0;
+    for grant in saved.renewals.values() {
+        if grant.operation() == binding.operation && grant.statement_digest() == binding.credential
+        {
+            let target = LocalRenewalTarget {
+                grant,
+                continuation,
+            };
+            if target.receipt()? != *receipt {
+                return Err(DurableError::Conflict);
+            }
+            matches += 1;
+        }
+    }
+    if matches != 1 {
         return Err(DurableError::Conflict);
     }
     Ok(())
@@ -82,6 +109,55 @@ pub(super) fn check_credential_cancellation(
         return Err(DurableError::Conflict);
     }
     Ok(())
+}
+pub(super) fn check_policy_cancellation(
+    image: &Image,
+    grant: &crate::HistoricalCredentialRenewal,
+    target: Option<&crate::HistoricalPolicyContinuation>,
+    adopts: bool,
+) -> Result<(), DurableError> {
+    let saved = get(image, &image.local_account)?;
+    match target {
+        None if saved.policy_continuation.is_none() && !adopts => Ok(()),
+        Some(t) => {
+            if t.scope().journal.as_bytes() != &image.id
+                || t.scope().original_owner != image.owner
+                || t.scope().original_policy.digest() != grant.policy_digest()
+                || t.scope().original_credential != grant.original_credential_digest()
+            {
+                return Err(DurableError::Conflict);
+            }
+            if adopts {
+                t.check_credential(grant)?;
+                match &saved.policy_continuation {
+                    None if t.scope().previous_authorization.is_none()
+                        && t.scope().previous_policy == t.scope().original_policy =>
+                    {
+                        Ok(())
+                    }
+                    Some(previous)
+                        if t.scope().previous_authorization
+                            == Some(previous.statement_digest())
+                            && t.scope().previous_policy == previous.target_policy()
+                            && t.scope().original_policy == previous.scope().original_policy =>
+                    {
+                        Ok(())
+                    }
+                    _ => Err(DurableError::Conflict),
+                }
+            } else if saved
+                .policy_continuation
+                .as_ref()
+                .is_some_and(|p| p.journal_bytes() == t.journal_bytes())
+                && t.scope().operation != grant.operation()
+            {
+                Ok(())
+            } else {
+                Err(DurableError::Conflict)
+            }
+        }
+        _ => Err(DurableError::Conflict),
+    }
 }
 
 #[cfg(all(test, unix))]
@@ -399,6 +475,26 @@ fn check_policy_continuation_scope(image: &Image, saved: &Stored) -> Result<(), 
 pub(super) fn current(image: &Image, account: &[u8; 32]) -> Result<VerifiedRoster, DurableError> {
     Ok(get(image, account)?.roster)
 }
+// Durable enrollment readback must agree with the actual local journal before
+// releasing the independent witness slot, for both Applied and Closed. Closed
+// retains the predecessor T, not the rejected proposal's new T.
+pub(super) fn check_terminal_completion(
+    image: &Image,
+    expected: Option<[u8; 32]>,
+    completed: Option<&LocalRenewalCommit>,
+) -> Result<(), DurableError> {
+    let saved = get(image, &image.local_account)?;
+    if saved
+        .policy_continuation
+        .as_ref()
+        .map(|t| t.statement_digest())
+        != expected
+        || saved.local_commit.as_ref() != completed
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
 pub(super) fn genesis(device: &VerifiedDevice) -> Result<BTreeMap<[u8; 32], Record>, DurableError> {
     Ok(BTreeMap::from([(
         id(&device.account_id()),
@@ -573,23 +669,87 @@ pub(super) fn require_original_operational_policy(image: &Image) -> Result<(), D
 // Bind independently verified P1 to the exact completed local T and original
 // transcript. The caller must still admit current identities/time/runtime and
 // the original existing session/archive before returning an operational view.
+fn continued_local_grant<'a>(
+    image: &Image,
+    saved: &'a Stored,
+) -> Result<&'a VerifiedCredentialRenewal, DurableError> {
+    let t = saved
+        .policy_continuation
+        .as_ref()
+        .ok_or(DurableError::Conflict)?;
+    let mut matching = saved.renewals.values().filter(|g| {
+        g.original_storage_owner() == image.owner
+            && g.original_credential_digest() == t.scope().original_credential
+            && g.policy_digest() == t.scope().original_policy.digest()
+    });
+    let grant = matching.next().ok_or(DurableError::Conflict)?;
+    if matching.next().is_some() {
+        return Err(DurableError::Conflict);
+    }
+    Ok(grant)
+}
+fn check_continuation_completion(image: &Image, saved: &Stored) -> Result<(), DurableError> {
+    match image.protection {
+        Protection::Local if saved.local_commit.is_none() => Ok(()),
+        Protection::Local => Err(DurableError::Suspended),
+        Protection::Required { .. } => {
+            let grant = continued_local_grant(image, saved)?;
+            let t = saved
+                .policy_continuation
+                .as_ref()
+                .ok_or(DurableError::Conflict)?;
+            let target = LocalRenewalTarget {
+                grant,
+                continuation: (t.scope().operation == grant.operation()).then_some(t),
+            };
+            if saved.local_commit.as_ref() != Some(&target.receipt()?) {
+                return Err(DurableError::Conflict);
+            }
+            Ok(())
+        }
+    }
+}
+// An operational caller still checks its complete context and immutable P0.
+// This derives the witness expectation only from authenticated current journal
+// authority, never from a caller's stale cached credential or policy statement.
+pub(super) fn continued_witness_admission(
+    image: &Image,
+    policy: &crate::VerifiedSessionPolicy,
+    now: u64,
+) -> Result<Option<(crate::AnchorOperation, VerifiedDevice)>, DurableError> {
+    if image.protection == Protection::Local {
+        return Ok(None);
+    }
+    let saved = get(image, &image.local_account)?;
+    let Some(t) = &saved.policy_continuation else {
+        return Ok(None);
+    };
+    t.check_target(policy)?;
+    check_continuation_completion(image, &saved)?;
+    let grant = continued_local_grant(image, &saved)?;
+    let current = saved.roster.refresh_device(grant.successor_device(), now)?;
+    policy.check_device(&current, now)?;
+    crate::installation::admit_policy(policy, now)?;
+    let operation = crate::AnchorOperation::admit_continuation(
+        current.authority_binding(),
+        grant.statement_digest(),
+        t.statement_digest(),
+    )?;
+    Ok(Some((operation, current)))
+}
+
 pub(super) fn bind_policy_continuation(
     image: &Image,
     context: &BootstrapContext,
     role: crate::BootstrapRole,
     policy: &crate::VerifiedSessionPolicy,
 ) -> Result<[u8; 32], DurableError> {
-    if image.protection != Protection::Local {
-        return Err(DurableError::AnchorRequired);
-    }
     let saved = get(image, &image.local_account)?;
     let t = saved
         .policy_continuation
         .as_ref()
         .ok_or(DurableError::Conflict)?;
-    if saved.local_commit.is_some() {
-        return Err(DurableError::Suspended);
-    }
+    check_continuation_completion(image, &saved)?;
     let original = context.device(role);
     if image.local_account != original.account_id()
         || image.owner != bootstrap::storage_owner(original)
@@ -635,10 +795,14 @@ fn authorize_continued_installation(
     policy: &crate::VerifiedSessionPolicy,
     now: u64,
 ) -> Result<[u8; 32], DurableError> {
-    if image.protection != Protection::Local {
-        return Err(DurableError::AnchorRequired);
-    }
-    scope.authority.check(image.owner, None)?;
+    scope.authority.check(
+        image.owner,
+        scope
+            .original_policy
+            .anchor_requirement()
+            .binding()
+            .map(|w| (scope.original_policy.checkpoint().digest(), w)),
+    )?;
     if scope.local_identity.0 != image.local_account
         || scope.authority.policy != scope.original_policy.checkpoint().digest()
     {
@@ -649,9 +813,7 @@ fn authorize_continued_installation(
         .policy_continuation
         .as_ref()
         .ok_or(DurableError::Conflict)?;
-    if saved.local_commit.is_some() {
-        return Err(DurableError::Suspended);
-    }
+    check_continuation_completion(image, &saved)?;
     t.check_context_policy(scope.original_policy, policy)?;
     let grant = saved
         .renewals
@@ -818,7 +980,7 @@ impl DeviceJournal {
         let refreshed = get(&image, &image.local_account)?
             .roster
             .refresh_device(current, now)?;
-        self.check_release(&image)?;
+        self.check_operational_release(&image, policy, now)?;
         Ok(refreshed)
     }
     // Only an owning installation may bind this mutation to its exact policy.
@@ -845,6 +1007,7 @@ impl DeviceJournal {
         crate::installation::admit(renewal.successor_device(), policy, now)?;
         let mut image = self.image()?;
         authorize_peer_installation(&image, scope, policy, now)?;
+        self.check_operational_release(&image, policy, now)?;
         let successor = renewal.successor_device();
         let saved = get(&image, &successor.account_id())?;
         let target = successor.roster().checkpoint();
@@ -862,7 +1025,7 @@ impl DeviceJournal {
             }
             saved.roster.authorize_device(successor, now)?;
             authorize_peer_installation(&image, scope, policy, now)?;
-            self.check_release(&image)?;
+            self.check_operational_release(&image, policy, now)?;
             return Ok(target);
         }
         let updated = saved.advance_with_renewal(successor.roster(), Some(renewal))?;
@@ -875,7 +1038,7 @@ impl DeviceJournal {
         self.persist(&mut image)?;
         authorize_peer_installation(&image, scope, policy, now)?;
         crate::installation::admit(successor, policy, now)?;
-        self.check_release(&image)?;
+        self.check_operational_release(&image, policy, now)?;
         Ok(target)
     }
     pub(crate) fn prepare_bootstrap_context(
@@ -978,6 +1141,6 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         self.check_policy(context.original_policy())?;
         authorize_session_context(image, context, now)?;
-        self.check_release(image)
+        self.check_operational_release(image, context.current_policy()?, now)
     }
 }

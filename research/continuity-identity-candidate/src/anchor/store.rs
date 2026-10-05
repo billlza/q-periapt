@@ -19,7 +19,7 @@ const MAX_IMAGE: usize = 1024 * 1024;
 mod tests;
 
 mod renewal;
-use renewal::CredentialRenewalRecord;
+use renewal::{CredentialRenewalRecord, PolicyAuthority};
 
 struct Entry {
     subject: AnchorSubject,
@@ -33,6 +33,9 @@ struct Entry {
     renewal_floor: u64,
     renewal_ack: Option<[u8; 32]>,
     renewal: Option<CredentialRenewalRecord>,
+    credential_authorization: Option<[u8; 32]>,
+    policy_authorization: Option<PolicyAuthority>,
+    policy_floor: u64,
 }
 struct Image {
     revision: u64,
@@ -174,6 +177,9 @@ impl AnchorStore {
                 renewal_floor: 0,
                 renewal_ack: None,
                 renewal: None,
+                credential_authorization: None,
+                policy_authorization: None,
+                policy_floor: 0,
             },
         );
         self.persist(&mut image)
@@ -246,8 +252,23 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<crate::RosterCheckpoint, DurableError> {
-        if subject.policy != policy.checkpoint().digest() {
-            return Err(Error::Scope.into());
+        let id = subject.id(&self.pin()?.binding);
+        let mut image = self.image()?;
+        let entry = match image.entries.get_mut(&id) {
+            Some(entry) => entry,
+            // Only an enrolled subject with retained T can explain a policy
+            // different from its original P0. Preserve the original scope error.
+            None if subject.policy != policy.checkpoint().digest() => {
+                return Err(Error::Scope.into())
+            }
+            None => return Err(DurableError::Absent),
+        };
+        match entry.policy_authorization {
+            None if subject.policy == policy.checkpoint().digest() => {}
+            Some(current)
+                if current.checkpoint == policy.checkpoint()
+                    && current.validity == policy.validity() => {}
+            _ => return Err(Error::Scope.into()),
         }
         let validity = self.admit_current_device(next, policy, now)?;
         if next.checkpoint.version() <= previous.version() {
@@ -255,9 +276,6 @@ impl AnchorStore {
         }
         let expected =
             crate::identity::authority_binding(next.account, previous, next.description.family);
-        let id = subject.id(&self.pin()?.binding);
-        let mut image = self.image()?;
-        let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
         if entry.renewal.is_some() {
             return Err(DurableError::Suspended);
         }
@@ -279,6 +297,7 @@ impl AnchorStore {
         entry.authority = next.authority_binding();
         entry.validity = validity;
         self.persist(&mut image)?;
+        self.admit_current_device(next, policy, now)?;
         Ok(next.checkpoint)
     }
     /// Independently adopt a root-authorized same-key credential renewal for the
@@ -366,7 +385,28 @@ impl AnchorStore {
                     Err(Error::Validity) => false,
                     Err(error) => return Err(error.into()),
                 };
-                if entry.authority == expected && live {
+                if entry.policy_authorization.is_none() && entry.authority == expected && live {
+                    AnchorOutcome::AuthorityCurrent
+                } else {
+                    AnchorOutcome::AuthorityDenied
+                }
+            }
+            Command::AdmitContinuation(authority, credential, statement) => {
+                let live = |validity: Validity| match validity.check(now) {
+                    Ok(()) => Ok(true),
+                    Err(Error::Validity) => Ok(false),
+                    Err(error) => Err(error),
+                };
+                let policy_live = match entry.policy_authorization {
+                    Some(policy) => policy.statement == statement && live(policy.validity)?,
+                    None => false,
+                };
+                if entry.authority == authority
+                    && entry.renewal.is_none()
+                    && entry.credential_authorization == Some(credential)
+                    && policy_live
+                    && live(entry.validity)?
+                {
                     AnchorOutcome::AuthorityCurrent
                 } else {
                     AnchorOutcome::AuthorityDenied
@@ -460,20 +500,25 @@ fn enrollment_validity(
     device: &VerifiedDevice,
     policy: &impl AsRef<crate::HistoricalSessionPolicy>,
 ) -> Result<Validity, DurableError> {
-    let policy = policy.as_ref();
+    enrollment_interval(device, policy.as_ref().validity())
+}
+fn enrollment_interval(
+    device: &VerifiedDevice,
+    policy: Validity,
+) -> Result<Validity, DurableError> {
     Ok(Validity::new(
         device
             .description
             .validity
             .from()
             .max(device.roster_validity.from())
-            .max(policy.validity().from()),
+            .max(policy.from()),
         device
             .description
             .validity
             .until()
             .min(device.roster_validity.until())
-            .min(policy.validity().until()),
+            .min(policy.until()),
     )?)
 }
 
@@ -499,7 +544,25 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_cancellation)
     });
-    let mut bytes = if cancellation {
+    let policy_format = image.entries.values().any(|entry| {
+        entry.policy_floor != 0
+            || entry.policy_authorization.is_some()
+            || entry.credential_authorization.is_some()
+            || entry
+                .renewal
+                .as_ref()
+                .is_some_and(CredentialRenewalRecord::has_policy)
+    });
+    let policy_cancellation = image.entries.values().any(|e| {
+        e.renewal
+            .as_ref()
+            .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
+    });
+    let mut bytes = if policy_cancellation {
+        b"QPANC007".to_vec()
+    } else if policy_format {
+        b"QPANC006".to_vec()
+    } else if cancellation {
         b"QPANC004".to_vec()
     } else if joint {
         b"QPANC003".to_vec()
@@ -520,7 +583,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         bytes.extend_from_slice(&entry.genesis);
         entry.head.encode(&mut bytes);
         encode_last(entry.last, &mut bytes);
-        if joint {
+        if joint || policy_format {
             bytes.extend_from_slice(&entry.renewal_floor.to_be_bytes());
             bytes.push(u8::from(entry.renewal_ack.is_some()));
             bytes.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
@@ -528,6 +591,18 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
                 record.encode(&mut bytes);
             } else {
                 bytes.push(0);
+            }
+        }
+        if policy_format {
+            bytes.extend_from_slice(&entry.policy_floor.to_be_bytes());
+            match (entry.credential_authorization, entry.policy_authorization) {
+                (None, None) => bytes.push(0),
+                (Some(credential), Some(policy)) => {
+                    bytes.push(1);
+                    bytes.extend_from_slice(&credential);
+                    policy.encode(&mut bytes);
+                }
+                _ => return Err(DurableError::Corrupt),
             }
         }
     }
@@ -551,7 +626,15 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
         let version = d.array::<8>()?;
-        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003", *b"QPANC004"].contains(&version)
+        if ![
+            *b"QPANC001",
+            *b"QPANC002",
+            *b"QPANC003",
+            *b"QPANC004",
+            *b"QPANC006",
+            *b"QPANC007",
+        ]
+        .contains(&version)
             || d.array::<32>()? != pin.binding
         {
             return Err(DurableError::Conflict);
@@ -588,7 +671,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             let head = AnchorHead::decode(&mut d)?;
             let last = decode_last(&mut d, head)?;
             let (renewal_floor, renewal_ack, renewal) =
-                if version == *b"QPANC003" || version == *b"QPANC004" {
+                if [*b"QPANC003", *b"QPANC004", *b"QPANC006", *b"QPANC007"].contains(&version) {
                     let floor = d.u64()?;
                     let [present] = d.array()?;
                     let binding = d.array()?;
@@ -603,8 +686,29 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                     (
                         floor,
                         ack,
-                        CredentialRenewalRecord::decode(&mut d, version == *b"QPANC004")?,
+                        CredentialRenewalRecord::decode(
+                            &mut d,
+                            [*b"QPANC004", *b"QPANC006", *b"QPANC007"].contains(&version),
+                            version == *b"QPANC006" || version == *b"QPANC007",
+                            version == *b"QPANC007",
+                        )?,
                     )
+                } else {
+                    (0, None, None)
+                };
+            let (policy_floor, credential_authorization, policy_authorization) =
+                if version == *b"QPANC006" || version == *b"QPANC007" {
+                    let floor = d.u64()?;
+                    let (credential, policy) = match d.array::<1>()? {
+                        [0] => (None, None),
+                        [1] => {
+                            let credential = d.array()?;
+                            nonzero(&credential)?;
+                            (Some(credential), Some(PolicyAuthority::decode(&mut d)?))
+                        }
+                        _ => return Err(DurableError::Corrupt),
+                    };
+                    (floor, credential, policy)
                 } else {
                     (0, None, None)
                 };
@@ -627,6 +731,9 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 renewal_floor,
                 renewal_ack,
                 renewal,
+                credential_authorization,
+                policy_authorization,
+                policy_floor,
             };
             entry.check_renewal_state(pin)?;
             entries.insert(id, entry);

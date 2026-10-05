@@ -3,6 +3,8 @@ use super::*;
 
 #[path = "peer_credential_renewal.rs"]
 mod peer_credential_renewal;
+#[path = "policy_continuation.rs"]
+mod policy_continuation;
 
 #[derive(Debug, PartialEq, Eq)]
 struct RenewalObservation {
@@ -74,6 +76,19 @@ struct Registered {
     accepted: (u32, [u8; 32], [u8; 32]),
 }
 fn registered(lifetime: u64) -> Result<Registered> {
+    registered_with_policy(lifetime, None)
+}
+fn registered_with_policy(
+    lifetime: u64,
+    protocol: Option<&p::PolicySigningKey>,
+) -> Result<Registered> {
+    registered_with_policy_duration(lifetime, protocol, 300)
+}
+fn registered_with_policy_duration(
+    lifetime: u64,
+    protocol: Option<&p::PolicySigningKey>,
+    protocol_seconds: u64,
+) -> Result<Registered> {
     let s = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = s
         .initiator
@@ -102,6 +117,38 @@ fn registered(lifetime: u64) -> Result<Registered> {
         &fixture::read(&path, "sdk-root", 8192)?,
         q_periapt_sdk::Limits::default(),
     )?;
+    if let Some(protocol) = protocol {
+        let at = fixture::now()?;
+        let original = fixture::protocol_policy(&path, &sdk)?;
+        let issued = protocol.issue_session_policy(
+            sdk.runtime()?.as_ref(),
+            p::SessionPolicyParameters::new(
+                1,
+                p::Validity::new(
+                    at.saturating_sub(1),
+                    at.checked_add(protocol_seconds).ok_or("clock overflow")?,
+                )?,
+                original.allowed_modes(),
+                original.anchor_requirement(),
+                original.application_send_budget(),
+            )?,
+        )?;
+        original.close();
+        for (name, bytes) in [
+            ("family", protocol.policy_family()?.to_vec()),
+            ("policy-root", protocol.public_key()?.encode()),
+            (
+                "policy-version",
+                issued.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            ("policy-digest", issued.checkpoint().digest().to_vec()),
+            ("protocol-policy", issued.as_bytes().to_vec()),
+        ] {
+            // Only these copied public inputs are replaced, before the first
+            // registration request or child store is created.
+            fs::write(path.join(name), &bytes)?;
+        }
+    }
     sdk.close();
     let root = p::RootSigningKey::generate()?;
     let family = fixture::array(&path, "family")?;

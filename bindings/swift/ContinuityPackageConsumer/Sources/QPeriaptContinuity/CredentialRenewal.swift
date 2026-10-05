@@ -29,26 +29,8 @@ public struct CredentialRenewalProposal: Sendable, Equatable {
     public let statement: CredentialRenewalStatementID
 
     init(nativeBytes bytes: [UInt8]) throws {
-        guard bytes.count == 296, Array(bytes[0..<8]) == Array("QPCRNP01".utf8) else {
-            throw ContinuityBoundaryError.malformedOutput
-        }
-        for offset in [8, 40, 72, 104, 136, 168, 216, 264] {
-            guard bytes[offset..<(offset + 32)].contains(where: { $0 != 0 }) else {
-                throw ContinuityBoundaryError.malformedOutput
-            }
-        }
-        func counter(_ offset: Int) -> UInt64 {
-            bytes[offset..<(offset + 8)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-        }
-        let fence = counter(200), revision = counter(208), target = counter(256)
-        guard fence > 0, fence < UInt64.max, counter(248) == fence,
-              revision > 0, revision < UInt64.max - 1, target == revision + 1,
-              bytes[216..<248] != bytes[264..<296] else {
-            throw ContinuityBoundaryError.malformedOutput
-        }
-        self.bytes = bytes
-        operation = try CredentialRenewalID(bytes: Array(bytes[136..<168]))
-        statement = try CredentialRenewalStatementID(bytes: Array(bytes[168..<200]))
+        let identity = try renewalMetadataIdentity(bytes, kind: .proposal, policy: false)
+        self.bytes = bytes; operation = identity.operation; statement = identity.statement
     }
 }
 
@@ -60,22 +42,44 @@ public struct CredentialRenewalCancellation: Sendable, Equatable {
     public let statement: CredentialRenewalStatementID
 
     init(nativeBytes bytes: [UInt8]) throws {
-        guard bytes.count == 248, Array(bytes[0..<8]) == Array("QPCRNC01".utf8) else {
+        let identity = try renewalMetadataIdentity(bytes, kind: .cancellation, policy: false)
+        self.bytes = bytes; operation = identity.operation; statement = identity.statement
+    }
+}
+
+enum RenewalMetadataKind: Equatable { case proposal, cancellation }
+
+// One canonical base grammar for old G-only and the extended G/T records.
+// This checks public output shape, never signatures or current permission.
+func renewalMetadataIdentity(_ bytes: [UInt8], kind: RenewalMetadataKind, policy: Bool) throws
+    -> (operation: CredentialRenewalID, statement: CredentialRenewalStatementID) {
+    let isProposal = kind == .proposal
+    let count = (isProposal ? 296 : 248) + (policy ? 33 : 0)
+    let tag = (isProposal ? "QPCRNP" : "QPCRNC") + (policy ? "02" : "01")
+    guard bytes.count == count, Array(bytes[0..<8]) == Array(tag.utf8) else {
+        throw ContinuityBoundaryError.malformedOutput
+    }
+    let offsets = isProposal ? [8, 40, 72, 104, 136, 168, 216, 264] : [8, 40, 72, 104, 136, 168, 216]
+    for offset in offsets {
+        guard bytes[offset..<(offset + 32)].contains(where: { $0 != 0 }) else {
             throw ContinuityBoundaryError.malformedOutput
         }
-        for offset in [8, 40, 72, 104, 136, 168, 216] {
-            guard bytes[offset..<(offset + 32)].contains(where: { $0 != 0 }) else {
-                throw ContinuityBoundaryError.malformedOutput
-            }
-        }
-        for offset in [200, 208] {
-            let value = bytes[offset..<(offset + 8)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-            guard value > 0, value < UInt64.max else { throw ContinuityBoundaryError.malformedOutput }
-        }
-        self.bytes = bytes
-        operation = try CredentialRenewalID(bytes: Array(bytes[136..<168]))
-        statement = try CredentialRenewalStatementID(bytes: Array(bytes[168..<200]))
     }
+    func counter(_ offset: Int) -> UInt64 {
+        bytes[offset..<(offset + 8)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
+    }
+    let fence = counter(200), revision = counter(208)
+    guard fence > 0, fence < UInt64.max, revision > 0, revision < UInt64.max else {
+        throw ContinuityBoundaryError.malformedOutput
+    }
+    if isProposal {
+        guard counter(248) == fence, revision < UInt64.max - 1, counter(256) == revision + 1,
+              bytes[216..<248] != bytes[264..<296] else {
+            throw ContinuityBoundaryError.malformedOutput
+        }
+    }
+    return (try CredentialRenewalID(bytes: Array(bytes[136..<168])),
+            try CredentialRenewalStatementID(bytes: Array(bytes[168..<200])))
 }
 
 /// Historical progress only. No case supplies current operational permission.

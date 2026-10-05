@@ -248,7 +248,15 @@ impl DeviceJournal {
         for selected in selected {
             rosters::authorize_session_context(image, selected.context, now)?;
         }
-        self.check_release(image)?;
+        let policy = selected
+            .first()
+            .ok_or(DurableError::Capacity)?
+            .context
+            .current_policy()?;
+        self.check_operational_release(image, policy, now)?;
+        for selected in selected {
+            rosters::authorize_session_context(image, selected.context, now)?;
+        }
         Ok(roster.checkpoint())
     }
     /// Atomically reserve every required input, then atomically commit every
@@ -480,7 +488,17 @@ impl DeviceJournal {
                 })
             })
             .collect::<Result<Vec<_>, DurableError>>()?;
-        self.check_release(image)?;
+        self.check_operational_release(image, context.current_policy()?, now)?;
+        // The carrier can close a retained runtime during the final query.
+        // Recheck every member, including valid terminal members, without
+        // requiring their retired live ratchets to exist again.
+        for target in targets {
+            if target.context.retained_binding().is_some() {
+                rosters::authorize_retained_context_authority(image, target.context, now)?;
+            } else {
+                rosters::authorize_context(image, target.context, now)?;
+            }
+        }
         Ok(result)
     }
     /// Retire aggregate metadata only when every member has separate authenticated

@@ -36,6 +36,12 @@ private struct EnrollmentInputs {
     func publish(_ name: String, _ bytes: [UInt8]) throws {
         try require(records.retain(name, bytes: bytes, create: true), "enrollment output already exists: \(name)")
     }
+    func policyDocument() throws -> PolicyDocument {
+        let version = try exact("policy-version", count: 8)
+        return try PolicyDocument(root: exact("policy-root", count: 1985), family: exact("family", count: 32),
+            checkpoint: PolicyCheckpoint(version: counter(version[...]), digest: exact("policy-digest", count: 32)),
+            wire: read("protocol-policy", maximum: 8192))
+    }
 }
 
 private func disposingEnrollment<T>(_ owner: ContinuityEnrollment, _ body: () throws -> T) throws -> T {
@@ -260,6 +266,9 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
         }
         try owner.finishOpen()
         let original = try owner.status()
+        if mode.hasPrefix("enrollment-policy-") {
+            return try policyEnrollmentCommand(owner, path: path, inputs: inputs, mode: mode)
+        }
         if mode.hasPrefix("enrollment-credential-") {
             return try credentialEnrollmentCommand(owner, inputs: inputs, mode: mode, original: original)
         }
@@ -413,6 +422,81 @@ private func credentialEnrollmentCommand(_ owner: ContinuityEnrollment, inputs: 
             statement: CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32)))
         try require(owner.status() == original, "reconciliation replaced the registration owner")
     default: throw ProbeFailure.contract("unknown credential renewal command")
+    }
+    return renewalText(status)
+}
+
+private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String,
+    inputs: EnrollmentInputs, mode: String) throws -> String {
+    let targetPath = URL(fileURLWithPath: path).appendingPathComponent("continued-sdk").path
+    let target = try EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument()
+    if mode == "enrollment-policy-recover-history" || mode == "enrollment-policy-history-pending" {
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
+        if mode == "enrollment-policy-history-pending" {
+            _ = try expectedEnrollmentFailure(215) {
+                try owner.recoverHistoricalPolicyContinuation(operation: operation, statement: statement, target: target)
+            }
+            _ = try expectedEnrollmentFailure(2) { try owner.status() }
+            return "policy-history-pending"
+        }
+        let status = try owner.recoverHistoricalPolicyContinuation(operation: operation, statement: statement, target: target)
+        guard case .committed = status else { throw ProbeFailure.contract("historical policy result is not Committed") }
+        try require(owner.status().phase == .active, "history changed registration phase")
+        return renewalText(status)
+    }
+    if mode == "enrollment-policy-current-refused" {
+        _ = try expectedEnrollmentFailure(104) { try owner.selectContinuedPolicy(path: targetPath, target: target) }
+        _ = try expectedEnrollmentFailure(2) { try owner.status() }
+        return "policy-expired-current-refused"
+    }
+    try owner.selectContinuedPolicy(path: targetPath, target: target)
+    let status: CredentialRenewalStatus
+    switch mode {
+    case "enrollment-policy-stage", "enrollment-policy-carry-stage":
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let grant = try inputs.read("credential-renewal", maximum: 65536), pin = try inputs.pin(renewal: true)
+        if mode == "enrollment-policy-carry-stage" {
+            status = try owner.stageContinuedCredentialRenewal(grant: grant, pin: pin, operation: operation)
+        } else {
+            let previousPath = URL(fileURLWithPath: path).appendingPathComponent("previous-policy").path
+            let previous = try EnrollmentInputs(records: FixtureRecords(path: previousPath)).policyDocument()
+            let kind = try inputs.exact("policy-predecessor-kind", count: 1)[0]
+            try require(kind <= 1, "policy predecessor kind")
+            let previousT = try kind == 0 ? nil : PolicyContinuationStatementID(bytes: inputs.exact("policy-predecessor-statement", count: 32))
+            status = try owner.stagePolicyContinuation(grant: grant, pin: pin, operation: operation,
+                approvals: inputs.read("policy-approvals", maximum: 7746), previous: previous, previousAuthorization: previousT)
+        }
+        guard case .pending = status else { throw ProbeFailure.contract("policy stage did not retain Pending") }
+    case "enrollment-policy-witness-prepare":
+        let original = try owner.status()
+        let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
+        let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
+        let proposal = try owner.prepareWitnessedPolicyContinuation()
+        try require(proposal == owner.prepareWitnessedPolicyContinuation(), "policy witness preparation changed original target")
+        try require(proposal.bytes.count == 329 && proposal.adoptsPolicy && proposal.operation == operation && proposal.statement == statement,
+            "policy witness proposal differs from original joint operation")
+        try inputs.publish("policy-proposal", proposal.bytes)
+        try require(owner.status() == original, "policy witness preparation changed registration")
+        return "policy-witness-prepared"
+    case "enrollment-policy-witness-commit":
+        let original = try owner.status()
+        status = try owner.commitWitnessedPolicyContinuation(
+            operation: CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32)),
+            statement: CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32)))
+        guard case .committed = status else { throw ProbeFailure.contract("policy witness commit did not report Committed") }
+        try require(owner.status() == original, "policy witness commit changed registration")
+    case "enrollment-policy-reconcile":
+        status = try owner.reconcilePolicyContinuation()
+        guard case .committed = status else { throw ProbeFailure.contract("policy reconciliation did not retain Committed") }
+    case "enrollment-policy-activate":
+        let device = try owner.activatePolicyContinuation()
+        return try disposingEnrollmentDevice(device) {
+            _ = try expectedEnrollmentFailure(2) { try owner.status() }
+            _ = try device.nextAccountOperation()
+            return "policy-device-active"
+        }
+    default: throw ProbeFailure.contract("unknown policy continuation command")
     }
     return renewalText(status)
 }

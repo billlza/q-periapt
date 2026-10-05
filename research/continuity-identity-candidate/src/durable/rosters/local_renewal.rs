@@ -27,9 +27,10 @@ impl<'a> LocalRenewalTarget<'a> {
         &self,
         image: &Image,
         authority: &crate::RetainedInstallationAuthority,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         saved: &Stored,
     ) -> Result<(), DurableError> {
+        let policy = policy.as_ref();
         let required = match image.protection {
             Protection::Local => None,
             Protection::Required {
@@ -43,13 +44,6 @@ impl<'a> LocalRenewalTarget<'a> {
             || self.grant.policy_digest() != authority.policy
         {
             return Err(DurableError::Conflict);
-        }
-        // Joint transactions need exact witness T admission before they can use
-        // required protection. An ordinary head/authority observation is not it.
-        if (self.continuation.is_some() || saved.policy_continuation.is_some())
-            && image.protection != Protection::Local
-        {
-            return Err(DurableError::AnchorRequired);
         }
         if let Some(t) = self.continuation.or(saved.policy_continuation.as_ref()) {
             if t.scope().journal.as_bytes() != &image.id
@@ -183,27 +177,60 @@ impl DeviceJournal {
         now: u64,
         completed: Option<&LocalRenewalCommit>,
     ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
+        let authority = crate::RetainedInstallationAuthority::active_installation(original, policy);
+        self.prepare_enrollment_renewal(
+            &crate::installation::PolicyScope {
+                authority: &authority,
+                original_policy: policy.historical(),
+                local_identity: (original.account_id(), original.device_id()),
+            },
+            &LocalRenewalTarget::credential(grant),
+            policy,
+            now,
+            completed,
+        )
+    }
+    pub(crate) fn prepare_enrollment_renewal(
+        &mut self,
+        scope: &crate::installation::PolicyScope<'_>,
+        target: &LocalRenewalTarget<'_>,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+        completed: Option<&LocalRenewalCommit>,
+    ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
         let result = (|| {
             if policy.anchor_requirement().binding().is_none() {
                 return Err(DurableError::AnchorRequired);
             }
-            let authority =
-                crate::RetainedInstallationAuthority::active_installation(original, policy);
-            let (mut image, saved, receipt) = self.local_renewal_state_with_prior(
-                &authority,
-                &LocalRenewalTarget::credential(grant),
+            let grant = target.grant;
+            self.check_policy(scope.original_policy)?;
+            let (mut image, saved, _) = self.local_renewal_state_with_prior(
+                scope.authority,
+                target,
                 grant.operation(),
                 policy,
                 completed,
             )?;
-            if saved.local_commit.as_ref() != completed {
+            if saved.local_commit.as_ref() != completed
+                || scope.local_identity
+                    != (image.local_account, grant.successor_device().device_id())
+                || scope.original_policy.checkpoint().digest() != scope.authority.policy
+            {
                 return Err(DurableError::Conflict);
+            }
+            if let Some(t) = target.continuation.or(saved.policy_continuation.as_ref()) {
+                t.check_context_policy(scope.original_policy, policy)?;
             }
             self.check_release(&image)?;
             crate::installation::admit(grant.successor_device(), policy, now)?;
-            let mut updated =
-                saved.advance_with_renewal(grant.successor_device().roster(), Some(grant))?;
-            updated.local_commit = Some(receipt);
+            let updated = target.advance(saved)?;
+            let policy_intent = updated.policy_continuation.as_ref().map(|t| {
+                if target.continuation.is_some() {
+                    write_intent::PolicyIntent::Adopt(t.statement_digest())
+                } else {
+                    write_intent::PolicyIntent::Retain(t.statement_digest())
+                }
+            });
             image
                 .records
                 .insert(id(&image.local_account), updated.record()?);
@@ -213,8 +240,11 @@ impl DeviceJournal {
                 active,
                 &image,
                 &sealed,
-                grant.operation(),
-                grant.statement_digest(),
+                write_intent::RenewalBinding {
+                    operation: grant.operation(),
+                    credential: grant.statement_digest(),
+                    policy: policy_intent,
+                },
             )?;
             // Preserve the preparation if authority closes during persistence,
             // but withhold a fresh successful return from that closed runtime.
@@ -244,7 +274,7 @@ impl DeviceJournal {
         authority: &crate::RetainedInstallationAuthority,
         target: &LocalRenewalTarget<'_>,
         operation: CredentialRenewalId,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         completed: Option<&LocalRenewalCommit>,
     ) -> Result<(Image, Stored, LocalRenewalCommit), DurableError> {
         let image = self.image()?;
@@ -265,6 +295,31 @@ impl DeviceJournal {
             target.check_committed(&saved)?;
         }
         Ok((image, saved, receipt))
+    }
+    // A historical continuation caller can finish only an exact existing
+    // receipt. The predecessor or an older completion is not a new commit.
+    pub(crate) fn inspect_committed_local_renewal(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        target: &LocalRenewalTarget<'_>,
+        policy: &crate::HistoricalSessionPolicy,
+        completed: Option<&LocalRenewalCommit>,
+    ) -> Result<LocalRenewalCommit, DurableError> {
+        let (image, saved, receipt) = self.local_renewal_state_with_prior(
+            authority,
+            target,
+            target.grant.operation(),
+            policy,
+            completed,
+        )?;
+        if image.protection != Protection::Local {
+            return Err(DurableError::AnchorRequired);
+        }
+        if saved.local_commit.as_ref() != Some(&receipt) {
+            return Err(DurableError::Suspended);
+        }
+        self.check_release(&image)?;
+        Ok(receipt)
     }
     // Called only by original enrollment while its exact pending intent is held.
     // This publishes historical classification, never operational authority.
@@ -340,6 +395,13 @@ impl DeviceJournal {
             policy,
             None,
         )?;
+        // Only the exact sealed witness transaction may adopt or carry T.
+        // Ordinary Advance cannot establish the witness's policy authority.
+        if image.protection != Protection::Local
+            && (target.continuation.is_some() || saved.policy_continuation.is_some())
+        {
+            return Err(DurableError::AnchorRequired);
+        }
         if saved.local_commit.is_some() {
             self.check_release(&image)?;
             return Ok(receipt);
@@ -458,6 +520,27 @@ impl DeviceJournal {
         {
             return Err(DurableError::Conflict);
         }
+        self.check_release(&image)
+    }
+    pub(crate) fn check_witnessed_policy_completion(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        continuation: &crate::HistoricalPolicyContinuation,
+        completed: &LocalRenewalCommit,
+    ) -> Result<(), DurableError> {
+        let image = self.image()?;
+        let Protection::Required {
+            policy, witness, ..
+        } = image.protection
+        else {
+            return Err(DurableError::AnchorRequired);
+        };
+        authority.check(image.owner, Some((policy, witness)))?;
+        check_terminal_completion(
+            &image,
+            Some(continuation.statement_digest()),
+            Some(completed),
+        )?;
         self.check_release(&image)
     }
     pub(crate) fn check_renewed_local_device(

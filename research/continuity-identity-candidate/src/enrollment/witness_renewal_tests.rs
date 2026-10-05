@@ -9,14 +9,18 @@ use std::{
     sync::{atomic::AtomicU64, Mutex},
     time::Instant,
 };
+#[path = "witness_policy_transaction_tests.rs"]
+mod policy_transaction;
 const JOURNAL: TableDefinition<&str, &[u8]> =
     TableDefinition::new("continuity_device_candidate_v21");
+type ReplyHook = Option<(u8, Box<dyn FnOnce() + Send>)>;
 #[derive(Clone)]
 struct Carrier {
     store: Arc<Mutex<AnchorStore>>,
     clock: Arc<AtomicU64>,
     cut: Arc<Mutex<Option<(u8, bool)>>>,
     requests: Arc<Mutex<Vec<u8>>>,
+    after_reply: Arc<Mutex<ReplyHook>>,
 }
 impl AnchorTransport for Carrier {
     fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
@@ -47,6 +51,20 @@ impl AnchorTransport for Carrier {
             .map_err(|_| io::Error::other("store lock"))?
             .handle(request, self.clock.load(Ordering::SeqCst))
             .map_err(io::Error::other)?;
+        let hook = {
+            let mut hook = self
+                .after_reply
+                .lock()
+                .map_err(|_| io::Error::other("reply hook lock"))?;
+            if hook.as_ref().is_some_and(|(op, _)| *op == opcode) {
+                hook.take()
+            } else {
+                None
+            }
+        };
+        if let Some((_, hook)) = hook {
+            hook();
+        }
         if cut == Some((opcode, true)) {
             return Err(io::ErrorKind::UnexpectedEof.into());
         }
@@ -54,7 +72,7 @@ impl AnchorTransport for Carrier {
     }
 }
 struct Fixture {
-    _witness_dir: tempfile::TempDir,
+    _witness_dir: Arc<tempfile::TempDir>,
     c: Case,
     pin: AnchorPin,
     carrier: Carrier,
@@ -73,6 +91,9 @@ fn client(f: &Fixture, owner: &mut DeviceEnrollment, at: u64) -> AnchorClient {
         .expect("historical original client")
 }
 fn fixture() -> Fixture {
+    fixture_with_policy_expiry(None)
+}
+fn fixture_with_policy_expiry(policy_until: Option<u64>) -> Fixture {
     let dir = directory();
     let root = dir.path().canonicalize().expect("witness directory");
     let store = AnchorStore::provision(
@@ -88,8 +109,20 @@ fn fixture() -> Fixture {
         clock: Arc::new(AtomicU64::new(150)),
         cut: Arc::new(Mutex::new(None)),
         requests: Arc::new(Mutex::new(Vec::new())),
+        after_reply: Arc::new(Mutex::new(None)),
     };
+    fixture_on_witness(Arc::new(dir), pin, carrier, policy_until)
+}
+fn fixture_on_witness(
+    dir: Arc<tempfile::TempDir>,
+    pin: AnchorPin,
+    carrier: Carrier,
+    policy_until: Option<u64>,
+) -> Fixture {
     let mut c = case_with_anchor(crate::AnchorRequirement::required(&pin));
+    if let Some(until) = policy_until {
+        c.policy = super::policy_continuation::policy(&c, 1, until, 150);
+    }
     c.intent.description.validity = Validity::new(100, 160).expect("C0");
     let (mut owner, _, id) = accepted(&c);
     let image = owner.image().expect("image");
@@ -162,6 +195,488 @@ fn prepare(f: &Fixture, proof: &crate::VerifiedCredentialRenewal, at: u64) -> Pr
         .prepare_credential_renewal(proposal, proof, &f.c.policy, at)
         .expect("independent approval");
     proposal
+}
+
+#[test]
+fn witness_store_keeps_policy_t1_across_g2_ack_restart_and_policy_expiry() {
+    use crate::{
+        AnchorCredentialRenewalState as State, AnchorHead, AnchorOperation, AnchorOutcome,
+        AnchorSubject, PolicyContinuationMaterials,
+    };
+    let f = fixture_with_policy_expiry(Some(160));
+    let g1 = grant(&f, &f.original, 2, 180);
+    let p1 = super::policy_continuation::policy(&f.c, 2, 190, 170);
+    let scope = super::policy_continuation::scope(&f.c, &g1, f.id);
+    let t1 = super::policy_continuation::joint(&f.c, &g1, &scope, &f.c.policy, &p1);
+    let materials = PolicyContinuationMaterials {
+        original: f.c.policy.historical(),
+        previous: f.c.policy.historical(),
+        target: &p1,
+        credential: &g1,
+    };
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 170);
+    let subject =
+        AnchorSubject::for_device(f.id, &f.original, &f.c.policy).expect("original subject");
+    let mut exchange = |operation, now| {
+        f.carrier.clock.store(now, Ordering::SeqCst);
+        anchor
+            .exchange(subject, operation)
+            .expect("fresh signed witness observation")
+    };
+    let before = exchange(AnchorOperation::query(), 170).observed_head();
+    // This is a witness-store component test with explicit opaque head
+    // expectations. It does not qualify a sealed journal target or owner release.
+    let target = AnchorHead::from_trusted_state(before.fence(), before.revision() + 1, [81; 32])
+        .expect("store-only target");
+    let first = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g1.operation(),
+        g1.statement_digest(),
+        before,
+        target,
+    )
+    .expect("G1 proposal")
+    .with_policy_continuation(&t1)
+    .expect("exact G1/T1 proposal");
+    assert_eq!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_policy_continuation(first, &t1, &materials, 170)
+            .expect("independent dual approval"),
+        State::Prepared
+    );
+    assert_eq!(
+        exchange(AnchorOperation::commit_credential_renewal(&first), 170)
+            .credential_renewal_state(&first)
+            .expect("exact Apply"),
+        State::Applied
+    );
+    assert_eq!(
+        exchange(AnchorOperation::acknowledge_credential_renewal(&first), 170)
+            .credential_renewal_state(&first)
+            .expect("ACK"),
+        State::Acknowledged
+    );
+    let g2 = grant(&f, g1.successor_device(), 3, 195);
+    let target2 = AnchorHead::from_trusted_state(target.fence(), target.revision() + 1, [82; 32])
+        .expect("second store-only target");
+    let second = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g2.operation(),
+        g2.statement_digest(),
+        target,
+        target2,
+    )
+    .expect("G2 proposal")
+    .with_retained_policy_continuation(&t1.historical())
+    .expect("G2 preserves T1");
+    assert!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_credential_renewal(second, &g2, &f.c.policy, 170)
+            .is_err(),
+        "P0 cannot authorize another write after T1"
+    );
+    assert_eq!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_continued_credential_renewal(second, &g2, f.c.policy.historical(), &p1, 170)
+            .expect("G2 under current T1/P1"),
+        State::Prepared
+    );
+    assert_eq!(
+        exchange(AnchorOperation::commit_credential_renewal(&second), 170)
+            .credential_renewal_state(&second)
+            .expect("G2 Apply"),
+        State::Applied
+    );
+    assert_eq!(
+        exchange(
+            AnchorOperation::acknowledge_credential_renewal(&second),
+            170
+        )
+        .credential_renewal_state(&second)
+        .expect("G2 ACK"),
+        State::Acknowledged
+    );
+    let advance = AnchorOperation::advance(target2, [83; 32]).expect("ordinary next head");
+    let advanced = exchange(advance, 175)
+        .applied_head()
+        .expect("ordinary update retains T");
+    {
+        let mut store = f.carrier.store.lock().expect("store");
+        store.close();
+        let dir = f
+            ._witness_dir
+            .path()
+            .canonicalize()
+            .expect("original canonical witness path");
+        *store = AnchorStore::open(
+            &dir.join("witness.redb"),
+            JournalKey::open(&dir.join("witness.key")).expect("original wrapping"),
+            crate::AnchorSigningKey::deterministic([226; 32], [227; 32]).expect("original signer"),
+            f.pin.identity(),
+        )
+        .expect("same independent witness storage");
+    }
+    let current = g2.successor_device().authority_binding();
+    for (g, t, expected) in [
+        (
+            g2.statement_digest(),
+            t1.statement_digest(),
+            AnchorOutcome::AuthorityCurrent,
+        ),
+        (
+            g1.statement_digest(),
+            t1.statement_digest(),
+            AnchorOutcome::AuthorityDenied,
+        ),
+        (
+            g2.statement_digest(),
+            g2.statement_digest(),
+            AnchorOutcome::AuthorityDenied,
+        ),
+    ] {
+        let op = AnchorOperation::admit_continuation(current, g, t).expect("exact admission");
+        assert_eq!(op.to_bytes().len(), 97);
+        assert_eq!(
+            AnchorOperation::from_trusted_state(&op.to_bytes()).expect("canonical operation"),
+            op
+        );
+        let reply = exchange(op, 175);
+        assert_eq!(reply.observed_head(), advanced);
+        assert_eq!(reply.outcome(), expected);
+    }
+    assert_eq!(
+        exchange(
+            AnchorOperation::admit_authority(current).expect("old account-only request"),
+            175
+        )
+        .outcome(),
+        AnchorOutcome::AuthorityDenied
+    );
+    // Closing T2 consumes both attempted versions, but does not adopt T2 or
+    // erase T1. A distinct later G must still work under T1/P1.
+    let p2 = super::policy_continuation::policy(&f.c, 3, 195, 170);
+    let g3 = grant(&f, g2.successor_device(), 4, 199);
+    let mut scope3 = super::policy_continuation::scope(&f.c, &g3, f.id);
+    scope3.previous_policy = p1.checkpoint();
+    scope3.previous_authorization = Some(t1.statement_digest());
+    let t2 = super::policy_continuation::joint(&f.c, &g3, &scope3, &p1, &p2);
+    let closed_target =
+        AnchorHead::from_trusted_state(advanced.fence(), advanced.revision() + 1, [84; 32])
+            .expect("closed target expectation");
+    let third = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g3.operation(),
+        g3.statement_digest(),
+        advanced,
+        closed_target,
+    )
+    .expect("G3")
+    .with_policy_continuation(&t2)
+    .expect("T2");
+    let second_policy = PolicyContinuationMaterials {
+        original: f.c.policy.historical(),
+        previous: p1.historical(),
+        target: &p2,
+        credential: &g3,
+    };
+    assert_eq!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_policy_continuation(third, &t2, &second_policy, 175)
+            .expect("T2 preparation"),
+        State::Prepared
+    );
+    assert_eq!(
+        exchange(AnchorOperation::close_credential_renewal(&third), 175)
+            .credential_renewal_state(&third)
+            .expect("close T2"),
+        State::Closed
+    );
+    assert_eq!(
+        exchange(AnchorOperation::acknowledge_credential_renewal(&third), 175)
+            .credential_renewal_state(&third)
+            .expect("ACK closed T2"),
+        State::Acknowledged
+    );
+    assert!(
+        matches!(
+            f.carrier
+                .store
+                .lock()
+                .expect("store")
+                .prepare_policy_continuation(third, &t2, &second_policy, 175),
+            Err(DurableError::Protocol(Error::Retired))
+        ),
+        "the original closed G3/T2 is retired, not a new attempt"
+    );
+    let g4 = grant(&f, g2.successor_device(), 5, 199);
+    let next_head =
+        AnchorHead::from_trusted_state(advanced.fence(), advanced.revision() + 1, [85; 32])
+            .expect("later G-only target");
+    let fourth = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g4.operation(),
+        g4.statement_digest(),
+        advanced,
+        next_head,
+    )
+    .expect("independent G4")
+    .with_retained_policy_continuation(&t1.historical())
+    .expect("still T1");
+    assert_eq!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_continued_credential_renewal(fourth, &g4, f.c.policy.historical(), &p1, 175)
+            .expect("new G4 despite higher closed-policy floor"),
+        State::Prepared
+    );
+    assert_eq!(
+        exchange(AnchorOperation::commit_credential_renewal(&fourth), 175)
+            .credential_renewal_state(&fourth)
+            .expect("Apply G4"),
+        State::Applied
+    );
+    assert_eq!(
+        exchange(
+            AnchorOperation::acknowledge_credential_renewal(&fourth),
+            175
+        )
+        .credential_renewal_state(&fourth)
+        .expect("ACK G4"),
+        State::Acknowledged
+    );
+    let current = g4.successor_device().authority_binding();
+    assert_eq!(
+        exchange(
+            AnchorOperation::admit_continuation(
+                current,
+                g4.statement_digest(),
+                t1.statement_digest()
+            )
+            .expect("G4/T1 current"),
+            175
+        )
+        .outcome(),
+        AnchorOutcome::AuthorityCurrent
+    );
+    let g5 = grant(&f, g4.successor_device(), 6, 200);
+    let mut scope5 = super::policy_continuation::scope(&f.c, &g5, f.id);
+    scope5.previous_policy = p1.checkpoint();
+    scope5.previous_authorization = Some(t1.statement_digest());
+    let replayed_version = super::policy_continuation::joint(&f.c, &g5, &scope5, &p1, &p2);
+    let fifth = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g5.operation(),
+        g5.statement_digest(),
+        next_head,
+        AnchorHead::from_trusted_state(next_head.fence(), next_head.revision() + 1, [86; 32])
+            .expect("new target"),
+    )
+    .expect("new G5")
+    .with_policy_continuation(&replayed_version)
+    .expect("new valid approval of retired P2 version");
+    let replayed_materials = PolicyContinuationMaterials {
+        credential: &g5,
+        ..second_policy
+    };
+    assert!(
+        matches!(
+            f.carrier
+                .store
+                .lock()
+                .expect("store")
+                .prepare_policy_continuation(fifth, &replayed_version, &replayed_materials, 175),
+            Err(DurableError::Conflict)
+        ),
+        "a newer G cannot reset the independently retired policy version"
+    );
+    g4.successor_device()
+        .roster()
+        .authorize_device(g4.successor_device(), 191)
+        .expect("latest credential remains live after P1 expiry");
+    assert_eq!(
+        exchange(
+            AnchorOperation::admit_continuation(
+                current,
+                g4.statement_digest(),
+                t1.statement_digest()
+            )
+            .expect("same current G4/T1"),
+            191
+        )
+        .outcome(),
+        AnchorOutcome::AuthorityDenied
+    );
+    assert_eq!(
+        exchange(AnchorOperation::query(), 191).observed_head(),
+        next_head,
+        "historical observation does not extend T validity"
+    );
+}
+
+#[test]
+fn adopted_policy_roster_refresh_refuses_live_p0_and_preserves_p1_for_next_g() {
+    use crate::{
+        AnchorCredentialRenewalState as State, AnchorHead, AnchorOperation, AnchorSubject,
+        PolicyContinuationMaterials,
+    };
+    let f = fixture_with_policy_expiry(Some(180));
+    let g = grant(&f, &f.original, 2, 185);
+    let p1 = super::policy_continuation::policy(&f.c, 2, 190, 170);
+    let t = super::policy_continuation::joint(
+        &f.c,
+        &g,
+        &super::policy_continuation::scope(&f.c, &g, f.id),
+        &f.c.policy,
+        &p1,
+    );
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 170);
+    let subject =
+        AnchorSubject::for_device(f.id, &f.original, &f.c.policy).expect("original subject");
+    f.carrier.clock.store(170, Ordering::SeqCst);
+    let before = anchor
+        .exchange(subject, AnchorOperation::query())
+        .expect("observed head")
+        .observed_head();
+    let target = AnchorHead::from_trusted_state(before.fence(), before.revision() + 1, [84; 32])
+        .expect("opaque component target");
+    let proposal = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g.operation(),
+        g.statement_digest(),
+        before,
+        target,
+    )
+    .expect("original G")
+    .with_policy_continuation(&t)
+    .expect("exact T");
+    let materials = PolicyContinuationMaterials {
+        original: f.c.policy.historical(),
+        previous: f.c.policy.historical(),
+        target: &p1,
+        credential: &g,
+    };
+    f.carrier
+        .store
+        .lock()
+        .expect("store")
+        .prepare_policy_continuation(proposal, &t, &materials, 170)
+        .expect("prepare T1");
+    assert_eq!(
+        anchor
+            .exchange(
+                subject,
+                AnchorOperation::commit_credential_renewal(&proposal)
+            )
+            .expect("Apply")
+            .credential_renewal_state(&proposal)
+            .expect("exact Apply"),
+        State::Applied
+    );
+    anchor
+        .exchange(
+            subject,
+            AnchorOperation::acknowledge_credential_renewal(&proposal),
+        )
+        .expect("ACK");
+    let certificate =
+        f.c.root
+            .issue_device(
+                g.successor_device().description.clone(),
+                g.successor_device().key.clone(),
+            )
+            .expect("same C1");
+    let roster =
+        f.c.root
+            .issue_roster(
+                3,
+                Validity::new(100, 200).expect("roster interval"),
+                &[f.c.root.roster_entry(&certificate).expect("member")],
+            )
+            .expect("new R3");
+    let pin = AccountPin::new(
+        f.original.account_id(),
+        f.c.root.public_key().expect("root"),
+        roster.checkpoint(),
+        f.c.policy.family(),
+    )
+    .expect("independent R3");
+    let refreshed = pin
+        .verify_device(&certificate, roster.as_bytes(), 170)
+        .expect("current C1/R3");
+    f.c.policy
+        .check_device(&refreshed, 170)
+        .expect("P0 is still individually live");
+    assert!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .update_roster_authority(
+                subject,
+                g.successor_device().roster().checkpoint(),
+                &refreshed,
+                &f.c.policy,
+                170
+            )
+            .is_err(),
+        "superseded live P0 must not rewrite the adopted P1 validity"
+    );
+    f.carrier
+        .store
+        .lock()
+        .expect("store")
+        .update_roster_authority(
+            subject,
+            g.successor_device().roster().checkpoint(),
+            &refreshed,
+            &p1,
+            170,
+        )
+        .expect("current P1 roster refresh");
+    let g2 = grant(&f, &refreshed, 4, 195);
+    let next = Proposal::from_journal(
+        f.pin.binding(),
+        subject,
+        g2.operation(),
+        g2.statement_digest(),
+        target,
+        AnchorHead::from_trusted_state(target.fence(), target.revision() + 1, [85; 32])
+            .expect("next opaque target"),
+    )
+    .expect("next G")
+    .with_retained_policy_continuation(&t.historical())
+    .expect("retain T1");
+    assert_eq!(
+        f.carrier
+            .store
+            .lock()
+            .expect("store")
+            .prepare_continued_credential_renewal(next, &g2, f.c.policy.historical(), &p1, 170)
+            .expect("refreshed P1 predecessor remains valid"),
+        State::Prepared
+    );
 }
 fn disk(f: &Fixture) -> (Vec<u8>, Option<Vec<u8>>) {
     let db = open_private_database(f.c.paths.installation.files()[1]).expect("journal");
@@ -913,6 +1428,7 @@ fn real_process_kills_recover_original_enrollment_at_each_cross_store_boundary()
                 clock: Arc::new(AtomicU64::new(250)),
                 cut: Arc::new(Mutex::new(None)),
                 requests: Arc::new(Mutex::new(Vec::new())),
+                after_reply: Arc::new(Mutex::new(None)),
             };
             let wire = fs::read(root.join("proposal")).expect("original intent");
             let proposal = if mode == "2" {

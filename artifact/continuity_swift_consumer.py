@@ -70,7 +70,11 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "CredentialRenewalTests.testRenewalStatusPreservesHistoricalBindingAndRejectsMalformedCombinations",
              "CredentialRenewalTests.testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads",
              "CredentialRenewalTests.testCancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead",
-             "CredentialRenewalTests.testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths"}
+             "CredentialRenewalTests.testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths",
+             "PolicyContinuationTests.testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout",
+             "PolicyContinuationTests.testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode",
+             "PolicyContinuationTests.testExtendedMetadataRejectsInvalidModeTVersionAndWidth",
+             "PolicyContinuationTests.testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests

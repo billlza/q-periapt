@@ -5,6 +5,50 @@ use crate::{
     DeviceSigningKey,
 };
 
+#[test]
+fn historical_joint_approvals_verify_after_runtime_close_without_weakening_scope_or_roots() {
+    let c = Case::new();
+    let (a, p) = c.approvals();
+    let verified = VerifiedPolicyContinuation::verify(&a, &p, &c.scope, &c.materials(), 170)
+        .expect("current original approval");
+    let wire = verified.as_bytes().to_vec();
+    let changed = c.target_policy(3, 195, 3);
+    c.target.close();
+    c.runtime.close();
+    let materials = c.materials().historical();
+    let historical = HistoricalPolicyContinuation::from_bytes(&wire, &c.scope, &materials)
+        .expect("authentic historical relation without live runtime");
+    assert_eq!(historical.statement_digest(), verified.statement_digest());
+    assert_eq!(
+        historical.credential_statement(),
+        c.grant.statement_digest()
+    );
+    assert_eq!(historical.as_bytes(), wire);
+    assert!(VerifiedPolicyContinuation::from_bytes(&wire, &c.scope, &c.materials(), 250).is_err());
+    let mismatched = HistoricalPolicyContinuationMaterials {
+        target: changed.historical(),
+        ..materials
+    };
+    assert!(HistoricalPolicyContinuation::from_bytes(&wire, &c.scope, &mismatched).is_err());
+    let materials = c.materials().historical();
+    let mut wrong_scope = c.scope.clone();
+    wrong_scope.journal = crate::JournalIdentity::generate().expect("other journal");
+    assert!(HistoricalPolicyContinuation::from_bytes(&wire, &wrong_scope, &materials).is_err());
+    for index in [0, 8, wire.len() / 2, wire.len() - 1] {
+        let mut corrupt = wire.clone();
+        *corrupt.get_mut(index).expect("field") ^= 1;
+        assert!(HistoricalPolicyContinuation::from_bytes(&corrupt, &c.scope, &materials).is_err());
+    }
+    for size in [0, 8, wire.len() - 1] {
+        assert!(HistoricalPolicyContinuation::from_bytes(
+            wire.get(..size).expect("prefix"),
+            &c.scope,
+            &materials
+        )
+        .is_err());
+    }
+}
+
 pub(crate) struct Case {
     pub(crate) account: RootSigningKey,
     issuer: PolicySigningKey,
@@ -218,6 +262,108 @@ fn joint_authorization_after_both_expiries_preserves_exact_original_bindings() {
             now
         )
         .is_err());
+    }
+}
+
+#[test]
+fn witness_proposal_binds_g_and_t_independently_without_aliasing_legacy_requests() {
+    use crate::{AnchorCredentialRenewalProposal, AnchorHead, AnchorOperation, AnchorSubject};
+    let c = Case::new();
+    let (a, p) = c.approvals();
+    let t1 = VerifiedPolicyContinuation::verify(&a, &p, &c.scope, &c.materials(), 170)
+        .expect("real independent T1 approvals");
+    let p2 = c.target_policy(3, 195, 3);
+    let materials = PolicyContinuationMaterials {
+        target: &p2,
+        ..c.materials()
+    };
+    let s = PolicyContinuationStatement::new(&c.scope, &materials, 170).expect("alternative T2");
+    let a2 = c
+        .account
+        .approve_policy_continuation(&s)
+        .expect("account T2");
+    let p2 = c.issuer.approve_policy_continuation(&s).expect("policy T2");
+    let t2 = VerifiedPolicyContinuation::verify(&a2, &p2, &c.scope, &materials, 170)
+        .expect("authentic different target under same G");
+    // These heads are wire expectations only, not an actual journal commit.
+    let g = AnchorCredentialRenewalProposal::from_journal(
+        [91; 32],
+        AnchorSubject::for_device(c.scope.journal, c.grant.previous_device(), &c.old)
+            .expect("original immutable subject"),
+        c.grant.operation(),
+        c.grant.statement_digest(),
+        AnchorHead::from_trusted_state(1, 1, [92; 32]).expect("before"),
+        AnchorHead::from_trusted_state(1, 2, [93; 32]).expect("after"),
+    )
+    .expect("exact G expectation");
+    let p1 = g.with_policy_continuation(&t1).expect("G and T1");
+    let p2 = g.with_policy_continuation(&t2).expect("G and T2");
+    let carry = g
+        .with_retained_policy_continuation(&t1.historical())
+        .expect("carry expectation");
+    assert_ne!(
+        p1.binding(),
+        carry.binding(),
+        "adopting T and retaining T must not alias a recovery transaction"
+    );
+    assert!(p1.adopts_policy());
+    assert!(!carry.adopts_policy());
+    assert_eq!(p1.transaction_statement(), t1.statement_digest());
+    assert_eq!(carry.transaction_statement(), g.statement());
+    assert!(carry.with_policy_continuation(&t1).is_err());
+    assert!(p1
+        .with_retained_policy_continuation(&t1.historical())
+        .is_err());
+    assert_eq!(g.to_bytes().len(), 296);
+    assert_eq!(p1.to_bytes().len(), 329);
+    assert_eq!(g.statement(), p1.statement());
+    assert_eq!(p1.statement(), p2.statement());
+    assert_eq!(p1.target_head(), p2.target_head());
+    assert_eq!(p1.policy_continuation(), Some(t1.statement_digest()));
+    assert_eq!(p2.policy_continuation(), Some(t2.statement_digest()));
+    assert_ne!(g.binding(), p1.binding());
+    assert_ne!(p1.binding(), p2.binding());
+    assert_ne!(
+        AnchorOperation::commit_credential_renewal(&p1).to_bytes(),
+        AnchorOperation::commit_credential_renewal(&p2).to_bytes()
+    );
+    assert!(p1.with_policy_continuation(&t2).is_err());
+    assert_eq!(p1.with_policy_continuation(&t1).expect("exact repeat"), p1);
+    for proposal in [g, p1, p2, carry] {
+        assert_eq!(
+            AnchorCredentialRenewalProposal::from_trusted_state(&proposal.to_bytes())
+                .expect("exact restored public expectation"),
+            proposal
+        );
+    }
+    let bytes = p1.to_bytes();
+    for end in 0..bytes.len() {
+        assert!(AnchorCredentialRenewalProposal::from_trusted_state(
+            bytes.get(..end).expect("proper prefix")
+        )
+        .is_err());
+    }
+    let mut trailing = bytes.clone();
+    trailing.push(0);
+    assert!(AnchorCredentialRenewalProposal::from_trusted_state(&trailing).is_err());
+    let mut zero = bytes.clone();
+    zero.get_mut(297..).expect("T field").fill(0);
+    assert!(AnchorCredentialRenewalProposal::from_trusted_state(&zero).is_err());
+    let mut bad_mode = bytes.clone();
+    *bad_mode.get_mut(296).expect("transition tag") = 2;
+    assert!(AnchorCredentialRenewalProposal::from_trusted_state(&bad_mode).is_err());
+    let mut legacy_tag = bytes;
+    legacy_tag
+        .get_mut(..8)
+        .expect("version tag")
+        .copy_from_slice(b"QPCRNP01");
+    assert!(AnchorCredentialRenewalProposal::from_trusted_state(&legacy_tag).is_err());
+    for offset in [40, 72, 104, 136, 168] {
+        let mut changed = g.to_bytes();
+        *changed.get_mut(offset).expect("selected binding") ^= 1;
+        let changed = AnchorCredentialRenewalProposal::from_trusted_state(&changed)
+            .expect("different well-formed scope");
+        assert!(changed.with_policy_continuation(&t1).is_err());
     }
 }
 

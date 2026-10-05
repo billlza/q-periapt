@@ -3,6 +3,7 @@
 use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
+mod policy;
 
 #[repr(C)]
 pub struct Intent {
@@ -191,6 +192,7 @@ pub(crate) struct Owner {
     // Not loaded until an operation requires a live SDK/protocol policy.
     // Phase inspection and original request creation do not require TLS files.
     authority: Option<device::PolicyAuthority>,
+    target_authority: Option<device::PolicyAuthority>,
     historical: Option<p::HistoricalSessionPolicy>,
     witness: Option<witness::Configuration>,
 }
@@ -220,6 +222,7 @@ impl Owner {
             enrollment,
             family: approved.family,
             authority: None,
+            target_authority: None,
             historical: None,
             witness,
         };

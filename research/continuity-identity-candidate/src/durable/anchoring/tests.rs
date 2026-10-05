@@ -2235,8 +2235,11 @@ mod credential_preparation {
                 assert_eq!(target.owner, old.owner);
                 rosters::check_credential_renewal_intent(
                     &target,
-                    grant.operation(),
-                    grant.statement_digest(),
+                    write_intent::RenewalBinding {
+                        operation: grant.operation(),
+                        credential: grant.statement_digest(),
+                        policy: None,
+                    },
                 )
                 .expect("same root operation in sealed target");
             }

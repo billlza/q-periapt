@@ -179,6 +179,8 @@ pub struct AnchorCredentialRenewalProposal {
     statement: [u8; 32],
     expected: AnchorHead,
     target: AnchorHead,
+    continuation: Option<[u8; 32]>,
+    adopts_policy: bool,
 }
 impl AnchorCredentialRenewalProposal {
     pub(crate) fn from_journal(
@@ -196,25 +198,36 @@ impl AnchorCredentialRenewalProposal {
             statement,
             expected,
             target,
+            continuation: None,
+            adopts_policy: false,
         };
         Self::from_trusted_state(&value.to_bytes())
     }
     /// Canonical public metadata for authenticated retention and explicit approval.
     pub fn to_bytes(self) -> Vec<u8> {
-        let mut bytes = b"QPCRNP01".to_vec();
+        let mut bytes = if self.continuation.is_some() {
+            b"QPCRNP02".to_vec()
+        } else {
+            b"QPCRNP01".to_vec()
+        };
         bytes.extend_from_slice(&self.witness);
         self.subject.encode(&mut bytes);
         bytes.extend_from_slice(self.operation.as_bytes());
         bytes.extend_from_slice(&self.statement);
         self.expected.encode(&mut bytes);
         self.target.encode(&mut bytes);
+        if let Some(statement) = self.continuation {
+            bytes.push(u8::from(self.adopts_policy));
+            bytes.extend_from_slice(&statement);
+        }
         bytes
     }
     /// Restore exact expected metadata, never a remote-selected authorization.
     /// The witness must independently compare its actual state and root grant.
     pub fn from_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPCRNP01" {
+        let version = d.array::<8>()?;
+        if version != *b"QPCRNP01" && version != *b"QPCRNP02" {
             return Err(Error::Encoding);
         }
         let witness = d.array()?;
@@ -225,6 +238,18 @@ impl AnchorCredentialRenewalProposal {
         nonzero(&statement)?;
         let expected = AnchorHead::decode(&mut d)?;
         let target = AnchorHead::decode(&mut d)?;
+        let (continuation, adopts_policy) = if version == *b"QPCRNP02" {
+            let adopts = match d.array::<1>()? {
+                [0] => false,
+                [1] => true,
+                _ => return Err(Error::Encoding),
+            };
+            let statement = d.array()?;
+            nonzero(&statement)?;
+            (Some(statement), adopts)
+        } else {
+            (None, false)
+        };
         d.finish()?;
         let Command::Advance(_, next) = AnchorOperation::advance(expected, target.digest)?.0 else {
             return Err(Error::State);
@@ -239,7 +264,86 @@ impl AnchorCredentialRenewalProposal {
             statement,
             expected,
             target,
+            continuation,
+            adopts_policy,
         })
+    }
+    /// Bind an independently approved policy continuation to this exact G and
+    /// original journal subject. This constructs public expectations only; it
+    /// neither changes the sealed target nor proves that a witness adopted T.
+    pub fn with_policy_continuation(
+        self,
+        continuation: &crate::VerifiedPolicyContinuation,
+    ) -> Result<Self, Error> {
+        let scope = continuation.scope();
+        if self.operation != scope.operation
+            || self.statement != continuation.credential_statement()
+            || self.subject.journal != *scope.journal.as_bytes()
+            || self.subject.owner != scope.original_owner
+            || self.subject.policy != scope.original_policy.digest()
+            || self
+                .continuation
+                .is_some_and(|s| s != continuation.statement_digest() || !self.adopts_policy)
+        {
+            return Err(Error::Scope);
+        }
+        self.bind_policy_expectation(continuation.statement_digest(), true)
+    }
+    /// Independently bound target policy authorization, separate from G's
+    /// statement. Absence explicitly denotes the original credential-only wire.
+    pub fn policy_continuation(self) -> Option<[u8; 32]> {
+        self.continuation
+    }
+    /// Whether this transaction adopts a new T or only carries the existing T.
+    pub fn adopts_policy(self) -> bool {
+        self.adopts_policy
+    }
+    /// Exact enrollment completion statement: T for adoption, G for G-only
+    /// renewal. The complete proposal always binds both relevant authorities.
+    pub fn transaction_statement(self) -> [u8; 32] {
+        match self.continuation {
+            Some(statement) if self.adopts_policy => statement,
+            _ => self.statement,
+        }
+    }
+    /// Carry the expected already-adopted T through a later G-only transaction.
+    /// This history is not adoption or current permission; the witness must
+    /// match its independently retained T and require the actual current P1.
+    pub fn with_retained_policy_continuation(
+        self,
+        continuation: &crate::HistoricalPolicyContinuation,
+    ) -> Result<Self, Error> {
+        let scope = continuation.scope();
+        let statement = continuation.statement_digest();
+        if self.subject.journal != *scope.journal.as_bytes()
+            || self.subject.owner != scope.original_owner
+            || self.subject.policy != scope.original_policy.digest()
+            || self
+                .continuation
+                .is_some_and(|s| s != statement || self.adopts_policy)
+        {
+            return Err(Error::Scope);
+        }
+        self.bind_policy_expectation(statement, false)
+    }
+    // Reconstruct only public expected metadata from an authenticated journal
+    // intent whose exact sealed target has already verified the complete G/T.
+    // Like from_trusted_state, this does not supply witness/current authority.
+    pub(crate) fn bind_policy_expectation(
+        mut self,
+        statement: [u8; 32],
+        adopts: bool,
+    ) -> Result<Self, Error> {
+        nonzero(&statement)?;
+        if self
+            .continuation
+            .is_some_and(|s| s != statement || self.adopts_policy != adopts)
+        {
+            return Err(Error::Scope);
+        }
+        self.continuation = Some(statement);
+        self.adopts_policy = adopts;
+        Ok(self)
     }
     /// Pinned witness instance/key binding from the protected journal policy.
     pub fn witness_binding(self) -> [u8; 32] {
@@ -281,13 +385,16 @@ pub struct AnchorCredentialRenewalCancellation {
     operation: crate::CredentialRenewalId,
     statement: [u8; 32],
     expected: AnchorHead,
+    continuation: Option<[u8; 32]>,
+    adopts_policy: bool,
 }
 impl AnchorCredentialRenewalCancellation {
     /// Restore independently retained metadata, never a remote-selected authority.
     /// The control plane must compare the exact authenticated grant and real slot.
     pub fn from_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPCRNC01" {
+        let tag = d.array::<8>()?;
+        if tag != *b"QPCRNC01" && tag != *b"QPCRNC02" {
             return Err(Error::Encoding);
         }
         let witness = d.array()?;
@@ -297,6 +404,17 @@ impl AnchorCredentialRenewalCancellation {
         let statement = d.array()?;
         nonzero(&statement)?;
         let expected = AnchorHead::decode(&mut d)?;
+        let (continuation, adopts_policy) = if tag == *b"QPCRNC02" {
+            let [mode] = d.array()?;
+            if mode > 1 {
+                return Err(Error::Encoding);
+            }
+            let statement = d.array()?;
+            nonzero(&statement)?;
+            (Some(statement), mode == 1)
+        } else {
+            (None, false)
+        };
         d.finish()?;
         Ok(Self {
             witness,
@@ -304,17 +422,87 @@ impl AnchorCredentialRenewalCancellation {
             operation,
             statement,
             expected,
+            continuation,
+            adopts_policy,
         })
     }
-    /// Canonical 248-byte metadata with no target head or target image digest.
+    /// Canonical metadata without a target head/image: 248 bytes for G alone,
+    /// 281 bytes when independently binding T and adopt/carry mode.
     pub fn to_bytes(self) -> Vec<u8> {
-        let mut bytes = b"QPCRNC01".to_vec();
+        let mut bytes = if self.continuation.is_some() {
+            b"QPCRNC02"
+        } else {
+            b"QPCRNC01"
+        }
+        .to_vec();
         bytes.extend_from_slice(&self.witness);
         self.subject.encode(&mut bytes);
         bytes.extend_from_slice(self.operation.as_bytes());
         bytes.extend_from_slice(&self.statement);
         self.expected.encode(&mut bytes);
+        if let Some(statement) = self.continuation {
+            bytes.push(u8::from(self.adopts_policy));
+            bytes.extend_from_slice(&statement);
+        }
         bytes
+    }
+    /// Bind a signed historical T to a request to close its exact G/T operation.
+    /// This is public metadata, not a witness Closed receipt or current authority.
+    pub fn with_policy_continuation(
+        self,
+        continuation: &crate::HistoricalPolicyContinuation,
+    ) -> Result<Self, Error> {
+        if self.operation != continuation.scope().operation
+            || self.statement != continuation.credential_statement()
+        {
+            return Err(Error::Scope);
+        }
+        self.with_policy_expectation(continuation, true)
+    }
+    /// Explicitly retain the already-adopted T while cancelling a later G.
+    pub fn with_retained_policy_continuation(
+        self,
+        continuation: &crate::HistoricalPolicyContinuation,
+    ) -> Result<Self, Error> {
+        if self.operation == continuation.scope().operation {
+            return Err(Error::Scope);
+        }
+        self.with_policy_expectation(continuation, false)
+    }
+    fn with_policy_expectation(
+        mut self,
+        continuation: &crate::HistoricalPolicyContinuation,
+        adopts: bool,
+    ) -> Result<Self, Error> {
+        let scope = continuation.scope();
+        let statement = continuation.statement_digest();
+        if self.subject.journal != *scope.journal.as_bytes()
+            || self.subject.owner != scope.original_owner
+            || self.subject.policy != scope.original_policy.digest()
+            || self
+                .continuation
+                .is_some_and(|s| s != statement || self.adopts_policy != adopts)
+        {
+            return Err(Error::Scope);
+        }
+        self.continuation = Some(statement);
+        self.adopts_policy = adopts;
+        Ok(self)
+    }
+    /// Independently bound policy authorization, absent on the original grammar.
+    pub fn policy_continuation(self) -> Option<[u8; 32]> {
+        self.continuation
+    }
+    /// Whether the cancelled target would adopt a new T.
+    pub fn adopts_policy(self) -> bool {
+        self.adopts_policy
+    }
+    /// Original enrollment operation statement: T for adoption, G for carry.
+    pub fn transaction_statement(self) -> [u8; 32] {
+        match self.continuation {
+            Some(t) if self.adopts_policy => t,
+            _ => self.statement,
+        }
     }
     /// Independently pinned witness identity/key binding.
     pub fn witness_binding(self) -> [u8; 32] {
@@ -349,6 +537,7 @@ impl AnchorCredentialRenewalCancellation {
 enum Command {
     Query,
     AdmitAuthority([u8; 32]),
+    AdmitContinuation([u8; 32], [u8; 32], [u8; 32]),
     CredentialCommit([u8; 32]),
     CredentialStatus([u8; 32]),
     CredentialClose([u8; 32]),
@@ -385,6 +574,22 @@ impl AnchorOperation {
     pub fn admit_authority(expected: [u8; 32]) -> Result<Self, Error> {
         nonzero(&expected)?;
         Ok(Self(Command::AdmitAuthority(expected)))
+    }
+    /// Fresh observation of exact account authority, current G and independent T.
+    /// Callers must also compare the signed head and admit their current P1.
+    pub fn admit_continuation(
+        authority: [u8; 32],
+        credential: [u8; 32],
+        continuation: [u8; 32],
+    ) -> Result<Self, Error> {
+        for value in [authority, credential, continuation] {
+            nonzero(&value)?;
+        }
+        Ok(Self(Command::AdmitContinuation(
+            authority,
+            credential,
+            continuation,
+        )))
     }
     /// Apply only the independently prepared exact joint head/credential target.
     pub fn commit_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
@@ -452,6 +657,12 @@ impl AnchorOperation {
     }
     fn encode(self, out: &mut Vec<u8>) {
         match self.0 {
+            Command::AdmitContinuation(authority, credential, continuation) => {
+                out.push(10);
+                out.extend_from_slice(&authority);
+                out.extend_from_slice(&credential);
+                out.extend_from_slice(&continuation);
+            }
             Command::Query => {
                 out.push(1);
                 out.extend_from_slice(&[0; 96]);
@@ -484,6 +695,9 @@ impl AnchorOperation {
     }
     fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
         let [kind] = d.array()?;
+        if kind == 10 {
+            return Self::admit_continuation(d.array()?, d.array()?, d.array()?);
+        }
         if kind == 1 {
             if d.take(96)?.iter().any(|byte| *byte != 0) {
                 return Err(Error::Encoding);
@@ -521,6 +735,7 @@ impl AnchorOperation {
         match self.0 {
             Command::Query
             | Command::AdmitAuthority(_)
+            | Command::AdmitContinuation(..)
             | Command::CredentialCommit(_)
             | Command::CredentialStatus(_)
             | Command::CredentialClose(_)
@@ -607,7 +822,7 @@ impl AnchorPin {
         match (request.operation.0, outcome) {
             (Command::Query, AnchorOutcome::Current) => {}
             (
-                Command::AdmitAuthority(_),
+                Command::AdmitAuthority(_) | Command::AdmitContinuation(..),
                 AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
             ) => {}
             (

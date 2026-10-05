@@ -7,11 +7,42 @@ use sha2::Sha256;
 
 const INTENT_HEADER: usize = 8 + 32 + 32 + 8 + 32 + 8 + 32 + 4;
 const MAX_TARGET: usize = HEADER + MAX_IMAGE + 16;
-const RENEWAL_BINDING_BYTES: usize = 64;
+const MAX_RENEWAL_BINDING_BYTES: usize = 97;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum PolicyIntent {
+    Adopt([u8; 32]),
+    Retain([u8; 32]),
+}
+impl PolicyIntent {
+    pub(super) fn statement(self) -> [u8; 32] {
+        match self {
+            Self::Adopt(s) | Self::Retain(s) => s,
+        }
+    }
+    pub(super) fn adopts(self) -> bool {
+        matches!(self, Self::Adopt(_))
+    }
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct RenewalBinding {
+    pub(super) operation: crate::CredentialRenewalId,
+    pub(super) credential: [u8; 32],
+    pub(super) policy: Option<PolicyIntent>,
+}
+impl RenewalBinding {
+    pub(super) fn transaction_statement(self) -> [u8; 32] {
+        match self.policy {
+            Some(PolicyIntent::Adopt(s)) => s,
+            _ => self.credential,
+        }
+    }
+}
 
 mod credential_cancellation;
 #[cfg(all(test, unix))]
 pub(super) mod tests;
+pub(crate) use credential_cancellation::CredentialCancellationTarget;
 use credential_cancellation::PendingCancellation;
 pub(crate) use credential_cancellation::WitnessedCredentialIntent;
 
@@ -48,7 +79,7 @@ pub(super) struct PendingWrite {
     wire: Vec<u8>,
     protection: Protection,
     local_account: [u8; 32],
-    renewal: Option<(crate::CredentialRenewalId, [u8; 32])>,
+    renewal: Option<RenewalBinding>,
 }
 impl PendingWrite {
     pub(super) fn authenticated_target(
@@ -66,17 +97,23 @@ impl PendingWrite {
         active: &Active,
         image: &Image,
         target: &[u8],
-        renewal: Option<(crate::CredentialRenewalId, [u8; 32])>,
+        renewal: Option<RenewalBinding>,
     ) -> Result<Self, DurableError> {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
-        let mut wire = if renewal.is_some() {
+        let mut wire = if renewal.is_some_and(|r| r.policy.is_some()) {
+            b"QPWINT04".to_vec()
+        } else if renewal.is_some() {
             b"QPWINT02".to_vec()
         } else {
             b"QPWINT01".to_vec()
         };
-        if let Some((operation, statement)) = renewal {
-            wire.extend_from_slice(operation.as_bytes());
-            wire.extend_from_slice(&statement);
+        if let Some(binding) = renewal {
+            wire.extend_from_slice(binding.operation.as_bytes());
+            wire.extend_from_slice(&binding.credential);
+            if let Some(policy) = binding.policy {
+                wire.push(u8::from(policy.adopts()));
+                wire.extend_from_slice(&policy.statement());
+            }
         }
         wire.extend_from_slice(&active.id);
         wire.extend_from_slice(&active.owner);
@@ -110,7 +147,7 @@ impl PendingWrite {
         wire: &[u8],
     ) -> Result<Self, DurableError> {
         if !(INTENT_HEADER + HEADER + 16 + 115 + 32
-            ..=INTENT_HEADER + RENEWAL_BINDING_BYTES + MAX_TARGET + 32)
+            ..=INTENT_HEADER + MAX_RENEWAL_BINDING_BYTES + MAX_TARGET + 32)
             .contains(&wire.len())
         {
             return Err(DurableError::Corrupt);
@@ -123,11 +160,27 @@ impl PendingWrite {
         let mut d = Decoder::new(body);
         let renewal = match d.array::<8>()? {
             tag if tag == *b"QPWINT01" => None,
-            tag if tag == *b"QPWINT02" => {
+            tag if tag == *b"QPWINT02" || tag == *b"QPWINT04" => {
                 let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
-                let statement = d.array()?;
-                crate::codec::nonzero(&statement)?;
-                Some((operation, statement))
+                let credential = d.array()?;
+                crate::codec::nonzero(&credential)?;
+                let policy = if tag == *b"QPWINT04" {
+                    let [mode] = d.array()?;
+                    let statement = d.array()?;
+                    crate::codec::nonzero(&statement)?;
+                    Some(match mode {
+                        0 => PolicyIntent::Retain(statement),
+                        1 => PolicyIntent::Adopt(statement),
+                        _ => return Err(DurableError::Corrupt),
+                    })
+                } else {
+                    None
+                };
+                Some(RenewalBinding {
+                    operation,
+                    credential,
+                    policy,
+                })
             }
             _ => return Err(DurableError::Corrupt),
         };
@@ -155,8 +208,8 @@ impl PendingWrite {
         if next.id != id || next.revision != next_revision {
             return Err(DurableError::Conflict);
         }
-        if let Some((operation, statement)) = renewal {
-            rosters::check_credential_renewal_intent(&next, operation, statement)?;
+        if let Some(binding) = renewal {
+            rosters::check_credential_renewal_intent(&next, binding)?;
         }
         Ok(Self {
             expected_revision,
@@ -185,7 +238,7 @@ impl PendingWrite {
         &self,
         current: &Image,
     ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
-        let (operation, statement) = self.renewal.ok_or(DurableError::Conflict)?;
+        let binding = self.renewal.ok_or(DurableError::Conflict)?;
         self.check_credential_image(current)?;
         let Protection::Required {
             policy,
@@ -198,18 +251,24 @@ impl PendingWrite {
         let mut subject = current.id.to_vec();
         subject.extend_from_slice(&current.owner);
         subject.extend_from_slice(&policy);
-        Ok(crate::AnchorCredentialRenewalProposal::from_journal(
+        let proposal = crate::AnchorCredentialRenewalProposal::from_journal(
             witness,
             crate::AnchorSubject::from_trusted_state(&subject)?,
-            operation,
-            statement,
+            binding.operation,
+            binding.credential,
             crate::AnchorHead::from_trusted_state(
                 fence,
                 self.expected_revision,
                 self.expected_digest,
             )?,
             crate::AnchorHead::from_trusted_state(fence, self.next_revision, self.next_digest)?,
-        )?)
+        )?;
+        Ok(match binding.policy {
+            Some(policy) => {
+                proposal.bind_policy_expectation(policy.statement(), policy.adopts())?
+            }
+            None => proposal,
+        })
     }
     fn check_credential_image(&self, current: &Image) -> Result<(), DurableError> {
         if self.renewal.is_some()
@@ -277,7 +336,7 @@ fn load_pending_snapshot(
     }
     let pending = pending
         .map(|bytes| {
-            if bytes.value().starts_with(b"QPWINT03") {
+            if bytes.value().starts_with(b"QPWINT03") || bytes.value().starts_with(b"QPWINT05") {
                 PendingCancellation::decode(key, bytes.value()).map(PendingIntent::Cancellation)
             } else {
                 PendingWrite::decode(key, owner, image.id, bytes.value()).map(PendingIntent::Write)
@@ -371,10 +430,9 @@ pub(super) fn reserve_credential_renewal(
     active: &Active,
     image: &Image,
     target: &[u8],
-    operation: crate::CredentialRenewalId,
-    statement: [u8; 32],
+    binding: RenewalBinding,
 ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
-    let pending = PendingWrite::new_bound(active, image, target, Some((operation, statement)))?;
+    let pending = PendingWrite::new_bound(active, image, target, Some(binding))?;
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     {
@@ -564,8 +622,8 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         use crate::AnchorCredentialRenewalState as State;
         let policy = policy.as_ref();
-        let (proposal, terminal) = terminal.parts();
-        let expected = match terminal {
+        let (proposal, state, adopted_policy) = terminal.parts();
+        let expected = match state {
             State::Applied => proposal.proposal()?.target_head(),
             State::Closed => proposal.expected_head(),
             _ => return Err(DurableError::Conflict),
@@ -589,6 +647,7 @@ impl DeviceJournal {
                 return Err(DurableError::Conflict);
             }
         }
+        rosters::check_terminal_completion(&image, adopted_policy, terminal.completed())?;
         client.check_device(original)?;
         policy.check_external_signer(client.pin().public_key())?;
         if client

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "historical_policy_recovery_tests.rs"]
+mod historical_recovery;
 use crate::{
     CredentialRenewalStatus, PolicyContinuationMaterials, PolicyContinuationScope,
     PolicyContinuationStatement, PolicyPin, PolicySigningKey, RetainedInstallationAuthority,
     SessionPolicyParameters, Validity, VerifiedCredentialRenewal, VerifiedPolicyContinuation,
 };
 
-fn policy(c: &Case, version: u64, until: u64, now: u64) -> VerifiedSessionPolicy {
+pub(super) fn policy(c: &Case, version: u64, until: u64, now: u64) -> VerifiedSessionPolicy {
     let issuer = PolicySigningKey::deterministic([82; 32], [83; 32])
         .expect("original independent policy authority");
     let issued = issuer
@@ -47,7 +49,7 @@ fn local() -> (Case, VerifiedDevice, JournalIdentity) {
         .close();
     (c, original, journal)
 }
-fn scope(
+pub(super) fn scope(
     c: &Case,
     g: &VerifiedCredentialRenewal,
     journal: JournalIdentity,
@@ -64,7 +66,7 @@ fn scope(
         previous_authorization: None,
     }
 }
-fn joint(
+pub(super) fn joint(
     c: &Case,
     g: &VerifiedCredentialRenewal,
     scope: &PolicyContinuationScope,

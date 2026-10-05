@@ -792,7 +792,19 @@ fn take(d: &mut Decoder<'_>) -> Result<Vec<u8>, DurableError> {
     Ok(d.take(length)?.to_vec())
 }
 fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = if image.renewal.as_ref().is_some_and(LocalRenewal::joint) {
+    let mut bytes = if image
+        .renewal
+        .as_ref()
+        .is_some_and(LocalRenewal::policy_cancellation)
+    {
+        b"QPENST08"
+    } else if image
+        .renewal
+        .as_ref()
+        .is_some_and(LocalRenewal::policy_coordination)
+    {
+        b"QPENST07"
+    } else if image.renewal.as_ref().is_some_and(LocalRenewal::joint) {
         b"QPENST06"
     } else if image
         .renewal
@@ -891,7 +903,9 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         && tag != *b"QPENST03"
         && tag != *b"QPENST04"
         && tag != *b"QPENST05"
-        && tag != *b"QPENST06")
+        && tag != *b"QPENST06"
+        && tag != *b"QPENST07"
+        && tag != *b"QPENST08")
         || d.array::<32>()? != binding
         || (tag == *b"QPENST01" && wire.len() > MAX_IMAGE)
     {
@@ -940,6 +954,8 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         || tag == *b"QPENST04"
         || tag == *b"QPENST05"
         || tag == *b"QPENST06"
+        || tag == *b"QPENST07"
+        || tag == *b"QPENST08"
     {
         if !matches!(
             phase,
@@ -955,7 +971,9 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
             tag != *b"QPENST02",
             tag == *b"QPENST04" || tag == *b"QPENST05",
             tag == *b"QPENST05",
-            tag == *b"QPENST06",
+            [*b"QPENST06", *b"QPENST07", *b"QPENST08"].contains(&tag),
+            tag == *b"QPENST07" || tag == *b"QPENST08",
+            tag == *b"QPENST08",
         )?)
     } else {
         None

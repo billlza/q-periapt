@@ -19,9 +19,9 @@ mod continuation;
 #[cfg(all(test, unix))]
 pub(crate) use continuation::tests::Case as PolicyContinuationTestCase;
 pub use continuation::{
-    HistoricalPolicyContinuation, PolicyContinuationApproval, PolicyContinuationMaterials,
-    PolicyContinuationScope, PolicyContinuationStatement, VerifiedPolicyContinuation,
-    MAX_POLICY_CONTINUATION_BYTES,
+    HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials,
+    PolicyContinuationApproval, PolicyContinuationMaterials, PolicyContinuationScope,
+    PolicyContinuationStatement, VerifiedPolicyContinuation, MAX_POLICY_CONTINUATION_BYTES,
 };
 
 /// Fixed candidate protocol profile, separate from the SDK KEM suite and ABI.

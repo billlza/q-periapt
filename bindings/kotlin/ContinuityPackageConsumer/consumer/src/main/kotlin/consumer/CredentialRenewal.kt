@@ -10,7 +10,7 @@ private fun renewalWire(records: FixtureRecords): ByteArray = records.read("cred
 }
 private fun renewalOperation(records: FixtureRecords) =
     CredentialRenewalID(records.enrollmentExact("credential-operation", 32))
-private fun renewalStatus(value: CredentialRenewalStatus): String {
+internal fun renewalStatus(value: CredentialRenewalStatus): String {
     val phase: Int
     val operation: CredentialRenewalID?
     val statement: CredentialRenewalStatementID?

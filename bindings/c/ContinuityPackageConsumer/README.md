@@ -82,9 +82,9 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration route has seventeen `qpc_enrollment_v1_*` exports. Together with
+The registration and policy-continuation route has 26 `qpc_enrollment_v1_*` exports. Together with
 peer-grant admission on the existing Device parent, this unpublished candidate
-interface now declares 73 exports. The new renewal route still requires its own
+interface now declares 82 exports. The new renewal route still requires its own
 installed-package qualification. It retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that
@@ -837,3 +837,53 @@ peer layout successfully under the own-account test name: collection refuses the
 scope, and changing only the public label still fails original-root/roster checks.
 This does not qualify enrollment, credential renewal, device replacement or a
 complete multi-device lifecycle.
+
+## Joint policy continuation integration
+
+The additional candidate C entry points use the native enrollment transaction.
+They retain original P0 configuration at the enrollment path and accept the
+target signed protocol policy and its independently trusted root/checkpoint as
+`qpc_policy_document_v1`. `select_continued_policy` opens explicitly configured
+SDK policy storage and keeps the complete PolicyStore/runtime in the enrollment
+owner. It is selected once per resumed owner; selection writes no G/T transaction.
+The input protocol pin is never taken from an incoming approval container.
+
+For a new joint renewal, select current P1, call `stage_policy_continuation` with
+G, both approvals and independently retained previous policy/T, then explicitly
+reconcile the local transaction or prepare/commit the required-witness proposal.
+Native staging binds the actual original journal and exact predecessor. A later
+credential-only update uses `stage_continued_credential_renewal`, retaining T.
+Historical witnessed Status/Close/ACK can use the existing close/reconcile calls
+with the exact transaction operation and statement. The new bounded metadata
+outputs cover both G-only and G/T formats; existing fixed296/248 layouts are
+unchanged. No entry point enrolls or approves work at the independent witness.
+
+`activate_policy_continuation` transfers the original enrolled signer and storage
+plus the complete current target runtime into the same Device handle. Required
+protection requires completed ACK and a new witness admission; it does not
+implicitly commit. The existing-session child path authenticates the original
+bundle against historical P0 and opens it under current P1. Peer G verification
+also remains bound to P0. The continued Device refuses fresh bootstrap. Closing
+the parent closes both the native owners and the target policy runtime; children
+do not retain a second operating service. Cancellation, deadlines, caller-owned
+diagnostics and consume-on-admitted-failure behavior reuse the original boundary.
+
+The current local test executes C subprocesses for registration, G1/T1 stage,
+Pending readback, reconciliation, Committed readback and activation, then G2
+carry of T1. It checks original signing/wrapping files, journal identity, original
+P0 and independent P1 public inputs across process reopen. This does not yet
+qualify required-witness C continuation, continued child traffic, failure and
+runtime-lifetime controls, Swift/Kotlin exposure or current installed archives.
+
+The separate `recover_historical_policy_continuation` entry accepts the exact
+operation/statement and independently pinned historical P1. It uses original P0
+metadata without selecting or loading a current target runtime. Only an exact
+already-committed local journal target can finish configuration and receipt ACK;
+an uncommitted Pending returns Suspended and stays Pending. It neither abandons
+the original intent nor converts the Enrollment into a Device. Required-witness
+transactions continue to use their independent historical recovery entry points.
+The real-clock C test first observes expired-current-policy refusal, then makes
+both SDK policy stores/configuration and local TLS files unavailable in its
+temporary fixtures. Repeated history-only calls preserve Committed or Pending
+and the original signing/wrapping/journal identity. Complete uncommitted local
+policy abandonment remains separate from this completion-only recovery.

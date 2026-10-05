@@ -95,13 +95,7 @@ pub(crate) fn configured_policy(
     cancel: &Cancellation,
     deadline: Instant,
 ) -> Result<(PolicyStore, Arc<p::VerifiedSessionPolicy>, [u8; 32])> {
-    let store = PolicyStore::open_configured(
-        &path.join("sdk.redb"),
-        &read(directory, "sdk-policy", 4096)?,
-        &read(directory, "sdk-signature", 8192)?,
-        &read(directory, "sdk-root", 8192)?,
-        q_periapt_sdk::Limits::default(),
-    )?;
+    let store = configured_sdk_store(path, directory)?;
     crate::opening::check(cancel, deadline)?;
     let (pin, family) = configured_policy_pin(directory)?;
     let policy = Arc::new(pin.verify(
@@ -111,6 +105,20 @@ pub(crate) fn configured_policy(
     )?);
     crate::opening::check(cancel, deadline)?;
     Ok((store, policy, family))
+}
+
+pub(crate) fn configured_sdk_store(
+    path: &Path,
+    directory: &OwnedPrivateDirectory,
+) -> Result<PolicyStore> {
+    let store = PolicyStore::open_configured(
+        &path.join("sdk.redb"),
+        &read(directory, "sdk-policy", 4096)?,
+        &read(directory, "sdk-signature", 8192)?,
+        &read(directory, "sdk-root", 8192)?,
+        q_periapt_sdk::Limits::default(),
+    )?;
+    Ok(store)
 }
 
 fn configured_policy_pin(directory: &OwnedPrivateDirectory) -> Result<(p::PolicyPin, [u8; 32])> {

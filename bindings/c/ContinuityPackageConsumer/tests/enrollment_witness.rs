@@ -10,6 +10,8 @@ mod witness_cancellation;
 mod witness_commit_error;
 #[path = "enrollment/witness_credential_renewal.rs"]
 mod witness_credential_renewal;
+#[path = "enrollment/witness_policy_continuation.rs"]
+mod witness_policy_continuation;
 #[path = "enrollment/witness_policy_expiry.rs"]
 mod witness_policy_expiry;
 #[path = "common/witness_tls.rs"]
@@ -161,6 +163,20 @@ fn prepare_with_policy_lifetime(
     witness: &witness::Witness,
     lifetime: Option<u64>,
 ) -> Result<Registration> {
+    if let Some(seconds) = lifetime {
+        let mut authority = p::PolicySigningKey::generate()?;
+        let result = prepare_with_original_policy(s, witness, Some((seconds, &authority)));
+        authority.close();
+        result
+    } else {
+        prepare_with_original_policy(s, witness, None)
+    }
+}
+fn prepare_with_original_policy(
+    s: &fixture::Setup,
+    witness: &witness::Witness,
+    policy: Option<(u64, &p::PolicySigningKey)>,
+) -> Result<Registration> {
     let path = s
         .initiator
         .parent()
@@ -181,7 +197,7 @@ fn prepare_with_policy_lifetime(
         "tls-cert",
         "tls-key",
     ] {
-        if lifetime.is_some()
+        if policy.is_some()
             && matches!(
                 name,
                 "family" | "policy-root" | "policy-version" | "policy-digest" | "protocol-policy"
@@ -198,9 +214,8 @@ fn prepare_with_policy_lifetime(
         &fixture::read(&path, "sdk-root", 8192)?,
         q_periapt_sdk::Limits::default(),
     )?;
-    if let Some(seconds) = lifetime {
+    if let Some((seconds, authority)) = policy {
         let at = fixture::now()?;
-        let mut authority = p::PolicySigningKey::generate()?;
         let pin = witness
             .configured
             .store
@@ -233,7 +248,6 @@ fn prepare_with_policy_lifetime(
         ] {
             fixture::store(&path, name, &bytes)?;
         }
-        authority.close();
     }
     sdk.close();
     let root = p::RootSigningKey::generate()?;

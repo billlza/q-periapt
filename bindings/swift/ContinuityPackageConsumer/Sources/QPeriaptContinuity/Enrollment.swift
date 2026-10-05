@@ -314,6 +314,136 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
+    /// Select once per resumed registration. Native retains the complete SDK
+    /// runtime owner; the explicit policy pin is independent of approval bytes.
+    /// Selection writes no renewal and grants no operating service.
+    public func selectContinuedPolicy(path: String, target: PolicyDocument) throws {
+        let path = try textBytes(path, maximum: 4096)
+        try reference.call { native in
+            try native.call { handle in
+                var error = qpc_error_v1()
+                let code = target.withNative { target in
+                    path.withUnsafeBufferPointer { path in
+                        qpc_enrollment_v1_select_continued_policy(handle, path.baseAddress, path.count, target, &error)
+                    }
+                }
+                try checked(code, &error)
+            }
+        }
+    }
+    /// Stage the exact G and both signed approvals. Previous policy and T come
+    /// from retained independent state; nil previous T means original P0 only.
+    public func stagePolicyContinuation(grant: [UInt8], pin: AccountPin, operation: CredentialRenewalID,
+        approvals: [UInt8], previous: PolicyDocument, previousAuthorization: PolicyContinuationStatementID?
+    ) throws -> CredentialRenewalStatus {
+        guard (1...65536).contains(grant.count), (1...7746).contains(approvals.count) else {
+            throw ContinuityBoundaryError.inputLength
+        }
+        return try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let invoke: (UnsafePointer<UInt8>?) -> Int32 = { previousT in
+                    pin.withNative { pin in
+                        previous.withNative { previous in
+                            grant.withUnsafeBufferPointer { grant in
+                                operation.bytes.withUnsafeBufferPointer { operation in
+                                    approvals.withUnsafeBufferPointer { approvals in
+                                        qpc_enrollment_v1_stage_policy_continuation(handle, grant.baseAddress, grant.count,
+                                            pin, operation.baseAddress, approvals.baseAddress, approvals.count,
+                                            previous, previousT, &raw, &error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let code = previousAuthorization.map { value in
+                    value.bytes.withUnsafeBufferPointer { invoke($0.baseAddress) }
+                } ?? invoke(nil)
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
+    /// Stage a credential-only successor under the actual adopted T and selected P1.
+    public func stageContinuedCredentialRenewal(grant: [UInt8], pin: AccountPin,
+        operation: CredentialRenewalID) throws -> CredentialRenewalStatus {
+        guard (1...65536).contains(grant.count) else { throw ContinuityBoundaryError.inputLength }
+        return try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let code = pin.withNative { pin in
+                    grant.withUnsafeBufferPointer { grant in
+                        operation.bytes.withUnsafeBufferPointer { operation in
+                            qpc_enrollment_v1_stage_continued_credential_renewal(handle, grant.baseAddress, grant.count,
+                                pin, operation.baseAddress, &raw, &error)
+                        }
+                    }
+                }
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
+    /// Original G/T coordination metadata for independent witness approval.
+    public func prepareWitnessedPolicyContinuation() throws -> PolicyRenewalProposal {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_policy_renewal_proposal_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_prepare_witnessed_policy_continuation(handle, &raw, &error), &error)
+                return try PolicyRenewalProposal(nativeBytes: policyProposalBytes(&raw))
+            }
+        }
+    }
+    /// Historical target-free reservation. This sends no witness command and
+    /// needs no selected current runtime; its result is not a terminal fact.
+    public func prepareWitnessedPolicyCancellation() throws -> PolicyRenewalCancellation {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_policy_renewal_cancellation_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_prepare_witnessed_policy_cancellation(handle, &raw, &error), &error)
+                return try PolicyRenewalCancellation(nativeBytes: policyCancellationBytes(&raw))
+            }
+        }
+    }
+    /// Reconcile the original local transaction; a new commit requires selected P1.
+    public func reconcilePolicyContinuation() throws -> CredentialRenewalStatus {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_reconcile_policy_continuation(handle, &raw, &error), &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
+    /// Reconcile history first, then commit only a still-Pending exact proposal
+    /// with independently selected current P1. Terminal cleanup needs no selection.
+    public func commitWitnessedPolicyContinuation(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID) throws -> CredentialRenewalStatus {
+        try witnessedCredentialRenewal(operation: operation, statement: statement,
+            invoke: qpc_enrollment_v1_commit_witnessed_policy_continuation)
+    }
+    /// Complete only an existing local journal commit using independently pinned
+    /// P1 history. Needs no current SDK/TLS files, creates no target or Device,
+    /// and leaves an uncommitted Pending suspended for explicit later resolution.
+    public func recoverHistoricalPolicyContinuation(operation: CredentialRenewalID,
+        statement: CredentialRenewalStatementID, target: PolicyDocument) throws -> CredentialRenewalStatus {
+        try reference.call { native in
+            try native.call { handle in
+                var raw = qpc_credential_renewal_status_v1(), error = qpc_error_v1()
+                let code = target.withNative { target in
+                    operation.bytes.withUnsafeBufferPointer { operation in
+                        statement.bytes.withUnsafeBufferPointer { statement in
+                            qpc_enrollment_v1_recover_historical_policy_continuation(handle,
+                                operation.baseAddress, statement.baseAddress, target, &raw, &error)
+                        }
+                    }
+                }
+                try checked(code, &error)
+                return try decodeCredentialRenewalStatus(&raw)
+            }
+        }
+    }
     /// Return owned public request bytes only after native persistence/readback.
     /// Retrying returns the original bytes; possession is not account approval.
     public func request() throws -> [UInt8] {
@@ -384,6 +514,19 @@ public final class ContinuityEnrollment: Sendable {
             try native.call { handle in
                 var error = qpc_error_v1()
                 try checked(qpc_enrollment_v1_activate(handle, &error), &error)
+            }
+            return device
+        }
+    }
+    /// Transfer the original native enrollment and complete selected target
+    /// runtime to the same owning device. Required mode needs completed ACK;
+    /// historical recovery alone never authorizes activation.
+    public func activatePolicyContinuation() throws -> ContinuityDevice {
+        try reference.transfer { native in
+            let device = ContinuityDevice.activated(native)
+            try native.call { handle in
+                var error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_activate_policy_continuation(handle, &error), &error)
             }
             return device
         }

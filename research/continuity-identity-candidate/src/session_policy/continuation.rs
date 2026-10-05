@@ -55,6 +55,29 @@ pub struct PolicyContinuationMaterials<'a> {
     /// Independently account-approved credential transition under original P0.
     pub credential: &'a VerifiedCredentialRenewal,
 }
+impl<'a> PolicyContinuationMaterials<'a> {
+    /// Drop all current-runtime requirements for historical verification only.
+    pub fn historical(&self) -> HistoricalPolicyContinuationMaterials<'a> {
+        HistoricalPolicyContinuationMaterials {
+            original: self.original,
+            previous: self.previous,
+            target: self.target.historical(),
+            credential: self.credential.historical(),
+        }
+    }
+}
+/// Independently verified signed materials for historical G/T recovery or close.
+/// This view grants no current policy, credential, roster or runtime permission.
+pub struct HistoricalPolicyContinuationMaterials<'a> {
+    /// Immutable original policy P0.
+    pub original: &'a HistoricalSessionPolicy,
+    /// Exact predecessor policy named in the original approval.
+    pub previous: &'a HistoricalSessionPolicy,
+    /// Independently pinned signed target policy, possibly expired.
+    pub target: &'a HistoricalSessionPolicy,
+    /// Independently account-approved original credential transition.
+    pub credential: &'a crate::HistoricalCredentialRenewal,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct BoundStatement {
@@ -222,36 +245,12 @@ impl PolicyContinuationStatement {
         m: &PolicyContinuationMaterials<'_>,
         now: u64,
     ) -> Result<Self, Error> {
-        check_predecessor(scope)?;
-        same_profile(m.original, m.previous)?;
-        same_profile(m.original, m.target.historical())?;
+        let bound = historical_statement(scope, &m.historical())?;
         let grant = m.credential;
-        if scope.original_policy != m.original.checkpoint()
-            || scope.previous_policy != m.previous.checkpoint()
-            || scope.operation != grant.operation()
-            || scope.original_owner != grant.original_storage_owner()
-            || scope.original_credential != grant.original_credential_digest()
-            || scope.previous_credential != grant.previous_device().credential_digest()
-            || scope.previous_roster != grant.previous_device().roster().checkpoint()
-            || grant.policy_digest() != scope.original_policy.digest()
-            || m.previous.validity().until() < m.original.validity().until()
-            || m.target.validity().until() <= m.previous.validity().until()
-            || m.target.checkpoint().version() <= m.previous.checkpoint().version()
-        {
-            return Err(Error::Scope);
-        }
         m.target.check_current(now)?;
         m.target.check_device(grant.successor_device(), now)?;
         let account_key = &grant.successor_device().authority_key;
         m.target.check_external_signer(account_key)?;
-        let bound = BoundStatement {
-            scope: scope.clone(),
-            credential_statement: grant.statement_digest(),
-            target_credential: grant.successor_device().credential_digest(),
-            target_authority: grant.successor_device().authority_binding(),
-            family: m.original.family(),
-            target_policy: m.target.checkpoint(),
-        };
         Ok(Self {
             bound,
             account_key: account_key.clone(),
@@ -263,6 +262,40 @@ impl PolicyContinuationStatement {
     pub fn digest(&self) -> [u8; 32] {
         digest(DOMAIN, &self.bound.encode())
     }
+}
+
+fn historical_statement(
+    scope: &PolicyContinuationScope,
+    m: &HistoricalPolicyContinuationMaterials<'_>,
+) -> Result<BoundStatement, Error> {
+    check_predecessor(scope)?;
+    same_profile(m.original, m.previous)?;
+    same_profile(m.original, m.target)?;
+    let grant = m.credential;
+    if scope.original_policy != m.original.checkpoint()
+        || scope.previous_policy != m.previous.checkpoint()
+        || scope.operation != grant.operation()
+        || scope.original_owner != grant.original_storage_owner()
+        || scope.original_credential != grant.original_credential_digest()
+        || scope.previous_credential != grant.previous_device().credential_digest()
+        || scope.previous_roster != grant.previous_device().roster().checkpoint()
+        || grant.policy_digest() != scope.original_policy.digest()
+        || m.previous.validity().until() < m.original.validity().until()
+        || m.target.validity().until() <= m.previous.validity().until()
+        || m.target.checkpoint().version() <= m.previous.checkpoint().version()
+    {
+        return Err(Error::Scope);
+    }
+    m.target
+        .check_external_signer(&grant.successor_device().authority_key)?;
+    Ok(BoundStatement {
+        scope: scope.clone(),
+        credential_statement: grant.statement_digest(),
+        target_credential: grant.successor_device().credential_digest(),
+        target_authority: grant.successor_device().authority_binding(),
+        family: m.original.family(),
+        target_policy: m.target.checkpoint(),
+    })
 }
 
 /// One issuer's bounded approval, not sufficient for continuation by itself.
@@ -444,6 +477,36 @@ pub struct HistoricalPolicyContinuation {
     policy_key: PublicKey,
 }
 impl HistoricalPolicyContinuation {
+    /// Authenticate retained public approvals against independent historical
+    /// scope and pins, without constructing a live policy or runtime owner.
+    /// Useful after expiry; this cannot prepare/apply a new operational target.
+    pub fn from_bytes(
+        wire: &[u8],
+        scope: &PolicyContinuationScope,
+        materials: &HistoricalPolicyContinuationMaterials<'_>,
+    ) -> Result<Self, Error> {
+        let expected = historical_statement(scope, materials)?;
+        let (account, policy) = read_approvals(wire)?;
+        let (a, a_signature) = open_envelope(account.as_bytes())?;
+        let (p, p_signature) = open_envelope(policy.as_bytes())?;
+        if a != p || a != expected.encode() {
+            return Err(Error::Scope);
+        }
+        materials
+            .credential
+            .successor_device()
+            .authority_key
+            .verify(Purpose::PolicyContinuation, a, a_signature)?;
+        materials
+            .target
+            .signer
+            .verify(Purpose::PolicyContinuation, p, p_signature)?;
+        Ok(Self {
+            bound: expected,
+            wire: wire.to_vec(),
+            policy_key: materials.target.signer.clone(),
+        })
+    }
     pub(crate) fn journal_bytes(&self) -> Vec<u8> {
         let mut out = self.policy_key.encode();
         out.extend_from_slice(&self.wire);
@@ -491,10 +554,14 @@ impl HistoricalPolicyContinuation {
     }
     // Metadata checks only. A historical readback may use a closed/expired
     // owner; creating new work additionally requires the normal live admission.
-    pub(crate) fn check_target(&self, policy: &VerifiedSessionPolicy) -> Result<(), Error> {
+    pub(crate) fn check_target(
+        &self,
+        policy: &impl AsRef<HistoricalSessionPolicy>,
+    ) -> Result<(), Error> {
+        let policy = policy.as_ref();
         if self.bound.target_policy != policy.checkpoint()
             || self.bound.family != policy.family()
-            || self.policy_key != policy.historical().signer
+            || self.policy_key != policy.signer
         {
             return Err(Error::Scope);
         }
@@ -505,17 +572,22 @@ impl HistoricalPolicyContinuation {
     pub(crate) fn check_context_policy(
         &self,
         original: &HistoricalSessionPolicy,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<HistoricalSessionPolicy>,
     ) -> Result<(), Error> {
+        let policy = policy.as_ref();
         self.check_target(policy)?;
         if self.scope().original_policy != original.checkpoint()
             || policy.validity().until() <= original.validity().until()
         {
             return Err(Error::Scope);
         }
-        same_profile(original, policy.historical())
+        same_profile(original, policy)
     }
-    pub(crate) fn check_credential(&self, grant: &VerifiedCredentialRenewal) -> Result<(), Error> {
+    pub(crate) fn check_credential(
+        &self,
+        grant: &impl AsRef<crate::HistoricalCredentialRenewal>,
+    ) -> Result<(), Error> {
+        let grant = grant.as_ref();
         let s = &self.bound.scope;
         if s.operation != grant.operation()
             || s.original_owner != grant.original_storage_owner()
@@ -547,6 +619,10 @@ impl HistoricalPolicyContinuation {
     /// target validity, runtime ownership and durable admission before use.
     pub fn target_policy(&self) -> PolicyCheckpoint {
         self.bound.target_policy
+    }
+    /// Credential statement incorporated into this historical joint approval.
+    pub fn credential_statement(&self) -> [u8; 32] {
+        self.bound.credential_statement
     }
 }
 

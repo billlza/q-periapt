@@ -132,10 +132,10 @@ pub use selection::{
 };
 pub use session_policy::{
     bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
-    HistoricalPolicyContinuation, HistoricalSessionPolicy, IssuedSessionPolicy, PolicyCheckpoint,
-    PolicyContinuationApproval, PolicyContinuationMaterials, PolicyContinuationScope,
-    PolicyContinuationStatement, PolicyPin, SessionPolicyParameters, VerifiedPolicyContinuation,
-    VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES,
+    HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials, HistoricalSessionPolicy,
+    IssuedSessionPolicy, PolicyCheckpoint, PolicyContinuationApproval, PolicyContinuationMaterials,
+    PolicyContinuationScope, PolicyContinuationStatement, PolicyPin, SessionPolicyParameters,
+    VerifiedPolicyContinuation, VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES,
 };
 
 use std::fmt;

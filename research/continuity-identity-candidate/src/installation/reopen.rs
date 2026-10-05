@@ -245,11 +245,11 @@ impl ReopenedSession {
 }
 impl DeviceInstallation {
     /// Open the same Active installation and original archive under completed
-    /// local-only policy continuation. Historical P0 authenticates storage; P1
+    /// policy continuation. Historical P0 authenticates storage; P1
     /// admits current operations only after the journal checks exact T, session,
     /// local role and current membership. No expired P0 runtime is reconstructed.
-    /// Required-witness continuation is refused until exact-T witness admission
-    /// is available; this method never falls back to local protection.
+    /// Required protection additionally needs the original witness carrier and
+    /// fresh exact G/T admission. This never falls back to local protection.
     pub fn reopen_continued_session(
         paths: InstallationPaths,
         key: JournalKey,
@@ -258,25 +258,12 @@ impl DeviceInstallation {
         now: u64,
         anchor: Option<AnchorClient>,
     ) -> Result<ReopenedSession, DurableError> {
-        if request
-            .context
-            .original_policy()
-            .anchor_requirement()
-            .binding()
-            .is_some()
-            || policy.anchor_requirement().binding().is_some()
-        {
-            return Err(DurableError::AnchorRequired);
-        }
-        if anchor.is_some() {
-            return Err(DurableError::Conflict);
-        }
         let mut service = Self::reconcile_original_enrollment(
             paths,
             key,
             request.context.device(request.role),
             request.context.original_policy(),
-            None,
+            anchor,
         )?;
         let peer = service.reopen_continued_peer(request, policy, now)?;
         Ok(ReopenedSession {

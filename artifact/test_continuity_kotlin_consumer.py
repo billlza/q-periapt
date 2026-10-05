@@ -13,28 +13,96 @@ import test_continuity_c_account as account_tests
 
 
 class KotlinConsumerTests(unittest.TestCase):
+    @staticmethod
+    def report(name, names):
+        suite = ET.Element("testsuite", name="dev.qperiapt.continuity." + name,
+            tests=str(len(names)), failures="0", errors="0", skipped="0")
+        for case in sorted(names):
+            ET.SubElement(suite, "testcase", name=case + "()", classname=suite.get("name"))
+        return ET.tostring(suite)
+
     def test_renewal_suite_is_required_and_cannot_be_replaced_by_owner_success(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            def report(name, names):
-                suite = ET.Element("testsuite", name="dev.qperiapt.continuity." + name,
-                    tests=str(len(names)), failures="0", errors="0", skipped="0")
-                for case in names:
-                    ET.SubElement(suite, "testcase", name=case + "()", classname=suite.get("name"))
-                return ET.tostring(suite)
             owner = root / "TEST-dev.qperiapt.continuity.OwnerTests.xml"
             renewal = root / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml"
-            owner.write_bytes(report("OwnerTests", kotlin.TEST_NAMES))
+            owner.write_bytes(self.report("OwnerTests", kotlin.TEST_NAMES))
+            (root / "TEST-dev.qperiapt.continuity.PolicyContinuationTests.xml").write_bytes(
+                self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES))
             with self.assertRaisesRegex(ValueError, "report set differs"):
                 kotlin.verify_test_reports(root)
-            good = report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
+            good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 25)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 30)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
                 renewal.write_bytes(invalid)
                 with self.assertRaisesRegex(ValueError, "all execute"):
+                    kotlin.verify_test_reports(root)
+
+    def test_policy_suite_is_required_with_exact_reports_and_case_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, names in (("OwnerTests", kotlin.TEST_NAMES),
+                                ("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)):
+                (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
+            with self.assertRaisesRegex(ValueError, "report set differs"):
+                kotlin.verify_test_reports(root)
+            policy = root / "TEST-dev.qperiapt.continuity.PolicyContinuationTests.xml"
+            good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
+            policy.write_bytes(good)
+            checked = kotlin.verify_test_reports(root)
+            self.assertEqual(checked["tests"], 30)
+            self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests"})
+            self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
+                "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})
+            for change in ("missing", "extra", "duplicate", "unrelated"):
+                suite = ET.fromstring(good)
+                if change == "missing":
+                    suite.remove(suite[0]); suite.set("tests", "4")
+                elif change == "extra":
+                    ET.SubElement(suite, "testcase", name="unrelated()", classname=suite.get("name"))
+                    suite.set("tests", "6")
+                else:
+                    suite[0].set("name", suite[1].get("name") if change == "duplicate" else "unrelated()")
+                policy.write_bytes(ET.tostring(suite))
+                with self.subTest(change=change), self.assertRaisesRegex(ValueError, "all execute"):
+                    kotlin.verify_test_reports(root)
+            policy.write_bytes(good)
+            (root / "TEST-dev.qperiapt.continuity.UnlistedPolicyTests.xml").write_bytes(good)
+            with self.assertRaisesRegex(ValueError, "report set differs"):
+                kotlin.verify_test_reports(root)
+
+    def test_policy_suite_rejects_failed_skipped_or_diagnostic_reports(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, names in (("OwnerTests", kotlin.TEST_NAMES),
+                                ("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES),
+                                ("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)):
+                (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
+            policy = root / "TEST-dev.qperiapt.continuity.PolicyContinuationTests.xml"
+            good = policy.read_bytes()
+            for counter, child in (("failures", "failure"), ("errors", "error"), ("skipped", "skipped")):
+                for declared in (True, False):
+                    suite = ET.fromstring(good)
+                    if declared:
+                        suite.set(counter, "1")
+                    else:
+                        ET.SubElement(suite[0], child)
+                    policy.write_bytes(ET.tostring(suite))
+                    with self.subTest(counter=counter, declared=declared), self.assertRaisesRegex(ValueError, "all execute"):
+                        kotlin.verify_test_reports(root)
+            for tag in ("system-out", "system-err"):
+                suite = ET.fromstring(good)
+                ET.SubElement(suite, tag).text = "native policy owner cleanup failed"
+                policy.write_bytes(ET.tostring(suite))
+                with self.subTest(tag=tag), self.assertRaisesRegex(ValueError, "unexpected diagnostics"):
+                    kotlin.verify_test_reports(root)
+            for changed in (good.replace(b"PolicyContinuationTests", b"CredentialRenewalTests"),
+                            b'<!DOCTYPE testsuite [<!ENTITY x "test">]>' + good):
+                policy.write_bytes(changed)
+                with self.assertRaisesRegex(ValueError, "all execute|external declarations"):
                     kotlin.verify_test_reports(root)
 
     def test_account_parent_collection_cannot_be_inferred_from_account_delivery_alone(self):
