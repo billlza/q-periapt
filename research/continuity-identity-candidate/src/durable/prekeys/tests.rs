@@ -44,7 +44,10 @@ pub(in crate::durable) fn inventory_at(
         LeafKind::LastResortPq,
         LeafKind::OneTimePq,
     ];
-    let (policy, device, _) = base.responder.inventory_inputs();
+    let (policy, device, _) = base
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let mut leaves = BTreeMap::new();
     for (request, kind) in ids.iter().zip(kinds) {
         let leaf = store
@@ -80,7 +83,10 @@ fn full_prekey_inventory_keeps_roster_admission_and_revocation_available() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let folder = directory();
     let path = folder.path().canonicalize().expect("private path");
-    let (policy, device, _) = f.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let mut store = new_store(&path, device);
     let request = |index: usize| {
         let mut bytes = [0; 32];
@@ -185,7 +191,11 @@ fn full_prekey_inventory_keeps_roster_admission_and_revocation_available() {
 #[test]
 fn installed_revocation_fences_prekey_generation_and_cached_leaf_but_allows_retirement() {
     let mut f = inventory(PrekeyQuality::OneTimeBoth);
-    let (policy, device, _) = f.peer.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let request = *f.ids.first().expect("retained prekey");
     let leaf = f
         .store
@@ -285,7 +295,11 @@ fn inventory_roundtrips_every_quality_and_atomically_retires_only_selected_one_t
                 .expect("final"),
             outcome.pending_session().id()
         );
-        let (policy, device, selection) = f.peer.responder.inventory_inputs();
+        let (policy, device, selection) = f
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         let selected = [
             selection.post_quantum().kind(),
             selection.classical().kind(),
@@ -353,7 +367,11 @@ fn inventory_roundtrips_every_quality_and_atomically_retires_only_selected_one_t
 fn generation_request_is_immutable_and_retirement_never_reactivates_it() {
     let mut f = inventory(PrekeyQuality::OneTimeBoth);
     let request = *f.ids.first().expect("baseline ID");
-    let (policy, device, _) = f.peer.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     assert!(matches!(
         f.store.generate_prekey(
             policy,
@@ -404,7 +422,11 @@ fn generation_request_is_immutable_and_retirement_never_reactivates_it() {
         Err(DurableError::KeyRetired)
     ));
     f.peer.close_responder_policy();
-    let (policy, device, _) = f.peer.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     assert_eq!(
         f.store
             .prekey_status(policy, device, request)
@@ -416,7 +438,10 @@ fn generation_request_is_immutable_and_retirement_never_reactivates_it() {
 #[test]
 fn generation_sync_failures_reconcile_the_original_reserved_key() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
-    let (policy, device, _) = f.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let mut states = BTreeSet::new();
     for after_sync in [false, true] {
         for cut in 1..=8 {
@@ -524,7 +549,11 @@ fn response_sync_failures_keep_inventory_and_outbox_consumption_indivisible() {
             assert!(store.active.is_none());
             let mut store = reopen(&f.path, f.peer.local_device());
             let phase = store.status(&f.peer.responder, &initial).expect("phase");
-            let (policy, device, _) = f.peer.responder.inventory_inputs();
+            let (policy, device, _) = f
+                .peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner");
             for request in [f.ids.get(1).expect("classical"), f.ids.get(3).expect("PQ")] {
                 let status = store
                     .prekey_status(policy, device, *request)
@@ -687,7 +716,10 @@ fn process_loss_recovers_original_inventory_before_authentication_and_commits_co
         assert!(!child.0.wait().expect("reap").success());
         let mut store = reopen(&path, f.local_device());
         assert_eq!(store.status(&f.responder, &initial).expect("phase"), phase);
-        let (policy, device, _) = f.responder.inventory_inputs();
+        let (policy, device, _) = f
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         for request in [2, 4].map(|n| PrekeyId::from_trusted_state([n; 32]).expect("request")) {
             assert_eq!(
                 store
@@ -755,7 +787,10 @@ fn inventory_generation_crash_child() {
     let path = Path::new(&path);
     let f = fixture(PrekeyQuality::OneTimeBoth);
     let mut store = new_store(path, f.local_device());
-    let (policy, device, _) = f.responder.inventory_inputs();
+    let (policy, device, _) = f
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let leaf = store
         .generate_prekey(
             policy,
@@ -793,7 +828,10 @@ fn generation_process_cuts_replay_exact_key_before_publication() {
         assert!(!child.0.wait().expect("reap").success());
         let f = fixture(PrekeyQuality::OneTimeBoth);
         let mut store = reopen(&path, f.local_device());
-        let (policy, device, _) = f.responder.inventory_inputs();
+        let (policy, device, _) = f
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         let request = PrekeyId::from_trusted_state([71; 32]).expect("request");
         assert_eq!(
             store.prekey_status(policy, device, request).expect("phase"),
@@ -836,7 +874,11 @@ fn retirement_unknown_commit_reconciles_without_reactivating_key() {
             let mut f = inventory(PrekeyQuality::OneTimeBoth);
             f.store.close();
             let (mut store, fault, _, _) = fault_store(&f.path, f.peer.local_device(), after_sync);
-            let (policy, device, _) = f.peer.responder.inventory_inputs();
+            let (policy, device, _) = f
+                .peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner");
             let request = *f.ids.first().expect("ID");
             fault.store(cut, Ordering::SeqCst);
             assert!(matches!(
@@ -923,7 +965,11 @@ fn invalid_or_substituted_inventory_tokens_fail_closed_without_consumption() {
                 .expect("retained work"),
             DurableStatus::Executing
         );
-        let (policy, device, _) = f.peer.responder.inventory_inputs();
+        let (policy, device, _) = f
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         assert_eq!(
             store
                 .prekey_status(policy, device, *f.ids.get(3).expect("ID"))
@@ -1033,7 +1079,10 @@ fn current_successor_replays_original_reserved_material_across_process_loss() {
         child.0.kill().expect("kill owned generator");
         assert!(!child.0.wait().expect("reap").success());
         let f = fixture(PrekeyQuality::OneTimeBoth);
-        let (policy, original, _) = f.responder.inventory_inputs();
+        let (policy, original, _) = f
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         let mut store = reopen(&path, original);
         let request = PrekeyId::from_trusted_state([71; 32]).expect("original request");
         let before = store.image().expect("original image");

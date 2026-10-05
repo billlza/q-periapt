@@ -384,7 +384,10 @@ fn verify_wire(
     check_closing_budget(
         body,
         flight,
-        context.policy().application_send_budget().messages(),
+        context
+            .original_policy()
+            .application_send_budget()
+            .messages(),
     )
 }
 fn check_closing_budget(body: &[u8], flight: RekeyFlight, limit: u16) -> Result<(), Error> {
@@ -803,7 +806,7 @@ impl DeviceJournal {
                 .control
                 .scope(&image.id, &session, &context.digest())?;
             let owner = match recovery.generate_key(
-                &context.policy().runtime,
+                &context.current_policy()?.runtime,
                 &hash(b"key", &scope),
                 token,
             ) {

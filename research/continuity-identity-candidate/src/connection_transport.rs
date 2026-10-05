@@ -152,7 +152,7 @@ impl ConnectionEndpoint {
     ) -> Result<Self, Error> {
         let mut binding = b"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v1/".to_vec();
         binding.extend_from_slice(&context.digest());
-        let runtime = Arc::clone(&context.policy().runtime);
+        let runtime = Arc::clone(&context.current_policy().map_err(Error::Authority)?.runtime);
         let endpoint = if client {
             Endpoint::client(runtime, credentials, &binding, limits)?
         } else {

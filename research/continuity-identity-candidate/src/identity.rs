@@ -417,6 +417,11 @@ pub struct VerifiedRoster {
     wire: Vec<u8>,
 }
 impl VerifiedRoster {
+    // Authenticated roster metadata for validating retained policy approvals;
+    // returning it does not assert membership or current-time authority.
+    pub(crate) fn continuation_authority(&self) -> (&PublicKey, [u8; 32]) {
+        (&self.root, self.family)
+    }
     // Reconstruct a historical expectation under this already authenticated
     // account root. This does not select a new current head or grant traffic.
     pub(crate) fn historical_pin(&self, checkpoint: RosterCheckpoint) -> Result<AccountPin, Error> {

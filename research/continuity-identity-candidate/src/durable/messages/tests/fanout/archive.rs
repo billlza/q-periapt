@@ -174,7 +174,10 @@ fn archived_fanout_restart_closes_and_retires_the_whole_reserved_batch() {
         let mut index = retain(&mut n);
         let id = process::reserved(&mut n, "fanout-computed");
         for context in &n.f.contexts {
-            context.policy().close();
+            context
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
         }
         n.sender.close();
         let archive = index
@@ -281,7 +284,10 @@ fn archived_fanout_catalogue_restores_frozen_and_terminal_members_without_split_
         let session = *n.sessions.first().expect("member");
         let backup = index.get(session).expect("independent original archive");
         for context in &n.f.contexts {
-            context.policy().close();
+            context
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
         }
         n.sender.close();
         let mut owner = open(&n.sender_path, id, &mut index).expect("complete original membership");
@@ -597,7 +603,12 @@ fn archived_fanout_mixed_roles_and_committed_revocation_preserve_complete_loss_a
         n.f.root.account_id().expect("account"),
         n.f.root.public_key().expect("root"),
         issued.checkpoint(),
-        n.f.contexts.first().expect("context").policy().family(),
+        n.f.contexts
+            .first()
+            .expect("context")
+            .current_policy()
+            .expect("fixture policy owner")
+            .family(),
     )
     .expect("pin");
     n.sender
@@ -608,7 +619,10 @@ fn archived_fanout_mixed_roles_and_committed_revocation_preserve_complete_loss_a
         )
         .expect("durable revocation");
     for context in &n.f.contexts {
-        context.policy().close();
+        context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
     }
     n.sender.close();
     let mut owner =

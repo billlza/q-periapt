@@ -78,7 +78,11 @@ fn retained_view_cannot_activate_unfinished_or_replay_another_established_sessio
             190,
             2,
             [79; 32],
-            p.f.initiator.policy().checkpoint().digest(),
+            p.f.initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .checkpoint()
+                .digest(),
         );
         let journal = if role == BootstrapRole::Initiator {
             &mut p.ji
@@ -87,14 +91,18 @@ fn retained_view_cannot_activate_unfinished_or_replay_another_established_sessio
         };
         let authority = RetainedInstallationAuthority::active_installation(
             p.f.initiator.device(role),
-            p.f.initiator.policy(),
+            p.f.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
         );
         journal
             .install_peer_credential_renewal(
                 &authority,
                 &proof,
                 proof.operation(),
-                p.f.initiator.policy(),
+                p.f.initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150,
             )
             .expect("owning transaction");

@@ -37,7 +37,12 @@ impl Managed {
         .expect("paths");
         let key_path = root.join("key");
         let key = JournalKey::provision(&key_path).expect("explicit original key");
-        let policy = f.contexts.first().expect("context").policy();
+        let policy = f
+            .contexts
+            .first()
+            .expect("context")
+            .current_policy()
+            .expect("fixture policy owner");
         let mut installation =
             crate::DeviceInstallation::provision(paths.clone(), &key, &f.local, policy, 150)
                 .expect("original installation");
@@ -76,18 +81,29 @@ impl Managed {
                     &path.join("state.redb"),
                     JournalKey::provision(&path.join("key")).expect("receiver wrapping key"),
                     device,
-                    context.policy(),
+                    context.current_policy().expect("fixture policy owner"),
                     crate::durable::tests::retain_new_identity(&path.join("store-id")),
                     150,
                 )
                 .expect("original protected receiver");
                 let genesis = journal
-                    .anchor_genesis(device, context.policy())
+                    .anchor_genesis(
+                        device,
+                        context.current_policy().expect("fixture policy owner"),
+                    )
                     .expect("receiver genesis");
-                let client = enroll(&genesis, device, context.policy())
-                    .expect("required receiver enrollment");
+                let client = enroll(
+                    &genesis,
+                    device,
+                    context.current_policy().expect("fixture policy owner"),
+                )
+                .expect("required receiver enrollment");
                 journal
-                    .activate_anchor(device, context.policy(), client)
+                    .activate_anchor(
+                        device,
+                        context.current_policy().expect("fixture policy owner"),
+                        client,
+                    )
                     .expect("receiver enrollment");
                 journal
             } else {
@@ -276,7 +292,12 @@ fn installed_account_cleanup_retains_complete_loss_and_original_store_ownership(
             )
             .expect("prior ciphertext committed but not acknowledged");
         let id = c.reserve_with_pending_write();
-        c.f.contexts.first().expect("policy").policy().close();
+        c.f.contexts
+            .first()
+            .expect("policy")
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         c.f.local_signer.close();
         let mut owner = c
             .cleanup(id)

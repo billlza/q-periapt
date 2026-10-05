@@ -41,7 +41,7 @@ impl InitiationPlan {
         recovery: &RecoveryKey,
     ) -> Result<Self, Error> {
         let key = recovery.reserve_key(
-            &context.policy.runtime,
+            &context.current_policy()?.runtime,
             &hash(b"durable-initial-key", &scope),
         )?;
         Ok(Self {
@@ -77,7 +77,7 @@ impl InitiationPlan {
         match self.cached.take() {
             Some(Cached::Key(key)) => Ok(key),
             None => Ok(recovery.generate_key(
-                &context.policy.runtime,
+                &context.current_policy()?.runtime,
                 &hash(b"durable-initial-key", &self.scope),
                 &self.key,
             )?),
@@ -92,7 +92,7 @@ impl InitiationPlan {
     ) -> Result<(Vec<u8>, ZeroizingBytes<32>), Error> {
         let body = initial_prefix(context, key, &self.nonce)?;
         let result = recovery.encapsulate(
-            &context.policy.runtime,
+            &context.current_policy()?.runtime,
             &hash(b"durable-initial-kem", &self.scope),
             &context.peer,
             &hash(b"kem-initial", &body),
@@ -114,7 +114,7 @@ impl InitiationPlan {
         if self.kem.is_none() {
             let prefix = initial_prefix(context, &key, &self.nonce)?;
             self.kem = Some(recovery.reserve_encapsulation(
-                &context.policy.runtime,
+                &context.current_policy()?.runtime,
                 &hash(b"durable-initial-kem", &self.scope),
                 &context.peer,
                 &hash(b"kem-initial", &prefix),
@@ -147,7 +147,7 @@ impl InitiationPlan {
             Some(Cached::Complete(key, first)) => (key, first),
             None => {
                 let key = recovery.generate_key(
-                    &context.policy.runtime,
+                    &context.current_policy()?.runtime,
                     &hash(b"durable-initial-key", &self.scope),
                     &self.key,
                 )?;

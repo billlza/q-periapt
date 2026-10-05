@@ -295,8 +295,18 @@ fn reservation_disclosure(cut: Cut) {
         p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
             .expect("resume exact response");
     let runtime = match cut {
-        Cut::KeyReserved => &p.f.initiator.policy().runtime,
-        Cut::EncapsulationReserved => &p.f.responder.policy().runtime,
+        Cut::KeyReserved => {
+            &p.f.initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .runtime
+        }
+        Cut::EncapsulationReserved => {
+            &p.f.responder
+                .current_policy()
+                .expect("fixture policy owner")
+                .runtime
+        }
     };
     let [mut intercept_i, mut intercept_r] = disclosed.predict_traffic(runtime, &offer, &response);
     assert_eq!(complete_rekey(&mut p), 1);

@@ -124,9 +124,10 @@ impl Active {
     fn attach(
         &mut self,
         device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         client: AnchorClient,
     ) -> Result<(), DurableError> {
+        let policy = policy.as_ref();
         self.protection.check_policy(policy)?;
         let Protection::Required { witness, .. } = self.protection else {
             return Err(DurableError::AnchorRequired);
@@ -377,6 +378,16 @@ impl DeviceJournal {
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+        client: AnchorClient,
+    ) -> Result<Self, DurableError> {
+        Self::open_anchored_retained(path, key, device, policy.historical(), expected_id, client)
+    }
+    pub(crate) fn open_anchored_retained(
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
         expected_id: JournalIdentity,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {

@@ -493,9 +493,10 @@ impl DeviceInstallation {
         paths: InstallationPaths,
         key: JournalKey,
         original: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
     ) -> Result<DeviceService, DurableError> {
+        let policy = policy.as_ref();
         if policy.anchor_requirement().binding().is_some() && anchor.is_none() {
             return Err(DurableError::AnchorRequired);
         }
@@ -524,12 +525,13 @@ impl DeviceInstallation {
         &self,
         key: JournalKey,
         device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
     ) -> Result<(DeviceJournal, SessionArchiveStore), DurableError> {
+        let policy = policy.as_ref();
         let journal = match (policy.anchor_requirement().binding(), anchor) {
             (None, None) => DeviceJournal::open(&self.paths.journal, key, device, self.identity)?,
-            (Some(_), Some(client)) => DeviceJournal::open_anchored(
+            (Some(_), Some(client)) => DeviceJournal::open_anchored_retained(
                 &self.paths.journal,
                 key,
                 device,

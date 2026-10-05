@@ -133,7 +133,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         request: InitiationId,
     ) -> Result<[u8; 32], DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         context.check_journal_role(active.id, active.owner, crate::BootstrapRole::Initiator)?;
         if context.initiator_storage_owner() != active.owner {

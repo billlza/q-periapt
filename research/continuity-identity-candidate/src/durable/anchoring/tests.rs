@@ -178,13 +178,20 @@ fn case_with_witness_signer(budget: u16, signer: AnchorSigningKey) -> Case {
         &path.join("state.redb"),
         key,
         peer.initiator_device(),
-        peer.initiator.policy(),
+        peer.initiator
+            .current_policy()
+            .expect("fixture policy owner"),
         crate::durable::tests::retain_new_identity(&path.join("store-id")),
         150,
     )
     .expect("required journal");
     let genesis = journal
-        .anchor_genesis(peer.initiator_device(), peer.initiator.policy())
+        .anchor_genesis(
+            peer.initiator_device(),
+            peer.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
+        )
         .expect("genesis");
     let identity = journal.identity().expect("identity");
     let server = Arc::new(Mutex::new(Server {
@@ -202,14 +209,18 @@ fn case_with_witness_signer(budget: u16, signer: AnchorSigningKey) -> Case {
         .enroll(
             &genesis,
             peer.initiator_device(),
-            peer.initiator.policy(),
+            peer.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
         .expect("trusted enrollment");
     journal
         .activate_anchor(
             peer.initiator_device(),
-            peer.initiator.policy(),
+            peer.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             client(&pin, &server, true),
         )
         .expect("activate");
@@ -229,7 +240,10 @@ fn reopen(c: &Case) -> Result<DeviceJournal, DurableError> {
         &c.path.join("state.redb"),
         JournalKey::open(&c.path.join("key")).expect("key"),
         c.peer.initiator_device(),
-        c.peer.initiator.policy(),
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner"),
         c.identity,
         client(&c.pin, &c.server, true),
     )
@@ -300,7 +314,10 @@ fn required_policy_has_no_volatile_or_local_journal_bypass() {
             &c.path.join("state.redb"),
             JournalKey::open(&c.path.join("key")).expect("key"),
             c.peer.initiator_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             c.identity,
             client(&other, &c.server, true)
         ),
@@ -319,7 +336,11 @@ fn required_policy_has_no_volatile_or_local_journal_bypass() {
 #[test]
 fn both_real_journals_complete_handshake_under_required_witness_policy() {
     let mut c = case_with_budget(2);
-    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let (policy, device, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let key = JournalKey::provision(&c.path.join("responder-key")).expect("key");
     let mut responder = DeviceJournal::provision_anchored(
         &c.path.join("responder.redb"),
@@ -446,7 +467,10 @@ fn both_real_journals_complete_handshake_under_required_witness_policy() {
             &c.path.join("responder.redb"),
             JournalKey::open(&c.path.join("responder-key")).expect("key"),
             c.peer.local_device(),
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             responder_identity,
             client(&c.pin, &c.server, false),
         )
@@ -1070,7 +1094,11 @@ fn each_local_commit_sync_failure_reconciles_against_the_real_witness() {
 #[test]
 fn inactive_required_journal_cannot_create_prekeys_and_active_inventory_is_anchored() {
     let c = case();
-    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let (policy, device, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let key = JournalKey::provision(&c.path.join("inventory-key")).expect("key");
     let mut journal = DeviceJournal::provision_anchored(
         &c.path.join("inventory.redb"),
@@ -1483,7 +1511,10 @@ fn roster_authority_refresh_recovers_the_original_anchored_roster_write_and_outb
             c.subject,
             c.peer.initiator_device().roster().checkpoint(),
             &previous,
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
         .expect("explicit shorter admission");
@@ -1523,7 +1554,10 @@ fn roster_authority_refresh_recovers_the_original_anchored_roster_write_and_outb
             c.subject,
             previous.roster().checkpoint(),
             &next,
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             160,
         )
         .expect("explicit original-subject renewal");
@@ -1583,7 +1617,10 @@ fn roster_authority_refresh_recovers_the_original_anchored_roster_write_and_outb
             c.subject,
             previous.roster().checkpoint(),
             &next,
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             170,
         )
         .expect("witness metadata readback is not current client authority");
@@ -1618,7 +1655,12 @@ mod credential_preparation {
             300,
             2,
             [219; 32],
-            c.peer.initiator.policy().checkpoint().digest(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .checkpoint()
+                .digest(),
         )
     }
     pub(super) fn prepare(
@@ -1629,7 +1671,10 @@ mod credential_preparation {
             c.peer.initiator_device(),
             grant,
             grant.operation(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
     }
@@ -1640,7 +1685,10 @@ mod credential_preparation {
             &c.path.join("state.redb"),
             JournalKey::open(&c.path.join("key")).expect("key"),
             c.peer.initiator_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             c.identity,
         )
     }
@@ -1762,7 +1810,11 @@ mod credential_preparation {
         // Both policy and credential are expired/closed. Metadata recovery must
         // remain available, while it never returns an operational owner.
         c.server.lock().expect("server").now = 301;
-        c.peer.initiator.policy().close();
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         assert_eq!(inspect(&c).expect("historical metadata"), Some(proposal));
         assert!(matches!(reopen(&c), Err(DurableError::Suspended)));
         assert_eq!(disk(&c), saved, "recovery must never reseal a target");
@@ -1836,7 +1888,10 @@ mod credential_preparation {
                 c.peer.initiator_device(),
                 &grant,
                 CredentialRenewalId::from_trusted_state([220; 32]).expect("other operation"),
-                c.peer.initiator.policy(),
+                c.peer
+                    .initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150
             ),
             Err(DurableError::Conflict)
@@ -1851,7 +1906,10 @@ mod credential_preparation {
                 &c.path.join("state.redb"),
                 JournalKey::open(&c.path.join("key")).expect("key"),
                 c.peer.initiator_device(),
-                c.peer.initiator.policy(),
+                c.peer
+                    .initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 JournalIdentity::from_trusted_state([222; 32]).expect("other journal")
             ),
             Err(DurableError::Conflict)
@@ -1860,7 +1918,10 @@ mod credential_preparation {
             &c.path.join("state.redb"),
             JournalKey::open(&c.path.join("key")).expect("key"),
             c.peer.local_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             c.identity
         )
         .is_err());
@@ -1868,7 +1929,10 @@ mod credential_preparation {
             &c.path.join("state.redb"),
             JournalKey::provision(&c.path.join("wrong-key")).expect("other key"),
             c.peer.initiator_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             c.identity
         )
         .is_err());
@@ -1921,7 +1985,12 @@ mod credential_preparation {
         let mut c = case();
         let grant = grant(&c);
         let policy_owner = Arc::clone(&c.peer.initiator);
-        write_intent::tests::on_credential_preparation(move || policy_owner.policy().close());
+        write_intent::tests::on_credential_preparation(move || {
+            policy_owner
+                .current_policy()
+                .expect("fixture policy owner")
+                .close()
+        });
         assert!(matches!(
             prepare(&mut c, &grant),
             Err(DurableError::Protocol(Error::Closed))
@@ -2000,7 +2069,7 @@ mod credential_preparation {
                 f.initiator_device(),
                 &grant,
                 grant.operation(),
-                f.initiator.policy(),
+                f.initiator.current_policy().expect("fixture policy owner"),
                 150
             ),
             Err(DurableError::AnchorRequired)
@@ -2105,7 +2174,7 @@ mod credential_preparation {
                 &path.join("state.redb"),
                 JournalKey::open(&path.join("key")).expect("key"),
                 f.initiator_device(),
-                f.initiator.policy(),
+                f.initiator.current_policy().expect("fixture policy owner"),
                 identity,
             )
             .expect("authenticated original")
@@ -2116,7 +2185,10 @@ mod credential_preparation {
             proposal.target_head().digest(),
             image_hash(&fs::read(root.join("saved-target-image")).expect("sealed target"))
         );
-        f.initiator.policy().close();
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         assert_eq!(inspect(), proposal);
         let db = open_private_database(&path.join("state.redb")).expect("db");
         let read = db.begin_read().expect("read");
@@ -2173,7 +2245,15 @@ mod credential_preparation {
                 assert_eq!(
                     server
                         .store
-                        .prepare_credential_renewal(p, &grant, c.peer.initiator.policy(), 150)
+                        .prepare_credential_renewal(
+                            p,
+                            &grant,
+                            c.peer
+                                .initiator
+                                .current_policy()
+                                .expect("fixture policy owner"),
+                            150
+                        )
                         .expect("independent witness approval"),
                     crate::AnchorCredentialRenewalState::Prepared
                 );
@@ -2193,7 +2273,11 @@ mod credential_preparation {
                 server.fail = None;
                 server.now = 301;
             }
-            c.peer.initiator.policy().close();
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
             let reply = client(&c.pin, &c.server, true)
                 .exchange(c.subject, AnchorOperation::credential_renewal_status(&p))
                 .expect("fresh historical witness observation");

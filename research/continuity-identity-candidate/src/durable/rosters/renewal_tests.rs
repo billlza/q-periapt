@@ -68,7 +68,7 @@ fn paths(path: &Path) -> InstallationPaths {
     .expect("original paths")
 }
 fn create_service(path: &Path, f: &Fixture) -> DeviceService {
-    let policy = f.initiator.policy();
+    let policy = f.initiator.current_policy().expect("fixture policy owner");
     let device = f.initiator_device();
     let key = JournalKey::provision(&path.join("key")).expect("explicit first wrapping owner");
     let mut installation = DeviceInstallation::provision(paths(path), &key, device, policy, 150)
@@ -91,7 +91,7 @@ fn create_service(path: &Path, f: &Fixture) -> DeviceService {
 }
 fn reopen_service(path: &Path, f: &Fixture) -> DeviceService {
     let key = JournalKey::open(&path.join("key")).expect("original key");
-    let policy = f.initiator.policy();
+    let policy = f.initiator.current_policy().expect("fixture policy owner");
     let device = f.initiator_device();
     DeviceInstallation::open(paths(path), &key, device, policy, 150)
         .expect("original installation")
@@ -116,7 +116,11 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
         300,
         2,
         [71; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     let folder = directory();
     let path = folder.path().canonicalize().expect("path");
@@ -145,7 +149,7 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
         service.admit_peer_credential_renewal(
             &first,
             CredentialRenewalId::from_trusted_state([72; 32]).expect("other request"),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -153,7 +157,12 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
     let target = first.successor_device().roster().checkpoint();
     assert_eq!(
         service
-            .admit_peer_credential_renewal(&first, first.operation(), f.initiator.policy(), 150)
+            .admit_peer_credential_renewal(
+                &first,
+                first.operation(),
+                f.initiator.current_policy().expect("fixture policy owner"),
+                150
+            )
             .expect("commit explicit grant"),
         target
     );
@@ -181,7 +190,12 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
     let mut service = reopen_service(&path, &f);
     assert_eq!(
         service
-            .admit_peer_credential_renewal(&first, first.operation(), f.initiator.policy(), 150)
+            .admit_peer_credential_renewal(
+                &first,
+                first.operation(),
+                f.initiator.current_policy().expect("fixture policy owner"),
+                150
+            )
             .expect("original readback after reopen"),
         target
     );
@@ -202,13 +216,17 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
         300,
         2,
         [73; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     assert!(matches!(
         service.admit_peer_credential_renewal(
             &other_operation,
             other_operation.operation(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -220,10 +238,19 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
         400,
         3,
         [74; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     service
-        .admit_peer_credential_renewal(&second, second.operation(), f.initiator.policy(), 150)
+        .admit_peer_credential_renewal(
+            &second,
+            second.operation(),
+            f.initiator.current_policy().expect("fixture policy owner"),
+            150,
+        )
         .expect("next exact predecessor");
     let image = service
         .stores()
@@ -263,10 +290,19 @@ fn peer_renewal_is_atomic_exact_retry_preserves_owner_and_history_stays_constant
         500,
         5,
         [75; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     assert!(matches!(
-        service.admit_peer_credential_renewal(&late, late.operation(), f.initiator.policy(), 150),
+        service.admit_peer_credential_renewal(
+            &late,
+            late.operation(),
+            f.initiator.current_policy().expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Conflict)
     ));
     assert_eq!(
@@ -300,7 +336,11 @@ fn peer_entry_cannot_replace_local_identity_or_cross_the_installation_policy() {
         300,
         2,
         [81; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     assert_ne!(
         renewal.original_storage_owner(),
@@ -310,7 +350,7 @@ fn peer_entry_cannot_replace_local_identity_or_cross_the_installation_policy() {
         service.admit_peer_credential_renewal(
             &renewal,
             renewal.operation(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -320,12 +360,26 @@ fn peer_entry_cannot_replace_local_identity_or_cross_the_installation_policy() {
         crate::ApplicationSendBudget::new(17).expect("other policy"),
     );
     assert_eq!(
-        other.initiator.policy().family(),
-        f.initiator.policy().family()
+        other
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .family(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .family()
     );
     assert_ne!(
-        other.initiator.policy().checkpoint(),
-        f.initiator.policy().checkpoint()
+        other
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
     );
     let root = RootSigningKey::deterministic([94; 32], [95; 32]).expect("peer root");
     let original = root
@@ -338,7 +392,12 @@ fn peer_entry_cannot_replace_local_identity_or_cross_the_installation_policy() {
         300,
         2,
         [82; 32],
-        other.initiator.policy().checkpoint().digest(),
+        other
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     service
         .stores()
@@ -357,7 +416,10 @@ fn peer_entry_cannot_replace_local_identity_or_cross_the_installation_policy() {
         service.admit_peer_credential_renewal(
             &renewal,
             renewal.operation(),
-            other.initiator.policy(),
+            other
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -388,11 +450,15 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
         300,
         2,
         [91; 32],
-        f.initiator.policy().checkpoint().digest(),
+        f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     let authority = crate::RetainedInstallationAuthority::active_installation(
         f.initiator_device(),
-        f.initiator.policy(),
+        f.initiator.current_policy().expect("fixture policy owner"),
     );
     let setup = |path: &Path| {
         let mut journal = new_store(path, f.initiator_device());
@@ -411,7 +477,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
             &authority,
             &renewal,
             renewal.operation(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150,
         )
         .expect("baseline transition");
@@ -432,7 +498,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
                     &authority,
                     &renewal,
                     renewal.operation(),
-                    f.initiator.policy(),
+                    f.initiator.current_policy().expect("fixture policy owner"),
                     150,
                 ),
                 after,
@@ -464,7 +530,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
                     &authority,
                     &renewal,
                     renewal.operation(),
-                    f.initiator.policy(),
+                    f.initiator.current_policy().expect("fixture policy owner"),
                     150,
                 )
                 .expect("original exact retry");

@@ -285,7 +285,12 @@ fn account_fanout_abandonment_after_revocation_is_metadata_only_and_keeps_prior_
         n.f.root.account_id().expect("account"),
         n.f.root.public_key().expect("public"),
         issued.checkpoint(),
-        n.f.contexts.first().expect("context").policy().family(),
+        n.f.contexts
+            .first()
+            .expect("context")
+            .current_policy()
+            .expect("fixture policy owner")
+            .family(),
     )
     .expect("pin");
     n.sender

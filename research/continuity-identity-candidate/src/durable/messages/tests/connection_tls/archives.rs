@@ -60,8 +60,18 @@ fn connection_tls_archive_cleanup_child() -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 pub(super) fn close_endpoints(n: &mut Network, session: [u8; 32]) {
-    n.inventory.peer.initiator.policy().close();
-    n.inventory.peer.responder.policy().close();
+    n.inventory
+        .peer
+        .initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
+    n.inventory
+        .peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     n.journal.close();
     n.archives.close();
     n.inventory.store.close();

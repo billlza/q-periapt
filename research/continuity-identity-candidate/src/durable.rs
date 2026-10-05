@@ -49,7 +49,7 @@ mod messages;
 mod prekeys;
 mod responder;
 mod rosters;
-pub(crate) use rosters::{LocalRenewalCommit, LocalRenewalResolution};
+pub(crate) use rosters::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
@@ -547,7 +547,7 @@ impl DeviceJournal {
     pub(crate) fn check_installation_state(
         &mut self,
         device: &VerifiedDevice,
-        policy: &crate::VerifiedSessionPolicy,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         require_genesis: bool,
     ) -> Result<(), DurableError> {
         self.check_policy(policy)?;
@@ -747,7 +747,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         initial: &[u8],
     ) -> Result<[u8; 32], DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         context.check_journal_role(active.id, active.owner, crate::BootstrapRole::Responder)?;
         if context.storage_owner() != active.owner {

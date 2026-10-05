@@ -548,7 +548,7 @@ impl DeviceJournal {
     ) -> Result<State, DurableError> {
         rosters::authorize_session_context(image, context, now)?;
         let state = self.bound_message_state(image, context, session)?;
-        state.send_progress(context.policy().application_send_budget())?;
+        state.send_progress(context.original_policy().application_send_budget())?;
         Ok(state)
     }
     fn bound_message_state(
@@ -567,7 +567,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: &[u8; 32],
     ) -> Result<State, DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         check_view_scope(image, context, session, None)?;
         let record = image
             .records
@@ -606,18 +606,55 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Arc<BootstrapContext>, DurableError> {
         let image = self.image()?;
-        let state = self.live_message_state(&image, &context, &session)?;
+        rosters::require_original_operational_policy(&image)?;
+        self.prepare_existing_context(&image, context, session, role, now, None)
+    }
+    pub(crate) fn prepare_continued_context(
+        &mut self,
+        context: Arc<BootstrapContext>,
+        session: [u8; 32],
+        role: crate::BootstrapRole,
+        policy: Arc<crate::VerifiedSessionPolicy>,
+        now: u64,
+    ) -> Result<Arc<BootstrapContext>, DurableError> {
+        let image = self.image()?;
+        let statement = rosters::bind_policy_continuation(&image, &context, role, &policy)?;
+        self.prepare_existing_context(
+            &image,
+            context,
+            session,
+            role,
+            now,
+            Some((policy, statement)),
+        )
+    }
+    fn prepare_existing_context(
+        &mut self,
+        image: &Image,
+        context: Arc<BootstrapContext>,
+        session: [u8; 32],
+        role: crate::BootstrapRole,
+        now: u64,
+        continuation: Option<(Arc<crate::VerifiedSessionPolicy>, [u8; 32])>,
+    ) -> Result<Arc<BootstrapContext>, DurableError> {
+        let state = self.live_message_state(image, &context, &session)?;
         if state.role != role_byte(role) {
             return Err(DurableError::Conflict);
         }
-        let identities = rosters::resolve_session_identities(&image, &context, now)?;
-        let context = if identities.iter().any(Option::is_some) {
-            Arc::new(context.with_session_authority(image.id, session, role, identities)?)
+        let identities = rosters::resolve_session_identities(image, &context, now)?;
+        let context = if continuation.is_some() || identities.iter().any(Option::is_some) {
+            Arc::new(context.with_session_authority(
+                image.id,
+                session,
+                role,
+                identities,
+                continuation,
+            )?)
         } else {
             context
         };
-        self.message_state(&image, &context, &session, now)?;
-        self.check_session_context_release(&image, &context, now)?;
+        self.message_state(image, &context, &session, now)?;
+        self.check_session_context_release(image, &context, now)?;
         Ok(context)
     }
     pub(crate) fn check_reopened_session(
@@ -652,7 +689,7 @@ impl DeviceJournal {
         if state.control.send_fenced() {
             return Err(DurableError::Suspended);
         }
-        let progress = state.send_progress(context.policy().application_send_budget())?;
+        let progress = state.send_progress(context.original_policy().application_send_budget())?;
         if progress.remaining == 0 && !progress.reserved {
             return Err(Error::RekeyRequired.into());
         }
@@ -688,7 +725,7 @@ impl DeviceJournal {
         let epoch = id.epoch()?;
         let active_epoch = state.send_epoch;
         let fenced = state.control.send_fenced();
-        let progress = state.send_progress(context.policy().application_send_budget())?;
+        let progress = state.send_progress(context.original_policy().application_send_budget())?;
         let traffic = state.traffic_mut(epoch)?;
         traffic.require_unresolved()?;
         if index < traffic.send_floor {
@@ -770,7 +807,7 @@ impl DeviceJournal {
         }
         let state = State::decode(&record.payload)?;
         check_message_owner(&image, context, state.role)?;
-        state.send_progress(context.policy().application_send_budget())?;
+        state.send_progress(context.original_policy().application_send_budget())?;
         let index = id.check(&session, state.role)?;
         let traffic = state.traffic(id.epoch()?)?;
         Ok(if index < traffic.send_floor {
@@ -796,7 +833,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<&'a Record, DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         check_view_scope(image, context, &session, None)?;
         let record = image
             .records
@@ -831,7 +868,7 @@ impl DeviceJournal {
         }
         let state = State::decode(&record.payload)?;
         check_message_owner(&image, context, state.role)?;
-        state.send_progress(context.policy().application_send_budget())?;
+        state.send_progress(context.original_policy().application_send_budget())?;
         Ok(state)
     }
     /// Continue only the sealed pending input or replay its committed outbox.
@@ -878,7 +915,14 @@ impl DeviceJournal {
         let mut image = self.image()?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let header = Header::decode(wire)?;
-        if header.index >= u64::from(context.policy().application_send_budget().messages()) {
+        if header.index
+            >= u64::from(
+                context
+                    .original_policy()
+                    .application_send_budget()
+                    .messages(),
+            )
+        {
             return Err(Error::PolicyDenied.into());
         }
         let id = header.id;

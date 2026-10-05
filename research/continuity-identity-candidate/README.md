@@ -56,6 +56,16 @@ The explicit [same-key credential renewal](CREDENTIAL_RENEWAL.md) transaction re
 original storage and established transcripts while admitting current root-authorized
 credentials. It also reconciles expired pending intents without inventing NoCommit.
 
+The local-only [joint policy continuation](POLICY_CONTINUATION.md) candidate uses
+independent account and policy approvals to retain an original established session
+after its policy expires. `stage_policy_continuation` saves the exact intent;
+`reconcile_policy_continuation` reports durable progress without current permission;
+`activate_continued_session` retains the original enrollment, signer and service
+while admitting the selected existing session under the completed authorization
+and current policy. Historical `original_policy()` metadata and the fallible
+`current_policy()` runtime accessor are separate. Fresh bootstrap, exact-witness
+continuation and foreign-language exposure remain outside this new path.
+
 
 Exact public-byte fingerprints exclude role, epoch and expiry, allowing the
 issuer to reject repeated public bytes within a manifest. They do not establish
@@ -191,7 +201,7 @@ ML-DSA additionally uses `C` as its external context, with the ordinary ML-DSA
 message encoding. Purposes are credential=1, roster=2, manifest=3,
 session policy=4, bootstrap initiator=5, bootstrap responder=6, witness request=7,
 witness reply=8, rekey offer/response/final/receipt/request=9/10/11/12/13,
-enrollment request=14 and credential renewal=15.
+enrollment request=14, credential renewal=15 and joint policy continuation=16.
 The envelope is `body_length:u32 || body || signature[3373]` and admits at most
 16,384 body bytes. ECDSA and ML-DSA are both required; neither is a fallback.
 

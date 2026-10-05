@@ -188,8 +188,10 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
         peer_journal
             .install_roster(original.roster(), 150)
             .expect("exact predecessor");
-        let authority =
-            crate::RetainedInstallationAuthority::active_installation(&peer_device, &policy);
+        let authority = crate::RetainedInstallationAuthority::active_installation(
+            &peer_device,
+            policy.as_ref(),
+        );
         peer_journal
             .install_peer_credential_renewal(&authority, &first, first.operation(), &policy, 155)
             .expect("independent peer grant");

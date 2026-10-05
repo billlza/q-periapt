@@ -122,45 +122,68 @@ impl BootstrapBundle {
             return Err(Error::Scope);
         }
         policy.check_mode(required.quality, now)?;
-        let initiator = required.initiator.verify(
-            materials.initiator_credential,
-            materials.initiator_roster,
-            now,
-        )?;
-        let responder = required.responder.verify(
-            materials.responder_credential,
-            materials.responder_roster,
-            now,
-        )?;
-        let manifest = responder.verify_manifest(materials.responder_manifest, now)?;
-        let signed = LeafProof::decode(materials.signed_classical)?;
-        let last_resort = LeafProof::decode(materials.last_resort_pq)?;
-        let one_classical = materials
-            .one_time_classical
-            .map(LeafProof::decode)
-            .transpose()?;
-        let one_pq = materials.one_time_pq.map(LeafProof::decode).transpose()?;
-        let classical = match &one_classical {
-            Some(proof) => ClassicalChoice::OneTime(proof),
-            None => ClassicalChoice::SignedOnly,
-        };
-        let pq = match &one_pq {
-            Some(proof) => PqChoice::OneTime(proof),
-            None => PqChoice::LastResort,
-        };
-        let selection = manifest.select_prekeys(&signed, &last_resort, classical, pq, now)?;
-        if selection.quality() != required.quality {
-            return Err(Error::Scope);
-        }
+        let AuthenticatedMaterials {
+            initiator,
+            responder,
+            selection,
+        } = authenticate_materials(materials, &required, now)?;
         BootstrapContext::new(
             policy,
             initiator,
             responder,
-            Arc::new(selection),
+            selection,
             required.directory,
             now,
         )
     }
+}
+
+struct AuthenticatedMaterials {
+    initiator: Arc<VerifiedDevice>,
+    responder: Arc<VerifiedDevice>,
+    selection: Arc<crate::AuthenticatedPrekeySelection>,
+}
+
+fn authenticate_materials(
+    materials: BootstrapMaterials<'_>,
+    required: &BootstrapRequirements<'_>,
+    now: u64,
+) -> Result<AuthenticatedMaterials, Error> {
+    let initiator = required.initiator.verify(
+        materials.initiator_credential,
+        materials.initiator_roster,
+        now,
+    )?;
+    let responder = required.responder.verify(
+        materials.responder_credential,
+        materials.responder_roster,
+        now,
+    )?;
+    let manifest = responder.verify_manifest(materials.responder_manifest, now)?;
+    let signed = LeafProof::decode(materials.signed_classical)?;
+    let last_resort = LeafProof::decode(materials.last_resort_pq)?;
+    let one_classical = materials
+        .one_time_classical
+        .map(LeafProof::decode)
+        .transpose()?;
+    let one_pq = materials.one_time_pq.map(LeafProof::decode).transpose()?;
+    let classical = match &one_classical {
+        Some(proof) => ClassicalChoice::OneTime(proof),
+        None => ClassicalChoice::SignedOnly,
+    };
+    let pq = match &one_pq {
+        Some(proof) => PqChoice::OneTime(proof),
+        None => PqChoice::LastResort,
+    };
+    let selection = manifest.select_prekeys(&signed, &last_resort, classical, pq, now)?;
+    if selection.quality() != required.quality {
+        return Err(Error::Scope);
+    }
+    Ok(AuthenticatedMaterials {
+        initiator,
+        responder,
+        selection: Arc::new(selection),
+    })
 }
 
 #[cfg(test)]

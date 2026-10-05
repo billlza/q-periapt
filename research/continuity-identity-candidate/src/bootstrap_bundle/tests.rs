@@ -3,6 +3,8 @@ use super::*;
 use crate::bootstrap::tests::fixture;
 use crate::BootstrapRole;
 
+mod historical;
+
 #[test]
 fn bundle_roundtrip_verifies_all_modes_and_preserves_original_context_identity() {
     for quality in [

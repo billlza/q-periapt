@@ -161,6 +161,7 @@ pub(crate) struct Owner {
     native: crate::native_owner::NativeOwner,
     pub(crate) context: Arc<p::BootstrapContext>,
     policy_store: PolicyStore,
+    policy: Arc<p::VerifiedSessionPolicy>,
     certificate: Vec<u8>,
     tls_key: Zeroizing<Vec<u8>>,
     peer_certificate: Vec<u8>,
@@ -232,12 +233,12 @@ impl Owner {
         }
         let verified = match admission {
             Admission::Bootstrap(_) => Verified::Bootstrap(Arc::new(bundle.verify(
-                policy,
+                Arc::clone(&policy),
                 required,
                 now().map_err(Failure::configuration)?,
             )?)),
             Admission::Existing { session, .. } => Verified::Existing(bundle.request_reopen(
-                policy,
+                Arc::clone(&policy),
                 required,
                 role,
                 session,
@@ -266,7 +267,7 @@ impl Owner {
                     paths,
                     &key,
                     device,
-                    context.policy(),
+                    context.current_policy()?,
                     now().map_err(Failure::configuration)?,
                 )?;
                 let anchor = make_anchor()?;
@@ -274,7 +275,7 @@ impl Owner {
                 let service = installation.activate(
                     key,
                     device,
-                    context.policy(),
+                    context.current_policy()?,
                     now().map_err(Failure::configuration)?,
                     anchor,
                 )?;
@@ -299,6 +300,7 @@ impl Owner {
             native: crate::native_owner::NativeOwner::installed(service, signer),
             context,
             policy_store,
+            policy,
             certificate: read(&directory, "tls-cert", 8192)?,
             tls_key: private_bytes(&directory, "tls-key", 8192)?,
             peer_certificate: read(&directory, "tls-peer", 8192)?,
@@ -326,7 +328,7 @@ impl Owner {
     pub(crate) fn close(&mut self) {
         self.listener.take();
         self.native.close();
-        self.context.policy().close();
+        self.policy.close();
         self.policy_store.close();
     }
 }

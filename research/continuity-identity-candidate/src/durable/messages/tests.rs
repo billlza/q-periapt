@@ -471,7 +471,10 @@ fn closed_or_expired_authority_cannot_release_cached_messages() {
         .jr
         .receive_message(&p.f.responder, p.session, &wire, b"application", 1000)
         .is_err());
-    p.f.initiator.policy().close();
+    p.f.initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert_eq!(
         p.ji.message_status(&p.f.initiator, p.session, id(p.session, 1, 1))
             .expect("read-only status"),
@@ -481,7 +484,10 @@ fn closed_or_expired_authority_cannot_release_cached_messages() {
         .ji
         .resume_message(&p.f.initiator, p.session, id(p.session, 1, 1), 150)
         .is_err());
-    p.f.responder.policy().close();
+    p.f.responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert!(p
         .jr
         .receive_message(&p.f.responder, p.session, &wire, b"application", 150)
@@ -1921,7 +1927,10 @@ fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_t
         .expect("recovery owner");
     let key_owner = recovery
         .generate_key(
-            &p.f.initiator.policy().runtime,
+            &p.f.initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .runtime,
             &rekey_digest(b"key", &scope),
             &token,
         )
@@ -2045,7 +2054,8 @@ fn rekey_response_rejects_unauthenticated_conflicting_and_revoked_offers() {
     let mut alternate = body.to_vec();
     let another =
         p.f.initiator
-            .policy()
+            .current_policy()
+            .expect("fixture policy owner")
             .runtime
             .generate_key()
             .expect("alternative peer key");

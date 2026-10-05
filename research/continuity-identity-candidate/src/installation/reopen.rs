@@ -68,7 +68,7 @@ impl ServiceOwners {
                 self.installation.identity,
                 self.installation.key_binding,
                 context.role_storage_owner(role),
-                context.policy(),
+                context.original_policy(),
             )? != self.installation.scope
         {
             return Err(DurableError::Conflict);
@@ -166,6 +166,36 @@ impl DeviceService {
         let context = owners
             .journal
             .prepare_reopened_context(context, session, role, now)?;
+        Self::finish_peer_reopen(owners, context, role, session, now)
+    }
+    /// Restore only the selected original established session under current P1
+    /// and the exact joint authorization already completed in this local journal.
+    /// The caller independently verifies P1. No caller-supplied T or owner hash
+    /// overrides durable state. New bootstrap/prekey permission is not granted.
+    pub fn reopen_continued_peer(
+        &mut self,
+        request: SessionReopenRequest,
+        policy: Arc<crate::VerifiedSessionPolicy>,
+        now: u64,
+    ) -> Result<ReopenedPeer, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        let SessionReopenRequest {
+            context,
+            role,
+            session,
+        } = request;
+        let context = owners
+            .journal
+            .prepare_continued_context(context, session, role, policy, now)?;
+        Self::finish_peer_reopen(owners, context, role, session, now)
+    }
+    fn finish_peer_reopen(
+        owners: &mut ServiceOwners,
+        context: Arc<BootstrapContext>,
+        role: BootstrapRole,
+        session: [u8; 32],
+        now: u64,
+    ) -> Result<ReopenedPeer, DurableError> {
         owners.check_peer_binding(&context, role)?;
         owners
             .archives
@@ -205,6 +235,48 @@ impl ReopenedSession {
     }
 }
 impl DeviceInstallation {
+    /// Open the same Active installation and original archive under completed
+    /// local-only policy continuation. Historical P0 authenticates storage; P1
+    /// admits current operations only after the journal checks exact T, session,
+    /// local role and current membership. No expired P0 runtime is reconstructed.
+    /// Required-witness continuation is refused until exact-T witness admission
+    /// is available; this method never falls back to local protection.
+    pub fn reopen_continued_session(
+        paths: InstallationPaths,
+        key: JournalKey,
+        request: SessionReopenRequest,
+        policy: Arc<crate::VerifiedSessionPolicy>,
+        now: u64,
+        anchor: Option<AnchorClient>,
+    ) -> Result<ReopenedSession, DurableError> {
+        if request
+            .context
+            .original_policy()
+            .anchor_requirement()
+            .binding()
+            .is_some()
+            || policy.anchor_requirement().binding().is_some()
+        {
+            return Err(DurableError::AnchorRequired);
+        }
+        if anchor.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        let mut service = Self::reconcile_original_enrollment(
+            paths,
+            key,
+            request.context.device(request.role),
+            request.context.original_policy(),
+            None,
+        )?;
+        let peer = service.reopen_continued_peer(request, policy, now)?;
+        Ok(ReopenedSession {
+            service,
+            context: peer.context,
+            role: peer.role,
+            session: peer.session,
+        })
+    }
     /// Reopen only an Active installation and a live established message session.
     /// Missing children, unfinished bootstrap, closure, wrong bindings, revoked
     /// membership or unavailable required witness return no operational owner.
@@ -223,7 +295,7 @@ impl DeviceInstallation {
         } = request;
         context.check_session_identity(now)?;
         let device = context.device(role);
-        let policy = context.policy();
+        let policy = context.current_policy()?;
         let mut installation = Self::open_bound(paths, &key, device, policy)?;
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);

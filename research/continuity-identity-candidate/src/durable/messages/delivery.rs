@@ -37,7 +37,13 @@ impl DeviceJournal {
             return Err(Error::Scope.into());
         }
         if ad.len() > MAX_AD
-            || header.index >= u64::from(context.policy().application_send_budget().messages())
+            || header.index
+                >= u64::from(
+                    context
+                        .original_policy()
+                        .application_send_budget()
+                        .messages(),
+                )
         {
             return Err(Error::PolicyDenied.into());
         }

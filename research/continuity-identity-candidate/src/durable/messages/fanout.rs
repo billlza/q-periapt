@@ -173,10 +173,23 @@ impl DeviceJournal {
                 Some(now) => self.message_state(image, target.context, &target.session, now)?,
                 None => self.message_state_for_status(target.context, target.session)?,
             };
-            let devices = target.context.devices();
             let (local, peer) = match state.role {
-                1 => (devices[0], devices[1]),
-                2 => (devices[1], devices[0]),
+                1 => (
+                    target
+                        .context
+                        .session_device(crate::BootstrapRole::Initiator),
+                    target
+                        .context
+                        .session_device(crate::BootstrapRole::Responder),
+                ),
+                2 => (
+                    target
+                        .context
+                        .session_device(crate::BootstrapRole::Responder),
+                    target
+                        .context
+                        .session_device(crate::BootstrapRole::Initiator),
+                ),
                 _ => return Err(DurableError::Corrupt),
             };
             if peer.account_id() != account || !sessions.insert(target.session) {
@@ -233,7 +246,7 @@ impl DeviceJournal {
             return Err(Error::PolicyDenied.into());
         }
         for selected in selected {
-            rosters::authorize_context(image, selected.context, now)?;
+            rosters::authorize_session_context(image, selected.context, now)?;
         }
         self.check_release(image)?;
         Ok(roster.checkpoint())
@@ -285,7 +298,7 @@ impl DeviceJournal {
             }
             let progress = item
                 .state
-                .send_progress(item.context.policy().application_send_budget())?;
+                .send_progress(item.context.original_policy().application_send_budget())?;
             let traffic = item.state.traffic_mut(item.state.send_epoch)?;
             traffic.require_unresolved()?;
             if traffic.pending.is_some() {
@@ -404,7 +417,6 @@ impl DeviceJournal {
         // separately rechecked below for EVERY context, including terminal ones.
         self.check_fanout_bindings(image, batch, targets)?;
         for target in targets {
-            rosters::authorize_context(image, target.context, now)?;
             let record = self.message_record_for_status(image, target.context, target.session)?;
             if !matches!(
                 record.phase,
@@ -414,10 +426,16 @@ impl DeviceJournal {
             ) {
                 return Err(DurableError::Corrupt);
             }
+            check_message_owner(image, target.context, closure::record_role(record)?)?;
+            if target.context.retained_binding().is_some() {
+                rosters::authorize_retained_context_authority(image, target.context, now)?;
+            } else {
+                rosters::authorize_context(image, target.context, now)?;
+            }
             if record.phase != DurableStatus::MessagesClosed {
                 let state = State::decode(&record.payload)?;
                 check_message_owner(image, target.context, state.role)?;
-                state.send_progress(target.context.policy().application_send_budget())?;
+                state.send_progress(target.context.original_policy().application_send_budget())?;
             }
         }
         let roster = rosters::current(image, &batch.account)?;

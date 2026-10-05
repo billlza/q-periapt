@@ -220,7 +220,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<Binding, DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         crate::codec::nonzero(&session)?;
         let devices = context.devices();
         let (role, local, peer) = if image.owner == context.initiator_storage_owner() {

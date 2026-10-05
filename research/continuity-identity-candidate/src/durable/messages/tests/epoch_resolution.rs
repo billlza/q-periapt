@@ -125,7 +125,10 @@ fn resolution_scope_authority_and_checkpoint_invariants_are_enforced() {
         p.jr.image().expect("expiry makes no progress").revision,
         before
     );
-    p.f.responder.policy().close();
+    p.f.responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert!(p
         .jr
         .begin_closed_epoch_resolution(&p.f.responder, p.session, 0, 150)

@@ -15,6 +15,15 @@ const POLICY_TAG: &[u8; 8] = b"QPSESP03";
 const POLICY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1";
 const FAMILY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1";
 
+mod continuation;
+#[cfg(all(test, unix))]
+pub(crate) use continuation::tests::Case as PolicyContinuationTestCase;
+pub use continuation::{
+    HistoricalPolicyContinuation, PolicyContinuationApproval, PolicyContinuationMaterials,
+    PolicyContinuationScope, PolicyContinuationStatement, VerifiedPolicyContinuation,
+    MAX_POLICY_CONTINUATION_BYTES,
+};
+
 /// Fixed candidate protocol profile, separate from the SDK KEM suite and ABI.
 /// The digest is metadata for this candidate, not a frozen product identifier.
 pub fn bootstrap_suite_digest() -> [u8; 32] {
@@ -346,11 +355,7 @@ impl VerifiedSessionPolicy {
         device: &VerifiedDevice,
         now: u64,
     ) -> Result<(), Error> {
-        if device.description.family != self.historical.family {
-            return Err(Error::Scope);
-        }
-        self.check_external_signer(&device.key)?;
-        device.description.validity.check(now)
+        self.historical.check_device_identity_at(device, now)
     }
 
     /// Close this protocol-policy instance without changing other SDK applications.
@@ -362,14 +367,24 @@ impl VerifiedSessionPolicy {
     /// Check mode, time and current runtime lifetime at an operation boundary.
     /// The service must separately recheck durable policy/roster/directory authority.
     pub fn check_mode(&self, quality: PrekeyQuality, trusted_time: u64) -> Result<(), Error> {
-        if self.closed.load(Ordering::Acquire) {
-            return Err(Error::Closed);
-        }
-        self.historical.validity.check(trusted_time)?;
+        self.check_lifetime(trusted_time)?;
         if !self.historical.modes.permits(quality) || !self.runtime.is_enabled()? {
             return Err(Error::PolicyDenied);
         }
         Ok(())
+    }
+    fn check_current(&self, trusted_time: u64) -> Result<(), Error> {
+        self.check_lifetime(trusted_time)?;
+        if !self.runtime.is_enabled()? {
+            return Err(Error::PolicyDenied);
+        }
+        Ok(())
+    }
+    fn check_lifetime(&self, trusted_time: u64) -> Result<(), Error> {
+        if self.closed.load(Ordering::Acquire) {
+            return Err(Error::Closed);
+        }
+        self.historical.validity.check(trusted_time)
     }
     /// Authenticated immutable metadata; current admission is checked separately.
     pub fn application_send_budget(&self) -> ApplicationSendBudget {
@@ -412,6 +427,18 @@ impl VerifiedSessionPolicy {
 }
 
 impl HistoricalSessionPolicy {
+    // Identity/interval verification only; no current policy or runtime lease.
+    pub(crate) fn check_device_identity_at(
+        &self,
+        device: &VerifiedDevice,
+        at: u64,
+    ) -> Result<(), Error> {
+        if device.description.family != self.family {
+            return Err(Error::Scope);
+        }
+        self.check_external_signer(&device.key)?;
+        device.description.validity.check(at)
+    }
     /// Authenticated immutable send bound; reading it grants no message permission.
     pub fn application_send_budget(&self) -> ApplicationSendBudget {
         self.budget

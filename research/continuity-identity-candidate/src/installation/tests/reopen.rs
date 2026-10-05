@@ -5,6 +5,7 @@ use crate::{
     ReopenedSession, RootSigningKey, SessionReopenRequest, Validity, VerifiedRoster,
 };
 
+mod policy_continuation;
 mod renewal;
 
 struct Local {
@@ -16,6 +17,7 @@ struct Local {
     _peer_directory: tempfile::TempDir,
     peer: DeviceJournal,
     original_id: MessageId,
+    initial: Vec<u8>,
     role: BootstrapRole,
 }
 impl Local {
@@ -40,7 +42,7 @@ impl Local {
         let root = dir.path().canonicalize().expect("path");
         drop(JournalKey::provision(&root.join("key")).expect("key"));
         let device = f.initiator.device(role);
-        let policy = f.initiator.policy();
+        let policy = f.initiator.current_policy().expect("fixture policy owner");
         let mut owner =
             DeviceInstallation::provision(paths(&root), &key(&root), device, policy, 150)
                 .expect("installation");
@@ -122,6 +124,7 @@ impl Local {
             _peer_directory: peer_dir,
             peer,
             original_id,
+            initial,
             role,
         }
     }
@@ -146,6 +149,18 @@ impl Local {
             None,
         )
     }
+    fn historical_request(&self, now: u64) -> SessionReopenRequest {
+        self.f
+            .bundle
+            .request_historical_reopen(
+                Arc::new(self.f.initiator.original_policy().clone()),
+                self.f.bundle_requirements(PrekeyQuality::OneTimeBoth),
+                self.role,
+                self.session,
+                now,
+            )
+            .expect("original historical identity without a runtime owner")
+    }
     fn update(&mut self, role: BootstrapRole, keep: bool) {
         let device = self.f.initiator.device(role);
         let seed = match role {
@@ -159,6 +174,116 @@ impl Local {
             .0
             .install_roster(&roster, 150)
             .expect("independent current authority");
+    }
+}
+
+#[test]
+fn historical_request_cannot_admit_or_mutate_an_existing_installation_without_current_authority() {
+    for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+        let mut c = Local::with_role(false, role);
+        let original = c
+            .service
+            .stores()
+            .expect("stores")
+            .0
+            .resume_message(&c.f.initiator, c.session, c.original_id, 150)
+            .expect("original outbox");
+        let paths = paths(&c.root);
+        let snapshot = || {
+            [&paths.configuration, &paths.journal, &paths.archives]
+                .map(|path| fs::read(path).expect("existing stored bytes"))
+        };
+        let before = snapshot();
+        for now in [150, 170, 250] {
+            let request = c.historical_request(now);
+            let historical = Arc::clone(&request.context);
+            assert!(matches!(
+                crate::InitiatorOperation::start(Arc::clone(&historical), &c.f.signer_i, now,),
+                Err(crate::Error::Scope)
+            ));
+            assert!(matches!(
+                c.service.admit_peer(Arc::clone(&historical), role, now),
+                Err(DurableError::Protocol(crate::Error::Scope))
+            ));
+            let reopened = c.service.reopen_peer(request, now);
+            let refused = if now == 250 {
+                // The owning journal checks current roster validity before
+                // resolving the context's missing operational owner.
+                matches!(
+                    &reopened,
+                    Err(DurableError::Protocol(crate::Error::Validity))
+                )
+            } else {
+                matches!(&reopened, Err(DurableError::Protocol(crate::Error::Scope)))
+            };
+            assert!(
+                refused,
+                "historical reopen at {now}, role {role:?}: {:?}",
+                reopened.as_ref().err()
+            );
+            let journal = c.service.stores().expect("service remains available").0;
+            assert!(matches!(
+                journal.initiate(
+                    Arc::clone(&historical),
+                    InitiationId::generate().expect("new attempted operation"),
+                    &c.f.signer_i,
+                    now,
+                ),
+                Err(DurableError::Protocol(crate::Error::Scope))
+            ));
+            if role == BootstrapRole::Responder {
+                assert!(matches!(
+                    journal.respond_from_inventory(
+                        Arc::clone(&historical),
+                        &c.initial,
+                        &c.f.signer_r,
+                        now,
+                    ),
+                    Err(DurableError::Protocol(crate::Error::Scope))
+                ));
+            }
+            assert!(matches!(
+                journal.next_message_id(&historical, c.session, now),
+                Err(DurableError::Protocol(crate::Error::Scope))
+            ));
+            assert!(matches!(
+                journal.resume_message(&historical, c.session, c.original_id, now),
+                Err(DurableError::Protocol(crate::Error::Scope))
+            ));
+            assert_eq!(
+                snapshot(),
+                before,
+                "historical request mutated stored bytes"
+            );
+        }
+        c.service.close();
+        let closed = snapshot();
+        for now in [170, 250] {
+            assert!(matches!(
+                DeviceInstallation::reopen_session(
+                    paths.clone(),
+                    key(&c.root),
+                    c.historical_request(now),
+                    now,
+                    None,
+                ),
+                Err(DurableError::Protocol(crate::Error::Scope))
+            ));
+            assert_eq!(snapshot(), closed, "rejected reopen changed stored bytes");
+        }
+        // An independently live original owner still resumes the exact existing
+        // ciphertext. Historical refusal has not repaired or reset any state.
+        let (mut service, context) = c
+            .reopen()
+            .expect("original owner remains usable at 170")
+            .into_parts();
+        let actual = service
+            .stores()
+            .expect("stores")
+            .0
+            .resume_message(&context, c.session, c.original_id, 170)
+            .expect("same retained outbox");
+        assert_eq!(actual, original);
     }
 }
 fn update(device: &VerifiedDevice, seed: u8, keep: bool) -> VerifiedRoster {
@@ -196,18 +321,23 @@ fn fresh_service(
         paths(&root),
         &original_key,
         context.device(role),
-        context.policy(),
+        context.current_policy().expect("fixture policy owner"),
         150,
     )
     .expect("explicit initialization");
     installation
-        .prepare(key(&root), context.device(role), context.policy(), 150)
+        .prepare(
+            key(&root),
+            context.device(role),
+            context.current_policy().expect("fixture policy owner"),
+            150,
+        )
         .expect("prepare");
     let service = installation
         .activate(
             original_key,
             context.device(role),
-            context.policy(),
+            context.current_policy().expect("fixture policy owner"),
             150,
             None,
         )
@@ -511,7 +641,9 @@ fn reopen_uses_current_rosters_without_changing_original_context() {
             paths(&c.root),
             &key(&c.root),
             c.f.initiator_device(),
-            c.f.initiator.policy(),
+            c.f.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             170
         ),
         Err(DurableError::Protocol(Error::Validity))

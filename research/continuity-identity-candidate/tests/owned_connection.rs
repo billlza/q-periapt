@@ -270,7 +270,10 @@ fn context(path: &Path, sdk: &PolicyStore, at: u64) -> Result<Arc<p::BootstrapCo
             at,
         )?))
     })?;
-    assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
+    assert!(std::ptr::eq(
+        Arc::as_ptr(&policy),
+        context.current_policy().expect("fixture policy owner")
+    ));
     assert_eq!(
         context.device(p::BootstrapRole::Initiator).device_id(),
         array::<16>(path, "initiator-device")?
@@ -319,12 +322,29 @@ impl Peer {
                 let key = key(path)?;
                 let id = p::SigningKeyId::from_trusted_state(array(path, "signer-id")?)?;
                 let signer = p::DeviceSigningKey::open(&path.join("signer.key"), &key, id)?;
-                let owner =
-                    p::DeviceInstallation::open(paths(path)?, &key, device, context.policy(), at)?;
-                let service = owner.activate(key, device, context.policy(), at, anchor)?;
+                let owner = p::DeviceInstallation::open(
+                    paths(path)?,
+                    &key,
+                    device,
+                    context.current_policy().expect("fixture policy owner"),
+                    at,
+                )?;
+                let service = owner.activate(
+                    key,
+                    device,
+                    context.current_policy().expect("fixture policy owner"),
+                    at,
+                    anchor,
+                )?;
                 enrollment::DeviceOwner::installed(service, signer)
             }
-            [2] => enrollment::open(path, context.policy(), device, at, anchor)?,
+            [2] => enrollment::open(
+                path,
+                context.current_policy().expect("fixture policy owner"),
+                device,
+                at,
+                anchor,
+            )?,
             _ => return Err("unknown configured device owner".into()),
         };
         Ok(Self {
@@ -356,7 +376,10 @@ impl Peer {
     }
     pub(crate) fn close(&mut self) {
         self.service.close();
-        self.context.policy().close();
+        self.context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         self.policy_store.close();
     }
 }
@@ -1443,7 +1466,8 @@ fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Resu
     assert!(matches!(
         sender
             .context
-            .policy()
+            .current_policy()
+            .expect("fixture policy owner")
             .check_mode(p::PrekeyQuality::OneTimeBoth, now()?),
         Err(p::Error::Closed)
     ));

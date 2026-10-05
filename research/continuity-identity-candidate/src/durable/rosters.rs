@@ -10,7 +10,7 @@ fn id(account: &[u8; 32]) -> [u8; 32] {
 }
 use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
 mod local_renewal;
-pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution};
+pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
 
 pub(super) fn check_credential_renewal_intent(
     image: &Image,
@@ -85,6 +85,8 @@ pub(super) fn check_credential_cancellation(
 }
 
 #[cfg(all(test, unix))]
+mod policy_continuation_tests;
+#[cfg(all(test, unix))]
 pub(crate) mod tests;
 
 struct Stored {
@@ -92,6 +94,7 @@ struct Stored {
     history: BTreeMap<[u8; 16], (u64, [u8; 32])>,
     renewals: BTreeMap<[u8; 16], VerifiedCredentialRenewal>,
     local_commit: Option<LocalRenewalCommit>,
+    policy_continuation: Option<crate::HistoricalPolicyContinuation>,
 }
 impl Stored {
     fn initial(roster: &VerifiedRoster) -> Self {
@@ -103,6 +106,7 @@ impl Stored {
                 .collect(),
             renewals: BTreeMap::new(),
             local_commit: None,
+            policy_continuation: None,
         }
     }
     fn record(&self) -> Result<Record, DurableError> {
@@ -110,7 +114,9 @@ impl Stored {
             return Err(DurableError::Capacity);
         }
         let roster = self.roster.journal_bytes();
-        let tag = if self.local_commit.is_some() {
+        let tag = if self.policy_continuation.is_some() {
+            b"QPRHST04"
+        } else if self.local_commit.is_some() {
             b"QPRHST03"
         } else if self.renewals.is_empty() {
             b"QPRHST01"
@@ -126,7 +132,10 @@ impl Stored {
             payload.extend_from_slice(&generation.to_be_bytes());
             payload.extend_from_slice(certificate);
         }
-        if !self.renewals.is_empty() || self.local_commit.is_some() {
+        if !self.renewals.is_empty()
+            || self.local_commit.is_some()
+            || self.policy_continuation.is_some()
+        {
             payload.extend_from_slice(&(self.renewals.len() as u16).to_be_bytes());
             for (id, renewal) in &self.renewals {
                 payload.extend_from_slice(id);
@@ -136,8 +145,17 @@ impl Stored {
                 payload.extend_from_slice(renewal.as_bytes());
             }
         }
+        if self.policy_continuation.is_some() {
+            payload.push(u8::from(self.local_commit.is_some()));
+        }
         if let Some(commit) = &self.local_commit {
             commit.encode(&mut payload);
+        }
+        if let Some(continuation) = &self.policy_continuation {
+            let wire = continuation.journal_bytes();
+            let length = u32::try_from(wire.len()).map_err(|_| DurableError::Capacity)?;
+            payload.extend_from_slice(&length.to_be_bytes());
+            payload.extend_from_slice(&wire);
         }
         Ok(Record {
             kind: RecordKind::Roster,
@@ -224,6 +242,7 @@ impl Stored {
             history,
             renewals,
             local_commit: self.local_commit,
+            policy_continuation: self.policy_continuation,
         })
     }
 }
@@ -238,7 +257,7 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
     }
     let mut decoder = Decoder::new(&record.payload);
     let tag = decoder.array::<8>()?;
-    if tag != *b"QPRHST01" && tag != *b"QPRHST02" && tag != *b"QPRHST03" {
+    if tag != *b"QPRHST01" && tag != *b"QPRHST02" && tag != *b"QPRHST03" && tag != *b"QPRHST04" {
         return Err(DurableError::Corrupt);
     }
     let size = u32::from_be_bytes(decoder.array()?) as usize;
@@ -269,7 +288,7 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         history.insert(id, (generation, certificate));
     }
     let mut renewals = BTreeMap::new();
-    if tag == *b"QPRHST02" || tag == *b"QPRHST03" {
+    if tag == *b"QPRHST02" || tag == *b"QPRHST03" || tag == *b"QPRHST04" {
         let count = usize::from(decoder.u16()?);
         if (count == 0 && tag == *b"QPRHST02") || count > MAX_DEVICE_HISTORY {
             return Err(DurableError::Corrupt);
@@ -297,7 +316,16 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
             renewals.insert(id, renewal);
         }
     }
-    let local_commit = if tag == *b"QPRHST03" {
+    let has_commit = if tag == *b"QPRHST04" {
+        match decoder.array::<1>()? {
+            [0] => false,
+            [1] => true,
+            _ => return Err(DurableError::Corrupt),
+        }
+    } else {
+        tag == *b"QPRHST03"
+    };
+    let local_commit = if has_commit {
         let commit = LocalRenewalCommit::decode(&mut decoder)?;
         if commit.target.version() > roster.checkpoint().version()
             || (commit.target.version() == roster.checkpoint().version()
@@ -306,6 +334,18 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
             return Err(DurableError::Corrupt);
         }
         Some(commit)
+    } else {
+        None
+    };
+    let policy_continuation = if tag == *b"QPRHST04" {
+        let size = u32::from_be_bytes(decoder.array()?) as usize;
+        if size != crate::PUBLIC_KEY_BYTES + crate::MAX_POLICY_CONTINUATION_BYTES {
+            return Err(DurableError::Corrupt);
+        }
+        Some(
+            crate::HistoricalPolicyContinuation::from_journal(decoder.take(size)?, &roster)
+                .map_err(DurableError::InvalidCheckpoint)?,
+        )
     } else {
         None
     };
@@ -321,11 +361,40 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         history,
         renewals,
         local_commit,
+        policy_continuation,
     })
 }
 fn get(image: &Image, account: &[u8; 32]) -> Result<Stored, DurableError> {
     let key = id(account);
-    decode(&key, image.records.get(&key).ok_or(DurableError::Absent)?)
+    let saved = decode(&key, image.records.get(&key).ok_or(DurableError::Absent)?)?;
+    check_policy_continuation_scope(image, &saved)?;
+    Ok(saved)
+}
+fn check_policy_continuation_scope(image: &Image, saved: &Stored) -> Result<(), DurableError> {
+    let Some(continuation) = &saved.policy_continuation else {
+        return Ok(());
+    };
+    let scope = continuation.scope();
+    if saved.roster.account_id() != image.local_account
+        || scope.journal.as_bytes() != &image.id
+        || scope.original_owner != image.owner
+        || matches!(image.protection, Protection::Required { policy, .. } if policy != scope.original_policy.digest())
+        || saved
+            .local_commit
+            .as_ref()
+            .is_some_and(|commit| commit.policy != scope.original_policy.digest())
+        || saved.renewals.values().any(|grant| {
+            grant.original_storage_owner() == image.owner
+                && (grant.policy_digest() != scope.original_policy.digest()
+                    || grant.original_credential_digest() != scope.original_credential)
+        })
+    {
+        return Err(DurableError::Conflict);
+    }
+    // Local-only journals do not carry a policy checkpoint in their header.
+    // Operational admission must additionally match the original installation
+    // or context P0; historical decoding cannot create that missing authority.
+    Ok(())
 }
 pub(super) fn current(image: &Image, account: &[u8; 32]) -> Result<VerifiedRoster, DurableError> {
     Ok(get(image, account)?.roster)
@@ -346,6 +415,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
     for (key, record) in &image.records {
         if record.kind == RecordKind::Roster {
             let saved = decode(key, record)?;
+            check_policy_continuation_scope(image, &saved)?;
             if let Some(commit) = &saved.local_commit {
                 if saved.roster.account_id() != image.local_account || commit.owner != image.owner {
                     return Err(DurableError::Corrupt);
@@ -394,6 +464,7 @@ pub(super) fn authorize_device(
     device: &VerifiedDevice,
     now: u64,
 ) -> Result<(), DurableError> {
+    require_original_operational_policy(image)?;
     get(image, &device.account_id())
         .map_err(|error| {
             if matches!(error, DurableError::Absent) {
@@ -448,10 +519,11 @@ pub(super) fn authorize_context(
     context: &BootstrapContext,
     now: u64,
 ) -> Result<(), DurableError> {
+    require_original_operational_policy(image)?;
     context.require_fresh_identity(now)?;
     context.check_storage_binding(image.id, image.owner, None)?;
     if let Some((_, role, _)) = context.storage_binding() {
-        authorize_local_device(image, context.device(role), context.policy(), now)?;
+        authorize_local_device(image, context.device(role), context.current_policy()?, now)?;
     }
     for device in context.devices() {
         authorize_device(image, device, now)?;
@@ -476,8 +548,8 @@ pub(super) fn resolve_session_identities(
             {
                 return Err(Error::Checkpoint.into());
             }
-            let resolved =
-                grant.resolve_established(original, context.policy().checkpoint().digest())?;
+            let resolved = grant
+                .resolve_established(original, context.original_policy().checkpoint().digest())?;
             saved.roster.authorize_device(&resolved.device, now)?;
             *slot = Some(resolved);
         } else {
@@ -485,6 +557,74 @@ pub(super) fn resolve_session_identities(
         }
     }
     Ok(result)
+}
+// Historical joint completion is connected before operational P1 admission.
+// Existing APIs carry no exact-T capability and must not reuse a cached P0,
+// including by presenting a time at which P0 used to be live.
+pub(super) fn require_original_operational_policy(image: &Image) -> Result<(), DurableError> {
+    if get(image, &image.local_account)?
+        .policy_continuation
+        .is_some()
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+// Bind independently verified P1 to the exact completed local T and original
+// transcript. The caller must still admit current identities/time/runtime and
+// the original existing session/archive before returning an operational view.
+pub(super) fn bind_policy_continuation(
+    image: &Image,
+    context: &BootstrapContext,
+    role: crate::BootstrapRole,
+    policy: &crate::VerifiedSessionPolicy,
+) -> Result<[u8; 32], DurableError> {
+    if image.protection != Protection::Local {
+        return Err(DurableError::AnchorRequired);
+    }
+    let saved = get(image, &image.local_account)?;
+    let t = saved
+        .policy_continuation
+        .as_ref()
+        .ok_or(DurableError::Conflict)?;
+    if saved.local_commit.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    let original = context.device(role);
+    if image.local_account != original.account_id()
+        || image.owner != bootstrap::storage_owner(original)
+        || t.scope().original_credential != original.credential_digest()
+        || t.scope().original_owner != image.owner
+        || t.scope().journal.as_bytes() != &image.id
+    {
+        return Err(DurableError::Conflict);
+    }
+    t.check_context_policy(context.original_policy(), policy)?;
+    Ok(t.statement_digest())
+}
+
+fn check_session_policy_authority(
+    image: &Image,
+    context: &BootstrapContext,
+) -> Result<(), DurableError> {
+    match context.continued_policy_statement() {
+        Some(statement) => {
+            let (journal, _, role) = context.retained_binding().ok_or(DurableError::Conflict)?;
+            if journal != image.id
+                || bind_policy_continuation(image, context, role, context.current_policy()?)?
+                    != statement
+            {
+                return Err(DurableError::Conflict);
+            }
+        }
+        None => {
+            require_original_operational_policy(image)?;
+            if context.current_policy()?.checkpoint() != context.original_policy().checkpoint() {
+                return Err(DurableError::Conflict);
+            }
+        }
+    }
+    Ok(())
 }
 pub(super) fn authorize_session_context(
     image: &Image,
@@ -495,6 +635,20 @@ pub(super) fn authorize_session_context(
         return authorize_context(image, context, now);
     }
     messages::check_retained_binding(image, context)?;
+    authorize_retained_context_authority(image, context, now)
+}
+// Operational authorization only; the owning message/fanout path must bind the
+// exact actual record and phase first. This also serves committed fanout members
+// whose messages have closed, without treating those records as live sessions.
+pub(super) fn authorize_retained_context_authority(
+    image: &Image,
+    context: &BootstrapContext,
+    now: u64,
+) -> Result<(), DurableError> {
+    if context.retained_binding().is_none() {
+        return Err(DurableError::Conflict);
+    }
+    check_session_policy_authority(image, context)?;
     context.check_session_identity(now)?;
     let resolved = resolve_session_identities(image, context, now)?;
     for (role, current) in [
@@ -632,12 +786,12 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<std::sync::Arc<BootstrapContext>, DurableError> {
         context.check(now)?;
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         // One authenticated image and one final release fence cover both the
         // private local mapping and peer preview. Neither preview mutates state.
         let image = self.image()?;
         context.check_storage_binding(image.id, image.owner, Some(role))?;
-        authorize_local_device(&image, context.device(role), context.policy(), now)?;
+        authorize_local_device(&image, context.device(role), context.current_policy()?, now)?;
         let context = if bootstrap::storage_owner(context.device(role)) != image.owner {
             std::sync::Arc::new(context.with_current_storage(image.id, role, image.owner)?)
         } else {
@@ -723,7 +877,7 @@ impl DeviceJournal {
         context: &BootstrapContext,
         now: u64,
     ) -> Result<(), DurableError> {
-        self.check_policy(context.policy())?;
+        self.check_policy(context.original_policy())?;
         authorize_session_context(image, context, now)?;
         self.check_release(image)
     }

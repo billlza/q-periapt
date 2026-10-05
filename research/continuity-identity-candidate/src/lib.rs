@@ -52,7 +52,11 @@ pub(crate) struct RetainedInstallationAuthority {
     witness: Option<[u8; 32]>,
 }
 impl RetainedInstallationAuthority {
-    fn active_installation(device: &VerifiedDevice, policy: &VerifiedSessionPolicy) -> Self {
+    fn active_installation(
+        device: &VerifiedDevice,
+        policy: &impl AsRef<HistoricalSessionPolicy>,
+    ) -> Self {
+        let policy = policy.as_ref();
         Self {
             owner: bootstrap::storage_owner(device),
             policy: policy.checkpoint().digest(),
@@ -128,8 +132,10 @@ pub use selection::{
 };
 pub use session_policy::{
     bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
-    HistoricalSessionPolicy, IssuedSessionPolicy, PolicyCheckpoint, PolicyPin,
-    SessionPolicyParameters, VerifiedSessionPolicy,
+    HistoricalPolicyContinuation, HistoricalSessionPolicy, IssuedSessionPolicy, PolicyCheckpoint,
+    PolicyContinuationApproval, PolicyContinuationMaterials, PolicyContinuationScope,
+    PolicyContinuationStatement, PolicyPin, SessionPolicyParameters, VerifiedPolicyContinuation,
+    VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES,
 };
 
 use std::fmt;

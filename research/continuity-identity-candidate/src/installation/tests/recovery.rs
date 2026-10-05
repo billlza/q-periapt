@@ -101,19 +101,26 @@ fn installation_recovery_preserves_closed_policy_accounting_and_original_catalog
             paths(&c.root),
             &key(&c.root),
             c.f.initiator_device(),
-            c.f.initiator.policy(),
+            c.f.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             2000
         ),
         Err(DurableError::Protocol(Error::Validity))
     ));
-    c.f.initiator.policy().close();
+    c.f.initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     c.f.signer_i.close();
     assert!(matches!(
         DeviceInstallation::open(
             paths(&c.root),
             &key(&c.root),
             c.f.initiator_device(),
-            c.f.initiator.policy(),
+            c.f.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Protocol(Error::Closed))
@@ -275,13 +282,22 @@ pub(super) fn anchored_session(c: &Anchored) -> ([u8; 32], SessionClosureArchive
         &path.join("state.redb"),
         JournalKey::provision(&path.join("key")).expect("peer key"),
         c.peer.local_device(),
-        c.peer.responder.policy(),
+        c.peer
+            .responder
+            .current_policy()
+            .expect("fixture policy owner"),
         id,
         150,
     )
     .expect("peer genesis");
     let genesis = peer
-        .anchor_genesis(c.peer.local_device(), c.peer.responder.policy())
+        .anchor_genesis(
+            c.peer.local_device(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+        )
         .expect("peer binding");
     c.server
         .lock()
@@ -290,7 +306,10 @@ pub(super) fn anchored_session(c: &Anchored) -> ([u8; 32], SessionClosureArchive
         .enroll(
             &genesis,
             c.peer.local_device(),
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
         .expect("explicit peer enrollment");
@@ -312,7 +331,10 @@ pub(super) fn anchored_session(c: &Anchored) -> ([u8; 32], SessionClosureArchive
         &path.join("state.redb"),
         JournalKey::open(&path.join("key")).expect("key"),
         c.peer.local_device(),
-        c.peer.responder.policy(),
+        c.peer
+            .responder
+            .current_policy()
+            .expect("fixture policy owner"),
         id,
         client,
     )
@@ -327,7 +349,11 @@ fn installation_recovery_keeps_original_witness_and_refuses_each_lost_open_reply
     for after in [false, true] {
         let c = Anchored::new();
         let (session, archive) = anchored_session(&c);
-        c.peer.initiator.policy().close();
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         let recovery =
             || InstallationRecovery::open(paths(&c.root), key(&c.root)).expect("original config");
         assert!(matches!(

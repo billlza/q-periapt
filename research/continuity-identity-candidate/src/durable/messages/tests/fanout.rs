@@ -13,6 +13,7 @@ mod archive;
 mod connection;
 mod installation;
 mod lifecycle;
+mod policy_continuation;
 mod process;
 mod roles;
 mod witness;
@@ -243,7 +244,11 @@ impl Network {
         let mut sender = provision(
             &sender_path,
             &f.local,
-            f.contexts.first().expect("context").policy(),
+            f.contexts
+                .first()
+                .expect("context")
+                .current_policy()
+                .expect("fixture policy owner"),
         );
         let mut receivers = Vec::new();
         let mut sessions = Vec::new();
@@ -256,7 +261,11 @@ impl Network {
             .zip(&f.keys)
         {
             let dir = directory();
-            let mut receiver = provision(&canonical(&dir), device, context.policy());
+            let mut receiver = provision(
+                &canonical(&dir),
+                device,
+                context.current_policy().expect("fixture policy owner"),
+            );
             let request = InitiationId::generate().expect("request");
             let initial = sender
                 .initiate(Arc::clone(context), request, &f.local_signer, 150)
@@ -825,7 +834,12 @@ fn account_fanout_roster_changes_never_silently_change_the_retained_recipient_se
             n.f.root.account_id().expect("account"),
             n.f.root.public_key().expect("public"),
             issued.checkpoint(),
-            n.f.contexts.first().expect("context").policy().family(),
+            n.f.contexts
+                .first()
+                .expect("context")
+                .current_policy()
+                .expect("fixture policy owner")
+                .family(),
         )
         .expect("pin");
         let roster = pin
@@ -870,7 +884,12 @@ fn committed_account_members_cannot_bypass_revoked_recipient_via_individual_repl
         n.f.root.account_id().expect("account"),
         n.f.root.public_key().expect("root"),
         issued.checkpoint(),
-        n.f.contexts.first().expect("context").policy().family(),
+        n.f.contexts
+            .first()
+            .expect("context")
+            .current_policy()
+            .expect("fixture policy owner")
+            .family(),
     )
     .expect("independent pin");
     let roster = pin

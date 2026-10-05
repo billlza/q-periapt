@@ -105,7 +105,10 @@ impl Case {
             .create(&server)
             .expect("server");
         let peer = fixture(PrekeyQuality::OneTimeBoth);
-        let (policy, device, _) = peer.responder.inventory_inputs();
+        let (policy, device, _) = peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         let mut journal = new_store(&client, device);
         let genesis = journal.anchor_genesis(device, policy).expect("genesis");
         let key = JournalKey::provision(&server.join("wrap.key")).expect("key");
@@ -298,7 +301,11 @@ fn tls_certificate_cannot_authorize_another_enrolled_subject() {
         .mode(0o700)
         .create(&path)
         .expect("other");
-    let policy = case.peer.initiator.policy();
+    let policy = case
+        .peer
+        .initiator
+        .current_policy()
+        .expect("fixture policy owner");
     let device = case.peer.initiator.device(crate::BootstrapRole::Initiator);
     let mut other = new_store(&path, device);
     let genesis = other.anchor_genesis(device, policy).expect("other genesis");
@@ -381,7 +388,12 @@ fn tls_configuration_requires_explicit_bounded_leaf_subject_bindings() {
 #[test]
 fn tls_witness_query_requires_no_live_operational_sdk_runtime() {
     let case = Case::new();
-    case.peer.responder.policy().runtime.close();
+    case.peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .runtime
+        .close();
     assert!(case.peer.responder.check_session_identity(150).is_err());
     let client = Identity::new("client.test");
     let server = Identity::new("localhost");

@@ -18,7 +18,10 @@ fn recover(c: &Case, p: Proposal) -> Result<State, DurableError> {
         &c.path.join("state.redb"),
         JournalKey::open(&c.path.join("key")).expect("key"),
         c.peer.initiator_device(),
-        c.peer.initiator.policy(),
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner"),
         c.identity,
         p,
         &mut client(&c.pin, &c.server, true),
@@ -32,7 +35,15 @@ fn prepared(c: &mut Case) -> Proposal {
             .lock()
             .expect("server")
             .store
-            .prepare_credential_renewal(p, &grant, c.peer.initiator.policy(), 150)
+            .prepare_credential_renewal(
+                p,
+                &grant,
+                c.peer
+                    .initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
+                150
+            )
             .expect("root-approved target"),
         State::Prepared
     );
@@ -78,7 +89,11 @@ fn exact_applied_target_recovers_after_expiry_and_policy_close_without_retiring_
     assert_eq!(disk(&c), original);
     terminal(&c, p, true);
     c.server.lock().expect("server").now = 301;
-    c.peer.initiator.policy().close();
+    c.peer
+        .initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     let start = c.server.lock().expect("server").requests.len();
     assert_eq!(
         recover(&c, p).expect("historical exact apply"),
@@ -113,14 +128,25 @@ fn closed_and_unavailable_never_erase_intent_or_infer_local_commit() {
                     .lock()
                     .expect("server")
                     .store
-                    .close_credential_renewal(p, &proof, c.peer.initiator.policy())
+                    .close_credential_renewal(
+                        p,
+                        &proof,
+                        c.peer
+                            .initiator
+                            .current_policy()
+                            .expect("fixture policy owner")
+                    )
                     .expect("independent exact close"),
                 State::Closed
             );
         }
         let original = disk(&c);
         c.server.lock().expect("server").now = 301;
-        c.peer.initiator.policy().close();
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         let start = c.server.lock().expect("server").requests.len();
         assert_eq!(
             recover(&c, p).expect("historical observation"),
@@ -177,14 +203,25 @@ fn retained_proposal_original_identity_key_and_client_are_checked_before_network
             JournalIdentity::generate().expect("foreign ID"),
             true,
         ),
-        (c.peer.responder.inventory_inputs().1, c.identity, true),
+        (
+            c.peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner")
+                .1,
+            c.identity,
+            true,
+        ),
         (c.peer.initiator_device(), c.identity, false),
     ] {
         assert!(DeviceJournal::recover_credential_renewal(
             &c.path.join("state.redb"),
             JournalKey::open(&c.path.join("key")).expect("key"),
             device,
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             id,
             p,
             &mut client(&c.pin, &c.server, signer),
@@ -195,7 +232,10 @@ fn retained_proposal_original_identity_key_and_client_are_checked_before_network
         &c.path.join("state.redb"),
         JournalKey::provision(&c.path.join("wrong-key")).expect("foreign key"),
         c.peer.initiator_device(),
-        c.peer.initiator.policy(),
+        c.peer
+            .initiator
+            .current_policy()
+            .expect("fixture policy owner"),
         c.identity,
         p,
         &mut client(&c.pin, &c.server, true),
@@ -271,7 +311,10 @@ fn every_local_apply_sync_cut_preserves_exact_intent_and_allows_historical_retry
             db,
             key,
             c.peer.initiator_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             c.identity,
             p,
             &mut client(&c.pin, &c.server, true),
@@ -311,7 +354,11 @@ fn every_local_apply_sync_cut_preserves_exact_intent_and_allows_historical_retry
             assert!(observed.0 == original.0 || observed.0 == target(&original));
             assert_eq!(observed.1, original.1);
             c.server.lock().expect("server").now = 301;
-            c.peer.initiator.policy().close();
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
             assert_eq!(
                 recover(&c, p).expect("exact historical retry"),
                 State::Applied
@@ -352,7 +399,11 @@ fn recovery_crash_child() {
     .expect("exact intent");
     fs::write(root.join("original-target"), target(&saved)).expect("exact target");
     c.server.lock().expect("server").now = 301;
-    c.peer.initiator.policy().close();
+    c.peer
+        .initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert_eq!(
         recover(&c, p).expect("must be killed before return"),
         State::Applied
@@ -420,7 +471,10 @@ fn process_kill_after_exact_target_commit_reopens_with_original_pending_and_fres
         AnchorRequirement::required(&pin),
         crate::ApplicationSendBudget::new(1024).expect("budget"),
     );
-    peer.initiator.policy().close();
+    peer.initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     let p = Proposal::from_trusted_state(&fs::read(root.join("proposal")).expect("proposal"))
         .expect("original expectation");
     let identity = crate::durable::tests::identity(&path);

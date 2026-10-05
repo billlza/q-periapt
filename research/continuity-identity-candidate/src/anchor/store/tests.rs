@@ -39,7 +39,10 @@ fn case_with_peer(peer: Fixture) -> Case {
         .mode(0o700)
         .create(&server)
         .expect("server directory");
-    let (policy, device, _) = peer.responder.inventory_inputs();
+    let (policy, device, _) = peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let mut journal = new_store(&client, device);
     let genesis = journal
         .anchor_genesis(device, policy)
@@ -259,7 +262,11 @@ fn enrollment_is_explicit_idempotent_and_cannot_reset_a_device_lineage() {
     let head = apply_request(&mut c, &operation)
         .applied_head()
         .expect("head");
-    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let (policy, device, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     c.store
         .enroll(&c.genesis, device, policy, 150)
         .expect("exact enrollment retry");
@@ -317,7 +324,11 @@ fn enrollment_is_explicit_idempotent_and_cannot_reset_a_device_lineage() {
 #[test]
 fn witness_signing_components_cannot_reuse_device_account_or_policy_authorities() {
     let c = case();
-    let (policy, device, _) = c.peer.responder.inventory_inputs();
+    let (policy, device, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     for (pq, classic) in [(96, 97), (94, 95), (82, 83), (80, 113)] {
         let dir = directory();
         let path = dir.path().canonicalize().expect("path");
@@ -681,7 +692,11 @@ fn roster_authority_refresh_preserves_advanced_head_fence_and_exact_last_command
     let head = apply_request(&mut c, &fenced)
         .applied_head()
         .expect("fenced head");
-    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let (policy, previous, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let next = renewed_device(
         previous,
         2,
@@ -816,7 +831,11 @@ fn roster_authority_refresh_preserves_advanced_head_fence_and_exact_last_command
 #[test]
 fn roster_authority_refresh_refuses_stale_forked_or_different_lineage_inputs() {
     let mut c = renewal_case();
-    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let (policy, previous, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
     let fork = renewed_device(
         previous,
@@ -975,7 +994,11 @@ fn with_fault_database(
 fn roster_authority_refresh_each_sync_fault_reconciles_current_target_without_reset() {
     let mut calibration = renewal_case();
     let (_, count) = with_fault_database(&mut calibration, false);
-    let (policy, previous, _) = calibration.peer.responder.inventory_inputs();
+    let (policy, previous, _) = calibration
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
     count.store(0, Ordering::SeqCst);
     calibration
@@ -999,7 +1022,11 @@ fn roster_authority_refresh_each_sync_fault_reconciles_current_target_without_re
             );
             let head = apply_request(&mut c, &first).applied_head().expect("head");
             let (remaining, _) = with_fault_database(&mut c, after);
-            let (policy, previous, _) = c.peer.responder.inventory_inputs();
+            let (policy, previous, _) = c
+                .peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner");
             let next = renewed_device(previous, 2, Validity::new(100, 190).expect("interval"));
             let before = c.store.image().expect("before").revision;
             remaining.store(cut, Ordering::SeqCst);
@@ -1061,7 +1088,10 @@ fn roster_authority_refresh_process_child() {
         Validity::new(100, 160).expect("roster"),
         Validity::new(100, 160).expect("advertisement"),
     );
-    let (policy, previous, _) = peer.responder.inventory_inputs();
+    let (policy, previous, _) = peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let next = renewed_device(previous, 2, Validity::new(100, 190).expect("renewal"));
     let mut store = reopen(path);
     store
@@ -1083,7 +1113,14 @@ fn roster_authority_refresh_process_loss_recovers_without_resetting_last_data_co
         c.genesis.subject().to_bytes(),
     )
     .expect("original public subject");
-    let checkpoint = c.peer.responder.inventory_inputs().1.roster().checkpoint();
+    let checkpoint = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .1
+        .roster()
+        .checkpoint();
     let mut expected = checkpoint.version().to_be_bytes().to_vec();
     expected.extend_from_slice(&checkpoint.digest());
     fs::write(c.server.join("renewal-predecessor"), expected)
@@ -1118,7 +1155,11 @@ fn roster_authority_refresh_process_loss_recovers_without_resetting_last_data_co
     child.0.kill().expect("kill owned process");
     assert!(!child.0.wait().expect("reap").success());
     c.store = reopen(&c.server);
-    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let (policy, previous, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let next = renewed_device(previous, 2, Validity::new(100, 190).expect("renewal"));
     c.store
         .update_roster_authority(
@@ -1151,7 +1192,11 @@ fn roster_authority_refresh_process_loss_recovers_without_resetting_last_data_co
 #[test]
 fn roster_authority_refresh_never_becomes_credential_key_or_policy_replacement() {
     let mut c = renewal_case();
-    let (policy, previous, _) = c.peer.responder.inventory_inputs();
+    let (policy, previous, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("original root");
     let replacement_key =
         DeviceSigningKey::deterministic([148; 32], [149; 32]).expect("different identity key");
@@ -1266,7 +1311,11 @@ fn roster_authority_refresh_never_becomes_credential_key_or_policy_replacement()
 #[test]
 fn current_authority_observation_is_fresh_scoped_and_never_a_mutation_receipt() {
     let mut c = case();
-    let (_, device, _) = c.peer.responder.inventory_inputs();
+    let (_, device, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let operation = AnchorOperation::admit_authority(device.authority_binding())
         .expect("independent authority expectation");
     let expected = initial(&c);
@@ -1372,7 +1421,11 @@ fn credential_grant(
     until: u64,
 ) -> crate::VerifiedCredentialRenewal {
     let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("independent root");
-    let (policy, original, _) = c.peer.responder.inventory_inputs();
+    let (policy, original, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let origin = root
         .issue_device(original.description.clone(), original.key.clone())
         .expect("original body");
@@ -1387,7 +1440,16 @@ fn credential_grant(
     )
 }
 fn credential_grant_first(c: &Case) -> crate::VerifiedCredentialRenewal {
-    credential_grant(c, c.peer.responder.inventory_inputs().1, 2, 180)
+    credential_grant(
+        c,
+        c.peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner")
+            .1,
+        2,
+        180,
+    )
 }
 
 #[test]
@@ -1404,7 +1466,11 @@ fn credential_authority_renewal_preserves_subject_head_and_last_command_across_e
         .applied_head()
         .expect("fenced");
     let grant = credential_grant_first(&c);
-    let (policy, original, _) = c.peer.responder.inventory_inputs();
+    let (policy, original, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     assert!(matches!(
         c.store.update_roster_authority(
             c.genesis.subject(),
@@ -1542,7 +1608,12 @@ fn credential_authority_renewal_preserves_subject_head_and_last_command_across_e
         Err(DurableError::Protocol(Error::Validity))
     ));
     let next = credential_grant(&c, &successor_roster, 4, 195);
-    let policy = c.peer.responder.inventory_inputs().0;
+    let policy = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .0;
     c.store
         .renew_credential_authority(c.genesis.subject(), &next, next.operation(), policy, 185)
         .expect("second expired predecessor renewal");
@@ -1568,8 +1639,22 @@ fn credential_authority_renewal_preserves_subject_head_and_last_command_across_e
 fn credential_authority_renewal_refuses_wrong_scope_operation_predecessor_and_fork() {
     let mut c = credential_case();
     let grant = credential_grant_first(&c);
-    let fork = credential_grant(&c, c.peer.responder.inventory_inputs().1, 2, 190);
-    let policy = c.peer.responder.inventory_inputs().0;
+    let fork = credential_grant(
+        &c,
+        c.peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner")
+            .1,
+        2,
+        190,
+    );
+    let policy = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .0;
     let before = c.store.image().expect("before").digest;
     let wrong_operation =
         crate::CredentialRenewalId::from_trusted_state([199; 32]).expect("other op");
@@ -1657,7 +1742,12 @@ fn credential_authority_renewal_upgrades_authenticated_original_witness_storage_
         (initial(&c), c.genesis.digest, image.revision)
     );
     let grant = credential_grant_first(&c);
-    let policy = c.peer.responder.inventory_inputs().0;
+    let policy = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .0;
     c.store
         .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
         .expect("migrate once with renewal");
@@ -1682,7 +1772,12 @@ fn credential_authority_renewal_each_sync_fault_reconciles_current_target_withou
     let mut calibration = credential_case();
     let (_, count) = with_fault_database(&mut calibration, false);
     let grant = credential_grant_first(&calibration);
-    let policy = calibration.peer.responder.inventory_inputs().0;
+    let policy = calibration
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .0;
     count.store(0, Ordering::SeqCst);
     calibration
         .store
@@ -1706,7 +1801,12 @@ fn credential_authority_renewal_each_sync_fault_reconciles_current_target_withou
             let head = apply_request(&mut c, &first).applied_head().expect("head");
             let grant = credential_grant_first(&c);
             let (remaining, _) = with_fault_database(&mut c, after);
-            let policy = c.peer.responder.inventory_inputs().0;
+            let policy = c
+                .peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner")
+                .0;
             let before = c.store.image().expect("before").revision;
             remaining.store(cut, Ordering::SeqCst);
             let result = c.store.renew_credential_authority(
@@ -1762,7 +1862,10 @@ fn credential_authority_renewal_process_child() {
         Validity::new(100, 155).expect("advertisement"),
         Validity::new(100, 160).expect("credential"),
     );
-    let (policy, previous, _) = peer.responder.inventory_inputs();
+    let (policy, previous, _) = peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let subject = AnchorSubject::from_trusted_state(
         &fs::read(path.join("renewal-subject")).expect("original public subject"),
     )
@@ -1854,7 +1957,12 @@ fn credential_authority_renewal_process_loss_recovers_original_grant_before_any_
     child.0.kill().expect("kill owned child");
     assert!(!child.0.wait().expect("reap").success());
     c.store = reopen(&c.server);
-    let policy = c.peer.responder.inventory_inputs().0;
+    let policy = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .0;
     c.store
         .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
         .expect("reconcile exact target");

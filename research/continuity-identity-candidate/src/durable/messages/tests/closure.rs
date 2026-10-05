@@ -303,7 +303,10 @@ fn independent_session_closure_accounts_all_epochs_and_a_real_reserved_input() {
     let revoked = roster_update(p.f.local_device(), 94, 2, false);
     p.jr.install_roster(&revoked, 150)
         .expect("revocation does not prevent cleanup");
-    p.f.responder.policy().close();
+    p.f.responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert_eq!(
         p.jr.begin_session_closure(&p.f.responder, p.session)
             .expect("closed policy cleanup"),

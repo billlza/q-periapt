@@ -251,7 +251,7 @@ impl DeviceJournal {
             .map_err(Error::from)?;
             let reservation = recovery
                 .reserve_encapsulation(
-                    &context.policy().runtime,
+                    &context.current_policy()?.runtime,
                     &scope,
                     &peer,
                     &kem_context(offer),
@@ -279,7 +279,7 @@ impl DeviceJournal {
             )
             .map_err(Error::from)?;
             let result = match recovery.encapsulate(
-                &context.policy().runtime,
+                &context.current_policy()?.runtime,
                 &scope,
                 &peer,
                 &kem_context(offer),

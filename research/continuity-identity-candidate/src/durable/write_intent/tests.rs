@@ -72,7 +72,7 @@ fn genesis_metadata_recovery_never_applies_a_valid_pending_intent() {
         &path.join("state.redb"),
         JournalKey::provision(&path.join("key")).expect("key"),
         f.local_device(),
-        f.responder.policy(),
+        f.responder.current_policy().expect("fixture policy owner"),
         identity,
         150,
     )
@@ -91,7 +91,7 @@ fn genesis_metadata_recovery_never_applies_a_valid_pending_intent() {
             &path.join("state.redb"),
             JournalKey::open(&path.join("key")).expect("key"),
             f.local_device(),
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             identity
         ),
         Err(DurableError::Suspended)
@@ -540,7 +540,7 @@ fn cancellation_snapshot_authentication_scope_and_ordinary_recovery_exclusion() 
         &path.join("state.redb"),
         JournalKey::provision(&path.join("key")).expect("key"),
         f.local_device(),
-        f.responder.policy(),
+        f.responder.current_policy().expect("fixture policy owner"),
         id,
         150,
     )
@@ -551,9 +551,13 @@ fn cancellation_snapshot_authentication_scope_and_ordinary_recovery_exclusion() 
     let mut descriptor = b"QPCRNC01".to_vec();
     descriptor.extend_from_slice(&pin.binding());
     descriptor.extend_from_slice(
-        &crate::AnchorSubject::for_device(id, f.local_device(), f.responder.policy())
-            .expect("subject")
-            .to_bytes(),
+        &crate::AnchorSubject::for_device(
+            id,
+            f.local_device(),
+            f.responder.current_policy().expect("fixture policy owner"),
+        )
+        .expect("subject")
+        .to_bytes(),
     );
     descriptor.extend_from_slice(&[31; 32]);
     descriptor.extend_from_slice(&[32; 32]);

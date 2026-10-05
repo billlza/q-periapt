@@ -105,7 +105,10 @@ impl Consumer for Application {
         fs::File::open(&self.path)?.sync_all()?;
         self.writes += 1;
         if let Some(context) = self.close_policy.take() {
-            context.policy().close();
+            context
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
         }
         if matches!(self.mode, Effect::UnknownAfter) {
             return Err(io::Error::other("application commit result lost"));
@@ -652,7 +655,13 @@ fn account_tls_rechecks_the_complete_roster_before_later_member_dispatch() {
         t.n.f.root.account_id().expect("account"),
         t.n.f.root.public_key().expect("root"),
         issued.checkpoint(),
-        t.n.f.contexts.first().expect("context").policy().family(),
+        t.n.f
+            .contexts
+            .first()
+            .expect("context")
+            .current_policy()
+            .expect("fixture policy owner")
+            .family(),
     )
     .expect("independent pin");
     let roster = pin

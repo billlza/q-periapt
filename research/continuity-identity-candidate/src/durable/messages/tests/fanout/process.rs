@@ -116,7 +116,8 @@ fn account_fanout_process_cuts_preserve_all_members_and_exclude_concurrent_write
             n.f.contexts
                 .first()
                 .expect("context")
-                .policy()
+                .current_policy()
+                .expect("fixture policy owner")
                 .application_send_budget()
                 .messages()
                 .to_be_bytes(),
@@ -277,7 +278,8 @@ pub(super) fn reserved(n: &mut Network, stage: &str) -> FanoutId {
         n.f.contexts
             .first()
             .expect("context")
-            .policy()
+            .current_policy()
+            .expect("fixture policy owner")
             .application_send_budget()
             .messages()
             .to_be_bytes(),

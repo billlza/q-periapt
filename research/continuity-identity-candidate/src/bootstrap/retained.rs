@@ -15,6 +15,7 @@ pub(super) struct SessionAuthority {
     session: [u8; 32],
     role: BootstrapRole,
     identities: [Option<ResolvedSessionIdentity>; 2],
+    policy_statement: Option<[u8; 32]>,
 }
 impl BootstrapContext {
     // Called only after the owning journal has checked the exact established
@@ -25,9 +26,15 @@ impl BootstrapContext {
         session: [u8; 32],
         role: BootstrapRole,
         identities: [Option<ResolvedSessionIdentity>; 2],
+        continuation: Option<(Arc<VerifiedSessionPolicy>, [u8; 32])>,
     ) -> Result<Self, Error> {
+        let (current_policy, policy_statement) = match continuation {
+            Some((policy, statement)) => (Some(policy), Some(statement)),
+            None => (self.current_policy.clone(), None),
+        };
         Ok(Self {
             policy: Arc::clone(&self.policy),
+            current_policy,
             initiator: Arc::clone(&self.initiator),
             responder: Arc::clone(&self.responder),
             selection: Arc::clone(&self.selection),
@@ -39,6 +46,7 @@ impl BootstrapContext {
                 session,
                 role,
                 identities,
+                policy_statement,
             }),
         })
     }
@@ -57,6 +65,7 @@ impl BootstrapContext {
         self.check_storage_binding(journal, owner, Some(role))?;
         Ok(Self {
             policy: Arc::clone(&self.policy),
+            current_policy: self.current_policy.clone(),
             initiator: Arc::clone(&self.initiator),
             responder: Arc::clone(&self.responder),
             selection: Arc::clone(&self.selection),
@@ -126,6 +135,9 @@ impl BootstrapContext {
         self.retained
             .as_ref()
             .map(|v| (v.journal, v.session, v.role))
+    }
+    pub(crate) fn continued_policy_statement(&self) -> Option<[u8; 32]> {
+        self.retained.as_ref().and_then(|v| v.policy_statement)
     }
     pub(crate) fn renewed_identity(&self, role: BootstrapRole) -> Option<&ResolvedSessionIdentity> {
         self.retained.as_ref().and_then(|v| {

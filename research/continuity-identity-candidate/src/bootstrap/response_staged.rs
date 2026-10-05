@@ -36,7 +36,8 @@ impl ResponsePlan {
         pq: PqKeySource<'_>,
         classical: TraditionalKeySource<'_>,
     ) -> Result<(), Error> {
-        if expert::component_public_key(&context.policy.runtime, pq, classical)?.to_bytes()
+        if expert::component_public_key(&context.current_policy()?.runtime, pq, classical)?
+            .to_bytes()
             != context.peer.to_bytes()
         {
             return Err(Error::Scope);
@@ -57,7 +58,7 @@ impl ResponsePlan {
         let nonce = nonce()?;
         let prefix = response_prefix(context, initial, &nonce);
         let kem = recovery.reserve_encapsulation(
-            &context.policy.runtime,
+            &context.current_policy()?.runtime,
             &hash(b"durable-reply-kem", &scope),
             &peer,
             &hash(b"kem-reply", &prefix),
@@ -95,7 +96,7 @@ impl ResponsePlan {
         let peer = PublicKey::from_bytes(initial.get(72..INITIAL_PREFIX).ok_or(Error::Encoding)?)?;
         let prefix = response_prefix(context, &self.initial, &self.nonce);
         let result = recovery.encapsulate(
-            &context.policy.runtime,
+            &context.current_policy()?.runtime,
             &hash(b"durable-reply-kem", &self.scope),
             &peer,
             &hash(b"kem-reply", &prefix),

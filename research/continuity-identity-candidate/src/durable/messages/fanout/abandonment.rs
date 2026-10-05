@@ -219,7 +219,7 @@ impl DeviceJournal {
         }
         let mut seen = BTreeSet::new();
         for target in targets {
-            self.check_policy(target.context.policy())?;
+            self.check_policy(target.context.original_policy())?;
             let member = batch
                 .members
                 .iter()
@@ -237,16 +237,22 @@ impl DeviceJournal {
                 devices[0]
             };
             check_view_scope(image, target.context, &member.session, Some(member.role))?;
+            let record = self.message_record_for_status(image, target.context, member.session)?;
             if !seen.insert(target.session)
                 || owner != image.owner
+                || closure::record_role(record)? != member.role
                 || member.context != target.context.digest()
                 || peer.account_id() != batch.account
                 || peer.device_id() != member.device
                 || peer.generation() != member.generation
-                || peer.credential_digest() != member.credential
             {
                 return Err(DurableError::Conflict);
             }
+            // Like the independent closure archive, cleanup binds the original
+            // session/context/role/account/device/generation. The authenticated
+            // immutable batch retains its original C1 credential even after C2
+            // replaces it; metadata cleanup must not need a lost C1 runtime view.
+            // Dispatch separately checks current authority and exact batch roster.
         }
         Ok(())
     }

@@ -156,7 +156,8 @@ fn installed_account_required_witness_admits_original_scope_and_refuses_each_los
             .contexts
             .first()
             .expect("policy")
-            .policy()
+            .current_policy()
+            .expect("fixture policy owner")
             .close();
         assert!(matches!(
             c.network.discover().expect("config").open_account(id, None),
@@ -273,7 +274,10 @@ fn archived_catalogue_every_disposition_requires_fresh_original_witness() {
     let file = n.sender_path.join("catalogue.redb");
     let mut index = crate::SessionArchiveStore::provision(&file, id).expect("index");
     n.sender.close();
-    context.policy().close();
+    context
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert!(matches!(
         crate::SessionClosureJournal::open(
             &n.sender_path.join("state.redb"),
@@ -421,7 +425,11 @@ impl Anchored {
             &n.sender_path.join("state.redb"),
             JournalKey::open(&n.sender_path.join("key")).expect("key"),
             &n.f.local,
-            n.f.contexts.first().expect("context").policy(),
+            n.f.contexts
+                .first()
+                .expect("context")
+                .current_policy()
+                .expect("fixture policy owner"),
             crate::durable::tests::identity(&n.sender_path),
             client(&self.pin, &self.witness, &n.f.local),
         )
@@ -555,7 +563,10 @@ fn retain_cleanup(c: &mut Anchored) {
     let mut index = archive::retain(&mut c.network);
     index.close();
     for context in &c.network.f.contexts {
-        context.policy().close();
+        context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
     }
     c.network.sender.close();
 }
@@ -1149,7 +1160,10 @@ fn archived_session_closure_preserves_every_witness_loss_and_refuses_expired_adv
             .sender
             .archive_session_closure(context, session)
             .expect("protected archive");
-        context.policy().close();
+        context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         n.sender.close();
         SessionClosureArchive::from_bytes(archive.as_bytes()).expect("retained public bytes")
     }

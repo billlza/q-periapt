@@ -48,10 +48,12 @@ impl DirectoryExpectation {
     }
 }
 
-/// Role-ordered authenticated inputs bound to the local verified SDK runtime.
+/// Role-ordered authenticated original inputs and an explicit optional current
+/// policy owner. Historical reconstruction carries no SDK runtime permission.
 /// Current directory/roster state and durable admission remain service duties.
 pub struct BootstrapContext {
-    policy: Arc<VerifiedSessionPolicy>,
+    policy: Arc<crate::HistoricalSessionPolicy>,
+    current_policy: Option<Arc<VerifiedSessionPolicy>>,
     initiator: Arc<VerifiedDevice>,
     responder: Arc<VerifiedDevice>,
     selection: Arc<AuthenticatedPrekeySelection>,
@@ -73,6 +75,40 @@ impl BootstrapContext {
         policy.check_mode(selection.quality(), trusted_time)?;
         policy.check_device(&initiator, trusted_time)?;
         policy.check_device(&responder, trusted_time)?;
+        // Fresh admission still binds the selected manifest to the actual SDK
+        // runtime owner. Historical reconstruction below makes no runtime claim.
+        if selection.manifest_context().policy_digest() != policy.runtime.trusted_state().digest() {
+            return Err(Error::Scope);
+        }
+        let mut context = Self::from_historical_inputs(
+            Arc::new(policy.historical().clone()),
+            initiator,
+            responder,
+            selection,
+            directory,
+            trusted_time,
+        )?;
+        context.current_policy = Some(policy);
+        Ok(context)
+    }
+
+    // Canonical reconstruction only. No runtime owner is created or restored.
+    pub(crate) fn from_historical_inputs(
+        policy: Arc<crate::HistoricalSessionPolicy>,
+        initiator: Arc<VerifiedDevice>,
+        responder: Arc<VerifiedDevice>,
+        selection: Arc<AuthenticatedPrekeySelection>,
+        directory: DirectoryExpectation,
+        trusted_time: u64,
+    ) -> Result<Self, Error> {
+        policy.validity().check(trusted_time)?;
+        if !policy.allowed_modes().permits(selection.quality()) {
+            return Err(Error::PolicyDenied);
+        }
+        for device in [&initiator, &responder] {
+            policy.check_device_identity_at(device, trusted_time)?;
+            device.roster_validity.check(trusted_time)?;
+        }
         selection.check_time(trusted_time)?;
         if (initiator.account_id(), initiator.device_id())
             == (responder.account_id(), responder.device_id())
@@ -82,7 +118,12 @@ impl BootstrapContext {
             return Err(Error::Scope);
         }
         let manifest = selection.manifest_context();
-        if manifest.policy_digest() != policy.runtime.trusted_state().digest()
+        let sdk_binding = policy.sdk_binding();
+        let sdk_state = q_periapt_policy::TrustedPolicyState::decode(
+            sdk_binding.get(32..).ok_or(Error::Encoding)?,
+        )
+        .map_err(|_| Error::Scope)?;
+        if manifest.policy_digest() != sdk_state.digest()
             || manifest.suite_digest() != bootstrap_suite_digest()
             || manifest.directory_checkpoint() != directory.0
         {
@@ -109,6 +150,7 @@ impl BootstrapContext {
             digest: hash(b"context", &encoded),
             peer: PublicKey::from_bytes(&public)?,
             policy,
+            current_policy: None,
             initiator,
             responder,
             selection,
@@ -124,17 +166,19 @@ impl BootstrapContext {
 
     pub(crate) fn check(&self, now: u64) -> Result<(), Error> {
         self.require_fresh_identity(now)?;
-        self.policy.check_mode(self.selection.quality(), now)?;
+        self.current_policy()?
+            .check_mode(self.selection.quality(), now)?;
         self.selection.check_time(now)?;
-        self.policy.check_device(&self.initiator, now)?;
-        self.policy.check_device(&self.responder, now)
+        self.current_policy()?.check_device(&self.initiator, now)?;
+        self.current_policy()?.check_device(&self.responder, now)
     }
     pub(crate) fn check_session_identity(&self, now: u64) -> Result<(), Error> {
         // Admitted sessions retain their selected prekey identity, but prekey
         // advertisement expiry must not become their application lifetime.
-        self.policy.check_mode(self.selection.quality(), now)?;
+        self.current_policy()?
+            .check_mode(self.selection.quality(), now)?;
         for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
-            self.policy
+            self.current_policy()?
                 .check_device_identity(self.session_device(role), now)?;
         }
         Ok(())
@@ -151,11 +195,17 @@ impl BootstrapContext {
             BootstrapRole::Responder => &self.responder,
         }
     }
-    /// Borrow the same policy owner that verified this context. No policy is
-    /// reconstructed from bundle bytes; closing it remains observable by the
-    /// context and every operation. Reading metadata grants no fresh authority.
-    pub fn policy(&self) -> &VerifiedSessionPolicy {
+    /// Original signed policy metadata bound into the immutable transcript.
+    /// This snapshot grants no current policy/runtime permission.
+    pub fn original_policy(&self) -> &crate::HistoricalSessionPolicy {
         &self.policy
+    }
+
+    /// Explicit operational policy owner, never reconstructed from historical
+    /// metadata. Every operation must still recheck time, closure and durable
+    /// authority. A historical-only context has no such owner.
+    pub fn current_policy(&self) -> Result<&VerifiedSessionPolicy, Error> {
+        self.current_policy.as_deref().ok_or(Error::Scope)
     }
 
     pub(crate) fn storage_owner(&self) -> [u8; 32] {
@@ -166,12 +216,18 @@ impl BootstrapContext {
     }
     pub(crate) fn inventory_inputs(
         &self,
-    ) -> (
-        &VerifiedSessionPolicy,
-        &VerifiedDevice,
-        &AuthenticatedPrekeySelection,
-    ) {
-        (&self.policy, &self.responder, &self.selection)
+    ) -> Result<
+        (
+            &VerifiedSessionPolicy,
+            &VerifiedDevice,
+            &AuthenticatedPrekeySelection,
+        ),
+        Error,
+    > {
+        if self.retained.is_some() {
+            return Err(Error::Scope);
+        }
+        Ok((self.current_policy()?, &self.responder, &self.selection))
     }
 
     pub(crate) fn one_time_fingerprints(&self) -> Vec<[u8; 32]> {
@@ -331,10 +387,10 @@ impl InitiatorOperation {
         if signer.public_key()? != context.initiator.key {
             return Err(Error::Scope);
         }
-        let reply_key = context.policy.runtime.generate_key()?;
+        let reply_key = context.current_policy()?.runtime.generate_key()?;
         let body = initial_prefix(&context, &reply_key, &nonce()?)?;
         let result = context
-            .policy
+            .current_policy()?
             .runtime
             .encapsulate(&context.peer, &hash(b"kem-initial", &body))?;
         let (body, first_secret) = initial_body(body, result)?;
@@ -457,7 +513,7 @@ impl InitiatorOperation {
                     .as_mut_bytes()
                     .copy_from_slice(decoder.take(32)?);
                 let reply_key = expert::import_expanded(
-                    &context.policy.runtime,
+                    &context.current_policy()?.runtime,
                     decoder.take(expert::EXPANDED_KEY_LEN)?,
                 )?;
                 if initial.get(4 + 72..4 + 72 + PUBLIC_KEY_LEN)
@@ -801,7 +857,7 @@ fn authenticate_initial(
     let ct = Ciphertext::from_bytes(decoder.take(CIPHERTEXT_LEN)?)?;
     let tag = decoder.array::<32>()?;
     decoder.finish()?;
-    let runtime = &context.policy.runtime;
+    let runtime = &context.current_policy()?.runtime;
     if expert::component_public_key(runtime, pq, classical)?.to_bytes() != context.peer.to_bytes() {
         return Err(Error::Scope);
     }
@@ -884,7 +940,7 @@ fn prepare_response(
 ) -> Result<PreparedResponder, Error> {
     let body = response_prefix(context, initial, &nonce()?);
     let result = context
-        .policy
+        .current_policy()?
         .runtime
         .encapsulate(&peer, &hash(b"kem-reply", &body))?;
     let (body, keys) = response_body(body, &first.export_for_protocol()?, result)?;
@@ -1387,8 +1443,16 @@ pub(crate) mod tests {
     impl Fixture {
         pub(crate) fn policy_owner(&self, role: BootstrapRole) -> Arc<VerifiedSessionPolicy> {
             Arc::clone(match role {
-                BootstrapRole::Initiator => &self.initiator.policy,
-                BootstrapRole::Responder => &self.responder.policy,
+                BootstrapRole::Initiator => self
+                    .initiator
+                    .current_policy
+                    .as_ref()
+                    .expect("fixture policy owner"),
+                BootstrapRole::Responder => self
+                    .responder
+                    .current_policy
+                    .as_ref()
+                    .expect("fixture policy owner"),
             })
         }
         pub(crate) fn bundle_requirements(
@@ -1434,12 +1498,16 @@ pub(crate) mod tests {
         }
         #[cfg(unix)]
         pub(crate) fn close_initiator_policy(&self) {
-            self.initiator.policy.close();
+            self.initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
         }
         #[cfg(unix)]
         pub(crate) fn occupy_initiator_slot(&self) -> HybridKey {
             self.initiator
-                .policy
+                .current_policy()
+                .expect("fixture policy owner")
                 .runtime
                 .generate_key()
                 .expect("occupy slot")
@@ -1450,7 +1518,10 @@ pub(crate) mod tests {
         }
         #[cfg(unix)]
         pub(crate) fn close_responder_policy(&self) {
-            self.responder.policy.close();
+            self.responder
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
         }
         #[cfg(unix)]
         pub(crate) fn next_bundle_epoch(&self) -> (Arc<BootstrapContext>, Arc<BootstrapContext>) {
@@ -1472,7 +1543,12 @@ pub(crate) mod tests {
                     device,
                     ManifestContext::new(
                         2,
-                        self.responder.policy.runtime.trusted_state().digest(),
+                        self.responder
+                            .current_policy()
+                            .expect("fixture policy owner")
+                            .runtime
+                            .trusted_state()
+                            .digest(),
                         bootstrap_suite_digest(),
                         [99; 32],
                         interval(),
@@ -1517,8 +1593,8 @@ pub(crate) mod tests {
                 )
             };
             (
-                make(Arc::clone(&self.initiator.policy)),
-                make(Arc::clone(&self.responder.policy)),
+                make(self.policy_owner(BootstrapRole::Initiator)),
+                make(self.policy_owner(BootstrapRole::Responder)),
             )
         }
         pub(crate) fn sources(&self) -> (PqKeySource<'_>, TraditionalKeySource<'_>) {
@@ -1729,7 +1805,7 @@ pub(crate) mod tests {
         let c = &f.initiator;
         fail(
             BootstrapContext::new(
-                Arc::clone(&c.policy),
+                f.policy_owner(BootstrapRole::Initiator),
                 Arc::clone(&c.initiator),
                 Arc::clone(&c.responder),
                 Arc::clone(&c.selection),
@@ -1740,7 +1816,7 @@ pub(crate) mod tests {
         );
         fail(
             BootstrapContext::new(
-                Arc::clone(&c.policy),
+                f.policy_owner(BootstrapRole::Initiator),
                 Arc::clone(&c.responder),
                 Arc::clone(&c.initiator),
                 Arc::clone(&c.selection),
@@ -1767,7 +1843,12 @@ pub(crate) mod tests {
             ),
             Error::Scope,
         );
-        let other = c.policy.runtime.generate_key().expect("other runtime");
+        let other = c
+            .current_policy()
+            .expect("fixture policy owner")
+            .runtime
+            .generate_key()
+            .expect("other runtime");
         fail(
             r.respond(
                 initial,
@@ -1782,12 +1863,18 @@ pub(crate) mod tests {
             r.respond(initial, &f.signer_r, pq, classical, 200),
             Error::Validity,
         );
-        f.responder.policy.close();
+        f.responder
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         fail(
             r.respond(initial, &f.signer_r, pq, classical, 150),
             Error::Closed,
         );
-        c.policy.runtime.close();
+        c.current_policy()
+            .expect("fixture policy owner")
+            .runtime
+            .close();
         fail(
             i.initial_message(150),
             Error::Runtime(q_periapt_sdk::Error::Closed),
@@ -1810,7 +1897,8 @@ pub(crate) mod tests {
             .fill(0xff);
         let result = f
             .initiator
-            .policy
+            .current_policy()
+            .expect("fixture policy owner")
             .runtime
             .encapsulate(&f.initiator.peer, &hash(b"kem-initial", &changed))
             .expect("initial KEM");

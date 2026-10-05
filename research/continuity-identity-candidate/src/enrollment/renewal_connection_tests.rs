@@ -216,7 +216,7 @@ fn original_registered_session_exchanges_old_and_new_data_and_rekeys_after_local
         .activate(&policy, 170, None)
         .expect("same installed owner after C0 expiry");
     let peer_authority =
-        crate::RetainedInstallationAuthority::active_installation(&peer_device, &policy);
+        crate::RetainedInstallationAuthority::active_installation(&peer_device, policy.as_ref());
     peer_journal
         .install_peer_credential_renewal(
             &peer_authority,

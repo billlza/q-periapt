@@ -73,6 +73,6 @@ impl DeviceJournal {
         session: [u8; 32],
     ) -> Result<SendProgress, DurableError> {
         let state = self.message_state_for_status(context, session)?;
-        Ok(state.send_progress(context.policy().application_send_budget())?)
+        Ok(state.send_progress(context.original_policy().application_send_budget())?)
     }
 }

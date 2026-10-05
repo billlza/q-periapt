@@ -34,7 +34,10 @@ fn open_existing(path: &Path, at: u64) -> Result<Peer> {
         }
         _ => return Err("unknown configured device owner".into()),
     };
-    assert!(std::ptr::eq(Arc::as_ptr(&policy), context.policy()));
+    assert!(std::ptr::eq(
+        Arc::as_ptr(&policy),
+        context.current_policy().expect("fixture policy owner")
+    ));
     Ok(Peer {
         service,
         context,

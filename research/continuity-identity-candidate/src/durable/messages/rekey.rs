@@ -357,7 +357,7 @@ impl DeviceJournal {
         let sign_scope = hash(b"sign", &scope);
         if state.control.plan.is_none() {
             let key = recovery
-                .reserve_key(&context.policy().runtime, &key_scope)
+                .reserve_key(&context.current_policy()?.runtime, &key_scope)
                 .map_err(Error::from)?;
             state.control.plan = Some(Plan::Key(key));
             self.store_message_state(&mut image, &state)?;
@@ -366,7 +366,7 @@ impl DeviceJournal {
         }
         rosters::authorize_session_context(&image, context, now)?;
         let key = match recovery.generate_key(
-            &context.policy().runtime,
+            &context.current_policy()?.runtime,
             &key_scope,
             state
                 .control

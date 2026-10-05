@@ -48,7 +48,15 @@ fn prepare(
     now: u64,
 ) -> State {
     c.store
-        .prepare_credential_renewal(p, g, c.peer.responder.policy(), now)
+        .prepare_credential_renewal(
+            p,
+            g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            now,
+        )
         .expect("independent root approval")
 }
 fn status(c: &mut Case, p: &AnchorCredentialRenewalProposal, now: u64) -> State {
@@ -135,7 +143,14 @@ fn closed_before_prepare_never_revives_through_pruning_or_legacy_control_plane()
     assert_eq!(status(&mut c, &p, 150), State::Unavailable);
     assert_eq!(
         c.store
-            .close_credential_renewal(p, &g, c.peer.responder.policy())
+            .close_credential_renewal(
+                p,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .expect("explicit close before prepare"),
         State::Closed
     );
@@ -154,13 +169,26 @@ fn closed_before_prepare_never_revives_through_pruning_or_legacy_control_plane()
     c.store = reopen(&c.server);
     assert_eq!(status(&mut c, &p, 150), State::Unavailable);
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 150),
+        c.store.prepare_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
     assert!(matches!(
-        c.store
-            .close_credential_renewal(p, &g, c.peer.responder.policy()),
+        c.store.close_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
     assert!(matches!(
@@ -168,7 +196,10 @@ fn closed_before_prepare_never_revives_through_pruning_or_legacy_control_plane()
             p.subject(),
             &g,
             g.operation(),
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Suspended)
@@ -185,14 +216,28 @@ fn closed_before_prepare_never_revives_through_pruning_or_legacy_control_plane()
     c.store
         .enroll(
             &c.genesis,
-            c.peer.responder.inventory_inputs().1,
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .inventory_inputs()
+                .expect("fixture inventory owner")
+                .1,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
         .expect("exact enrollment readback");
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 150),
+        c.store.prepare_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
 }
@@ -229,7 +274,10 @@ fn prepared_and_unacknowledged_terminal_exclude_ordinary_advance_fence_and_roste
                 p.subject(),
                 &g,
                 g.operation(),
-                c.peer.responder.policy(),
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150
             ),
             Err(DurableError::Suspended)
@@ -239,7 +287,10 @@ fn prepared_and_unacknowledged_terminal_exclude_ordinary_advance_fence_and_roste
                 p.subject(),
                 g.previous_device().roster().checkpoint(),
                 g.successor_device(),
-                c.peer.responder.policy(),
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150
             ),
             Err(DurableError::Suspended)
@@ -253,7 +304,12 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
     let g = credential_grant_first(&c);
     let p = proposal(&c, &g, 215);
     let root = crate::RootSigningKey::deterministic([94; 32], [95; 32]).expect("root");
-    let original = c.peer.responder.inventory_inputs().1;
+    let original = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner")
+        .1;
     let certificate = root
         .issue_device(original.description.clone(), original.key.clone())
         .expect("origin");
@@ -264,7 +320,12 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
         180,
         2,
         [216; 32],
-        c.peer.responder.policy().checkpoint().digest(),
+        c.peer
+            .responder
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     );
     assert_eq!(
         g.successor_device().roster().checkpoint(),
@@ -275,13 +336,26 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
     prepare(&mut c, p, &g, 150);
     assert_eq!(status(&mut c, &alias, 150), State::Unavailable);
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(alias, &other, c.peer.responder.policy(), 150),
+        c.store.prepare_credential_renewal(
+            alias,
+            &other,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Conflict)
     ));
     assert!(matches!(
-        c.store
-            .close_credential_renewal(alias, &other, c.peer.responder.policy()),
+        c.store.close_credential_renewal(
+            alias,
+            &other,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Conflict)
     ));
     assert_eq!(
@@ -295,12 +369,28 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
     );
     assert_eq!(ack(&mut c, &p, 150), State::Acknowledged);
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(alias, &other, c.peer.responder.policy(), 150),
+        c.store.prepare_credential_renewal(
+            alias,
+            &other,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
     assert_eq!(status(&mut c, &alias, 150), State::Unavailable);
-    let next = credential_grant(&c, c.peer.responder.inventory_inputs().1, 3, 190);
+    let next = credential_grant(
+        &c,
+        c.peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner")
+            .1,
+        3,
+        190,
+    );
     let next_p = proposal(&c, &next, 217);
     assert_eq!(prepare(&mut c, next_p, &next, 170), State::Prepared);
     assert_eq!(ack(&mut c, &p, 170), State::Acknowledged);
@@ -330,13 +420,22 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
             next_p.subject(),
             next.successor_device().roster().checkpoint(),
             &updated,
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             175,
         )
         .expect("later root roster refresh");
     assert!(matches!(
-        c.store
-            .close_credential_renewal(p, &g, c.peer.responder.policy()),
+        c.store.close_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
     assert_eq!(status(&mut c, &p, 175), State::Unavailable);
@@ -345,7 +444,10 @@ fn same_version_is_not_operation_identity_and_old_ack_cannot_erase_a_new_slot() 
             p.subject(),
             &g,
             g.operation(),
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             175
         ),
         Err(DurableError::Suspended)
@@ -365,15 +467,33 @@ fn expiry_and_policy_closure_allow_only_historical_classification_and_close() {
     let g = credential_grant_first(&c);
     let p = proposal(&c, &g, 218);
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 180),
+        c.store.prepare_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            180
+        ),
         Err(DurableError::Protocol(Error::Validity))
     ));
     assert_eq!(status(&mut c, &p, 180), State::Unavailable);
-    c.peer.responder.policy().close();
+    c.peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert_eq!(
         c.store
-            .close_credential_renewal(p, &g, c.peer.responder.policy())
+            .close_credential_renewal(
+                p,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .expect("retained close after expiry"),
         State::Closed
     );
@@ -473,14 +593,23 @@ fn transition(
     action: Transition,
 ) -> Result<State, DurableError> {
     match action {
-        Transition::Prepare => {
-            c.store
-                .prepare_credential_renewal(p, g, c.peer.responder.policy(), 170)
-        }
-        Transition::CloseMissing => {
-            c.store
-                .close_credential_renewal(p, g, c.peer.responder.policy())
-        }
+        Transition::Prepare => c.store.prepare_credential_renewal(
+            p,
+            g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            170,
+        ),
+        Transition::CloseMissing => c.store.close_credential_renewal(
+            p,
+            g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+        ),
         _ => {
             let operation = match action {
                 Transition::Apply => AnchorOperation::commit_credential_renewal(&p),
@@ -588,7 +717,10 @@ fn joint_transition_process_child() {
         Validity::new(100, 155).expect("prekey"),
         Validity::new(100, 160).expect("credential"),
     );
-    let (policy, original, _) = peer.responder.inventory_inputs();
+    let (policy, original, _) = peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     let target = fs::read(path.join("joint-target-pin")).expect("independent target");
     let mut d = Decoder::new(&target);
     let checkpoint = crate::RosterCheckpoint::from_trusted_state(
@@ -836,11 +968,26 @@ fn independent_preparation_rejects_wrong_proposal_scope_and_noncurrent_predecess
             .expect("well-formed different proposal");
         assert!(c
             .store
-            .prepare_credential_renewal(changed, &g, c.peer.responder.policy(), 170)
+            .prepare_credential_renewal(
+                changed,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner"),
+                170
+            )
             .is_err());
         assert!(c
             .store
-            .close_credential_renewal(changed, &g, c.peer.responder.policy())
+            .close_credential_renewal(
+                changed,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .is_err());
         assert_eq!(c.store.image().expect("no mutation").digest, original);
     }
@@ -858,18 +1005,34 @@ fn independent_preparation_rejects_wrong_proposal_scope_and_noncurrent_predecess
             p.subject(),
             &g,
             g.operation(),
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
             170,
         )
         .expect("separate legacy lineage setup");
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 170),
+        c.store.prepare_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            170
+        ),
         Err(DurableError::Conflict)
     ));
     assert!(matches!(
-        c.store
-            .close_credential_renewal(p, &g, c.peer.responder.policy()),
+        c.store.close_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Conflict)
     ));
 }
@@ -885,7 +1048,13 @@ fn independently_reconstructed_expired_grant_and_policy_only_close_original_prop
         .historical_pin(g.successor_device().roster().checkpoint())
         .expect("independently retained exact target pin");
     let wire = g.as_bytes().to_vec();
-    let policy = c.peer.responder.policy().historical().clone();
+    let policy = c
+        .peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .historical()
+        .clone();
     assert!(matches!(
         crate::VerifiedCredentialRenewal::verify(&wire, &pin, policy.checkpoint().digest(), 250),
         Err(Error::Validity)
@@ -893,7 +1062,11 @@ fn independently_reconstructed_expired_grant_and_policy_only_close_original_prop
     let historical =
         crate::HistoricalCredentialRenewal::verify(&wire, &pin, policy.checkpoint().digest())
             .expect("expired grant metadata");
-    c.peer.responder.policy().close();
+    c.peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     let before = c
         .store
         .image()
@@ -1005,8 +1178,18 @@ fn grant_only_close_never_creates_target_or_current_authority_and_floor_survives
     let historical =
         crate::HistoricalCredentialRenewal::verify(g.as_bytes(), &pin, g.policy_digest())
             .expect("historical grant");
-    let policy = c.peer.responder.policy().historical().clone();
-    c.peer.responder.policy().close();
+    let policy = c
+        .peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .historical()
+        .clone();
+    c.peer
+        .responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert_eq!(
         cancellation_exchange(&mut c, &cancel, false, 250),
         Cancel::Unavailable
@@ -1099,8 +1282,15 @@ fn grant_only_close_never_creates_target_or_current_authority_and_floor_survives
         Err(DurableError::Protocol(Error::Retired))
     ));
     assert!(matches!(
-        c.store
-            .prepare_credential_renewal(p, &g, c.peer.responder.policy(), 150),
+        c.store.prepare_credential_renewal(
+            p,
+            &g,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
 }
@@ -1123,8 +1313,14 @@ fn grant_only_close_preserves_every_hidden_original_proposal_and_never_relabels_
         }
         let before = c.store.image().expect("before").digest;
         assert!(matches!(
-            c.store
-                .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+            c.store.close_unprepared_credential_renewal(
+                cancel,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            ),
             Err(DurableError::Conflict)
         ));
         assert_eq!(c.store.image().expect("unchanged").digest, before);
@@ -1138,8 +1334,14 @@ fn grant_only_close_preserves_every_hidden_original_proposal_and_never_relabels_
         if desired != State::Prepared {
             assert_eq!(ack(&mut c, &p, 250), State::Acknowledged);
             assert!(matches!(
-                c.store
-                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+                c.store.close_unprepared_credential_renewal(
+                    cancel,
+                    &g,
+                    c.peer
+                        .responder
+                        .current_policy()
+                        .expect("fixture policy owner")
+                ),
                 Err(DurableError::Protocol(Error::Retired))
             ));
         }
@@ -1164,7 +1366,14 @@ fn grant_only_close_and_ordinary_transition_obey_exact_head_and_unacknowledged_s
         if closure_first {
             assert_eq!(
                 c.store
-                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy())
+                    .close_unprepared_credential_renewal(
+                        cancel,
+                        &g,
+                        c.peer
+                            .responder
+                            .current_policy()
+                            .expect("fixture policy owner")
+                    )
                     .expect("close first"),
                 Cancel::Closed
             );
@@ -1203,8 +1412,14 @@ fn grant_only_close_and_ordinary_transition_obey_exact_head_and_unacknowledged_s
                 .expect("applied");
             let before = c.store.image().expect("before").digest;
             assert!(matches!(
-                c.store
-                    .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy()),
+                c.store.close_unprepared_credential_renewal(
+                    cancel,
+                    &g,
+                    c.peer
+                        .responder
+                        .current_policy()
+                        .expect("fixture policy owner")
+                ),
                 Err(DurableError::Conflict)
             ));
             assert_eq!(c.store.image().expect("after").digest, before);
@@ -1217,7 +1432,16 @@ fn cancellation_statement_identity_and_domain_survive_same_operation_alias_and_o
     use crate::AnchorCredentialCancellationState as Cancel;
     let mut c = credential_case();
     let first = credential_grant_first(&c);
-    let alias = credential_grant(&c, c.peer.responder.inventory_inputs().1, 2, 181);
+    let alias = credential_grant(
+        &c,
+        c.peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner")
+            .1,
+        2,
+        181,
+    );
     assert_eq!(first.operation(), alias.operation());
     assert_ne!(first.statement_digest(), alias.statement_digest());
     let one = cancellation(&c, &first);
@@ -1226,19 +1450,38 @@ fn cancellation_statement_identity_and_domain_survive_same_operation_alias_and_o
     assert_ne!(one.binding(), other.binding());
     assert_ne!(one.binding(), p.binding());
     assert!(matches!(
-        c.store
-            .close_unprepared_credential_renewal(other, &first, c.peer.responder.policy()),
+        c.store.close_unprepared_credential_renewal(
+            other,
+            &first,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Protocol(Error::Scope))
     ));
     assert_eq!(
         c.store
-            .close_unprepared_credential_renewal(one, &first, c.peer.responder.policy())
+            .close_unprepared_credential_renewal(
+                one,
+                &first,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .expect("first close"),
         Cancel::Closed
     );
     assert!(matches!(
-        c.store
-            .close_unprepared_credential_renewal(other, &alias, c.peer.responder.policy()),
+        c.store.close_unprepared_credential_renewal(
+            other,
+            &alias,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Conflict)
     ));
     assert_eq!(
@@ -1246,15 +1489,37 @@ fn cancellation_statement_identity_and_domain_survive_same_operation_alias_and_o
         Cancel::Acknowledged
     );
     assert!(matches!(
-        c.store
-            .close_unprepared_credential_renewal(other, &alias, c.peer.responder.policy()),
+        c.store.close_unprepared_credential_renewal(
+            other,
+            &alias,
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner")
+        ),
         Err(DurableError::Protocol(Error::Retired))
     ));
-    let next = credential_grant(&c, c.peer.responder.inventory_inputs().1, 3, 190);
+    let next = credential_grant(
+        &c,
+        c.peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner")
+            .1,
+        3,
+        190,
+    );
     let next_cancel = cancellation(&c, &next);
     assert_eq!(
         c.store
-            .close_unprepared_credential_renewal(next_cancel, &next, c.peer.responder.policy())
+            .close_unprepared_credential_renewal(
+                next_cancel,
+                &next,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .expect("new root grant"),
         Cancel::Closed
     );
@@ -1295,7 +1560,14 @@ fn cancellation_scope_fresh_reply_and_authenticated_storage_shape_are_exact() {
             Cancellation::from_trusted_state(&bytes).expect("well formed substituted expectation");
         assert!(c
             .store
-            .close_unprepared_credential_renewal(changed, &g, c.peer.responder.policy())
+            .close_unprepared_credential_renewal(
+                changed,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .is_err());
         assert_eq!(c.store.image().expect("unchanged").digest, before);
     }
@@ -1312,7 +1584,14 @@ fn cancellation_scope_fresh_reply_and_authenticated_storage_shape_are_exact() {
     }
     assert_eq!(
         c.store
-            .close_unprepared_credential_renewal(cancel, &g, c.peer.responder.policy())
+            .close_unprepared_credential_renewal(
+                cancel,
+                &g,
+                c.peer
+                    .responder
+                    .current_policy()
+                    .expect("fixture policy owner")
+            )
             .expect("close"),
         Cancel::Closed
     );
@@ -1374,7 +1653,10 @@ fn cancellation_transition(
         return c.store.close_unprepared_credential_renewal(
             cancel,
             grant,
-            c.peer.responder.policy(),
+            c.peer
+                .responder
+                .current_policy()
+                .expect("fixture policy owner"),
         );
     }
     let rq = request(

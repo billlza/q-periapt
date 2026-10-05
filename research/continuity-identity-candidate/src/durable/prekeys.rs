@@ -585,7 +585,7 @@ impl DeviceJournal {
             }
         }
         crate::bootstrap::response_staged::ResponsePlan::check_signer(&context, signer)?;
-        let (policy, device, selection) = context.inventory_inputs();
+        let (policy, device, selection) = context.inventory_inputs()?;
         self.inventory_owner(&image, policy, device)?;
         let refs = [
             find(&image, policy, selection.post_quantum())?,

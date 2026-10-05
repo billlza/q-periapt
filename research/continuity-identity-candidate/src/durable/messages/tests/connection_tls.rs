@@ -621,7 +621,12 @@ fn connection_tls_empty_journals_establish_and_confirm_real_application_consumpt
         MessageStatus::Acknowledged
     );
     let mut responder = reopen(&n.inventory.path, n.inventory.peer.local_device());
-    let (policy, device, _) = n.inventory.peer.responder.inventory_inputs();
+    let (policy, device, _) = n
+        .inventory
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("fixture inventory owner");
     for (ordinal, key) in n.inventory.ids.iter().enumerate() {
         assert_eq!(
             responder

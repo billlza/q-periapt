@@ -15,9 +15,14 @@ pub(in crate::durable) fn genesis_boundary(stage: &str, id: &[u8; 32], digest: [
     if stage == "after-publication" {
         CLOSE_POLICY_AFTER_PUBLICATION.with(|pending| {
             if let Some(context) = pending.borrow_mut().take() {
-                std::thread::spawn(move || context.policy().close())
-                    .join()
-                    .expect("concurrent policy close");
+                std::thread::spawn(move || {
+                    context
+                        .current_policy()
+                        .expect("fixture policy owner")
+                        .close()
+                })
+                .join()
+                .expect("concurrent policy close");
             }
         });
     }
@@ -70,7 +75,7 @@ fn policy_closed_after_genesis_publication_withholds_new_anchored_owner() {
         &path.join("state.redb"),
         JournalKey::open(&path.join("key")).expect("key"),
         f.local_device(),
-        f.responder.policy(),
+        f.responder.current_policy().expect("fixture policy owner"),
         expected,
         150,
     );
@@ -132,7 +137,7 @@ fn journal_genesis_process_child() -> Result<(), Box<dyn std::error::Error>> {
             &path.join("state.redb"),
             key,
             f.local_device(),
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             identity(path),
             150,
         )?
@@ -484,7 +489,7 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
             &path.join("state.redb"),
             JournalKey::open(&path.join("key")).expect("key"),
             f.local_device(),
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             id,
         )
     };
@@ -520,7 +525,7 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
             &path.join("state.redb"),
             JournalKey::open(&path.join("key")).expect("key"),
             f.local_device(),
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             expected,
             client(),
         )
@@ -529,7 +534,12 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
     witness
         .lock()
         .expect("witness")
-        .enroll(&genesis, f.local_device(), f.responder.policy(), 150)
+        .enroll(
+            &genesis,
+            f.local_device(),
+            f.responder.current_policy().expect("fixture policy owner"),
+            150,
+        )
         .expect("explicit enrollment of original genesis");
     // Enrollment retry after an unknown result is exact and idempotent.
     witness
@@ -538,7 +548,7 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
         .enroll(
             &recover(expected).expect("original genesis"),
             f.local_device(),
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             150,
         )
         .expect("same enrollment");
@@ -547,7 +557,7 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
     let request = crate::PrekeyId::from_trusted_state([76; 32]).expect("request");
     let leaf = journal
         .generate_prekey(
-            f.responder.policy(),
+            f.responder.current_policy().expect("fixture policy owner"),
             f.local_device(),
             request,
             crate::LeafKind::OneTimePq,
@@ -561,14 +571,19 @@ fn journal_unknown_anchored_creation_preserves_exact_genesis_and_requires_enroll
         &path.join("state.redb"),
         JournalKey::open(&path.join("key")).expect("original key"),
         f.local_device(),
-        f.responder.policy(),
+        f.responder.current_policy().expect("fixture policy owner"),
         expected,
         client(),
     )
     .expect("same subject reopen");
     assert_eq!(
         journal
-            .prekey_leaf(f.responder.policy(), f.local_device(), request, 150)
+            .prekey_leaf(
+                f.responder.current_policy().expect("fixture policy owner"),
+                f.local_device(),
+                request,
+                150
+            )
             .expect("exact durable prekey")
             .key_fingerprint(),
         leaf.key_fingerprint()

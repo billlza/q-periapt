@@ -73,7 +73,10 @@ fn bootstrap_peer_preview_preserves_capacity_and_known_authority_without_writing
             root.account_id().expect("account"),
             root.public_key().expect("public"),
             issued.checkpoint(),
-            f.initiator.policy().family(),
+            f.initiator
+                .current_policy()
+                .expect("fixture policy owner")
+                .family(),
         )
         .expect("independent pin");
         journal

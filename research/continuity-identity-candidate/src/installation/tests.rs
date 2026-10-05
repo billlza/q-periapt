@@ -33,7 +33,7 @@ fn create(root: &Path, f: &Fixture) -> DeviceInstallation {
         paths(root),
         &key(root),
         f.initiator_device(),
-        f.initiator.policy(),
+        f.initiator.current_policy().expect("fixture policy owner"),
         150,
     )
     .expect("explicit initialization")
@@ -43,7 +43,7 @@ fn open(root: &Path, f: &Fixture) -> DeviceInstallation {
         paths(root),
         &key(root),
         f.initiator_device(),
-        f.initiator.policy(),
+        f.initiator.current_policy().expect("fixture policy owner"),
         150,
     )
     .expect("same authoritative intent")
@@ -51,7 +51,12 @@ fn open(root: &Path, f: &Fixture) -> DeviceInstallation {
 fn prepare(owner: &mut DeviceInstallation, root: &Path, f: &Fixture) {
     assert!(matches!(
         owner
-            .prepare(key(root), f.initiator_device(), f.initiator.policy(), 150)
+            .prepare(
+                key(root),
+                f.initiator_device(),
+                f.initiator.current_policy().expect("fixture policy owner"),
+                150
+            )
             .expect("exact preparation"),
         InstallationPreparation::Local
     ));
@@ -61,7 +66,7 @@ fn activate(owner: DeviceInstallation, root: &Path, f: &Fixture) -> DeviceServic
         .activate(
             key(root),
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150,
             None,
         )
@@ -78,7 +83,7 @@ fn installation_retains_identity_before_children_and_releases_only_after_activat
         paths(&root),
         &key(&root),
         f.initiator_device(),
-        f.initiator.policy(),
+        f.initiator.current_policy().expect("fixture policy owner"),
         150
     )
     .is_err());
@@ -99,7 +104,7 @@ fn installation_retains_identity_before_children_and_releases_only_after_activat
             paths(&root),
             &key(&root),
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Database(PrivateDatabaseError::Busy))
@@ -156,7 +161,7 @@ fn installation_active_loss_never_recreates_or_replaces_children() {
             .activate(
                 key(&root),
                 f.initiator_device(),
-                f.initiator.policy(),
+                f.initiator.current_policy().expect("fixture policy owner"),
                 150,
                 None
             )
@@ -164,7 +169,12 @@ fn installation_active_loss_never_recreates_or_replaces_children() {
         assert!(!root.join(leaf).exists());
         let mut owner = open(&root, &f);
         assert!(matches!(
-            owner.prepare(key(&root), f.initiator_device(), f.initiator.policy(), 150),
+            owner.prepare(
+                key(&root),
+                f.initiator_device(),
+                f.initiator.current_policy().expect("fixture policy owner"),
+                150
+            ),
             Err(DurableError::Conflict)
         ));
         assert!(!root.join(leaf).exists());
@@ -236,7 +246,7 @@ fn installation_invalid_configuration_and_stale_creating_phase_grant_no_service(
             paths(&root),
             &key(&root),
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150,
         );
         if mutation == "stale-creating" {
@@ -245,7 +255,7 @@ fn installation_invalid_configuration_and_stale_creating_phase_grant_no_service(
                 owner.activate(
                     key(&root),
                     f.initiator_device(),
-                    f.initiator.policy(),
+                    f.initiator.current_policy().expect("fixture policy owner"),
                     150,
                     None
                 ),
@@ -253,7 +263,12 @@ fn installation_invalid_configuration_and_stale_creating_phase_grant_no_service(
             ));
             let mut owner = open(&root, &f);
             assert!(matches!(
-                owner.prepare(key(&root), f.initiator_device(), f.initiator.policy(), 150),
+                owner.prepare(
+                    key(&root),
+                    f.initiator_device(),
+                    f.initiator.current_policy().expect("fixture policy owner"),
+                    150
+                ),
                 Err(DurableError::Conflict)
             ));
         } else {
@@ -282,9 +297,17 @@ fn installation_path_and_policy_failures_precede_child_creation() {
     }
     drop(JournalKey::provision(&root.join("key")).expect("key"));
     let mut owner = create(&root, &f);
-    f.initiator.policy().close();
+    f.initiator
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert!(matches!(
-        owner.prepare(key(&root), f.initiator_device(), f.initiator.policy(), 150),
+        owner.prepare(
+            key(&root),
+            f.initiator_device(),
+            f.initiator.current_policy().expect("fixture policy owner"),
+            150
+        ),
         Err(DurableError::Protocol(Error::Closed))
     ));
     assert!(!valid.journal.exists() && !valid.archives.exists());
@@ -306,7 +329,7 @@ fn installation_scope_and_partial_state_fail_without_adoption_or_repair() {
             paths(&root),
             &wrong,
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -315,7 +338,7 @@ fn installation_scope_and_partial_state_fail_without_adoption_or_repair() {
         paths(&root),
         &key(&root),
         f.local_device(),
-        f.responder.policy(),
+        f.responder.current_policy().expect("fixture policy owner"),
         150
     )
     .is_err());
@@ -330,7 +353,7 @@ fn installation_scope_and_partial_state_fail_without_adoption_or_repair() {
             changed,
             &key(&root),
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Conflict)
@@ -339,7 +362,12 @@ fn installation_scope_and_partial_state_fail_without_adoption_or_repair() {
     fs::write(root.join("state.redb"), b"partial original").expect("partial file");
     owner = open(&root, &f);
     assert!(owner
-        .prepare(key(&root), f.initiator_device(), f.initiator.policy(), 150)
+        .prepare(
+            key(&root),
+            f.initiator_device(),
+            f.initiator.current_policy().expect("fixture policy owner"),
+            150
+        )
         .is_err());
     assert_eq!(
         fs::read(root.join("state.redb")).expect("retained partial"),
@@ -388,7 +416,7 @@ fn installation_every_activation_sync_fault_returns_no_service_and_reconciles_ex
                 owner.activate(
                     key(&root),
                     f.initiator_device(),
-                    f.initiator.policy(),
+                    f.initiator.current_policy().expect("fixture policy owner"),
                     150,
                     None,
                 ),
@@ -474,7 +502,7 @@ fn installation_busy_child() {
             paths(root),
             &key(root),
             f.initiator_device(),
-            f.initiator.policy(),
+            f.initiator.current_policy().expect("fixture policy owner"),
             150
         ),
         Err(DurableError::Database(PrivateDatabaseError::Busy))
@@ -566,7 +594,7 @@ fn installation_process_cuts_preserve_intent_and_prevent_new_lineage() {
                 paths(&root),
                 &key(&root),
                 f.initiator_device(),
-                f.initiator.policy(),
+                f.initiator.current_policy().expect("fixture policy owner"),
                 150
             )
             .is_err());
@@ -697,7 +725,10 @@ impl Anchored {
                     .prepare(
                         key(&self.root),
                         self.peer.initiator_device(),
-                        self.peer.initiator.policy(),
+                        self.peer
+                            .initiator
+                            .current_policy()
+                            .expect("fixture policy owner"),
                         150,
                     )
                     .expect("required preparation"),
@@ -714,7 +745,10 @@ impl Anchored {
                 .enroll(
                     &genesis,
                     self.peer.initiator_device(),
-                    self.peer.initiator.policy(),
+                    self.peer
+                        .initiator
+                        .current_policy()
+                        .expect("fixture policy owner"),
                     150,
                 )
                 .expect("explicit exact enrollment");
@@ -726,7 +760,10 @@ impl Anchored {
         owner.activate(
             key(&self.root),
             self.peer.initiator_device(),
-            self.peer.initiator.policy(),
+            self.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
             Some(self.client()),
         )
@@ -742,7 +779,10 @@ fn installation_required_witness_admission_and_release_refuse_every_lost_request
             owner.activate(
                 key(&c.root),
                 c.peer.initiator_device(),
-                c.peer.initiator.policy(),
+                c.peer
+                    .initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150,
                 None
             ),
@@ -908,7 +948,10 @@ fn installation_required_genesis_cannot_activate_before_independent_enrollment()
             .prepare(
                 key(&c.root),
                 c.peer.initiator_device(),
-                c.peer.initiator.policy(),
+                c.peer
+                    .initiator
+                    .current_policy()
+                    .expect("fixture policy owner"),
                 150,
             )
             .expect("genesis"),
@@ -924,7 +967,10 @@ fn installation_required_genesis_cannot_activate_before_independent_enrollment()
         .enroll(
             &genesis,
             c.peer.initiator_device(),
-            c.peer.initiator.policy(),
+            c.peer
+                .initiator
+                .current_policy()
+                .expect("fixture policy owner"),
             150,
         )
         .expect("separate enrollment");

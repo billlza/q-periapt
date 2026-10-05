@@ -56,9 +56,49 @@ prefix is not permission to allocate outside that cap.
 | 4, 5, 6 | Session policy, initial bootstrap, bootstrap reply |
 | 7, 8 | Witness request, witness reply |
 | 9, 10, 11, 12, 13 | Rekey offer, response, final, receipt, request |
+| 14, 15 | Enrollment request, same-key credential renewal |
+| 16 | Joint policy-continuation approval (both independent roots) |
 
 Purpose numbers are signature inputs, not a free-form signing API. No application
 message acquires a dual signature merely by belonging to a signed session.
+
+The enrollment and credential-renewal records are specified in the candidate's
+[enrollment](../../research/continuity-identity-candidate/ENROLLMENT.md) and
+[credential-renewal](../../research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md)
+contracts.
+
+### Joint policy-continuation approval
+
+The separate candidate identifier is `qperiapt-policy-continuation/1`. Each
+purpose-16 approval signs the same exact 490-byte body, in this order:
+
+```
+QPPCTN01[8], operation[32], journal[32], original_owner[32],
+original_credential[32], previous_credential[32], credential_statement[32],
+target_credential[32], target_authority[32], policy_family[32],
+previous_roster_version:u64, previous_roster_digest[32],
+original_policy_version:u64, original_policy_digest[32],
+previous_policy_version:u64, previous_policy_digest[32],
+target_policy_version:u64, target_policy_digest[32],
+previous_authorization_present:u8, previous_authorization[32], permission:u8
+```
+
+An absent prior authorization is exactly `0 || zero[32]` and is allowed only
+for the original P0 predecessor. A present authorization is `1 || nonzero[32]`
+and names the exact prior joint statement. The only permission is `1`, for
+retained established sessions. The container is
+`QPPCTB01[8] || account_length:u16 || account_envelope || policy_length:u16 ||
+policy_envelope`; each envelope is exactly 3867 bytes and the container is exactly
+7746 bytes. Both independently supplied roots must verify both signature
+components; the two bodies must be byte-identical. The statement commitment is
+`LDH("Q-PERIAPT-POLICY-CONTINUATION-CANDIDATE/v1", body)`.
+
+Approvals cannot select trust pins, the original journal or predecessor state.
+Current target policy and credential admission, original profile equality and
+durable predecessor comparison remain mandatory. The current implementation
+supports a coupled same-key credential and policy validity extension for local
+retained sessions only. It supplies neither fresh-bootstrap permission nor
+required-witness continuation. See the [operational and recovery contract](../../research/continuity-identity-candidate/POLICY_CONTINUATION.md).
 
 ## Account, device, roster and prekey materials
 

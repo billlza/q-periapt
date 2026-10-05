@@ -334,7 +334,10 @@ fn real_bootstrap_stages_cancel_after_process_loss_and_reopen_without_policy_obj
                         Some((a.try_into().expect("public"), b.try_into().expect("public"))),
                     );
                     let mut journal = reopen(&path, f.local_device());
-                    let (policy, device, _) = f.responder.inventory_inputs();
+                    let (policy, device, _) = f
+                        .responder
+                        .inventory_inputs()
+                        .expect("fixture inventory owner");
                     for used in &receipt.inventory {
                         if used.disposition != BootstrapPrekeyDisposition::ReusableUnchanged {
                             assert_eq!(
@@ -483,7 +486,11 @@ fn cancellation_fences_live_entry_points_and_leaves_reusable_inventory_retirable
                 .activate_responder_messages(Arc::clone(&f.peer.responder), &initial, 150),
             Err(DurableError::Protocol(Error::Retired))
         ));
-        let (policy, device, _) = f.peer.responder.inventory_inputs();
+        let (policy, device, _) = f
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("fixture inventory owner");
         for used in &cr.inventory {
             let status = f
                 .store

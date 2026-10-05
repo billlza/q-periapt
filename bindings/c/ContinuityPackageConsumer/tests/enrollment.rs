@@ -120,7 +120,7 @@ fn peer_bundle(
     .enumerate()
     {
         leaves.push(server.service.stores()?.0.generate_prekey(
-            context.policy(),
+            context.current_policy()?,
             device,
             p::PrekeyId::from_trusted_state([u8::try_from(index + 71)?; 32])?,
             kind,

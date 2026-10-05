@@ -44,12 +44,23 @@ fn renewed(
         until,
         version,
         [u8::try_from(version + 50).expect("fixture operation"); 32],
-        l.f.initiator.policy().checkpoint().digest(),
+        l.f.initiator
+            .current_policy()
+            .expect("fixture policy owner")
+            .checkpoint()
+            .digest(),
     )
 }
 fn install(l: &mut Local, proof: &VerifiedCredentialRenewal) {
     l.service
-        .admit_peer_credential_renewal(proof, proof.operation(), l.f.initiator.policy(), 150)
+        .admit_peer_credential_renewal(
+            proof,
+            proof.operation(),
+            l.f.initiator
+                .current_policy()
+                .expect("fixture policy owner"),
+            150,
+        )
         .expect("atomic peer grant");
 }
 fn reopen_bundle(
@@ -146,7 +157,10 @@ fn expired_peer_reopens_exact_original_session_and_current_grant_fences_cached_v
         assert_eq!((after.id, after.owner), (before.id, before.owner));
         l.service.close();
         let device = l.f.initiator.device(role);
-        let policy = l.f.initiator.policy();
+        let policy =
+            l.f.initiator
+                .current_policy()
+                .expect("fixture policy owner");
         l.service = DeviceInstallation::open(paths(&l.root), &key(&l.root), device, policy, 170)
             .expect("original installation after restart")
             .activate(key(&l.root), device, policy, 170, None)
@@ -237,7 +251,10 @@ fn retained_view_rechecks_policy_owner_close_and_preserves_original_journal_on_r
     let session = l.session;
     let peer = reopen_bundle(&mut l, session, BootstrapRole::Initiator, 170).expect("peer");
     let before = l.service.stores().expect("stores").0.test_snapshot();
-    peer.context().policy().close();
+    peer.context()
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     assert!(l
         .service
         .stores()

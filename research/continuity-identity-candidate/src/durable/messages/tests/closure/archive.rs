@@ -20,7 +20,10 @@ fn archived_catalogue_restore_and_retirement_require_exact_terminal_accounting()
         let file = path.join("archives.redb");
         let mut index = SessionArchiveStore::provision(&file, expected).expect("explicit index");
         assert!(index.session_ids().expect("actual empty index").is_empty());
-        context.policy().close();
+        context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         journal.close();
         let mut owner = archived(path);
         let wrong = SessionClosureId::from_trusted_state([99; 32]).expect("wrong report");
@@ -166,7 +169,10 @@ fn archived_catalogue_unknown_restore_and_retirement_results_keep_exact_recovery
         p.jr.archive_session_closure(&p.f.responder, p.session)
             .expect("archive");
     retain(&p.pr, "cleanup.archive", archive.as_bytes());
-    p.f.responder.policy().close();
+    p.f.responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     p.jr.close();
     let mut owner = archived(&p.pr);
     let report = owner.begin().expect("freeze original");
@@ -297,7 +303,10 @@ fn archived_catalogue_fresh_process_recovery_keeps_journal_tombstones() {
     SessionArchiveStore::provision(&p.pr.join("archives.redb"), identity(&p.pr))
         .expect("empty recovery index")
         .close();
-    p.f.responder.policy().close();
+    p.f.responder
+        .current_policy()
+        .expect("fixture policy owner")
+        .close();
     p.jr.close();
     let run = |action: &str| {
         let log_path = p.pr.join(format!("catalogue-{action}.log"));
@@ -498,7 +507,10 @@ fn archived_session_closure_restarts_without_verified_context_for_both_roles() {
             ),
             Err(Error::Validity)
         ));
-        context.policy().close();
+        context
+            .current_policy()
+            .expect("fixture policy owner")
+            .close();
         assert!(matches!(
             p.f.bundle.verify(
                 p.f.policy_owner(role),
@@ -749,7 +761,10 @@ fn archived_session_closure_recovers_only_sealed_activation_after_sync_faults() 
                         })
                         .unwrap_or(false)
             };
-            p.f.responder.policy().close();
+            p.f.responder
+                .current_policy()
+                .expect("fixture policy owner")
+                .close();
             let outcome = SessionClosureJournal::open(
                 &p.pr.join("state.redb"),
                 JournalKey::open(&p.pr.join("key")).expect("key"),

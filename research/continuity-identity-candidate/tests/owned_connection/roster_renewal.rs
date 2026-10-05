@@ -309,7 +309,7 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
                 .roster()
                 .checkpoint(),
             &short,
-            peer.context.policy(),
+            peer.context.current_policy().expect("fixture policy owner"),
             at,
         )?;
     let context = Arc::clone(&peer.context);
