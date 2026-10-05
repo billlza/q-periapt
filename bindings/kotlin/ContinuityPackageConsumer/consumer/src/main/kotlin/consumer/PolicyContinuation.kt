@@ -61,12 +61,22 @@ internal fun policyEnrollment(owner: ContinuityEnrollment, path: String, records
             check(staged == owner.credentialRenewalStatus()) { "policy stage differs from original-operation readback" }
             staged
         }
-        "enrollment-policy-witness-prepare" -> {
+        "enrollment-policy-witness-prepare", "enrollment-policy-witness-carry-prepare" -> {
             val proposal = owner.prepareWitnessedPolicyContinuation()
             check(proposal == owner.prepareWitnessedPolicyContinuation()) { "policy witness preparation changed original target" }
             val bytes = proposal.encoded()
-            check(bytes.size == 329 && proposal.adoptsPolicy && proposal.operation == operation() &&
-                proposal.statement == statement()) { "policy witness proposal differs from original joint operation" }
+            val expectedStatement = statement()
+            check(bytes.size == 329 && proposal.operation == operation() && proposal.statement == expectedStatement) {
+                "policy witness proposal differs from original operation"
+            }
+            if (mode == "enrollment-policy-witness-carry-prepare") {
+                val retained = PolicyContinuationStatementID(records.enrollmentExact("policy-retained-statement", 32))
+                check(!proposal.adoptsPolicy && proposal.credentialStatement == expectedStatement && proposal.policyStatement == retained) {
+                    "policy witness carry changed the retained policy authorization"
+                }
+            } else {
+                check(proposal.adoptsPolicy) { "joint policy witness proposal did not adopt the new authorization" }
+            }
             check(records.retain("policy-proposal", bytes, true)) { "policy proposal output already exists" }
             check(owner.status() == original) { "policy witness preparation changed registration" }
             return "policy-witness-prepared"

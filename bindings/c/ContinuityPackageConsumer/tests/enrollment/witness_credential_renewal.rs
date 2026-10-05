@@ -137,6 +137,19 @@ pub(super) fn expected(proof: &p::VerifiedCredentialRenewal, phase: u32) -> Stri
 pub(super) fn provision_renewal(
     registration: &Registration,
 ) -> Result<(p::VerifiedCredentialRenewal, p::AccountPin, p::Validity)> {
+    let issued = provision_renewal_materials(registration)?;
+    Ok((issued.proof, issued.pin, issued.validity))
+}
+pub(super) struct ProvisionedRenewal {
+    pub(super) proof: p::VerifiedCredentialRenewal,
+    pub(super) pin: p::AccountPin,
+    pub(super) validity: p::Validity,
+    pub(super) certificate: Vec<u8>,
+    pub(super) roster: p::IssuedRoster,
+}
+pub(super) fn provision_renewal_materials(
+    registration: &Registration,
+) -> Result<ProvisionedRenewal> {
     let path = &registration.path;
     let request = p::VerifiedEnrollmentRequest::verify(
         &registration.request,
@@ -213,7 +226,13 @@ pub(super) fn provision_renewal(
     ] {
         fixture::store(path, name, &bytes)?;
     }
-    Ok((proof, target_pin, validity))
+    Ok(ProvisionedRenewal {
+        proof,
+        pin: target_pin,
+        validity,
+        certificate: successor,
+        roster: target,
+    })
 }
 
 #[test]

@@ -320,13 +320,14 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
 
     def test_policy_witness_requires_both_complete_carriers(self):
         lines = ["C_WITNESSED_POLICY_CONTINUATION carrier=" + carrier
-            + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true"
+            + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true"
             for carrier in ("tcp", "tls")]
         output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_WITNESS_TEST + " ... ok\n"
             + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
         for language in ("C", "Swift", "Kotlin"):
             result = enrollment.verify_policy_witness_execution(output, language=language)
             self.assertEqual(result["language"], language)
+            self.assertTrue(result["credential_successor_carries_t1"])
             self.assertFalse(result["release_claim_eligible"])
         variants = [output.replace((line + "\n").encode(), b"") for line in lines]
         variants += [output + (lines[0] + "\n").encode(), output.replace(b"carrier=tls", b"carrier=tcp"),
@@ -334,6 +335,8 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
                      output + b"test another_case ... FAILED with details\n",
                      output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out;\n",
                      output.replace(b"current_activation=true", b"current_activation=false"),
+                     output.replace(b" credential_successor_carries_t1=true", b""),
+                     output.replace(b"credential_successor_carries_t1=true", b"credential_successor_carries_t1=false"),
                      output.replace(b"0 failed", b"1 failed"), output.replace(b"0 ignored", b"1 ignored"),
                      output.replace(enrollment.POLICY_WITNESS_TEST.encode(), b"another_case")]
         for invalid in variants:

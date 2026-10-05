@@ -477,14 +477,20 @@ private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String
             status = try stage()
         }
         guard case .pending = status else { throw ProbeFailure.contract("policy stage did not retain Pending") }
-    case "enrollment-policy-witness-prepare":
+    case "enrollment-policy-witness-prepare", "enrollment-policy-witness-carry-prepare":
         let original = try owner.status()
         let operation = try CredentialRenewalID(bytes: inputs.exact("credential-operation", count: 32))
         let statement = try CredentialRenewalStatementID(bytes: inputs.exact("credential-statement", count: 32))
         let proposal = try owner.prepareWitnessedPolicyContinuation()
         try require(proposal == owner.prepareWitnessedPolicyContinuation(), "policy witness preparation changed original target")
-        try require(proposal.bytes.count == 329 && proposal.adoptsPolicy && proposal.operation == operation && proposal.statement == statement,
+        let carries = mode == "enrollment-policy-witness-carry-prepare"
+        try require(proposal.bytes.count == 329 && proposal.adoptsPolicy == !carries && proposal.operation == operation && proposal.statement == statement,
             "policy witness proposal differs from original joint operation")
+        if carries {
+            let retained = try PolicyContinuationStatementID(bytes: inputs.exact("policy-retained-statement", count: 32))
+            try require(proposal.credentialStatement == statement && proposal.policyStatement == retained,
+                "policy witness carry changed retained T")
+        }
         try inputs.publish("policy-proposal", proposal.bytes)
         try require(owner.status() == original, "policy witness preparation changed registration")
         return "policy-witness-prepared"

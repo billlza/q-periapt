@@ -44,7 +44,8 @@ static int policy_command(uint64_t handle,const char *path,const char *operation
         close_owner(handle);puts("policy-expired-current-refused");return 0;
     }
     require(selection,&error);
-    if(!strcmp(operation,"enrollment-policy-witness-prepare")) {
+    if(!strcmp(operation,"enrollment-policy-witness-prepare") || !strcmp(operation,"enrollment-policy-witness-carry-prepare")) {
+        int carry=!strcmp(operation,"enrollment-policy-witness-carry-prepare");
         qpc_policy_renewal_proposal_v1 proposal,again;
         uint8_t id[32],statement[32];
         enrollment_exact(path,"credential-operation",id,32);
@@ -52,7 +53,11 @@ static int policy_command(uint64_t handle,const char *path,const char *operation
         require(qpc_enrollment_v1_prepare_witnessed_policy_continuation(handle,&proposal,&error),&error);
         require(qpc_enrollment_v1_prepare_witnessed_policy_continuation(handle,&again,&error),&error);
         if(proposal.length!=329 || again.length!=proposal.length || memcmp(proposal.bytes,again.bytes,329)) fail("policy witness preparation changed original target");
-        if(memcmp(proposal.bytes,"QPCRNP02",8) || proposal.bytes[296]!=1 || memcmp(proposal.bytes+136,id,32) || memcmp(proposal.bytes+297,statement,32)) fail("policy witness proposal identity");
+        if(memcmp(proposal.bytes,"QPCRNP02",8) || proposal.bytes[296]!=(carry ? 0 : 1) || memcmp(proposal.bytes+136,id,32) || memcmp(proposal.bytes+(carry ? 168 : 297),statement,32)) fail("policy witness proposal identity");
+        if(carry) {
+            uint8_t retained[32];enrollment_exact(path,"policy-retained-statement",retained,32);
+            if(memcmp(proposal.bytes+297,retained,32)) fail("policy witness carry changed retained T");
+        }
         enrollment_write(path,"policy-proposal",proposal.bytes,proposal.length);
         close_owner(handle);puts("policy-witness-prepared");return 0;
     } else if(!strcmp(operation,"enrollment-policy-witness-commit")) {

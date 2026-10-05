@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual foreign-owner G/T adoption with an independent TCP or TLS witness.
 use super::*;
-use witness_credential_renewal::{image_digest, pending_journal, provision_renewal};
+use witness_credential_renewal::{
+    image_digest, pending_journal, provision_renewal_materials, ProvisionedRenewal,
+};
 use zeroize::Zeroizing;
 
 const DOCUMENT_FILES: [&str; 5] = [
@@ -27,6 +29,223 @@ fn expected(grant: &p::VerifiedCredentialRenewal, statement: [u8; 32], phase: u3
         if phase == 1 { 0 } else { target.version() },
         hex(&if phase == 1 { [0; 32] } else { target.digest() })
     )
+}
+
+fn carry_renewal(
+    registration: &Registration,
+    first: &ProvisionedRenewal,
+    witness: &witness::Witness,
+    endpoint: Endpoint,
+    target: &Path,
+    retained: [u8; 32],
+) -> Result<()> {
+    let path = &registration.path;
+    let first_image = pending_journal(path)?;
+    assert!(first_image.1.is_none());
+    let p1_inputs = DOCUMENT_FILES
+        .into_iter()
+        .map(|name| Ok((name, fs::read(target.join(name))?)))
+        .collect::<Result<Vec<_>>>()?;
+    let t1_wire = fixture::read(path, "policy-approvals", 7746)?;
+    let request = p::VerifiedEnrollmentRequest::verify(
+        &registration.request,
+        &registration.intent,
+        fixture::now()?,
+    )?;
+    let family = fixture::array(path, "family")?;
+    let validity = p::Validity::new(
+        first.validity.from(),
+        first
+            .validity
+            .until()
+            .checked_add(120)
+            .ok_or("clock overflow")?,
+    )?;
+    let certificate = registration.root.issue_device(
+        p::DeviceDescription::new(
+            registration.original.device_id(),
+            registration.original.generation(),
+            family,
+            validity,
+        )?,
+        request.public_key().clone(),
+    )?;
+    let roster = registration.root.issue_roster(
+        3,
+        validity,
+        &[registration.root.roster_entry(&certificate)?],
+    )?;
+    let pin = p::AccountPin::new(
+        registration.root.account_id()?,
+        registration.root.public_key()?,
+        roster.checkpoint(),
+        family,
+    )?;
+    let operation = p::CredentialRenewalId::generate()?;
+    let issued = registration.root.issue_credential_renewal(
+        p::CredentialRenewalMaterials {
+            original_credential: &fixture::read(path, "grant-certificate", 8192)?,
+            previous_credential: &first.certificate,
+            successor_credential: &certificate,
+            previous_roster: first.roster.as_bytes(),
+            successor_roster: roster.as_bytes(),
+        },
+        &p::CredentialRenewalAuthorization {
+            operation,
+            previous: first.roster.checkpoint(),
+            policy_digest: first.proof.policy_digest(),
+        },
+        &pin,
+        fixture::now()?,
+    )?;
+    let grant = p::VerifiedCredentialRenewal::verify(
+        issued.as_bytes(),
+        &pin,
+        first.proof.policy_digest(),
+        fixture::now()?,
+    )?;
+    assert_ne!(operation, first.proof.operation());
+    assert_ne!(grant.statement_digest(), retained);
+    assert_eq!(
+        grant.original_storage_owner(),
+        first.proof.original_storage_owner()
+    );
+    assert_eq!(
+        grant.previous_device().credential_digest(),
+        first.proof.successor_device().credential_digest()
+    );
+    for (name, bytes) in [
+        ("credential-renewal", issued.as_bytes().to_vec()),
+        ("credential-operation", operation.as_bytes().to_vec()),
+        ("credential-statement", grant.statement_digest().to_vec()),
+        (
+            "renewal-version",
+            roster.checkpoint().version().to_be_bytes().to_vec(),
+        ),
+        ("renewal-digest", roster.checkpoint().digest().to_vec()),
+    ] {
+        fs::write(path.join(name), bytes)?;
+    }
+    fixture::store(path, "policy-retained-statement", &retained)?;
+    fs::rename(
+        path.join("policy-proposal"),
+        path.join("policy-g1-proposal-retained"),
+    )?;
+    let pending = expected(&grant, grant.statement_digest(), 1);
+    let committed = expected(&grant, grant.statement_digest(), 2);
+    assert_eq!(
+        run(
+            path,
+            "carry-stage",
+            &arguments(path, "policy-carry-stage", Some(endpoint))
+        )?,
+        pending
+    );
+    assert_eq!(
+        run(
+            path,
+            "carry-pending-reopen",
+            &arguments(path, "credential-status", Some(endpoint))
+        )?,
+        pending
+    );
+    assert_eq!(
+        run(
+            path,
+            "carry-prepare",
+            &arguments(path, "policy-witness-carry-prepare", Some(endpoint))
+        )?,
+        "policy-witness-prepared\n"
+    );
+    let bytes = fixture::read(path, "policy-proposal", 329)?;
+    let proposal = p::AnchorCredentialRenewalProposal::from_trusted_state(&bytes)?;
+    assert_eq!(bytes.len(), 329);
+    assert_eq!(proposal.subject(), registration.subject);
+    assert_eq!(proposal.operation(), operation);
+    assert_eq!(proposal.statement(), grant.statement_digest());
+    assert_eq!(proposal.transaction_statement(), grant.statement_digest());
+    assert_eq!(proposal.policy_continuation(), Some(retained));
+    assert!(!proposal.adopts_policy());
+    let prepared = pending_journal(path)?;
+    assert_eq!(prepared.0, first_image.0);
+    assert!(prepared.1.is_some());
+    assert_eq!(
+        image_digest(&first_image.0)?,
+        proposal.expected_head().digest()
+    );
+    fs::rename(
+        path.join("policy-proposal"),
+        path.join("policy-g2-proposal-original"),
+    )?;
+    assert_eq!(
+        run(
+            path,
+            "carry-prepare-reopen",
+            &arguments(path, "policy-witness-carry-prepare", Some(endpoint))
+        )?,
+        "policy-witness-prepared\n"
+    );
+    assert_eq!(fixture::read(path, "policy-proposal", 329)?, bytes);
+    assert_eq!(pending_journal(path)?, prepared);
+    let mut original_sdk = fixture::sdk(path)?;
+    let original = fixture::protocol_policy(path, &original_sdk)?;
+    let mut target_sdk = fixture::sdk(target)?;
+    let current = fixture::protocol_policy(target, &target_sdk)?;
+    witness
+        .configured
+        .store
+        .lock()
+        .map_err(|_| "witness poisoned")?
+        .prepare_continued_credential_renewal(
+            proposal,
+            &grant,
+            original.historical(),
+            &current,
+            fixture::now()?,
+        )?;
+    current.close();
+    original.close();
+    drop(current);
+    drop(original);
+    target_sdk.close();
+    original_sdk.close();
+    drop(target_sdk);
+    drop(original_sdk);
+    assert_eq!(
+        run(
+            path,
+            "carry-commit",
+            &arguments(path, "policy-witness-commit", Some(endpoint))
+        )?,
+        committed
+    );
+    let terminal = pending_journal(path)?;
+    assert!(terminal.1.is_none());
+    assert_ne!(terminal.0, first_image.0);
+    assert_eq!(image_digest(&terminal.0)?, proposal.target_head().digest());
+    assert_eq!(
+        run(
+            path,
+            "carry-commit-retry",
+            &arguments(path, "policy-witness-commit", Some(endpoint))
+        )?,
+        committed
+    );
+    assert_eq!(pending_journal(path)?, terminal);
+    assert_eq!(
+        run(
+            path,
+            "carry-activate",
+            &arguments(path, "policy-activate", Some(endpoint))
+        )?,
+        "policy-device-active\n"
+    );
+    assert_eq!(pending_journal(path)?, terminal);
+    assert_eq!(fixture::read(path, "policy-approvals", 7746)?, t1_wire);
+    for (name, bytes) in p1_inputs {
+        assert_eq!(fs::read(target.join(name))?, bytes);
+    }
+    Ok(())
 }
 
 fn exercise(tls: bool) -> Result<()> {
@@ -68,7 +287,8 @@ fn exercise(tls: bool) -> Result<()> {
         .into_iter()
         .map(|name| Ok((name, fs::read(path.join(name))?)))
         .collect::<Result<Vec<_>>>()?;
-    let (grant, _, _) = provision_renewal(&registration)?;
+    let first = provision_renewal_materials(&registration)?;
+    let grant = &first.proof;
     let target = path.join("continued-sdk");
     let previous = path.join("previous-policy");
     for directory in [&target, &previous] {
@@ -133,7 +353,7 @@ fn exercise(tls: bool) -> Result<()> {
         original: original_policy.historical(),
         previous: original_policy.historical(),
         target: &target_policy,
-        credential: &grant,
+        credential: grant,
     };
     let statement = p::PolicyContinuationStatement::new(&scope, &materials, fixture::now()?)?;
     let continuation = p::VerifiedPolicyContinuation::verify(
@@ -166,7 +386,7 @@ fn exercise(tls: bool) -> Result<()> {
             "joint-stage",
             &arguments(path, "policy-stage", Some(endpoint))
         )?,
-        expected(&grant, transaction, 1)
+        expected(grant, transaction, 1)
     );
     assert_eq!(
         run(
@@ -213,7 +433,7 @@ fn exercise(tls: bool) -> Result<()> {
         original: original_policy.historical(),
         previous: original_policy.historical(),
         target: &target_policy,
-        credential: &grant,
+        credential: grant,
     };
     let continuation = p::VerifiedPolicyContinuation::from_bytes(
         &fixture::read(path, "policy-approvals", 7746)?,
@@ -241,7 +461,7 @@ fn exercise(tls: bool) -> Result<()> {
             "joint-commit",
             &arguments(path, "policy-witness-commit", Some(endpoint))
         )?,
-        expected(&grant, transaction, 2)
+        expected(grant, transaction, 2)
     );
     let terminal = pending_journal(path)?;
     assert!(terminal.1.is_none());
@@ -253,7 +473,7 @@ fn exercise(tls: bool) -> Result<()> {
             "joint-commit-retry",
             &arguments(path, "policy-witness-commit", Some(endpoint))
         )?,
-        expected(&grant, transaction, 2)
+        expected(grant, transaction, 2)
     );
     assert_eq!(pending_journal(path)?, terminal);
     assert_eq!(
@@ -273,6 +493,22 @@ fn exercise(tls: bool) -> Result<()> {
         active
     );
     assert_eq!(pending_journal(path)?, terminal);
+    carry_renewal(
+        &registration,
+        &first,
+        &witness,
+        endpoint,
+        &target,
+        transaction,
+    )?;
+    assert_eq!(
+        state(&run(
+            path,
+            "carry-final-status",
+            &arguments(path, "status", Some(endpoint))
+        )?)?,
+        active
+    );
     assert!(
         Zeroizing::new(fs::read(path.join("signer.key"))?).as_slice() == signer.as_slice(),
         "original signer changed"
@@ -321,7 +557,7 @@ fn exercise(tls: bool) -> Result<()> {
             .all(|r| r.request().get(44..140) == Some(subject.as_slice())));
     }
     witness.join()?;
-    println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true", if tls { "tls" } else { "tcp" });
+    println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" });
     Ok(())
 }
 

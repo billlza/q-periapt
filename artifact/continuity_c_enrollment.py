@@ -406,13 +406,14 @@ def verify_policy_witness_execution(stdout: bytes, *, language: str = "C") -> di
     _require_execution(text, {POLICY_WITNESS_TEST}, 9,
                        "foreign witnessed policy continuation did not execute completely")
     expected = ["C_WITNESSED_POLICY_CONTINUATION carrier=" + carrier
-        + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true"
+        + " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true"
         for carrier in ("tcp", "tls")]
     sdk.require(re.findall(r"^C_WITNESSED_POLICY_CONTINUATION.*$", text, re.MULTILINE) == expected,
                 "witnessed policy continuation omitted or changed a required carrier outcome")
     return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
-                original_proposal_bytes=329, release_claim_eligible=False,
-                scope=language + " original enrolled G/T proposal, independent account/policy approval, native witness Commit/Applied and original-owner activation over TCP and TLS; same engine, no independent wire oracle or continued application traffic")
+                original_proposal_bytes=329, credential_successor_carries_t1=True,
+                release_claim_eligible=False,
+                scope=language + " original enrolled G1/T1 adoption and G2 carrying retained T1, exact reopened proposals, native witness Commit/Applied and original-owner activation over TCP and TLS; same engine, no independent wire oracle or continued application traffic")
 
 
 def qualify_policy_witness(output: Path, profile: str, runtime: dict, binary: Path, run,
