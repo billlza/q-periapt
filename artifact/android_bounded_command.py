@@ -4478,6 +4478,22 @@ def invoke_operation(
         _require(result.returncode == 0, "Android kernel page-size query failed")
         return BoundedResult(0, f"{_auxv_page_size(result.stdout)}\n".encode("ascii"))
     if spec.mode == "run":
+        if operation is AndroidOperation.INSTALL_APK:
+            # APK/tool bytes have passed capability validation above. Flush
+            # their public identity before adb can fail or time out; its log is
+            # retained even when instrumentation never starts. Omit private
+            # routing/key paths and do not infer adb's guest session arguments.
+            print("ANDROID_INSTALL_INPUT " + json.dumps({
+                "schema_version": 1,
+                "run_id": capability.run_id,
+                "device_kind": capability.device_kind,
+                "apk_bytes": capability.signed_apk_size,
+                "apk_sha256": capability.signed_apk_sha256,
+                "adb_sha256": capability.adb_sha256,
+                "adb_command": [*argv[-3:-1], layout.signed_apk.name],
+                "timeout_seconds": timeout,
+                "guest_session_arguments_observed": False,
+            }, sort_keys=True), flush=True)
         result = run(
             argv, timeout_seconds=timeout, environment=_client_environment(capability)
         )

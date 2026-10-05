@@ -1525,6 +1525,58 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             self.assertEqual(write_arguments["maximum_bytes"], 65536)
             self.assertEqual(write_arguments["timeout_seconds"], 15)
 
+    def test_install_records_verified_inputs_before_result_or_timeout(self) -> None:
+        capability = self.load_capability()
+        for outcome in (0, 17, "timeout"):
+            with self.subTest(outcome=outcome):
+                output = io.StringIO()
+
+                def invoke_adb(argv, **options):
+                    lines = output.getvalue().splitlines()
+                    self.assertEqual(len(lines), 1)
+                    prefix = "ANDROID_INSTALL_INPUT "
+                    self.assertTrue(lines[0].startswith(prefix))
+                    record = json.loads(lines[0][len(prefix):])
+                    self.assertEqual(record, {
+                        "schema_version": 1,
+                        "run_id": self.run_id,
+                        "device_kind": capability.device_kind,
+                        "apk_bytes": len(self.apk.read_bytes()),
+                        "apk_sha256": hashlib.sha256(self.apk.read_bytes()).hexdigest(),
+                        "adb_sha256": capability.adb_sha256,
+                        "adb_command": ["install", "--no-incremental", self.apk.name],
+                        "timeout_seconds": 120,
+                        "guest_session_arguments_observed": False,
+                    })
+                    self.assertEqual(tuple(argv), commands.OPERATION_SPECS[
+                        commands.AndroidOperation.INSTALL_APK].build_argv(capability))
+                    self.assertEqual(options["timeout_seconds"], 120)
+                    self.assertEqual(options["environment"], commands._client_environment(capability))
+                    self.assertNotIn(capability.expected_serial, output.getvalue())
+                    self.assertNotIn(str(capability.vendor_key), output.getvalue())
+                    if outcome == "timeout":
+                        raise BoundedProcessError("timeout", "controlled install timeout")
+                    return BoundedResult(outcome)
+
+                with contextlib.redirect_stdout(output), mock.patch.object(
+                    commands, "run", side_effect=invoke_adb
+                ) as run:
+                    if outcome == "timeout":
+                        with self.assertRaisesRegex(BoundedProcessError, "controlled install timeout"):
+                            self.invoke(commands.AndroidOperation.INSTALL_APK)
+                    else:
+                        self.assertEqual(self.invoke(commands.AndroidOperation.INSTALL_APK).returncode, outcome)
+                run.assert_called_once()
+
+    def test_install_input_record_refuses_changed_apk_before_dispatch(self) -> None:
+        self.apk.write_bytes(b"changed signed apk")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), mock.patch.object(commands, "run") as run:
+            with self.assertRaisesRegex(commands.AndroidCommandError, "APK changed"):
+                self.invoke(commands.AndroidOperation.INSTALL_APK)
+        self.assertEqual(output.getvalue(), "")
+        run.assert_not_called()
+
     def package_query_reply(
         self, payload: bytes, status: int = 0, line_ending: bytes = b"\n",
     ) -> bytes:
