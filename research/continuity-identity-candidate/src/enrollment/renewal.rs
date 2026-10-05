@@ -681,8 +681,8 @@ impl DeviceEnrollment {
         }
         self.current_renewed_device(image, &original, policy, now)
     }
-    // Shared current certificate/signing-key validation. Callers separately bind
-    // either the original policy or exact adopted continuation before entering.
+    // Ordinary renewal still requires its configured roster to be current.
+    // Continued-owner admission below resolves its current roster from journal.
     fn current_renewed_device(
         &self,
         image: &Image,
@@ -695,7 +695,6 @@ impl DeviceEnrollment {
         if renewal.pending.is_some() {
             return Err(DurableError::Suspended);
         }
-        let complete = renewal.completed.as_ref();
         let Phase::Accepted { admission, .. } = &image.phase else {
             return Err(DurableError::Corrupt);
         };
@@ -706,6 +705,20 @@ impl DeviceEnrollment {
             self.intent.description.family,
         )?;
         let current = pin.verify_device(&admission.certificate, &admission.roster, now)?;
+        self.check_renewed_identity(image, original, &current)?;
+        admit(&current, policy, now)?;
+        Ok(current)
+    }
+    // Immutable configuration/signing-key binding, not current admission. The
+    // caller must separately check its current policy and authenticated roster.
+    fn check_renewed_identity(
+        &self,
+        image: &Image,
+        original: &VerifiedDevice,
+        current: &VerifiedDevice,
+    ) -> Result<(), DurableError> {
+        let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
+        let complete = renewal.completed.as_ref();
         let expected_credential = complete.map_or(original.credential_digest(), |c| c.credential);
         if current.credential_digest() != expected_credential
             || current.account_id() != original.account_id()
@@ -716,9 +729,8 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        self.signer(image.identity, false)?.check_device(&current)?;
-        admit(&current, policy, now)?;
-        Ok(current)
+        self.signer(image.identity, false)?.check_device(current)?;
+        Ok(())
     }
     pub(super) fn refresh_renewed_roster(
         &mut self,
@@ -1016,11 +1028,44 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<(EnrolledDevice, crate::ReopenedPeer), DurableError> {
         let image = self.image()?;
+        let original = self.original_device(&image, now)?;
+        if request.context.device(request.role).credential_digest() != original.credential_digest()
+        {
+            return Err(DurableError::Conflict);
+        }
+        let mut active =
+            self.activate_policy_continuation(request.context.original_policy(), &policy, now)?;
+        let (service, _, current) = active.parts()?;
+        let peer = service.reopen_continued_peer(request, policy, now)?;
+        if peer
+            .context()
+            .session_device(peer.role())
+            .credential_digest()
+            != current.credential_digest()
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok((active, peer))
+    }
+    /// Complete/reopen the original local-only continued enrollment without
+    /// requiring current peer credentials first. This retains the original
+    /// signer and service only after exact durable T/G, local membership,
+    /// completion ACK and independently verified P1 runtime admission.
+    /// The caller can then install independently approved peer renewals and
+    /// reopen original sessions. Fresh bootstrap/prekey permission is not granted.
+    /// Historical progress can complete before current admission fails; after an
+    /// error, reopen this original enrollment and query its exact operation.
+    pub fn activate_policy_continuation(
+        mut self,
+        original_policy: &crate::HistoricalSessionPolicy,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<EnrolledDevice, DurableError> {
+        let image = self.image()?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Conflict)?;
         if !renewal.joint() {
             return Err(DurableError::Conflict);
         }
-        let original_policy = request.context.original_policy();
         if renewal.witnessed()
             || original_policy.anchor_requirement().binding().is_some()
             || policy.anchor_requirement().binding().is_some()
@@ -1028,12 +1073,8 @@ impl DeviceEnrollment {
             return Err(DurableError::AnchorRequired);
         }
         let original = self.original_device(&image, now)?;
-        if request.context.device(request.role).credential_digest() != original.credential_digest()
-        {
-            return Err(DurableError::Conflict);
-        }
         let (image, mut service) =
-            self.reconcile_local_renewal(image, original_policy, &policy, now, None)?;
+            self.reconcile_local_renewal(image, original_policy, policy, now, None)?;
         let Phase::Accepted {
             admission,
             stage: AdmissionPhase::Active,
@@ -1051,35 +1092,46 @@ impl DeviceEnrollment {
                 .ok_or(DurableError::Conflict)?,
         )?;
         Self::check_policy_scope(&adopted, &original, admission)?;
-        adopted.check_context_policy(original_policy, &policy)?;
+        adopted.check_context_policy(original_policy, policy)?;
         if complete.policy != admission.policy
             || complete.owner != crate::bootstrap::storage_owner(&original)
         {
             return Err(DurableError::Conflict);
         }
-        let current = self.current_renewed_device(&image, &original, &policy, now)?;
-        // This uses the SAME service returned by reconciliation, after durable
-        // config readback and receipt ACK. It rechecks current journal T/G/rosters,
-        // the original session/role/archive and actual runtime permission.
-        let peer = service.reopen_continued_peer(request, std::sync::Arc::clone(&policy), now)?;
-        let resolved = peer.context().session_device(peer.role());
-        if resolved.credential_digest() != current.credential_digest() {
-            return Err(DurableError::Conflict);
-        }
+        // Admission retains the exact original G receipt, whose roster can
+        // expire after a newer roster is accepted by the journal. Authenticate
+        // that immutable history, then obtain all current authority from the
+        // exact journal G/T and its current roster; history alone grants none.
+        let retained = self.historical_device(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+            now,
+        )?;
+        self.check_renewed_identity(&image, &original, &retained)?;
+        let authority =
+            RetainedInstallationAuthority::active_installation(&original, original_policy);
+        let current = service.stores()?.0.admit_continued_local_device(
+            &crate::installation::PolicyScope {
+                authority: &authority,
+                original_policy,
+                local_identity: (original.account_id(), original.device_id()),
+            },
+            &retained,
+            policy,
+            now,
+        )?;
         let signer = self.signer(image.identity, false)?;
         signer.check_device(&current)?;
-        admit(&current, &policy, now)?;
-        Ok((
-            EnrolledDevice {
-                active: Some(EnrolledOwners {
-                    enrollment: self,
-                    service,
-                    signer,
-                    device: current,
-                }),
-            },
-            peer,
-        ))
+        admit(&current, policy, now)?;
+        Ok(EnrolledDevice {
+            active: Some(EnrolledOwners {
+                enrollment: self,
+                service,
+                signer,
+                device: current,
+            }),
+        })
     }
     pub(super) fn activate_renewed(
         mut self,

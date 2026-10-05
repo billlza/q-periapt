@@ -97,7 +97,14 @@ fn retained_view_cannot_activate_unfinished_or_replay_another_established_sessio
         );
         journal
             .install_peer_credential_renewal(
-                &authority,
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy: p.f.initiator.original_policy(),
+                    local_identity: (
+                        p.f.initiator.device(role).account_id(),
+                        p.f.initiator.device(role).device_id(),
+                    ),
+                },
                 &proof,
                 proof.operation(),
                 p.f.initiator

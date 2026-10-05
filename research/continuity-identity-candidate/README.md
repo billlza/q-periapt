@@ -62,7 +62,10 @@ after its policy expires. `stage_policy_continuation` saves the exact intent;
 `reconcile_policy_continuation` reports durable progress without current permission;
 `activate_continued_session` retains the original enrollment, signer and service
 while admitting the selected existing session under the completed authorization
-and current policy. Historical `original_policy()` metadata and the fallible
+and current policy. If peer renewals have not arrived yet,
+`activate_policy_continuation` first admits the same local owner using the current
+journal roster; it can then admit approved peer renewals and reopen the original
+session. Historical `original_policy()` metadata and the fallible
 `current_policy()` runtime accessor are separate. Fresh bootstrap, exact-witness
 continuation and foreign-language exposure remain outside this new path.
 

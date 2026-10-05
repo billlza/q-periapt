@@ -188,6 +188,13 @@ fn send(
 
 #[test]
 fn public_joint_enrollment_reopens_original_session_and_signer_after_policy_expiry() {
+    public_joint_enrollment_flow(false);
+}
+#[test]
+fn public_joint_enrollment_recovers_both_expired_peers_without_preinstalling_peer_grants() {
+    public_joint_enrollment_flow(true);
+}
+fn public_joint_enrollment_flow(late_peer: bool) {
     let mut left = endpoint();
     let mut right = endpoint();
     assert_eq!(
@@ -256,22 +263,23 @@ fn public_joint_enrollment_reopens_original_session_and_signer_after_policy_expi
     }
     let gi = renewal::grant(&left.case, &left.original, &left.original, 2, 200);
     let gr = renewal::grant(&right.case, &right.original, &right.original, 2, 200);
-    // This test focuses on public local enrollment/owner release. Peer renewal
-    // is independently installed while original P0 is live; post-P0 peer update
-    // remains a separate integration obligation.
-    left.owner
-        .parts()
-        .expect("left")
-        .0
-        .admit_peer_credential_renewal(&gr, gr.operation(), &left.case.policy, 150)
-        .expect("peer root grant");
-    right
-        .owner
-        .parts()
-        .expect("right")
-        .0
-        .admit_peer_credential_renewal(&gi, gi.operation(), &right.case.policy, 150)
-        .expect("peer root grant");
+    // Exercise both preinstalled peer history and a real restart where neither
+    // expired peer has supplied its new grant before the local policy transition.
+    if !late_peer {
+        left.owner
+            .parts()
+            .expect("left")
+            .0
+            .admit_peer_credential_renewal(&gr, gr.operation(), &left.case.policy, 150)
+            .expect("peer root grant");
+        right
+            .owner
+            .parts()
+            .expect("right")
+            .0
+            .admit_peer_credential_renewal(&gi, gi.operation(), &right.case.policy, 150)
+            .expect("peer root grant");
+    }
     left.owner.close();
     right.owner.close();
     let signer_i = fs::read(&left.case.paths.signer).expect("original sealed signer");
@@ -361,6 +369,82 @@ fn public_joint_enrollment_reopens_original_session_and_signer_after_policy_expi
             170
         )
         .is_err());
+    if late_peer {
+        assert!(
+            open(&left.case)
+                .activate_continued_session(
+                    request(&bundle, &left, &right, BootstrapRole::Initiator, session),
+                    Arc::clone(&pi),
+                    170,
+                )
+                .is_err(),
+            "expired peer C0 still cannot authorize a session"
+        );
+        let mut local_i = open(&left.case)
+            .activate_policy_continuation(left.case.policy.historical(), &pi, 170)
+            .expect("locally current initiator owner without peer G");
+        let mut local_r = open(&right.case)
+            .activate_policy_continuation(right.case.policy.historical(), &pr, 170)
+            .expect("locally current responder owner without peer G");
+        assert!(
+            local_i
+                .parts()
+                .expect("local owner")
+                .0
+                .reopen_continued_peer(
+                    request(&bundle, &left, &right, BootstrapRole::Initiator, session),
+                    Arc::clone(&pi),
+                    170,
+                )
+                .is_err(),
+            "local owner alone is not permission to use expired peer C0"
+        );
+        let (service, _, current) = local_i.parts().expect("local service remains usable");
+        assert_eq!(
+            current.credential_digest(),
+            gi.successor_device().credential_digest()
+        );
+        assert!(
+            service
+                .admit_peer_credential_renewal(&gi, gi.operation(), &pi, 170)
+                .is_err(),
+            "peer entry cannot renew this same local device"
+        );
+        assert!(service
+            .admit_peer_credential_renewal(
+                &gr,
+                crate::CredentialRenewalId::from_trusted_state([122; 32]).expect("wrong operation"),
+                &pi,
+                170
+            )
+            .is_err());
+        assert_eq!(
+            service
+                .admit_peer_credential_renewal(&gr, gr.operation(), &pi, 170)
+                .expect("first actual peer G after P0 expiry"),
+            gr.successor_device().roster().checkpoint()
+        );
+        let once = service.stores().expect("stores").0.test_snapshot();
+        assert_eq!(
+            service
+                .admit_peer_credential_renewal(&gr, gr.operation(), &pi, 170)
+                .expect("exact original peer retry"),
+            gr.successor_device().roster().checkpoint()
+        );
+        let retried = service.stores().expect("stores").0.test_snapshot();
+        assert_eq!(
+            (once.revision, once.digest),
+            (retried.revision, retried.digest)
+        );
+        local_r
+            .parts()
+            .expect("responder local owner")
+            .0
+            .admit_peer_credential_renewal(&gi, gi.operation(), &pr, 170)
+            .expect("responder observes peer G after P0 expiry");
+        local_i.close();
+        local_r.close();
+    }
     let (owner_i, peer_i) = open(&left.case)
         .activate_continued_session(
             request(&bundle, &left, &right, BootstrapRole::Initiator, session),
@@ -703,5 +787,203 @@ fn public_joint_enrollment_reopens_original_session_and_signer_after_policy_expi
         fs::read(&right.case.paths.signer).expect("original sealed signer"),
         signer_r
     );
-    eprintln!("PUBLIC_JOINT_OWNER original_enrollment=true roles=2 exact_old_ciphertext=true bidirectional_data=true rekey_epoch=1 original_signer=true P1_expiry_refused=true");
+    eprintln!("PUBLIC_JOINT_OWNER late_peer={late_peer} original_enrollment=true roles=2 exact_old_ciphertext=true bidirectional_data=true rekey_epoch=1 original_signer=true P1_expiry_refused=true");
+}
+
+#[test]
+fn public_continued_owner_reopens_with_current_journal_roster_after_admission_roster_expires() {
+    continued_owner_roster_restart(false, 195);
+}
+#[test]
+fn public_continued_owner_refuses_revoked_or_expired_current_journal_roster() {
+    continued_owner_roster_restart(true, 195);
+    continued_owner_roster_restart(false, 179);
+}
+fn continued_owner_roster_restart(revoked: bool, roster_until: u64) {
+    let (c, original, id) = local();
+    let origin = c
+        .root
+        .issue_device(original.description.clone(), original.key.clone())
+        .expect("original signed credential");
+    let mut description = original.description.clone();
+    description.validity = Validity::new(100, 200).expect("C1 outlives admission roster");
+    let certificate = c
+        .root
+        .issue_device(description, original.key.clone())
+        .expect("same complete original signing key");
+    let entry = c.root.roster_entry(&certificate).expect("C1 roster entry");
+    let r1 = c
+        .root
+        .issue_roster(
+            2,
+            Validity::new(100, 175).expect("short R1"),
+            std::slice::from_ref(&entry),
+        )
+        .expect("signed initial target roster");
+    let pin = AccountPin::new(
+        original.account_id(),
+        c.root.public_key().expect("root"),
+        r1.checkpoint(),
+        c.policy.family(),
+    )
+    .expect("independently approved R1");
+    let authorization = crate::CredentialRenewalAuthorization {
+        operation: crate::CredentialRenewalId::from_trusted_state([103; 32])
+            .expect("original operation"),
+        previous: original.roster().checkpoint(),
+        policy_digest: c.policy.checkpoint().digest(),
+    };
+    let issued = c
+        .root
+        .issue_credential_renewal(
+            crate::CredentialRenewalMaterials {
+                original_credential: &origin,
+                previous_credential: &origin,
+                successor_credential: &certificate,
+                previous_roster: original.roster().as_bytes(),
+                successor_roster: r1.as_bytes(),
+            },
+            &authorization,
+            &pin,
+            170,
+        )
+        .expect("real approved G1");
+    let g = VerifiedCredentialRenewal::verify(
+        issued.as_bytes(),
+        &pin,
+        c.policy.checkpoint().digest(),
+        170,
+    )
+    .expect("independent G1 verification");
+    let p1 = policy(&c, 2, 190, 170);
+    let t = joint(&c, &g, &scope(&c, &g, id), &c.policy, &p1);
+    let mut enrollment = open(&c);
+    let signer_id = enrollment.identity().expect("original signer identity");
+    let signer_bytes = fs::read(&c.paths.signer).expect("original sealed signer");
+    enrollment
+        .stage_policy_continuation(&g, &t, g.operation(), &p1, 170)
+        .expect("stage exact G1/T1");
+    let mut owner = enrollment
+        .activate_policy_continuation(c.policy.historical(), &p1, 170)
+        .expect("public original continued owner");
+    let entries = if revoked { vec![] } else { vec![entry] };
+    let r2 = c
+        .root
+        .issue_roster(
+            3,
+            Validity::new(100, roster_until).expect("R2 validity"),
+            &entries,
+        )
+        .expect("signed newer account roster");
+    let pin2 = AccountPin::new(
+        original.account_id(),
+        c.root.public_key().expect("root"),
+        r2.checkpoint(),
+        c.policy.family(),
+    )
+    .expect("independently approved R2");
+    let current_roster = pin2
+        .verify_roster(r2.as_bytes(), 170)
+        .expect("current roster authentication");
+    let (service, signer, current) = owner.parts().expect("controlled owners");
+    signer.check_device(current).expect("same complete signer");
+    let journal = service.stores().expect("stores").0;
+    journal
+        .install_roster(&current_roster, 170)
+        .expect("observe newer account authority");
+    let denied = revoked || roster_until < 180;
+    assert_eq!(
+        current_roster.authorize_device(current, 180).is_err(),
+        denied
+    );
+    assert!(
+        matches!(
+            current.roster().authorize_device(current, 180),
+            Err(Error::Validity)
+        ),
+        "R1 actually expired while C1/P1/R2 remain live"
+    );
+    owner.close();
+    if denied {
+        let before = snapshot(&c, &original, id);
+        let before_config = row(&open(&c));
+        let reopened = open(&c).activate_policy_continuation(c.policy.historical(), &p1, 180);
+        if revoked {
+            assert!(matches!(
+                reopened,
+                Err(DurableError::Protocol(Error::Scope))
+            ));
+        } else {
+            assert!(matches!(
+                reopened,
+                Err(DurableError::Protocol(Error::Validity))
+            ));
+        }
+        assert_eq!(
+            snapshot(&c, &original, id),
+            before,
+            "refusal does not reset journal"
+        );
+        assert_eq!(
+            row(&open(&c)),
+            before_config,
+            "no replacement configuration"
+        );
+        assert_eq!(
+            fs::read(&c.paths.signer).expect("original signer"),
+            signer_bytes
+        );
+        return;
+    }
+    let mut reopened = open(&c)
+        .activate_policy_continuation(c.policy.historical(), &p1, 180)
+        .expect("public restart must use actual journal R2, not expired config R1");
+    let (service, signer, current) = reopened.parts().expect("reopened controlled owners");
+    signer
+        .check_device(current)
+        .expect("original signer after restart");
+    assert_eq!(
+        current.credential_digest(),
+        g.successor_device().credential_digest()
+    );
+    assert_eq!(current.roster().checkpoint(), r2.checkpoint());
+    assert_eq!(
+        current.authority_binding(),
+        crate::identity::authority_binding(
+            original.account_id(),
+            r2.checkpoint(),
+            c.policy.family()
+        )
+    );
+    p1.check_device(current, 180)
+        .expect("returned current identity carries live R2");
+    assert_eq!(
+        service
+            .stores()
+            .expect("same stores")
+            .0
+            .identity()
+            .expect("journal identity"),
+        id
+    );
+    reopened.close();
+    let mut enrollment = open(&c);
+    assert_eq!(
+        enrollment.identity().expect("same signer identity"),
+        signer_id
+    );
+    assert_eq!(
+        fs::read(&c.paths.signer).expect("retained signer"),
+        signer_bytes
+    );
+    let admission = match enrollment.image().expect("configuration").phase {
+        Phase::Accepted { admission, .. } => Ok(admission),
+        _ => Err("expected original accepted enrollment"),
+    }
+    .expect("original configuration phase");
+    assert_eq!(
+        admission.checkpoint,
+        r1.checkpoint(),
+        "config remains exact original G1 receipt"
+    );
 }

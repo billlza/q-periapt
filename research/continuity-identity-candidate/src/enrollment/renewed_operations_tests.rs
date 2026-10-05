@@ -193,7 +193,17 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
             policy.as_ref(),
         );
         peer_journal
-            .install_peer_credential_renewal(&authority, &first, first.operation(), &policy, 155)
+            .install_peer_credential_renewal(
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy: policy.historical(),
+                    local_identity: (peer_device.account_id(), peer_device.device_id()),
+                },
+                &first,
+                first.operation(),
+                &policy,
+                155,
+            )
             .expect("independent peer grant");
         let (service, signer, current) = active.parts().expect("current owners");
         let journal = service.stores().expect("original stores").0;
@@ -471,7 +481,17 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
             .activate(&policy, 185, None)
             .expect("C2 original owner");
         peer_journal
-            .install_peer_credential_renewal(&authority, &second, second.operation(), &policy, 185)
+            .install_peer_credential_renewal(
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy: policy.historical(),
+                    local_identity: (peer_device.account_id(), peer_device.device_id()),
+                },
+                &second,
+                second.operation(),
+                &policy,
+                185,
+            )
             .expect("peer next grant");
         let peer_current = peer_journal
             .prepare_reopened_context(Arc::clone(&peer_context), session, opposite(role), 185)

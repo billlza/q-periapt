@@ -474,7 +474,14 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
     count.store(0, Ordering::SeqCst);
     normal
         .install_peer_credential_renewal(
-            &authority,
+            &crate::installation::PolicyScope {
+                authority: &authority,
+                original_policy: f.initiator.original_policy(),
+                local_identity: (
+                    f.initiator_device().account_id(),
+                    f.initiator_device().device_id(),
+                ),
+            },
             &renewal,
             renewal.operation(),
             f.initiator.current_policy().expect("fixture policy owner"),
@@ -495,7 +502,14 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
             remaining.store(cut, Ordering::SeqCst);
             assert_sync_failure(
                 journal.install_peer_credential_renewal(
-                    &authority,
+                    &crate::installation::PolicyScope {
+                        authority: &authority,
+                        original_policy: f.initiator.original_policy(),
+                        local_identity: (
+                            f.initiator_device().account_id(),
+                            f.initiator_device().device_id(),
+                        ),
+                    },
                     &renewal,
                     renewal.operation(),
                     f.initiator.current_policy().expect("fixture policy owner"),
@@ -527,7 +541,14 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
             }
             restored
                 .install_peer_credential_renewal(
-                    &authority,
+                    &crate::installation::PolicyScope {
+                        authority: &authority,
+                        original_policy: f.initiator.original_policy(),
+                        local_identity: (
+                            f.initiator_device().account_id(),
+                            f.initiator_device().device_id(),
+                        ),
+                    },
                     &renewal,
                     renewal.operation(),
                     f.initiator.current_policy().expect("fixture policy owner"),

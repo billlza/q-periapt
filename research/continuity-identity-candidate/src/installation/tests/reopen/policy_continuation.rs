@@ -204,7 +204,11 @@ fn continued_original_session_recovers_old_ciphertext_and_exchanges_new_data_aft
             .expect("independent peer grant before joint policy commit");
         l.peer
             .install_peer_credential_renewal(
-                &authority,
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy: peer_p0.historical(),
+                    local_identity: (peer_original.account_id(), peer_original.device_id()),
+                },
                 &local_grant,
                 local_grant.operation(),
                 &peer_p0,
@@ -630,5 +634,169 @@ fn continued_original_session_recovers_old_ciphertext_and_exchanges_new_data_aft
             crate::FanoutStatus::Retired
         );
         eprintln!("CONTINUED_SESSION role={role:?} old_wire_preserved=true peer_decrypted=true stale_t_refused=true pending_rekey_preserved=true fanout_current_credential=true closed_member_terminal=true original_context_cleanup=true");
+    }
+}
+
+#[test]
+fn continued_peer_renewal_requires_current_local_policy_even_while_p0_is_live() {
+    for role in [BootstrapRole::Initiator, BootstrapRole::Responder] {
+        let mut l = Local::with_role(false, role);
+        let p0 = l.f.policy_owner(role);
+        let p1 = policy(&l.f, role, 2, 250, 170);
+        let g = grant(&l.f, role, None, 2, 240);
+        let j = l.service.stores().expect("original stores").0;
+        let t = joint(
+            &l.f,
+            role,
+            j.identity().expect("original journal"),
+            &g,
+            None,
+            p0.historical(),
+            &p1,
+        );
+        commit(
+            j,
+            l.f.initiator.device(role),
+            p0.historical(),
+            &p1,
+            &g,
+            &t,
+            false,
+        );
+        let peer = grant(&l.f, other(role), None, 2, 240);
+        let pending = l
+            .service
+            .stores()
+            .expect("pending stores")
+            .0
+            .test_snapshot();
+        assert!(
+            matches!(
+                l.service
+                    .admit_peer_credential_renewal(&peer, peer.operation(), &p1, 170),
+                Err(DurableError::Suspended)
+            ),
+            "P1 cannot authorize peer mutation before local completion ACK"
+        );
+        let still_pending = l
+            .service
+            .stores()
+            .expect("pending stores")
+            .0
+            .test_snapshot();
+        assert_eq!(
+            (pending.revision, pending.digest),
+            (still_pending.revision, still_pending.digest)
+        );
+        commit(
+            l.service.stores().expect("original stores").0,
+            l.f.initiator.device(role),
+            p0.historical(),
+            &p1,
+            &g,
+            &t,
+            true,
+        );
+        p0.check_mode(PrekeyQuality::OneTimeBoth, 170)
+            .expect("old P0 is genuinely still live");
+        let before = l.service.stores().expect("stores").0.test_snapshot();
+        assert!(
+            l.service
+                .admit_peer_credential_renewal(&peer, peer.operation(), &p0, 170)
+                .is_err(),
+            "adopted T requires current P1 for peer mutation; live P0 is stale authority"
+        );
+        let after = l.service.stores().expect("stores").0.test_snapshot();
+        assert_eq!(
+            (after.id, after.owner, after.revision, after.digest),
+            (before.id, before.owner, before.revision, before.digest)
+        );
+        assert_eq!(
+            l.service
+                .admit_peer_credential_renewal(&peer, peer.operation(), &p1, 170)
+                .expect("current P1 admits independently approved peer G"),
+            peer.successor_device().roster().checkpoint()
+        );
+        let p2 = policy(&l.f, role, 3, 270, 170);
+        let g2 = grant(&l.f, role, Some(g.successor_device()), 3, 260);
+        let t2 = joint(
+            &l.f,
+            role,
+            l.service
+                .stores()
+                .expect("stores")
+                .0
+                .identity()
+                .expect("original journal"),
+            &g2,
+            Some(&t),
+            p1.historical(),
+            &p2,
+        );
+        commit(
+            l.service.stores().expect("stores").0,
+            l.f.initiator.device(role),
+            p0.historical(),
+            &p2,
+            &g2,
+            &t2,
+            true,
+        );
+        p1.check_mode(PrekeyQuality::OneTimeBoth, 170)
+            .expect("old P1 still live after T2");
+        let current = l.service.stores().expect("stores").0.test_snapshot();
+        assert!(
+            l.service
+                .admit_peer_credential_renewal(&peer, peer.operation(), &p1, 170)
+                .is_err(),
+            "old P1 cannot retry even an already committed peer G after T2"
+        );
+        assert_eq!(
+            l.service
+                .admit_peer_credential_renewal(&peer, peer.operation(), &p2, 170)
+                .expect("current P2 permits the original peer retry"),
+            peer.successor_device().roster().checkpoint()
+        );
+        let retried = l.service.stores().expect("stores").0.test_snapshot();
+        assert_eq!(
+            (current.revision, current.digest),
+            (retried.revision, retried.digest)
+        );
+        let issuer = root(other(role));
+        let revoked = issuer
+            .issue_roster(
+                3,
+                Validity::new(100, 200).expect("revocation interval"),
+                &[],
+            )
+            .expect("peer account revocation");
+        let pin = AccountPin::new(
+            issuer.account_id().expect("peer account"),
+            issuer.public_key().expect("peer root"),
+            revoked.checkpoint(),
+            p0.family(),
+        )
+        .expect("independent revocation checkpoint");
+        let revoked = pin
+            .verify_roster(revoked.as_bytes(), 170)
+            .expect("authenticated peer revocation");
+        l.service
+            .stores()
+            .expect("stores")
+            .0
+            .install_roster(&revoked, 170)
+            .expect("observe peer revocation");
+        let revoked_state = l.service.stores().expect("stores").0.test_snapshot();
+        assert!(
+            l.service
+                .admit_peer_credential_renewal(&peer, peer.operation(), &p2, 170)
+                .is_err(),
+            "current local P2 cannot undo observed peer revocation"
+        );
+        let refused = l.service.stores().expect("stores").0.test_snapshot();
+        assert_eq!(
+            (revoked_state.revision, revoked_state.digest),
+            (refused.revision, refused.digest)
+        );
     }
 }

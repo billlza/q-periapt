@@ -116,6 +116,11 @@ pub(crate) fn admit(
     now: u64,
 ) -> Result<(), DurableError> {
     policy.check_device(device, now)?;
+    admit_policy(policy, now)
+}
+// Current runtime permission shared by admission against a credential's pinned
+// roster and admission against a newer authenticated journal roster.
+pub(crate) fn admit_policy(policy: &VerifiedSessionPolicy, now: u64) -> Result<(), DurableError> {
     let mode = [
         PrekeyQuality::OneTimeBoth,
         PrekeyQuality::ReusableBoth,
@@ -483,6 +488,7 @@ impl DeviceInstallation {
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
                 ),
+                original_policy: policy.historical().clone(),
                 journal,
                 archives,
                 installation: self,
@@ -515,6 +521,7 @@ impl DeviceInstallation {
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     original, policy,
                 ),
+                original_policy: policy.clone(),
                 journal,
                 archives,
                 installation,
@@ -552,7 +559,15 @@ impl DeviceInstallation {
     }
 }
 
+// Original verified installation metadata. This borrowed view is not current
+// permission; the journal must authenticate its current local T/G and roster.
+pub(crate) struct PolicyScope<'a> {
+    pub(crate) authority: &'a crate::RetainedInstallationAuthority,
+    pub(crate) original_policy: &'a crate::HistoricalSessionPolicy,
+    pub(crate) local_identity: ([u8; 32], [u8; 16]),
+}
 struct ServiceOwners {
+    original_policy: crate::HistoricalSessionPolicy,
     local_identity: ([u8; 32], [u8; 16]),
     authority: crate::RetainedInstallationAuthority,
     journal: DeviceJournal,

@@ -78,11 +78,16 @@ impl ServiceOwners {
 }
 
 impl DeviceService {
-    /// Atomically admit an independently verified peer credential renewal under
-    /// this installation's exact policy. The original operation must be retained
+    /// Atomically admit an independently verified peer credential renewal bound
+    /// to this installation's original P0. The original operation must be retained
     /// by the caller. The same target is only an exact original-operation readback;
     /// another current head, observed revocation or conflicting operation fails.
     /// This cannot renew the local device or change its installation policy.
+    /// After joint continuation, current P1, the completed local T/G and current
+    /// local membership are required; a previously live P0 is not a fallback.
+    /// A root-signed same-account roster can revoke this local device. That
+    /// observed checkpoint remains committed even if the final local admission
+    /// then fails. Query original durable progress; an error does not mean NoCommit.
     /// It does not by itself produce a continued peer or release application data.
     pub fn admit_peer_credential_renewal(
         &mut self,
@@ -99,7 +104,11 @@ impl DeviceService {
             return Err(DurableError::Conflict);
         }
         owners.journal.install_peer_credential_renewal(
-            &owners.authority,
+            &PolicyScope {
+                authority: &owners.authority,
+                original_policy: &owners.original_policy,
+                local_identity: owners.local_identity,
+            },
             renewal,
             operation,
             policy,
@@ -307,6 +316,7 @@ impl DeviceInstallation {
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
                 ),
+                original_policy: policy.historical().clone(),
                 journal,
                 archives,
                 installation,

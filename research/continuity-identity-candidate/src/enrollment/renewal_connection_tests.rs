@@ -219,7 +219,11 @@ fn original_registered_session_exchanges_old_and_new_data_and_rekeys_after_local
         crate::RetainedInstallationAuthority::active_installation(&peer_device, policy.as_ref());
     peer_journal
         .install_peer_credential_renewal(
-            &peer_authority,
+            &crate::installation::PolicyScope {
+                authority: &peer_authority,
+                original_policy: policy.historical(),
+                local_identity: (peer_device.account_id(), peer_device.device_id()),
+            },
             &renewal,
             renewal.operation(),
             &policy,

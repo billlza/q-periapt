@@ -558,9 +558,9 @@ pub(super) fn resolve_session_identities(
     }
     Ok(result)
 }
-// Historical joint completion is connected before operational P1 admission.
-// Existing APIs carry no exact-T capability and must not reuse a cached P0,
-// including by presenting a time at which P0 used to be live.
+// Fresh-device and ordinary P0 entry points carry no continued-session
+// authority. They must not reuse a cached P0 after T adoption, including by
+// presenting a time at which P0 used to be live.
 pub(super) fn require_original_operational_policy(image: &Image) -> Result<(), DurableError> {
     if get(image, &image.local_account)?
         .policy_continuation
@@ -623,6 +623,82 @@ fn check_session_policy_authority(
                 return Err(DurableError::Conflict);
             }
         }
+    }
+    Ok(())
+}
+// Resolve current local authority from the original owning installation and
+// authenticated journal, without depending on any peer credential/session. A
+// historical T alone is not current permission or a completion acknowledgement.
+fn authorize_continued_installation(
+    image: &Image,
+    scope: &crate::installation::PolicyScope<'_>,
+    policy: &crate::VerifiedSessionPolicy,
+    now: u64,
+) -> Result<[u8; 32], DurableError> {
+    if image.protection != Protection::Local {
+        return Err(DurableError::AnchorRequired);
+    }
+    scope.authority.check(image.owner, None)?;
+    if scope.local_identity.0 != image.local_account
+        || scope.authority.policy != scope.original_policy.checkpoint().digest()
+    {
+        return Err(DurableError::Conflict);
+    }
+    let saved = get(image, &image.local_account)?;
+    let t = saved
+        .policy_continuation
+        .as_ref()
+        .ok_or(DurableError::Conflict)?;
+    if saved.local_commit.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    t.check_context_policy(scope.original_policy, policy)?;
+    let grant = saved
+        .renewals
+        .get(&scope.local_identity.1)
+        .ok_or(DurableError::Conflict)?;
+    let current = grant.successor_device();
+    if grant.original_storage_owner() != image.owner
+        || grant.original_credential_digest() != t.scope().original_credential
+        || grant.policy_digest() != scope.authority.policy
+        || (current.account_id(), current.device_id()) != scope.local_identity
+    {
+        return Err(DurableError::Conflict);
+    }
+    // The journal's current signed roster, rather than the older roster inside
+    // G, decides membership and roster freshness. Credential validity, key
+    // separation, permitted modes and actual P1 runtime remain mandatory.
+    saved.roster.authorize_device(current, now)?;
+    policy.check_device_identity(current, now)?;
+    crate::installation::admit_policy(policy, now)?;
+    Ok(current.credential_digest())
+}
+fn authorize_peer_installation(
+    image: &Image,
+    scope: &crate::installation::PolicyScope<'_>,
+    policy: &crate::VerifiedSessionPolicy,
+    now: u64,
+) -> Result<(), DurableError> {
+    if scope.authority.policy != scope.original_policy.checkpoint().digest()
+        || scope.local_identity.0 != image.local_account
+    {
+        return Err(DurableError::Conflict);
+    }
+    scope.authority.check(
+        image.owner,
+        scope
+            .original_policy
+            .anchor_requirement()
+            .binding()
+            .map(|w| (scope.authority.policy, w)),
+    )?;
+    if get(image, &image.local_account)?
+        .policy_continuation
+        .is_some()
+    {
+        authorize_continued_installation(image, scope, policy, now)?;
+    } else if policy.checkpoint() != scope.original_policy.checkpoint() {
+        return Err(DurableError::Conflict);
     }
     Ok(())
 }
@@ -724,33 +800,51 @@ pub(super) fn admit_context(
 }
 
 impl DeviceJournal {
+    pub(crate) fn admit_continued_local_device(
+        &mut self,
+        scope: &crate::installation::PolicyScope<'_>,
+        current: &VerifiedDevice,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<VerifiedDevice, DurableError> {
+        self.check_policy(scope.original_policy)?;
+        let image = self.image()?;
+        if authorize_continued_installation(&image, scope, policy, now)?
+            != current.credential_digest()
+            || (current.account_id(), current.device_id()) != scope.local_identity
+        {
+            return Err(DurableError::Conflict);
+        }
+        let refreshed = get(&image, &image.local_account)?
+            .roster
+            .refresh_device(current, now)?;
+        self.check_release(&image)?;
+        Ok(refreshed)
+    }
     // Only an owning installation may bind this mutation to its exact policy.
     // Local enrollment has a separate durable configuration transaction; the
     // public owning-service entry currently permits only another peer identity.
     pub(crate) fn install_peer_credential_renewal(
         &mut self,
-        authority: &crate::RetainedInstallationAuthority,
+        scope: &crate::installation::PolicyScope<'_>,
         renewal: &VerifiedCredentialRenewal,
         operation: CredentialRenewalId,
         policy: &crate::VerifiedSessionPolicy,
         now: u64,
     ) -> Result<RosterCheckpoint, DurableError> {
-        self.check_policy(policy)?;
+        self.check_policy(scope.original_policy)?;
         if operation != renewal.operation()
-            || renewal.policy_digest() != policy.checkpoint().digest()
-            || authority.policy != policy.checkpoint().digest()
+            || renewal.policy_digest() != scope.authority.policy
+            || (
+                renewal.successor_device().account_id(),
+                renewal.successor_device().device_id(),
+            ) == scope.local_identity
         {
             return Err(DurableError::Conflict);
         }
         crate::installation::admit(renewal.successor_device(), policy, now)?;
         let mut image = self.image()?;
-        authority.check(
-            image.owner,
-            policy
-                .anchor_requirement()
-                .binding()
-                .map(|witness| (policy.checkpoint().digest(), witness)),
-        )?;
+        authorize_peer_installation(&image, scope, policy, now)?;
         let successor = renewal.successor_device();
         let saved = get(&image, &successor.account_id())?;
         let target = successor.roster().checkpoint();
@@ -767,6 +861,7 @@ impl DeviceJournal {
                 return Err(DurableError::Conflict);
             }
             saved.roster.authorize_device(successor, now)?;
+            authorize_peer_installation(&image, scope, policy, now)?;
             self.check_release(&image)?;
             return Ok(target);
         }
@@ -774,7 +869,11 @@ impl DeviceJournal {
         image
             .records
             .insert(id(&successor.account_id()), updated.record()?);
+        // A valid root-signed successor roster may revoke this local member.
+        // Retain that observed authority change durably, then withhold success
+        // if local permission is gone; refusal must not silently undo revocation.
         self.persist(&mut image)?;
+        authorize_peer_installation(&image, scope, policy, now)?;
         crate::installation::admit(successor, policy, now)?;
         self.check_release(&image)?;
         Ok(target)

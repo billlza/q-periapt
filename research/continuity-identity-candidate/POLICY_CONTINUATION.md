@@ -165,8 +165,42 @@ revocation. It calls no internal renewal commit or receipt-ACK helper. This is
 native in-process evidence, not an installed foreign-language or independent
 implementation result.
 
+`DeviceEnrollment::activate_policy_continuation` also admits the original local
+owner without first requiring current peer credentials. It checks the same
+configuration completion, exact durable T, cleared receipt, current local G and
+membership, and the independently supplied current P1. This breaks the restart
+cycle when both endpoints' P0/C0 have expired and neither has received peer G.
+The caller then uses `DeviceService::admit_peer_credential_renewal` and reopens
+the original session. `activate_continued_session` composes these same operations.
+
+The saved admission remains the exact G completion receipt. Its old signed
+roster may expire after the journal accepts a newer roster. On restart, the
+configuration authenticates the retained credential and original signer as
+history; journal G/T and the current roster decide current authorization. The
+returned device carries that current roster, checkpoint and authority binding.
+An expired current roster or an observed local revocation still refuses owner
+release without rewriting the configuration, signer or journal. A public-owner
+regression reproduces the former `Validity` failure and checks both refusals.
+
+Peer G remains bound to original P0; P1 supplies current permission. The service
+retains only signed historical P0 metadata alongside its original authority and
+local identity. Every peer mutation and exact retry rechecks journal T/G, receipt
+completion, current local membership and current P1, without treating those
+retained metadata as permission. Local identity selects the local grant even when
+another device belongs to the same account. T2 rejects a still-live P1. Observed
+peer revocation cannot be undone by retrying the old peer grant.
+
+A valid same-account peer successor roster may also revoke the local device.
+The SDK durably records that authenticated authority change, then withholds
+success if local admission is gone. It does not silently discard the observed
+revocation. Such a post-commit error is not evidence of NoCommit. Component
+regressions cover the preserved T, exact peer retry, unacknowledged local receipt,
+local and peer revocation, and all twelve before/after faults at six measured peer
+journal sync barriers. The public-flow regression now also begins with both
+expired peers and no installed peer grants, then completes communication/rekey.
+
 After losing a cached view, the live-session reopen API cannot mint a new view
 for an already closed fanout member; aggregate-specific recovery is still needed.
-Peer credential renewal after P0 expiry, exact-T required-witness authority,
-policy-only transitions, remaining lifecycle paths and installed foreign
+Exact-T required-witness authority, policy-only transitions, remaining lifecycle
+paths and installed foreign
 consumers remain integration and verification work.

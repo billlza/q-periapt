@@ -516,6 +516,27 @@ impl VerifiedRoster {
         }
         Ok(())
     }
+    // Rebind an already authenticated immutable credential only after this
+    // roster grants current membership and monotonic authority. Durable callers
+    // must select the roster from their authenticated current journal head.
+    pub(crate) fn refresh_device(
+        &self,
+        device: &VerifiedDevice,
+        now: u64,
+    ) -> Result<VerifiedDevice, Error> {
+        self.authorize_device(device, now)?;
+        Ok(VerifiedDevice {
+            authority_key: device.authority_key.clone(),
+            account: device.account,
+            description: device.description.clone(),
+            key: device.key.clone(),
+            certificate: device.certificate,
+            checkpoint: self.checkpoint,
+            roster_validity: self.validity,
+            roster: Arc::new(self.clone()),
+            authority: authority_binding(self.account, self.checkpoint, self.family),
+        })
+    }
 }
 
 // One canonical projection for verified identity and witness compare-and-set.

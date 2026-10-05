@@ -4910,3 +4910,46 @@ label diagnostics as the baseline and no new diagnostics. The
 retains the timeout, incomplete coverage and original failed local invocations.
 The new matrix still requires hosted execution; runtime and protocol behavior
 are unchanged by this CI split.
+
+### 2026-10-05: local continued-owner and peer-renewal recovery
+
+The native local-only continuation now releases the original enrollment owner
+before expired peers have supplied their renewal grants. Peer G retains its P0
+scope while current T/P1 authorizes admission and exact retry. Unacknowledged
+local completion, superseded policies and observed revocation still refuse.
+Same-account peer updates preserve local T and durably record an authenticated
+local revocation before refusing success; that refusal is not NoCommit.
+
+A second actual regression exposed a restart gap: journal R2 retained C1, but
+the configuration's expired R1 incorrectly caused `Protocol(Validity)`. The
+corrected public owner path authenticates that configuration as history, then
+uses current journal G/T/roster and actual P1 for admission. The returned device
+has R2's checkpoint and authority binding; the original signer, configuration
+receipt and journal identity remain intact. Expired or revoked current R2 still
+refuses without replacing state. Ordinary renewal retains current-time checks.
+
+The exact promoted source passed **527 native library tests**, **3 compile-fail
+documentation tests**, strict native/C all-target Clippy, **9 C source-consumer
+tests**, **41 native/package contract tests** and formatting for the twelve
+changed Rust files. Peer-journal faults cover twelve before/after cuts at six
+measured barriers: four recover the predecessor and eight the committed target,
+all retaining the original operation and local T. The
+[local qualification](../research/sdk-alpha1/evidence/20261005-peer-policy-recovery-e5b271cf/QUALIFICATION.json)
+retains the two real red regressions, current successful runs and source hashes.
+C validation here is source compatibility, not installed-archive qualification.
+
+Separately, source `242876ff` CI run `37254954329` passed its Rust/C installed job
+on Linux x86_64. Artifact `11323391738` matches its published digest; all 445 input
+files match that Git head and independent before/after inventories agree. This
+predates the above delta and does not exercise installed foreign T/P1 APIs.
+Swift/Kotlin installed jobs were still running at this update. That run's exact
+Rust inventory failed at 317 versus 325 after eight legitimate new files; the
+inventory and path sentinels are corrected with 43 passing tests. Android 16 KiB
+remains failed: runtime instrumentation passed, then cleanup APK ownership
+copies were truncated twice and ADB disconnected. Uninstall is unconfirmed and
+the transport root cause remains open.
+
+Exact-T required-witness admission, policy-only renewal, expired-uncommitted
+joint cancellation, device/root replacement, foreign T APIs, installed current
+archives and the remaining 0.2.0 platform/security/performance/review gates remain
+required. macOS remains Apple Silicon only. No merge or release is implied.
