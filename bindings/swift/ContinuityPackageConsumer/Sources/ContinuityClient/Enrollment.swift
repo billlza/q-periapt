@@ -568,6 +568,33 @@ private func admitRenewalPeer(_ device: ContinuityDevice, path: String, controls
     try require(device.admitPeerCredentialRenewal(grant: grant, pin: pin, operation: operation) == pin.checkpoint,
         "peer grant retry changed target")
 }
+func continuedPeerCommand(_ args: [String], witness: WitnessCarrier) throws {
+    switch args.first {
+    case "continued-peer-refused":
+        try require(args.count == 5, "continued peer refusal arguments")
+        let role: BootstrapRole
+        switch args[3] {
+        case "1": role = .initiator
+        case "2": role = .responder
+        default: throw ProbeFailure.contract("continued peer role must be 1 or 2")
+        }
+        let session: SessionID = try decode(args[4])
+        let device = try activatedEnrollment(args[1], witness: witness, continued: true)
+        try disposingEnrollmentDevice(device) {
+            try refusedRenewalPeer(device, path: args[2], role: role, session: session, code: 104)
+        }
+        try output("continued-peer-expired-refused")
+    case "continued-peer-admit":
+        try require(args.count == 3, "continued peer admission arguments")
+        let device = try activatedEnrollment(args[1], witness: witness, continued: true)
+        try disposingEnrollmentDevice(device) {
+            try admitRenewalPeer(device, path: args[2], controls: true)
+        }
+        try output("continued-peer-admitted")
+    default: throw ProbeFailure.contract("unknown continued peer command")
+    }
+}
+
 func credentialPeerCommand(_ args: [String]) throws {
     try require(args.count == 6, "credential peer arguments")
     let path = args[1], session: SessionID = try decode(args[4]), message: MessageID = try decode(args[5])

@@ -28,6 +28,7 @@ RENEWAL_TESTS = {
     "credential_renewal::policy_continuation::c_historical_policy_recovery_after_real_p1_expiry_needs_no_sdk_or_tls",
     "credential_renewal::policy_continuation::c_second_policy_adoption_uses_original_owner_and_explicit_t1_predecessor",
     "credential_renewal::policy_continuation::c_policy_continuation_delivers_on_original_session_after_owner_reopen",
+    "credential_renewal::policy_continuation::policy_traffic::c_both_expired_owners_resume_original_session_with_independent_peer_grants",
 }
 POLICY_WITNESS_TEST = "witness_policy_continuation::foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness"
 POLICY_CANCELLATION_TEST = "witness_policy_continuation::foreign_policy_continuation_cancels_without_target_or_sdk"
@@ -71,9 +72,20 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     sdk.require(re.findall(r"^C_POLICY_UNKNOWN_DELIVERY_RECOVERY.*$", text, re.MULTILINE) == [
         "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true"],
         "foreign continued owner did not preserve unknown delivery and reconcile the original message")
+    sdk.require(re.findall(r"^C_BOTH_EXPIRED_POLICY_TRAFFIC.*$", text, re.MULTILINE) == [
+        "C_BOTH_EXPIRED_POLICY_TRAFFIC original_session=true original_message=true both_current_refused=true missing_peer_grants_refused=true independent_grants=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true"],
+        "both expired foreign owners did not restore the original session with independent peer grants")
+    clocks = re.findall(r"^C_BOTH_EXPIRED_POLICY_CLOCK p0_until=([1-9][0-9]*) left_until=([1-9][0-9]*) right_until=([1-9][0-9]*) resumed_at=([1-9][0-9]*) expired_at=([1-9][0-9]*)$", text, re.MULTILINE)
+    sdk.require(len(clocks) == 1, "both-owner policy expiry clock record missing or duplicated")
+    p0_until, left_until, right_until, resumed_at, expired_at = map(int, clocks[0])
+    sdk.require(all(value < 1 << 64 for value in (p0_until, left_until, right_until, resumed_at, expired_at))
+                and max(p0_until, left_until, right_until) <= expired_at <= resumed_at,
+                "both-owner traffic preceded actual policy or credential expiry")
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
-                scope=language + " owner runtime assertions with original-registration and historical peer readbacks, local G/T adoption, G2 carrying T1, G2/T2 with exact predecessor, conflicting predecessor refusal and actual P1 expiry; normal TLS delivery and receiver exit after application effect under G1/T1, original session/message retry, Committed then ACK after reopen, unchanged idempotent file effect and live original peer authority; same native engine, no independent-engine, arbitrary exactly-once or both-peers-expired claim; raw C output-buffer checks apply only to C",
+                both_expired_clock=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
+                                        expired_at=expired_at, resumed_at=resumed_at),
+                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original session/message recovery and idempotent file effect; separate two-owner local-only scenario waits for shared P0 and both C0 expiries, refuses missing peer grants, then restores traffic through independently approved local G/T and bilateral peer G; same native engine/host, no independent-engine, arbitrary exactly-once or required-witness two-owner claim; raw C output-buffer checks apply only to C",
                 release_claim_eligible=False)
 
 
@@ -128,7 +140,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],

@@ -145,6 +145,28 @@ private fun peerAdmit(parent: ContinuityDevice, path: String, controls: Boolean)
     check(parent.admitPeerCredentialRenewal(wire, pin, operation) == checkpoint) { "peer renewal retry changed checkpoint" }
 }
 
+internal fun continuedPeerRefused(args: List<String>, witness: WitnessCarrier): String {
+    require(args.size == 5) { "continued peer refusal arguments" }
+    val role = when (args[3]) {
+        "1" -> BootstrapRole.INITIATOR
+        "2" -> BootstrapRole.RESPONDER
+        else -> throw IllegalArgumentException("continued peer role must be 1 or 2")
+    }
+    val session = SessionID(decode(args[4]))
+    enrollmentParent(args[1], witness, continued = true).use { parent ->
+        peerRefused(parent, args[2], role, session, 104)
+    }
+    return "continued-peer-expired-refused"
+}
+
+internal fun continuedPeerAdmit(args: List<String>, witness: WitnessCarrier): String {
+    require(args.size == 3) { "continued peer admission arguments" }
+    enrollmentParent(args[1], witness, continued = true).use { parent ->
+        peerAdmit(parent, args[2], true)
+    }
+    return "continued-peer-admitted"
+}
+
 internal fun credentialPeerCheck(args: List<String>): String {
     require(args.size == 6) { "credential peer arguments" }
     val local = args[1]

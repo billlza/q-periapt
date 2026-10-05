@@ -9,6 +9,9 @@
 //! Rust acts only as the independent account and policy issuer.
 use super::*;
 
+#[path = "policy_traffic.rs"]
+mod policy_traffic;
+
 const POLICY_DOCUMENT_FILES: [&str; 5] = [
     "family",
     "policy-root",
@@ -172,7 +175,7 @@ fn original_identity(c: &Registered, label: &str, signer: &[u8], wrapping: &[u8]
 }
 
 struct PreparedJoint {
-    policy_root: p::PolicySigningKey,
+    policy_root: Arc<p::PolicySigningKey>,
     c: Registered,
     g1: Successor,
     original_checkpoint: p::PolicyCheckpoint,
@@ -186,14 +189,29 @@ struct PreparedJoint {
 fn prepare_joint(original_seconds: u64, target_seconds: u64) -> Result<PreparedJoint> {
     let policy_root = p::PolicySigningKey::generate()?;
     let c = registered_with_policy_duration(600, Some(&policy_root), original_seconds)?;
-    prepare_joint_for(c, policy_root, Some(original_seconds), target_seconds)
+    prepare_joint_for(
+        c,
+        Arc::new(policy_root),
+        Some(original_seconds),
+        target_seconds,
+    )
 }
 
 fn prepare_joint_for(
     c: Registered,
-    policy_root: p::PolicySigningKey,
+    policy_root: Arc<p::PolicySigningKey>,
     original_seconds: Option<u64>,
     target_seconds: u64,
+) -> Result<PreparedJoint> {
+    prepare_joint_with_target(c, policy_root, original_seconds, target_seconds, None)
+}
+
+fn prepare_joint_with_target(
+    c: Registered,
+    policy_root: Arc<p::PolicySigningKey>,
+    original_seconds: Option<u64>,
+    target_seconds: u64,
+    shared_target: Option<&Path>,
 ) -> Result<PreparedJoint> {
     assert_eq!(c.family, policy_root.policy_family()?);
     assert_ne!(c.accepted.1, [0; 32]);
@@ -255,33 +273,41 @@ fn prepare_joint_for(
         q_periapt_sdk::Limits::default(),
     )?;
     let target_runtime = target_sdk.runtime()?;
-    let target_until = c.at.checked_add(target_seconds).ok_or("clock overflow")?;
-    let issued_policy = policy_root.issue_session_policy(
-        &target_runtime,
-        p::SessionPolicyParameters::new(
-            2,
-            p::Validity::new(original_policy.validity().from(), target_until)?,
-            original_policy.allowed_modes(),
-            original_policy.anchor_requirement(),
-            original_policy.application_send_budget(),
-        )?,
-    )?;
-    for (name, bytes) in [
-        ("family", c.family.to_vec()),
-        ("policy-root", policy_root.public_key()?.encode()),
-        (
-            "policy-version",
-            issued_policy.checkpoint().version().to_be_bytes().to_vec(),
-        ),
-        (
-            "policy-digest",
-            issued_policy.checkpoint().digest().to_vec(),
-        ),
-        ("protocol-policy", issued_policy.as_bytes().to_vec()),
-    ] {
-        fixture::store(&target_path, name, &bytes)?;
+    if let Some(shared_target) = shared_target {
+        for name in POLICY_DOCUMENT_FILES {
+            fixture::store(&target_path, name, &fs::read(shared_target.join(name))?)?;
+        }
+    } else {
+        let target_until = c.at.checked_add(target_seconds).ok_or("clock overflow")?;
+        let issued_policy = policy_root.issue_session_policy(
+            &target_runtime,
+            p::SessionPolicyParameters::new(
+                2,
+                p::Validity::new(original_policy.validity().from(), target_until)?,
+                original_policy.allowed_modes(),
+                original_policy.anchor_requirement(),
+                original_policy.application_send_budget(),
+            )?,
+        )?;
+        for (name, bytes) in [
+            ("family", c.family.to_vec()),
+            ("policy-root", policy_root.public_key()?.encode()),
+            (
+                "policy-version",
+                issued_policy.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            (
+                "policy-digest",
+                issued_policy.checkpoint().digest().to_vec(),
+            ),
+            ("protocol-policy", issued_policy.as_bytes().to_vec()),
+        ] {
+            fixture::store(&target_path, name, &bytes)?;
+        }
     }
     let target_policy = fixture::protocol_policy(&target_path, &target_sdk)?;
+    let target_checkpoint = target_policy.checkpoint();
+    let target_until = target_policy.validity().until();
     assert_eq!(original_policy.sdk_binding(), target_policy.sdk_binding());
     assert_eq!(original_policy.family(), target_policy.family());
     let target_inputs: BTreeMap<_, _> = POLICY_DOCUMENT_FILES
@@ -351,7 +377,7 @@ fn prepare_joint_for(
         t1_wire,
         original_inputs,
         target_inputs,
-        target_checkpoint: issued_policy.checkpoint(),
+        target_checkpoint,
         target_until,
     })
 }
@@ -380,7 +406,7 @@ fn continued_original_session_delivery(unknown_delivery: bool) -> Result<()> {
         original_inputs,
         target_inputs,
         ..
-    } = prepare_joint_for(registered, policy_root, None, 7200)?;
+    } = prepare_joint_for(registered, Arc::new(policy_root), None, 7200)?;
     let peer = peer_bundle(&c._setup, &c.path, &c.root, &c.certificate, &c.roster)?;
     let bundle = fixture::read(&peer, "bootstrap.bundle", p::MAX_BOOTSTRAP_BUNDLE_BYTES)?;
     let signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);

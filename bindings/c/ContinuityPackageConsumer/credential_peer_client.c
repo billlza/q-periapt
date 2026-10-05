@@ -69,3 +69,20 @@ static int credential_peer_check(int argc,char **argv) {
     close_owner(current);close_owner(parent);
     puts("credential-peer-passed");if(fflush(stdout)) fail("credential peer output");return 0;
 }
+static int continued_peer_command(int argc,char **argv,const qpc_witness_v1 *witness,int tls) {
+    int refusal=!strcmp(argv[1],"continued-peer-refused");
+    if(argc!=(refusal ? 6 : 4)) fail("continued peer arguments");
+    uint32_t role=0;uint8_t session[32];
+    if(refusal) {
+        role=!strcmp(argv[4],"1") ? 1U : !strcmp(argv[4],"2") ? 2U : 0U;
+        if(!role) fail("continued peer role");
+        decode(argv[5],session);
+    }
+    uint64_t parent=continued_enrollment_parent(argv[2],witness,tls);
+    if(refusal) credential_peer_refused(parent,argv[3],role,session,QPC_VALIDITY);
+    else credential_peer_admit(parent,argv[3],1);
+    close_owner(parent);
+    puts(refusal ? "continued-peer-expired-refused" : "continued-peer-admitted");
+    if(fflush(stdout)) fail("continued peer output");
+    return 0;
+}

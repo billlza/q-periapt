@@ -155,6 +155,12 @@ func waitMarker(_ path: String) throws {
             try credentialPeerCommand(args)
             return
         }
+        if command == "continued-peer-refused" || command == "continued-peer-admit" {
+            try require(existing == nil && enrollmentParent == nil,
+                "continued peer command owns its original enrollment parent")
+            try continuedPeerCommand(args, witness: witness)
+            return
+        }
         if command.hasPrefix("enrollment-") {
             try require(existing == nil, "enrollment cannot select a session")
             try await enrollmentCommand(args, witness: witness)

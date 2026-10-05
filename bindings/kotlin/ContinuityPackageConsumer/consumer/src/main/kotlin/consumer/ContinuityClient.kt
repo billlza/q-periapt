@@ -105,6 +105,11 @@ private fun run(arguments: List<String>): String {
         require(existing == null && enrolled == null && witness == WitnessCarrier.Local)
         return credentialPeerCheck(args)
     }
+    if (args[0] == "continued-peer-refused" || args[0] == "continued-peer-admit") {
+        require(existing == null && enrolled == null) { "continued peer command owns its original enrollment parent" }
+        return if (args[0] == "continued-peer-refused") continuedPeerRefused(args, witness)
+            else continuedPeerAdmit(args, witness)
+    }
     if (args[0].startsWith("setup-")) {
         require(existing == null)
         return setup(args, witness)

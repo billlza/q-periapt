@@ -1411,6 +1411,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_commit_error.rs",
             "bindings/c/ContinuityPackageConsumer/src/enrollment/policy.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_traffic.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_continuation.rs",
             "bindings/c/ContinuityPackageConsumer/tests/common/witness_tls_relay.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",

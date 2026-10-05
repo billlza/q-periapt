@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -228,8 +228,10 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true\n"
                   "C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true\n"
                   "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true\n"
+                  "C_BOTH_EXPIRED_POLICY_TRAFFIC original_session=true original_message=true both_current_refused=true missing_peer_grants_refused=true independent_grants=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true\n"
+                  "C_BOTH_EXPIRED_POLICY_CLOCK p0_until=200 left_until=201 right_until=202 resumed_at=204 expired_at=203\n"
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+                  + "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),
@@ -246,6 +248,11 @@ class RenewalExecutionTests(unittest.TestCase):
                         output.replace(b"acknowledged_after_reopen=true", b"acknowledged_after_reopen=false"),
                         output.replace(b"committed_after_reopen=true", b"committed_after_reopen=false"),
                         output.replace(b"original_effect_unchanged=true", b"original_effect_unchanged=false"),
+                        output.replace(b"missing_peer_grants_refused=true", b"missing_peer_grants_refused=false"),
+                        output.replace(b"expired_at=203", b"expired_at=201"),
+                        output.replace(b"resumed_at=204", b"resumed_at=202"),
+                        output.replace(b"p0_until=200", b"p0_until=0200"),
+                        output.replace(b"resumed_at=204", b"resumed_at=18446744073709551616"),
                         output.replace(b"exact_outbox_readback=true", b"exact_outbox_readback=false")):
             with self.subTest(output=invalid), self.assertRaises(ValueError):
                 enrollment.verify_renewal_execution(invalid)

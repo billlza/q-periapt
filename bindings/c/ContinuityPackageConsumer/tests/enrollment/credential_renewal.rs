@@ -89,6 +89,23 @@ fn registered_with_policy_duration(
     protocol: Option<&p::PolicySigningKey>,
     protocol_seconds: u64,
 ) -> Result<Registered> {
+    registered_with_policy_inputs(
+        lifetime,
+        protocol,
+        protocol_seconds,
+        None,
+        p::BootstrapRole::Initiator,
+    )
+}
+
+fn registered_with_policy_inputs(
+    lifetime: u64,
+    protocol: Option<&p::PolicySigningKey>,
+    protocol_seconds: u64,
+    shared_policy: Option<&Path>,
+    role: p::BootstrapRole,
+) -> Result<Registered> {
+    assert!(protocol.is_none() || shared_policy.is_none());
     let s = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = s
         .initiator
@@ -105,10 +122,18 @@ fn registered_with_policy_duration(
         "policy-version",
         "policy-digest",
         "protocol-policy",
-        "tls-cert",
-        "tls-key",
     ] {
-        fs::copy(s.initiator.join(name), path.join(name))?;
+        fs::copy(
+            shared_policy.unwrap_or(&s.initiator).join(name),
+            path.join(name),
+        )?;
+    }
+    let tls_source = match role {
+        p::BootstrapRole::Initiator => &s.initiator,
+        p::BootstrapRole::Responder => &s.responder,
+    };
+    for name in ["tls-cert", "tls-key"] {
+        fs::copy(tls_source.join(name), path.join(name))?;
     }
     let mut sdk = PolicyStore::provision(
         &path.join("sdk.redb"),
