@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual foreign-owner G/T adoption with an independent TCP or TLS witness.
 use super::*;
+use std::{
+    io, thread,
+    time::{Duration, Instant},
+};
 use witness_credential_renewal::{
     image_digest, pending_journal, provision_renewal_materials, ProvisionedRenewal,
 };
@@ -13,6 +17,7 @@ const DOCUMENT_FILES: [&str; 5] = [
     "policy-digest",
     "protocol-policy",
 ];
+const EXPIRING_POLICY_SECONDS: u64 = 120;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -288,7 +293,7 @@ fn cancel_pending(
     scope: &p::PolicyContinuationScope,
     transaction: [u8; 32],
     cut: Option<&CancellationCut>,
-) -> Result<()> {
+) -> Result<(u64, u64)> {
     let path = &registration.path;
     let target = path.join("continued-sdk");
     let original = pending_journal(path)?;
@@ -326,6 +331,7 @@ fn cancel_pending(
     )?;
     fs::rename(path.join("sdk.redb"), path.join("sdk-cancel-retained.redb"))?;
     fs::rename(&target, path.join("continued-sdk-cancel-retained"))?;
+    let prepared_at = fixture::now()?;
     assert_eq!(
         run(
             path,
@@ -418,18 +424,31 @@ fn cancel_pending(
     );
     assert!(!target.exists());
     assert!(!path.join("sdk.redb").exists());
+    let recovered_at = fixture::now()?;
     fs::rename(path.join("sdk-cancel-retained.redb"), path.join("sdk.redb"))?;
     fs::rename(path.join("continued-sdk-cancel-retained"), &target)?;
-    Ok(())
+    Ok((prepared_at, recovered_at))
 }
 
-fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
+fn exercise(tls: bool, scenario: Scenario, expired: bool) -> Result<String> {
     let cancellation = scenario.cancellation();
+    assert!(!expired || cancellation);
     let mut witness = witness::Witness::start()?;
     let setup = fixture::setup_with_witness(Some(&witness.configured))?;
     let authority = p::PolicySigningKey::generate()?;
     // P0 is signed by this independent issuer before registration begins.
-    let registration = prepare_with_original_policy(&setup, &witness, Some((1800, &authority)))?;
+    let registration = prepare_with_original_policy(
+        &setup,
+        &witness,
+        Some((
+            if expired {
+                EXPIRING_POLICY_SECONDS
+            } else {
+                1800
+            },
+            &authority,
+        )),
+    )?;
     let path = &registration.path;
     let pause = Arc::new(witness_cancellation::Pause::new());
     let clock = Arc::clone(&pause);
@@ -516,6 +535,8 @@ fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
         fixture::store(&target, name, &bytes)?;
     }
     let target_policy = fixture::protocol_policy(&target, &target_sdk)?;
+    let original_until = original_policy.validity().until();
+    let target_until = target_policy.validity().until();
     assert_eq!(original_policy.sdk_binding(), target_policy.sdk_binding());
     let scope = p::PolicyContinuationScope {
         operation: grant.operation(),
@@ -567,6 +588,63 @@ fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
         )?,
         expected(grant, transaction, 1)
     );
+    let staged_at = fixture::now()?;
+    assert!(
+        staged_at < original_until,
+        "setup missed original policy lifetime"
+    );
+    if expired {
+        let before = pending_journal(path)?;
+        let deadline = Instant::now() + Duration::from_secs(EXPIRING_POLICY_SECONDS + 5);
+        while fixture::now()? < original_until {
+            if Instant::now() >= deadline {
+                return Err("real G/T policy expiry wait exceeded".into());
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        let pin = witness_policy_expiry::policy_pin(path)?;
+        let historical = pin.verify_historical(&fixture::read(path, "protocol-policy", 8192)?)?;
+        let now = witness_policy_expiry::expired_authority(path, &pin, &historical, &first.pin)?;
+        let mut sdk = fixture::sdk(&target)?;
+        let current = witness_policy_expiry::policy_pin(&target)?.verify(
+            &fixture::read(&target, "protocol-policy", 8192)?,
+            sdk.runtime()?,
+            now,
+        )?;
+        let current_grant = p::VerifiedCredentialRenewal::verify(
+            &fixture::read(path, "credential-renewal", 65536)?,
+            &first.pin,
+            historical.checkpoint().digest(),
+            now,
+        )?;
+        assert!(now < current.validity().until());
+        let materials = p::PolicyContinuationMaterials {
+            original: &historical,
+            previous: &historical,
+            target: &current,
+            credential: &current_grant,
+        };
+        let checked = p::VerifiedPolicyContinuation::from_bytes(
+            &fixture::read(path, "policy-approvals", 7746)?,
+            &scope,
+            &materials,
+            now,
+        )?;
+        assert_eq!(checked.statement_digest(), transaction);
+        current.close();
+        drop(current);
+        sdk.close();
+        drop(sdk);
+        assert_eq!(pending_journal(path)?, before);
+        assert_eq!(
+            run(
+                path,
+                "expired-joint-pending",
+                &arguments(path, "credential-status", None)
+            )?,
+            expected(grant, transaction, 1)
+        );
+    }
     let before_cancellation =
         witness_cancellation::current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
     let cut = scenario
@@ -576,8 +654,9 @@ fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
             acknowledge,
             admission_index: before_cancellation + usize::from(acknowledge),
         });
+    let mut cancellation_clock = None;
     if cancellation {
-        cancel_pending(
+        cancellation_clock = Some(cancel_pending(
             &registration,
             &first,
             &witness,
@@ -585,7 +664,15 @@ fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
             &scope,
             transaction,
             cut.as_ref(),
-        )?;
+        )?);
+        let (prepared_at, recovered_at) = cancellation_clock.ok_or("missing cancellation clock")?;
+        assert_eq!(prepared_at >= original_until, expired);
+        assert_eq!(recovered_at >= original_until, expired);
+        assert!(
+            prepared_at <= recovered_at
+                && recovered_at < target_until
+                && recovered_at < first.validity.until()
+        );
         assert_eq!(pending_journal(path)?, original_image);
         assert_eq!(
             witness_cancellation::current_calls(
@@ -821,29 +908,55 @@ fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
     }
     witness.join()?;
     if cancellation {
-        println!("C_WITNESSED_POLICY_CANCELLATION carrier={} cut={} original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true", if tls { "tls" } else { "tcp" }, scenario.cut_name());
+        let (prepared_at, recovered_at) = cancellation_clock.ok_or("missing cancellation clock")?;
+        Ok(format!("C_WITNESSED_POLICY_CANCELLATION carrier={} cut={} policy_expired={} original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true\nC_POLICY_CANCELLATION_CLOCK carrier={} cut={} policy_expired={} staged_at={} p0_until={} prepared_at={} recovered_at={} credential_until={} target_until={}",
+            if tls { "tls" } else { "tcp" }, scenario.cut_name(), expired,
+            if tls { "tls" } else { "tcp" }, scenario.cut_name(), expired,
+            staged_at, original_until, prepared_at, recovered_at, first.validity.until(), target_until))
     } else {
-        println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" });
+        Ok(format!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" }))
     }
-    Ok(())
 }
 
 #[test]
 fn foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness() -> Result<()> {
-    exercise(false, Scenario::Commit)?;
-    exercise(true, Scenario::Commit)
+    println!("{}", exercise(false, Scenario::Commit, false)?);
+    println!("{}", exercise(true, Scenario::Commit, false)?);
+    Ok(())
 }
 
 #[test]
 fn foreign_policy_continuation_cancels_without_target_or_sdk() -> Result<()> {
+    let mut tasks = Vec::new();
     for tls in [false, true] {
-        for scenario in [
-            Scenario::Cancel,
-            Scenario::CancelStatusCut,
-            Scenario::CancelAckCut,
-        ] {
-            exercise(tls, scenario)?;
+        for expired in [false, true] {
+            for scenario in [
+                Scenario::Cancel,
+                Scenario::CancelStatusCut,
+                Scenario::CancelAckCut,
+            ] {
+                tasks.push(thread::spawn(move || exercise(tls, scenario, expired)));
+            }
         }
     }
-    Ok(())
+    let results = tasks
+        .into_iter()
+        .map(|t| {
+            t.join().unwrap_or_else(|_| {
+                Err(io::Error::other("joint cancellation case panicked; see diagnostic").into())
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for result in results {
+        match result {
+            Ok(report) => println!("{report}"),
+            Err(error) => failures.push(error.to_string()),
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("\n").into())
+    }
 }

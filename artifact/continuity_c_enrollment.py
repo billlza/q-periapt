@@ -412,15 +412,35 @@ def verify_policy_witness_execution(stdout: bytes, *, language: str = "C", cance
     prefix = "C_WITNESSED_POLICY_CANCELLATION" if cancellation else "C_WITNESSED_POLICY_CONTINUATION"
     fields = (" original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
         if cancellation else " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true")
-    expected = ([prefix + " carrier=" + carrier + " cut=" + cut + fields
-        for carrier in ("tcp", "tls") for cut in ("none", "status", "ack")]
+    cases = [(carrier, cut, expired) for carrier in ("tcp", "tls")
+        for expired in ("false", "true") for cut in ("none", "status", "ack")]
+    expected = ([prefix + " carrier=" + carrier + " cut=" + cut + " policy_expired=" + expired + fields
+        for carrier, cut, expired in cases]
         if cancellation else [prefix + " carrier=" + carrier + fields for carrier in ("tcp", "tls")])
     sdk.require(re.findall(r"^C_WITNESSED_POLICY_(?:CONTINUATION|CANCELLATION).*$", text, re.MULTILINE) == expected,
                 "witnessed policy continuation omitted or changed a required carrier outcome")
     if cancellation:
+        lines = re.findall(r"^C_POLICY_CANCELLATION_CLOCK.*$", text, re.MULTILINE)
+        sdk.require(len(lines) == len(cases), "joint cancellation clock observations missing or repeated")
+        observations = []
+        for line, case in zip(lines, cases):
+            match = re.fullmatch(r"C_POLICY_CANCELLATION_CLOCK carrier=(tcp|tls) cut=(none|status|ack) policy_expired=(false|true)"
+                r" staged_at=(\d+) p0_until=(\d+) prepared_at=(\d+) recovered_at=(\d+) credential_until=(\d+) target_until=(\d+)", line)
+            sdk.require(match is not None, "malformed joint cancellation clock observation")
+            values = match.groups()
+            sdk.require(values[:3] == case, "joint cancellation clock case changed")
+            staged, until, prepared, recovered, credential, target = map(int, values[3:])
+            sdk.require(all(0 < n < 2**64 for n in (staged, until, prepared, recovered, credential, target))
+                and staged < until and staged <= prepared <= recovered < min(credential, target)
+                and (prepared >= until if case[2] == "true" else recovered < until),
+                "joint cancellation did not cross the required original-policy expiry with live successor authority")
+            observations.append(dict(carrier=case[0], cut=case[1], policy_expired=case[2] == "true",
+                staged_at=staged, p0_until=until, prepared_at=prepared, recovered_at=recovered,
+                credential_until=credential, target_until=target))
         return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
-                    original_cancellation_bytes=281, cuts=["none", "status", "ack"], release_claim_eligible=False,
-                    scope=language + " original G1/T1 cancellation without SDK database or target policy directory; normal and SIGKILL/reopen recovery at status and ACK cuts, TCP after operation and TLS before admission; exact Pending/Closed and journal readback, native witness status/ACK; same engine, no independent wire oracle or expiry qualification")
+                    original_cancellation_bytes=281, cuts=["none", "status", "ack"], clock_observations=observations,
+                    release_claim_eligible=False,
+                    scope=language + " original G1/T1 cancellation before and after real signed P0 expiry, with current P1 and G1 verified; no SDK database or target policy directory during preparation/recovery; normal and SIGKILL status/ACK cuts, TCP after operation and TLS before admission; exact Pending/Closed and journal readback; same engine, no independent wire oracle")
     return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
                 original_proposal_bytes=329, credential_successor_carries_t1=True,
                 release_claim_eligible=False,

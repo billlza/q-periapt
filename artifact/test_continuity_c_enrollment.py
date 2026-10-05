@@ -350,9 +350,15 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
                 enrollment.verify_policy_witness_execution(invalid)
 
     def test_policy_cancellation_requires_original_target_free_close_on_both_carriers(self):
-        lines = ["C_WITNESSED_POLICY_CANCELLATION carrier=" + carrier + " cut=" + cut
+        cases = [(carrier, cut, expired) for carrier in ("tcp", "tls")
+            for expired in ("false", "true") for cut in ("none", "status", "ack")]
+        lines = ["C_WITNESSED_POLICY_CANCELLATION carrier=" + carrier + " cut=" + cut + " policy_expired=" + expired
             + " original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
-            for carrier in ("tcp", "tls") for cut in ("none", "status", "ack")]
+            for carrier, cut, expired in cases]
+        lines += ["C_POLICY_CANCELLATION_CLOCK carrier=" + carrier + " cut=" + cut + " policy_expired=" + expired
+            + " staged_at=90 p0_until=100 prepared_at=" + ("101" if expired == "true" else "91")
+            + " recovered_at=" + ("102" if expired == "true" else "92") + " credential_until=200 target_until=300"
+            for carrier, cut, expired in cases]
         output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_CANCELLATION_TEST + " ... ok\n"
             + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         for language in ("C", "Swift", "Kotlin"):
@@ -360,10 +366,17 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
             self.assertEqual(result["language"], language)
             self.assertEqual(result["original_cancellation_bytes"], 281)
             self.assertEqual(result["cuts"], ["none", "status", "ack"])
+            self.assertEqual(len(result["clock_observations"]), 12)
             self.assertFalse(result["release_claim_eligible"])
         variants = [output.replace((line + "\n").encode(), b"") for line in lines]
         variants += [output.replace(b"carrier=tls", b"carrier=tcp"),
                      output.replace(b"cut=ack", b"cut=status"),
+                     output.replace(b"prepared_at=101", b"prepared_at=99"),
+                     output.replace(b"recovered_at=92", b"recovered_at=100"),
+                     output.replace(b"staged_at=90", b"staged_at=100"),
+                     output.replace(b"credential_until=200", b"credential_until=102"),
+                     output.replace(b"target_until=300", b"target_until=102"),
+                     output.replace(b"prepared_at=101", b"prepared_at=103"),
                      output.replace(b"original_281_byte_reservation=true", b"original_248_byte_reservation=true"),
                      output.replace(b"no_target_or_SDK=true", b"no_target_or_SDK=false"),
                      output.replace(b"no_commit=true", b"no_commit=false"),
