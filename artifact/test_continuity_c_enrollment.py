@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -230,14 +230,18 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true\n"
                   "C_BOTH_EXPIRED_POLICY_TRAFFIC original_session=true original_message=true both_current_refused=true missing_peer_grants_refused=true independent_grants=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true\n"
                   "C_BOTH_EXPIRED_POLICY_CLOCK p0_until=200 left_until=201 right_until=202 resumed_at=204 expired_at=203\n"
+                  + "".join("C_BOTH_EXPIRED_WITNESSED_TRAFFIC carrier=" + carrier + " exact_joint_proposals=true independent_witness_approval=true missing_witness_refused=true missing_peer_grants_refused=true original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true\n"
+                            "C_BOTH_EXPIRED_WITNESSED_CLOCK carrier=" + carrier + " p0_until=300 left_until=301 right_until=302 resumed_at=304 expired_at=303\n" for carrier in ("tcp", "tls"))
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+                  + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),
                         output + b"test " + first + b" ... ok\n",
                         output + b"test another_case ... FAILED\n",
                         output + b"test another_case ... FAILED with details\n",
+                        output + b"C_BOTH_EXPIRED_POLICY_CLOCK malformed\n",
+                        output + b"C_BOTH_EXPIRED_WITNESSED_CLOCK malformed\n",
                         output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out;\n",
                         output.replace(b"0 ignored", b"1 ignored"),
                         output.replace(b"observed_at=151", b"observed_at=149"),
@@ -249,6 +253,10 @@ class RenewalExecutionTests(unittest.TestCase):
                         output.replace(b"committed_after_reopen=true", b"committed_after_reopen=false"),
                         output.replace(b"original_effect_unchanged=true", b"original_effect_unchanged=false"),
                         output.replace(b"missing_peer_grants_refused=true", b"missing_peer_grants_refused=false"),
+                        output.replace(b"missing_witness_refused=true", b"missing_witness_refused=false"),
+                        output.replace(b"independent_witness_approval=true", b"independent_witness_approval=false"),
+                        output.replace(b"carrier=tls", b"carrier=tcp"),
+                        output.replace(b"expired_at=303", b"expired_at=301"),
                         output.replace(b"expired_at=203", b"expired_at=201"),
                         output.replace(b"resumed_at=204", b"resumed_at=202"),
                         output.replace(b"p0_until=200", b"p0_until=0200"),

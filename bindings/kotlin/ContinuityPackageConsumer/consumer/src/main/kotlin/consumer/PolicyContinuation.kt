@@ -101,6 +101,13 @@ internal fun policyEnrollment(owner: ContinuityEnrollment, path: String, records
         "enrollment-policy-reconcile" -> owner.reconcilePolicyContinuation().also {
             check(it is CredentialRenewalStatus.Committed) { "policy reconciliation did not retain Committed" }
         }
+        "enrollment-policy-activate-missing-witness" -> {
+            refused(setOf(216)) {
+                owner.activatePolicyContinuation().use { error("required witness was omitted but activation published a device") }
+            }
+            refused(setOf(2)) { owner.status() }
+            return "policy-required-witness-refused"
+        }
         "enrollment-policy-activate" -> {
             owner.activatePolicyContinuation().use { successor ->
                 owner.close()

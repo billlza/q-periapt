@@ -2,6 +2,10 @@
 //! Real C registration from an empty device directory and separately approved root.
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "common/witness.rs"]
+mod witness;
+#[path = "common/witness_tls.rs"]
+mod witness_tls;
 use q_periapt_continuity_identity_candidate as p;
 use q_periapt_host_store::{
     filesystem::{open_private_database, PrivateDatabaseError},

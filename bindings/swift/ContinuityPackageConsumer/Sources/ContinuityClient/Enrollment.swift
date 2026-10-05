@@ -525,6 +525,10 @@ private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String
     case "enrollment-policy-reconcile":
         status = try owner.reconcilePolicyContinuation()
         guard case .committed = status else { throw ProbeFailure.contract("policy reconciliation did not retain Committed") }
+    case "enrollment-policy-activate-missing-witness":
+        _ = try refusedEnrollmentActivation(owner, code: 216, continued: true)
+        _ = try expectedEnrollmentFailure(2) { try owner.status() }
+        return "policy-required-witness-refused"
     case "enrollment-policy-activate":
         let device = try owner.activatePolicyContinuation()
         return try disposingEnrollmentDevice(device) {

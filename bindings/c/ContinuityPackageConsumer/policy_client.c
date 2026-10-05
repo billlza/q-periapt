@@ -119,6 +119,11 @@ static int policy_command(uint64_t handle,const char *path,const char *operation
     } else if(!strcmp(operation,"enrollment-policy-reconcile")) {
         require(qpc_enrollment_v1_reconcile_policy_continuation(handle,&status,&error),&error);
         if(status.phase!=2) fail("policy reconciliation did not retain Committed");
+    } else if(!strcmp(operation,"enrollment-policy-activate-missing-witness")) {
+        int32_t code=qpc_enrollment_v1_activate_policy_continuation(handle,&error);
+        record(code,&error);close_owner(handle);
+        if(code!=QPC_ANCHOR_REQUIRED) fail("required policy activation did not refuse missing witness");
+        puts("policy-required-witness-refused");return 0;
     } else if(!strcmp(operation,"enrollment-policy-activate")) {
         require(qpc_enrollment_v1_activate_policy_continuation(handle,&error),&error);
         int32_t code=qpc_enrollment_v1_credential_renewal_status(handle,&status,&error);record(code,&error);

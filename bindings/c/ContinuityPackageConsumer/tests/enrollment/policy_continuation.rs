@@ -5,8 +5,9 @@
 //! independent root signs P0 before the original C registration starts. This
 //! test never rewrites the original installation's protocol-policy inputs.
 //! The C policy commands select continued-sdk using its independent P1 pin.
-//! All stage/reconcile/activate operations run in actual client subprocesses;
-//! Rust acts only as the independent account and policy issuer.
+//! Renewal stage/reconcile/activate operations run in actual client subprocesses.
+//! Rust issues independent approvals and prepares public bootstrap material;
+//! traffic tests identify whether the receiver is native or a foreign consumer.
 use super::*;
 
 #[path = "policy_traffic.rs"]
@@ -125,7 +126,11 @@ fn publish_grant(path: &Path, target: &Successor, transaction: [u8; 32]) -> Resu
 }
 
 fn observed(c: &Registered, label: &str, operation: &str) -> Result<RenewalObservation> {
-    observation(&run(&c.path, label, &command(&c.path, operation))?)
+    observation(&run(
+        &c.path,
+        label,
+        &c.arguments(command(&c.path, operation)),
+    )?)
 }
 
 fn pending(target: &Successor, statement: [u8; 32]) -> RenewalObservation {
@@ -263,7 +268,16 @@ fn prepare_joint_with_target(
     }
     assert_eq!(
         original_policy.anchor_requirement(),
-        p::AnchorRequirement::local_only()
+        match &c.witness {
+            Some(witness) => p::AnchorRequirement::required(
+                &witness
+                    .store
+                    .lock()
+                    .map_err(|_| "witness poisoned")?
+                    .pin()?
+            ),
+            None => p::AnchorRequirement::local_only(),
+        }
     );
     let mut target_sdk = PolicyStore::provision(
         &target_path.join("sdk.redb"),

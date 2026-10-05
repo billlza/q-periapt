@@ -74,6 +74,28 @@ struct Registered {
     roster: p::IssuedRoster,
     verified: p::VerifiedEnrollmentRequest,
     accepted: (u32, [u8; 32], [u8; 32]),
+    witness: Option<fixture::WitnessFixture>,
+    witness_tls: bool,
+}
+impl Registered {
+    fn arguments(&self, arguments: Vec<OsString>) -> Vec<OsString> {
+        with_witness_arguments(self.witness.as_ref(), self.witness_tls, arguments)
+    }
+}
+fn with_witness_arguments(
+    witness: Option<&fixture::WitnessFixture>,
+    tls: bool,
+    arguments: Vec<OsString>,
+) -> Vec<OsString> {
+    let mut result = Vec::new();
+    if let Some(witness) = witness {
+        result.extend([
+            if tls { "--witness-tls" } else { "--witness" }.into(),
+            witness.address.to_string().into(),
+        ]);
+    }
+    result.extend(arguments);
+    result
 }
 fn registered(lifetime: u64) -> Result<Registered> {
     registered_with_policy(lifetime, None)
@@ -105,8 +127,26 @@ fn registered_with_policy_inputs(
     shared_policy: Option<&Path>,
     role: p::BootstrapRole,
 ) -> Result<Registered> {
+    registered_with_anchor_inputs(
+        lifetime,
+        protocol,
+        protocol_seconds,
+        shared_policy,
+        role,
+        None,
+    )
+}
+
+fn registered_with_anchor_inputs(
+    lifetime: u64,
+    protocol: Option<&p::PolicySigningKey>,
+    protocol_seconds: u64,
+    shared_policy: Option<&Path>,
+    role: p::BootstrapRole,
+    witness: Option<&fixture::WitnessFixture>,
+) -> Result<Registered> {
     assert!(protocol.is_none() || shared_policy.is_none());
-    let s = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
+    let s = fixture::setup_with_witness(witness)?;
     let path = s
         .initiator
         .parent()
@@ -195,6 +235,7 @@ fn registered_with_policy_inputs(
     fixture::store(&path, "enrollment-intent", &intent_bytes)?;
     run(&path, "key", &command(&path, "key"))?;
     let created = state(&run(&path, "create", &command(&path, "create"))?)?;
+    fixture::store(&path, "signer-id", &created.1)?;
     let empty = observation(&run(
         &path,
         "initial-renewal",
@@ -235,7 +276,45 @@ fn registered_with_policy_inputs(
     let accepted = state(&run(&path, "accept", &command(&path, "accept"))?)?;
     assert_eq!(accepted.1, created.1);
     run(&path, "storage", &command(&path, "storage"))?;
-    run(&path, "activate-original", &command(&path, "activate"))?;
+    if let Some(witness) = witness {
+        let mut sdk = fixture::sdk(&path)?;
+        let policy = fixture::protocol_policy(&path, &sdk)?;
+        let pin = p::AccountPin::new(
+            root.account_id()?,
+            root.public_key()?,
+            roster.checkpoint(),
+            family,
+        )?;
+        let original = pin.verify_device(&certificate, roster.as_bytes(), fixture::now()?)?;
+        let genesis = p::DeviceJournal::recover_anchor_genesis(
+            &path.join("journal.redb"),
+            p::JournalKey::open(&path.join("wrap.key"))?,
+            &original,
+            &policy,
+            p::JournalIdentity::from_trusted_state(accepted.2)?,
+        )?;
+        let subject = genesis.subject();
+        let pin = {
+            let mut store = witness.store.lock().map_err(|_| "witness poisoned")?;
+            store.enroll(&genesis, &original, &policy, fixture::now()?)?;
+            store.pin()?
+        };
+        assert_eq!(
+            fixture::read(&path, "enrollment-genesis-subject", 96)?,
+            subject.to_bytes()
+        );
+        fixture::store(&path, "witness-subject", &subject.to_bytes())?;
+        fixture::store(&path, "witness-id", pin.identity().as_bytes())?;
+        fixture::store(&path, "witness-public", &pin.public_key().encode())?;
+        policy.close();
+        drop(policy);
+        sdk.close();
+    }
+    run(
+        &path,
+        "activate-original",
+        &with_witness_arguments(witness, false, command(&path, "activate")),
+    )?;
     Ok(Registered {
         _setup: s,
         path,
@@ -248,6 +327,11 @@ fn registered_with_policy_inputs(
         roster,
         verified,
         accepted,
+        witness: witness.map(|value| fixture::WitnessFixture {
+            store: Arc::clone(&value.store),
+            address: value.address,
+        }),
+        witness_tls: false,
     })
 }
 
@@ -266,6 +350,8 @@ fn c_original_registration_stages_current_root_grant_and_retains_signer_and_inst
         roster,
         verified,
         accepted,
+        witness: _,
+        witness_tls: _,
     } = registered(60)?;
     let signer_before = Zeroizing::new(fs::read(path.join("signer.key"))?);
     let wrapping_before = Zeroizing::new(fs::read(path.join("wrap.key"))?);

@@ -29,6 +29,7 @@ RENEWAL_TESTS = {
     "credential_renewal::policy_continuation::c_second_policy_adoption_uses_original_owner_and_explicit_t1_predecessor",
     "credential_renewal::policy_continuation::c_policy_continuation_delivers_on_original_session_after_owner_reopen",
     "credential_renewal::policy_continuation::policy_traffic::c_both_expired_owners_resume_original_session_with_independent_peer_grants",
+    "credential_renewal::policy_continuation::policy_traffic::c_both_expired_required_witness_owners_resume_original_session",
 }
 POLICY_WITNESS_TEST = "witness_policy_continuation::foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness"
 POLICY_CANCELLATION_TEST = "witness_policy_continuation::foreign_policy_continuation_cancels_without_target_or_sdk"
@@ -76,16 +77,33 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
         "C_BOTH_EXPIRED_POLICY_TRAFFIC original_session=true original_message=true both_current_refused=true missing_peer_grants_refused=true independent_grants=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true"],
         "both expired foreign owners did not restore the original session with independent peer grants")
     clocks = re.findall(r"^C_BOTH_EXPIRED_POLICY_CLOCK p0_until=([1-9][0-9]*) left_until=([1-9][0-9]*) right_until=([1-9][0-9]*) resumed_at=([1-9][0-9]*) expired_at=([1-9][0-9]*)$", text, re.MULTILINE)
-    sdk.require(len(clocks) == 1, "both-owner policy expiry clock record missing or duplicated")
+    sdk.require(len(clocks) == 1 and len(re.findall(r"^C_BOTH_EXPIRED_POLICY_CLOCK.*$", text, re.MULTILINE)) == 1,
+                "both-owner policy expiry clock record missing, malformed or duplicated")
     p0_until, left_until, right_until, resumed_at, expired_at = map(int, clocks[0])
     sdk.require(all(value < 1 << 64 for value in (p0_until, left_until, right_until, resumed_at, expired_at))
                 and max(p0_until, left_until, right_until) <= expired_at <= resumed_at,
                 "both-owner traffic preceded actual policy or credential expiry")
+    sdk.require(re.findall(r"^C_BOTH_EXPIRED_WITNESSED_TRAFFIC.*$", text, re.MULTILINE) == [
+        "C_BOTH_EXPIRED_WITNESSED_TRAFFIC carrier=" + carrier + " exact_joint_proposals=true independent_witness_approval=true missing_witness_refused=true missing_peer_grants_refused=true original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true"
+        for carrier in ("tcp", "tls")], "both required-witness owners did not complete both original-session carriers")
+    witnessed_rows = re.findall(r"^C_BOTH_EXPIRED_WITNESSED_CLOCK carrier=(tcp|tls) p0_until=([1-9][0-9]*) left_until=([1-9][0-9]*) right_until=([1-9][0-9]*) resumed_at=([1-9][0-9]*) expired_at=([1-9][0-9]*)$", text, re.MULTILINE)
+    sdk.require([row[0] for row in witnessed_rows] == ["tcp", "tls"]
+                and len(re.findall(r"^C_BOTH_EXPIRED_WITNESSED_CLOCK.*$", text, re.MULTILINE)) == 2,
+                "required-witness expiry clocks missing, malformed or duplicated")
+    witnessed_clocks = {}
+    for carrier, *values in witnessed_rows:
+        original, left, right, resumed, expired = map(int, values)
+        sdk.require(all(value < 1 << 64 for value in (original, left, right, resumed, expired))
+                    and max(original, left, right) <= expired <= resumed,
+                    "required-witness traffic preceded original policy or credential expiry")
+        witnessed_clocks[carrier] = dict(p0_until=original, left_until=left, right_until=right,
+                                        expired_at=expired, resumed_at=resumed)
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
                 both_expired_clock=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
                                         expired_at=expired_at, resumed_at=resumed_at),
-                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original session/message recovery and idempotent file effect; separate two-owner local-only scenario waits for shared P0 and both C0 expiries, refuses missing peer grants, then restores traffic through independently approved local G/T and bilateral peer G; same native engine/host, no independent-engine, arbitrary exactly-once or required-witness two-owner claim; raw C output-buffer checks apply only to C",
+                both_expired_witnessed_clocks=witnessed_clocks,
+                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original identities; separate two-owner local-only and required-witness scenarios wait for shared P0 and both C0 expiries, refuse missing peer grants, then restore one original-session/message delivery and fresh ACK; required-witness scenarios also refuse missing witness and independently approve exact joint proposals, using signed TCP or mTLS for runtime operations after signed-TCP preparation, with no mTLS-to-TCP fallback; same native engine/host, no independent-engine or arbitrary exactly-once claim; raw C output-buffer checks apply only to C",
                 release_claim_eligible=False)
 
 
@@ -140,7 +158,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],
