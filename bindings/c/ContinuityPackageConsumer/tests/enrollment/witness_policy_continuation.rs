@@ -14,6 +14,38 @@ const DOCUMENT_FILES: [&str; 5] = [
     "protocol-policy",
 ];
 
+#[derive(Clone, Copy)]
+enum Scenario {
+    Commit,
+    Cancel,
+    CancelStatusCut,
+    CancelAckCut,
+}
+impl Scenario {
+    fn cancellation(self) -> bool {
+        !matches!(self, Self::Commit)
+    }
+    fn acknowledge_cut(self) -> Option<bool> {
+        match self {
+            Self::CancelStatusCut => Some(false),
+            Self::CancelAckCut => Some(true),
+            Self::Commit | Self::Cancel => None,
+        }
+    }
+    fn cut_name(self) -> &'static str {
+        match self {
+            Self::CancelStatusCut => "status",
+            Self::CancelAckCut => "ack",
+            Self::Commit | Self::Cancel => "none",
+        }
+    }
+}
+struct CancellationCut {
+    pause: Arc<witness_cancellation::Pause>,
+    acknowledge: bool,
+    admission_index: usize,
+}
+
 fn expected(grant: &p::VerifiedCredentialRenewal, statement: [u8; 32], phase: u32) -> String {
     let hex = |bytes: &[u8]| {
         bytes
@@ -255,6 +287,7 @@ fn cancel_pending(
     endpoint: Endpoint,
     scope: &p::PolicyContinuationScope,
     transaction: [u8; 32],
+    cut: Option<&CancellationCut>,
 ) -> Result<()> {
     let path = &registration.path;
     let target = path.join("continued-sdk");
@@ -341,6 +374,29 @@ fn cancel_pending(
             .close_unprepared_policy_continuation(cancellation, &continuation, &materials)?,
         p::AnchorCredentialCancellationState::Closed
     );
+    if let Some(cut) = cut {
+        let _ = witness_cancellation::kill_reconcile(
+            path,
+            witness,
+            &cut.pause,
+            endpoint,
+            cut.acknowledge,
+        )?;
+        assert_eq!(pending_journal(path)?, reserved);
+        assert_eq!(
+            run(
+                path,
+                "joint-cancel-cut-status",
+                &arguments(path, "credential-status", None)
+            )?,
+            expected(
+                &first.proof,
+                transaction,
+                if cut.acknowledge { 4 } else { 1 }
+            )
+        );
+        assert_eq!(pending_journal(path)?, reserved);
+    }
     for label in ["joint-cancel-reconcile", "joint-cancel-reconcile-reopen"] {
         assert_eq!(
             run(
@@ -367,17 +423,21 @@ fn cancel_pending(
     Ok(())
 }
 
-fn exercise(tls: bool, cancellation: bool) -> Result<()> {
+fn exercise(tls: bool, scenario: Scenario) -> Result<()> {
+    let cancellation = scenario.cancellation();
     let mut witness = witness::Witness::start()?;
     let setup = fixture::setup_with_witness(Some(&witness.configured))?;
     let authority = p::PolicySigningKey::generate()?;
     // P0 is signed by this independent issuer before registration begins.
     let registration = prepare_with_original_policy(&setup, &witness, Some((1800, &authority)))?;
     let path = &registration.path;
+    let pause = Arc::new(witness_cancellation::Pause::new());
+    let clock = Arc::clone(&pause);
     let mut tls_witness = if tls {
-        Some(witness_tls::TlsWitness::start(
+        Some(witness_tls::TlsWitness::start_with_clock(
             Arc::clone(&witness.configured.store),
             [path.as_path()],
+            move || clock.now(),
         )?)
     } else {
         None
@@ -507,6 +567,15 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
         )?,
         expected(grant, transaction, 1)
     );
+    let before_cancellation =
+        witness_cancellation::current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
+    let cut = scenario
+        .acknowledge_cut()
+        .map(|acknowledge| CancellationCut {
+            pause,
+            acknowledge,
+            admission_index: before_cancellation + usize::from(acknowledge),
+        });
     if cancellation {
         cancel_pending(
             &registration,
@@ -515,8 +584,17 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
             endpoint,
             &scope,
             transaction,
+            cut.as_ref(),
         )?;
         assert_eq!(pending_journal(path)?, original_image);
+        assert_eq!(
+            witness_cancellation::current_calls(
+                &witness,
+                tls_witness.as_ref(),
+                registration.subject
+            )?,
+            before_cancellation + if cut.is_some() { 3 } else { 2 }
+        );
         assert_eq!(
             state(&run(
                 path,
@@ -681,19 +759,45 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
         );
         if cancellation {
             assert!(
-                tcp.iter().all(|c| c.request.get(204) != Some(&5)),
-                "cancellation dispatched a commit"
+                tcp.iter()
+                    .all(|c| !matches!(c.request.get(204), Some(5 | 7))),
+                "cancellation dispatched Commit/Close"
             );
             assert!(tcp.iter().any(|c| c.delivered
                 && c.request.get(204) == Some(&8)
                 && c.reply.get(204) == Some(&11)));
+            if let Some(cut) = cut.as_ref() {
+                assert_eq!(
+                    tcp.iter()
+                        .filter(|c| !c.delivered
+                            && c.request.get(204) == Some(&(if cut.acknowledge { 8 } else { 6 })))
+                        .count(),
+                    1
+                );
+            }
         }
     }
     drop(captured);
     if let Some(server) = tls_witness.as_mut() {
-        assert!(server.finish()?.is_empty());
+        let failures = server.finish()?;
+        if let Some(cut) = cut.as_ref() {
+            let failed_admissions = server
+                .failed_admissions
+                .lock()
+                .map_err(|_| "TLS failure lock")?;
+            witness_cancellation::require_cut_tls_failures(
+                &failures,
+                &failed_admissions,
+                cut.admission_index,
+            )?;
+        } else {
+            assert!(failures.is_empty());
+        }
         let records = server.records.lock().map_err(|_| "TLS records poisoned")?;
-        assert_eq!(records.len(), server.admitted.load(Ordering::Acquire));
+        assert_eq!(
+            records.len() + failures.len(),
+            server.admitted.load(Ordering::Acquire)
+        );
         assert!(
             records.iter().any(|r| r.request().get(204)
                 == Some(&(if cancellation { 6 } else { 5 }))
@@ -702,8 +806,10 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
         );
         if cancellation {
             assert!(
-                records.iter().all(|r| r.request().get(204) != Some(&5)),
-                "TLS cancellation dispatched a commit"
+                records
+                    .iter()
+                    .all(|r| !matches!(r.request().get(204), Some(5 | 7))),
+                "TLS cancellation dispatched Commit/Close"
             );
             assert!(records
                 .iter()
@@ -715,7 +821,7 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
     }
     witness.join()?;
     if cancellation {
-        println!("C_WITNESSED_POLICY_CANCELLATION carrier={} original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true", if tls { "tls" } else { "tcp" });
+        println!("C_WITNESSED_POLICY_CANCELLATION carrier={} cut={} original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true", if tls { "tls" } else { "tcp" }, scenario.cut_name());
     } else {
         println!("C_WITNESSED_POLICY_CONTINUATION carrier={} original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true", if tls { "tls" } else { "tcp" });
     }
@@ -724,12 +830,20 @@ fn exercise(tls: bool, cancellation: bool) -> Result<()> {
 
 #[test]
 fn foreign_policy_continuation_commits_with_independent_tcp_and_tls_witness() -> Result<()> {
-    exercise(false, false)?;
-    exercise(true, false)
+    exercise(false, Scenario::Commit)?;
+    exercise(true, Scenario::Commit)
 }
 
 #[test]
 fn foreign_policy_continuation_cancels_without_target_or_sdk() -> Result<()> {
-    exercise(false, true)?;
-    exercise(true, true)
+    for tls in [false, true] {
+        for scenario in [
+            Scenario::Cancel,
+            Scenario::CancelStatusCut,
+            Scenario::CancelAckCut,
+        ] {
+            exercise(tls, scenario)?;
+        }
+    }
+    Ok(())
 }

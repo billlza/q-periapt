@@ -412,14 +412,15 @@ def verify_policy_witness_execution(stdout: bytes, *, language: str = "C", cance
     prefix = "C_WITNESSED_POLICY_CANCELLATION" if cancellation else "C_WITNESSED_POLICY_CONTINUATION"
     fields = (" original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
         if cancellation else " original_329_byte_proposal=true independent_G_T_approval=true committed_readback=true original_owner=true current_activation=true credential_successor_carries_t1=true")
-    expected = [prefix + " carrier=" + carrier + fields
-        for carrier in ("tcp", "tls")]
+    expected = ([prefix + " carrier=" + carrier + " cut=" + cut + fields
+        for carrier in ("tcp", "tls") for cut in ("none", "status", "ack")]
+        if cancellation else [prefix + " carrier=" + carrier + fields for carrier in ("tcp", "tls")])
     sdk.require(re.findall(r"^C_WITNESSED_POLICY_(?:CONTINUATION|CANCELLATION).*$", text, re.MULTILINE) == expected,
                 "witnessed policy continuation omitted or changed a required carrier outcome")
     if cancellation:
         return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
-                    original_cancellation_bytes=281, release_claim_eligible=False,
-                    scope=language + " original G1/T1 cancellation without SDK database or target policy directory; independently authorized close, original journal readback and native witness status/ACK over TCP and TLS; same engine, no independent wire oracle or process-loss qualification")
+                    original_cancellation_bytes=281, cuts=["none", "status", "ack"], release_claim_eligible=False,
+                    scope=language + " original G1/T1 cancellation without SDK database or target policy directory; normal and SIGKILL/reopen recovery at status and ACK cuts, TCP after operation and TLS before admission; exact Pending/Closed and journal readback, native witness status/ACK; same engine, no independent wire oracle or expiry qualification")
     return dict(completed=True, language=language, carriers=["signed-tcp", "mutual-tls"],
                 original_proposal_bytes=329, credential_successor_carries_t1=True,
                 release_claim_eligible=False,

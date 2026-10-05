@@ -350,18 +350,20 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
                 enrollment.verify_policy_witness_execution(invalid)
 
     def test_policy_cancellation_requires_original_target_free_close_on_both_carriers(self):
-        lines = ["C_WITNESSED_POLICY_CANCELLATION carrier=" + carrier
+        lines = ["C_WITNESSED_POLICY_CANCELLATION carrier=" + carrier + " cut=" + cut
             + " original_281_byte_reservation=true independent_G_T_close=true no_target_or_SDK=true closed_readback=true original_owner=true no_commit=true"
-            for carrier in ("tcp", "tls")]
+            for carrier in ("tcp", "tls") for cut in ("none", "status", "ack")]
         output = ("\n".join(lines) + "\ntest " + enrollment.POLICY_CANCELLATION_TEST + " ... ok\n"
             + "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n").encode()
         for language in ("C", "Swift", "Kotlin"):
             result = enrollment.verify_policy_witness_execution(output, language=language, cancellation=True)
             self.assertEqual(result["language"], language)
             self.assertEqual(result["original_cancellation_bytes"], 281)
+            self.assertEqual(result["cuts"], ["none", "status", "ack"])
             self.assertFalse(result["release_claim_eligible"])
         variants = [output.replace((line + "\n").encode(), b"") for line in lines]
         variants += [output.replace(b"carrier=tls", b"carrier=tcp"),
+                     output.replace(b"cut=ack", b"cut=status"),
                      output.replace(b"original_281_byte_reservation=true", b"original_248_byte_reservation=true"),
                      output.replace(b"no_target_or_SDK=true", b"no_target_or_SDK=false"),
                      output.replace(b"no_commit=true", b"no_commit=false"),

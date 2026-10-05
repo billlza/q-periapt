@@ -18,7 +18,7 @@ use std::{
 
 const POLICY_SECONDS: u64 = 120;
 
-fn require_cut_tls_failures(
+pub(super) fn require_cut_tls_failures(
     failures: &[io::Error],
     failed_admissions: &[Option<usize>],
     cut_index: usize,
@@ -55,13 +55,13 @@ fn require_cut_tls_failures(
     Ok(())
 }
 
-struct Pause {
+pub(super) struct Pause {
     remaining: AtomicUsize,
     released: AtomicBool,
     marker: Mutex<Option<PathBuf>>,
 }
 impl Pause {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             remaining: AtomicUsize::new(0),
             released: AtomicBool::new(false),
@@ -81,7 +81,7 @@ impl Pause {
         self.remaining.store(count, Ordering::Release);
         Ok(Release(Arc::clone(self)))
     }
-    fn now(&self) -> Result<u64> {
+    pub(super) fn now(&self) -> Result<u64> {
         if self
             .remaining
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| n.checked_sub(1))
@@ -147,7 +147,7 @@ fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
         )?,
     )?)
 }
-fn current_calls(
+pub(super) fn current_calls(
     witness: &witness::Witness,
     tls: Option<&witness_tls::TlsWitness>,
     subject: p::AnchorSubject,
@@ -164,6 +164,69 @@ fn current_calls(
             .count()
     })
 }
+pub(super) fn kill_reconcile(
+    path: &Path,
+    witness: &witness::Witness,
+    pause: &Arc<Pause>,
+    endpoint: Endpoint,
+    acknowledge: bool,
+) -> Result<std::process::ExitStatus> {
+    let marker = path.join("cancel-cut-ready");
+    let release = if endpoint.tls {
+        Some(pause.arm(if acknowledge { 2 } else { 1 }, marker.clone())?)
+    } else {
+        let mut saved = witness.hold_marker.lock().map_err(|_| "hold lock")?;
+        if saved.replace(marker.clone()).is_some() {
+            return Err("unconsumed TCP cut".into());
+        }
+        drop(saved);
+        witness.arm(if acknowledge { 8 } else { 6 })?;
+        None
+    };
+    let stdout = fs::File::create(path.join("witness-enrollment-cancel-cut.stdout"))?;
+    let stderr = fs::File::create(path.join("witness-enrollment-cancel-cut.stderr"))?;
+    let mut child = ChildOwner(
+        Command::new(executable()?)
+            .args(arguments(
+                path,
+                "credential-witness-reconcile",
+                Some(endpoint),
+            ))
+            .stdout(Stdio::from(stdout))
+            .stderr(Stdio::from(stderr))
+            .spawn()?,
+    );
+    let deadline = Instant::now() + Duration::from_secs(40);
+    while !marker.is_file() {
+        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
+            return Err(format!(
+                "foreign owner missed cancellation cut; stderr={}",
+                String::from_utf8_lossy(&public_file(
+                    path,
+                    "witness-enrollment-cancel-cut.stderr",
+                    65536
+                )?)
+            )
+            .into());
+        }
+        thread::sleep(Duration::from_millis(2));
+    }
+    child.0.kill()?;
+    let killed = child.0.wait()?;
+    assert_eq!(
+        killed.signal(),
+        Some(9),
+        "owner did not terminate by SIGKILL"
+    );
+    for ext in ["stdout", "stderr"] {
+        assert!(
+            public_file(path, &format!("witness-enrollment-cancel-cut.{ext}"), 65536)?.is_empty()
+        );
+    }
+    drop(release);
+    Ok(killed)
+}
+
 fn exercise(
     tls: bool,
     expired: bool,
@@ -349,62 +412,10 @@ fn exercise(
         path.join("sdk.redb"),
         path.join("sdk-cancellation-retained.redb"),
     )?;
-    let marker = path.join("cancel-cut-ready");
     let before_cut = current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
     assert_eq!(before_cut, before + 2);
     let cut_index = before_cut + usize::from(acknowledge);
-    let release = if tls {
-        Some(pause.arm(if acknowledge { 2 } else { 1 }, marker.clone())?)
-    } else {
-        let mut saved = witness.hold_marker.lock().map_err(|_| "hold lock")?;
-        if saved.replace(marker.clone()).is_some() {
-            return Err("unconsumed TCP cut".into());
-        }
-        drop(saved);
-        witness.arm(if acknowledge { 8 } else { 6 })?;
-        None
-    };
-    let stdout = fs::File::create(path.join("witness-enrollment-cancel-cut.stdout"))?;
-    let stderr = fs::File::create(path.join("witness-enrollment-cancel-cut.stderr"))?;
-    let mut child = ChildOwner(
-        Command::new(executable()?)
-            .args(arguments(
-                path,
-                "credential-witness-reconcile",
-                Some(endpoint),
-            ))
-            .stdout(Stdio::from(stdout))
-            .stderr(Stdio::from(stderr))
-            .spawn()?,
-    );
-    let deadline = Instant::now() + Duration::from_secs(40);
-    while !marker.is_file() {
-        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
-            return Err(format!(
-                "{name}: foreign owner missed cut; stderr={}",
-                String::from_utf8_lossy(&public_file(
-                    path,
-                    "witness-enrollment-cancel-cut.stderr",
-                    65536
-                )?)
-            )
-            .into());
-        }
-        thread::sleep(Duration::from_millis(2));
-    }
-    child.0.kill()?;
-    let killed = child.0.wait()?;
-    assert_eq!(
-        killed.signal(),
-        Some(9),
-        "owner did not terminate by SIGKILL"
-    );
-    for ext in ["stdout", "stderr"] {
-        assert!(
-            public_file(path, &format!("witness-enrollment-cancel-cut.{ext}"), 65536)?.is_empty()
-        );
-    }
-    drop(release);
+    let killed = kill_reconcile(path, &witness, &pause, endpoint, acknowledge)?;
     let cut_at = fixture::now()?;
     assert_eq!(pending_journal(path)?, pending);
     let mut original_owner = p::DeviceEnrollment::open(paths(path)?, registration.intent.clone())?;
