@@ -227,6 +227,7 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true\n"
                   "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true\n"
                   "C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true\n"
+                  "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true\n"
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
                   + "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
@@ -243,6 +244,8 @@ class RenewalExecutionTests(unittest.TestCase):
                         output.replace(b"uncommitted_remains_pending=true", b"uncommitted_remains_pending=false"),
                         output.replace(b"approved_wrong_predecessor_refused=true", b"approved_wrong_predecessor_refused=false"),
                         output.replace(b"acknowledged_after_reopen=true", b"acknowledged_after_reopen=false"),
+                        output.replace(b"committed_after_reopen=true", b"committed_after_reopen=false"),
+                        output.replace(b"original_effect_unchanged=true", b"original_effect_unchanged=false"),
                         output.replace(b"exact_outbox_readback=true", b"exact_outbox_readback=false")):
             with self.subTest(output=invalid), self.assertRaises(ValueError):
                 enrollment.verify_renewal_execution(invalid)

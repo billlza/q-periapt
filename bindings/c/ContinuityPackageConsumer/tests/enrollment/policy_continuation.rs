@@ -358,6 +358,13 @@ fn prepare_joint_for(
 
 #[test]
 fn c_policy_continuation_delivers_on_original_session_after_owner_reopen() -> Result<()> {
+    continued_original_session_delivery(false)?;
+    continued_original_session_delivery(true)?;
+    println!("C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true");
+    Ok(())
+}
+
+fn continued_original_session_delivery(unknown_delivery: bool) -> Result<()> {
     // Both peers were installed under this issuer's original P0. Transfer only
     // the independent control-plane owner; never rewrite the installed peer.
     let mut registered = registered(600)?;
@@ -449,7 +456,55 @@ fn c_policy_continuation_delivers_on_original_session_after_owner_reopen() -> Re
         observed(&c, "traffic-committed-reopen", "credential-status")?,
         committed(&g1, t1_statement)
     );
-    let (mut server, address) = fixture::spawn(&c._setup.responder, 82, "application")?;
+    let effect_path = c
+        ._setup
+        .responder
+        .join(format!("application-{}", fixture::hex(&message)));
+    let original_effect = if unknown_delivery {
+        let (mut server, address) =
+            fixture::spawn(&c._setup.responder, 82, "crash-after-application")?;
+        assert_eq!(
+            run(
+                &c.path,
+                "traffic-uncertain-send",
+                &args(
+                    true,
+                    "uncertain-send",
+                    vec![
+                        address.to_string().into(),
+                        fixture::hex(&session).into(),
+                        fixture::hex(&message).into(),
+                    ]
+                )
+            )?,
+            "delivery-unknown-committed\n"
+        );
+        assert_eq!(fixture::wait(&mut server)?.code(), Some(77));
+        fixture::effect(
+            &c._setup.responder,
+            session,
+            p::MessageId::from_trusted_state(message)?,
+            b"persisted before process exit",
+        )?;
+        // A separate foreign process must still report Committed (2), even
+        // though the independently observed receiver effect already exists.
+        assert_eq!(
+            run(
+                &c.path,
+                "traffic-committed-message-reopen",
+                &args(
+                    true,
+                    "status",
+                    vec![fixture::hex(&session).into(), fixture::hex(&message).into()]
+                )
+            )?,
+            "2\n"
+        );
+        Some(fs::metadata(&effect_path)?)
+    } else {
+        None
+    };
+    let (mut server, address) = fixture::spawn(&c._setup.responder, 83, "application")?;
     assert_eq!(
         run(
             &c.path,
@@ -473,6 +528,15 @@ fn c_policy_continuation_delivers_on_original_session_after_owner_reopen() -> Re
         p::MessageId::from_trusted_state(message)?,
         b"persisted before process exit",
     )?;
+    if let Some(original_effect) = original_effect {
+        use std::os::unix::fs::MetadataExt;
+        let recovered_effect = fs::metadata(&effect_path)?;
+        assert_eq!(original_effect.dev(), recovered_effect.dev());
+        assert_eq!(original_effect.ino(), recovered_effect.ino());
+        assert_eq!(original_effect.len(), recovered_effect.len());
+        assert_eq!(original_effect.mtime(), recovered_effect.mtime());
+        assert_eq!(original_effect.mtime_nsec(), recovered_effect.mtime_nsec());
+    }
     // A fresh foreign process activates the same continued parent and reopens
     // the existing session. 3 is QPC_MESSAGE_ACKNOWLEDGED, not an inferred ACK.
     assert_eq!(
@@ -516,7 +580,9 @@ fn c_policy_continuation_delivers_on_original_session_after_owner_reopen() -> Re
     drop(open_private_database(
         &c.path.join("continued-sdk/sdk.redb"),
     )?);
-    println!("C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true");
+    if unknown_delivery {
+        println!("C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true");
+    }
     Ok(())
 }
 

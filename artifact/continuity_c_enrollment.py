@@ -68,9 +68,12 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     sdk.require(re.findall(r"^C_POLICY_CONTINUED_TRAFFIC.*$", text, re.MULTILINE) == [
         "C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true"],
         "foreign continued owner did not deliver and retain the original session message")
+    sdk.require(re.findall(r"^C_POLICY_UNKNOWN_DELIVERY_RECOVERY.*$", text, re.MULTILINE) == [
+        "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true"],
+        "foreign continued owner did not preserve unknown delivery and reconcile the original message")
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
-                scope=language + " owner runtime assertions with original-registration and historical peer readbacks, local G/T adoption, G2 carrying T1, G2/T2 with exact predecessor, conflicting predecessor refusal and actual P1 expiry; one TLS message after G1/T1 using the original session/message, with live original peer authority, real receiver effect and ACK after reopen; same native engine, no independent-engine or both-peers-expired claim; raw C output-buffer checks apply only to C",
+                scope=language + " owner runtime assertions with original-registration and historical peer readbacks, local G/T adoption, G2 carrying T1, G2/T2 with exact predecessor, conflicting predecessor refusal and actual P1 expiry; normal TLS delivery and receiver exit after application effect under G1/T1, original session/message retry, Committed then ACK after reopen, unchanged idempotent file effect and live original peer authority; same native engine, no independent-engine, arbitrary exactly-once or both-peers-expired claim; raw C output-buffer checks apply only to C",
                 release_claim_eligible=False)
 
 
