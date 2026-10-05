@@ -98,12 +98,28 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
                     "required-witness traffic preceded original policy or credential expiry")
         witnessed_clocks[carrier] = dict(p0_until=original, left_until=left, right_until=right,
                                         expired_at=expired, resumed_at=resumed)
+    recovery_rows = re.findall(r"^C_BOTH_EXPIRED_UNKNOWN_DELIVERY carrier=(local|tcp|tls) committed_before_expiry=true receiver_exit_after_effect=true committed_after_renewal_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true committed_at=([1-9][0-9]*) expired_at=([1-9][0-9]*) recovered_at=([1-9][0-9]*)$", text, re.MULTILINE)
+    sdk.require(len(recovery_rows) == 3 and {row[0] for row in recovery_rows} == {"local", "tcp", "tls"}
+                and len(re.findall(r"^C_BOTH_EXPIRED_UNKNOWN_DELIVERY.*$", text, re.MULTILINE)) == 3,
+                "both-owner pre-expiry committed message recovery missing, malformed or duplicated")
+    recovery_clocks = {}
+    policy_clocks = dict(local=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
+                                    expired_at=expired_at, resumed_at=resumed_at), **witnessed_clocks)
+    for carrier, committed, expired, recovered in recovery_rows:
+        committed, expired, recovered = map(int, (committed, expired, recovered))
+        authority = policy_clocks[carrier]
+        sdk.require(all(value < 1 << 64 for value in (committed, expired, recovered))
+                    and committed < min(authority["p0_until"], authority["left_until"], authority["right_until"])
+                    and expired == authority["expired_at"] <= recovered <= authority["resumed_at"],
+                    "original message was not committed before expiry and recovered after both-owner renewal")
+        recovery_clocks[carrier] = dict(committed_at=committed, expired_at=expired, recovered_at=recovered)
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
                 both_expired_clock=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
                                         expired_at=expired_at, resumed_at=resumed_at),
                 both_expired_witnessed_clocks=witnessed_clocks,
-                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original identities; separate two-owner local-only and required-witness scenarios wait for shared P0 and both C0 expiries, refuse missing peer grants, then restore one original-session/message delivery and fresh ACK; required-witness scenarios also refuse missing witness and independently approve exact joint proposals, using signed TCP or mTLS for runtime operations after signed-TCP preparation, with no mTLS-to-TCP fallback; same native engine/host, no independent-engine or arbitrary exactly-once claim; raw C output-buffer checks apply only to C",
+                both_expired_unknown_delivery_clocks=recovery_clocks,
+                scope=language + " owner runtime assertions with original registration, local G/T adoption, G2 carrying T1, exact G2/T2 predecessor and actual P1 expiry; normal and receiver-loss TLS delivery with original identities; separate two-owner local-only and required-witness scenarios wait for shared P0 and both C0 expiries, refuse missing peer grants, then recover a message committed before expiry after receiver exit and deliver a second original-session message with fresh ACKs; recovery retains the original host file effect and retries the same message ID; required-witness scenarios also refuse missing witness and independently approve exact joint proposals, using signed TCP or mTLS for runtime operations after signed-TCP preparation, with no mTLS-to-TCP fallback; same native engine/host, no independent-engine or arbitrary exactly-once claim; raw C output-buffer checks apply only to C",
                 release_claim_eligible=False)
 
 

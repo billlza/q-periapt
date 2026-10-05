@@ -232,6 +232,8 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_BOTH_EXPIRED_POLICY_CLOCK p0_until=200 left_until=201 right_until=202 resumed_at=204 expired_at=203\n"
                   + "".join("C_BOTH_EXPIRED_WITNESSED_TRAFFIC carrier=" + carrier + " exact_joint_proposals=true independent_witness_approval=true missing_witness_refused=true missing_peer_grants_refused=true original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true\n"
                             "C_BOTH_EXPIRED_WITNESSED_CLOCK carrier=" + carrier + " p0_until=300 left_until=301 right_until=302 resumed_at=304 expired_at=303\n" for carrier in ("tcp", "tls"))
+                  + "".join("C_BOTH_EXPIRED_UNKNOWN_DELIVERY carrier=" + carrier + " committed_before_expiry=true receiver_exit_after_effect=true committed_after_renewal_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true committed_at=" + committed + " expired_at=" + expired + " recovered_at=" + recovered + "\n"
+                            for carrier, committed, expired, recovered in (("local", "199", "203", "204"), ("tcp", "299", "303", "304"), ("tls", "299", "303", "304")))
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
                   + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
@@ -242,6 +244,14 @@ class RenewalExecutionTests(unittest.TestCase):
                         output + b"test another_case ... FAILED with details\n",
                         output + b"C_BOTH_EXPIRED_POLICY_CLOCK malformed\n",
                         output + b"C_BOTH_EXPIRED_WITNESSED_CLOCK malformed\n",
+                        output + b"C_BOTH_EXPIRED_UNKNOWN_DELIVERY malformed\n",
+                        output.replace(b"committed_before_expiry=true", b"committed_before_expiry=false"),
+                        output.replace(b"committed_after_renewal_reopen=true", b"committed_after_renewal_reopen=false"),
+                        output.replace(b"committed_at=199", b"committed_at=200"),
+                        output.replace(b"committed_at=299", b"committed_at=300"),
+                        output.replace(b"recovered_at=304", b"recovered_at=302"),
+                        output.replace(b"recovered_at=304", b"recovered_at=305"),
+                        output.replace(b"carrier=local", b"carrier=tcp"),
                         output + b"test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out;\n",
                         output.replace(b"0 ignored", b"1 ignored"),
                         output.replace(b"observed_at=151", b"observed_at=149"),

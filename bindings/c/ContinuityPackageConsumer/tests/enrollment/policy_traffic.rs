@@ -208,7 +208,7 @@ fn serve(c: &Registered, label: &str, args: &[OsString]) -> Result<(Server, std:
         std::thread::sleep(Duration::from_millis(5));
     }
 }
-fn finish(mut server: Server, session: [u8; 32], message: [u8; 32]) -> Result<()> {
+fn finish(mut server: Server, session: [u8; 32], message: [u8; 32], created: u8) -> Result<()> {
     let status = fixture::wait(&mut server.child)?;
     let stderr = fs::read_to_string(&server.stderr)?;
     assert!(
@@ -221,7 +221,7 @@ fn finish(mut server: Server, session: [u8; 32], message: [u8; 32]) -> Result<()
     assert_eq!(
         output,
         format!(
-            "served:{kind}:0:{effects}:{effects}\n{}\n{}\n",
+            "served:{kind}:0:{effects}:{created}\n{}\n{}\n",
             fixture::hex(&session),
             fixture::hex(&message)
         )
@@ -374,7 +374,97 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
         )?
         .trim_end(),
     )?;
-    finish(server, session, [0; 32])?;
+    finish(server, session, [0; 32], 0)?;
+    // Persist a real message and its application effect before expiry, then
+    // lose the receiver before the SDK can acknowledge consumption. The sender
+    // must recover this exact message after both original authorities expire.
+    let uncertain_message = decode_id(
+        run(
+            &left.path,
+            "two-before-expiry-message",
+            &peer_args(
+                &left,
+                &left_peer,
+                1,
+                false,
+                Some(session),
+                "next",
+                vec![fixture::hex(&session).into()],
+            ),
+        )?
+        .trim_end(),
+    )?;
+    let (mut lost, address) = serve(
+        &right,
+        "before-expiry-loss",
+        &peer_args(
+            &right,
+            &right_peer,
+            2,
+            false,
+            Some(session),
+            "serve",
+            vec!["crash-after".into()],
+        ),
+    )?;
+    assert_eq!(
+        run(
+            &left.path,
+            "two-before-expiry-send",
+            &peer_args(
+                &left,
+                &left_peer,
+                1,
+                false,
+                Some(session),
+                "uncertain-send",
+                vec![
+                    address.to_string().into(),
+                    fixture::hex(&session).into(),
+                    fixture::hex(&uncertain_message).into()
+                ]
+            )
+        )?,
+        "delivery-unknown-committed\n"
+    );
+    assert_eq!(fixture::wait(&mut lost.child)?.code(), Some(77));
+    assert!(fs::read_to_string(&lost.stderr)?.is_empty());
+    let loss_output = fs::read_to_string(&lost.stdout)?;
+    assert_eq!(
+        loss_output
+            .split_once('\n')
+            .ok_or("crashed peer readiness")?
+            .1,
+        ""
+    );
+    fixture::effect(
+        &right_peer,
+        session,
+        p::MessageId::from_trusted_state(uncertain_message)?,
+        b"persisted before process exit",
+    )?;
+    let effect_path = right_peer.join(format!("application-{}", fixture::hex(&uncertain_message)));
+    let original_effect = fs::metadata(&effect_path)?;
+    assert_eq!(
+        run(
+            &left.path,
+            "two-before-expiry-committed",
+            &peer_args(
+                &left,
+                &left_peer,
+                1,
+                false,
+                Some(session),
+                "status",
+                vec![
+                    fixture::hex(&session).into(),
+                    fixture::hex(&uncertain_message).into()
+                ]
+            )
+        )?,
+        "2\n"
+    );
+    let committed_at = fixture::now()?;
     let message = decode_id(
         run(
             &left.path,
@@ -391,6 +481,7 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
         )?
         .trim_end(),
     )?;
+    assert_ne!(message, uncertain_message);
     let left = prepare_joint_for(left, Arc::clone(&policy_root), Some(120), 2400)?;
     let right = prepare_joint_with_target(
         right,
@@ -414,6 +505,12 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
     let sdk = fixture::sdk(&left.c.path)?;
     let old = fixture::protocol_policy(&left.c.path, &sdk)?;
     let p0_until = old.validity().until();
+    assert!(
+        committed_at
+            < p0_until
+                .min(left.c.validity.until())
+                .min(right.c.validity.until())
+    );
     old.close();
     drop(old);
     drop(sdk);
@@ -538,6 +635,96 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
             );
         }
     }
+    assert_eq!(
+        run(
+            &left.c.path,
+            "two-expired-committed-reopen",
+            &peer_args(
+                &left.c,
+                &left_peer,
+                1,
+                true,
+                Some(session),
+                "status",
+                vec![
+                    fixture::hex(&session).into(),
+                    fixture::hex(&uncertain_message).into()
+                ]
+            )
+        )?,
+        "2\n"
+    );
+    let (server, address) = serve(
+        &right.c,
+        "continued-retry",
+        &peer_args(
+            &right.c,
+            &right_peer,
+            2,
+            true,
+            Some(session),
+            "serve",
+            vec!["message".into()],
+        ),
+    )?;
+    assert_eq!(
+        run(
+            &left.c.path,
+            "two-original-message-retry",
+            &peer_args(
+                &left.c,
+                &left_peer,
+                1,
+                true,
+                Some(session),
+                "send",
+                vec![
+                    address.to_string().into(),
+                    fixture::hex(&session).into(),
+                    fixture::hex(&uncertain_message).into()
+                ]
+            )
+        )?,
+        "consumed\n"
+    );
+    // The callback is revisited; the host's durable ID-bound file effect is
+    // reused. This is not an exactly-once claim about arbitrary side effects.
+    finish(server, session, uncertain_message, 0)?;
+    fixture::effect(
+        &right_peer,
+        session,
+        p::MessageId::from_trusted_state(uncertain_message)?,
+        b"persisted before process exit",
+    )?;
+    {
+        use std::os::unix::fs::MetadataExt;
+        let recovered = fs::metadata(&effect_path)?;
+        assert_eq!(original_effect.dev(), recovered.dev());
+        assert_eq!(original_effect.ino(), recovered.ino());
+        assert_eq!(original_effect.len(), recovered.len());
+        assert_eq!(original_effect.mtime(), recovered.mtime());
+        assert_eq!(original_effect.mtime_nsec(), recovered.mtime_nsec());
+    }
+    assert_eq!(
+        run(
+            &left.c.path,
+            "two-recovered-ack-reopen",
+            &peer_args(
+                &left.c,
+                &left_peer,
+                1,
+                true,
+                Some(session),
+                "status",
+                vec![
+                    fixture::hex(&session).into(),
+                    fixture::hex(&uncertain_message).into()
+                ]
+            )
+        )?,
+        "3\n"
+    );
+    let recovered_at = fixture::now()?;
     let (server, address) = serve(
         &right.c,
         "continued",
@@ -571,7 +758,7 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
         )?,
         "consumed\n"
     );
-    finish(server, session, message)?;
+    finish(server, session, message, 1)?;
     fixture::effect(
         &right_peer,
         session,
@@ -613,6 +800,14 @@ fn exercise(witness: Option<&witness::Witness>, tls: bool) -> Result<()> {
             );
         }
     }
+    let carrier = if tls {
+        "tls"
+    } else if witness.is_some() {
+        "tcp"
+    } else {
+        "local"
+    };
+    println!("C_BOTH_EXPIRED_UNKNOWN_DELIVERY carrier={carrier} committed_before_expiry=true receiver_exit_after_effect=true committed_after_renewal_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true committed_at={committed_at} expired_at={expired_at} recovered_at={recovered_at}");
     if let Some(witness) = witness {
         let subjects = [&left, &right]
             .into_iter()
