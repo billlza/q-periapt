@@ -50,6 +50,21 @@ def markers(language: str) -> list[str]:
             for carrier, cut in CASES]
 
 
+def connection_markers(language: str) -> list[str]:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified account connection language")
+    return ([f"FOREIGN_ACCOUNT_CONNECT language={language} label=group-connect-{index} original_parent=true"
+             for index in range(2)] +
+            [f"FOREIGN_ACCOUNT_RECEIVER language={language} label={label} exit={code}"
+             for label, code in (("group-bootstrap-0", 0), ("group-bootstrap-1", 0),
+                                 ("group-first-delivery", 0), ("group-second-exit", 77))])
+
+
+def verify_connection_calls(text: str, *, language: str, cases: int) -> None:
+    observed = re.findall(r"^FOREIGN_ACCOUNT_(?:CONNECT|RECEIVER) .*?$", text, re.MULTILINE)
+    sdk.require(Counter(observed) == Counter({row: cases for row in connection_markers(language)}),
+                "foreign original connection/receiver execution differs")
+
+
 def traffic_markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified account traffic language")
     original = ("group-next", "group-first-send", "group-second-unknown", "group-partial-before-updates")
@@ -86,6 +101,7 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     expected = markers(language)
     verify_member_calls(text, language=language, cases=len(CASES))
     verify_traffic_calls(text, language=language, cases=len(CASES))
+    verify_connection_calls(text, language=language, cases=len(CASES))
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign account reconciliation scope differs")
     peer = re.findall(r"^FOREIGN_PEER_ROSTER .*?$", text, re.MULTILINE)
@@ -108,13 +124,15 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
             sdk.require(re.findall(r"^" + prefix + r" .*?$", text, re.MULTILINE) == [peer_native_marker(marker)],
                         "foreign reconciliation underlying scenario differs: " + prefix)
     return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES),
-                scope="foreign original account traffic before/after local P/R, durable consumption vs unknown receipt, "
+                scope="foreign original-parent session establishment, receiver application commit and actual post-commit exit, "
+                      "account traffic before/after local P/R, durable consumption vs unknown receipt, "
                       "retained exact retries and refused membership/input changes, current peer-roster admission, pre-cancel and in-flight cancellation, "
                       "actual process cuts after observed witness processing, unknown-commit exact-target recovery, "
                       "durable individual-member loss reports and ACKs, complete original account result observation and metadata retirement; "
                       "C registration, local P/R updates and raw input controls; shared native engine",
                 foreign_peer_roster_calls=25, foreign_peer_roster_kills=2, C_raw_input_control_invocations=27,
                 foreign_member_closure_calls=36, foreign_account_traffic_calls=99,
+                foreign_connections=18, foreign_receivers=36, foreign_crashed_receivers=9,
                 peer_roster_admission_qualified=True, local_P_R_updates_qualified=False,
                 TLS_preprocessing_loss_qualified=False, independent_protocol_implementation=False,
                 physical_platform_qualified=False, release_claim_eligible=False)

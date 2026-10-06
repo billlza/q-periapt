@@ -1159,8 +1159,12 @@ for original account traffic before and after local P/R, peer-roster
 admission/interruption, each member's loss-report persistence and acknowledgement,
 complete member-result reads and final metadata retirement. The nine scenarios
 require 99 completed foreign traffic calls; the optional OpenSSL scenario adds
-11. Initial session establishment, receiver execution, enrollment and local
-policy/roster updates still use the C client. Each language
+11. The same selected language now establishes both sessions and runs their
+receivers: 18 establishments and 36 completed receiver processes, including nine
+observed post-commit exits, plus two establishments/four receivers/one exit in the
+OpenSSL case. Every original application effect is independently read back and
+must not repeat during recovery. Enrollment and local policy/roster updates
+still use C. Each language
 run requires 36 completed member-closure calls across the original nine scenarios;
 the optional OpenSSL pre-processing scenario requires four more. The exact
 session-specific report must be durably retained and read back before its ACK.

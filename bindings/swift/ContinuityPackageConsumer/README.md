@@ -561,9 +561,16 @@ sends to both original sessions, observes a lost application receipt, and reads
 status before and after local P/R updates. Exact retained retries preserve the
 original effects; changed membership/input, unary release and cancelled peers
 remain refusals. This adds 99 foreign traffic calls across the nine scenarios,
-plus 11 in the optional OpenSSL scenario. Initial session establishment, receiver
-execution, enrollment and local P/R updates still use C. Selecting an enrollment
-parent cannot bootstrap a new session through these account commands. It requires nine scenarios: ordinary revocation over signed
+plus 11 in the optional OpenSSL scenario. The selected language also establishes
+both original sessions and executes the receivers: 18 sender establishments and
+36 receiver processes across the nine scenarios, including nine actual exits
+after the application effect is durable but before its receipt is sent. The
+OpenSSL scenario adds two establishments and four receivers with one such exit.
+The original sessions, message IDs and independently read application files must
+remain unchanged through recovery. Enrollment and local P/R still use C.
+Selecting an enrollment parent cannot bootstrap a new session through the
+account commands; initial establishment uses the original enrollment's explicit
+connect path. It requires nine scenarios: ordinary revocation over signed
 TCP and mTLS; unprocessed TCP loss; processed reply loss, in-flight cancellation
 and an observed process kill over each carrier. Every language run includes
 25 completed foreign peer-control dispatches and two actual killed clients.

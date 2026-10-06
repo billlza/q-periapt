@@ -10,8 +10,18 @@ struct Server {
     child: fixture::OwnedChild,
     stdout: PathBuf,
     stderr: PathBuf,
+    foreign: Option<(&'static str, String)>,
 }
 fn start(path: &Path, label: &str, args: &[OsString]) -> Result<(Server, SocketAddr)> {
+    start_selected(&executable()?, None, path, label, args)
+}
+fn start_selected(
+    client: &Path,
+    language: Option<&'static str>,
+    path: &Path,
+    label: &str,
+    args: &[OsString],
+) -> Result<(Server, SocketAddr)> {
     let stdout = path.join(format!("traffic-{label}.stdout"));
     let stderr = path.join(format!("traffic-{label}.stderr"));
     let output = |path: &Path| {
@@ -23,7 +33,7 @@ fn start(path: &Path, label: &str, args: &[OsString]) -> Result<(Server, SocketA
     };
     let mut server = Server {
         child: fixture::OwnedChild(
-            Command::new(executable()?)
+            Command::new(client)
                 .args(args)
                 .stdout(Stdio::from(output(&stdout)?))
                 .stderr(Stdio::from(output(&stderr)?))
@@ -31,6 +41,7 @@ fn start(path: &Path, label: &str, args: &[OsString]) -> Result<(Server, SocketA
         ),
         stdout,
         stderr,
+        foreign: language.map(|language| (language, label.to_owned())),
     };
     let until = Instant::now() + Duration::from_secs(25);
     loop {
@@ -63,6 +74,9 @@ fn finish(mut server: Server, expected: i32) -> Result<String> {
         return Err(
             format!("C traffic server {status}, expected {expected}: {stdout}; {stderr}").into(),
         );
+    }
+    if let Some((language, label)) = &server.foreign {
+        eprintln!("FOREIGN_ACCOUNT_RECEIVER language={language} label={label} exit={expected}");
     }
     Ok(stdout
         .split_once('\n')

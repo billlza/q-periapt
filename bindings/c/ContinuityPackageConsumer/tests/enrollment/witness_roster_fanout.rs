@@ -44,6 +44,14 @@ impl AccountResultClient {
     }
 }
 impl Group {
+    fn receiver(
+        &self,
+        path: &Path,
+        label: &str,
+        args: &[OsString],
+    ) -> Result<(Server, SocketAddr)> {
+        account_receiver(self.peer_roster_client.as_ref(), path, label, args)
+    }
     fn traffic(&self, label: &str, args: &[OsString]) -> Result<String> {
         match &self.peer_roster_client {
             Some(client) => {
@@ -167,6 +175,19 @@ impl Group {
             format!("account-status:2\n{}\n", hex(&[0; 32]))
         );
         Ok(())
+    }
+}
+fn account_receiver(
+    client: Option<&PolicyClient>,
+    path: &Path,
+    label: &str,
+    args: &[OsString],
+) -> Result<(Server, SocketAddr)> {
+    match client {
+        Some(client) => {
+            start_selected(&client.executable, Some(client.language), path, label, args)
+        }
+        None => start(path, label, args),
     }
 }
 fn remote_args(
@@ -426,32 +447,48 @@ fn account_scenario_with_cut(
         // this boundary both sessions and every lifecycle/recovery call must
         // use the configured encrypted endpoint exclusively.
         let plain_before_tls = calls(&w)?;
+        let result_client = AccountResultClient::selected()?;
+        let peer_roster_client = PolicyClient::selected_for("PEER_ROSTER")?;
+        if let Some(peer) = &peer_roster_client {
+            let result = result_client
+                .as_ref()
+                .ok_or("foreign peer roster needs complete foreign account recovery")?;
+            if peer.executable != result.executable || peer.language != result.language {
+                return Err("foreign peer roster and account recovery identities differ".into());
+            }
+        }
         let mut established = Vec::new();
         for (index, (remote, peer)) in recipients.iter().zip(&peers).enumerate() {
-            let (server, address) = start(
+            let (server, address) = account_receiver(
+                peer_roster_client.as_ref(),
                 remote,
-                "group-bootstrap",
+                &format!("group-bootstrap-{index}"),
                 &remote_args(&c, remote, None, "bootstrap"),
             )?;
-            let session = decode_id(
-                run(
-                    &c.path,
-                    &format!("group-connect-{index}"),
-                    &client_args(
-                        &c,
-                        peer,
-                        false,
-                        None,
-                        "connect",
-                        &[
-                            address.to_string(),
-                            hex(p::InitiationId::generate()?.as_bytes()),
-                        ],
-                    ),
-                )?
-                .trim_end(),
-            )?;
+            let label = format!("group-connect-{index}");
+            let args = client_args(
+                &c,
+                peer,
+                false,
+                None,
+                "connect",
+                &[
+                    address.to_string(),
+                    hex(p::InitiationId::generate()?.as_bytes()),
+                ],
+            );
+            let output = match &peer_roster_client {
+                Some(client) => run_client(&client.executable, &c.path, &label, &args)?,
+                None => run(&c.path, &label, &args)?,
+            };
+            let session = decode_id(output.trim_end())?;
             assert_eq!(finish(server, 0)?, event(session, [0; 32], 0, 0));
+            if let Some(client) = &peer_roster_client {
+                eprintln!(
+                    "FOREIGN_ACCOUNT_CONNECT language={} label={label} original_parent=true",
+                    client.language
+                );
+            }
             established.push(session);
         }
         let sessions: [[u8; 32]; 2] = established
@@ -465,18 +502,9 @@ fn account_scenario_with_cut(
             sessions,
             account,
             renewed: false,
-            result_client: AccountResultClient::selected()?,
-            peer_roster_client: PolicyClient::selected_for("PEER_ROSTER")?,
+            result_client,
+            peer_roster_client,
         };
-        if let Some(peer) = &g.peer_roster_client {
-            let result = g
-                .result_client
-                .as_ref()
-                .ok_or("foreign peer roster needs complete foreign account recovery")?;
-            if peer.executable != result.executable || peer.language != result.language {
-                return Err("foreign peer roster and account recovery identities differ".into());
-            }
-        }
         let batch = decode_id(
             g.traffic("group-next", &g.args("account-next", &[]))?
                 .trim_end(),
@@ -486,7 +514,7 @@ fn account_scenario_with_cut(
         let device0 = fixture::array::<16>(remote0, "local-device")?;
         let device1 = fixture::array::<16>(remote1, "local-device")?;
         assert_ne!(device0, device1);
-        let (server, address) = start(
+        let (server, address) = g.receiver(
             remote0,
             "group-first-delivery",
             &remote_args(&g.c, remote0, Some(session0), "message"),
@@ -498,7 +526,7 @@ fn account_scenario_with_cut(
             1,
         )?;
         assert_eq!(finish(server, 0)?, event(session0, first, 1, 1));
-        let (server, address) = start(
+        let (server, address) = g.receiver(
             remote1,
             "group-second-exit",
             &remote_args(&g.c, remote1, Some(session1), "crash-after"),
@@ -639,7 +667,7 @@ fn account_scenario_with_cut(
             )?;
         } else {
             let remote1 = g.recipients.get(1).ok_or("second recipient")?;
-            let (server, address) = start(
+            let (server, address) = g.receiver(
                 remote1,
                 "group-original-second-retry",
                 &remote_args(&g.c, remote1, Some(session1), "message"),
