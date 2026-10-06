@@ -1,4 +1,5 @@
 """Closed Maven/runtime identity and complete execution evidence for the JVM adapter."""
+import fnmatch
 import hashlib
 import json
 import shlex
@@ -34,6 +35,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
             labels = {"owner-tests", "credential-renewal-tests", "policy-continuation-tests",
                       "independent-policy-tests", "policy-renewal-tests", "roster-resolution-tests", "roster-refresh-tests"}
+            emitted = []
             for profile in ("", "debug", "release"):
                 output = root / (profile or "build"); output.mkdir()
                 checked = kotlin.retain_test_reports(root, output, profile=profile)
@@ -41,10 +43,24 @@ class KotlinConsumerTests(unittest.TestCase):
                 self.assertEqual({p.name for p in output.iterdir()}, {"kotlin-" + label + suffix + ".xml" for label in labels})
                 self.assertEqual({hashlib.sha256(p.read_bytes()).hexdigest() for p in output.iterdir()},
                                  {row["report_sha256"] for row in checked["suites"].values()})
+                self.assertEqual({row["report_file"] for row in checked["suites"].values()},
+                                 {p.name for p in output.iterdir()})
+                for row in checked["suites"].values():
+                    self.assertEqual(hashlib.sha256((output / row["report_file"]).read_bytes()).hexdigest(),
+                                     row["report_sha256"])
                 self.assertEqual(checked["tests"], 50)
+                emitted.extend(p.name for p in output.iterdir())
                 with self.assertRaises(FileExistsError): kotlin.retain_test_reports(root, output, profile=profile)
             with self.assertRaisesRegex(ValueError, "profile"):
                 kotlin.retain_test_reports(root, root / "unused", profile="../../outside")
+            workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()
+            upload = workflow.split("- name: Retain native packages and selected public execution evidence\n", 1)[1]
+            upload = upload.split("if-no-files-found:", 1)[0]
+            prefix = "target/continuity-installed-swift/"
+            patterns = [line.strip() for line in upload.splitlines() if line.strip().startswith(prefix)]
+            missing = sorted(name for name in emitted if not any(
+                fnmatch.fnmatchcase(prefix + name, pattern) for pattern in patterns))
+            self.assertEqual(missing, [], "CI upload omits verified JVM test reports")
 
     def test_renewal_suite_is_required_and_cannot_be_replaced_by_owner_success(self):
         with tempfile.TemporaryDirectory() as folder:

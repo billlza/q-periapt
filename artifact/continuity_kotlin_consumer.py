@@ -223,8 +223,10 @@ def retain_test_reports(directory: Path, output: Path, *, profile: str = "") -> 
         sdk.require(hashlib.sha256(data).hexdigest() == record["report_sha256"],
                     "JVM test report changed before retention")
         label = re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
-        with (output / ("kotlin-" + label + suffix + ".xml")).open("xb") as stream:
+        filename = "kotlin-" + label + suffix + ".xml"
+        with (output / filename).open("xb") as stream:
             stream.write(data)
+        record["report_file"] = filename
     return checked
 
 

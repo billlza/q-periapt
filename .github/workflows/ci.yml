@@ -2090,8 +2090,7 @@ jobs:
             target/continuity-installed-swift/kotlin-witnessed-commit-error-public/**
             target/continuity-installed-swift/swift-enrollment-public/**
             target/continuity-installed-swift/kotlin-enrollment-public/**
-            target/continuity-installed-swift/kotlin-owner-tests*.xml
-            target/continuity-installed-swift/kotlin-credential-renewal-tests.xml
+            target/continuity-installed-swift/kotlin-*-tests*.xml
             target/continuity-installed-swift/c-opening-public/**
             target/continuity-installed-swift/c-witness-public/**
             target/continuity-installed-swift/c-witness-tls-public/**
