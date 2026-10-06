@@ -70,6 +70,29 @@ POLICY_TEST_NAMES = frozenset({
     "adoptCarryAndLegacyKeepDifferentTransactionStatements",
 })
 
+INDEPENDENT_TEST_SUITES = {
+    "PolicyRenewalTests": frozenset({
+        "nativeLayoutsAndOffsetsMatchTheCanonicalCRecord",
+        "retainedRequestOwnsEveryByteAndRoundTripsUnsignedFields",
+        "scopesRejectContradictoryPredecessorsAndNoncanonicalOptions",
+        "requestRejectsDirtyTailEmptyFieldsAndImpossibleOriginalHead",
+        "allProgressStatesRemainDistinctIncludingBothAbandonmentReasons",
+        "malformedStatusesCannotBecomeCommittedOrNoCommit",
+    }),
+    "RosterResolutionTests": frozenset({
+        "layoutHasExactSizeAndAlignment",
+        "allFourOutcomesPreserveUnknownAndUnsignedOrdering",
+        "malformedAndContradictoryResultsAreRejected",
+        "resolvedPhaseKeepsOriginalPairAndStillRejectsUnknownPhases",
+    }),
+    "IndependentPolicyTests": frozenset({
+        "independentDescriptorOwnsAllBytesAndRejectsOtherDomains",
+        "preparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
+        "progressKeepsEveryTerminalAndRetirementStateDistinct",
+        "witnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries",
+    }),
+}
+
 
 def verify_opening_interruption(stdout: bytes, directory: Path) -> dict:
     checked = opening.verify_execution(stdout, directory, language="Kotlin")
@@ -102,6 +125,10 @@ def maven_contract() -> jvm.MavenContract:
         ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
+         "ContinuityEnrollment", "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
+         "PolicyRenewalScope", "PolicyRenewalRequest", "PolicyRenewalStatus", "PolicyRenewalAbandonment",
+         "IndependentPolicyProposal", "IndependentPolicyState", "IndependentPolicyProgress",
+         "RosterRefreshOutcome", "RosterRefreshResolution",
          "SessionID", "MessageID", "Counter64"), FIXTURE)
 
 
@@ -169,10 +196,10 @@ def _verify_test_suite(data: bytes, name: str, names: frozenset[str]) -> dict:
 
 def verify_test_reports(directory: Path) -> dict:
     expected = {"OwnerTests": TEST_NAMES, "CredentialRenewalTests": RENEWAL_TEST_NAMES,
-                "PolicyContinuationTests": POLICY_TEST_NAMES}
+                "PolicyContinuationTests": POLICY_TEST_NAMES, **INDEPENDENT_TEST_SUITES}
     sdk.require({p.name for p in directory.glob("TEST-*.xml")} == {
         "TEST-dev.qperiapt.continuity." + name + ".xml" for name in expected},
-        "JVM owner, credential renewal and policy continuation test report set differs")
+        "JVM owner and lifecycle test report set differs")
     suites = {name: _verify_test_suite(sdk.snapshot(directory / (
         "TEST-dev.qperiapt.continuity." + name + ".xml")).data, name, names)
         for name, names in expected.items()}

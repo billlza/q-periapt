@@ -39,20 +39,24 @@ internal fun enrollmentShapeRefusal(operation: () -> Unit) {
     try { operation() } catch (_: IllegalArgumentException) { return }
     error("invalid enrollment shape was accepted")
 }
+internal enum class EnrollmentPolicy { ORIGINAL, JOINT, INDEPENDENT }
+private fun ContinuityEnrollment.activate(policy: EnrollmentPolicy): ContinuityDevice = when (policy) {
+    EnrollmentPolicy.ORIGINAL -> activate(); EnrollmentPolicy.JOINT -> activatePolicyContinuation(); EnrollmentPolicy.INDEPENDENT -> activatePolicyRenewal()
+}
 private data class TransferredEnrollment(val device: ContinuityDevice, val old: WeakReference<ContinuityEnrollment>)
 private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueue<ContinuityEnrollment>,
-                     continued: Boolean): TransferredEnrollment =
+                     policy: EnrollmentPolicy): TransferredEnrollment =
     ContinuityEnrollment.resume(path, intent(FixtureRecords(Path.of(path))), witness).use { owner ->
         val old = WeakReference(owner, queue)
-        val device = if (continued) {
-            val target = Path.of(path).resolve("continued-sdk")
+        val device = if (policy != EnrollmentPolicy.ORIGINAL) {
+            val target = Path.of(path).resolve(if (policy == EnrollmentPolicy.JOINT) "continued-sdk" else "independent-sdk")
             owner.selectContinuedPolicy(target.toString(), policyDocument(target))
-            owner.activatePolicyContinuation()
+            owner.activate(policy)
         } else owner.activate()
         try {
             owner.close()
             refused(setOf(2)) { owner.status() }
-            refused(setOf(2)) { if (continued) owner.activatePolicyContinuation() else owner.activate() }
+            refused(setOf(2)) { owner.activate(policy) }
             refused(setOf(2)) { owner.cancel() }
             TransferredEnrollment(device, old)
         } catch (failure: Throwable) {
@@ -64,9 +68,9 @@ private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueu
 /** Drop the old public registration wrapper, then prove its one native owner
  * remains usable through the successor. This is a bounded GC observation only.
  */
-internal fun enrollmentParent(path: String, witness: WitnessCarrier, continued: Boolean = false): ContinuityDevice {
+internal fun enrollmentParent(path: String, witness: WitnessCarrier, policy: EnrollmentPolicy = EnrollmentPolicy.ORIGINAL): ContinuityDevice {
     val queue = ReferenceQueue<ContinuityEnrollment>()
-    val transferred = transfer(path, witness, queue, continued)
+    val transferred = transfer(path, witness, queue, policy)
     try {
         val before = collectionCount()
         var queued = false
@@ -82,7 +86,7 @@ internal fun enrollmentParent(path: String, witness: WitnessCarrier, continued: 
         }
         check(queued && transferred.old.get() == null && collectionCount() > before) { "old enrollment not collected within 32 rounds" }
         transferred.device.nextAccountOperation()
-        val marker = if (continued) "kotlin-policy-enrollment-transfer" else "kotlin-enrollment-transfer"
+        val marker = when (policy) { EnrollmentPolicy.ORIGINAL -> "kotlin-enrollment-transfer"; EnrollmentPolicy.JOINT -> "kotlin-policy-enrollment-transfer"; EnrollmentPolicy.INDEPENDENT -> "kotlin-independent-policy-transfer" }
         FixtureRecords(Path.of(path)).retain(marker,
             "old-registration-collected original-device-live\n".toByteArray(), true)
         return transferred.device
@@ -140,6 +144,10 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
         else ContinuityEnrollment.resume(path, intent(records), witness)
     return owner.use {
         val original = it.status()
+        if (mode.startsWith("enrollment-independent-policy-")) {
+            require(args.size == 2)
+            return@use independentPolicyEnrollment(it, path, records, mode.removePrefix("enrollment-independent-policy-"))
+        }
         if (mode.startsWith("enrollment-policy-")) {
             require(args.size == 2) { "policy continuation arguments" }
             return@use policyEnrollment(it, path, records, mode, original)

@@ -153,7 +153,7 @@ internal fun continuedPeerRefused(args: List<String>, witness: WitnessCarrier): 
         else -> throw IllegalArgumentException("continued peer role must be 1 or 2")
     }
     val session = SessionID(decode(args[4]))
-    enrollmentParent(args[1], witness, continued = true).use { parent ->
+    enrollmentParent(args[1], witness, policy = EnrollmentPolicy.JOINT).use { parent ->
         peerRefused(parent, args[2], role, session, 104)
     }
     return "continued-peer-expired-refused"
@@ -161,7 +161,7 @@ internal fun continuedPeerRefused(args: List<String>, witness: WitnessCarrier): 
 
 internal fun continuedPeerAdmit(args: List<String>, witness: WitnessCarrier): String {
     require(args.size == 3) { "continued peer admission arguments" }
-    enrollmentParent(args[1], witness, continued = true).use { parent ->
+    enrollmentParent(args[1], witness, policy = EnrollmentPolicy.JOINT).use { parent ->
         peerAdmit(parent, args[2], true)
     }
     return "continued-peer-admitted"

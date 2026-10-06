@@ -2,6 +2,58 @@
 //! Real C request export, independent approval, exact restart/retry and original journal adoption.
 use super::*;
 
+struct PolicyClient {
+    executable: PathBuf,
+    language: &'static str,
+}
+impl PolicyClient {
+    fn selected() -> Result<Option<Self>> {
+        match (
+            std::env::var_os("QPERIAPT_POLICY_LIFECYCLE_CLIENT"),
+            std::env::var_os("QPERIAPT_POLICY_LIFECYCLE_LANGUAGE"),
+        ) {
+            (None, None) => Ok(None),
+            (Some(path), Some(language)) => {
+                let executable = PathBuf::from(path);
+                if !executable.is_absolute() || !executable.is_file() {
+                    return Err("foreign policy executable is not an absolute file".into());
+                }
+                let language = match language.to_str() {
+                    Some("Swift") => "Swift",
+                    Some("Kotlin") => "Kotlin",
+                    _ => return Err("unqualified policy lifecycle language".into()),
+                };
+                Ok(Some(Self {
+                    executable,
+                    language,
+                }))
+            }
+            _ => Err("foreign policy client and language must be selected together".into()),
+        }
+    }
+}
+
+fn foreign_policy_case(case: &str) -> Result<()> {
+    if let Some(client) = PolicyClient::selected()? {
+        eprintln!("FOREIGN_POLICY_LIFECYCLE language={} case={case} original_request=true exact_proposal=true native_outcomes=true C_registration_and_raw_controls=true shared_native_engine=true", client.language);
+    }
+    Ok(())
+}
+
+fn run_policy_transport(path: &Path, label: &str, args: &[OsString]) -> Result<String> {
+    match PolicyClient::selected()? {
+        Some(client) => {
+            let output = run_client(&client.executable, path, label, args)?;
+            eprintln!(
+                "FOREIGN_POLICY_TRANSPORT language={} label={label}",
+                client.language
+            );
+            Ok(output)
+        }
+        None => run(path, label, args),
+    }
+}
+
 struct Input<'a> {
     bytes: &'a [u8],
     offset: usize,
@@ -99,11 +151,20 @@ fn read_request(path: &Path) -> Result<Request> {
     Ok(result)
 }
 fn invoke(c: &Registered, label: &str, mode: &str) -> Result<String> {
-    run(
-        &c.path,
-        label,
-        &c.arguments(command(&c.path, &format!("independent-policy-{mode}"))),
-    )
+    let args = c.arguments(command(&c.path, &format!("independent-policy-{mode}")));
+    match PolicyClient::selected()? {
+        Some(client) if !matches!(mode, "stage-dirty-tail" | "witness-wrong-kind") => {
+            let output = run_client(&client.executable, &c.path, label, &args)?;
+            eprintln!(
+                "FOREIGN_POLICY_CALL language={} mode={mode} label={label}",
+                client.language
+            );
+            Ok(output)
+        }
+        // These native raw-buffer controls cannot be represented by a valid
+        // typed wrapper value. Keep the original C controls and assertions.
+        _ => run(&c.path, label, &args),
+    }
 }
 fn enrollment_row(c: &Registered) -> Result<Vec<u8>> {
     use redb::{ReadableDatabase, TableDefinition};
@@ -348,6 +409,7 @@ fn c_independent_policy_request_restarts_exact_stage_and_adopts_original_journal
     }
     assert_eq!(invoke(c, "independent-history", "resolve")?, committed);
     lease(&c.path, false)?;
+    foreign_policy_case("local-lifecycle")?;
     eprintln!("C_INDEPENDENT_POLICY request_from_original=true signed_inputs_reverified=true pending_exact_retry=true first_approvals_retained=true actual_commit=true original_device_transfer=true historical_without_runtime_tls_signer=true");
     Ok(())
 }
@@ -393,7 +455,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
     let (mut server, address) = fixture::spawn(&c._setup.responder, 91, "bootstrap")?;
     let initiation = p::InitiationId::generate()?;
     let session = decode_id(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-connect",
             &[
@@ -428,7 +490,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
         args
     };
     let message = decode_id(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-next",
             &args(false, "next", vec![fixture::hex(&session).into()]),
@@ -445,7 +507,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
     );
     let (mut server, address) = fixture::spawn(&c._setup.responder, 92, "crash-after-application")?;
     assert_eq!(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-unknown",
             &args(
@@ -473,7 +535,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
         .join(format!("application-{}", fixture::hex(&message)));
     let before = fs::metadata(&effect)?;
     assert_eq!(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-pending-reopen",
             &args(
@@ -486,7 +548,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
     );
     let (mut server, address) = fixture::spawn(&c._setup.responder, 93, "application")?;
     assert_eq!(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-retry",
             &args(
@@ -509,7 +571,7 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
         b"persisted before process exit",
     )?;
     assert_eq!(
-        run(
+        run_policy_transport(
             &c.path,
             "independent-traffic-ack",
             &args(
@@ -560,13 +622,14 @@ fn c_independent_policy_restores_original_tls_session_after_lost_application_rec
     assert!(fs::read(c.path.join("signer.key"))? == *signer);
     assert!(fs::read(c.path.join("wrap.key"))? == *wrapping);
     assert_eq!(
-        state(&run(
+        state(&run_policy_transport(
             &c.path,
             "independent-traffic-original-identity",
             &command(&c.path, "status")
         )?)?,
         (5, c.accepted.1, c.accepted.2)
     );
+    foreign_policy_case("local-tls-session-recovery")?;
     eprintln!("C_INDEPENDENT_POLICY_TRAFFIC original_tls_session=true original_message=true receiver_effect_once=true unknown_commit_preserved=true acknowledged_after_process_reopen=true original_signer_journal_keys=true native_peer=true");
     Ok(())
 }

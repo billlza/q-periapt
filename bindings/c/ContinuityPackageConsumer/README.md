@@ -1117,8 +1117,8 @@ separately, syncs file and directory, and verifies the exact retained bytes befo
 acknowledgement; it keeps aggregate results separately before metadata retirement.
 
 These are additions to the unpublished `qpc-owner/1` candidate, not product ABI 2
-stability or complete 0.2.0 admission. Swift/Kotlin wrappers for the new required
-P/R and peer-roster update paths, installed-package qualification, physical
+stability or complete 0.2.0 admission. Swift/Kotlin required-witness roster and
+peer-roster update paths, installed-package qualification, physical
 platform evidence and independent protocol/security review remain separate gates.
 
 The signed-TCP peer-roster interruption workload exercises a complete request
@@ -1154,3 +1154,19 @@ four signed-TCP interruption cases and three post-commit mutual-TLS cases.
 This does not qualify those languages' P/R update APIs or an independent protocol
 implementation. The installed-package collectors require the same recorded C
 harness and explicit foreign executable, without silently falling back to C.
+
+
+The separate foreign independent-policy workload now selects Swift/Kotlin for
+local and required-witness P requests, staging, exact-proposal coordination,
+historical recovery and original-owner activation. It also uses the foreign
+client for the original TLS session's lost-application-receipt recovery. Ten
+scenarios require 117 policy calls and seven transport calls per language/profile;
+C continues to perform registration and invalid raw-buffer controls. The installed
+collectors bind both clients and the same previously qualified C harness.
+The P request fixture calls the real API from a default pthread. Private request
+results stay on the heap through owner/panic boundaries and are copied to the
+unchanged caller-owned ABI record only after admission and crypto have returned.
+The Swift wrapper likewise owns a bounded heap output buffer; failed native calls
+never initialize, decode or publish a successful request. This addresses measured
+worker-stack exhaustion without changing thread stack sizes, signature checks,
+error-output guarantees or any of the 106 C exports.

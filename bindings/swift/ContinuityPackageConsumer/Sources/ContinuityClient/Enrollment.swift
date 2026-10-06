@@ -66,8 +66,16 @@ private func expectedEnrollmentFailure<T>(_ code: Int32, _ body: () throws -> T)
     }
     throw ProbeFailure.contract("enrollment failure \(code) was accepted")
 }
-private func refusedEnrollmentActivation(_ owner: ContinuityEnrollment, code: Int32, continued: Bool = false) throws -> ContinuityFailure {
-    switch Result(catching: { try continued ? owner.activatePolicyContinuation() : owner.activate() }) {
+enum EnrollmentPolicyMode { case original, joint, independent }
+private func activateEnrollment(_ owner: ContinuityEnrollment, policy: EnrollmentPolicyMode) throws -> ContinuityDevice {
+    switch policy {
+    case .original: return try owner.activate()
+    case .joint: return try owner.activatePolicyContinuation()
+    case .independent: return try owner.activatePolicyRenewal()
+    }
+}
+private func refusedEnrollmentActivation(_ owner: ContinuityEnrollment, code: Int32, policy: EnrollmentPolicyMode = .original) throws -> ContinuityFailure {
+    switch Result(catching: { try activateEnrollment(owner, policy: policy) }) {
     case let .failure(error):
         guard let native = error as? ContinuityFailure, native.code == code else { throw error }
         return native
@@ -90,24 +98,24 @@ private final class WeakEnrollment {
     weak var value: ContinuityEnrollment?
     init(_ owner: ContinuityEnrollment) { value = owner }
 }
-private func transferEnrollment(_ path: String, witness: WitnessCarrier, continued: Bool) throws -> (ContinuityDevice, WeakEnrollment) {
+private func transferEnrollment(_ path: String, witness: WitnessCarrier, policy: EnrollmentPolicyMode) throws -> (ContinuityDevice, WeakEnrollment) {
     let owner = try prepareEnrollment(path, witness: witness, create: false)
     let old = WeakEnrollment(owner)
     let device = try disposingEnrollment(owner) {
         try owner.finishOpen()
-        if continued {
-            let targetPath = URL(fileURLWithPath: path).appendingPathComponent("continued-sdk").path
+        if policy != .original {
+            let targetPath = URL(fileURLWithPath: path).appendingPathComponent(policy == .joint ? "continued-sdk" : "independent-sdk").path
             let target = try EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument()
             try owner.selectContinuedPolicy(path: targetPath, target: target)
         }
-        let device = try continued ? owner.activatePolicyContinuation() : owner.activate()
+        let device = try activateEnrollment(owner, policy: policy)
         do {
             try owner.close()
             _ = try expectedEnrollmentFailure(2) { try owner.status() }
             _ = try expectedEnrollmentFailure(2) { try owner.request() }
             _ = try expectedEnrollmentFailure(2) { try owner.prepareStorage() }
             _ = try expectedEnrollmentFailure(2) { try owner.cancel() }
-            _ = try refusedEnrollmentActivation(owner, code: 2, continued: continued)
+            _ = try refusedEnrollmentActivation(owner, code: 2, policy: policy)
             return device
         } catch {
             let original = error
@@ -118,12 +126,12 @@ private func transferEnrollment(_ path: String, witness: WitnessCarrier, continu
     }
     return (device, old)
 }
-private func activatedEnrollment(_ path: String, witness: WitnessCarrier, continued: Bool = false) throws -> ContinuityDevice {
-    let (device, old) = try transferEnrollment(path, witness: witness, continued: continued)
+private func activatedEnrollment(_ path: String, witness: WitnessCarrier, policy: EnrollmentPolicyMode = .original) throws -> ContinuityDevice {
+    let (device, old) = try transferEnrollment(path, witness: witness, policy: policy)
     do {
         try require(old.value == nil, "old enrollment wrapper retained after transfer")
         _ = try device.nextAccountOperation()
-        _ = try FixtureRecords(path: path).retain(continued ? "swift-policy-enrollment-transfer" : "swift-enrollment-transfer",
+        _ = try FixtureRecords(path: path).retain(policy == .original ? "swift-enrollment-transfer" : policy == .joint ? "swift-policy-enrollment-transfer" : "swift-independent-policy-transfer",
             bytes: Array("old-registration-released original-device-live\n".utf8), create: true)
         return device
     } catch {
@@ -137,10 +145,11 @@ private func activatedEnrollment(_ path: String, witness: WitnessCarrier, contin
 struct EnrollmentParentSelection {
     let path: String
     let role: BootstrapRole
-    let continued: Bool
+    let policy: EnrollmentPolicyMode
+    var continued: Bool { policy != .original }
     func openPeer(path peerPath: String, session: SessionID?, witness: WitnessCarrier) throws -> ConfiguredClientOwner {
         try require(!continued || session != nil, "continued enrollment requires an original session")
-        let device = try activatedEnrollment(path, witness: witness, continued: continued)
+        let device = try activatedEnrollment(path, witness: witness, policy: policy)
         do {
             let peer = try session.map {
                 try device.preparePeerReopen(path: peerPath, quality: .oneTimeBoth, role: role, session: $0)
@@ -273,6 +282,10 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
         }
         try owner.finishOpen()
         let original = try owner.status()
+        if mode.hasPrefix("enrollment-independent-policy-") {
+            return try independentPolicyEnrollmentCommand(owner, path: path, inputs: inputs,
+                mode: String(mode.dropFirst("enrollment-independent-policy-".count)))
+        }
         if mode.hasPrefix("enrollment-policy-") {
             return try policyEnrollmentCommand(owner, path: path, inputs: inputs, mode: mode)
         }
@@ -526,7 +539,7 @@ private func policyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String
         status = try owner.reconcilePolicyContinuation()
         guard case .committed = status else { throw ProbeFailure.contract("policy reconciliation did not retain Committed") }
     case "enrollment-policy-activate-missing-witness":
-        _ = try refusedEnrollmentActivation(owner, code: 216, continued: true)
+        _ = try refusedEnrollmentActivation(owner, code: 216, policy: .joint)
         _ = try expectedEnrollmentFailure(2) { try owner.status() }
         return "policy-required-witness-refused"
     case "enrollment-policy-activate":
@@ -583,14 +596,14 @@ func continuedPeerCommand(_ args: [String], witness: WitnessCarrier) throws {
         default: throw ProbeFailure.contract("continued peer role must be 1 or 2")
         }
         let session: SessionID = try decode(args[4])
-        let device = try activatedEnrollment(args[1], witness: witness, continued: true)
+        let device = try activatedEnrollment(args[1], witness: witness, policy: .joint)
         try disposingEnrollmentDevice(device) {
             try refusedRenewalPeer(device, path: args[2], role: role, session: session, code: 104)
         }
         try output("continued-peer-expired-refused")
     case "continued-peer-admit":
         try require(args.count == 3, "continued peer admission arguments")
-        let device = try activatedEnrollment(args[1], witness: witness, continued: true)
+        let device = try activatedEnrollment(args[1], witness: witness, policy: .joint)
         try disposingEnrollmentDevice(device) {
             try admitRenewalPeer(device, path: args[2], controls: true)
         }
@@ -640,4 +653,207 @@ func credentialPeerCommand(_ args: [String]) throws {
         try checked.get()
     }
     try output("credential-peer-passed")
+}
+
+// Same-host fixture format shared with the C/Rust harness. This serializes only
+// public wrapper fields, never an internal codec/handle or a portable network API.
+private struct IndependentRequestFixture {
+    var bytes: [UInt8]
+    var offset = 0
+    mutating func take(_ count: Int) throws -> [UInt8] {
+        try require(count >= 0 && offset <= bytes.count && count <= bytes.count - offset, "truncated independent request")
+        defer { offset += count }; return Array(bytes[offset..<(offset + count)])
+    }
+    mutating func u32() throws -> UInt32 { try take(4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) } }
+    mutating func u64() throws -> UInt64 { try take(8).withUnsafeBytes { $0.loadUnaligned(as: UInt64.self) } }
+    mutating func roster() throws -> RosterCheckpoint { try RosterCheckpoint(version: u64(), digest: take(32)) }
+    mutating func policy() throws -> PolicyCheckpoint { try PolicyCheckpoint(version: u64(), digest: take(32)) }
+    mutating func blob() throws -> [UInt8] {
+        let length = Int(try u32()), value = try take(8192)
+        try require((1...8192).contains(length) && value.dropFirst(length).allSatisfy({ $0 == 0 }), "invalid public record tail")
+        return Array(value.prefix(length))
+    }
+    static func read(_ bytes: [UInt8]) throws -> PolicyRenewalRequest {
+        try require(bytes.count == 33176, "independent request fixture width")
+        var r = Self(bytes: bytes)
+        let operation = try PolicyRenewalID(bytes: r.take(32)), journal = try JournalID(bytes: r.take(32))
+        let owner = try r.take(32), original = try r.take(32), current = try r.take(32)
+        let roster = try r.roster(), originalPolicy = try r.policy(), previousPolicy = try r.policy(), authorization = try r.take(32)
+        let previous: PolicyAuthorizationID?
+        switch try r.u32() {
+        case 0: try require(authorization.allSatisfy({ $0 == 0 }), "absent authorization nonzero"); previous = nil
+        case 1: previous = try PolicyAuthorizationID(bytes: authorization)
+        default: throw ProbeFailure.contract("unknown optional authorization")
+        }
+        try require(r.u32() == 0, "reserved scope word")
+        let scope = try PolicyRenewalScope(operation: operation, journal: journal, originalOwner: owner,
+            originalCredential: original, currentCredential: current, currentRoster: roster,
+            originalPolicy: originalPolicy, previousPolicy: previousPolicy, previousAuthorization: previous)
+        let value = try PolicyRenewalRequest(scope: scope, account: AccountID(bytes: r.take(32)), originalRosterCheckpoint: r.roster(),
+            originalCredential: r.blob(), originalRoster: r.blob(), currentCredential: r.blob(), currentRoster: r.blob())
+        try require(r.offset == bytes.count, "trailing independent request fixture"); return value
+    }
+    private static func number<T: FixedWidthInteger>(_ value: T) -> [UInt8] { var value = value; return withUnsafeBytes(of: &value) { Array($0) } }
+    static func write(_ r: PolicyRenewalRequest) throws -> [UInt8] {
+        let s = r.scope
+        var bytes = s.operation.bytes + s.journal.bytes + s.originalOwner + s.originalCredential + s.currentCredential
+        bytes += number(s.currentRoster.version) + s.currentRoster.digest
+        bytes += number(s.originalPolicy.version) + s.originalPolicy.digest
+        bytes += number(s.previousPolicy.version) + s.previousPolicy.digest
+        bytes += s.previousAuthorization?.bytes ?? [UInt8](repeating: 0, count: 32)
+        bytes += number(UInt32(s.previousAuthorization == nil ? 0 : 1)) + number(UInt32(0))
+        bytes += r.account.bytes + number(r.originalRosterCheckpoint.version) + r.originalRosterCheckpoint.digest
+        for value in [r.originalCredential, r.originalRoster, r.currentCredential, r.currentRoster] {
+            bytes += number(UInt32(value.count)) + value + [UInt8](repeating: 0, count: 8192 - value.count)
+        }
+        try require(bytes.count == 33176, "encoded independent request width"); return bytes
+    }
+}
+private func independentPolicyStatus(_ value: PolicyRenewalStatus) -> String {
+    let zero = String(repeating: "0", count: 64)
+    func hex(_ bytes: [UInt8]) -> String { bytes.map { String(format: "%02x", $0) }.joined() }
+    func record(_ phase: UInt32, _ operation: PolicyRenewalID, _ statement: PolicyRenewalStatementID, _ target: PolicyCheckpoint,
+        reason: UInt32 = 0, roster: RosterCheckpoint? = nil, time: UInt64 = 0) -> String {
+        [String(phase), String(reason), hex(operation.bytes), hex(statement.bytes), String(target.version), hex(target.digest),
+            roster.map { String($0.version) } ?? "0", roster.map { hex($0.digest) } ?? zero, String(time)].joined(separator: "\n")
+    }
+    switch value {
+    case .absent: return ["0", "0", zero, zero, "0", zero, "0", zero, "0"].joined(separator: "\n")
+    case let .pending(operation, statement, target): return record(1, operation, statement, target)
+    case let .committed(operation, statement, target): return record(2, operation, statement, target)
+    case let .abandonedUncommitted(operation, statement, target, reason, roster, time):
+        return record(3, operation, statement, target, reason: reason.rawValue, roster: roster, time: time)
+    }
+}
+private func independentPolicyEnrollmentCommand(_ owner: ContinuityEnrollment, path: String,
+    inputs: EnrollmentInputs, mode: String) throws -> String {
+    if mode.hasPrefix("witness-") {
+        return try witnessedIndependentPolicyCommand(owner, path: path, inputs: inputs, mode: String(mode.dropFirst(8)))
+    }
+    let operation = try PolicyRenewalID(bytes: inputs.exact("independent-operation", count: 32))
+    switch mode {
+    case "request":
+        let request = try owner.policyRenewalRequest(operation: operation)
+        try inputs.publish("independent-request", IndependentRequestFixture.write(request)); return "request-saved"
+    case "request-refused":
+        _ = try expectedEnrollmentFailure(215) { try owner.policyRenewalRequest(operation: operation) }
+        _ = try expectedEnrollmentFailure(2) { try owner.status() }; return "request-refused:215"
+    case "status": return try independentPolicyStatus(owner.policyRenewalStatus())
+    case "pending":
+        try require(owner.pendingPolicyRenewalApproval(operation: operation) == inputs.read("independent-first-approvals", maximum: 8192), "first policy signatures changed")
+        return "pending-exact"
+    default: break
+    }
+    let targetPath = URL(fileURLWithPath: path).appendingPathComponent("independent-sdk").path
+    let target = try EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument()
+    if ["resolve", "resolve-pending", "resolve-conflict", "resolve-scope", "resolve-cancelled"].contains(mode) {
+        let statement = try PolicyRenewalStatementID(bytes: inputs.exact("independent-statement", count: 32))
+        let expected: Int32 = mode == "resolve-pending" ? 215 : mode == "resolve-conflict" ? 211 : mode == "resolve-scope" ? 103 : mode == "resolve-cancelled" ? 302 : 0
+        if expected == 302 { try owner.cancel() }
+        if expected != 0 {
+            _ = try expectedEnrollmentFailure(expected) { try owner.resolvePolicyRenewal(operation: operation, statement: statement, target: target) }
+            _ = try expectedEnrollmentFailure(expected == 302 ? 302 : 2) { try owner.status() }
+            return expected == 215 ? "pending-unresolved:215" : "policy-resolve-refused:\(expected)"
+        }
+        return try independentPolicyStatus(owner.resolvePolicyRenewal(operation: operation, statement: statement, target: target))
+    }
+    try owner.selectContinuedPolicy(path: targetPath, target: target)
+    switch mode {
+    case "stage", "stage-corrupt-scope", "stage-corrupt-certificate", "stage-cancelled":
+        let retained = try IndependentRequestFixture.read(inputs.read("independent-request", maximum: 33176))
+        let s = retained.scope
+        var operation = s.operation.bytes
+        if mode == "stage-corrupt-scope" { operation[0] ^= 1 }
+        let scope = try PolicyRenewalScope(operation: PolicyRenewalID(bytes: operation), journal: s.journal,
+            originalOwner: s.originalOwner, originalCredential: s.originalCredential, currentCredential: s.currentCredential,
+            currentRoster: s.currentRoster, originalPolicy: s.originalPolicy, previousPolicy: s.previousPolicy, previousAuthorization: s.previousAuthorization)
+        var certificate = retained.originalCredential
+        if mode == "stage-corrupt-certificate" { certificate[certificate.count - 1] ^= 1 }
+        let request = try PolicyRenewalRequest(scope: scope, account: retained.account, originalRosterCheckpoint: retained.originalRosterCheckpoint,
+            originalCredential: certificate, originalRoster: retained.originalRoster, currentCredential: retained.currentCredential, currentRoster: retained.currentRoster)
+        let pin = try inputs.pin(renewal: false)
+        if mode == "stage-cancelled" { try owner.cancel() }
+        let stage = { try owner.stagePolicyRenewal(request: request, originalPin: pin, currentPin: pin,
+            approvals: inputs.read("independent-approvals", maximum: 8192), previous: inputs.policyDocument()) }
+        if mode == "stage" { return try independentPolicyStatus(stage()) }
+        let expected: Int32 = mode == "stage-corrupt-scope" ? 103 : mode == "stage-corrupt-certificate" ? 102 : 302
+        _ = try expectedEnrollmentFailure(expected, stage)
+        _ = try expectedEnrollmentFailure(expected == 302 ? 302 : 2) { try owner.status() }
+        return "stage-refused:\(expected)"
+    case "reconcile": return try independentPolicyStatus(owner.reconcilePolicyRenewal())
+    case "activate":
+        let device = try owner.activatePolicyRenewal()
+        try disposingEnrollmentDevice(device) {
+            try owner.close(); _ = try expectedEnrollmentFailure(2) { try owner.status() }
+            _ = try device.nextAccountOperation()
+        }
+        return "independent-device-active"
+    default: throw ProbeFailure.contract("unknown independent policy mode")
+    }
+}
+
+private func witnessedIndependentPolicyCommand(_ owner: ContinuityEnrollment, path: String,
+    inputs: EnrollmentInputs, mode: String) throws -> String {
+    func select() throws {
+        let targetPath = URL(fileURLWithPath: path).appendingPathComponent("independent-sdk").path
+        try owner.selectContinuedPolicy(path: targetPath, target: EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument())
+    }
+    func retained() throws -> IndependentPolicyProposal {
+        try IndependentPolicyProposal(retainedBytes: inputs.exact("independent-witness-proposal", count: 296))
+    }
+    switch mode {
+    case "request":
+        let operation = try PolicyRenewalID(bytes: inputs.exact("independent-operation", count: 32))
+        let request = try owner.witnessedPolicyRenewalRequest(operation: operation)
+        try inputs.publish("independent-request", IndependentRequestFixture.write(request))
+        return "request-saved"
+    case "prepare":
+        try select()
+        let previous = try inputs.policyDocument()
+        let proposal = try owner.prepareWitnessedPolicyRenewal(previous: previous)
+        try require(owner.prepareWitnessedPolicyRenewal(previous: previous) == proposal, "P retry changed original sealed target")
+        try inputs.publish("independent-witness-proposal", proposal.bytes)
+        return "proposal-saved"
+    case "recover", "recover-absent":
+        let result = try owner.recoverWitnessedPolicyRenewalPreparation()
+        if mode == "recover-absent" {
+            try require(result == nil, "unexpected local P preparation")
+            return "preparation-absent"
+        }
+        try require(result == retained(), "original P preparation changed")
+        return "preparation-exact"
+    case "progress":
+        let progress = try owner.witnessedPolicyRenewalProgress()
+        func record(_ phase: UInt32, _ proposal: IndependentPolicyProposal, _ target: PolicyCheckpoint, _ retired: Bool) throws -> String {
+            try require(proposal == retained(), "P progress changed original proposal")
+            return "\(phase)\n\(retired ? 1 : 0)\n\(target.version)\n\(renewalHex(target.digest))"
+        }
+        switch progress {
+        case .absent: return "0\n0\n0\n" + String(repeating: "0", count: 64)
+        case let .reserved(proposal, target): return try record(1, proposal, target, false)
+        case let .applied(proposal, target, retired): return try record(2, proposal, target, retired)
+        case let .closed(proposal, target, retired): return try record(3, proposal, target, retired)
+        }
+    default: break
+    }
+    try require(["commit", "commit-lost", "close", "close-lost", "reconcile", "reconcile-lost", "substitute", "cancelled"].contains(mode), "unknown witness P mode")
+    var bytes = try retained().bytes
+    if mode == "substitute" { bytes[295] ^= 1 }
+    let proposal = try IndependentPolicyProposal(retainedBytes: bytes)
+    if mode == "cancelled" { try owner.cancel() }
+    let expected: Int32 = mode == "substitute" ? 211 : mode == "cancelled" ? 302 : mode.hasSuffix("-lost") ? 218 : 0
+    let command: () throws -> IndependentPolicyState
+    if mode == "commit" || mode == "commit-lost" {
+        try select(); command = { try owner.commitWitnessedPolicyRenewal(proposal) }
+    } else if mode == "close" || mode == "close-lost" {
+        command = { try owner.closeWitnessedPolicyRenewal(proposal) }
+    } else {
+        command = { try owner.reconcileWitnessedPolicyRenewal(proposal) }
+    }
+    if expected != 0 {
+        _ = try expectedEnrollmentFailure(expected, command)
+        _ = try expectedEnrollmentFailure(expected == 302 ? 302 : 2) { try owner.status() }
+        return "witness-refused:\(expected)"
+    }
+    return "witness-state:\(try command().rawValue)"
 }

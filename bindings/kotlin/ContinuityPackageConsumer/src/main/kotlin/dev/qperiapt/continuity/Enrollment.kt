@@ -38,11 +38,16 @@ class AccountPin(val account: AccountID, root: ByteArray, family: ByteArray, val
     }
 }
 
-enum class EnrollmentPhase { PREPARING, REQUESTED, ACCEPTED, ACTIVATING, ACTIVE, REFRESHING }
+enum class EnrollmentPhase { PREPARING, REQUESTED, ACCEPTED, ACTIVATING, ACTIVE, REFRESHING, ROSTER_RESOLVED }
 data class RosterTransition(val previous: RosterCheckpoint, val next: RosterCheckpoint)
 /** Durable progress only. Active does not establish current operational authority. */
 data class EnrollmentStatus(val phase: EnrollmentPhase, val signing: SigningKeyID,
                             val journal: JournalID?, val refresh: RosterTransition?)
+/** Original-operation history only. A higher head preserves unknown past adoption. */
+enum class RosterRefreshOutcome { COMMITTED, EXPIRED_UNCOMMITTED, SUPERSEDED_UNCOMMITTED, SUPERSEDED_UNKNOWN }
+data class RosterRefreshResolution(val outcome: RosterRefreshOutcome, val journal: JournalID,
+    val previous: RosterCheckpoint, val target: RosterCheckpoint, val observed: RosterCheckpoint,
+    val observedAt: Counter64)
 internal data class EnrollmentPreparation(val intent: EnrollmentIntent, val action: SetupIntent)
 
 /** Original native registration. Explicit resume never selects identity recreation. */
@@ -78,6 +83,54 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     fun prepareStorage(): InstallationPreparation = reference.call { owner -> owner.call { ContinuityNative.enrollmentStorage(it) } }
     fun refreshRoster(previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin): EnrollmentStatus =
         reference.call { owner -> owner.call { ContinuityNative.enrollmentRefresh(it, previous, roster, pin) } }
+    /** Original metadata recovery without device transfer, runtime or private signer.
+     * After an admitted failure, close/resume and retry the same checkpoint pair. */
+    fun resolveRosterRefresh(previous: RosterCheckpoint, target: RosterCheckpoint): RosterRefreshResolution =
+        reference.call { owner -> owner.call { ContinuityNative.resolveRosterRefresh(it, previous, target) } }
+    /** Read-only exact scope and signed identity material; creates no reservation. */
+    fun policyRenewalRequest(operation: PolicyRenewalID): PolicyRenewalRequest =
+        reference.call { owner -> owner.call { ContinuityNative.policyRenewalRequest(it, operation) } }
+    /** Required-witness request; never falls back to the local profile. */
+    fun witnessedPolicyRenewalRequest(operation: PolicyRenewalID): PolicyRenewalRequest =
+        reference.call { owner -> owner.call { ContinuityNative.policyRenewalRequest(it, operation, witnessed = true) } }
+    /** Select current target first; independent approval is still required. */
+    fun prepareWitnessedPolicyRenewal(previous: PolicyDocument): IndependentPolicyProposal =
+        reference.call { owner -> owner.call { ContinuityNative.prepareWitnessedPolicyRenewal(it, previous) } }
+    /** Null means local absence only, never proof of no commit. */
+    fun recoverWitnessedPolicyRenewalPreparation(): IndependentPolicyProposal? =
+        reference.call { owner -> owner.call { ContinuityNative.recoverWitnessedPolicyRenewalPreparation(it) } }
+    /** Historical metadata, without current runtime, private signer or application TLS. */
+    fun witnessedPolicyRenewalProgress(): IndependentPolicyProgress =
+        reference.call { owner -> owner.call { ContinuityNative.witnessedPolicyRenewalProgress(it) } }
+    /** Exact independently approved target and current target authorization required. */
+    fun commitWitnessedPolicyRenewal(proposal: IndependentPolicyProposal): IndependentPolicyState =
+        reference.call { owner -> owner.call { ContinuityNative.independentPolicyCommand(it, proposal, "commit_witnessed_policy_renewal") } }
+    /** Original history is persisted before terminal ACK and cleanup. */
+    fun reconcileWitnessedPolicyRenewal(proposal: IndependentPolicyProposal): IndependentPolicyState =
+        reference.call { owner -> owner.call { ContinuityNative.independentPolicyCommand(it, proposal, "reconcile_witnessed_policy_renewal") } }
+    fun closeWitnessedPolicyRenewal(proposal: IndependentPolicyProposal): IndependentPolicyState =
+        reference.call { owner -> owner.call { ContinuityNative.independentPolicyCommand(it, proposal, "close_witnessed_policy_renewal") } }
+    fun policyRenewalStatus(): PolicyRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.policyRenewalStatus(it) } }
+    /** Select current target first. Retain/retry the original request after Pending. */
+    fun stagePolicyRenewal(request: PolicyRenewalRequest, originalPin: AccountPin, currentPin: AccountPin,
+        approvals: ByteArray, previous: PolicyDocument): PolicyRenewalStatus {
+        val copied = approvals.clone()
+        return reference.call { owner -> owner.call { ContinuityNative.stagePolicyRenewal(it, request, originalPin, currentPin, copied, previous) } }
+    }
+    fun pendingPolicyRenewalApproval(operation: PolicyRenewalID): PublicBytes =
+        reference.call { owner -> owner.call { ContinuityNative.pendingPolicyRenewalApproval(it, operation) } }
+    fun reconcilePolicyRenewal(): PolicyRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.policyRenewalStatus(it, reconcile = true) } }
+    /** Original historical fact only; no runtime/TLS/signer or Device transfer. */
+    fun resolvePolicyRenewal(operation: PolicyRenewalID, statement: PolicyRenewalStatementID, target: PolicyDocument): PolicyRenewalStatus =
+        reference.call { owner -> owner.call { ContinuityNative.resolvePolicyRenewal(it, operation, statement, target) } }
+    /** Transfers the same NativeOwner only after current native admission succeeds. */
+    fun activatePolicyRenewal(): ContinuityDevice = reference.transfer { owner ->
+        val device = ContinuityDevice.activated(owner)
+        owner.call { ContinuityNative.simple(it, "activate_policy_renewal") }
+        device
+    }
     /** Passive original-operation progress; requires neither live policy nor TLS files. */
     fun credentialRenewalStatus(): CredentialRenewalStatus =
         reference.call { owner -> owner.call { ContinuityNative.credentialRenewalStatus(it) } }

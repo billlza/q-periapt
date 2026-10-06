@@ -25,6 +25,7 @@ fn public_wrapper_rejects_request_substitution_and_pre_cancelled_stage() -> Resu
             "public wrapper failure replaced the original intent"
         );
     }
+    foreign_policy_case("local-refusals")?;
     eprintln!("PUBLIC_POLICY_REFUSALS scope=true signature=true cancellation=true typed_native_errors=true original_pending_unchanged=true");
     Ok(())
 }

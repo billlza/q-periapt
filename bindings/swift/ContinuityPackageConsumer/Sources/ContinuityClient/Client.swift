@@ -122,11 +122,11 @@ func waitMarker(_ path: String) throws {
             case "--session":
                 try require(existing == nil && args.count >= 4, "existing session arguments")
                 existing = try decode(args[1]); args.removeFirst(2)
-            case "--enrollment-parent", "--continued-enrollment-parent":
+            case "--enrollment-parent", "--continued-enrollment-parent", "--independent-policy-parent":
                 try require(enrollmentParent == nil && args.count >= 5, "enrollment parent arguments")
                 guard let number = UInt32(args[2]), String(number) == args[2],
                       let role = BootstrapRole(rawValue: number) else { throw ProbeFailure.contract("enrollment parent role") }
-                enrollmentParent = EnrollmentParentSelection(path: args[1], role: role, continued: option == "--continued-enrollment-parent")
+                enrollmentParent = EnrollmentParentSelection(path: args[1], role: role, policy: option == "--independent-policy-parent" ? .independent : option == "--continued-enrollment-parent" ? .joint : .original)
                 args.removeFirst(3)
             default: throw ProbeFailure.contract("unknown option")
             }

@@ -21,9 +21,14 @@ class KotlinConsumerTests(unittest.TestCase):
             ET.SubElement(suite, "testcase", name=case + "()", classname=suite.get("name"))
         return ET.tostring(suite)
 
+    def independent_reports(self, root):
+        for name, names in kotlin.INDEPENDENT_TEST_SUITES.items():
+            (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
+
     def test_renewal_suite_is_required_and_cannot_be_replaced_by_owner_success(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            self.independent_reports(root)
             owner = root / "TEST-dev.qperiapt.continuity.OwnerTests.xml"
             renewal = root / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml"
             owner.write_bytes(self.report("OwnerTests", kotlin.TEST_NAMES))
@@ -33,7 +38,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 31)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 45)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
@@ -44,6 +49,7 @@ class KotlinConsumerTests(unittest.TestCase):
     def test_policy_suite_is_required_with_exact_reports_and_case_names(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            self.independent_reports(root)
             for name, names in (("OwnerTests", kotlin.TEST_NAMES),
                                 ("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)):
                 (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
@@ -53,8 +59,8 @@ class KotlinConsumerTests(unittest.TestCase):
             good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
             policy.write_bytes(good)
             checked = kotlin.verify_test_reports(root)
-            self.assertEqual(checked["tests"], 31)
-            self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests"})
+            self.assertEqual(checked["tests"], 45)
+            self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests", *kotlin.INDEPENDENT_TEST_SUITES})
             self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
                 "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})
             for change in ("missing", "extra", "duplicate", "unrelated"):
@@ -77,6 +83,7 @@ class KotlinConsumerTests(unittest.TestCase):
     def test_policy_suite_rejects_failed_skipped_or_diagnostic_reports(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            self.independent_reports(root)
             for name, names in (("OwnerTests", kotlin.TEST_NAMES),
                                 ("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES),
                                 ("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)):

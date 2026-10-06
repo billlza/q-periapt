@@ -524,3 +524,57 @@ recovery across signed-TCP and mutual-TLS interruptions. C still performs the
 test's enrollment, P/R updates and individual-member closure. This evidence does
 not qualify Kotlin P/R update APIs, mutual-TLS pre-processing loss, Android
 Continuity persistence, physical devices or the final release.
+
+
+### Independent policy updates
+
+`PolicyRenewalID`, `PolicyRenewalScope` and `PolicyRenewalRequest` describe a
+policy-only operation, separately from credential renewal and joint G/T.
+Persist the original operation, complete request and exact approval bytes.
+`policyRenewalRequest` reads the local-profile request;
+`witnessedPolicyRenewalRequest` uses the explicitly configured original witness.
+The request includes signed identity material and independent expected scope;
+its public fields are not proof of user approval or current permission.
+
+On each resumed enrollment, select the independently pinned current target with
+`selectContinuedPolicy`, then call `stagePolicyRenewal` with the retained request,
+original/current account pins, both policy-root approvals and the previous policy
+document. Native staging re-verifies the actual predecessor, signatures and scope.
+For the local profile, `reconcilePolicyRenewal` completes the original pending
+transaction. `pendingPolicyRenewalApproval` returns its first saved signatures;
+retrying never replaces the original operation or approvals.
+
+For required witnesses, `prepareWitnessedPolicyRenewal` returns the complete
+296-byte `IndependentPolicyProposal` in the separate `QPPWNP01` domain. Retain it
+before requesting independent witness approval. Use that exact proposal with
+`commitWitnessedPolicyRenewal`, `reconcileWitnessedPolicyRenewal` or
+`closeWitnessedPolicyRenewal`. Commit requires current target authorization.
+Historical reconciliation still uses the original witness configuration and can
+operate without the current SDK store or application TLS inputs. It persists the
+original terminal before ACK and exact pending cleanup.
+
+`recoverWitnessedPolicyRenewalPreparation` reports only local presence or absence.
+`witnessedPolicyRenewalProgress` preserves Reserved, Applied, Closed and terminal
+retirement without acquiring a current runtime or private signing owner.
+Unavailable witness history never proves no commit. `resolvePolicyRenewal`
+returns the original local transaction's historical result. None of these result
+queries grants a device. `activatePolicyRenewal` transfers the same original
+owner only after native current-authority checks; after an admitted failure,
+close and explicitly resume the original enrollment with the retained identities.
+
+The installed-package collector requires ten real scenarios for each selected
+language/profile: local restart/retry, typed refusals, original TLS message
+recovery, TCP/TLS Applied and Closed, and three signed-TCP commit/ACK reply losses.
+Every successful run must include 117 policy dispatches and seven foreign
+transport calls. Registration and unrepresentable invalid raw-buffer controls
+remain C operations and are reported as such. This uses one shared native engine;
+TLS policy reply-loss, post-dispatch policy cancellation, physical process cuts,
+platform persistence and independent implementation/security review remain
+separate qualification gates. The roster-resolution types additionally decode
+historical outcomes, including SupersededUnknown; they do not yet qualify the
+separate required-witness roster and peer-roster update APIs.
+
+The Gradle test task tracks the selected native library file as an input.
+Replacing its contents at the same path reruns native-bound unit tests; an
+unchanged file can reuse a valid result. A library path alone is not sufficient
+qualification identity.

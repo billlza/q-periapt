@@ -88,7 +88,7 @@ public struct AccountPin: Sendable, Equatable {
 }
 
 public enum EnrollmentPhase: UInt32, Sendable {
-    case preparing = 1, requested = 2, accepted = 3, activating = 4, active = 5, refreshing = 6
+    case preparing = 1, requested = 2, accepted = 3, activating = 4, active = 5, refreshing = 6, rosterResolved = 7
 }
 /// Authenticated durable progress, not a live authorization or successful activation receipt.
 public struct EnrollmentStatus: Sendable, Equatable {
@@ -96,7 +96,7 @@ public struct EnrollmentStatus: Sendable, Equatable {
     public let signingID: SigningKeyID
     /// Absent only in Preparing and Requested.
     public let journal: JournalID?
-    /// Both checkpoints exist only in Refreshing.
+    /// Original checkpoint pair exists in Refreshing and RosterResolved.
     public let previous: RosterCheckpoint?
     public let next: RosterCheckpoint?
 }
@@ -113,7 +113,7 @@ func enrollmentStatus(_ raw: inout qpc_enrollment_status_v1) throws -> Enrollmen
     }
     func checkpoint(_ raw: inout qpc_roster_checkpoint_v1) throws -> RosterCheckpoint? {
         let bytes = withUnsafeBytes(of: &raw.digest) { Array($0) }
-        if phase != .refreshing {
+        if phase != .refreshing && phase != .rosterResolved {
             guard raw.version == 0, bytes.allSatisfy({ $0 == 0 }) else {
                 throw ContinuityBoundaryError.malformedOutput
             }
@@ -125,7 +125,7 @@ func enrollmentStatus(_ raw: inout qpc_enrollment_status_v1) throws -> Enrollmen
         return try RosterCheckpoint(version: raw.version, digest: bytes)
     }
     let previous = try checkpoint(&raw.previous), next = try checkpoint(&raw.next)
-    if phase == .refreshing {
+    if phase == .refreshing || phase == .rosterResolved {
         guard let previous, let next, next.version > previous.version else {
             throw ContinuityBoundaryError.malformedOutput
         }
@@ -206,6 +206,157 @@ public final class ContinuityEnrollment: Sendable {
                 try checked(qpc_enrollment_v1_status(handle, &raw, &error), &error)
                 return try enrollmentStatus(&raw)
             }
+        }
+    }
+    /// Resolve the original pair without granting a device or requiring a live
+    /// runtime/private signer. A higher actual head preserves unknown past adoption.
+    /// After an admitted failure, close/resume and retry this same pair.
+    public func resolveRosterRefresh(previous: RosterCheckpoint, target: RosterCheckpoint) throws -> RosterRefreshResolution {
+        try reference.call { native in
+            try native.call { handle in
+                var before = previous.native(), next = target.native()
+                var raw = qpc_roster_refresh_resolution_v1(), error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_resolve_roster_refresh(handle, &before, &next, &raw, &error), &error)
+                return try decodeRosterRefreshResolution(&raw)
+            }
+        }
+    }
+    /// Actual independent-policy scope and signed identities; this reserves nothing.
+    public func policyRenewalRequest(operation: PolicyRenewalID) throws -> PolicyRenewalRequest {
+        try independentPolicyRequest(operation) { qpc_enrollment_v1_policy_renewal_request($0, $1, $2, $3) }
+    }
+    /// Required-witness request from the original installation. No local fallback.
+    public func witnessedPolicyRenewalRequest(operation: PolicyRenewalID) throws -> PolicyRenewalRequest {
+        try independentPolicyRequest(operation) { qpc_enrollment_v1_witnessed_policy_renewal_request($0, $1, $2, $3) }
+    }
+    private func independentPolicyRequest(_ operation: PolicyRenewalID,
+        _ invoke: (UInt64, UnsafePointer<UInt8>?, UnsafeMutablePointer<qpc_policy_renewal_request_v1>,
+                   UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> PolicyRenewalRequest {
+        try reference.call { native in try native.call { handle in
+            // The C contract initializes the complete 33-KiB record only on
+            // success. Keep it off cooperative worker stacks and never read or
+            // deinitialize the untouched allocation after a failed native call.
+            let raw = UnsafeMutablePointer<qpc_policy_renewal_request_v1>.allocate(capacity: 1)
+            defer { raw.deallocate() }
+            var error = qpc_error_v1()
+            let code = operation.bytes.withUnsafeBufferPointer {
+                invoke(handle, $0.baseAddress, raw, &error)
+            }
+            defer { if code == QPC_OK { raw.deinitialize(count: 1) } }
+            try checked(code, &error); return try decodePolicyRenewalRequest(&raw.pointee)
+        } }
+    }
+    /// Select the current target first; repeated preparation retains the same
+    /// sealed target. The returned proposal still needs independent witness approval.
+    public func prepareWitnessedPolicyRenewal(previous: PolicyDocument) throws -> IndependentPolicyProposal {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_independent_policy_proposal_v1(), error = qpc_error_v1()
+            let code = previous.withNative { qpc_enrollment_v1_prepare_witnessed_policy_renewal(handle, $0, &raw, &error) }
+            try checked(code, &error); return try independentPolicyProposal(&raw)
+        } }
+    }
+    /// Local original descriptor only; nil is local absence, never proof of no commit.
+    public func recoverWitnessedPolicyRenewalPreparation() throws -> IndependentPolicyProposal? {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_independent_policy_preparation_v1(), error = qpc_error_v1()
+            try checked(qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation(handle, &raw, &error), &error)
+            return try independentPolicyPreparation(&raw)
+        } }
+    }
+    /// Historical metadata without current runtime, private signer or application TLS.
+    public func witnessedPolicyRenewalProgress() throws -> IndependentPolicyProgress {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_independent_policy_progress_v1(), error = qpc_error_v1()
+            try checked(qpc_enrollment_v1_witnessed_policy_renewal_progress(handle, &raw, &error), &error)
+            return try independentPolicyProgress(&raw)
+        } }
+    }
+    private func independentPolicyCommand(_ proposal: IndependentPolicyProposal,
+        _ invoke: (UInt64, UnsafePointer<qpc_independent_policy_proposal_v1>, UnsafeMutablePointer<UInt32>,
+                   UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> IndependentPolicyState {
+        try reference.call { native in try native.call { handle in
+            var raw = proposal.native(), observed: UInt32 = 0, error = qpc_error_v1()
+            try checked(invoke(handle, &raw, &observed, &error), &error)
+            guard let state = IndependentPolicyState(rawValue: observed) else { throw ContinuityBoundaryError.malformedOutput }
+            return state
+        } }
+    }
+    /// Commit exactly the independently approved target under current authorization.
+    public func commitWitnessedPolicyRenewal(_ proposal: IndependentPolicyProposal) throws -> IndependentPolicyState {
+        try independentPolicyCommand(proposal) { qpc_enrollment_v1_commit_witnessed_policy_renewal($0, $1, $2, $3) }
+    }
+    /// Recover the original disposition; persist its terminal before ACK/cleanup.
+    public func reconcileWitnessedPolicyRenewal(_ proposal: IndependentPolicyProposal) throws -> IndependentPolicyState {
+        try independentPolicyCommand(proposal) { qpc_enrollment_v1_reconcile_witnessed_policy_renewal($0, $1, $2, $3) }
+    }
+    /// Close only this original proposal; historical outcome grants no new authority.
+    public func closeWitnessedPolicyRenewal(_ proposal: IndependentPolicyProposal) throws -> IndependentPolicyState {
+        try independentPolicyCommand(proposal) { qpc_enrollment_v1_close_witnessed_policy_renewal($0, $1, $2, $3) }
+    }
+    private func independentPolicyStatus(_ invoke: (UInt64, UnsafeMutablePointer<qpc_policy_renewal_status_v1>,
+        UnsafeMutablePointer<qpc_error_v1>) throws -> Int32) throws -> PolicyRenewalStatus {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_policy_renewal_status_v1(), error = qpc_error_v1()
+            try checked(invoke(handle, &raw, &error), &error)
+            return try decodePolicyRenewalStatus(&raw)
+        } }
+    }
+    public func policyRenewalStatus() throws -> PolicyRenewalStatus {
+        try independentPolicyStatus { qpc_enrollment_v1_policy_renewal_status($0, $1, $2) }
+    }
+    /// Reuses a retained request after Pending or unknown result; never recreates it.
+    /// Select the independently pinned current target before staging or activation.
+    public func stagePolicyRenewal(request: PolicyRenewalRequest, originalPin: AccountPin, currentPin: AccountPin,
+        approvals: [UInt8], previous: PolicyDocument) throws -> PolicyRenewalStatus {
+        guard approvals.count == 7618 else { throw ContinuityBoundaryError.inputLength }
+        return try independentPolicyStatus { handle, status, error in
+            var raw = try request.native()
+            return originalPin.withNative { originalPin in currentPin.withNative { currentPin in
+                previous.withNative { previous in approvals.withUnsafeBufferPointer { approvals in
+                    qpc_enrollment_v1_stage_policy_renewal(handle, &raw, originalPin, currentPin,
+                        approvals.baseAddress, approvals.count, previous, status, error)
+                } }
+            } }
+        }
+    }
+    /// Exact first saved signatures of Pending, for the original operation only.
+    public func pendingPolicyRenewalApproval(operation: PolicyRenewalID) throws -> [UInt8] {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_public_record_v1(), error = qpc_error_v1()
+            let code = operation.bytes.withUnsafeBufferPointer {
+                qpc_enrollment_v1_pending_policy_renewal_approval(handle, $0.baseAddress, &raw, &error)
+            }
+            try checked(code, &error)
+            let bytes = try policyRecordBytes(&raw)
+            guard bytes.count == 7618 else { throw ContinuityBoundaryError.malformedOutput }
+            return bytes
+        } }
+    }
+    public func reconcilePolicyRenewal() throws -> PolicyRenewalStatus {
+        try independentPolicyStatus { qpc_enrollment_v1_reconcile_policy_renewal($0, $1, $2) }
+    }
+    /// Historical result only; no runtime selection, private signer, TLS or Device.
+    public func resolvePolicyRenewal(operation: PolicyRenewalID, statement: PolicyRenewalStatementID,
+        target: PolicyDocument) throws -> PolicyRenewalStatus {
+        try independentPolicyStatus { handle, status, error in
+            operation.bytes.withUnsafeBufferPointer { operation in statement.bytes.withUnsafeBufferPointer { statement in
+                target.withNative { target in
+                    qpc_enrollment_v1_resolve_policy_renewal(handle, operation.baseAddress, statement.baseAddress,
+                        target, status, error)
+                }
+            } }
+        }
+    }
+    /// Transfers the same controlled native owner only after current native checks.
+    /// Failed activation retains this wrapper for close and original-state resume.
+    public func activatePolicyRenewal() throws -> ContinuityDevice {
+        try reference.transfer { native in
+            let device = ContinuityDevice.activated(native)
+            try native.call { handle in
+                var error = qpc_error_v1()
+                try checked(qpc_enrollment_v1_activate_policy_renewal(handle, &error), &error)
+            }
+            return device
         }
     }
     /// Passive original-operation history; does not load SDK policy or TLS inputs.

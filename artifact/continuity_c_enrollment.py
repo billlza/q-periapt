@@ -440,6 +440,9 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
     from continuity_foreign_account_results import qualify as qualify_account_results
     result["account_reconciliation"] = qualify_account_results(
         output, profile, runtime, native, binary, run, language=language, variant=variant)
+    from continuity_foreign_policy import qualify as qualify_independent_policy
+    result["independent_policy"] = qualify_independent_policy(
+        output, profile, runtime, native, binary, run, language=language, variant=variant)
     from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
     binary, identity = binaries["enrollment_witness"]
     result["witnessed_credential_renewal"] = qualify_witnessed_renewal(

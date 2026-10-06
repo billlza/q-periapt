@@ -241,6 +241,11 @@ fn c_original_independent_policy_coordinates_applied_and_closed_over_tcp_and_mut
                 assert!(server.finish()?.is_empty());
             }
             witness.join()?;
+            foreign_policy_case(&format!(
+                "{}-{}",
+                if tls { "tls" } else { "tcp" },
+                if closed { "closed" } else { "applied" }
+            ))?;
         }
     }
     eprintln!("C_INDEPENDENT_WITNESS tcp_and_mutual_tls=true actual_applied_and_closed=true original_target=true complete_proposal=true metadata_without_runtime_signer_TLS=true");
@@ -339,6 +344,12 @@ fn c_original_policy_lost_commit_or_ack_recovers_without_current_runtime_or_appl
             .any(|r| !r.delivered && r.request.get(204) == Some(&(cut - 20))));
         drop(captured);
         witness.join()?;
+        foreign_policy_case(match (closed, cut) {
+            (false, 31) => "tcp-lost-commit",
+            (false, 34) => "tcp-lost-applied-ack",
+            (true, 34) => "tcp-lost-closed-ack",
+            _ => return Err("unexpected policy reply-loss case".into()),
+        })?;
     }
     eprintln!("C_INDEPENDENT_WITNESS_REPLY_LOSS scenarios=3 exact_pending=true same_target=true original_terminal_before_ACK=true no_runtime_or_application_TLS=true");
     Ok(())

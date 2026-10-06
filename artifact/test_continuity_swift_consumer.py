@@ -139,9 +139,23 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("PolicyContinuationTests", "testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout"),
                  ("PolicyContinuationTests", "testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode"),
                  ("PolicyContinuationTests", "testExtendedMetadataRejectsInvalidModeTVersionAndWidth"),
-                 ("PolicyContinuationTests", "testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding"))
+                 ("PolicyContinuationTests", "testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding"),
+                 ("PolicyRenewalTests", "testNativeLayoutsAndOffsetsAreExact"),
+                 ("PolicyRenewalTests", "testRetainedRequestRoundTripOwnsAllBytesAndPreservesUnsignedCounters"),
+                 ("PolicyRenewalTests", "testScopeRejectsContradictoryPredecessorAndNoncanonicalNativeOption"),
+                 ("PolicyRenewalTests", "testRequestRejectsDirtyTailEmptyFieldsAndImpossibleOriginalHead"),
+                 ("PolicyRenewalTests", "testAllStatusStatesRemainDistinctIncludingBothAbandonmentReasons"),
+                 ("PolicyRenewalTests", "testMalformedStatusesCannotBecomeCommittedOrNoCommit"),
+                 ("RosterResolutionTests", "testABIHasExplicitReservedFieldAndExactOffsets"),
+                 ("RosterResolutionTests", "testAllFourOutcomesAndUnsignedUnknownRemainDistinct"),
+                 ("RosterResolutionTests", "testMalformedOrContradictoryResultsNeverBecomeNoCommit"),
+                 ("RosterResolutionTests", "testResolvedEnrollmentPreservesOriginalPairAndRejectsUnknownPhase"),
+                 ("IndependentPolicyTests", "testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains"),
+                 ("IndependentPolicyTests", "testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags"),
+                 ("IndependentPolicyTests", "testProgressKeepsEveryTerminalAndRetirementStateDistinct"),
+                 ("IndependentPolicyTests", "testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 33 tests, with 0 failures").encode()
+                  + "\nExecuted 47 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

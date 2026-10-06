@@ -54,6 +54,9 @@ internal object ContinuityNative {
     private val enrollmentStatusLayout = struct("phase" to JAVA_INT, "signing" to array(32), "journal" to array(32),
         "previous" to checkpointLayout, "next" to checkpointLayout)
     private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
+    private val rosterResolutionLayout = struct("outcome" to JAVA_INT, "reserved" to JAVA_INT,
+        "journal" to array(32), "previous" to checkpointLayout, "target" to checkpointLayout,
+        "observed" to checkpointLayout, "observed_at" to JAVA_LONG)
     private val credentialRenewalStatusLayout = struct("phase" to JAVA_INT, "operation" to array(32),
         "statement" to array(32), "checkpoint" to checkpointLayout, "observed_at" to JAVA_LONG)
     private val credentialRenewalProposalLayout = struct("bytes" to array(296))
@@ -62,6 +65,21 @@ internal object ContinuityNative {
         "family" to array(32), "version" to JAVA_LONG, "digest" to array(32), "wire" to ADDRESS, "wire_length" to JAVA_LONG)
     private val policyRenewalProposalLayout = struct("length" to JAVA_INT, "bytes" to array(329))
     private val policyRenewalCancellationLayout = struct("length" to JAVA_INT, "bytes" to array(281))
+    private val policyRenewalScopeLayout = struct("operation" to array(32), "journal" to array(32),
+        "original_owner" to array(32), "original_credential" to array(32), "current_credential" to array(32),
+        "current_roster" to checkpointLayout, "original_policy" to checkpointLayout, "previous_policy" to checkpointLayout,
+        "previous_authorization" to array(32), "has_previous_authorization" to JAVA_INT, "reserved" to JAVA_INT)
+    private val policyRenewalRequestLayout = struct("scope" to policyRenewalScopeLayout, "account" to array(32),
+        "original_roster_checkpoint" to checkpointLayout, "original_credential" to enrollmentRequestLayout,
+        "original_roster" to enrollmentRequestLayout, "current_credential" to enrollmentRequestLayout, "current_roster" to enrollmentRequestLayout)
+    private val policyRenewalStatusLayout = struct("phase" to JAVA_INT, "reason" to JAVA_INT,
+        "operation" to array(32), "statement" to array(32), "target" to checkpointLayout,
+        "observed_roster" to checkpointLayout, "observed_at" to JAVA_LONG)
+    private val independentPolicyProposalLayout = struct("bytes" to array(296))
+    private val independentPolicyPreparationLayout = struct("present" to JAVA_INT, "reserved" to JAVA_INT,
+        "proposal" to independentPolicyProposalLayout)
+    private val independentPolicyProgressLayout = struct("phase" to JAVA_INT, "retired" to JAVA_INT,
+        "proposal" to independentPolicyProposalLayout, "target" to checkpointLayout)
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -116,6 +134,21 @@ internal object ContinuityNative {
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "witnessed_policy_renewal_request" to function("qpc_enrollment_v1_witnessed_policy_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "prepare_witnessed_policy_renewal" to function("qpc_enrollment_v1_prepare_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "recover_witnessed_policy_renewal_preparation" to function("qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation", JAVA_LONG, ADDRESS, ADDRESS),
+        "witnessed_policy_renewal_progress" to function("qpc_enrollment_v1_witnessed_policy_renewal_progress", JAVA_LONG, ADDRESS, ADDRESS),
+        "commit_witnessed_policy_renewal" to function("qpc_enrollment_v1_commit_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "reconcile_witnessed_policy_renewal" to function("qpc_enrollment_v1_reconcile_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "close_witnessed_policy_renewal" to function("qpc_enrollment_v1_close_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "policy_renewal_request" to function("qpc_enrollment_v1_policy_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "policy_renewal_status" to function("qpc_enrollment_v1_policy_renewal_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "stage_policy_renewal" to function("qpc_enrollment_v1_stage_policy_renewal", JAVA_LONG,
+            ADDRESS, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "pending_policy_renewal_approval" to function("qpc_enrollment_v1_pending_policy_renewal_approval", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "reconcile_policy_renewal" to function("qpc_enrollment_v1_reconcile_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS),
+        "resolve_policy_renewal" to function("qpc_enrollment_v1_resolve_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "activate_policy_renewal" to function("qpc_enrollment_v1_activate_policy_renewal", JAVA_LONG, ADDRESS),
         "select_continued_policy" to function("qpc_enrollment_v1_select_continued_policy", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
         "stage_policy_continuation" to function("qpc_enrollment_v1_stage_policy_continuation", JAVA_LONG, ADDRESS, JAVA_LONG,
             ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
@@ -134,6 +167,7 @@ internal object ContinuityNative {
         "enrollment_accept" to function("qpc_enrollment_v1_accept", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "enrollment_storage" to function("qpc_enrollment_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
         "enrollment_refresh" to function("qpc_enrollment_v1_refresh_roster", JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "resolve_roster_refresh" to function("qpc_enrollment_v1_resolve_roster_refresh", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "enrollment_activate" to function("qpc_enrollment_v1_activate", JAVA_LONG, ADDRESS),
         "credential_renewal_status" to function("qpc_enrollment_v1_credential_renewal_status", JAVA_LONG, ADDRESS, ADDRESS),
         "stage_credential_renewal" to function("qpc_enrollment_v1_stage_credential_renewal", JAVA_LONG, ADDRESS, JAVA_LONG,
@@ -378,11 +412,12 @@ internal object ContinuityNative {
             4 -> EnrollmentPhase.ACTIVATING
             5 -> EnrollmentPhase.ACTIVE
             6 -> EnrollmentPhase.REFRESHING
+            7 -> EnrollmentPhase.ROSTER_RESOLVED
             else -> malformed("native enrollment phase differs")
         }
         val hasJournal = journal.any { it != 0.toByte() }
         if (hasJournal != (phase >= 3)) malformed("native enrollment journal presence differs")
-        val transition = if (phase == 6) {
+        val transition = if (phase == 6 || phase == 7) {
             fun checkpoint(bytes: ByteArray): RosterCheckpoint {
                 val version = Counter64.fromBits(ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).long)
                 val digest = bytes.copyOfRange(8, 40)
@@ -436,6 +471,41 @@ internal object ContinuityNative {
                    roster.size.toLong(), encodeAccountPin(arena, pin), output)
             decodeEnrollmentStatus(Fields(output, enrollmentStatusLayout))
         }
+    }
+    @JvmSynthetic internal fun decodeRosterRefreshResolution(outcome: Int, reserved: Int, journal: ByteArray,
+        previous: ByteArray, target: ByteArray, observed: ByteArray, observedAt: Counter64): RosterRefreshResolution {
+        if (reserved != 0 || journal.size != 32 || journal.all { it == 0.toByte() } || observedAt == Counter64.ZERO) {
+            malformed("native roster resolution header differs")
+        }
+        val selected = when (outcome) {
+            1 -> RosterRefreshOutcome.COMMITTED
+            2 -> RosterRefreshOutcome.EXPIRED_UNCOMMITTED
+            3 -> RosterRefreshOutcome.SUPERSEDED_UNCOMMITTED
+            4 -> RosterRefreshOutcome.SUPERSEDED_UNKNOWN
+            else -> malformed("native roster resolution outcome differs")
+        }
+        val before = decodeRosterCheckpoint(previous)
+        val next = decodeRosterCheckpoint(target)
+        val actual = decodeRosterCheckpoint(observed)
+        if (before.version >= next.version || actual.version < before.version ||
+            (actual.version == before.version && actual != before)) malformed("native roster resolution order differs")
+        val valid = when (selected) {
+            RosterRefreshOutcome.COMMITTED -> actual == next
+            RosterRefreshOutcome.EXPIRED_UNCOMMITTED -> actual.version < next.version
+            RosterRefreshOutcome.SUPERSEDED_UNCOMMITTED -> actual.version == next.version && actual != next
+            RosterRefreshOutcome.SUPERSEDED_UNKNOWN -> actual.version > next.version
+        }
+        if (!valid) malformed("native roster resolution contradicts its observed head")
+        return RosterRefreshResolution(selected, JournalID(journal), before, next, actual, observedAt)
+    }
+    @JvmSynthetic internal fun resolveRosterRefresh(handle: Long, previous: RosterCheckpoint,
+        target: RosterCheckpoint): RosterRefreshResolution = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(rosterResolutionLayout)
+        invoke(arena, "resolve_roster_refresh", handle, encodeCheckpoint(arena, previous), encodeCheckpoint(arena, target), output)
+        val fields = Fields(output, rosterResolutionLayout)
+        decodeRosterRefreshResolution(fields.integer("outcome"), fields.integer("reserved"),
+            fields.bytes("journal", 32), fields.bytes("previous", 40), fields.bytes("target", 40),
+            fields.bytes("observed", 40), fields.counter("observed_at"))
     }
     private fun decodeRosterCheckpoint(bytes: ByteArray): RosterCheckpoint {
         if (bytes.size != 40) malformed("native roster checkpoint width differs")
@@ -539,6 +609,70 @@ internal object ContinuityNative {
         Arena.ofConfined().use { arena ->
             invoke(arena, "select_continued_policy", handle, arena.bytes(encoded), encoded.size.toLong(), encodePolicyDocument(arena, document))
         }
+    }
+    @JvmSynthetic internal fun policyRenewalRequest(handle: Long, operation: PolicyRenewalID, witnessed: Boolean = false): PolicyRenewalRequest =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(policyRenewalRequestLayout)
+            invoke(arena, if (witnessed) "witnessed_policy_renewal_request" else "policy_renewal_request", handle, arena.bytes(operation.encoded()), output)
+            PolicyRenewalCodec.decodeRequest(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun prepareWitnessedPolicyRenewal(handle: Long, previous: PolicyDocument): IndependentPolicyProposal =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(independentPolicyProposalLayout)
+            invoke(arena, "prepare_witnessed_policy_renewal", handle, encodePolicyDocument(arena, previous), output)
+            IndependentPolicyCodec.proposal(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun recoverWitnessedPolicyRenewalPreparation(handle: Long): IndependentPolicyProposal? =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(independentPolicyPreparationLayout)
+            invoke(arena, "recover_witnessed_policy_renewal_preparation", handle, output)
+            IndependentPolicyCodec.preparation(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun witnessedPolicyRenewalProgress(handle: Long): IndependentPolicyProgress =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(independentPolicyProgressLayout)
+            invoke(arena, "witnessed_policy_renewal_progress", handle, output)
+            IndependentPolicyCodec.progress(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun independentPolicyCommand(handle: Long, proposal: IndependentPolicyProposal, command: String): IndependentPolicyState =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(JAVA_INT)
+            val input = arena.allocate(independentPolicyProposalLayout)
+            input.copyFrom(MemorySegment.ofArray(proposal.encoded()))
+            invoke(arena, command, handle, input, output)
+            IndependentPolicyCodec.state(output.get(JAVA_INT, 0))
+        }
+    @JvmSynthetic internal fun policyRenewalStatus(handle: Long, reconcile: Boolean = false): PolicyRenewalStatus =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(policyRenewalStatusLayout)
+            invoke(arena, if (reconcile) "reconcile_policy_renewal" else "policy_renewal_status", handle, output)
+            PolicyRenewalCodec.decodeStatus(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun stagePolicyRenewal(handle: Long, request: PolicyRenewalRequest,
+        originalPin: AccountPin, currentPin: AccountPin, approvals: ByteArray, previous: PolicyDocument): PolicyRenewalStatus {
+        require(approvals.size == 7618) { "independent policy approvals must contain 7618 bytes" }
+        return Arena.ofConfined().use { arena ->
+            val input = arena.allocate(policyRenewalRequestLayout)
+            input.copyFrom(MemorySegment.ofArray(PolicyRenewalCodec.encodeRequest(request)))
+            val output = arena.allocate(policyRenewalStatusLayout)
+            invoke(arena, "stage_policy_renewal", handle, input, encodeAccountPin(arena, originalPin), encodeAccountPin(arena, currentPin),
+                arena.bytes(approvals), approvals.size.toLong(), encodePolicyDocument(arena, previous), output)
+            PolicyRenewalCodec.decodeStatus(output.toArray(JAVA_BYTE))
+        }
+    }
+    @JvmSynthetic internal fun pendingPolicyRenewalApproval(handle: Long, operation: PolicyRenewalID): PublicBytes =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(enrollmentRequestLayout)
+            invoke(arena, "pending_policy_renewal_approval", handle, arena.bytes(operation.encoded()), output)
+            val bytes = PolicyRenewalCodec.decodePublicRecord(output.toArray(JAVA_BYTE))
+            if (bytes.size != 7618) malformed("pending independent policy approval width differs")
+            PublicBytes(bytes)
+        }
+    @JvmSynthetic internal fun resolvePolicyRenewal(handle: Long, operation: PolicyRenewalID,
+        statement: PolicyRenewalStatementID, target: PolicyDocument): PolicyRenewalStatus = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(policyRenewalStatusLayout)
+        invoke(arena, "resolve_policy_renewal", handle, arena.bytes(operation.encoded()), arena.bytes(statement.encoded()), encodePolicyDocument(arena, target), output)
+        PolicyRenewalCodec.decodeStatus(output.toArray(JAVA_BYTE))
     }
     @JvmSynthetic internal fun stagePolicyContinuation(handle: Long, wire: ByteArray, pin: AccountPin,
         operation: CredentialRenewalID, approvals: ByteArray, previous: PolicyDocument,
@@ -1029,9 +1163,16 @@ internal object ContinuityNative {
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
         "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
+        "roster_resolution" to rosterResolutionLayout,
         "credential_renewal_status" to credentialRenewalStatusLayout,
         "credential_renewal_proposal" to credentialRenewalProposalLayout,
         "credential_renewal_cancellation" to credentialRenewalCancellationLayout,
+        "policy_renewal_scope" to policyRenewalScopeLayout,
+        "policy_renewal_request" to policyRenewalRequestLayout,
+        "policy_renewal_status" to policyRenewalStatusLayout,
+        "independent_policy_proposal" to independentPolicyProposalLayout,
+        "independent_policy_preparation" to independentPolicyPreparationLayout,
+        "independent_policy_progress" to independentPolicyProgressLayout,
         "policy_document" to policyDocumentLayout,
         "policy_renewal_proposal" to policyRenewalProposalLayout,
         "policy_renewal_cancellation" to policyRenewalCancellationLayout,
@@ -1043,6 +1184,15 @@ internal object ContinuityNative {
         "account_cleanup_header" to accountCleanupHeaderLayout, "account_cleanup_member" to accountCleanupMemberLayout,
         "account_reconciled_member" to accountReconciledMemberLayout, "account_reconciliation" to accountReconciliationLayout,
     ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
+    @JvmSynthetic internal fun policyRenewalOffsets(): Map<String, Long> = mapOf(
+        "scope_current_roster" to offset(policyRenewalScopeLayout, "current_roster"),
+        "scope_previous_authorization" to offset(policyRenewalScopeLayout, "previous_authorization"),
+        "scope_reserved" to offset(policyRenewalScopeLayout, "reserved"),
+        "request_original_checkpoint" to offset(policyRenewalRequestLayout, "original_roster_checkpoint"),
+        "request_original_credential" to offset(policyRenewalRequestLayout, "original_credential"),
+        "status_target" to offset(policyRenewalStatusLayout, "target"),
+        "status_observed_at" to offset(policyRenewalStatusLayout, "observed_at"),
+    )
     @JvmSynthetic internal fun policyDocumentOffsets(): Map<String, Long> =
         listOf("root", "root_length", "family", "version", "digest", "wire", "wire_length").associateWith {
             offset(policyDocumentLayout, it)
