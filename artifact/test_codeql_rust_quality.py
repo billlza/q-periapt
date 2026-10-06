@@ -1414,6 +1414,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_traffic.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_continuation.rs",
             "bindings/c/ContinuityPackageConsumer/tests/common/witness_tls_relay.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_cancellation_tests.rs",
             "research/continuity-identity-candidate/src/bootstrap_bundle/tests/historical.rs",
@@ -1451,13 +1452,19 @@ class CodeQLRustQualityTests(unittest.TestCase):
 
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
-        missing = "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs"
-        self.assertIn(missing, tracked)
-        for paths in ([p for p in tracked if p != missing], tracked + ["unexpected.rs"]):
+        required = (
+            "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+        changed = [[p for p in tracked if p != missing] for missing in required]
+        for paths in (*changed, tracked + ["unexpected.rs"]):
             raw = b"".join(p.encode() + b"\0" for p in paths)
             with self.subTest(paths=len(paths)), mock.patch.object(
                 codeql_rust_quality, "run_git_bytes", return_value=raw
-            ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "tracked Rust source count must be 397"):
+            ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError,
+                                     f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}"):
                 codeql_rust_quality.tracked_rust_paths()
 
     def test_unresolved_macro_details_are_strictly_typed_and_canonical(self) -> None:
