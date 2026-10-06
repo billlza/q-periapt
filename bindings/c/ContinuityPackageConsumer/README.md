@@ -1149,14 +1149,18 @@ request, then disconnects before calling the native witness store. It requires
 an unchanged witness image, recovery of the original sealed pending target with
 a fresh challenge for the same command, and complete original member accounting
 before retirement. No plaintext fallback is permitted. C, Swift and Kotlin run
-this same scenario through their selected clients; enrollment, local P/R and
-individual-member closure still use C. The TLS implementation is independent,
+this same scenario through their selected clients; enrollment and local P/R still use C. The selected client also persists and
+acknowledges each original member loss report. The TLS implementation is independent,
 while the signed witness protocol and storage engine remain shared. Native TLS
 server pre-processing interruption remains a separate gate.
 
-The foreign account-result workload selects a Swift or Kotlin executable only
-for complete member-result reads and final metadata retirement. Enrollment,
-policy/roster updates and individual-member closure still use the C client.
+The foreign account-recovery workload selects one Swift or Kotlin executable
+for peer-roster admission/interruption, each member's loss-report persistence
+and acknowledgement, complete member-result reads and final metadata retirement.
+Enrollment and local policy/roster updates still use the C client. Each language
+run requires 36 completed member-closure calls across the original nine scenarios;
+the optional OpenSSL pre-processing scenario requires four more. The exact
+session-specific report must be durably retained and read back before its ACK.
 Every language must preserve the exact original batch/session/message identities,
 distinguish authenticated consumption from unknown delivery, durably retain the
 full host result, and refuse early retirement in the two normal carrier cases,

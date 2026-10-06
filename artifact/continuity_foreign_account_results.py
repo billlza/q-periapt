@@ -1,8 +1,8 @@
 """Foreign complete-account result and retirement paths through the shared engine.
 
-C performs enrollment, local P/R and individual-member closure. The selected
-foreign client performs peer-roster admission, actual interruption and every
-complete result read and final metadata retirement; C retains raw input controls.
+C performs enrollment and local P/R. The selected foreign client performs peer
+roster admission, actual interruption, each durable member-loss report and ACK,
+every complete result read and final metadata retirement; C retains raw controls.
 """
 from pathlib import Path
 from collections import Counter
@@ -33,7 +33,7 @@ def peer_markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified peer roster language")
     return [f"FOREIGN_PEER_ROSTER language={language} carrier={carrier} cut={cut} "
             "exact_target=true original_parent=true complete_foreign_results=true "
-            "C_registration_P_R_member_closure_and_raw_controls=true" for carrier, cut in CASES]
+            "C_registration_P_R_and_raw_controls=true" for carrier, cut in CASES]
 
 
 def peer_native_marker(marker: str) -> str:
@@ -46,8 +46,21 @@ def markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified account reconciliation language")
     return [f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier={carrier} cut={cut} "
             "members=2 original_ids=true complete_results=true consumed_vs_unknown=true "
-            "durable_host_report=true retired=true C_setup_and_member_closure=true"
+            "durable_host_report=true retired=true foreign_member_closure=true C_setup=true"
             for carrier, cut in CASES]
+
+
+def member_markers(language: str) -> list[str]:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified member closure language")
+    return [f"FOREIGN_MEMBER_CLOSURE language={language} mode={mode} label={label}-{index}"
+            for mode, label in (("recover-member-freeze", "peer-roster-freeze"),
+                                ("recover-member-ack", "peer-roster-accounted")) for index in range(2)]
+
+
+def verify_member_calls(text: str, *, language: str, cases: int) -> None:
+    observed = re.findall(r"^FOREIGN_MEMBER_CLOSURE .*?$", text, re.MULTILINE)
+    sdk.require(Counter(observed) == Counter({row: cases for row in member_markers(language)}),
+                "foreign durable member closure dispatch differs")
 
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
@@ -56,6 +69,7 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     text = stderr.decode()
     observed = re.findall(r"^FOREIGN_ACCOUNT_RECONCILIATION .*?$", text, re.MULTILINE)
     expected = markers(language)
+    verify_member_calls(text, language=language, cases=len(CASES))
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign account reconciliation scope differs")
     peer = re.findall(r"^FOREIGN_PEER_ROSTER .*?$", text, re.MULTILINE)
@@ -80,9 +94,10 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES),
                 scope="foreign current peer-roster admission, pre-cancel and in-flight cancellation, "
                       "actual process cuts after observed witness processing, unknown-commit exact-target recovery, "
-                      "complete original account result observation and metadata retirement; "
-                      "C registration, local P/R updates, individual-member closure and raw input controls; shared native engine",
+                      "durable individual-member loss reports and ACKs, complete original account result observation and metadata retirement; "
+                      "C registration, local P/R updates and raw input controls; shared native engine",
                 foreign_peer_roster_calls=25, foreign_peer_roster_kills=2, C_raw_input_control_invocations=27,
+                foreign_member_closure_calls=36,
                 peer_roster_admission_qualified=True, local_P_R_updates_qualified=False,
                 TLS_preprocessing_loss_qualified=False, independent_protocol_implementation=False,
                 physical_platform_qualified=False, release_claim_eligible=False)

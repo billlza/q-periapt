@@ -15,9 +15,10 @@ private fun savedReport(files: FixtureRecords): ClosureReportID {
         record[prefix.size + 64] == 10.toByte()) { "saved report identity" }
     return ClosureReportID(decode(String(record, prefix.size, 64, Charsets.US_ASCII)))
 }
-private fun snapshot(owner: ContinuityRecoveryOwner, files: FixtureRecords, create: Boolean): ClosureReportID {
+private fun snapshot(owner: ContinuityRecoveryOwner, files: FixtureRecords, create: Boolean,
+                     role: SessionRole = SessionRole.RESPONDER, name: String = "c-loss-report"): ClosureReportID {
     val h = owner.begin()
-    check(h.role == SessionRole.RESPONDER && h.peerGeneration == Counter64.of(1) && h.epochCount <= 4 && h.reservedCount <= 4) {
+    check(h.role == role && h.peerGeneration == Counter64.of(1) && h.epochCount <= 4 && h.reservedCount <= 4) {
         "report outside fixture scope"
     }
     val lines = mutableListOf("QPC-C-LOSS/1", "report ${hex(h.report)}",
@@ -54,9 +55,27 @@ private fun snapshot(owner: ContinuityRecoveryOwner, files: FixtureRecords, crea
         refused(setOf(1)) { owner.skippedPosition(i, e.skippedCount) }
     }
     refused(setOf(1)) { owner.epochAt(h.epochCount) }
-    files.retain("c-loss-report", (lines.joinToString("\n") + "\n").toByteArray(), create)
+    files.retain(name, (lines.joinToString("\n") + "\n").toByteArray(), create)
     check(owner.status() == ClosureStatus.Pending(h.report)) { "pending report identity differs" }
     return h.report
+}
+private fun recoverMember(args: List<String>, witness: WitnessCarrier): String {
+    require(args.size == 3 && args[0] in setOf("recover-member-freeze", "recover-member-ack"))
+    val session = SessionID(decode(args[2]))
+    val freeze = args[0] == "recover-member-freeze"
+    val owner = ContinuityRecoveryOwner.open(args[1], witness)
+    val response = owner.use {
+        owner.select(session)
+        val report = snapshot(owner, FixtureRecords(Path.of(args[1])), freeze,
+            SessionRole.INITIATOR, "c-member-loss-" + hex(session))
+        if (!freeze) {
+            owner.acknowledge(report); owner.acknowledge(report)
+            check(owner.status() == ClosureStatus.Closed(report)) { "original accounted member outcome" }
+        }
+        if (freeze) "member-frozen" else "member-accounted"
+    }
+    refused(setOf(2)) { owner.cancel() }
+    return response
 }
 internal fun refusal(action: () -> Unit): Int {
     try { action() } catch (failure: ContinuityFailure) { return failure.code }
@@ -66,6 +85,7 @@ internal fun recover(args: List<String>, witness: WitnessCarrier): String {
     require(args.size in 2..3)
     val mode = args[0]; val path = args[1]
     if (mode.startsWith("recover-account-")) return recoverAccount(args, witness)
+    if (mode.startsWith("recover-member-")) return recoverMember(args, witness)
     if (mode == "recover-kind") {
         require(args.size == 2)
         checkNativeKindSeparation(path, witness)

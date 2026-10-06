@@ -80,14 +80,23 @@ impl Group {
             None => run(&self.c.path, label, args),
         }
     }
-    fn account_result(&self, label: &str, mode: &str, id: [u8; 32]) -> Result<String> {
+    fn account_recovery(&self, label: &str, mode: &str, id: [u8; 32]) -> Result<String> {
         let args = self.c.arguments(vec![
             mode.into(),
             self.c.path.as_os_str().into(),
             hex(&id).into(),
         ]);
         match &self.result_client {
-            Some(client) => run_client(&client.executable, &self.c.path, label, &args),
+            Some(client) => {
+                let output = run_client(&client.executable, &self.c.path, label, &args)?;
+                if matches!(mode, "recover-member-freeze" | "recover-member-ack") {
+                    eprintln!(
+                        "FOREIGN_MEMBER_CLOSURE language={} mode={mode} label={label}",
+                        client.language
+                    );
+                }
+                Ok(output)
+            }
             None => run(&self.c.path, label, &args),
         }
     }
@@ -698,11 +707,11 @@ fn account_scenario_with_cut(
         }
         w.join()?;
         if let Some(client) = &g.peer_roster_client {
-            eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_member_closure_and_raw_controls=true",
+            eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_and_raw_controls=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
         if let Some(client) = &g.result_client {
-            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true C_setup_and_member_closure=true",
+            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true C_setup=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
     }
@@ -791,25 +800,7 @@ fn revoked_recovery(
         }
         text
     };
-    let recover = |label: &str, mode: &str, id: [u8; 32]| {
-        if matches!(
-            mode,
-            "recover-account-results"
-                | "recover-account-settled-retire"
-                | "recover-account-retired"
-        ) {
-            return g.account_result(label, mode, id);
-        }
-        run(
-            &g.c.path,
-            label,
-            &g.c.arguments(vec![
-                mode.into(),
-                g.c.path.as_os_str().into(),
-                hex(&id).into(),
-            ]),
-        )
-    };
+    let recover = |label: &str, mode: &str, id: [u8; 32]| g.account_recovery(label, mode, id);
     let committed = if let Some(cut) = cut {
         interrupt_peer_update(g, witness, &public, batch, cut, &expected([2, 1]), tls)?
     } else {
@@ -885,6 +876,11 @@ fn revoked_recovery(
         )?;
         let report = String::from_utf8(report)?;
         assert!(report.starts_with("QPC-C-LOSS/1\nreport "));
+        assert!(report
+            .lines()
+            .nth(2)
+            .ok_or("member report header")?
+            .starts_with(&format!("header {} ", hex(&session))));
         if i == 0 {
             assert!(!report.contains("\nunconfirmed "));
         } else {
@@ -1140,7 +1136,7 @@ fn interrupt_peer_update(
         g.c.path.join("independent-sdk-held"),
     )?;
     assert_eq!(
-        g.account_result(
+        g.account_recovery(
             "peer-roster-historical-original-recovery",
             "recover-account-results",
             batch,

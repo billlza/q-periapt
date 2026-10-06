@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import continuity_peer_tls_preprocessing as peer
+from continuity_foreign_account_results import member_markers
 
 class PeerTlsPreprocessingTests(unittest.TestCase):
     @staticmethod
@@ -13,6 +14,7 @@ class PeerTlsPreprocessingTests(unittest.TestCase):
         rows = list(peer.MARKERS)
         if language != "C":
             rows += peer.foreign_markers(language)
+            rows += member_markers(language)
             rows += [f"{prefix} language={language} label={label}"
                      for prefix in ("FOREIGN_PEER_ROSTER_CALL", "FOREIGN_PEER_ROSTER_RAW_CONTROL") for label in sorted(peer.LABELS)]
         return stdout, ("\n".join(rows) + "\n").encode()

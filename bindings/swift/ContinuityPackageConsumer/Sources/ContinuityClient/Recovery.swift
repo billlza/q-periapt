@@ -81,9 +81,10 @@ private func savedReport(_ files: FixtureRecords) throws -> ClosureReportID {
     return try decode(text)
 }
 
-private func snapshot(_ owner: ContinuityRecoveryOwner, files: FixtureRecords, create: Bool) throws -> ClosureReportID {
+private func snapshot(_ owner: ContinuityRecoveryOwner, files: FixtureRecords, create: Bool,
+                      role: ClosureRole = .responder, name: String = "c-loss-report") throws -> ClosureReportID {
     let h = try owner.begin()
-    try require(h.role == .responder && h.peerGeneration == 1 && h.epochCount <= 4 && h.reservedCount <= 4, "report fixture scope")
+    try require(h.role == role && h.peerGeneration == 1 && h.epochCount <= 4 && h.reservedCount <= 4, "report fixture scope")
     var lines = ["QPC-C-LOSS/1", "report " + hex(h.report),
         "header \(hex(h.session)) \(hexBytes(h.context)) \(hexBytes(h.peerAccount)) \(hexBytes(h.peerDevice)) " +
         "\(h.role.rawValue) \(h.peerGeneration) \(h.confirmedEpoch) \(h.sendingEpoch) \(h.receivingEpoch) " +
@@ -119,9 +120,30 @@ private func snapshot(_ owner: ContinuityRecoveryOwner, files: FixtureRecords, c
         try failure([1]) { try owner.skippedPosition(epoch: i, at: p.skippedCount) }
     }
     try failure([1]) { try owner.epoch(at: h.epochCount) }
-    _ = try files.retain("c-loss-report", bytes: Array((lines.joined(separator: "\n") + "\n").utf8), create: create)
+    _ = try files.retain(name, bytes: Array((lines.joined(separator: "\n") + "\n").utf8), create: create)
     try require(owner.status() == .pending(h.report), "pending report identity")
     return h.report
+}
+
+private func recoverMember(_ args: [String], witness: WitnessCarrier) throws {
+    try require(args.count == 3 && ["recover-member-freeze", "recover-member-ack"].contains(args[0]),
+                "member recovery arguments")
+    let session: SessionID = try decode(args[2])
+    let freeze = args[0] == "recover-member-freeze"
+    let owner = try ContinuityRecoveryOwner.open(path: args[1], witness: witness)
+    let result = Result {
+        try owner.select(session: session)
+        let report = try snapshot(owner, files: FixtureRecords(path: args[1]), create: freeze,
+                                  role: .initiator, name: "c-member-loss-" + hex(session))
+        if !freeze {
+            try owner.acknowledge(report: report); try owner.acknowledge(report: report)
+            try require(owner.status() == .closed(report), "original accounted member outcome")
+        }
+        return freeze ? "member-frozen" : "member-accounted"
+    }
+    do { try closeRecovery(owner) }
+    catch { throw ProbeFailure.contract("member recovery close: \(error); operation: \(result)") }
+    try output(result.get())
 }
 
 func refusal(_ action: () throws -> Void) throws -> Int32 {
@@ -135,6 +157,10 @@ func recover(_ args: [String], witness: WitnessCarrier) throws {
     let mode = args[0], path = args[1]
     if mode.hasPrefix("recover-account-") {
         try recoverAccount(args, witness: witness)
+        return
+    }
+    if mode.hasPrefix("recover-member-") {
+        try recoverMember(args, witness: witness)
         return
     }
     if mode == "recover-kind" {

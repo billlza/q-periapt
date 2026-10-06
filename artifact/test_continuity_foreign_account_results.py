@@ -11,6 +11,7 @@ class ForeignAccountResultsTests(unittest.TestCase):
     @staticmethod
     def scope(language):
         rows = results.markers(language) + results.peer_markers(language)
+        rows += results.member_markers(language) * len(results.CASES)
         rows += [results.peer_native_marker(row) for row in results.MARKERS]
         rows += [f"FOREIGN_PEER_ROSTER_CALL language={language} label={label}"
                  for label, count in results.CALL_LABEL_COUNTS.items() for _ in range(count)]

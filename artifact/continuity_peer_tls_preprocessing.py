@@ -4,6 +4,7 @@ from collections import Counter
 import re
 import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_execution
+from continuity_foreign_account_results import verify_member_calls
 
 TEST = ("credential_renewal::independent_policy::witnessed::roster::traffic::fanout::"
         "c_peer_roster_tls_unprocessed_openssl_request_recovers_exact_target")
@@ -18,8 +19,8 @@ LABELS = frozenset(("peer-roster-pre-cancel", "peer-roster-interrupted", "peer-r
 
 def foreign_markers(language: str) -> list[str]:
     return [
-        f"FOREIGN_PEER_ROSTER language={language} carrier=mutual-TLS cut=Some(Unprocessed) exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_member_closure_and_raw_controls=true",
-        f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier=mutual-TLS cut=Some(Unprocessed) members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true C_setup_and_member_closure=true",
+        f"FOREIGN_PEER_ROSTER language={language} carrier=mutual-TLS cut=Some(Unprocessed) exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_and_raw_controls=true",
+        f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier=mutual-TLS cut=Some(Unprocessed) members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true C_setup=true",
     ]
 
 
@@ -30,6 +31,7 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     expected = list(MARKERS)
     if language != "C":
         expected += foreign_markers(language)
+        verify_member_calls(text, language=language, cases=1)
         for prefix in ("FOREIGN_PEER_ROSTER_CALL", "FOREIGN_PEER_ROSTER_RAW_CONTROL"):
             calls = re.findall(r"^" + prefix + r" language=(\S+) label=(\S+)$", text, re.MULTILINE)
             sdk.require(calls and all(row[0] == language for row in calls) and
@@ -45,8 +47,9 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
                 scope="actual TLS 1.3 X25519MLKEM768 client; complete certificate/subject-authorized frame "
                       "dropped before native witness handle, unchanged witness image, original pending target "
                       "recovered with a fresh signed challenge before full original account result accounting; "
-                      "C enrollment/local P/R/member closure and raw controls, shared native protocol engine",
+                      "selected caller durably accounts for each member, C enrollment/local P/R and raw controls, shared native protocol engine",
                 foreign_peer_calls=0 if language == "C" else 3,
+                foreign_member_closure_calls=0 if language == "C" else 4,
                 independent_TLS_endpoint=True, independent_protocol_implementation=False,
                 native_TLS_server_preprocessing_qualified=False, physical_platform_qualified=False,
                 release_claim_eligible=False)

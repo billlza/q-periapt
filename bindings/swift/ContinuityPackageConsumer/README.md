@@ -450,8 +450,8 @@ reading metadata grants no new traffic or ability to bypass an unsettled member.
 The consumer's `recover-account-results` and `recover-account-settled-retire`
 commands exercise this path after actual peer revocation and interruption over
 signed TCP and mutual TLS. The same Swift client now admits the peer roster and
-performs the interruption path described below. C retains enrollment, local P/R
-updates and individual-member closure. This combined workload does not qualify
+performs the interruption path described below. C retains enrollment and local P/R updates. The same foreign client
+now retains and acknowledges each original member loss report. This combined workload does not qualify
 local P/R updates, physical platforms or the final release. The separate optional
 OpenSSL workload below covers pre-processing loss over mutual TLS.
 
@@ -560,8 +560,10 @@ account recovery. It requires nine scenarios: ordinary revocation over signed
 TCP and mTLS; unprocessed TCP loss; processed reply loss, in-flight cancellation
 and an observed process kill over each carrier. Every language run includes
 25 completed foreign peer-control dispatches and two actual killed clients.
-C retains 27 raw input/output-buffer controls, enrollment, local P/R updates and
-individual-member closure. Foreign post-dispatch failures are checked as typed
+The same foreign client performs 36 member-closure calls: it writes and syncs
+each original loss report, reopens that exact report, then acknowledges the
+original report twice and checks its closed identity. C retains 27 raw
+input/output-buffer controls, enrollment and local P/R updates. Foreign post-dispatch failures are checked as typed
 errors; the separate C baseline checks untouched raw success outputs. This is
 one shared native protocol engine, not an independent implementation.
 
@@ -570,7 +572,7 @@ pinned independent OpenSSL endpoint. It authenticates the complete mutual-TLS
 request and drops it before the native witness store handles it. The witness
 image must remain unchanged. Recovery retains the original sealed target, uses
 a fresh challenge for the same command, and preserves all original account
-member results through retirement. This adds three foreign peer calls and
+member results through retirement. This adds three foreign peer calls, four foreign member-closure calls and
 three C raw-input controls. The collector requires the C baseline first and
 pins the endpoint executable and its OpenSSL dependencies. This qualifies the
 independent TLS endpoint; native TLS server pre-processing interruption,
