@@ -197,7 +197,7 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
                 &crate::installation::PolicyScope {
                     authority: &authority,
                     original_policy: policy.historical(),
-                    local_identity: (peer_device.account_id(), peer_device.device_id()),
+                    original_device: &peer_device,
                 },
                 &first,
                 first.operation(),
@@ -485,7 +485,7 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
                 &crate::installation::PolicyScope {
                     authority: &authority,
                     original_policy: policy.historical(),
-                    local_identity: (peer_device.account_id(), peer_device.device_id()),
+                    original_device: &peer_device,
                 },
                 &second,
                 second.operation(),

@@ -16,12 +16,20 @@ const POLICY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1"
 const FAMILY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1";
 
 mod continuation;
+mod renewal;
 #[cfg(all(test, unix))]
 pub(crate) use continuation::tests::Case as PolicyContinuationTestCase;
 pub use continuation::{
     HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials,
     PolicyContinuationApproval, PolicyContinuationMaterials, PolicyContinuationScope,
     PolicyContinuationStatement, VerifiedPolicyContinuation, MAX_POLICY_CONTINUATION_BYTES,
+};
+#[cfg(all(test, unix))]
+pub(crate) use renewal::tests::Case as PolicyRenewalTestCase;
+pub use renewal::{
+    HistoricalPolicyRenewal, HistoricalPolicyRenewalMaterials, PolicyRenewalApproval,
+    PolicyRenewalId, PolicyRenewalMaterials, PolicyRenewalScope, PolicyRenewalStatement,
+    VerifiedPolicyRenewal, MAX_POLICY_RENEWAL_BYTES,
 };
 
 /// Fixed candidate protocol profile, separate from the SDK KEM suite and ABI.

@@ -47,6 +47,12 @@ impl ReopenedPeer {
 }
 
 impl ServiceOwners {
+    fn local_identity(&self) -> ([u8; 32], [u8; 16]) {
+        (
+            self.original_device.account_id(),
+            self.original_device.device_id(),
+        )
+    }
     fn check_peer_binding(
         &mut self,
         context: &BootstrapContext,
@@ -58,7 +64,7 @@ impl ServiceOwners {
             Some(role),
         )?;
         if self.installation.status()? != InstallationStatus::Active
-            || self.local_identity
+            || self.local_identity()
                 != (
                     context.device(role).account_id(),
                     context.device(role).device_id(),
@@ -78,12 +84,50 @@ impl ServiceOwners {
 }
 
 impl DeviceService {
+    /// Install an independently authenticated monotonic roster for a known remote
+    /// account through this original active device service and its current policy.
+    /// The local account must use its original enrollment R transaction instead.
+    /// An unknown account, different root/family, rollback or same-version fork
+    /// is refused; a canonical identical head keeps the first retained bytes.
+    ///
+    /// The account authority and canonical target checkpoint identify this public
+    /// head update. Retain the original signed target on failure, reopen the same
+    /// owner and retry it with current authorization. I/O or witness failure may
+    /// follow commit and never proves no-commit. A later head refuses the old retry;
+    /// it does not report whether that older attempt once committed. Success means
+    /// the target is currently installed, not that this invocation first wrote it.
+    /// Revoked/expired local authority cannot use a cached identical target. No
+    /// session, batch or message authority is returned by this operation.
+    pub fn admit_peer_roster(
+        &mut self,
+        roster: &crate::VerifiedRoster,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if owners.installation.status()? != InstallationStatus::Active
+            || roster.account_id() == owners.local_identity().0
+        {
+            return Err(DurableError::Conflict);
+        }
+        owners.journal.install_peer_roster(
+            &PolicyScope {
+                authority: &owners.authority,
+                original_policy: &owners.original_policy,
+                original_device: &owners.original_device,
+            },
+            roster,
+            policy,
+            now,
+        )
+    }
+
     /// Atomically admit an independently verified peer credential renewal bound
     /// to this installation's original P0. The original operation must be retained
     /// by the caller. The same target is only an exact original-operation readback;
     /// another current head, observed revocation or conflicting operation fails.
     /// This cannot renew the local device or change its installation policy.
-    /// After joint continuation, current P1, the completed local T/G and current
+    /// After policy continuation, current P1, the exact completed authorization and current
     /// local membership are required; a previously live P0 is not a fallback.
     /// A root-signed same-account roster can revoke this local device. That
     /// observed checkpoint remains committed even if the final local admission
@@ -99,7 +143,7 @@ impl DeviceService {
         let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
         let successor = renewal.successor_device();
         if owners.installation.status()? != InstallationStatus::Active
-            || owners.local_identity == (successor.account_id(), successor.device_id())
+            || owners.local_identity() == (successor.account_id(), successor.device_id())
         {
             return Err(DurableError::Conflict);
         }
@@ -107,7 +151,7 @@ impl DeviceService {
             &PolicyScope {
                 authority: &owners.authority,
                 original_policy: &owners.original_policy,
-                local_identity: owners.local_identity,
+                original_device: &owners.original_device,
             },
             renewal,
             operation,
@@ -178,7 +222,7 @@ impl DeviceService {
         Self::finish_peer_reopen(owners, context, role, session, now)
     }
     /// Restore only the selected original established session under current P1
-    /// and the exact joint authorization already completed in this local journal.
+    /// and the exact joint or policy-only authorization completed in this journal.
     /// The caller independently verifies P1. No caller-supplied T or owner hash
     /// overrides durable state. New bootstrap/prekey permission is not granted.
     pub fn reopen_continued_peer(
@@ -246,7 +290,7 @@ impl ReopenedSession {
 impl DeviceInstallation {
     /// Open the same Active installation and original archive under completed
     /// policy continuation. Historical P0 authenticates storage; P1
-    /// admits current operations only after the journal checks exact T, session,
+    /// admits current operations only after the journal checks exact authorization, session,
     /// local role and current membership. No expired P0 runtime is reconstructed.
     /// Required protection additionally needs the original witness carrier and
     /// fresh exact G/T admission. This never falls back to local protection.
@@ -299,7 +343,7 @@ impl DeviceInstallation {
         let (journal, archives) = installation.open_children(key, device, policy, anchor)?;
         let mut service = DeviceService {
             active: Some(ServiceOwners {
-                local_identity: (device.account_id(), device.device_id()),
+                original_device: device.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
                 ),

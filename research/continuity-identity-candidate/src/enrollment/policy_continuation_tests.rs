@@ -726,10 +726,12 @@ fn committed_joint_receipt_cannot_be_reinterpreted_as_another_valid_policy_targe
     let h1 = t1.historical();
     let h2 = t2.historical();
     let target1 = crate::durable::LocalRenewalTarget {
+        policy_renewal: None,
         grant: &g,
         continuation: Some(&h1),
     };
     let target2 = crate::durable::LocalRenewalTarget {
+        policy_renewal: None,
         grant: &g,
         continuation: Some(&h2),
     };

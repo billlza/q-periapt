@@ -49,7 +49,11 @@ mod messages;
 mod prekeys;
 mod responder;
 mod rosters;
-pub(crate) use rosters::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
+pub use rosters::RosterRefreshMaterials;
+pub(crate) use rosters::{
+    LocalPolicyRenewalCommit, LocalPolicyRenewalResolution, LocalPolicyRenewalTarget,
+    LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget, RenewalRequestSnapshot,
+};
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};
@@ -58,10 +62,11 @@ pub(crate) use messages::{acknowledgement_epoch, message_epoch, message_route, D
 pub use messages::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, ClosedEpochResolution, CommittedPlaintext,
     EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId,
-    FanoutAbandonmentJournal, FanoutId, FanoutInput, FanoutMember, FanoutOutput, FanoutStatus,
-    FanoutTarget, MessageId, MessageStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight,
-    RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
-    SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId, SessionClosureJournal,
+    FanoutAbandonmentJournal, FanoutId, FanoutInput, FanoutMember, FanoutMemberState,
+    FanoutMemberStatus, FanoutOutput, FanoutReconciliation, FanoutStatus, FanoutTarget, MessageId,
+    MessageStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight, RekeyOfferStatus,
+    RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment, SendProgress,
+    SessionClosure, SessionClosureArchive, SessionClosureId, SessionClosureJournal,
     SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
@@ -468,6 +473,7 @@ impl DurableStatus {
     }
 }
 
+#[cfg_attr(test, derive(Eq, PartialEq))]
 struct Record {
     kind: RecordKind,
     context: [u8; 32],
@@ -512,6 +518,8 @@ struct Image {
     digest: [u8; 32],
     protection: Protection,
     records: BTreeMap<[u8; 32], Record>,
+    // Evidence held by the original enrollment owner; absent from encoded journal bytes.
+    enrollment_completion: Option<std::sync::Arc<crate::enrollment::EnrollmentPolicyCompletion>>,
 }
 impl Image {
     fn record_count(&self, kind: RecordKind) -> usize {
@@ -534,6 +542,7 @@ struct Active {
     id: [u8; 32],
     protection: Protection,
     anchor: Option<AttachedAnchor>,
+    enrollment_completion: Option<std::sync::Arc<crate::enrollment::EnrollmentPolicyCompletion>>,
 }
 
 /// Owned, encrypted macOS/Linux device journal with an exclusive database
@@ -591,6 +600,7 @@ impl DeviceJournal {
             digest: [0; 32],
             protection,
             records: rosters::genesis(device)?,
+            enrollment_completion: None,
         };
         let sealed = seal(&key, &image)?;
         let db = provision_private_database(path, |db| {
@@ -621,6 +631,7 @@ impl DeviceJournal {
                 id,
                 protection,
                 anchor: None,
+                enrollment_completion: None,
             }),
         })
     }
@@ -646,6 +657,7 @@ impl DeviceJournal {
                 id: image.id,
                 protection: image.protection,
                 anchor: None,
+                enrollment_completion: None,
             }),
         })
     }
@@ -689,9 +701,13 @@ impl DeviceJournal {
 
     fn image(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-        let result = load(&active.db, &active.key, active.owner).and_then(|image| {
+        let result = load(&active.db, &active.key, active.owner).and_then(|mut image| {
             if image.id == active.id && image.protection == active.protection {
                 active.check_current(&image)?;
+                if let Some(completion) = &active.enrollment_completion {
+                    rosters::check_enrollment_policy_completion(&image, completion)?;
+                    image.enrollment_completion = Some(std::sync::Arc::clone(completion));
+                }
                 Ok(image)
             } else {
                 Err(DurableError::Conflict)
@@ -1109,6 +1125,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         digest: image_hash(wire),
         protection,
         records,
+        enrollment_completion: None,
     };
     cancellation::validate_image(&image)?;
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;

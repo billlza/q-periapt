@@ -232,31 +232,72 @@ pub(super) fn get(image: &Image, id: FanoutId) -> Result<Batch, DurableError> {
         None => Err(DurableError::Conflict),
     }
 }
-pub(super) fn output(
-    state: &State,
-    member: &Member,
-    intent: &Zeroizing<[u8; 32]>,
-) -> Result<FanoutOutput, DurableError> {
+// Separate accounting metadata from dispatchable ciphertext. A missing result
+// means a live committed output still needs intent validation and release authority.
+fn settled_output(state: &State, member: &Member) -> Result<Option<FanoutOutput>, DurableError> {
     if state.session != member.session || state.role != member.role {
         return Err(DurableError::Corrupt);
     }
     let index = member.message.check(&state.session, state.role)?;
     let traffic = match state.traffic(member.message.epoch()?) {
-        Err(Error::Retired) => return Ok(FanoutOutput::HistoryRetired),
+        Err(Error::Retired) => return Ok(Some(FanoutOutput::HistoryRetired)),
         result => result?,
     };
     if index >= traffic.sent {
         return Err(DurableError::Corrupt);
     }
     if index < traffic.send_floor {
-        return Ok(FanoutOutput::Acknowledged);
+        return Ok(Some(FanoutOutput::Acknowledged));
     }
     if traffic.resolution.acknowledged() {
-        return Ok(FanoutOutput::DeliveryUnknown);
+        return Ok(Some(FanoutOutput::DeliveryUnknown));
     }
     if matches!(traffic.resolution, EpochResolutionStatus::Pending(_)) {
-        return Ok(FanoutOutput::ResolutionPending);
+        return Ok(Some(FanoutOutput::ResolutionPending));
     }
+    Ok(None)
+}
+
+// A retired batch has no intent bytes. Recheck only already settled outcomes;
+// do not manufacture an intent or recreate a dispatchable output.
+pub(super) fn check_settled_member(image: &Image, member: &Member) -> Result<(), DurableError> {
+    let record = image
+        .records
+        .get(&record_id(&member.session))
+        .ok_or(DurableError::Corrupt)?;
+    if matches!(
+        record.phase,
+        DurableStatus::MessagesClosed | DurableStatus::MessagesAbandoned
+    ) {
+        let terminal = Retired::decode(&record.payload)?;
+        if terminal.session != member.session || terminal.role != member.role {
+            return Err(DurableError::Conflict);
+        }
+        return match terminal.status(member.message) {
+            Ok(MessageStatus::Acknowledged | MessageStatus::DeliveryUnknown)
+            | Err(Error::Retired) => Ok(()),
+            _ => Err(DurableError::Conflict),
+        };
+    }
+    match settled_output(&State::decode(&record.payload)?, member)? {
+        Some(
+            FanoutOutput::Acknowledged
+            | FanoutOutput::DeliveryUnknown
+            | FanoutOutput::HistoryRetired,
+        ) => Ok(()),
+        _ => Err(DurableError::Conflict),
+    }
+}
+
+pub(super) fn output(
+    state: &State,
+    member: &Member,
+    intent: &Zeroizing<[u8; 32]>,
+) -> Result<FanoutOutput, DurableError> {
+    if let Some(result) = settled_output(state, member)? {
+        return Ok(result);
+    }
+    let traffic = state.traffic(member.message.epoch()?)?;
     let saved = traffic
         .outgoing
         .get(&member.message)

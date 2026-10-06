@@ -7,12 +7,14 @@ use super::*;
 pub(crate) struct LocalRenewalTarget<'a> {
     pub(crate) grant: &'a VerifiedCredentialRenewal,
     pub(crate) continuation: Option<&'a crate::HistoricalPolicyContinuation>,
+    pub(crate) policy_renewal: Option<(&'a crate::HistoricalPolicyRenewal, &'a VerifiedDevice)>,
 }
 impl<'a> LocalRenewalTarget<'a> {
     pub(crate) fn credential(grant: &'a VerifiedCredentialRenewal) -> Self {
         Self {
             grant,
             continuation: None,
+            policy_renewal: None,
         }
     }
     pub(crate) fn receipt(&self) -> Result<LocalRenewalCommit, DurableError> {
@@ -30,6 +32,9 @@ impl<'a> LocalRenewalTarget<'a> {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         saved: &Stored,
     ) -> Result<(), DurableError> {
+        if saved.policy_renewal.is_some() && self.policy_renewal.is_none() {
+            return Err(DurableError::Suspended);
+        }
         let policy = policy.as_ref();
         let required = match image.protection {
             Protection::Local => None,
@@ -45,7 +50,15 @@ impl<'a> LocalRenewalTarget<'a> {
         {
             return Err(DurableError::Conflict);
         }
-        if let Some(t) = self.continuation.or(saved.policy_continuation.as_ref()) {
+        if let Some((approval, original)) = self.policy_renewal {
+            if self.continuation.is_some() || image.protection != Protection::Local {
+                return Err(DurableError::Conflict);
+            }
+            super::policy_renewal::check_credential_target(
+                image, saved, approval, original, self.grant,
+            )?;
+            approval.check_target(policy)?;
+        } else if let Some(t) = self.continuation.or(saved.policy_continuation.as_ref()) {
             if t.scope().journal.as_bytes() != &image.id
                 || t.scope().original_owner != image.owner
                 || t.scope().original_policy.digest() != authority.policy
@@ -60,6 +73,22 @@ impl<'a> LocalRenewalTarget<'a> {
         Ok(())
     }
     fn check_committed(&self, saved: &Stored) -> Result<(), DurableError> {
+        if let Some((approval, original)) = self.policy_renewal {
+            let retained = saved
+                .policy_renewal
+                .as_ref()
+                .ok_or(DurableError::Conflict)?;
+            let grant = retained
+                .carried_grant
+                .as_ref()
+                .ok_or(DurableError::Conflict)?;
+            approval.check_renewed_identity(original, grant)?;
+            if retained.approval_bytes() != approval.journal_bytes()
+                || grant.statement_digest() != self.grant.statement_digest()
+            {
+                return Err(DurableError::Conflict);
+            }
+        }
         if let Some(t) = self.continuation {
             if saved
                 .policy_continuation
@@ -72,6 +101,9 @@ impl<'a> LocalRenewalTarget<'a> {
         Ok(())
     }
     fn advance(&self, saved: Stored) -> Result<Stored, DurableError> {
+        if saved.policy_renewal.is_some() && self.policy_renewal.is_none() {
+            return Err(DurableError::Suspended);
+        }
         if let Some(t) = self.continuation {
             match &saved.policy_continuation {
                 None if t.scope().previous_authorization.is_none()
@@ -86,6 +118,16 @@ impl<'a> LocalRenewalTarget<'a> {
         }
         let mut updated =
             saved.advance_with_renewal(self.grant.successor_device().roster(), Some(self.grant))?;
+        if self.policy_renewal.is_some() {
+            updated
+                .policy_renewal
+                .as_mut()
+                .ok_or(DurableError::Conflict)?
+                .carried_grant = Some(VerifiedCredentialRenewal::from_journal(
+                self.grant.as_bytes(),
+                &updated.roster,
+            )?);
+        }
         if let Some(t) = self.continuation {
             updated.policy_continuation = Some(t.clone());
         }
@@ -182,7 +224,7 @@ impl DeviceJournal {
             &crate::installation::PolicyScope {
                 authority: &authority,
                 original_policy: policy.historical(),
-                local_identity: (original.account_id(), original.device_id()),
+                original_device: original,
             },
             &LocalRenewalTarget::credential(grant),
             policy,
@@ -212,7 +254,7 @@ impl DeviceJournal {
                 completed,
             )?;
             if saved.local_commit.as_ref() != completed
-                || scope.local_identity
+                || scope.local_identity()
                     != (image.local_account, grant.successor_device().device_id())
                 || scope.original_policy.checkpoint().digest() != scope.authority.policy
             {
@@ -253,21 +295,6 @@ impl DeviceJournal {
         })();
         self.close();
         result
-    }
-    fn local_renewal_state(
-        &mut self,
-        authority: &crate::RetainedInstallationAuthority,
-        grant: &VerifiedCredentialRenewal,
-        operation: CredentialRenewalId,
-        policy: &crate::VerifiedSessionPolicy,
-    ) -> Result<(Image, Stored, LocalRenewalCommit), DurableError> {
-        self.local_renewal_state_with_prior(
-            authority,
-            &LocalRenewalTarget::credential(grant),
-            operation,
-            policy,
-            None,
-        )
     }
     fn local_renewal_state_with_prior(
         &mut self,
@@ -329,8 +356,22 @@ impl DeviceJournal {
         grant: &VerifiedCredentialRenewal,
         policy: &crate::VerifiedSessionPolicy,
     ) -> Result<LocalRenewalResolution, DurableError> {
-        let (image, saved, receipt) =
-            self.local_renewal_state(authority, grant, grant.operation(), policy)?;
+        self.inspect_local_renewal_target(authority, &LocalRenewalTarget::credential(grant), policy)
+    }
+    pub(crate) fn inspect_local_renewal_target(
+        &mut self,
+        authority: &crate::RetainedInstallationAuthority,
+        target: &LocalRenewalTarget<'_>,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+    ) -> Result<LocalRenewalResolution, DurableError> {
+        let grant = target.grant;
+        let (image, saved, receipt) = self.local_renewal_state_with_prior(
+            authority,
+            target,
+            grant.operation(),
+            policy,
+            None,
+        )?;
         if saved.local_commit.is_some() {
             self.check_release(&image)?;
             return Ok(LocalRenewalResolution::Committed(receipt));

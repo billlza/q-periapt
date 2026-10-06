@@ -2,6 +2,8 @@
 use super::*;
 #[path = "policy_continuation_tests.rs"]
 mod policy_continuation;
+#[path = "policy_renewal_tests.rs"]
+mod policy_renewal;
 #[path = "renewal_tests.rs"]
 pub(super) mod renewal;
 #[path = "roster_tests.rs"]

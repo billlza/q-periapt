@@ -5,7 +5,7 @@ use crate::{PolicyContinuationMaterials, VerifiedCredentialRenewal, VerifiedPoli
 #[path = "witness_policy_cancellation_tests.rs"]
 mod policy_cancellation;
 #[path = "witness_policy_session_tests.rs"]
-mod sessions;
+pub(super) mod sessions;
 
 fn prepare_policy(
     f: &Fixture,

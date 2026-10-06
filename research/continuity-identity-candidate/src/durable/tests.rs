@@ -519,6 +519,7 @@ pub(super) fn fault_store(
                 id: image.id,
                 protection: image.protection,
                 anchor: None,
+                enrollment_completion: None,
             }),
         },
         remaining,
@@ -1232,4 +1233,21 @@ impl DeviceJournal {
             digest: image.digest,
         }
     }
+}
+
+// Move the exact existing journal owners onto the test backend. All identity,
+// anchor and original-enrollment completion evidence stays with that owner.
+pub(crate) fn fault_existing_journal(
+    journal: &mut DeviceJournal,
+    path: &Path,
+    after: bool,
+) -> (Arc<AtomicUsize>, Arc<AtomicUsize>) {
+    let active = journal.active.take().expect("existing journal");
+    drop(active.db);
+    let (db, remaining, count, _) = fault_database_path(path, after);
+    journal.active = Some(Active { db, ..active });
+    (remaining, count)
+}
+pub(crate) fn observe_bound_preparation(action: impl FnOnce() + 'static) {
+    super::write_intent::tests::on_bound_preparation(action);
 }

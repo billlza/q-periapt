@@ -358,15 +358,15 @@ fn intent_authentication_and_full_prior_digest_prevent_grafts_and_forked_writes(
 }
 
 thread_local! {
-    static CREDENTIAL_PREPARATION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    static BOUND_PREPARATION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
 }
-pub(in crate::durable) fn on_credential_preparation(action: impl FnOnce() + 'static) {
-    CREDENTIAL_PREPARATION_HOOK.with(|hook| {
+pub(in crate::durable) fn on_bound_preparation(action: impl FnOnce() + 'static) {
+    BOUND_PREPARATION_HOOK.with(|hook| {
         assert!(hook.borrow_mut().replace(Box::new(action)).is_none());
     });
 }
-pub(super) fn after_credential_preparation() {
-    CREDENTIAL_PREPARATION_HOOK.with(|hook| {
+pub(super) fn after_bound_preparation() {
+    BOUND_PREPARATION_HOOK.with(|hook| {
         if let Some(action) = hook.borrow_mut().take() {
             action();
         }
@@ -390,7 +390,8 @@ pub(super) fn after_intent(pending: &PendingWrite, image: &Image) {
     let Ok(phase) = std::env::var("QPERIAPT_WRITE_INTENT_CRASH_PHASE") else {
         return;
     };
-    let matches_renewal = phase == "credential-renewal" && pending.renewal.is_some();
+    let matches_renewal = phase == "credential-renewal"
+        && matches!(pending.binding, Some(BoundTransaction::Credential(_)));
     let matches_record = image
         .records
         .values()

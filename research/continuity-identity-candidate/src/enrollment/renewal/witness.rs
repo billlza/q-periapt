@@ -239,7 +239,7 @@ impl DeviceEnrollment {
     ) -> Result<AnchorClient, DurableError> {
         let policy = policy.as_ref();
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let original = self.original_device(&image, now)?;
             let Phase::Accepted {
                 admission,
@@ -365,7 +365,7 @@ impl DeviceEnrollment {
         now: u64,
         proposal: WitnessedCredentialIntent,
     ) -> Result<PersistedRenewalTerminal, DurableError> {
-        let image = self.image()?;
+        let image = self.image_without_policy_renewal()?;
         self.witness_scope(&image, policy, now)?;
         let coord = image
             .renewal
@@ -388,7 +388,7 @@ impl DeviceEnrollment {
                 .transpose()?,
         })
     }
-    fn witness_lease(
+    pub(in crate::enrollment) fn witness_lease(
         &self,
         original: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
@@ -431,6 +431,7 @@ impl DeviceEnrollment {
             Self::check_policy_scope(t, original, admission)?;
         }
         let target = LocalRenewalTarget {
+            policy_renewal: None,
             grant: &grant,
             continuation: continuation.as_ref(),
         };
@@ -512,7 +513,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let (original, id) = self.witness_scope(&image, policy, now)?;
             let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
             let coordination = renewal
@@ -574,7 +575,7 @@ impl DeviceEnrollment {
             }
             _ => return Err(DurableError::Conflict),
         }
-        let readback = self.image()?;
+        let readback = self.image_without_policy_renewal()?;
         self.witness_scope(&readback, policy, now)?;
         let saved = readback
             .renewal
@@ -609,7 +610,7 @@ impl DeviceEnrollment {
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let (original, id) = self.witness_scope(&image, original_policy, now)?;
             let grant = self.pending_grant(&image, &original, original_policy)?;
             let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
@@ -660,9 +661,10 @@ impl DeviceEnrollment {
                         &crate::installation::PolicyScope {
                             authority: &authority,
                             original_policy,
-                            local_identity: (original.account_id(), original.device_id()),
+                            original_device: &original,
                         },
                         &LocalRenewalTarget {
+                            policy_renewal: None,
                             grant: &grant,
                             continuation: continuation.as_ref(),
                         },
@@ -706,7 +708,7 @@ impl DeviceEnrollment {
     ) -> Result<crate::AnchorCredentialRenewalCancellation, DurableError> {
         let policy = policy.as_ref();
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let (original, id) = self.witness_scope(&image, policy, now)?;
             let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
             if let Some(coord) = renewal.witness.as_ref().and_then(|w| w.coordination) {
@@ -840,7 +842,7 @@ impl DeviceEnrollment {
         client: &mut AnchorClient,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let coord = image
                 .renewal
                 .as_ref()
@@ -909,7 +911,7 @@ impl DeviceEnrollment {
         client: &mut AnchorClient,
         action: RenewalAction<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image_without_policy_renewal()?;
         let (original, id) = self.witness_scope(&image, policy, now)?;
         client.check_device(&original)?;
         if Some(client.pin().binding()) != policy.anchor_requirement().binding() {
@@ -928,7 +930,7 @@ impl DeviceEnrollment {
                     return Err(DurableError::Conflict);
                 }
                 self.recover_witnessed_preparation(policy, now)?;
-                image = self.image()?;
+                image = self.image_without_policy_renewal()?;
             }
         }
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
@@ -981,6 +983,7 @@ impl DeviceEnrollment {
                 .map(|bytes| self.retained_policy(bytes))
                 .transpose()?;
             let target = LocalRenewalTarget {
+                policy_renewal: None,
                 grant: &grant,
                 continuation: continuation.as_ref(),
             };
@@ -1062,7 +1065,7 @@ impl DeviceEnrollment {
                     });
                     renewal.pending = None;
                     self.save(&image)?;
-                    image = self.image()?;
+                    image = self.image_without_policy_renewal()?;
                 }
             }
         }
@@ -1116,7 +1119,7 @@ impl DeviceEnrollment {
         now: u64,
         anchor: AnchorClient,
     ) -> Result<EnrolledDevice, DurableError> {
-        let image = self.image()?;
+        let image = self.image_without_policy_renewal()?;
         let (original, id) = self.witness_scope(&image, original_policy, now)?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Conflict)?;
         if renewal.pending.is_some()

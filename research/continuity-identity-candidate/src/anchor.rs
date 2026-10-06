@@ -9,6 +9,12 @@ use crate::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod roster_refresh;
+pub use roster_refresh::{
+    AnchorRosterRefreshProposal, AnchorRosterRefreshState, RosterRefreshId, RosterRefreshScope,
+};
+mod policy_renewal;
+pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
 pub use store::AnchorStore;
 mod transport;
@@ -535,7 +541,16 @@ impl AnchorCredentialRenewalCancellation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Command {
+    RosterCommit([u8; 32]),
+    RosterStatus([u8; 32]),
+    RosterClose([u8; 32]),
+    RosterAcknowledge([u8; 32]),
     Query,
+    PolicyCommit([u8; 32]),
+    PolicyStatus([u8; 32]),
+    PolicyClose([u8; 32]),
+    PolicyAcknowledge([u8; 32]),
+    AdmitPolicy([u8; 32], [u8; 32]),
     AdmitAuthority([u8; 32]),
     AdmitContinuation([u8; 32], [u8; 32], [u8; 32]),
     CredentialCommit([u8; 32]),
@@ -657,6 +672,52 @@ impl AnchorOperation {
     }
     fn encode(self, out: &mut Vec<u8>) {
         match self.0 {
+            Command::RosterCommit(binding) => {
+                out.push(16);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::RosterStatus(binding) => {
+                out.push(17);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::RosterClose(binding) => {
+                out.push(18);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::RosterAcknowledge(binding) => {
+                out.push(19);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::AdmitPolicy(authority, statement) => {
+                out.push(15);
+                out.extend_from_slice(&authority);
+                out.extend_from_slice(&statement);
+                out.extend_from_slice(&[0; 32]);
+            }
+            Command::PolicyCommit(binding) => {
+                out.push(11);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::PolicyStatus(binding) => {
+                out.push(12);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::PolicyClose(binding) => {
+                out.push(13);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
+            Command::PolicyAcknowledge(binding) => {
+                out.push(14);
+                out.extend_from_slice(&binding);
+                out.extend_from_slice(&[0; 64]);
+            }
             Command::AdmitContinuation(authority, credential, continuation) => {
                 out.push(10);
                 out.extend_from_slice(&authority);
@@ -695,6 +756,42 @@ impl AnchorOperation {
     }
     fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
         let [kind] = d.array()?;
+        if (16..=19).contains(&kind) {
+            let binding = d.array()?;
+            nonzero(&binding)?;
+            if d.array::<64>()? != [0; 64] {
+                return Err(Error::Encoding);
+            }
+            return match kind {
+                16 => Ok(Self(Command::RosterCommit(binding))),
+                17 => Ok(Self(Command::RosterStatus(binding))),
+                18 => Ok(Self(Command::RosterClose(binding))),
+                19 => Ok(Self(Command::RosterAcknowledge(binding))),
+                _ => Err(Error::Encoding),
+            };
+        }
+        if kind == 15 {
+            let authority = d.array()?;
+            let statement = d.array()?;
+            if d.array::<32>()? != [0; 32] {
+                return Err(Error::Encoding);
+            }
+            return Self::admit_policy_renewal(authority, statement);
+        }
+        if (11..=14).contains(&kind) {
+            let binding = d.array()?;
+            nonzero(&binding)?;
+            if d.array::<64>()? != [0; 64] {
+                return Err(Error::Encoding);
+            }
+            return match kind {
+                11 => Ok(Self(Command::PolicyCommit(binding))),
+                12 => Ok(Self(Command::PolicyStatus(binding))),
+                13 => Ok(Self(Command::PolicyClose(binding))),
+                14 => Ok(Self(Command::PolicyAcknowledge(binding))),
+                _ => Err(Error::Encoding),
+            };
+        }
         if kind == 10 {
             return Self::admit_continuation(d.array()?, d.array()?, d.array()?);
         }
@@ -734,6 +831,15 @@ impl AnchorOperation {
     fn next(self) -> Option<AnchorHead> {
         match self.0 {
             Command::Query
+            | Command::RosterCommit(_)
+            | Command::RosterStatus(_)
+            | Command::RosterClose(_)
+            | Command::RosterAcknowledge(_)
+            | Command::PolicyCommit(_)
+            | Command::PolicyStatus(_)
+            | Command::PolicyClose(_)
+            | Command::PolicyAcknowledge(_)
+            | Command::AdmitPolicy(..)
             | Command::AdmitAuthority(_)
             | Command::AdmitContinuation(..)
             | Command::CredentialCommit(_)
@@ -814,6 +920,16 @@ impl AnchorPin {
             9 => AnchorOutcome::CredentialClosed,
             10 => AnchorOutcome::CredentialUnavailable,
             11 => AnchorOutcome::CredentialAcknowledged,
+            12 => AnchorOutcome::PolicyPrepared,
+            13 => AnchorOutcome::PolicyApplied,
+            14 => AnchorOutcome::PolicyClosed,
+            15 => AnchorOutcome::PolicyUnavailable,
+            16 => AnchorOutcome::PolicyAcknowledged,
+            17 => AnchorOutcome::RosterPrepared,
+            18 => AnchorOutcome::RosterApplied,
+            19 => AnchorOutcome::RosterClosed,
+            20 => AnchorOutcome::RosterUnavailable,
+            21 => AnchorOutcome::RosterAcknowledged,
             _ => return Err(Error::Encoding),
         };
         let head = AnchorHead::decode(&mut d)?;
@@ -822,7 +938,43 @@ impl AnchorPin {
         match (request.operation.0, outcome) {
             (Command::Query, AnchorOutcome::Current) => {}
             (
-                Command::AdmitAuthority(_) | Command::AdmitContinuation(..),
+                Command::RosterStatus(_),
+                AnchorOutcome::RosterPrepared
+                | AnchorOutcome::RosterApplied
+                | AnchorOutcome::RosterClosed
+                | AnchorOutcome::RosterUnavailable,
+            ) => {}
+            (
+                Command::RosterCommit(_) | Command::RosterClose(_),
+                AnchorOutcome::RosterApplied
+                | AnchorOutcome::RosterClosed
+                | AnchorOutcome::RosterUnavailable,
+            ) => {}
+            (
+                Command::RosterAcknowledge(_),
+                AnchorOutcome::RosterAcknowledged | AnchorOutcome::RosterUnavailable,
+            ) => {}
+            (
+                Command::PolicyStatus(_),
+                AnchorOutcome::PolicyPrepared
+                | AnchorOutcome::PolicyApplied
+                | AnchorOutcome::PolicyClosed
+                | AnchorOutcome::PolicyUnavailable,
+            ) => {}
+            (
+                Command::PolicyCommit(_) | Command::PolicyClose(_),
+                AnchorOutcome::PolicyApplied
+                | AnchorOutcome::PolicyClosed
+                | AnchorOutcome::PolicyUnavailable,
+            ) => {}
+            (
+                Command::PolicyAcknowledge(_),
+                AnchorOutcome::PolicyAcknowledged | AnchorOutcome::PolicyUnavailable,
+            ) => {}
+            (
+                Command::AdmitAuthority(_)
+                | Command::AdmitContinuation(..)
+                | Command::AdmitPolicy(..),
                 AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
             ) => {}
             (
@@ -994,6 +1146,26 @@ pub enum AnchorOutcome {
     CredentialUnavailable = 10,
     /// Exact terminal was retired, or its last acknowledgement was retried.
     CredentialAcknowledged = 11,
+    /// Independently approved policy-only target is prepared, not committed.
+    PolicyPrepared = 12,
+    /// Exact journal head and independent policy authority committed atomically.
+    PolicyApplied = 13,
+    /// Exact policy-only target is permanently closed without application.
+    PolicyClosed = 14,
+    /// No exact policy-only history is retained; never infer no-commit.
+    PolicyUnavailable = 15,
+    /// Exact policy-only terminal was retired or its last ACK was retried.
+    PolicyAcknowledged = 16,
+    /// Exact roster/head target retained, not applied.
+    RosterPrepared = 17,
+    /// Exact head and roster authority applied together.
+    RosterApplied = 18,
+    /// Exact roster/head target permanently closed.
+    RosterClosed = 19,
+    /// No exact retained roster/head disposition; never infer no-commit.
+    RosterUnavailable = 20,
+    /// Exact roster/head terminal retired or its last ACK retried.
+    RosterAcknowledged = 21,
 }
 
 /// Exact joint-renewal disposition. Historical states confer no traffic authority.

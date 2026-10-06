@@ -484,7 +484,7 @@ impl DeviceInstallation {
         admit(device, policy, now)?;
         Ok(DeviceService {
             active: Some(ServiceOwners {
-                local_identity: (device.account_id(), device.device_id()),
+                original_device: device.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
                 ),
@@ -517,7 +517,7 @@ impl DeviceInstallation {
         journal.check_installation_state(original, policy, false)?;
         Ok(DeviceService {
             active: Some(ServiceOwners {
-                local_identity: (original.account_id(), original.device_id()),
+                original_device: original.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     original, policy,
                 ),
@@ -560,15 +560,23 @@ impl DeviceInstallation {
 }
 
 // Original verified installation metadata. This borrowed view is not current
-// permission; the journal must authenticate its current local T/G and roster.
+// permission; the journal must authenticate its adopted policy, credential and roster.
 pub(crate) struct PolicyScope<'a> {
     pub(crate) authority: &'a crate::RetainedInstallationAuthority,
     pub(crate) original_policy: &'a crate::HistoricalSessionPolicy,
-    pub(crate) local_identity: ([u8; 32], [u8; 16]),
+    pub(crate) original_device: &'a VerifiedDevice,
+}
+impl PolicyScope<'_> {
+    pub(crate) fn local_identity(&self) -> ([u8; 32], [u8; 16]) {
+        (
+            self.original_device.account_id(),
+            self.original_device.device_id(),
+        )
+    }
 }
 struct ServiceOwners {
     original_policy: crate::HistoricalSessionPolicy,
-    local_identity: ([u8; 32], [u8; 16]),
+    original_device: VerifiedDevice,
     authority: crate::RetainedInstallationAuthority,
     journal: DeviceJournal,
     archives: SessionArchiveStore,

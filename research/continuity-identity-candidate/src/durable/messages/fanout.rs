@@ -117,6 +117,42 @@ pub enum FanoutOutput {
     /// Input was reserved but never committed; the whole session is now terminal.
     ReservationAbandoned,
 }
+/// Read-only member disposition. No variant carries dispatchable ciphertext.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FanoutMemberState {
+    /// Ciphertext was committed, without authenticated consumption confirmation.
+    Committed,
+    /// Authenticated peer consumption was retained.
+    Acknowledged,
+    /// The original loss report still awaits host accounting.
+    ResolutionPending,
+    /// Host accounting acknowledged an unresolved delivery outcome.
+    DeliveryUnknown,
+    /// Earlier history was retired; acknowledgement and recorded loss cannot be distinguished.
+    HistoryRetired,
+    /// Reserved input was abandoned without committed ciphertext.
+    ReservationAbandoned,
+}
+/// Exact original member identity and retained metadata-only outcome.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FanoutMemberStatus {
+    /// Original credential-bound recipient device.
+    pub device: [u8; 16],
+    /// Original pairwise session.
+    pub session: [u8; 32],
+    /// Original message ID, never replaced during accounting.
+    pub message: MessageId,
+    /// Authenticated local disposition, not inferred delivery success.
+    pub state: FanoutMemberState,
+}
+/// Complete original batch reconciliation, never a caller-selected member subset.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FanoutReconciliation {
+    /// Original aggregate operation ID.
+    pub batch: FanoutId,
+    /// All original members in their canonical batch order.
+    pub members: Vec<FanoutMemberStatus>,
+}
 /// One explicitly identified member of a complete aggregate result.
 pub struct FanoutMember {
     /// Credential-bound recipient device identifier.

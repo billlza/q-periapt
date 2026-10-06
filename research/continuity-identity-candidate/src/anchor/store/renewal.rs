@@ -269,6 +269,8 @@ impl From<&AnchorCredentialRenewalCancellation> for RenewalScope {
 
 impl Entry {
     pub(super) fn check_renewal_state(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+        self.check_independent_policy(pin)?;
+        self.check_independent_roster(pin)?;
         if self.policy_floor == 1 || self.policy_floor == u64::MAX {
             return Err(DurableError::Corrupt);
         }
@@ -503,7 +505,9 @@ impl AnchorStore {
         policy: &HistoricalSessionPolicy,
     ) -> Result<(), DurableError> {
         let previous = grant.previous_device();
-        if entry.subject != proposal.subject
+        if entry.independent_policy.is_some()
+            || entry.independent_roster.is_some()
+            || entry.subject != proposal.subject
             || entry.head != proposal.expected
             || entry.device != previous.key
             || entry.device != grant.successor_device().key
@@ -545,6 +549,9 @@ impl AnchorStore {
         let id = proposal.subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
+        if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
+            return Err(DurableError::Conflict);
+        }
         match proposal.policy_continuation() {
             None => {
                 if continuation.is_some()
@@ -710,6 +717,9 @@ impl AnchorStore {
         let id = cancellation.subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
+        if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
+            return Err(DurableError::Conflict);
+        }
         let target = match continuation {
             None if cancellation.policy_continuation().is_none()
                 && entry.policy_authorization.is_none() =>

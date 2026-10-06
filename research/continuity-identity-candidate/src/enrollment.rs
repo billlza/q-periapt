@@ -23,10 +23,22 @@ const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_enr
 const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
+mod policy_renewal;
 mod renewal;
-pub use renewal::CredentialRenewalStatus;
+mod roster_refresh;
+mod roster_resolution;
+pub(crate) use policy_renewal::{EnrollmentPolicyCompletion, PersistedPolicyTerminal};
+use policy_renewal::{PolicyDeviceBinding, RetainedPolicyRenewal};
+pub use policy_renewal::{
+    PolicyRenewalAbandonment, PolicyRenewalRequest, PolicyRenewalStatus,
+    WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
+};
 use renewal::LocalRenewal;
 pub(crate) use renewal::PersistedRenewalTerminal;
+pub use renewal::{CredentialRenewalRequest, CredentialRenewalStatus};
+pub(crate) use roster_refresh::PersistedRosterTerminal;
+pub use roster_refresh::{WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress};
+pub use roster_resolution::{RosterRefreshOutcome, RosterRefreshResolution};
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -192,6 +204,9 @@ pub enum EnrollmentStatus {
         /// Exact independently admitted update target.
         next: RosterCheckpoint,
     },
+    /// The original refresh has a retained result, but the actual roster cannot
+    /// supply a valid snapshot for this credential. No owner may be released.
+    RosterResolved(RosterRefreshResolution),
 }
 struct Admission {
     certificate: Vec<u8>,
@@ -206,6 +221,7 @@ enum AdmissionPhase {
     Activating,
     Active,
     Refreshing { previous: RosterCheckpoint },
+    RosterResolved { observed: RosterCheckpoint },
 }
 enum Phase {
     Preparing,
@@ -220,6 +236,95 @@ struct Image {
     identity: SigningKeyId,
     phase: Phase,
     renewal: Option<LocalRenewal>,
+    policy_pending: Option<RetainedPolicyRenewal>,
+    policy_completed: Option<RetainedPolicyRenewal>,
+    policy_device_binding: PolicyDeviceBinding,
+    policy_resolution: Option<policy_renewal::RetainedPolicyResolution>,
+    roster_resolution: Option<roster_resolution::RetainedRosterResolution>,
+    policy_witness: Option<policy_renewal::WitnessPolicy>,
+    roster_witness: Option<roster_refresh::WitnessRoster>,
+}
+impl Image {
+    fn require_roster_retired(&self) -> Result<(), DurableError> {
+        if self.roster_witness.as_ref().is_some_and(|r| !r.retired()) {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
+    }
+
+    fn check_time_floor(&self, now: u64) -> Result<(), DurableError> {
+        if let Some(resolution) = &self.roster_resolution {
+            resolution.check_time(now)?;
+        }
+        if let Some(resolution) = &self.policy_resolution {
+            resolution.check_time(now)?;
+        }
+        if let Some(renewal) = &self.renewal {
+            renewal.policy_time_floor(now)?;
+        }
+        Ok(())
+    }
+    fn require_no_policy_renewal(&self) -> Result<(), DurableError> {
+        self.require_roster_retired()?;
+        if self.policy_pending.is_some() || self.policy_completed.is_some() {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
+    }
+    fn validate_policy_phase(&self) -> Result<(), DurableError> {
+        if let Some(r) = &self.roster_witness {
+            r.validate(self)?;
+        }
+        if let Some(witness) = &self.policy_witness {
+            witness.validate(self)?;
+        }
+        roster_resolution::validate_phase(self)?;
+        if let Some(resolution) = &self.policy_resolution {
+            resolution.validate(self)?;
+        }
+        if self.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
+            && self.renewal.is_none()
+        {
+            return Err(DurableError::Corrupt);
+        }
+        if self.policy_device_binding != PolicyDeviceBinding::Exact
+            && self.policy_completed.is_none()
+        {
+            return Err(DurableError::Corrupt);
+        }
+        let valid_phase = match self.phase {
+            Phase::Accepted {
+                stage: AdmissionPhase::Active,
+                ..
+            } => true,
+            Phase::Accepted {
+                stage: AdmissionPhase::Refreshing { .. } | AdmissionPhase::RosterResolved { .. },
+                ..
+            } => {
+                self.policy_device_binding != PolicyDeviceBinding::Exact
+                    && self.policy_completed.is_some()
+                    && self.policy_pending.is_none()
+                    && self
+                        .renewal
+                        .as_ref()
+                        .is_none_or(|r| !r.has_pending_credential())
+            }
+            _ => false,
+        };
+        if (self.policy_pending.is_some() || self.policy_completed.is_some())
+            && (!valid_phase
+                || self.renewal.as_ref().is_some_and(|r| {
+                    if self.policy_device_binding == PolicyDeviceBinding::CredentialRenewal {
+                        !r.permits_policy_credential(self.policy_pending.is_some())
+                    } else {
+                        !r.permits_policy_pending()
+                    }
+                }))
+        {
+            return Err(DurableError::Corrupt);
+        }
+        Ok(())
+    }
 }
 struct Active {
     database: Database,
@@ -254,6 +359,13 @@ impl DeviceEnrollment {
             identity: SigningKeyId::generate()?,
             phase: Phase::Preparing,
             renewal: None,
+            policy_pending: None,
+            policy_completed: None,
+            policy_device_binding: PolicyDeviceBinding::Exact,
+            policy_resolution: None,
+            roster_resolution: None,
+            policy_witness: None,
+            roster_witness: None,
         };
         let bytes = encode(&key, binding, &image)?;
         let database = provision_private_database(&paths.configuration, |database| {
@@ -294,7 +406,8 @@ impl DeviceEnrollment {
     }
     /// Read authenticated original progress without reviving expired authority.
     pub fn status(&mut self) -> Result<EnrollmentStatus, DurableError> {
-        Ok(match self.image()?.phase {
+        let image = self.image()?;
+        Ok(match image.phase {
             Phase::Preparing => EnrollmentStatus::Preparing,
             Phase::Requested(_) => EnrollmentStatus::Requested,
             Phase::Accepted {
@@ -308,6 +421,13 @@ impl DeviceEnrollment {
                     previous,
                     next: admission.checkpoint,
                 },
+                AdmissionPhase::RosterResolved { .. } => EnrollmentStatus::RosterResolved(
+                    image
+                        .roster_resolution
+                        .as_ref()
+                        .ok_or(DurableError::Corrupt)?
+                        .result(),
+                ),
             },
         })
     }
@@ -318,7 +438,24 @@ impl DeviceEnrollment {
     fn image(&mut self) -> Result<Image, DurableError> {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-            load(&active.database, &active.key, self.binding)
+            let image = load(&active.database, &active.key, self.binding)?;
+            self.validate_roster_resolution(&image)?;
+            self.validate_witness_roster(&image)?;
+            self.validate_policy_pending(&image)?;
+            Ok(image)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    // Existing credential/roster flows must not bypass an independent policy
+    // intent. Metadata reads use image() so a Pending can always be reopened.
+    fn image_without_policy_renewal(&mut self) -> Result<Image, DurableError> {
+        let result = (|| {
+            let image = self.image()?;
+            image.require_no_policy_renewal()?;
+            Ok(image)
         })();
         if result.is_err() {
             self.close();
@@ -405,7 +542,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<JournalIdentity, DurableError> {
         let result = (|| {
-            let mut image = self.image()?;
+            let mut image = self.image_without_policy_renewal()?;
             if image.renewal.is_some() {
                 return Err(DurableError::Conflict);
             }
@@ -459,6 +596,8 @@ impl DeviceEnrollment {
     ///
     /// Success reports durable registration progress, not an operational service:
     /// Refreshing requires `activate` to reconcile the original journal first.
+    /// After policy-only adoption, pass its current target policy and use
+    /// `activate_policy_renewal` to reconcile the same original installation.
     /// An exact retry preserves the original target bytes; a different pending
     /// target is refused. Errors close this owner. Reopen the original enrollment
     /// after an unknown commit; never use `accept` or provisioning as a fallback.
@@ -472,6 +611,14 @@ impl DeviceEnrollment {
     ) -> Result<EnrollmentStatus, DurableError> {
         let result = (|| {
             let mut image = self.image()?;
+            image.check_time_floor(now)?;
+            if image.roster_witness.is_some() {
+                return Err(DurableError::Conflict);
+            }
+            if image.policy_completed.is_some() {
+                return self.refresh_policy_roster(image, previous, roster, pin, policy, now);
+            }
+            image.require_no_policy_renewal()?;
             if image.renewal.is_some() {
                 return self.refresh_renewed_roster(image, previous, roster, pin, policy, now);
             }
@@ -485,7 +632,9 @@ impl DeviceEnrollment {
             };
             if !matches!(
                 *stage,
-                AdmissionPhase::Active | AdmissionPhase::Refreshing { .. }
+                AdmissionPhase::Active
+                    | AdmissionPhase::Refreshing { .. }
+                    | AdmissionPhase::RosterResolved { .. }
             ) {
                 return Err(Error::State.into());
             }
@@ -516,6 +665,12 @@ impl DeviceEnrollment {
                     *stage = AdmissionPhase::Refreshing { previous };
                     self.save(&image)?;
                 }
+                AdmissionPhase::RosterResolved { observed } if observed == previous => {
+                    admission.roster = roster.to_vec();
+                    admission.checkpoint = next;
+                    *stage = AdmissionPhase::Refreshing { previous };
+                    self.save(&image)?;
+                }
                 _ => return Err(DurableError::Conflict),
             }
             admit(&device, policy, now)?;
@@ -532,6 +687,9 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<VerifiedDevice, DurableError> {
+        image.check_time_floor(now)?;
+        image.require_reconciled_roster()?;
+        image.require_no_policy_renewal()?;
         if image.renewal.is_some() {
             return self.admitted_renewed(image, policy, now);
         }
@@ -606,7 +764,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<InstallationPreparation, DurableError> {
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             if !matches!(
                 image.phase,
                 Phase::Accepted {
@@ -637,7 +795,7 @@ impl DeviceEnrollment {
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
         let result = (|| {
-            let image = self.image()?;
+            let image = self.image_without_policy_renewal()?;
             let device = self.admitted(&image, policy, now)?;
             if policy.anchor_requirement().binding() != Some(pin.binding()) {
                 return Err(Error::Scope.into());
@@ -661,7 +819,7 @@ impl DeviceEnrollment {
         now: u64,
         anchor: Option<AnchorClient>,
     ) -> Result<EnrolledDevice, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image_without_policy_renewal()?;
         if image.renewal.is_some() {
             return self.activate_renewed(image, policy, now, anchor);
         }
@@ -791,8 +949,8 @@ fn take(d: &mut Decoder<'_>) -> Result<Vec<u8>, DurableError> {
     }
     Ok(d.take(length)?.to_vec())
 }
-fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = if image
+fn credential_history_tag(image: &Image) -> &'static [u8; 8] {
+    if image
         .renewal
         .as_ref()
         .is_some_and(LocalRenewal::policy_cancellation)
@@ -821,7 +979,42 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
     } else {
         b"QPENST01"
     }
+}
+fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>, DurableError> {
+    image.validate_policy_phase()?;
+    let history_tag = credential_history_tag(image);
+    let mut bytes = if image.policy_device_binding == PolicyDeviceBinding::CredentialRenewal {
+        b"QPENST12"
+    } else if image.policy_device_binding == PolicyDeviceBinding::MonotonicRoster {
+        b"QPENST11"
+    } else if image.policy_completed.is_some() {
+        b"QPENST10"
+    } else if image.policy_pending.is_some() {
+        b"QPENST09"
+    } else {
+        history_tag
+    }
     .to_vec();
+    if image.policy_resolution.is_some() {
+        let mut wrapper = b"QPENST13".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
+    if image.roster_resolution.is_some() {
+        let mut wrapper = b"QPENST14".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
+    if image.policy_witness.is_some() {
+        let mut wrapper = b"QPENST16".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
+    if image.roster_witness.is_some() {
+        let mut wrapper = b"QPENST17".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -840,6 +1033,7 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
                 AdmissionPhase::Activating => 3,
                 AdmissionPhase::Active => 4,
                 AdmissionPhase::Refreshing { .. } => 5,
+                AdmissionPhase::RosterResolved { .. } => 6,
             });
             field(&mut bytes, request)?;
             field(&mut bytes, &admission.certificate)?;
@@ -852,15 +1046,48 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
                 bytes.extend_from_slice(&previous.version().to_be_bytes());
                 bytes.extend_from_slice(&previous.digest());
             }
+            if let AdmissionPhase::RosterResolved { observed } = stage {
+                bytes.extend_from_slice(&observed.version().to_be_bytes());
+                bytes.extend_from_slice(&observed.digest());
+            }
         }
+    }
+    if image.policy_pending.is_some() || image.policy_completed.is_some() {
+        bytes.extend_from_slice(history_tag);
     }
     if let Some(renewal) = &image.renewal {
         renewal.encode(&mut bytes)?;
     }
+    if let Some(completed) = &image.policy_completed {
+        completed.encode(&mut bytes)?;
+        bytes.push(u8::from(image.policy_pending.is_some()));
+    }
+    if let Some(pending) = &image.policy_pending {
+        pending.encode(&mut bytes)?;
+    }
+    if let Some(resolution) = &image.policy_resolution {
+        resolution.encode(&mut bytes)?;
+    }
+    if let Some(resolution) = &image.roster_resolution {
+        resolution.encode(&mut bytes)?;
+    }
+    if let Some(witness) = &image.policy_witness {
+        witness.encode(&mut bytes)?;
+    }
+    if let Some(r) = &image.roster_witness {
+        r.encode(&mut bytes)?;
+    }
     let mut mac = auth(key)?;
     mac.update(&bytes);
     bytes.extend_from_slice(&mac.finalize().into_bytes());
-    let limit = if image.renewal.is_some() {
+    let limit = if image.renewal.is_some()
+        || image.policy_pending.is_some()
+        || image.policy_completed.is_some()
+        || image.policy_resolution.is_some()
+        || image.roster_resolution.is_some()
+        || image.policy_witness.is_some()
+        || image.roster_witness.is_some()
+    {
         MAX_RENEWAL_IMAGE
     } else {
         MAX_IMAGE
@@ -898,6 +1125,27 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
+    let has_roster_witness = tag == *b"QPENST17";
+    let tag = if has_roster_witness {
+        d.array::<8>()?
+    } else {
+        tag
+    };
+    let completion_metadata = tag == *b"QPENST16";
+    let has_policy_witness = completion_metadata || tag == *b"QPENST15";
+    let tag = if has_policy_witness {
+        d.array::<8>()?
+    } else {
+        tag
+    };
+    let has_roster_resolution = tag == *b"QPENST14";
+    let tag = if has_roster_resolution {
+        d.array::<8>()?
+    } else {
+        tag
+    };
+    let has_resolution = tag == *b"QPENST13";
+    let tag = if has_resolution { d.array::<8>()? } else { tag };
     if (tag != *b"QPENST01"
         && tag != *b"QPENST02"
         && tag != *b"QPENST03"
@@ -905,9 +1153,18 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         && tag != *b"QPENST05"
         && tag != *b"QPENST06"
         && tag != *b"QPENST07"
-        && tag != *b"QPENST08")
+        && tag != *b"QPENST08"
+        && tag != *b"QPENST09"
+        && tag != *b"QPENST10"
+        && tag != *b"QPENST11"
+        && tag != *b"QPENST12")
         || d.array::<32>()? != binding
-        || (tag == *b"QPENST01" && wire.len() > MAX_IMAGE)
+        || (!has_roster_witness
+            && !has_policy_witness
+            && !has_roster_resolution
+            && !has_resolution
+            && tag == *b"QPENST01"
+            && wire.len() > MAX_IMAGE)
     {
         return Err(DurableError::Conflict);
     }
@@ -915,7 +1172,7 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     let phase = match d.array::<1>()? {
         [0] => Phase::Preparing,
         [1] => Phase::Requested(take(&mut d)?),
-        [phase @ 2..=5] => {
+        [phase @ 2..=6] => {
             let request = take(&mut d)?;
             let certificate = take(&mut d)?;
             let roster = take(&mut d)?;
@@ -943,12 +1200,39 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
                         }
                         AdmissionPhase::Refreshing { previous }
                     }
+                    6 if has_roster_resolution => AdmissionPhase::RosterResolved {
+                        observed: RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?,
+                    },
                     _ => return Err(DurableError::Corrupt),
                 },
             }
         }
         _ => return Err(DurableError::Corrupt),
     };
+    let policy_device_binding = if tag == *b"QPENST12" {
+        PolicyDeviceBinding::CredentialRenewal
+    } else if tag == *b"QPENST11" {
+        PolicyDeviceBinding::MonotonicRoster
+    } else {
+        PolicyDeviceBinding::Exact
+    };
+    let policy_completion = [*b"QPENST10", *b"QPENST11", *b"QPENST12"].contains(&tag);
+    let policy_only = tag == *b"QPENST09" || policy_completion;
+    let tag = if policy_only { d.array::<8>()? } else { tag };
+    if ![
+        *b"QPENST01",
+        *b"QPENST02",
+        *b"QPENST03",
+        *b"QPENST04",
+        *b"QPENST05",
+        *b"QPENST06",
+        *b"QPENST07",
+        *b"QPENST08",
+    ]
+    .contains(&tag)
+    {
+        return Err(DurableError::Corrupt);
+    }
     let renewal = if tag == *b"QPENST02"
         || tag == *b"QPENST03"
         || tag == *b"QPENST04"
@@ -960,7 +1244,9 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         if !matches!(
             phase,
             Phase::Accepted {
-                stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
+                stage: AdmissionPhase::Active
+                    | AdmissionPhase::Refreshing { .. }
+                    | AdmissionPhase::RosterResolved { .. },
                 ..
             }
         ) {
@@ -978,12 +1264,63 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     } else {
         None
     };
+    let policy_completed = if policy_completion {
+        Some(RetainedPolicyRenewal::decode(&mut d)?)
+    } else {
+        None
+    };
+    let has_pending = if policy_completion {
+        match d.array::<1>()? {
+            [0] => false,
+            [1] => true,
+            _ => return Err(DurableError::Corrupt),
+        }
+    } else {
+        policy_only
+    };
+    let policy_pending = if has_pending {
+        Some(RetainedPolicyRenewal::decode(&mut d)?)
+    } else {
+        None
+    };
+    let policy_resolution = if has_resolution {
+        Some(policy_renewal::RetainedPolicyResolution::decode(&mut d)?)
+    } else {
+        None
+    };
+    let roster_resolution = if has_roster_resolution {
+        Some(roster_resolution::RetainedRosterResolution::decode(&mut d)?)
+    } else {
+        None
+    };
+    let policy_witness = if has_policy_witness {
+        Some(policy_renewal::WitnessPolicy::decode(
+            &mut d,
+            completion_metadata,
+        )?)
+    } else {
+        None
+    };
+    let roster_witness = if has_roster_witness {
+        Some(roster_refresh::WitnessRoster::decode(&mut d)?)
+    } else {
+        None
+    };
     d.finish()?;
-    Ok(Image {
+    let image = Image {
         identity,
         phase,
         renewal,
-    })
+        policy_pending,
+        policy_completed,
+        policy_device_binding,
+        policy_resolution,
+        roster_resolution,
+        policy_witness,
+        roster_witness,
+    };
+    image.validate_policy_phase()?;
+    Ok(image)
 }
 fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
     let tx = transaction(database)?;

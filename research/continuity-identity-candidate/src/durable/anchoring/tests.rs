@@ -1837,7 +1837,7 @@ mod credential_preparation {
         let measured = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let readback = Arc::clone(&measured);
         let persisted_count = Arc::clone(&count);
-        write_intent::tests::on_credential_preparation(move || {
+        write_intent::tests::on_bound_preparation(move || {
             readback.store(persisted_count.load(Ordering::SeqCst), Ordering::SeqCst);
         });
         prepare(&mut baseline, &grant).expect("measured reservation");
@@ -1985,7 +1985,7 @@ mod credential_preparation {
         let mut c = case();
         let grant = grant(&c);
         let policy_owner = Arc::clone(&c.peer.initiator);
-        write_intent::tests::on_credential_preparation(move || {
+        write_intent::tests::on_bound_preparation(move || {
             policy_owner
                 .current_policy()
                 .expect("fixture policy owner")
@@ -2315,3 +2315,6 @@ mod credential_preparation {
 
 #[path = "credential_recovery_tests.rs"]
 mod credential_recovery;
+
+#[path = "independent_policy_tests.rs"]
+mod independent_policy;

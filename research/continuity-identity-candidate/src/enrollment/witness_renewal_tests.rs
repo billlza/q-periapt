@@ -1929,3 +1929,6 @@ fn opaque_witness_target_never_replaces_the_exact_renewal_receipt() {
     );
     assert_eq!(disk(&f), before);
 }
+
+#[path = "witness_independent_policy_tests.rs"]
+mod independent_policy;

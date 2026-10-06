@@ -6,15 +6,15 @@ use crate::{
     DirectoryExpectation, ExpectedDevice, FanoutInput, FanoutTarget, InitiationId, ManifestContext,
 };
 #[path = "witness_policy_fanout_tests.rs"]
-mod fanout;
+pub(in crate::enrollment::tests::witness_renewal) mod fanout;
 
-struct Endpoint {
-    f: Fixture,
-    owner: EnrolledDevice,
-    certificate: Vec<u8>,
+pub(in crate::enrollment::tests::witness_renewal) struct Endpoint {
+    pub(in crate::enrollment::tests::witness_renewal) f: Fixture,
+    pub(in crate::enrollment::tests::witness_renewal) owner: EnrolledDevice,
+    pub(in crate::enrollment::tests::witness_renewal) certificate: Vec<u8>,
     pin: AccountPin,
 }
-fn endpoint(f: Fixture) -> Endpoint {
+pub(in crate::enrollment::tests::witness_renewal) fn endpoint(f: Fixture) -> Endpoint {
     let mut owner = open(&f.c);
     let certificate = match owner.image().expect("configuration").phase {
         Phase::Accepted { admission, .. } => Ok(admission.certificate),
@@ -39,7 +39,10 @@ fn endpoint(f: Fixture) -> Endpoint {
         pin,
     }
 }
-fn requirements<'a>(a: &'a Endpoint, b: &'a Endpoint) -> BootstrapRequirements<'a> {
+pub(in crate::enrollment::tests::witness_renewal) fn requirements<'a>(
+    a: &'a Endpoint,
+    b: &'a Endpoint,
+) -> BootstrapRequirements<'a> {
     BootstrapRequirements {
         initiator: ExpectedDevice::new(&a.pin, a.f.original.device_id(), a.f.original.generation())
             .expect("initiator"),
@@ -49,8 +52,13 @@ fn requirements<'a>(a: &'a Endpoint, b: &'a Endpoint) -> BootstrapRequirements<'
         directory: DirectoryExpectation::from_trusted_state([99; 32]).expect("directory"),
     }
 }
-fn bundle(a: &Endpoint, b: &mut Endpoint) -> BootstrapBundle {
+pub(in crate::enrollment::tests::witness_renewal) fn bundle(
+    a: &Endpoint,
+    b: &mut Endpoint,
+) -> BootstrapBundle {
     let (service, signer, device) = b.owner.parts().expect("original responder");
+    let validity = Validity::new(100, b.f.c.policy.validity().until().min(160))
+        .expect("fixture advertisement within original policy");
     let mut leaves = Vec::new();
     for (i, kind) in [
         LeafKind::SignedClassical,
@@ -72,7 +80,7 @@ fn bundle(a: &Endpoint, b: &mut Endpoint) -> BootstrapBundle {
                     PrekeyId::from_trusted_state([u8::try_from(i + 1).expect("ID"); 32])
                         .expect("ID"),
                     kind,
-                    Validity::new(100, 160).expect("interval"),
+                    validity,
                     150,
                 )
                 .expect("real owned prekey"),
@@ -86,7 +94,7 @@ fn bundle(a: &Endpoint, b: &mut Endpoint) -> BootstrapBundle {
                 b.f.c.policy.runtime.trusted_state().digest(),
                 crate::bootstrap_suite_digest(),
                 [99; 32],
-                Validity::new(100, 160).expect("interval"),
+                validity,
             )
             .expect("scope"),
             &leaves,

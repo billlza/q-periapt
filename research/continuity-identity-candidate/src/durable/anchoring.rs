@@ -192,7 +192,7 @@ impl Active {
 }
 
 impl DeviceJournal {
-    // Fresh G/T admission is an operational release fence. Historical queries,
+    // Fresh G/T or independent-P admission is an operational release fence. Historical queries,
     // terminal reconciliation and metadata cleanup deliberately keep check_release.
     pub(super) fn check_operational_release(
         &mut self,
@@ -441,6 +441,7 @@ impl DeviceJournal {
             id: image.id,
             protection: image.protection,
             anchor: None,
+            enrollment_completion: None,
         };
         active.attach(device, policy, client)?;
         if let Some(pending) = pending {

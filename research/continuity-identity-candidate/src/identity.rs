@@ -309,6 +309,25 @@ impl AccountPin {
         })
     }
 
+    /// Verify an exact signed identity snapshot at its historical validity overlap.
+    /// The account, root, family and checkpoint must be independently retained;
+    /// never choose this pin from the incoming materials being authenticated.
+    ///
+    /// This checks both signatures, credential identity, exact roster membership
+    /// and generation. Disjoint or merely touching validity intervals are refused.
+    /// No current time, runtime or private signer is needed. The result is history,
+    /// not current permission: operation boundaries must still recheck current
+    /// time, the actual journal head, policy and revocation. This does not reserve
+    /// an operation, authenticate a user or authorize issuing a replacement.
+    pub fn verify_historical_device(
+        &self,
+        certificate: &[u8],
+        roster: &[u8],
+    ) -> Result<VerifiedDevice, Error> {
+        let at = self.snapshot_start(certificate, roster)?;
+        self.verify_device(certificate, roster, at)
+    }
+
     /// Verify both signatures, the exact roster, membership, device generation and time.
     /// This result alone does not authorize bootstrap, plaintext release or prekey consumption.
     pub fn verify_device(
@@ -444,6 +463,9 @@ impl VerifiedRoster {
     pub(crate) fn check_time(&self, now: u64) -> Result<(), Error> {
         self.validity.check(now)
     }
+    pub(crate) fn validity(&self) -> Validity {
+        self.validity
+    }
     pub(crate) fn same_authority(&self, other: &Self) -> bool {
         self.account == other.account
             && self.family == other.family
@@ -558,6 +580,7 @@ pub(crate) fn authority_binding(
 ///
 /// The service must recheck `authority_binding()` at its eventual transaction fence.
 /// A retained value does not automatically track later revocation or time advancement.
+#[derive(Clone)]
 pub struct VerifiedDevice {
     pub(crate) authority_key: PublicKey,
     pub(crate) account: [u8; 32],

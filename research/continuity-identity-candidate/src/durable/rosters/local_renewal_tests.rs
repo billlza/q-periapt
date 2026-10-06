@@ -163,6 +163,7 @@ fn every_joint_journal_commit_and_ack_sync_cut_keeps_t_credential_and_receipt_at
         .expect("independent joint approval");
     let history = t.historical();
     let target = LocalRenewalTarget {
+        policy_renewal: None,
         grant: &c.grant,
         continuation: Some(&history),
     };

@@ -74,23 +74,33 @@ impl Binding {
         match codec::get(image, self.id) {
             Ok(batch) if metadata(&batch) == self.metadata => Ok(Some(batch)),
             Err(DurableError::Protocol(Error::Retired)) => {
-                // Only metadata retirement after whole-batch acknowledgement can
-                // remove this batch. Every exact member must remain terminal.
+                // Retirement preserves every original session/archive binding.
+                // Reserved abandonment retains one exact whole-batch report;
+                // committed members instead retain their separate settled facts.
                 let mut report = None;
+                let mut abandoned = 0;
                 for member in &self.members {
                     let record = image
                         .records
                         .get(&record_id(&member.session))
                         .ok_or(DurableError::Corrupt)?;
-                    let terminal = Retired::decode(&record.payload)?;
-                    if record.phase != DurableStatus::MessagesAbandoned
-                        || terminal.batch != Some(self.id)
-                        || terminal.pending != Some(member.message)
-                        || report.is_some_and(|saved| saved != terminal.report)
-                    {
-                        return Err(DurableError::Conflict);
+                    if record.phase == DurableStatus::MessagesAbandoned {
+                        let terminal = Retired::decode(&record.payload)?;
+                        if terminal.batch == Some(self.id) {
+                            if terminal.pending != Some(member.message)
+                                || report.is_some_and(|saved| saved != terminal.report)
+                            {
+                                return Err(DurableError::Conflict);
+                            }
+                            report = Some(terminal.report);
+                            abandoned += 1;
+                            continue;
+                        }
                     }
-                    report = Some(terminal.report);
+                    codec::check_settled_member(image, member)?;
+                }
+                if abandoned != 0 && abandoned != self.members.len() {
+                    return Err(DurableError::Conflict);
                 }
                 Ok(None)
             }
@@ -189,6 +199,7 @@ impl FanoutAbandonmentJournal {
             id: image.id,
             protection: image.protection,
             anchor: None,
+            enrollment_completion: None,
         };
         if let Some(client) = client {
             active.attach_retained_cleanup_subject(client)?;
@@ -260,6 +271,48 @@ impl FanoutAbandonmentJournal {
         let (_, batch) = self.current()?;
         Ok(batch.map_or(FanoutStatus::Retired, |batch| batch.status()))
     }
+    /// Read every original committed or accounted-abandoned member through the
+    /// retained batch/archive binding. This needs no current traffic authority
+    /// and releases no ciphertext. Reserved or unacknowledged abandonment uses
+    /// its complete loss-report path instead; retired metadata is explicit.
+    pub fn reconcile_members(&mut self) -> Result<FanoutReconciliation, DurableError> {
+        let (image, batch) = self.current()?;
+        let Some(batch) = batch else {
+            self.journal.check_release(&image)?;
+            return Err(Error::Retired.into());
+        };
+        if !matches!(
+            batch.state,
+            BatchState::Committed(_) | BatchState::Abandoned(_)
+        ) {
+            return Err(DurableError::Suspended);
+        }
+        let members = batch
+            .members
+            .iter()
+            .map(|member| {
+                let state = match codec::record_output(&image, &batch, member)? {
+                    FanoutOutput::Committed(_) => FanoutMemberState::Committed,
+                    FanoutOutput::Acknowledged => FanoutMemberState::Acknowledged,
+                    FanoutOutput::ResolutionPending => FanoutMemberState::ResolutionPending,
+                    FanoutOutput::DeliveryUnknown => FanoutMemberState::DeliveryUnknown,
+                    FanoutOutput::HistoryRetired => FanoutMemberState::HistoryRetired,
+                    FanoutOutput::ReservationAbandoned => FanoutMemberState::ReservationAbandoned,
+                };
+                Ok(FanoutMemberStatus {
+                    device: member.device,
+                    session: member.session,
+                    message: member.message,
+                    state,
+                })
+            })
+            .collect::<Result<Vec<_>, DurableError>>()?;
+        self.journal.check_release(&image)?;
+        Ok(FanoutReconciliation {
+            batch: batch.id,
+            members,
+        })
+    }
     /// Irreversibly freeze every member and return the complete immutable loss
     /// report. Committed batches cannot be reclassified as reserved abandonment.
     pub fn begin(&mut self) -> Result<FanoutAbandonment, DurableError> {
@@ -274,13 +327,17 @@ impl FanoutAbandonmentJournal {
         self.journal
             .acknowledge_fanout_cleanup(image, batch.ok_or(Error::Retired)?, report)
     }
-    /// Retire only metadata of this acknowledged abandoned batch. Every terminal
-    /// session, bootstrap/one-time claim and monotonic counter remains. An unknown
+    /// Retire only metadata once every original member is separately settled, or
+    /// the complete reserved abandonment has been acknowledged. Original sessions,
+    /// bootstrap/one-time claims and the monotonic counter remain. An unknown
     /// commit requires reopening; an authenticated Retired result proves retirement.
     pub fn retire_metadata(&mut self) -> Result<(), DurableError> {
         let (image, batch) = self.current()?;
         if let Some(batch) = batch {
-            if !matches!(batch.state, BatchState::Abandoned(_)) {
+            if !matches!(
+                batch.state,
+                BatchState::Committed(_) | BatchState::Abandoned(_)
+            ) {
                 return Err(DurableError::Suspended);
             }
             self.journal.retire_fanout_cleanup(image, batch)?;

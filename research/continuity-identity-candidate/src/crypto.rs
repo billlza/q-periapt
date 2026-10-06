@@ -41,6 +41,7 @@ pub(crate) enum Purpose {
     EnrollmentRequest = 14,
     CredentialRenewal = 15,
     PolicyContinuation = 16,
+    PolicyRenewal = 17,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

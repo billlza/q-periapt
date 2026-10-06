@@ -118,3 +118,160 @@ use this same path. Complete policy and witness-authority renewal,
 suspension records, release acknowledgements, cancellation and multi-device atomicity
 remain part of the full 0.2.0 contract. Local-only mode can still restore an older
 valid image; store identity alone is not a monotonic anchor.
+
+## Independent policy-only witnessed target
+
+`DeviceJournal::prepare_policy_renewal` re-verifies the original two-root approval
+and live target/current identity, compares the original journal's actual policy
+predecessor and roster, and queries the original witness head. It then seals one
+aggregate and reserves it in the same exclusive `pending` row. The journal closes
+on success or error. This method neither prepares nor commits the witness and
+returns no operational owner. An uncertain reservation must be inspected before
+another target is attempted.
+
+The separately typed `QPWINT06` format adds `PolicyRenewalId[32]` and policy
+statement digest `[32]` immediately after the 8-byte tag, then uses the existing
+store/owner/expected/next/length/target/MAC fields. Its fixed prefix is 220 bytes;
+the sealed target has the same existing bound. The decoder authenticates the
+whole intent and sealed target, verifies the exact independently typed P record,
+and preserves journal protection, local account and original identity. Ordinary,
+G/T and independent-P bindings are distinct enum variants. A G/T intent cannot be
+read as a P proposal, and no ordinary recovery path may apply either bound type.
+
+`inspect_policy_renewal_preparation` reads the exact retained proposal before or
+after local installation, with original trusted identity and historical P0. It
+sends nothing and never reseals. `None` describes local absence only.
+`recover_policy_renewal` sends only a fresh signed status query to the original
+pinned witness. Applied installs the exact saved ciphertext using the existing
+atomic target-write transaction. Prepared and Closed require the original head
+and perform no local write; Unavailable retains uncertainty. Missing, stale or
+substituted evidence is an error. Matching local target bytes alone do not create
+witness Applied evidence. The intent remains even after successful installation.
+
+These public journal preparation/recovery APIs do not acknowledge the witness,
+erase pending state, mark the P journal receipt acknowledged, or release a
+service/session. The [original enrollment coordinator](ENROLLMENT.md#required-witness-independent-policy-coordination)
+now persists and reads back its exact Applied/Closed terminal before passing a
+private typed capability to the journal cleanup boundary. That boundary checks
+the original head, approval, actual P predecessor/target and pending descriptor
+before ACK. Applied requires the exact target receipt still AwaitingEnrollment;
+Closed requires the actual unchanged predecessor. Cleanup removes only that
+pending row atomically and preserves the authenticated image byte for byte.
+
+A lost ACK reply or uncertain cleanup write requires the same durable terminal.
+Fresh Unavailable may finish that already-authorized cleanup under the monotonic
+witness assumption; it cannot establish a new terminal. An exact no-pending retry
+is idempotent. Configuration marks retirement only after cleanup readback. This
+does not itself authorize operational use. The original enrollment owner now
+retains a private completion capability bound to that exact P and original
+proposal. The journal's serialized AwaitingEnrollment phase stays unchanged;
+operational reads explicitly require the separately durable completion. A direct
+journal open has no completion capability. This avoids an ordinary Advance solely
+to acknowledge history after expiry, while every usable release still requires
+current policy/runtime, actual roster and fresh independent-P witness admission.
+A later P must use the original enrollment coordinator, which retains the exact
+previous completion when it opens the journal; a public journal open cannot
+acknowledge that history implicitly. The last completion survives the next P
+stage/close. Carrying actual G/T remains
+separate work. Local-only owner APIs still refuse required-witness P.
+
+The focused journal checks use a real anchored journal with an existing prekey,
+actual signatures, a real witness store, a lost commit reply, expired/closed
+runtime inputs, and exact sealed-byte comparisons. They cover four intent-commit
+sync faults, eight later database-close sync faults, and six target-installation
+sync faults. Calibration captures the intent boundary before database Drop:
+reservation uses two syncs, while successful owner teardown adds four in the
+observed redb build. Installation also has a pre-commit I/O boundary, whose
+original injected `Storage(Io)` is distinct from `CommitUncertain`.
+
+A Drop housekeeping fault after an already acknowledged immediate commit does
+not undo that commit; every such case must return a proposal that is still exact
+and durable on a real reopen. This check does not claim an error-returning close
+API. Separate enrollment checks cover terminal persistence before ACK, 16
+configuration sync faults and 10 cleanup sync faults with the original typed
+terminal. Calibration and injected cases use the same database open/close history,
+and every injection must actually fire. Eight new process kills cover Applied and
+Closed at four cross-store boundaries. Separate original-session checks cover
+operational release, actual traffic and rekey under independent P. Deployment
+storage guarantees, network/TLS, installed languages, G/T composition and the
+complete 0.2.0 release remain open.
+
+
+## Atomic roster target in the original journal
+
+`DeviceJournal::prepare_roster_refresh` takes one retained `RosterRefreshId` and
+`RosterRefreshMaterials`: original immutable credential/P0, the exact current
+policy/runtime and the independently root-approved same-credential target device
+and roster. The original required journal supplies the actual previous roster and
+current policy authorization. Completed independent P requires its private
+original-enrollment completion capability; ordinary metadata opening alone cannot
+invent that completion. Real local G/T composition is still refused.
+
+The previous roster may be expired: its signed historical membership identifies
+the actual predecessor but grants no current permission. Preparation admits the
+fresh target roster, unchanged credential and current policy/runtime at the given
+trusted time. It reads the fresh original witness head, advances the roster using
+the existing monotonic roster implementation, and seals one aggregate. Existing
+identity, policy approval and all non-roster records remain unchanged. It retains
+the exact target before returning its proposal and closes the journal on success
+or error. It neither prepares nor commits the witness. The surrounding original
+enrollment/service owner must retain its lease through this operation.
+
+The separately typed `QPWINT07` pending format adds the canonical 185-byte R scope
+before the existing store/owner/expected/next/length/target/MAC fields. Its fixed
+prefix is 341 bytes and the encrypted target retains its existing size limit.
+The same scope codec is shared with the unchanged 417-byte `QPRWNP01` descriptor.
+The original single pending slot arbitrates ordinary, G, P and R intents. Those
+bindings are explicit enum alternatives; another transaction kind cannot serve as
+R evidence, and ordinary recovery cannot apply any bound target.
+
+After an uncertain preparation return, `inspect_roster_refresh_preparation` reads
+the exact original proposal before or after target installation, without signing
+or resealing. `None` means local absence only. `recover_roster_refresh` checks that
+complete retained proposal and original witness/key separation before dispatch.
+It sends only a fresh RosterStatus (17). Exact Applied installs the original sealed
+bytes through the shared atomic apply kernel and retains pending. Prepared or
+Closed require the original old head; authentic local target bytes paired with
+these outcomes are a conflict. Unavailable never becomes Applied or NoCommit.
+Lost/stale/substituted replies are errors, not authorization.
+
+The native component checks use a real original enrollment, actual journal,
+existing generated prekey and real signed witness/roster approvals, under both P0
+and an adopted independent P. They cover lost commit and status replies, exact
+recovery after credential/policy expiry and runtime closure, changed-target/type
+refusal, current-input refusal, and preparation from an actual expired roster to
+a fresh root-approved target. Authenticated before/after comparison checks all
+non-roster records and the retained independent-P approval. A test-only replay of
+the authentic sealed target verifies that local ciphertext alone cannot invent a
+witness Applied outcome; it is not a production repair path.
+
+The fault matrix covers four reservation sync failures, eight later database-Drop
+sync failures and four target-installation failures. Every injection must fire,
+preserve its original typed I/O error where returned, and recover the same intent
+and ciphertext. A later destructor housekeeping failure cannot retract an already
+acknowledged immediate reservation; those cases require a successful real reopen
+of the exact returned proposal. This does not claim an error-returning close API.
+Calibration and fault cases use matching database open/close history.
+
+These methods do not retain an original-enrollment R terminal, ACK the witness,
+delete pending or release an operational roster owner/session. That coordinator
+remains the next integration step. New R process-cut, live network/TLS, foreign
+and installed-platform qualification remain open; prior P process cuts are
+separate evidence. The supported target roster retains the unchanged original
+credential; this is not an external lost-device revocation control plane.
+
+The original enrollment now constructs a private `PersistedRosterTerminal` only
+from authenticated durable readback. R retirement checks the complete proposal,
+original subject/protection, expected Applied/Closed head, actual roster and
+unchanged current P binding (including the retained original P completion). Only
+then can a fresh exact ACK (19) authorize removal of the original pending bytes.
+The final compare-and-remove transaction is shared with independent P retirement;
+G cancellation and its historical audits are not changed by this extraction.
+Unavailable supports cleanup only under this private already-persisted terminal,
+never target installation or a fabricated disposition. Unknown cleanup retains
+either the original exact pending or its atomic absence and retries the same R.
+The new R tests consume 16 enrollment-save sync failures and eight journal-cleanup
+sync failures, checking the original typed I/O source. Eight actual process kills
+reopen original enrollment, journal and witness databases after expiry without
+constructing a live runtime. These counts are distinct from the reservation and
+installation matrix above.

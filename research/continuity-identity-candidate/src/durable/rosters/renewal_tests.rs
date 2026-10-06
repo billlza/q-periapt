@@ -477,10 +477,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
             &crate::installation::PolicyScope {
                 authority: &authority,
                 original_policy: f.initiator.original_policy(),
-                local_identity: (
-                    f.initiator_device().account_id(),
-                    f.initiator_device().device_id(),
-                ),
+                original_device: f.initiator_device(),
             },
             &renewal,
             renewal.operation(),
@@ -505,10 +502,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
                     &crate::installation::PolicyScope {
                         authority: &authority,
                         original_policy: f.initiator.original_policy(),
-                        local_identity: (
-                            f.initiator_device().account_id(),
-                            f.initiator_device().device_id(),
-                        ),
+                        original_device: f.initiator_device(),
                     },
                     &renewal,
                     renewal.operation(),
@@ -544,10 +538,7 @@ fn every_peer_renewal_sync_cut_recovers_only_the_original_exact_operation() {
                     &crate::installation::PolicyScope {
                         authority: &authority,
                         original_policy: f.initiator.original_policy(),
-                        local_identity: (
-                            f.initiator_device().account_id(),
-                            f.initiator_device().device_id(),
-                        ),
+                        original_device: f.initiator_device(),
                     },
                     &renewal,
                     renewal.operation(),

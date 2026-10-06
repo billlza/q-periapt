@@ -283,6 +283,31 @@ fn field<'a>(d: &mut Decoder<'a>) -> Result<&'a [u8], Error> {
 }
 
 impl RootSigningKey {
+    /// Issue a same-key, same-generation credential validity extension from an
+    /// authenticated historical predecessor. The account host must independently
+    /// authorize the user and serialize its current roster. This is only the
+    /// successor certificate; it neither signs G nor updates any durable state.
+    /// Keep the exact returned bytes before building the target roster and G.
+    pub fn issue_credential_extension(
+        &self,
+        previous: &VerifiedDevice,
+        until: u64,
+        now: u64,
+    ) -> Result<Vec<u8>, Error> {
+        if self.public_key()? != previous.authority_key {
+            return Err(Error::Scope);
+        }
+        if until <= previous.description.validity.until() {
+            return Err(Error::Validity);
+        }
+        let mut description = previous.description.clone();
+        description.validity = Validity::new(description.validity.from(), until)?;
+        description.validity.check(now)?;
+        if now < previous.roster_validity.from() {
+            return Err(Error::Validity);
+        }
+        self.issue_device(description, previous.key.clone())
+    }
     /// Sign one host-approved same-key validity extension under a separate purpose.
     /// The host owns user approval, current-head serialization and exact dedup.
     /// This method does not update a roster, journal, peer, installation or witness.

@@ -34,8 +34,11 @@ mod session_policy;
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use enrollment::{
-    CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths,
-    EnrollmentStatus, VerifiedEnrollmentRequest,
+    CredentialRenewalRequest, CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice,
+    EnrollmentIntent, EnrollmentPaths, EnrollmentStatus, PolicyRenewalAbandonment,
+    PolicyRenewalRequest, PolicyRenewalStatus, RosterRefreshOutcome, RosterRefreshResolution,
+    VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
+    WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress,
 };
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
@@ -89,8 +92,10 @@ pub use anchor::{
     AnchorClient, AnchorClientError, AnchorCredentialCancellationState,
     AnchorCredentialRenewalCancellation, AnchorCredentialRenewalProposal,
     AnchorCredentialRenewalState, AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity,
-    AnchorOperation, AnchorOutcome, AnchorPin, AnchorReply, AnchorRequest, AnchorStore,
-    AnchorSubject, AnchorTcpTransport, AnchorTransport,
+    AnchorOperation, AnchorOutcome, AnchorPin, AnchorPolicyRenewalProposal,
+    AnchorPolicyRenewalState, AnchorReply, AnchorRequest, AnchorRosterRefreshProposal,
+    AnchorRosterRefreshState, AnchorStore, AnchorSubject, AnchorTcpTransport, AnchorTransport,
+    RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
@@ -110,12 +115,12 @@ pub use durable::{
     BootstrapPrekeyUse, ClosedEpochResolution, CommittedInitiation, CommittedPlaintext,
     DeviceJournal, DurableError, DurableStatus, EpochResolutionId, EpochResolutionStatus,
     FanoutAbandonment, FanoutAbandonmentId, FanoutAbandonmentJournal, FanoutId, FanoutInput,
-    FanoutMember, FanoutOutput, FanoutStatus, FanoutTarget, InitiationId, JournalIdentity,
-    JournalKey, MessageId, MessageStatus, PrekeyId, PrekeyStatus, RekeyControlMessage,
-    RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyRequestStatus,
-    RekeyResponseStatus, ReservedAbandonment, SendProgress, SessionClosure, SessionClosureArchive,
-    SessionClosureId, SessionClosureJournal, SessionClosureStatus, UnconfirmedMessage,
-    UnconsumedDelivery,
+    FanoutMember, FanoutMemberState, FanoutMemberStatus, FanoutOutput, FanoutReconciliation,
+    FanoutStatus, FanoutTarget, InitiationId, JournalIdentity, JournalKey, MessageId,
+    MessageStatus, PrekeyId, PrekeyStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight,
+    RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
+    RosterRefreshMaterials, SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId,
+    SessionClosureJournal, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use identity::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
@@ -132,10 +137,13 @@ pub use selection::{
 };
 pub use session_policy::{
     bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
-    HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials, HistoricalSessionPolicy,
-    IssuedSessionPolicy, PolicyCheckpoint, PolicyContinuationApproval, PolicyContinuationMaterials,
-    PolicyContinuationScope, PolicyContinuationStatement, PolicyPin, SessionPolicyParameters,
-    VerifiedPolicyContinuation, VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES,
+    HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials, HistoricalPolicyRenewal,
+    HistoricalPolicyRenewalMaterials, HistoricalSessionPolicy, IssuedSessionPolicy,
+    PolicyCheckpoint, PolicyContinuationApproval, PolicyContinuationMaterials,
+    PolicyContinuationScope, PolicyContinuationStatement, PolicyPin, PolicyRenewalApproval,
+    PolicyRenewalId, PolicyRenewalMaterials, PolicyRenewalScope, PolicyRenewalStatement,
+    SessionPolicyParameters, VerifiedPolicyContinuation, VerifiedPolicyRenewal,
+    VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES, MAX_POLICY_RENEWAL_BYTES,
 };
 
 use std::fmt;

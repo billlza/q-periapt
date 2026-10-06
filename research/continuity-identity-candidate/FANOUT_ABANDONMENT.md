@@ -222,3 +222,37 @@ the replacement reservation required by the primitive and failed with State; its
 corrected isolated composition installs that replacement and reproduces the
 keystream equality. The source gate also caught the stale documented inventory
 count; the guide was corrected. Both initial failures remain in the evidence.
+
+## Restricted reconciliation of an already committed batch
+
+`InstallationRecovery::open_account` selects the complete authenticated original
+batch and all of its retained session archives. Its restricted journal can now
+call `reconcile_members()` for a committed batch or an acknowledged reserved
+abandonment. The result contains the original batch, device, session and message
+IDs and one metadata-only disposition for every original member: Committed,
+Acknowledged, ResolutionPending, DeliveryUnknown, HistoryRetired or
+ReservationAbandoned. No ciphertext is released. HistoryRetired does not recover
+the distinction between earlier acknowledgement and recorded unknown delivery.
+Reserved and unacknowledged abandonment still require the complete loss-report
+path and return Suspended from this metadata query; retired metadata returns
+Retired explicitly. An original required witness must still admit the current
+head before a result is released. This grants no traffic authority.
+
+A changed current recipient roster can suspend the original committed operation.
+The caller can then use each original `InstalledSessionRecovery` to retain and
+sync its complete closure report, acknowledge that exact report only after host
+accounting, and reopen the original account recovery owner to reconcile every
+member. `retire_metadata()` accepts a committed batch only after the existing
+shared retirement kernel verifies every original member has a settled outcome.
+A remaining Committed or ResolutionPending member prevents retirement. This
+preserves authenticated consumption separately from host-recorded unknown
+delivery; it never reclassifies committed work as reserved abandonment.
+
+Retirement removes only aggregate metadata. The original session records,
+bootstrap claims and monotonic batch counter remain. Settled live sessions need
+not be closed just to retire aggregate metadata. A duplicate on the same owner
+rechecks each retained original archive and settled message fact; reserved
+abandonment still requires one matching whole-batch terminal report. An unknown
+commit outcome requires reopening the original installation and reconciling its
+exact pending target. A fresh Retired result does not reconstruct a lost member
+report, so the host must retain results it needs before retiring metadata.

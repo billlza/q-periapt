@@ -94,3 +94,57 @@ rejects an older client snapshot against the independently protected witness hea
 the witness itself remains a separate trust boundary. Fresh DH/PQ ratcheting,
 continuous recovery, device lifecycle/fanout and product bindings remain required
 for the complete 0.2.0 scope.
+
+The native atomic roster/head witness candidate is specified in
+[the witness contract](ANCHOR_WITNESS.md#atomic-roster-and-journal-head-refresh-candidate).
+Its prepared state preserves the actual old roster and head, and its commit
+updates both together. This avoids treating a standalone witness authority update
+as proof that the journal adopted the roster. Store-only checks are complete for
+the bounded component. Actual sealed targets and typed historical installation
+are exercised in the original journal. The original enrollment now retains R
+terminal metadata before ACK/cleanup and admits the same current device owner
+under P0 or the retained independent P. See the [enrollment coordination
+contract](ENROLLMENT.md#original-enrollment-atomic-roster-coordination).
+Native original session and complete two-recipient fanout behavior across R are
+now checked under the original enrollment owner. Current root-signed peer
+revocation denies cached release; the external revocation/replacement control
+plane and real G/T composition remain separate qualification gates. A preexisting split legacy authority state
+is still refused; this route does not silently repair or reset that state.
+
+## Current device-service admission of remote rosters
+
+`DeviceService::admit_peer_roster` binds a verified remote-account roster to the
+original active installation and its explicitly supplied current session policy.
+The account must already be known from an admitted original bootstrap. Its root
+and family must match the retained authority; rollback and same-version forks fail.
+The local account is rejected here and continues to use its enrollment R transaction.
+This entry returns a current target checkpoint, not a session or dispatch permission.
+
+The service verifies its actual current local membership, policy and runtime before
+the mutation and after witness I/O. Independent P requires its original completed
+enrollment authority; a cached P0 is not a fallback. Even an identical target needs
+fresh witness/current authority and keeps the first canonical stored bytes without
+rewriting the journal. An empty independently signed remote roster is a valid
+revocation update; it prevents subsequent cached message or fanout release.
+
+The account authority and canonical target checkpoint identify this public head
+update. This is monotonic signed-state installation, not a new terminal/ACK protocol.
+Retain the original verified target when a call fails. Existing ordinary QPWINT01
+write intent and witness-head recovery preserve the actual sealed image across an
+unknown Advance result. Reopen the same owner and retry with current authorization;
+do not reset state or manufacture a replacement operation. Error may follow commit,
+including a failed final authorization query after the target is already installed.
+Success reports that the target is currently present, not which attempt first wrote
+it. A later installed head rejects the old retry without claiming historical no-commit.
+
+The native tests cover both local-only and required-witness owners. Local-only
+coverage includes both original session roles and independent P after P0 expiry,
+with and without real credential renewal. Required coverage includes P0 and
+independent P/local R owners, policy and local-credential expiry, closed runtime,
+runtime closure during a signed reply,
+unknown and processed Advance loss, a post-commit admission failure and measured
+before/after-sync faults. Existing original-session, two-recipient fanout, changed
+recipient accounting and cached-revocation tests now admit remote updates through
+this service entry. They use the same native engine. C/Swift/Kotlin bindings, real
+transport integration, installed packages, additional process cuts, real G/T
+composition and the external root/issuer decision service remain separate gates.

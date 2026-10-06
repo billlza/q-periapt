@@ -342,6 +342,7 @@ impl SessionClosureJournal {
             id: image.id,
             protection: image.protection,
             anchor: None,
+            enrollment_completion: None,
         };
         if let Some(client) = client {
             active.attach_closure_archive(client, scope.signer)?;

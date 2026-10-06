@@ -161,6 +161,7 @@ fn commit(
         .commit_local_renewal(
             &authority,
             &LocalRenewalTarget {
+                policy_renewal: None,
                 grant: g,
                 continuation: Some(&h),
             },
@@ -207,7 +208,7 @@ fn continued_original_session_recovers_old_ciphertext_and_exchanges_new_data_aft
                 &crate::installation::PolicyScope {
                     authority: &authority,
                     original_policy: peer_p0.historical(),
-                    local_identity: (peer_original.account_id(), peer_original.device_id()),
+                    original_device: peer_original,
                 },
                 &local_grant,
                 local_grant.operation(),

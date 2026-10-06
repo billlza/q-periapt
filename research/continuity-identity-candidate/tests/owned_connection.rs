@@ -392,10 +392,15 @@ pub(crate) struct Setup {
     /// Independent test control-plane owner, transferable for later policy authorization.
     /// Device runtimes receive only its public pin and signed documents.
     pub(crate) policy_issuer: Option<p::PolicySigningKey>,
+    /// Independent test control-plane owner; device runtimes receive only signed public data.
+    pub(crate) responder_issuer: Option<p::RootSigningKey>,
 }
 impl Drop for Setup {
     fn drop(&mut self) {
         if let Some(issuer) = self.policy_issuer.as_mut() {
+            issuer.close();
+        }
+        if let Some(issuer) = self.responder_issuer.as_mut() {
             issuer.close();
         }
     }
@@ -599,6 +604,7 @@ fn setup_devices_for(
             store(path, name, &bytes)?;
         }
     }
+    let mut responder_issuer = None;
     let mut devices = Vec::new();
     let mut credentials = Vec::new();
     let mut rosters = Vec::new();
@@ -606,6 +612,7 @@ fn setup_devices_for(
     let groups = std::iter::once(0..first_account_end)
         .chain((!same_account).then_some(first_account_end..all_paths.len()));
     for group in groups {
+        let owns_responder = group.contains(&1);
         let mut root = p::RootSigningKey::generate()?;
         let mut certificates = Vec::new();
         for ordinal in group.clone() {
@@ -729,7 +736,11 @@ fn setup_devices_for(
             credentials.push(certificate);
             rosters.push(roster.as_bytes().to_vec());
         }
-        root.close();
+        if owns_responder {
+            responder_issuer = Some(root);
+        } else {
+            root.close();
+        }
     }
     let mut peers = Vec::new();
     for index in 1..all_paths.len() {
@@ -791,6 +802,7 @@ fn setup_devices_for(
                 responder: right,
                 issuer,
                 policy_issuer: Some(authority),
+                responder_issuer,
             },
             extra,
         ));
@@ -909,6 +921,7 @@ fn setup_devices_for(
             responder: right,
             issuer,
             policy_issuer: Some(authority),
+            responder_issuer,
         },
         extra,
     ))

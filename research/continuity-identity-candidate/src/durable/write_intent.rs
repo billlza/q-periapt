@@ -7,7 +7,7 @@ use sha2::Sha256;
 
 const INTENT_HEADER: usize = 8 + 32 + 32 + 8 + 32 + 8 + 32 + 4;
 const MAX_TARGET: usize = HEADER + MAX_IMAGE + 16;
-const MAX_RENEWAL_BINDING_BYTES: usize = 97;
+const MAX_BOUND_BINDING_BYTES: usize = crate::RosterRefreshScope::ENCODED_BYTES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PolicyIntent {
@@ -38,6 +38,24 @@ impl RenewalBinding {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct PolicyRenewalBinding {
+    pub(super) operation: crate::PolicyRenewalId,
+    pub(super) statement: [u8; 32],
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BoundTransaction {
+    Credential(RenewalBinding),
+    Policy(PolicyRenewalBinding),
+    Roster(crate::RosterRefreshScope),
+}
+mod roster_refresh;
+pub(super) use roster_refresh::reserve_roster_refresh;
+mod policy_renewal;
+#[cfg(all(test, unix))]
+pub(super) use policy_renewal::recover_policy_renewal;
+pub(super) use policy_renewal::reserve_policy_renewal;
 
 mod credential_cancellation;
 #[cfg(all(test, unix))]
@@ -79,7 +97,7 @@ pub(super) struct PendingWrite {
     wire: Vec<u8>,
     protection: Protection,
     local_account: [u8; 32],
-    renewal: Option<RenewalBinding>,
+    binding: Option<BoundTransaction>,
 }
 impl PendingWrite {
     pub(super) fn authenticated_target(
@@ -97,17 +115,24 @@ impl PendingWrite {
         active: &Active,
         image: &Image,
         target: &[u8],
-        renewal: Option<RenewalBinding>,
+        binding: Option<BoundTransaction>,
     ) -> Result<Self, DurableError> {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
-        let mut wire = if renewal.is_some_and(|r| r.policy.is_some()) {
-            b"QPWINT04".to_vec()
-        } else if renewal.is_some() {
-            b"QPWINT02".to_vec()
-        } else {
-            b"QPWINT01".to_vec()
+        let mut wire = match binding {
+            Some(BoundTransaction::Roster(_)) => b"QPWINT07".to_vec(),
+            Some(BoundTransaction::Policy(_)) => b"QPWINT06".to_vec(),
+            Some(BoundTransaction::Credential(r)) if r.policy.is_some() => b"QPWINT04".to_vec(),
+            Some(BoundTransaction::Credential(_)) => b"QPWINT02".to_vec(),
+            None => b"QPWINT01".to_vec(),
         };
-        if let Some(binding) = renewal {
+        if let Some(BoundTransaction::Roster(scope)) = binding {
+            scope.encode(&mut wire);
+        }
+        if let Some(BoundTransaction::Policy(p)) = binding {
+            wire.extend_from_slice(p.operation.as_bytes());
+            wire.extend_from_slice(&p.statement);
+        }
+        if let Some(BoundTransaction::Credential(binding)) = binding {
             wire.extend_from_slice(binding.operation.as_bytes());
             wire.extend_from_slice(&binding.credential);
             if let Some(policy) = binding.policy {
@@ -147,7 +172,7 @@ impl PendingWrite {
         wire: &[u8],
     ) -> Result<Self, DurableError> {
         if !(INTENT_HEADER + HEADER + 16 + 115 + 32
-            ..=INTENT_HEADER + MAX_RENEWAL_BINDING_BYTES + MAX_TARGET + 32)
+            ..=INTENT_HEADER + MAX_BOUND_BINDING_BYTES + MAX_TARGET + 32)
             .contains(&wire.len())
         {
             return Err(DurableError::Corrupt);
@@ -158,8 +183,20 @@ impl PendingWrite {
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        let renewal = match d.array::<8>()? {
+        let binding = match d.array::<8>()? {
             tag if tag == *b"QPWINT01" => None,
+            tag if tag == *b"QPWINT07" => Some(BoundTransaction::Roster(
+                crate::RosterRefreshScope::decode(&mut d)?,
+            )),
+            tag if tag == *b"QPWINT06" => {
+                let operation = crate::PolicyRenewalId::from_trusted_state(d.array()?)?;
+                let statement = d.array()?;
+                crate::codec::nonzero(&statement)?;
+                Some(BoundTransaction::Policy(PolicyRenewalBinding {
+                    operation,
+                    statement,
+                }))
+            }
             tag if tag == *b"QPWINT02" || tag == *b"QPWINT04" => {
                 let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
                 let credential = d.array()?;
@@ -176,11 +213,11 @@ impl PendingWrite {
                 } else {
                     None
                 };
-                Some(RenewalBinding {
+                Some(BoundTransaction::Credential(RenewalBinding {
                     operation,
                     credential,
                     policy,
-                })
+                }))
             }
             _ => return Err(DurableError::Corrupt),
         };
@@ -208,8 +245,15 @@ impl PendingWrite {
         if next.id != id || next.revision != next_revision {
             return Err(DurableError::Conflict);
         }
-        if let Some(binding) = renewal {
-            rosters::check_credential_renewal_intent(&next, binding)?;
+        match binding {
+            Some(BoundTransaction::Credential(r)) => {
+                rosters::check_credential_renewal_intent(&next, r)?
+            }
+            Some(BoundTransaction::Policy(p)) => rosters::check_policy_renewal_intent(&next, p)?,
+            Some(BoundTransaction::Roster(scope)) => {
+                rosters::check_roster_refresh_intent(&next, scope)?
+            }
+            None => {}
         }
         Ok(Self {
             expected_revision,
@@ -220,7 +264,7 @@ impl PendingWrite {
             wire: wire.to_vec(),
             protection: next.protection,
             local_account: next.local_account,
-            renewal,
+            binding,
         })
     }
     fn check_current(&self, current: &Image) -> Result<(), DurableError> {
@@ -238,8 +282,10 @@ impl PendingWrite {
         &self,
         current: &Image,
     ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
-        let binding = self.renewal.ok_or(DurableError::Conflict)?;
-        self.check_credential_image(current)?;
+        let Some(BoundTransaction::Credential(binding)) = self.binding else {
+            return Err(DurableError::Conflict);
+        };
+        self.check_transaction_image(current)?;
         let Protection::Required {
             policy,
             witness,
@@ -270,8 +316,8 @@ impl PendingWrite {
             None => proposal,
         })
     }
-    fn check_credential_image(&self, current: &Image) -> Result<(), DurableError> {
-        if self.renewal.is_some()
+    fn check_transaction_image(&self, current: &Image) -> Result<(), DurableError> {
+        if self.binding.is_some()
             && current.revision == self.next_revision
             && current.digest == self.next_digest
             && current.protection == self.protection
@@ -301,6 +347,8 @@ pub(super) fn load_snapshot(
 enum SnapshotAdmission {
     Ordinary,
     CredentialRecovery,
+    PolicyRecovery,
+    RosterRecovery,
 }
 
 fn load_snapshot_as(
@@ -347,11 +395,21 @@ fn load_pending_snapshot(
         intent.check_current(&image)?;
     }
     if let Some(PendingIntent::Write(intent)) = &pending {
-        if matches!(admission, SnapshotAdmission::CredentialRecovery)
-            && intent.renewal.is_some()
-            && value.value() == intent.target
+        if matches!(
+            (&admission, intent.binding),
+            (
+                SnapshotAdmission::CredentialRecovery,
+                Some(BoundTransaction::Credential(_))
+            ) | (
+                SnapshotAdmission::PolicyRecovery,
+                Some(BoundTransaction::Policy(_))
+            ) | (
+                SnapshotAdmission::RosterRecovery,
+                Some(BoundTransaction::Roster(_))
+            )
+        ) && value.value() == intent.target
         {
-            intent.check_credential_image(&image)?;
+            intent.check_transaction_image(&image)?;
         } else {
             intent.check_current(&image)?;
         }
@@ -362,9 +420,9 @@ fn load_pending_snapshot(
 // The writer lease is held throughout. The expected image and exact intent are
 // still checked inside the write transaction, not from a cached pre-lock read.
 fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
-    // No ordinary recovery path may commit a credential transition without its
-    // separate, exact witness head-and-authority transaction.
-    if pending.renewal.is_some() {
+    // Ordinary recovery cannot commit a credential or independent-policy
+    // transition without its exact witness head-and-authority transaction.
+    if pending.binding.is_some() {
         return Err(DurableError::Suspended);
     }
     let tx = transaction(db)?;
@@ -412,7 +470,7 @@ pub(super) fn commit(
 }
 
 pub(super) fn reconcile(active: &mut Active, pending: &PendingWrite) -> Result<(), DurableError> {
-    if pending.renewal.is_some() {
+    if pending.binding.is_some() {
         return Err(DurableError::Suspended);
     }
     if pending.protection != active.protection {
@@ -432,11 +490,16 @@ pub(super) fn reserve_credential_renewal(
     target: &[u8],
     binding: RenewalBinding,
 ) -> Result<crate::AnchorCredentialRenewalProposal, DurableError> {
-    let pending = PendingWrite::new_bound(active, image, target, Some(binding))?;
+    let pending = PendingWrite::new_bound(
+        active,
+        image,
+        target,
+        Some(BoundTransaction::Credential(binding)),
+    )?;
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     {
-        tests::after_credential_preparation();
+        tests::after_bound_preparation();
         tests::after_intent(&pending, image);
     }
     let (current, readback) = load_snapshot(&active.db, &active.key, active.owner)?;
@@ -566,7 +629,7 @@ pub(super) fn recover_witnessed_credential_intent(
             let PendingIntent::Write(pending) = &pending else {
                 return Err(DurableError::Conflict);
             };
-            apply_credential_target(db, pending)?;
+            apply_bound_target(db, pending)?;
             #[cfg(all(test, unix))]
             tests::after_credential_recovery();
             let (current, readback) =
@@ -701,8 +764,8 @@ impl DeviceJournal {
     }
 }
 
-fn apply_credential_target(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
-    if pending.renewal.is_none() {
+fn apply_bound_target(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
+    if pending.binding.is_none() {
         return Err(DurableError::Conflict);
     }
     let tx = transaction(db)?;
@@ -820,4 +883,47 @@ pub(super) fn recover(
     } else {
         Ok(image)
     }
+}
+
+// Shared final cleanup kernel. Callers must authenticate their independently typed
+// original enrollment terminal and exact signed witness ACK before entering.
+fn remove_retired_bound_pending(
+    db: &Database,
+    key: &JournalKey,
+    owner: [u8; 32],
+    expected: crate::AnchorHead,
+    pending: Option<&PendingIntent>,
+) -> Result<(), DurableError> {
+    let tx = transaction(db)?;
+    {
+        let mut table = tx.open_table(TABLE).map_err(storage)?;
+        let current = table
+            .get("image")
+            .map_err(storage)?
+            .ok_or(DurableError::Corrupt)?;
+        if image_hash(current.value()) != expected.digest() {
+            return Err(DurableError::Conflict);
+        }
+        drop(current);
+        let saved = table.get("pending").map_err(storage)?;
+        match (saved.as_ref(), pending) {
+            (None, None) if table.len().map_err(storage)? == 1 => return Ok(()),
+            (Some(saved), Some(pending))
+                if saved.value() == pending.wire() && table.len().map_err(storage)? == 2 => {}
+            _ => return Err(DurableError::Conflict),
+        }
+        drop(saved);
+        table.remove("pending").map_err(storage)?;
+    }
+    tx.commit().map_err(DurableError::CommitUncertain)?;
+    let (readback, retained) = load_snapshot(db, key, owner)?;
+    if retained.is_some()
+        || readback
+            .protection
+            .head(readback.revision, readback.digest)?
+            != expected
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
 }

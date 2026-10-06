@@ -18,6 +18,10 @@ const MAX_IMAGE: usize = 1024 * 1024;
 #[cfg(all(test, unix))]
 mod tests;
 
+mod roster_refresh;
+use roster_refresh::RosterRefresh;
+mod policy_renewal;
+use policy_renewal::PolicyRenewal;
 mod renewal;
 use renewal::{CredentialRenewalRecord, PolicyAuthority};
 
@@ -36,6 +40,8 @@ struct Entry {
     credential_authorization: Option<[u8; 32]>,
     policy_authorization: Option<PolicyAuthority>,
     policy_floor: u64,
+    independent_policy: Option<PolicyRenewal>,
+    independent_roster: Option<RosterRefresh>,
 }
 struct Image {
     revision: u64,
@@ -180,6 +186,8 @@ impl AnchorStore {
                 credential_authorization: None,
                 policy_authorization: None,
                 policy_floor: 0,
+                independent_policy: None,
+                independent_roster: None,
             },
         );
         self.persist(&mut image)
@@ -263,12 +271,20 @@ impl AnchorStore {
             }
             None => return Err(DurableError::Absent),
         };
-        match entry.policy_authorization {
+        match entry
+            .independent_policy
+            .as_ref()
+            .and_then(|p| p.current)
+            .or(entry.policy_authorization)
+        {
             None if subject.policy == policy.checkpoint().digest() => {}
             Some(current)
                 if current.checkpoint == policy.checkpoint()
                     && current.validity == policy.validity() => {}
             _ => return Err(Error::Scope.into()),
+        }
+        if entry.independent_roster.is_some() {
+            return Err(DurableError::Conflict);
         }
         let validity = self.admit_current_device(next, policy, now)?;
         if next.checkpoint.version() <= previous.version() {
@@ -276,7 +292,12 @@ impl AnchorStore {
         }
         let expected =
             crate::identity::authority_binding(next.account, previous, next.description.family);
-        if entry.renewal.is_some() {
+        if entry.renewal.is_some()
+            || entry
+                .independent_policy
+                .as_ref()
+                .is_some_and(PolicyRenewal::pending)
+        {
             return Err(DurableError::Suspended);
         }
         if entry.renewal_floor != 0 && next.checkpoint.version() <= entry.renewal_floor {
@@ -334,7 +355,11 @@ impl AnchorStore {
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
         // Once this subject uses joint renewal, terminal retirement must never
         // reopen the legacy authority-only path for an old signed target.
-        if entry.renewal.is_some() || entry.renewal_floor != 0 {
+        if entry.renewal.is_some()
+            || entry.renewal_floor != 0
+            || entry.independent_policy.is_some()
+            || entry.independent_roster.is_some()
+        {
             return Err(DurableError::Suspended);
         }
         if entry.subject != subject || entry.device != next.key || entry.device != previous.key {
@@ -376,16 +401,55 @@ impl AnchorStore {
         entry
             .device
             .verify(Purpose::AnchorRequest, request.body, request.signature)?;
+        let roster_pending = entry
+            .independent_roster
+            .as_ref()
+            .is_some_and(RosterRefresh::pending);
         let mut changed = false;
         let outcome = match request.operation.0 {
             Command::Query => AnchorOutcome::Current,
+            Command::PolicyCommit(_)
+            | Command::PolicyStatus(_)
+            | Command::PolicyClose(_)
+            | Command::PolicyAcknowledge(_) => {
+                let (result, mutation) = entry.handle_independent_policy(&request, now)?;
+                changed = mutation;
+                result
+            }
+            Command::AdmitPolicy(authority, statement) => {
+                let live = |v: Validity| match v.check(now) {
+                    Ok(()) => Ok(true),
+                    Err(Error::Validity) => Ok(false),
+                    Err(e) => Err(e),
+                };
+                let state = entry.independent_policy.as_ref();
+                let current = state.and_then(|s| s.current);
+                if !roster_pending
+                    && entry.authority == authority
+                    && state.is_some_and(|s| !s.pending())
+                    && current.is_some_and(|p| p.statement == statement)
+                    && live(entry.validity)?
+                {
+                    AnchorOutcome::AuthorityCurrent
+                } else {
+                    AnchorOutcome::AuthorityDenied
+                }
+            }
             Command::AdmitAuthority(expected) => {
                 let live = match entry.validity.check(now) {
                     Ok(()) => true,
                     Err(Error::Validity) => false,
                     Err(error) => return Err(error.into()),
                 };
-                if entry.policy_authorization.is_none() && entry.authority == expected && live {
+                if !roster_pending
+                    && entry.policy_authorization.is_none()
+                    && entry
+                        .independent_policy
+                        .as_ref()
+                        .is_none_or(|s| s.current.is_none() && !s.pending())
+                    && entry.authority == expected
+                    && live
+                {
                     AnchorOutcome::AuthorityCurrent
                 } else {
                     AnchorOutcome::AuthorityDenied
@@ -401,7 +465,8 @@ impl AnchorStore {
                     Some(policy) => policy.statement == statement && live(policy.validity)?,
                     None => false,
                 };
-                if entry.authority == authority
+                if !roster_pending
+                    && entry.authority == authority
                     && entry.renewal.is_none()
                     && entry.credential_authorization == Some(credential)
                     && policy_live
@@ -411,6 +476,14 @@ impl AnchorStore {
                 } else {
                     AnchorOutcome::AuthorityDenied
                 }
+            }
+            Command::RosterCommit(_)
+            | Command::RosterStatus(_)
+            | Command::RosterClose(_)
+            | Command::RosterAcknowledge(_) => {
+                let (outcome, mutation) = entry.handle_independent_roster(&request, now)?;
+                changed = mutation;
+                outcome
             }
             Command::CredentialCommit(_)
             | Command::CredentialStatus(_)
@@ -423,7 +496,16 @@ impl AnchorStore {
             Command::Advance(expected, next) | Command::Fence(expected, next) => {
                 // Neither ordinary commands nor a writer fence may bypass an
                 // unacknowledged joint transition, including its terminal state.
-                if entry.renewal.is_some() {
+                if entry
+                    .independent_roster
+                    .as_ref()
+                    .is_some_and(RosterRefresh::pending)
+                    || entry.renewal.is_some()
+                    || entry
+                        .independent_policy
+                        .as_ref()
+                        .is_some_and(PolicyRenewal::pending)
+                {
                     return Err(Error::State.into());
                 }
                 if entry.head == next && entry.last == Some(request.command) {
@@ -534,6 +616,15 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
+    let roster_format = image
+        .entries
+        .values()
+        .any(|entry| entry.independent_roster.is_some());
+    let independent = roster_format
+        || image
+            .entries
+            .values()
+            .any(|entry| entry.independent_policy.is_some());
     let joint = image
         .entries
         .values()
@@ -558,7 +649,11 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if policy_cancellation {
+    let mut bytes = if roster_format {
+        b"QPANC009".to_vec()
+    } else if independent {
+        b"QPANC008".to_vec()
+    } else if policy_cancellation {
         b"QPANC007".to_vec()
     } else if policy_format {
         b"QPANC006".to_vec()
@@ -583,7 +678,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         bytes.extend_from_slice(&entry.genesis);
         entry.head.encode(&mut bytes);
         encode_last(entry.last, &mut bytes);
-        if joint || policy_format {
+        if joint || policy_format || independent {
             bytes.extend_from_slice(&entry.renewal_floor.to_be_bytes());
             bytes.push(u8::from(entry.renewal_ack.is_some()));
             bytes.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
@@ -593,7 +688,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
                 bytes.push(0);
             }
         }
-        if policy_format {
+        if policy_format || independent {
             bytes.extend_from_slice(&entry.policy_floor.to_be_bytes());
             match (entry.credential_authorization, entry.policy_authorization) {
                 (None, None) => bytes.push(0),
@@ -603,6 +698,24 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
                     policy.encode(&mut bytes);
                 }
                 _ => return Err(DurableError::Corrupt),
+            }
+        }
+        if independent {
+            match &entry.independent_policy {
+                None => bytes.push(0),
+                Some(state) => {
+                    bytes.push(1);
+                    state.encode(&mut bytes);
+                }
+            }
+        }
+        if roster_format {
+            match &entry.independent_roster {
+                None => bytes.push(0),
+                Some(state) => {
+                    bytes.push(1);
+                    state.encode(&mut bytes);
+                }
             }
         }
     }
@@ -633,6 +746,8 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             *b"QPANC004",
             *b"QPANC006",
             *b"QPANC007",
+            *b"QPANC008",
+            *b"QPANC009",
         ]
         .contains(&version)
             || d.array::<32>()? != pin.binding
@@ -670,48 +785,90 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             nonzero(&genesis)?;
             let head = AnchorHead::decode(&mut d)?;
             let last = decode_last(&mut d, head)?;
-            let (renewal_floor, renewal_ack, renewal) =
-                if [*b"QPANC003", *b"QPANC004", *b"QPANC006", *b"QPANC007"].contains(&version) {
-                    let floor = d.u64()?;
-                    let [present] = d.array()?;
-                    let binding = d.array()?;
-                    let ack = match present {
-                        0 if binding == [0; 32] => None,
-                        1 => {
-                            nonzero(&binding)?;
-                            Some(binding)
-                        }
-                        _ => return Err(DurableError::Corrupt),
-                    };
-                    (
-                        floor,
-                        ack,
-                        CredentialRenewalRecord::decode(
-                            &mut d,
-                            [*b"QPANC004", *b"QPANC006", *b"QPANC007"].contains(&version),
-                            version == *b"QPANC006" || version == *b"QPANC007",
-                            version == *b"QPANC007",
-                        )?,
-                    )
-                } else {
-                    (0, None, None)
+            let (renewal_floor, renewal_ack, renewal) = if [
+                *b"QPANC003",
+                *b"QPANC004",
+                *b"QPANC006",
+                *b"QPANC007",
+                *b"QPANC008",
+                *b"QPANC009",
+            ]
+            .contains(&version)
+            {
+                let floor = d.u64()?;
+                let [present] = d.array()?;
+                let binding = d.array()?;
+                let ack = match present {
+                    0 if binding == [0; 32] => None,
+                    1 => {
+                        nonzero(&binding)?;
+                        Some(binding)
+                    }
+                    _ => return Err(DurableError::Corrupt),
                 };
-            let (policy_floor, credential_authorization, policy_authorization) =
-                if version == *b"QPANC006" || version == *b"QPANC007" {
-                    let floor = d.u64()?;
-                    let (credential, policy) = match d.array::<1>()? {
-                        [0] => (None, None),
-                        [1] => {
-                            let credential = d.array()?;
-                            nonzero(&credential)?;
-                            (Some(credential), Some(PolicyAuthority::decode(&mut d)?))
-                        }
-                        _ => return Err(DurableError::Corrupt),
-                    };
-                    (floor, credential, policy)
-                } else {
-                    (0, None, None)
+                (
+                    floor,
+                    ack,
+                    CredentialRenewalRecord::decode(
+                        &mut d,
+                        [
+                            *b"QPANC004",
+                            *b"QPANC006",
+                            *b"QPANC007",
+                            *b"QPANC008",
+                            *b"QPANC009",
+                        ]
+                        .contains(&version),
+                        version == *b"QPANC006"
+                            || version == *b"QPANC007"
+                            || version == *b"QPANC008"
+                            || version == *b"QPANC009",
+                        version == *b"QPANC007"
+                            || version == *b"QPANC008"
+                            || version == *b"QPANC009",
+                    )?,
+                )
+            } else {
+                (0, None, None)
+            };
+            let (policy_floor, credential_authorization, policy_authorization) = if version
+                == *b"QPANC006"
+                || version == *b"QPANC007"
+                || version == *b"QPANC008"
+                || version == *b"QPANC009"
+            {
+                let floor = d.u64()?;
+                let (credential, policy) = match d.array::<1>()? {
+                    [0] => (None, None),
+                    [1] => {
+                        let credential = d.array()?;
+                        nonzero(&credential)?;
+                        (Some(credential), Some(PolicyAuthority::decode(&mut d)?))
+                    }
+                    _ => return Err(DurableError::Corrupt),
                 };
+                (floor, credential, policy)
+            } else {
+                (0, None, None)
+            };
+            let independent_policy = if version == *b"QPANC008" || version == *b"QPANC009" {
+                match d.array::<1>()? {
+                    [0] => None,
+                    [1] => Some(PolicyRenewal::decode(&mut d)?),
+                    _ => return Err(DurableError::Corrupt),
+                }
+            } else {
+                None
+            };
+            let independent_roster = if version == *b"QPANC009" {
+                match d.array::<1>()? {
+                    [0] => None,
+                    [1] => Some(RosterRefresh::decode(&mut d)?),
+                    _ => return Err(DurableError::Corrupt),
+                }
+            } else {
+                None
+            };
             if id != subject.id(&pin.binding)
                 || device.shares_component(&pin.key)
                 || !owners.insert(subject.owner)
@@ -734,6 +891,8 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 credential_authorization,
                 policy_authorization,
                 policy_floor,
+                independent_policy,
+                independent_roster,
             };
             entry.check_renewal_state(pin)?;
             entries.insert(id, entry);

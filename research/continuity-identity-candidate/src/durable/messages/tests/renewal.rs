@@ -100,10 +100,7 @@ fn retained_view_cannot_activate_unfinished_or_replay_another_established_sessio
                 &crate::installation::PolicyScope {
                     authority: &authority,
                     original_policy: p.f.initiator.original_policy(),
-                    local_identity: (
-                        p.f.initiator.device(role).account_id(),
-                        p.f.initiator.device(role).device_id(),
-                    ),
+                    original_device: p.f.initiator.device(role),
                 },
                 &proof,
                 proof.operation(),

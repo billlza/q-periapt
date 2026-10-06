@@ -430,3 +430,146 @@ invocation committed and not a future authorization lease. Every later mutation
 still checks the witness's live grant and original head/fence. Independent operator
 admission, credential/policy/key replacement and protocol finalization remain
 separate obligations.
+
+## Independent policy-only witness transaction candidate
+
+`AnchorPolicyRenewalProposal` and `AnchorPolicyRenewalState` describe a separate
+policy-only transaction. `QPPWNP01` is a fixed 296-byte public descriptor binding
+the original witness, journal subject, `PolicyRenewalId`, two-root policy
+statement, expected head, and one-revision sealed target. Its commitment domain,
+command tags 11–15 and outcome tags 12–16 are distinct from credential and joint
+G/T renewal. A parsed proposal is an expectation, not an authenticated receipt.
+The existing fresh signed request/reply envelopes and store transaction are reused.
+
+The trusted witness operator calls `AnchorStore::prepare_policy_renewal` with
+independently pinned original/current identities and original/previous/target
+policies. The store re-verifies both approvals, requires the same required witness
+and unchanged original credential, and compares the actual account authority,
+policy predecessor and journal head. Original or predecessor policy expiry does
+not provide current permission; preparation still checks the live target runtime,
+credential and roster. The operator must authenticate and serialize requests and
+deduplicate operation IDs; untrusted requests cannot invoke this control plane.
+
+The data plane can commit, inspect, close or acknowledge only that exact prepared
+proposal. Commit persists the journal head and new policy authority together.
+Close and commit are mutually exclusive. An independently authorized historical
+close can also precede preparation. Exact Applied/Closed history survives expiry;
+Unavailable means absent/conflicting/retired history, never proof of non-commit.
+After the client durably retains the terminal disposition, its exact ACK retires
+the bounded record but retains a monotonic target-policy floor. Old targets cannot
+be prepared again after retirement. Unknown commit results require reopening the
+same witness and retrying the original operation with a fresh signed attempt.
+
+A retained transaction, including an unacknowledged terminal, blocks ordinary
+advance/fence and roster refresh for that subject. After ACK, fresh
+`admit_policy_renewal` requires the exact current account authority and P statement
+and current validity. Ordinary authority admission does not substitute for it.
+Same-credential signed roster refresh preserves the adopted P and original head;
+a subsequent P request must use that actual roster and exact predecessor.
+
+The witness image writes `QPANC008` when independent-P metadata is present and
+keeps the existing bounded image size and authenticated, durable storage boundary.
+Earlier supported image versions remain readable. This candidate format is not a
+product migration commitment or permission to rewrite missing/corrupt state.
+
+This component currently excludes subjects with a real G/T adoption, and it
+explicitly refuses G/T mutation after independent-P history. Carrying real G/T
+through this transaction remains required work, not a local-only fallback.
+Actual journal target sealing/retention and exact historical installation now
+use the same exclusive pending slot and sealed bytes, as described in
+[the independent-P write-intent contract](WRITE_INTENTS.md#independent-policy-only-witnessed-target).
+The [original enrollment coordinator](ENROLLMENT.md#required-witness-independent-policy-coordination)
+now retains an exact Applied/Closed terminal before sending ACK and removing the
+original pending intent. Its historical outcome never grants current permission.
+The original owner now retains its separately durable completion and checks fresh
+`AdmitPolicy` (15), actual current roster and exact journal head before operational
+release. Historical acknowledgement does not advance the journal head or rewrite
+its receipt phase. Original-session traffic/rekey and a successive P after expiry
+are exercised locally. Cross-language wrappers, installed packages, complete
+roster maintenance and independent implementation remain unqualified for this
+path. Local-only owner APIs continue to refuse required-witness independent P.
+Store-only tests retain explicit digest expectations; separate journal tests use
+real sealed targets, preserve an existing prekey, and never release an operational
+owner or retire the original intent. Separate enrollment tests exercise actual
+terminal/ACK coordination with 16 configuration sync faults, 10 original-pending
+cleanup sync faults and lost commit/ACK replies before and after dispatch. Eight
+actual process kills now exercise this enrollment path across observation,
+terminal persistence, pending cleanup and completion, for both Applied and Closed.
+Those cross-store cuts are distinct from the store-only cuts below.
+
+The focused tests exercise exact outcomes, wrong-target/type refusal, policy
+successors, roster refresh, all six store mutation boundaries under 28 before/after
+sync failures, and four real witness-process terminations after durable commit
+before any reply escapes. These finite component checks are not a complete
+protocol security proof or 0.2.0 release qualification.
+
+## Atomic roster and journal-head refresh candidate
+
+Required-witness roster maintenance must preserve one actual predecessor across
+expiry. A reproduced counterexample to composing two separate updates first
+adopts R2 at the witness while the journal still contains R1. After current P
+expires, a new P bound to R1 is refused by the witness and one bound to R2 is
+refused by the journal. Those refusals are correct; relaxing either comparison
+would lose the actual predecessor. The standalone authority-update API remains
+available for subjects that have never entered the new atomic-R format. It is
+not the coordinator for this new path.
+
+`RosterRefreshId`, `RosterRefreshScope`, `AnchorRosterRefreshProposal` and
+`AnchorRosterRefreshState` define an independently typed roster/head transaction.
+The canonical `QPRWNP01` descriptor is 417 bytes: original witness and subject,
+operation, previous/target roster checkpoints, unchanged current policy checkpoint,
+optional exact independent-P statement, expected head and one-revision target
+head. The optional statement is absent only for original P0. Its binding domain
+is `Q-PERIAPT-ANCHOR-ROSTER-REFRESH/v1`. Parsing supplies expectations, not proof
+that a target was sealed or applied.
+
+`AnchorStore::prepare_roster_refresh` independently admits the exact root-approved
+same credential and target roster, current policy/runtime, unchanged original
+subject and actual predecessor authority/head. Preparing retains one slot while
+leaving both the current roster and head unchanged. Device-signed RosterCommit
+changes head, authority, effective validity and last command together in the
+existing immediate witness transaction. An independently approved historical
+close may precede preparation; a later close cannot undo Applied. Exact terminal
+history remains readable after expiry. Unavailable never proves non-commit.
+
+Commands 16/17/18/19 are RosterCommit, RosterStatus, RosterClose and
+RosterAcknowledge. Each retains the 97-byte command size with a separate proposal
+binding and strictly zero padding. Outcomes 17–21 are Prepared, Applied, Closed,
+Unavailable and Acknowledged. The existing fresh dual-signed envelope binds the
+complete command and attempt; the roster reply interpreter additionally checks
+its exact proposal, head and last applied command. Ordinary/P/G interpreters
+cannot substitute for this typed result.
+
+A retained R slot, including an unacknowledged terminal, blocks ordinary
+advance/fence, operational authority admission, independent P preparation and
+standalone roster authority mutation. P and R preparations cannot coexist. ACK
+requires the caller to retain its exact original terminal first and leaves a
+monotonic roster target floor plus bounded last-ACK binding. Once atomic-R
+metadata exists, standalone roster/credential mutation cannot bypass it. Current
+scope excludes real G/T composition. After R retirement, a new independent P can
+use the actual unchanged or adopted roster, preserving the R floor.
+
+`QPANC009` retains the complete prior witness fields and adds a separately typed
+R slot/floor/ACK extension per entry. Previously supported versions through 008
+remain readable; opening
+never resets or rewrites them. Size, entry and database bounds and the original
+MAC/commit boundary remain unchanged. This is an unpublished candidate format,
+not a product migration commitment.
+
+The store tests use real signed root rosters and witness messages but explicit
+opaque target-digest expectations. They cover exact transitions, expiry/closure,
+policy composition, old-target/type refusal, slot exclusion and 32 actual
+before/after-sync faults across prepare, unprepared/prepared close, commit and
+Applied/Closed ACK. All fault counters are consumed and their exact I/O errors
+are preserved. Separate [real R journal checks](WRITE_INTENTS.md#atomic-roster-target-in-the-original-journal)
+now seal and recover actual encrypted targets under original P0 or completed
+independent P. Low-level recovery retains pending and releases no operational
+owner. The original enrollment coordinator separately authenticates a durable R
+Applied/Closed terminal before ACK (19) and exact pending cleanup. Eight actual
+R process terminations now cover Applied/Closed observation, terminal persistence,
+cleanup and enrollment retirement. Current owner admission and successive R/P
+use the actual adopted roster. Native original session and two-recipient fanout
+checks now preserve the original offers/outboxes/consumption outcomes across R,
+including lost ACK and current release fences. Network, foreign and installed
+platform qualification remain open; these native checks are not release
+qualification.

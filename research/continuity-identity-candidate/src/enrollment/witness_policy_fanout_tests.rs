@@ -4,7 +4,7 @@ use super::*;
 use crate::enrollment::tests::policy_continuation::{joint, policy, scope};
 use crate::{FanoutMember, FanoutOutput, VerifiedEnrollmentRequest};
 
-fn recipients(sender: &Fixture) -> Vec<Endpoint> {
+pub(in crate::enrollment::tests::witness_renewal) fn recipients(sender: &Fixture) -> Vec<Endpoint> {
     let mut enrolled = Vec::new();
     let mut certificates = Vec::new();
     for id in [8, 9] {
@@ -16,7 +16,7 @@ fn recipients(sender: &Fixture) -> Vec<Endpoint> {
             DeviceDescription::new([id; 16], 1, c.policy.family(), interval())
                 .expect("different approved device"),
         );
-        c.policy = policy(&c, 1, 200, 150);
+        c.policy = policy(&c, 1, sender.c.policy.validity().until(), 150);
         let mut owner = create(&c);
         let request = owner.request(150).expect("real durable enrollment request");
         let verified = VerifiedEnrollmentRequest::verify(&request, &c.intent, 150)

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+mod committed;
 use crate::durable::tests::{identity, ChildGuard};
 use crate::{FanoutAbandonmentJournal, SessionArchiveStore, SessionClosureJournal};
 use std::{

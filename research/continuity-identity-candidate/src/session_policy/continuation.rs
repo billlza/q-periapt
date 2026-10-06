@@ -212,7 +212,7 @@ fn check_predecessor(scope: &PolicyContinuationScope) -> Result<(), Error> {
         _ => Err(Error::Checkpoint),
     }
 }
-fn same_profile(
+pub(super) fn same_profile(
     original: &HistoricalSessionPolicy,
     next: &HistoricalSessionPolicy,
 ) -> Result<(), Error> {

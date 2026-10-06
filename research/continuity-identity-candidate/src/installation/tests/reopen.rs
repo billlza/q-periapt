@@ -5,6 +5,7 @@ use crate::{
     ReopenedSession, RootSigningKey, SessionReopenRequest, Validity, VerifiedRoster,
 };
 
+mod peer_roster_service;
 mod policy_continuation;
 mod renewal;
 

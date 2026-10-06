@@ -197,6 +197,7 @@ impl Managed {
                 id: image.id,
                 protection: image.protection,
                 anchor: None,
+                enrollment_completion: None,
             }),
         };
         // The existing real redb fault backend interrupts after the reservation

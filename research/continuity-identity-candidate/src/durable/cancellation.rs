@@ -93,6 +93,7 @@ pub struct BootstrapCancellation {
 }
 
 #[derive(Clone)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
 pub(super) struct Metadata {
     pub(super) previous: DurableStatus,
     pub(super) report: [u8; 32],
@@ -428,6 +429,7 @@ impl BootstrapCancellationJournal {
             id: image.id,
             protection: image.protection,
             anchor: None,
+            enrollment_completion: None,
         };
         if let Some(client) = client {
             active.attach_retained_cleanup_subject(client)?;

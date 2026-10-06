@@ -46,6 +46,7 @@ fn authenticated_policy_record_cannot_move_to_another_journal_of_the_same_owner(
         digest: [17; 32],
         protection: Protection::Local,
         records: BTreeMap::from([(id(&account), stored.record().expect("original record"))]),
+        enrollment_completion: None,
     };
     assert!(get(&image, &account).is_ok());
     assert!(validate_image(&image).is_ok());
@@ -258,6 +259,7 @@ fn continued_peer_case(
         .commit_local_renewal(
             &authority,
             &LocalRenewalTarget {
+                policy_renewal: None,
                 grant: &c.grant,
                 continuation: Some(&historical),
             },
@@ -400,7 +402,7 @@ fn continued_same_account_peer_updates_preserve_t_and_durably_observe_local_revo
         let scope = crate::installation::PolicyScope {
             authority: &authority,
             original_policy: &c.old,
-            local_identity: (local.account_id(), local.device_id()),
+            original_device: c.grant.previous_device(),
         };
         journal
             .admit_continued_local_device(&scope, local, policy, 181)
@@ -482,10 +484,7 @@ fn continued_peer_renewal_sync_cuts_recover_exact_peer_operation_and_preserve_lo
     let scope = crate::installation::PolicyScope {
         authority: &authority,
         original_policy: &baseline.old,
-        local_identity: (
-            baseline.grant.previous_device().account_id(),
-            baseline.grant.previous_device().device_id(),
-        ),
+        original_device: baseline.grant.previous_device(),
     };
     let (mut journal, _, count, _) =
         crate::durable::tests::fault_store(&path, baseline.grant.previous_device(), false);
@@ -518,7 +517,7 @@ fn continued_peer_renewal_sync_cuts_recover_exact_peer_operation_and_preserve_lo
             let scope = crate::installation::PolicyScope {
                 authority: &authority,
                 original_policy: &c.old,
-                local_identity: (account, local.device_id()),
+                original_device: local,
             };
             let (mut journal, remaining, _, _) =
                 crate::durable::tests::fault_store(&path, local, after_sync);

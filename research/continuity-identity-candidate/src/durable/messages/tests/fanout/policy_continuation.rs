@@ -101,6 +101,7 @@ fn adopt(
         .commit_local_renewal(
             &authority,
             &crate::durable::LocalRenewalTarget {
+                policy_renewal: None,
                 grant: &grant,
                 continuation: Some(&h),
             },

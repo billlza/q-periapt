@@ -222,7 +222,7 @@ fn original_registered_session_exchanges_old_and_new_data_and_rekeys_after_local
             &crate::installation::PolicyScope {
                 authority: &peer_authority,
                 original_policy: policy.historical(),
-                local_identity: (peer_device.account_id(), peer_device.device_id()),
+                original_device: &peer_device,
             },
             &renewal,
             renewal.operation(),
