@@ -7,6 +7,7 @@ pub(crate) enum SetupKind {
     Installed,
     RosterRenewal,
     Enrolled,
+    DeviceReplacement,
 }
 
 pub(super) enum PendingOwner {

@@ -32,7 +32,7 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # 51 native and 13 C lifecycle sources added after the 334-file baseline.
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 398
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 399
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000

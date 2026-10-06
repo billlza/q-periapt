@@ -112,3 +112,35 @@ credential/root/policy replacement or a complete identity lifecycle. Required-wi
 registration activation now has a separate signed current-authority check; the
 ordinary TLS restoration profile is local-only and does not stand in for a deployed
 operator service or an independent witness implementation.
+
+## Replacing an enrolled device generation
+
+The complete Rust trace also exercises replacement under the local-only witness
+profile. After the old receiver commits an application effect and exits before
+returning its receipt, the independently retained account authority enrolls a new
+generation of that device. The replacement creates its own signing owner, journal,
+prekeys and TLS identity; it receives no private state from the old device. Closing
+and reopening enrollment retains the exact original new-generation request and
+accepted journal.
+
+The sender explicitly admits the authority's newer peer roster. Its cached old
+context then refuses release of the old message. Cleanup freezes that session and
+exits before completion; independent recovery processes retain the same closure
+identity, original message and ciphertext commitment, with zero acknowledgments
+and one unconfirmed delivery. The original sender subsequently establishes a fresh
+TLS session with the replacement and confirms a new application effect. The old
+effect remains unchanged. A later signed roster that reintroduces the retired
+generation is rejected after the sender has reopened its durable state.
+
+`artifact/continuity_device_replacement.py` requires 49 public files per Debug or
+Release execution and exports them as `<profile>-device-replacement-public`.
+It checks original account/device lineage, distinct signing components and journals,
+generation and roster advancement, effects and durable loss-accounting identities.
+Native APIs validate signatures and private state; the reader is a structural
+cross-check. Missing or inconsistent replacement evidence fails the package gate.
+
+This reference relies on an available account authority and explicit trusted roster
+delivery to the peer. It does not establish atomic replacement under a required
+witness, global revocation of the lost device, account-root replacement, secret
+migration, foreign-language replacement or physical-device qualification. Those
+remain separate 0.2.0 requirements.

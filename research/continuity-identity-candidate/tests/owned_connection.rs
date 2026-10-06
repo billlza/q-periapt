@@ -32,6 +32,8 @@ use zeroize::Zeroizing;
 pub(crate) mod enrollment;
 #[path = "owned_connection/reopen.rs"]
 mod reopen;
+#[path = "owned_connection/replacement.rs"]
+mod replacement;
 #[path = "owned_connection/roster_renewal.rs"]
 mod roster_renewal;
 
@@ -408,7 +410,7 @@ impl Drop for Setup {
 pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
     match kind {
         enrollment::SetupKind::Installed => setup_with_witness(None),
-        enrollment::SetupKind::Enrolled => {
+        enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement => {
             Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
         }
         enrollment::SetupKind::RosterRenewal => {
@@ -490,15 +492,21 @@ fn setup_devices_for(
     kind: enrollment::SetupKind,
 ) -> Result<(Setup, Option<PathBuf>)> {
     let roster_renewal = kind == enrollment::SetupKind::RosterRenewal;
-    let enrolled = kind == enrollment::SetupKind::Enrolled;
+    let replacement = kind == enrollment::SetupKind::DeviceReplacement;
+    let enrolled = matches!(
+        kind,
+        enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement
+    );
     if enrolled && (!operational || multi || roster_renewal) {
         return Err("enrollment reference requires its explicit initial-connection profile".into());
     }
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
-        if advertisement_seconds.is_some() || multi || roster_renewal {
+        if advertisement_seconds.is_some() || multi || roster_renewal || replacement {
             let mut name = path.file_name().ok_or("evidence filename")?.to_os_string();
-            name.push(if roster_renewal {
+            name.push(if replacement {
+                "-device-replacement"
+            } else if roster_renewal {
                 "-roster-renewal"
             } else if multi {
                 "-account"
@@ -1270,6 +1278,7 @@ pub(crate) fn send(
 
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
+    replacement::exercise()?;
     roster_renewal::public_roster_refresh_recovers_original_intent_over_signed_tcp()?;
     let s = setup(enrollment::SetupKind::Enrolled)?;
     marker_publication_control(&s.initiator)?;

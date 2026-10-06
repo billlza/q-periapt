@@ -33,7 +33,7 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         "artifact/continuity_foreign_account_results.py", "artifact/continuity_foreign_policy.py",
-        "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py",
+        "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py",
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
         "artifact/continuity_c_account_tls.py", "artifact/continuity_c_account_tls_loss.py", "artifact/continuity_c_account_delivery.py", "artifact/continuity_c_setup.py", "artifact/continuity_c_enrollment.py", "artifact/continuity_c_independent_policy.py", "artifact/continuity_witnessed_renewal.py", "artifact/continuity_witnessed_policy_expiry.py", "artifact/continuity_witnessed_cancellation.py", "artifact/continuity_witnessed_commit_error.py", "artifact/continuity_setup_faults.py", "artifact/continuity_setup_io.py", "artifact/continuity_setup_witness_faults.py",
         "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
@@ -61,7 +61,7 @@ def validate_candidate(data: bytes, expected_files: set[str]) -> dict[str, bytes
             if name.startswith("q-periapt"):
                 sdk.require(name in sdk.CONSUMER_CRATES and dep["version"] == "=" + sdk.VERSION
                             and "path" not in dep, "candidate normalized SDK dependency differs")
-    sdk.require({"LICENSE", "LICENSE-APACHE", "LICENSE-MIT", "tests/owned_connection.rs", "tests/owned_connection/roster_renewal.rs", "tests/owned_connection/enrollment.rs"} <= files.keys(),
+    sdk.require({"LICENSE", "LICENSE-APACHE", "LICENSE-MIT", "tests/owned_connection.rs", "tests/owned_connection/roster_renewal.rs", "tests/owned_connection/enrollment.rs", "tests/owned_connection/replacement.rs"} <= files.keys(),
                 "candidate archive is missing license or public consumer inputs")
     sdk.require(files["Cargo.toml.orig"] == sdk.snapshot(CANDIDATE / "Cargo.toml").data,
                 "candidate original manifest differs")
@@ -95,9 +95,11 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
     return dict(result, candidate_crates=1)
 
 
-def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, roster_directory: Path) -> dict:
+def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, roster_directory: Path,
+                     replacement_directory: Path) -> dict:
     from continuity_roster_renewal import verify as verify_roster_renewal
     from continuity_enrollment import verify as verify_enrollment
+    from continuity_device_replacement import verify as verify_replacement
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == 3 and set(passed) == TESTS and re.search(
@@ -141,7 +143,8 @@ def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, ros
                         "enrollment evidence changed the actual application readback")
     return dict(report, enrollment=enrollment, application_readbacks=readbacks, cleanup_id=cleanup[0].hex(),
                 session_reopen=verify_reopen_execution(reopen_directory),
-                roster_renewal=verify_roster_renewal(roster_directory))
+                roster_renewal=verify_roster_renewal(roster_directory),
+                device_replacement=verify_replacement(replacement_directory))
 
 
 
@@ -340,7 +343,12 @@ def qualify(args: argparse.Namespace) -> dict:
             tested = run([str(executable), "--nocapture"], "consumer-" + profile, consumer,
                          env=dict(runtime_environment, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence)))
             roster = evidence.with_name(evidence.name + "-roster-renewal") / "public"
-            result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"), roster)
+            replacement = evidence.with_name(evidence.name + "-device-replacement") / "public"
+            result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"), roster, replacement)
+            from continuity_device_replacement import export as export_replacement
+            sdk.require(export_replacement(replacement, output / (profile + "-device-replacement-public"))
+                        == result["execution"][profile]["device_replacement"],
+                        "device replacement evidence changed before export")
             from continuity_enrollment import export as export_enrollment, export_reopen
             reopened = result["execution"][profile]["session_reopen"]
             exported_reopen = export_reopen(evidence.with_name(evidence.name + "-session-reopen"),
