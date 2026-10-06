@@ -108,7 +108,11 @@ committed advance and exact retry, CA-valid wrong leaf pins, unauthorized client
 certificates, another enrolled subject, wrong ALPN, expired/future certificates,
 wrong names, a classic-only peer, truncated/pipelined input, host clock failure,
 held-handshake and busy-store cancellation/deadlines, and a query after closing
-the SDK runtime. A client that disconnects after its authenticated request end
+the SDK runtime. The clock-failure regression requires an unchanged durable
+witness image, then retries the original command with fresh attempts: the first
+retry advances once and the second confirms that exact result. This native
+transport check does not establish the complete foreign-client recovery path.
+A client that disconnects after its authenticated request end
 without consuming the committed reply reconciles the exact original advance
 with a fresh challenge. A bidirectional TCP relay fragments records and captures ciphertext;
 the observed absence of journal tags/subject bytes supplements TLS negotiation

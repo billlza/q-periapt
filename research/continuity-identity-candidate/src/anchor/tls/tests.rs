@@ -863,6 +863,8 @@ fn tls_classic_only_server_cannot_negotiate_a_fallback() {
 #[test]
 fn tls_clock_failure_cannot_commit_a_valid_signed_advance() {
     let case = Case::new();
+    let image_path = case.directory.path().join("witness/witness.redb");
+    let image_before = zeroize::Zeroizing::new(fs::read(&image_path).expect("witness image"));
     let client = Identity::new("client.test");
     let server = Identity::new("localhost");
     let tls = AnchorTlsServer::new(
@@ -875,8 +877,9 @@ fn tls_clock_failure_cannot_commit_a_valid_signed_advance() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener");
     let address = listener.local_addr().expect("address");
     let store = Arc::clone(&case.store);
+    let failing_server = tls.clone();
     let worker = thread::spawn(move || {
-        tls.serve(
+        failing_server.serve(
             accepted(&listener)?,
             &store,
             Instant::now() + Duration::from_secs(5),
@@ -892,10 +895,8 @@ fn tls_clock_failure_cannot_commit_a_valid_signed_advance() {
         Cancellation::default(),
     )
     .expect("transport");
-    let request = case.request(
-        case.genesis.subject(),
-        AnchorOperation::advance(initial(&case.genesis), [37; 32]).expect("advance"),
-    );
+    let operation = AnchorOperation::advance(initial(&case.genesis), [37; 32]).expect("advance");
+    let request = case.request(case.genesis.subject(), operation);
     assert!(transport
         .exchange(request.as_bytes(), Instant::now() + Duration::from_secs(5))
         .is_err());
@@ -907,7 +908,43 @@ fn tls_clock_failure_cannot_commit_a_valid_signed_advance() {
             .to_string(),
         "host clock unavailable"
     );
+    assert!(
+        image_before.as_slice() == fs::read(&image_path).expect("unchanged witness image"),
+        "clock failure changed the durable witness image"
+    );
     assert_eq!(case.query(case.genesis.subject()), initial(&case.genesis));
+    request.close();
+    let next = AnchorHead::from_trusted_state(1, 2, [37; 32]).expect("original target");
+    let mut prior_attempt = incoming(&case.pin, request.as_bytes())
+        .expect("original signed request")
+        .attempt;
+    for expected in [AnchorOutcome::Advanced, AnchorOutcome::AlreadyAppliedExact] {
+        let retry = case.request(case.genesis.subject(), operation);
+        assert_eq!(retry.command_id(), request.command_id());
+        let attempt = incoming(&case.pin, retry.as_bytes())
+            .expect("fresh retry")
+            .attempt;
+        assert_ne!(attempt, prior_attempt, "retry reused the original attempt");
+        prior_attempt = attempt;
+        let (reply, served) = exchange(
+            &case,
+            client.client(&[&server]),
+            tls.clone(),
+            server.certificate.to_vec(),
+            &retry,
+        );
+        served.expect("fresh native TLS exchange");
+        let wire = reply.expect("authenticated retry reply");
+        let reply = case
+            .pin
+            .verify_reply(&retry, &wire)
+            .expect("both signatures");
+        assert_eq!(reply.outcome(), expected);
+        assert_eq!(reply.observed_head(), next);
+        assert_eq!(reply.last_command_id(), Some(request.command_id()));
+        assert!(case.pin.verify_reply(&request, &wire).is_err());
+        assert_eq!(case.query(case.genesis.subject()), next);
+    }
 }
 
 #[test]
