@@ -136,20 +136,31 @@ fn c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_
         PeerUpdateCut::CancelInFlight,
         PeerUpdateCut::KillProcess,
     ] {
-        account_scenario_with_cut(true, Some(cut))?;
+        account_scenario_with_cut(true, Some(cut), &[false])?;
     }
     eprintln!("C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true");
     Ok(())
 }
 fn account_scenario(revoke: bool) -> Result<()> {
-    account_scenario_with_cut(revoke, None)
+    account_scenario_with_cut(revoke, None, &[false, true])
 }
-fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result<()> {
-    let profiles: &[bool] = if cut.is_some() {
-        &[false]
-    } else {
-        &[false, true]
-    };
+#[test]
+fn c_peer_roster_tls_committed_reply_loss_cancel_and_kill_recover_original_target() -> Result<()> {
+    for cut in [
+        PeerUpdateCut::LostReply,
+        PeerUpdateCut::CancelInFlight,
+        PeerUpdateCut::KillProcess,
+    ] {
+        account_scenario_with_cut(true, Some(cut), &[true])?;
+    }
+    eprintln!("C_PEER_ROSTER_TLS_INTERRUPTION cases=3 mutual_TLS=true processed_loss=true inflight_cancel=true actual_process_kill=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true no_plaintext_fallback=true");
+    Ok(())
+}
+fn account_scenario_with_cut(
+    revoke: bool,
+    cut: Option<PeerUpdateCut>,
+    profiles: &[bool],
+) -> Result<()> {
     for &tls in profiles {
         let mut w = witness::Witness::start()?;
         let (setup, second) =
@@ -199,10 +210,19 @@ fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result
         let signer = Zeroizing::new(fs::read(c.path.join("signer.key"))?);
         let wrapping = Zeroizing::new(fs::read(c.path.join("wrap.key"))?);
         let [remote0, remote1] = &recipients;
-        let mut encrypted = if tls {
+        let mut encrypted = if tls && cut.is_none() {
             Some(witness_tls::TlsWitness::start(
                 Arc::clone(&w.configured.store),
                 [&c.path, remote0, remote1],
+            )?)
+        } else {
+            None
+        };
+        let mut encrypted_fault = if tls && cut.is_some() {
+            Some(witness_tls_faults::FaultWitness::start(
+                Arc::clone(&w.configured.store),
+                [&c.path, remote0, remote1],
+                w._directory.path().join("witness.redb"),
             )?)
         } else {
             None
@@ -211,6 +231,14 @@ fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result
             c.witness.as_mut().ok_or("witness")?.address = server.address;
             c.witness_tls = true;
         }
+        if let Some(server) = &encrypted_fault {
+            c.witness.as_mut().ok_or("witness")?.address = server.address;
+            c.witness_tls = true;
+        }
+        // Registration above used the fixture's original signed carrier. From
+        // this boundary both sessions and every lifecycle/recovery call must
+        // use the configured encrypted endpoint exclusively.
+        let plain_before_tls = calls(&w)?;
         let mut established = Vec::new();
         for (index, (remote, peer)) in recipients.iter().zip(&peers).enumerate() {
             let (server, address) = start(
@@ -327,6 +355,9 @@ fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result
         g.status("group-partial-after-updates", batch)?;
         let unused = SocketAddr::from(([127, 0, 0, 1], 1));
         let witness_observations = || -> Result<usize> {
+            if let Some(server) = &encrypted_fault {
+                return Ok(server.captured.lock().map_err(|_| "TLS captures")?.len());
+            }
             match &encrypted {
                 Some(server) => Ok(server.admitted.load(Ordering::Acquire)),
                 None => calls(&w),
@@ -387,7 +418,15 @@ fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result
             );
         }
         if revoke {
-            revoked_recovery(&g, batch, [first, second], [device0, device1], &mut w, cut)?;
+            revoked_recovery(
+                &g,
+                batch,
+                [first, second],
+                [device0, device1],
+                &mut w,
+                cut,
+                encrypted_fault.as_ref(),
+            )?;
         } else {
             let remote1 = g.recipients.get(1).ok_or("second recipient")?;
             let (server, address) = start(
@@ -454,6 +493,15 @@ fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result
             assert!(server.admitted.load(Ordering::Acquire) > 0);
             assert!(server.finish()?.is_empty());
         }
+        if let Some(server) = &mut encrypted_fault {
+            assert_eq!(
+                calls(&w)?,
+                plain_before_tls,
+                "no plaintext witness fallback after TLS selection"
+            );
+            eprintln!("PEER_ROSTER_TLS_CARRIER registration_plain_records={plain_before_tls} subsequent_plain_records=0");
+            server.finish()?;
+        }
         w.join()?;
     }
     if cut.is_none() && revoke {
@@ -471,6 +519,7 @@ fn revoked_recovery(
     devices: [[u8; 16]; 2],
     witness: &mut witness::Witness,
     cut: Option<PeerUpdateCut>,
+    tls: Option<&witness_tls_faults::FaultWitness>,
 ) -> Result<()> {
     let root =
         g.c._setup
@@ -553,7 +602,7 @@ fn revoked_recovery(
         )
     };
     let committed = if let Some(cut) = cut {
-        interrupt_peer_update(g, witness, &public, batch, cut, &expected([2, 1]))?
+        interrupt_peer_update(g, witness, &public, batch, cut, &expected([2, 1]), tls)?
     } else {
         let [peer0, peer1] = &g.peers;
         let [session0, session1] = g.sessions;
@@ -748,15 +797,18 @@ fn interrupt_peer_update(
     batch: [u8; 32],
     cut: PeerUpdateCut,
     expected: &str,
+    tls: Option<&witness_tls_faults::FaultWitness>,
 ) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
     let marker = g.c.path.join("peer-roster-held-advance");
     let opcode = match cut {
         PeerUpdateCut::Unprocessed => 42,
         PeerUpdateCut::LostReply => 22,
         PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess => {
-            let mut held = witness.hold_marker.lock().map_err(|_| "held marker lock")?;
-            assert!(held.is_none());
-            *held = Some(marker.clone());
+            if tls.is_none() {
+                let mut held = witness.hold_marker.lock().map_err(|_| "held marker lock")?;
+                assert!(held.is_none());
+                *held = Some(marker.clone());
+            }
             3
         }
     };
@@ -771,8 +823,25 @@ fn interrupt_peer_update(
     }
     let args = g.args("peer-roster-admit", &tail);
     let before = snapshot(&g.c)?;
-    let first = calls(witness)?;
-    witness.arm(opcode)?;
+    let first = if let Some(tls) = tls {
+        assert!(
+            !matches!(cut, PeerUpdateCut::Unprocessed),
+            "pre-processing TLS cut needs its own admission evidence"
+        );
+        let first = tls.captured.lock().map_err(|_| "TLS captures")?.len();
+        tls.arm(
+            matches!(
+                cut,
+                PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess
+            )
+            .then_some(marker.as_path()),
+        )?;
+        first
+    } else {
+        let first = calls(witness)?;
+        witness.arm(opcode)?;
+        first
+    };
     if matches!(cut, PeerUpdateCut::KillProcess) {
         kill_held_update(g, &args, &marker)?;
     } else {
@@ -785,11 +854,45 @@ fn interrupt_peer_update(
             }
         );
     }
-    assert_eq!(
-        witness.fault.load(Ordering::Acquire),
-        0,
-        "actual intended fault consumed"
-    );
+    if tls.is_some()
+        && matches!(
+            cut,
+            PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess
+        )
+    {
+        let released = marker.with_extension("released");
+        fixture::publish_marker(
+            released.parent().ok_or("TLS release parent")?,
+            released
+                .file_name()
+                .and_then(|s| s.to_str())
+                .ok_or("TLS release name")?,
+        )?;
+    }
+    if let Some(tls) = tls {
+        let records = tls.captured.lock().map_err(|_| "TLS captures")?;
+        let lost = records
+            .get(first..)
+            .ok_or("new TLS captures")?
+            .iter()
+            .filter(|r| !r.delivered)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            lost.len(),
+            1,
+            "one actual encrypted reply interruption before recovery"
+        );
+        let lost = lost.first().ok_or("lost encrypted response")?;
+        assert!(lost.advanced && lost.encrypted_reply_bytes > 0);
+        assert_eq!(lost.record.request().get(204), Some(&2));
+        assert_eq!(lost.record.reply().get(204), Some(&2));
+    } else {
+        assert_eq!(
+            witness.fault.load(Ordering::Acquire),
+            0,
+            "actual intended fault consumed"
+        );
+    }
     let interrupted = snapshot(&g.c)?;
     assert_eq!(
         interrupted.0, before.0,
@@ -821,7 +924,30 @@ fn interrupt_peer_update(
         "same original sealed target is recovered before complete member results"
     );
     {
-        let records = witness.captured.lock().map_err(|_| "capture")?;
+        let records = if let Some(tls) = tls {
+            tls.captured
+                .lock()
+                .map_err(|_| "TLS captures")?
+                .iter()
+                .map(|r| witness::Capture {
+                    request: r.record.request().to_vec(),
+                    reply: r.record.reply().to_vec(),
+                    delivered: r.delivered,
+                })
+                .collect::<Vec<_>>()
+        } else {
+            witness
+                .captured
+                .lock()
+                .map_err(|_| "capture")?
+                .iter()
+                .map(|r| witness::Capture {
+                    request: r.request.clone(),
+                    reply: r.reply.clone(),
+                    delivered: r.delivered,
+                })
+                .collect::<Vec<_>>()
+        };
         let advances = records
             .get(first..)
             .ok_or("new captures")?

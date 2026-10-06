@@ -19,7 +19,7 @@ fn phase(
         .len();
     let start = tls.captured.lock().map_err(|_| "TLS capture lock")?.len();
     if lose {
-        tls.arm()?;
+        tls.arm(None)?;
     }
     let output = action()?;
     let rows = tls.captured.lock().map_err(|_| "TLS capture lock")?;

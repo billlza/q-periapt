@@ -6,6 +6,10 @@ mod fixture;
 mod witness;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
+#[path = "common/witness_tls_faults.rs"]
+mod witness_tls_faults;
+#[path = "common/witness_tls_relay.rs"]
+mod witness_tls_relay;
 use q_periapt_continuity_identity_candidate as p;
 use q_periapt_host_store::{
     filesystem::{open_private_database, PrivateDatabaseError},

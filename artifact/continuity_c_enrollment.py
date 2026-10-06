@@ -48,7 +48,7 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     """Validate shared harness output; caller must bind the selected client binary."""
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported credential renewal language")
     text = stdout.decode()
-    _require_execution(text, RENEWAL_TESTS, 17, "C credential renewal workloads were not executed completely")
+    _require_execution(text, RENEWAL_TESTS, 18, "C credential renewal workloads were not executed completely")
     sdk.require(re.findall(r"^C_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
         "C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true"],
         "C committed credential renewal scope differs")
@@ -179,7 +179,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],

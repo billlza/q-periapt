@@ -20,6 +20,11 @@ pub(crate) struct Exchange {
     pub(crate) advanced: bool,
     pub(crate) delivered: bool,
     pub(crate) encrypted_reply_bytes: usize,
+    pub(crate) record: p::anchor_tls::AnchorTlsRecord,
+}
+enum ReplyFault {
+    Drop,
+    Hold(PathBuf),
 }
 fn snapshot(path: &Path) -> Result<Zeroizing<Vec<u8>>> {
     if !fs::symlink_metadata(path)?.is_file() {
@@ -39,12 +44,12 @@ fn serve_one(
     server: &p::anchor_tls::AnchorTlsServer,
     store: &Mutex<p::AnchorStore>,
     path: &Path,
-    lose_next: &AtomicBool,
+    next: &Mutex<Option<ReplyFault>>,
     records: &Mutex<Vec<Exchange>>,
 ) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(3);
     let mut before = None;
-    let (reply, _record) =
+    let (reply, record) =
         witness_tls_relay::receive_reply(&mut front, server, store, deadline, &mut || {
             before = Some(snapshot(path).map_err(io::Error::other)?);
             fixture::now().map_err(io::Error::other)
@@ -55,13 +60,15 @@ fn serve_one(
     // AnchorStore::handle persists only Advanced. Queries and exact retries
     // are read-only. Observe the real image before handle and after serve,
     // while no other fixture action accesses this witness store.
-    let lost = advanced
-        && lose_next
-            .compare_exchange(true, false, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok();
+    let fault = if advanced {
+        next.lock().map_err(|_| "TLS next fault lock")?.take()
+    } else {
+        None
+    };
     if reply.is_empty() {
         return Err("TLS native reply was not retained".into());
     }
+    let signed_reply_bytes = record.reply().len();
     {
         let mut records = records.lock().map_err(|_| "TLS fault record lock")?;
         if records.len() >= 4096 {
@@ -69,14 +76,48 @@ fn serve_one(
         }
         records.push(Exchange {
             advanced,
-            delivered: !lost,
+            delivered: fault.is_none(),
             encrypted_reply_bytes: reply.len(),
+            record,
         });
     }
     // Publish the observation before making the corresponding reply or
     // interruption observable to the foreign caller.
-    if !lost {
-        witness_tls_relay::write(&mut front, &reply, deadline)?;
+    match fault {
+        None => witness_tls_relay::write(&mut front, &reply, deadline)?,
+        Some(ReplyFault::Drop) => {}
+        Some(ReplyFault::Hold(marker)) => {
+            // Retain the remainder of the real encrypted response. The foreign
+            // caller cannot authenticate a complete TLS reply from this prefix.
+            let prefix = reply.get(..reply.len() / 2).ok_or("TLS reply prefix")?;
+            if prefix.is_empty() || prefix.len() >= signed_reply_bytes {
+                return Err("TLS prefix must be shorter than the signed reply".into());
+            }
+            witness_tls_relay::write(&mut front, prefix, deadline)?;
+            fixture::publish_marker(
+                marker.parent().ok_or("TLS marker parent")?,
+                marker
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .ok_or("TLS marker name")?,
+            )?;
+            // receive_reply has joined its request reader. Use an explicit
+            // bounded harness release after observed cancellation/process exit;
+            // a locally shut-down read side is not proof of peer disconnect.
+            let released = marker.with_extension("released");
+            loop {
+                match fs::read(&released) {
+                    Ok(bytes) if bytes == b"1" => break,
+                    Ok(_) => return Err("TLS fault release marker differs".into()),
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                }
+                if Instant::now() >= deadline {
+                    return Err("TLS held reply was not released after observed termination".into());
+                }
+                thread::sleep(Duration::from_millis(2));
+            }
+        }
     }
     // The request clone is joined. Release the last socket in both paths;
     // shutdown after a peer has closed is not part of the reply contract.
@@ -88,7 +129,7 @@ pub(crate) struct FaultWitness {
     pub(crate) address: SocketAddr,
     pub(crate) captured: Arc<Mutex<Vec<Exchange>>>,
     stop: Arc<AtomicBool>,
-    lose_next: Arc<AtomicBool>,
+    next: Arc<Mutex<Option<ReplyFault>>>,
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
 impl FaultWitness {
@@ -106,8 +147,8 @@ impl FaultWitness {
         let address = listener.local_addr()?;
         let stop = Arc::new(AtomicBool::new(false));
         let control = Arc::clone(&stop);
-        let lose_next = Arc::new(AtomicBool::new(false));
-        let fault = Arc::clone(&lose_next);
+        let next = Arc::new(Mutex::new(None));
+        let fault = Arc::clone(&next);
         let captured = Arc::new(Mutex::new(Vec::new()));
         let records = Arc::clone(&captured);
         let worker = thread::spawn(move || -> Result<()> {
@@ -128,14 +169,16 @@ impl FaultWitness {
             address,
             captured,
             stop,
-            lose_next,
+            next,
             worker: Some(worker),
         })
     }
-    pub(crate) fn arm(&self) -> Result<()> {
-        self.lose_next
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .map_err(|_| "unconsumed TLS commit-response fault")?;
+    pub(crate) fn arm(&self, marker: Option<&Path>) -> Result<()> {
+        let mut next = self.next.lock().map_err(|_| "TLS next fault lock")?;
+        if next.is_some() {
+            return Err("unconsumed TLS commit-response fault".into());
+        }
+        *next = Some(marker.map_or(ReplyFault::Drop, |p| ReplyFault::Hold(p.to_owned())));
         Ok(())
     }
     pub(crate) fn finish(&mut self) -> Result<()> {
@@ -145,8 +188,27 @@ impl FaultWitness {
             .ok_or("TLS fault worker missing")?
             .join()
             .map_err(|_| "TLS fault worker panicked")??;
-        if self.lose_next.load(Ordering::Acquire) {
+        if self
+            .next
+            .lock()
+            .map_err(|_| "TLS next fault lock")?
+            .is_some()
+        {
             return Err("TLS commit-response fault did not fire".into());
+        }
+        for exchange in self
+            .captured
+            .lock()
+            .map_err(|_| "TLS fault record lock")?
+            .iter()
+        {
+            if exchange.record.request().len() != 3674
+                || exchange.record.reply().len() != 3659
+                || exchange.encrypted_reply_bytes == 0
+                || (!exchange.delivered && !exchange.advanced)
+            {
+                return Err("TLS fault exchange frame width".into());
+            }
         }
         Ok(())
     }

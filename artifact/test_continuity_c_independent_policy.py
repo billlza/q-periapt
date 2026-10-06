@@ -6,7 +6,7 @@ class IndependentExecutionTests(unittest.TestCase):
     def test_exact_runtime_set_and_scope(self):
         scope = ("\n".join(independent.MARKERS) + "\n").encode()
         evidence = ("".join("test " + name + " ... ok\n" for name in sorted(independent.TESTS)) +
-                    "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out;\n").encode()
+                    "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out;\n").encode()
         self.assertTrue(independent.verify(evidence, scope)["completed"])
         for name in independent.TESTS:
             with self.subTest(missing=name), self.assertRaises(ValueError):

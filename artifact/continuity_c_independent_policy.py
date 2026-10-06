@@ -8,6 +8,7 @@ import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_execution
 
 TESTS = {
+    'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_tls_committed_reply_loss_cancel_and_kill_recover_original_target',
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_current_sdk',
     'credential_renewal::independent_policy::c_independent_policy_rejects_changed_requests_without_publishing_or_mutating_intent',
     'credential_renewal::independent_policy::c_independent_policy_request_restarts_exact_stage_and_adopts_original_journal',
@@ -23,6 +24,7 @@ TESTS = {
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_required_peer_revocation_reconciles_every_original_account_member_before_retirement',
 }
 MARKERS = (
+    'C_PEER_ROSTER_TLS_INTERRUPTION cases=3 mutual_TLS=true processed_loss=true inflight_cancel=true actual_process_kill=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true no_plaintext_fallback=true',
     'C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true',
     'C_INDEPENDENT_POLICY request_from_original=true signed_inputs_reverified=true pending_exact_retry=true first_approvals_retained=true actual_commit=true original_device_transfer=true historical_without_runtime_tls_signer=true',
     'C_INDEPENDENT_POLICY_ERRORS scope=true signature=true tail=true cancellation=true output_untouched=true ownership_checked=true original_intent=true',
@@ -51,5 +53,7 @@ def verify(stdout: bytes, stderr: bytes) -> dict:
     return dict(completed=True, tests=sorted(TESTS), language="C",
                 scope="installed C client with shared Rust engine; independent local/required policy renewal, atomic local roster refresh, current remote-roster admission, original TLS message/rekey and partial-account recovery through TCP/mTLS witnesses; real second-recipient revocation preserves authenticated consumption versus unknown delivery and requires complete synced host accounting before metadata retirement",
                 peer_roster_interruption_carrier="signed-tcp", peer_roster_interruption_cases=4,
+                peer_roster_tls_post_commit_interruption_cases=3,
+                peer_roster_tls_preprocessing_interruption_qualified=False,
                 independent_protocol_implementation=False, Swift_Kotlin_new_paths_qualified=False,
                 physical_platform_qualified=False, release_claim_eligible=False)

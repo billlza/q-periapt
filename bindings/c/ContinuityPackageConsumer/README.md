@@ -1131,5 +1131,15 @@ uses a fresh challenge for the same complete command: the first witness result i
 Advanced and the recovery result is AlreadyAppliedExact, with the same target and
 last command. Two requests are not two state advances. The reference client also
 checks that close is Busy during the active call, cancellation returns promptly,
-and an unknown outcome publishes no checkpoint or new account ID. Equivalent
-mutual-TLS interruption coverage remains a separate gate.
+and an unknown outcome publishes no checkpoint or new account ID.
+
+The mutual-TLS peer-roster workload covers three post-commit cuts: encrypted
+reply loss, cancellation during a partial encrypted reply, and termination of
+the original C process at that same observed barrier. It uses the unchanged
+native TLS server and an encrypted-wire relay, checks the exact signed Advance
+and AlreadyAppliedExact records, and retains the original target and complete
+member results through historical recovery. After selecting TLS, the original
+plaintext witness request count must remain unchanged throughout both sessions,
+the policy/roster transitions and recovery. The fixture's earlier registration
+uses its original signed carrier. Pre-processing loss over mutual TLS remains
+a separate gate; the post-commit cuts do not qualify it.
