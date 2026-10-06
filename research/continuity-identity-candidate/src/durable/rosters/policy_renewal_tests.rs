@@ -461,7 +461,7 @@ fn real_g_commit_and_ack_sync_failures_keep_policy_approval_and_credential_atomi
                     old += 1;
                     assert!(
                         !acknowledging
-                            && !retained.carried_grant.is_some()
+                            && retained.carried_grant.is_none()
                             && saved.local_commit.is_none()
                     );
                     assert_eq!(saved.roster.checkpoint(), c.device.roster().checkpoint());
