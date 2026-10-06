@@ -46,6 +46,8 @@ publishing {
 tasks.test {
     useJUnitPlatform()
     val library = providers.gradleProperty("qperiapt.continuity.lib")
+    inputs.file(library).withPropertyName("continuityNativeLibrary")
+        .withPathSensitivity(PathSensitivity.ABSOLUTE).optional()
     doFirst { require(library.isPresent) { "select the actual installed qpc-owner/1 library" } }
     systemProperty("qperiapt.continuity.lib", library.getOrElse(""))
     jvmArgs("--enable-native-access=ALL-UNNAMED", "--illegal-native-access=deny")
