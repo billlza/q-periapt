@@ -452,7 +452,8 @@ commands exercise this path after actual peer revocation and interruption over
 signed TCP and mutual TLS. The same Swift client now admits the peer roster and
 performs the interruption path described below. C retains enrollment, local P/R
 updates and individual-member closure. This combined workload does not qualify
-local P/R updates, mutual-TLS pre-processing loss, physical platforms or the final release.
+local P/R updates, physical platforms or the final release. The separate optional
+OpenSSL workload below covers pre-processing loss over mutual TLS.
 
 
 ### Independent policy updates
@@ -562,6 +563,15 @@ and an observed process kill over each carrier. Every language run includes
 C retains 27 raw input/output-buffer controls, enrollment, local P/R updates and
 individual-member closure. Foreign post-dispatch failures are checked as typed
 errors; the separate C baseline checks untouched raw success outputs. This is
-one shared native protocol engine, not an independent implementation. TLS
-pre-processing interruption, physical platforms and platform persistence remain
-separate gates.
+one shared native protocol engine, not an independent implementation.
+
+When `--witness-openssl-prefix` is selected, a separate tenth scenario uses the
+pinned independent OpenSSL endpoint. It authenticates the complete mutual-TLS
+request and drops it before the native witness store handles it. The witness
+image must remain unchanged. Recovery retains the original sealed target, uses
+a fresh challenge for the same command, and preserves all original account
+member results through retirement. This adds three foreign peer calls and
+three C raw-input controls. The collector requires the C baseline first and
+pins the endpoint executable and its OpenSSL dependencies. This qualifies the
+independent TLS endpoint; native TLS server pre-processing interruption,
+physical platforms and platform persistence remain separate gates.

@@ -1141,8 +1141,18 @@ and AlreadyAppliedExact records, and retains the original target and complete
 member results through historical recovery. After selecting TLS, the original
 plaintext witness request count must remain unchanged throughout both sessions,
 the policy/roster transitions and recovery. The fixture's earlier registration
-uses its original signed carrier. Pre-processing loss over mutual TLS remains
-a separate gate; the post-commit cuts do not qualify it.
+uses its original signed carrier.
+
+With `--witness-openssl-prefix`, a separate pre-processing scenario uses the
+pinned independent OpenSSL endpoint. It authenticates the complete mutual-TLS
+request, then disconnects before calling the native witness store. It requires
+an unchanged witness image, recovery of the original sealed pending target with
+a fresh challenge for the same command, and complete original member accounting
+before retirement. No plaintext fallback is permitted. C, Swift and Kotlin run
+this same scenario through their selected clients; enrollment, local P/R and
+individual-member closure still use C. The TLS implementation is independent,
+while the signed witness protocol and storage engine remain shared. Native TLS
+server pre-processing interruption remains a separate gate.
 
 The foreign account-result workload selects a Swift or Kotlin executable only
 for complete member-result reads and final metadata retirement. Enrollment,

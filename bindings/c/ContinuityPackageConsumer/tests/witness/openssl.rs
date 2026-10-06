@@ -2,149 +2,10 @@
 //! Independent OpenSSL TLS endpoint; the authenticated witness engine is shared.
 use super::tls::{provision, run_tls, serve_tls};
 use super::*;
-use std::{
-    io::{BufRead, BufReader},
-    process::ChildStdin,
-};
+use crate::openssl_host::{capture, executable, public_log, result_lines, Host};
 
-fn executable() -> Result<PathBuf> {
-    let path = PathBuf::from(
-        std::env::var_os("QPERIAPT_WITNESS_OPENSSL_PEER")
-            .ok_or("independent OpenSSL witness peer is required")?,
-    );
-    if !path.is_absolute() || !path.is_file() {
-        return Err("invalid OpenSSL peer executable".into());
-    }
-    Ok(path)
-}
-fn capture(path: &Path) -> io::Result<fs::File> {
-    fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path)
-}
-fn public_log(path: &Path) -> Result<String> {
-    let mut bytes = Vec::new();
-    fs::File::open(path)?.take(65537).read_to_end(&mut bytes)?;
-    if bytes.len() > 65536 {
-        return Err("OpenSSL public log exceeded bound".into());
-    }
-    Ok(String::from_utf8(bytes)?)
-}
-fn result_lines(text: &str, role: &str, count: usize) -> Result<()> {
-    let expected = (1..=count).map(|i| format!(
-        "OPENSSL_WITNESS_OK role={role} tls=1.3 group=X25519MLKEM768 alpn=q-periapt-anchor/1 exchange={i}\n"
-    )).collect::<String>();
-    if text != expected {
-        return Err(format!("independent TLS result differs: {text}").into());
-    }
-    Ok(())
-}
-struct Host {
-    child: fixture::OwnedChild,
-    input: Arc<Mutex<Option<ChildStdin>>>,
-    worker: Option<thread::JoinHandle<Result<usize>>>,
-    address: SocketAddr,
-    stderr: PathBuf,
-}
 impl Host {
-    fn start(root: &Path, paths: [&Path; 2], store: Arc<Mutex<p::AnchorStore>>) -> Result<Self> {
-        let configured = provision(paths)?;
-        let [left, right] = paths;
-        fixture::store(root, "openssl-server-cert", &configured.certificate)?;
-        fixture::store(root, "openssl-server-key", configured.key.as_slice())?;
-        // The native TLS configuration is deliberately not used by this peer.
-        drop(configured);
-        let stderr = root.join("openssl-witness-server.stderr");
-        let mut child = fixture::OwnedChild(
-            Command::new(executable()?)
-                .args(["server", "127.0.0.1:0"])
-                .arg(root.join("openssl-server-cert"))
-                .arg(root.join("openssl-server-key"))
-                .arg(left.join("witness-tls-cert"))
-                .arg(left.join("witness-subject"))
-                .arg(right.join("witness-tls-cert"))
-                .arg(right.join("witness-subject"))
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::from(capture(&stderr)?))
-                .spawn()?,
-        );
-        let input = Arc::new(Mutex::new(Some(child.0.stdin.take().ok_or("host input")?)));
-        let mut reader = BufReader::new(child.0.stdout.take().ok_or("host output")?);
-        let (ready, announcement) = std::sync::mpsc::sync_channel(1);
-        let replies = Arc::clone(&input);
-        let worker = thread::spawn(move || -> Result<usize> {
-            let mut line = String::new();
-            (&mut reader).take(96).read_line(&mut line)?;
-            let address: SocketAddr = line
-                .strip_prefix("LISTEN ")
-                .and_then(|v| v.strip_suffix('\n'))
-                .ok_or("OpenSSL listener announcement")?
-                .parse()?;
-            if !address.ip().is_loopback() || address.port() == 0 {
-                return Err("OpenSSL listener scope".into());
-            }
-            ready.send(address)?;
-            let mut count = 0;
-            loop {
-                let mut prefix = [0; 4];
-                let first = reader.read(prefix.get_mut(..1).ok_or("prefix slice")?)?;
-                if first == 0 {
-                    break;
-                }
-                reader.read_exact(prefix.get_mut(1..).ok_or("prefix tail")?)?;
-                if u32::from_be_bytes(prefix) != 3674 {
-                    return Err("OpenSSL request frame width".into());
-                }
-                let mut request = vec![0; 3674];
-                reader.read_exact(&mut request)?;
-                if count >= 1024 {
-                    return Err("OpenSSL reference request capacity".into());
-                }
-                // This is the first store access for each network request. The
-                // independent TLS peer has already checked its exact leaf/scope
-                // binding and authenticated request end; native signatures and
-                // the original durable transaction still govern the command.
-                let reply = store
-                    .lock()
-                    .map_err(|_| "witness store poisoned")?
-                    .handle(&request, fixture::now()?)?;
-                if reply.len() != 3659 {
-                    return Err("native reply frame width".into());
-                }
-                let mut input = replies.lock().map_err(|_| "host input poisoned")?;
-                let input = input.as_mut().ok_or("host input closed during request")?;
-                input.write_all(&3659_u32.to_be_bytes())?;
-                input.write_all(&reply)?;
-                input.flush()?;
-                count += 1;
-            }
-            Ok(count)
-        });
-        let mut host = Self {
-            child,
-            input,
-            worker: Some(worker),
-            address: SocketAddr::from(([127, 0, 0, 1], 0)),
-            stderr,
-        };
-        // On a partial/absent announcement Drop reaps the process before it
-        // joins the blocked reader; readiness has its own finite deadline.
-        host.address = announcement.recv_timeout(Duration::from_secs(5))?;
-        Ok(host)
-    }
-    fn finish(&mut self) -> Result<usize> {
-        self.input.lock().map_err(|_| "host input poisoned")?.take();
-        let (status, count, text) = self.complete()?;
-        if !status.success() {
-            return Err(format!("OpenSSL server {status}: {text}").into());
-        }
-        result_lines(&text, "server", count)?;
-        Ok(count)
-    }
-    fn rejected(&mut self, reason: &str) -> Result<()> {
+    pub(crate) fn rejected(&mut self, reason: &str) -> Result<()> {
         let (status, count, text) = self.complete()?;
         if status.code() != Some(1)
             || count != 0
@@ -154,49 +15,6 @@ impl Host {
             return Err(format!("OpenSSL rejection {status}, {count} store calls: {text}").into());
         }
         Ok(())
-    }
-    fn complete(&mut self) -> Result<(std::process::ExitStatus, usize, String)> {
-        let status = fixture::wait(&mut self.child)?;
-        let count = self
-            .worker
-            .take()
-            .ok_or("host worker missing")?
-            .join()
-            .map_err(|_| "host worker panicked")??;
-        let text = public_log(&self.stderr)?;
-        Ok((status, count, text))
-    }
-}
-impl Drop for Host {
-    fn drop(&mut self) {
-        if let Some(worker) = self.worker.take() {
-            // Error cleanup reaps the process before joining its pipe reader.
-            match self.child.0.try_wait() {
-                Ok(Some(_)) => {}
-                Ok(None) => {
-                    if let Err(error) = self.child.0.kill() {
-                        eprintln!("OpenSSL peer cleanup: {error}");
-                    }
-                    if let Err(error) = self.child.0.wait() {
-                        eprintln!("OpenSSL peer reap: {error}");
-                    }
-                }
-                Err(error) => {
-                    eprintln!("OpenSSL peer state: {error}");
-                    if let Err(error) = self.child.0.kill() {
-                        eprintln!("OpenSSL peer cleanup: {error}");
-                    }
-                    if let Err(error) = self.child.0.wait() {
-                        eprintln!("OpenSSL peer reap: {error}");
-                    }
-                }
-            }
-            match worker.join() {
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => eprintln!("OpenSSL host cleanup: {error}"),
-                Err(_) => eprintln!("OpenSSL host cleanup panicked"),
-            }
-        }
     }
 }
 
@@ -330,7 +148,12 @@ fn native_c_owners_and_openssl_witness_reconcile_revoked_cleanup() -> Result<()>
     let left = &setup.initiator;
     let right = &setup.responder;
     let root = left.parent().ok_or("fixture root")?;
-    let mut witness = Host::start(root, [left, right], Arc::clone(&original.configured.store))?;
+    let mut witness = Host::start(
+        root,
+        [left, right],
+        Arc::clone(&original.configured.store),
+        false,
+    )?;
     let address = witness.address;
     assert_eq!(
         run_tls(left, "openssl-kind", "recover-kind", &[], address, 0)?,
@@ -488,6 +311,7 @@ fn openssl_rejects_scope_trailing_data_missing_end_and_wrong_protocol_before_sto
             &directory,
             [&first, &second],
             Arc::clone(&original.configured.store),
+            false,
         )?;
         let client = if case == "wrong-subject" {
             &second

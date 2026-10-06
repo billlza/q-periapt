@@ -225,6 +225,71 @@ fn c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_
     eprintln!("C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true {error_scope} original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true");
     Ok(())
 }
+#[test]
+fn c_peer_roster_tls_unprocessed_openssl_request_recovers_exact_target() -> Result<()> {
+    account_scenario_with_cut(true, Some(PeerUpdateCut::Unprocessed), &[true])?;
+    eprintln!("C_PEER_ROSTER_TLS_UNPROCESSED cases=1 endpoint=OpenSSL mutual_TLS=true complete_authorized_frame=true no_store_handle=true unchanged_witness_image=true original_target=true fresh_recovery_challenge=true complete_account_results=true no_plaintext_fallback=true");
+    Ok(())
+}
+#[derive(Clone, Copy)]
+enum PeerTls<'a> {
+    Native(&'a witness_tls_faults::FaultWitness),
+    OpenSsl(&'a crate::openssl_host::Host),
+}
+impl PeerTls<'_> {
+    fn captures(self) -> Result<Vec<witness::Capture>> {
+        Ok(match self {
+            Self::Native(server) => server
+                .captured
+                .lock()
+                .map_err(|_| "TLS captures")?
+                .iter()
+                .map(|r| witness::Capture {
+                    request: r.record.request().to_vec(),
+                    reply: r.record.reply().to_vec(),
+                    delivered: r.delivered,
+                })
+                .collect(),
+            Self::OpenSsl(server) => server
+                .captured
+                .lock()
+                .map_err(|_| "OpenSSL captures")?
+                .iter()
+                .map(|r| witness::Capture {
+                    request: r.request.clone(),
+                    reply: r.reply.clone(),
+                    delivered: true,
+                })
+                .collect(),
+        })
+    }
+    fn arm(self, cut: PeerUpdateCut, marker: &Path) -> Result<()> {
+        match self {
+            Self::Native(server) => {
+                if matches!(cut, PeerUpdateCut::Unprocessed) {
+                    return Err("native TLS pre-processing hook is not available".into());
+                }
+                server.arm(
+                    matches!(
+                        cut,
+                        PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess
+                    )
+                    .then_some(marker),
+                )
+            }
+            Self::OpenSsl(server) => {
+                if !matches!(cut, PeerUpdateCut::Unprocessed) {
+                    return Err("OpenSSL scenario must select pre-processing loss".into());
+                }
+                server
+                    .drop_advance
+                    .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                    .map_err(|_| "OpenSSL prior fault unconsumed")?;
+                Ok(())
+            }
+        }
+    }
+}
 fn account_scenario(revoke: bool) -> Result<()> {
     account_scenario_with_cut(revoke, None, &[false, true])
 }
@@ -302,15 +367,30 @@ fn account_scenario_with_cut(
         } else {
             None
         };
-        let mut encrypted_fault = if tls && cut.is_some() {
-            Some(witness_tls_faults::FaultWitness::start(
-                Arc::clone(&w.configured.store),
+        let mut encrypted_fault =
+            if tls && cut.is_some() && !matches!(cut, Some(PeerUpdateCut::Unprocessed)) {
+                Some(witness_tls_faults::FaultWitness::start(
+                    Arc::clone(&w.configured.store),
+                    [&c.path, remote0, remote1],
+                    w._directory.path().join("witness.redb"),
+                )?)
+            } else {
+                None
+            };
+        let mut independent_tls = if tls && matches!(cut, Some(PeerUpdateCut::Unprocessed)) {
+            Some(crate::openssl_host::Host::start(
+                &c.path,
                 [&c.path, remote0, remote1],
-                w._directory.path().join("witness.redb"),
+                Arc::clone(&w.configured.store),
+                true,
             )?)
         } else {
             None
         };
+        if let Some(server) = &independent_tls {
+            c.witness.as_mut().ok_or("witness")?.address = server.address;
+            c.witness_tls = true;
+        }
         if let Some(server) = &encrypted {
             c.witness.as_mut().ok_or("witness")?.address = server.address;
             c.witness_tls = true;
@@ -450,6 +530,13 @@ fn account_scenario_with_cut(
         g.status("group-partial-after-updates", batch)?;
         let unused = SocketAddr::from(([127, 0, 0, 1], 1));
         let witness_observations = || -> Result<usize> {
+            if let Some(server) = &independent_tls {
+                return Ok(server
+                    .captured
+                    .lock()
+                    .map_err(|_| "OpenSSL captures")?
+                    .len());
+            }
             if let Some(server) = &encrypted_fault {
                 return Ok(server.captured.lock().map_err(|_| "TLS captures")?.len());
             }
@@ -520,7 +607,10 @@ fn account_scenario_with_cut(
                 [device0, device1],
                 &mut w,
                 cut,
-                encrypted_fault.as_ref(),
+                encrypted_fault
+                    .as_ref()
+                    .map(PeerTls::Native)
+                    .or_else(|| independent_tls.as_ref().map(PeerTls::OpenSsl)),
             )?;
         } else {
             let remote1 = g.recipients.get(1).ok_or("second recipient")?;
@@ -597,6 +687,15 @@ fn account_scenario_with_cut(
             eprintln!("PEER_ROSTER_TLS_CARRIER registration_plain_records={plain_before_tls} subsequent_plain_records=0");
             server.finish()?;
         }
+        if let Some(server) = &mut independent_tls {
+            assert_eq!(
+                calls(&w)?,
+                plain_before_tls,
+                "no signed-TCP fallback from independent TLS"
+            );
+            assert!(server.finish()? > 0);
+            eprintln!("PEER_ROSTER_OPENSSL_CARRIER subsequent_plain_records=0 TLS13=true X25519MLKEM768=true alpn=q-periapt-anchor/1");
+        }
         w.join()?;
         if let Some(client) = &g.peer_roster_client {
             eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_member_closure_and_raw_controls=true",
@@ -622,7 +721,7 @@ fn revoked_recovery(
     devices: [[u8; 16]; 2],
     witness: &mut witness::Witness,
     cut: Option<PeerUpdateCut>,
-    tls: Option<&witness_tls_faults::FaultWitness>,
+    tls: Option<PeerTls<'_>>,
 ) -> Result<()> {
     let root =
         g.c._setup
@@ -917,7 +1016,7 @@ fn interrupt_peer_update(
     batch: [u8; 32],
     cut: PeerUpdateCut,
     expected: &str,
-    tls: Option<&witness_tls_faults::FaultWitness>,
+    tls: Option<PeerTls<'_>>,
 ) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
     let marker = g.c.path.join("peer-roster-held-advance");
     let opcode = match cut {
@@ -943,19 +1042,16 @@ fn interrupt_peer_update(
     }
     let args = g.args("peer-roster-admit", &tail);
     let before = snapshot(&g.c)?;
+    let witness_image = if matches!(tls, Some(PeerTls::OpenSsl(_))) {
+        Some(witness_tls_faults::snapshot(
+            &witness._directory.path().join("witness.redb"),
+        )?)
+    } else {
+        None
+    };
     let first = if let Some(tls) = tls {
-        assert!(
-            !matches!(cut, PeerUpdateCut::Unprocessed),
-            "pre-processing TLS cut needs its own admission evidence"
-        );
-        let first = tls.captured.lock().map_err(|_| "TLS captures")?.len();
-        tls.arm(
-            matches!(
-                cut,
-                PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess
-            )
-            .then_some(marker.as_path()),
-        )?;
+        let first = tls.captures()?.len();
+        tls.arm(cut, &marker)?;
         first
     } else {
         let first = calls(witness)?;
@@ -989,7 +1085,25 @@ fn interrupt_peer_update(
                 .ok_or("TLS release name")?,
         )?;
     }
-    if let Some(tls) = tls {
+    if let Some(PeerTls::OpenSsl(server)) = tls {
+        assert!(
+            !server.drop_advance.load(Ordering::Acquire),
+            "intended OpenSSL request cut consumed"
+        );
+        let dropped = server
+            .unprocessed
+            .lock()
+            .map_err(|_| "OpenSSL unprocessed")?;
+        assert_eq!(dropped.len(), 1);
+        assert_eq!(
+            dropped.first().ok_or("unprocessed TLS frame")?.get(204),
+            Some(&2)
+        );
+        assert!(
+            witness_image.as_ref().ok_or("before witness image")?
+                == &witness_tls_faults::snapshot(&witness._directory.path().join("witness.redb"))?
+        );
+    } else if let Some(PeerTls::Native(tls)) = tls {
         let records = tls.captured.lock().map_err(|_| "TLS captures")?;
         let lost = records
             .get(first..)
@@ -1041,16 +1155,7 @@ fn interrupt_peer_update(
     );
     {
         let records = if let Some(tls) = tls {
-            tls.captured
-                .lock()
-                .map_err(|_| "TLS captures")?
-                .iter()
-                .map(|r| witness::Capture {
-                    request: r.record.request().to_vec(),
-                    reply: r.record.reply().to_vec(),
-                    delivered: r.delivered,
-                })
-                .collect::<Vec<_>>()
+            tls.captures()?
         } else {
             witness
                 .captured
@@ -1118,7 +1223,11 @@ fn interrupt_peer_update(
                 );
             }
         }
-        let mut unprocessed = witness.unprocessed.lock().map_err(|_| "unprocessed")?;
+        let unprocessed = match tls {
+            Some(PeerTls::OpenSsl(server)) => &server.unprocessed,
+            _ => &witness.unprocessed,
+        };
+        let mut unprocessed = unprocessed.lock().map_err(|_| "unprocessed")?;
         assert_eq!(
             unprocessed.len(),
             usize::from(matches!(cut, PeerUpdateCut::Unprocessed))

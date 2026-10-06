@@ -48,7 +48,7 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     """Validate shared harness output; caller must bind the selected client binary."""
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported credential renewal language")
     text = stdout.decode()
-    _require_execution(text, RENEWAL_TESTS, 18, "C credential renewal workloads were not executed completely")
+    _require_execution(text, RENEWAL_TESTS, 19, "C credential renewal workloads were not executed completely")
     sdk.require(re.findall(r"^C_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
         "C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true"],
         "C committed credential renewal scope differs")
@@ -179,7 +179,7 @@ def registration_readback(read, prefix, signing, journal):
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],
@@ -446,6 +446,17 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
     from continuity_foreign_roster import qualify as qualify_witnessed_roster
     result["witnessed_roster"] = qualify_witnessed_roster(
         output, profile, runtime, native, binary, run, language=language, variant=variant)
+    if "witness_openssl" in native:
+        sdk.require(native["witness_openssl"]["completed"]
+                    and native["witness_openssl"]["peer_preprocessing"]["execution"]["completed"],
+                    "native OpenSSL pre-processing prerequisite incomplete")
+        from continuity_peer_tls_preprocessing import qualify as qualify_peer_preprocessing
+        result["peer_tls_preprocessing"] = qualify_peer_preprocessing(output, profile, runtime, binary,
+            {"enrollment": native["enrollment"]["binary"], "C_client": native["binaries"]["C_client"],
+             "openssl": native["witness_openssl"]["peer"]}, run, language=language, variant=variant)
+    else:
+        result["peer_tls_preprocessing"] = dict(completed=False, scope="OpenSSL endpoint not selected for this qualification",
+                                                release_claim_eligible=False)
     from continuity_witnessed_renewal import qualify as qualify_witnessed_renewal
     binary, identity = binaries["enrollment_witness"]
     result["witnessed_credential_renewal"] = qualify_witnessed_renewal(

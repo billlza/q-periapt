@@ -9,7 +9,7 @@ class ForeignRosterTests(unittest.TestCase):
     @staticmethod
     def logs(language):
         stdout = ("".join("test " + name + " ... ok\n" for name in sorted(roster.TESTS)) +
-                  "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out;\n").encode()
+                  "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
         rows = [f"FOREIGN_ROSTER_CALL language={language} mode={mode} label=synthetic-{index}"
                 for mode, count in roster.CALL_COUNTS.items() for index in range(count)]
         rows += [row for row in roster.MARKERS if row.split(" ", 1)[0] in roster.NATIVE_PREFIXES]
@@ -29,7 +29,7 @@ class ForeignRosterTests(unittest.TestCase):
                             stderr.replace(b"no_current_runtime=true", b"no_current_runtime=false", 1)):
                 with self.assertRaises(ValueError): roster.verify_execution(stdout, changed, language=language)
             for changed in (stdout.replace(b"0 failed", b"1 failed"), stdout.replace(b"0 ignored", b"1 ignored"),
-                            stdout.replace(b"24 filtered out", b"23 filtered out"), stdout + stdout):
+                            stdout.replace(b"25 filtered out", b"24 filtered out"), stdout + stdout):
                 with self.assertRaises(ValueError): roster.verify_execution(changed, stderr, language=language)
             with self.assertRaises(ValueError): roster.verify_execution(stdout + stderr, b"", language=language)
 

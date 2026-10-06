@@ -51,7 +51,7 @@ def markers(language: str) -> list[str]:
 
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
-    _require_execution(stdout.decode(), TESTS, 24,
+    _require_execution(stdout.decode(), TESTS, 25,
                        "foreign complete-account result workloads were not executed completely")
     text = stderr.decode()
     observed = re.findall(r"^FOREIGN_ACCOUNT_RECONCILIATION .*?$", text, re.MULTILINE)

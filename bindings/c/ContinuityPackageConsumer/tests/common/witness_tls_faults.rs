@@ -26,7 +26,7 @@ enum ReplyFault {
     Drop,
     Hold(PathBuf),
 }
-fn snapshot(path: &Path) -> Result<Zeroizing<Vec<u8>>> {
+pub(crate) fn snapshot(path: &Path) -> Result<Zeroizing<Vec<u8>>> {
     if !fs::symlink_metadata(path)?.is_file() {
         return Err("witness storage image is not a regular file".into());
     }

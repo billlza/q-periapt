@@ -39,7 +39,7 @@ def markers(language: str) -> list[str]:
 
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
-    _require_execution(stdout.decode(), TESTS, 22, "foreign independent policy workloads did not all execute")
+    _require_execution(stdout.decode(), TESTS, 23, "foreign independent policy workloads did not all execute")
     scope = stderr.decode()
     observed = re.findall(r"^FOREIGN_POLICY_LIFECYCLE .*?$", scope, re.MULTILINE)
     expected = markers(language)

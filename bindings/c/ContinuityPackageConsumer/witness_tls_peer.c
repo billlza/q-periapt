@@ -253,12 +253,12 @@ int main(int argc, char **argv) {
                        OpenSSL_version(OPENSSL_VERSION)) > 0 && fflush(stdout) == 0, "library identity");
         return 0;
     }
-    int server = strcmp(argv[1], "server") == 0;
-    require((server && argc == 9) || (!server && strcmp(argv[1], "client") == 0 && argc == 7), "arguments");
-    struct binding peers[2] = {0}; size_t count = server ? 2 : 1;
-    peers[0].certificate = certificate(argv[5]);
+    int faults = strcmp(argv[1], "server-faults") == 0;
+    int server = faults || strcmp(argv[1], "server") == 0;
+    require((server && (argc == 9 || argc == 11)) || (!server && strcmp(argv[1], "client") == 0 && argc == 7), "arguments");
+    struct binding peers[3] = {0}; size_t count = server ? (size_t)(argc-5)/2 : 1;
+    for(size_t i=0;i<count;++i) peers[i].certificate = certificate(argv[5+i*2]);
     if (server) {
-        peers[1].certificate = certificate(argv[7]);
         for (size_t i = 0; i < count; ++i) {
             size_t size; unsigned char *subject = read_file(argv[6+i*2], &size, 0);
             require(size == SUBJECT, "trusted subject width"); memcpy(peers[i].subject, subject, SUBJECT); OPENSSL_free(subject);
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
                     SSL_set1_host(ssl, argv[6]) == 1 && SSL_set_tlsext_host_name(ssl, argv[6]) == 1, "client name/ALPN");
         }
         handshake(ssl, server, deadline); X509 *peer = negotiated(ssl);
-        unsigned char request[REQUEST], reply[REPLY];
+        unsigned char request[REQUEST], reply[REPLY]; int dropped = 0;
         if (server) {
             tls_frame(ssl, request, REQUEST, 0, deadline); receive_end(ssl, deadline);
             int authorized = 0;
@@ -300,8 +300,13 @@ int main(int argc, char **argv) {
                 if (same_certificate(peer, peers[i].certificate) && memcmp(request+44, peers[i].subject, SUBJECT) == 0) authorized = 1;
             require(authorized && memcmp(request+4, "QPANRQ01", 8) == 0, "certificate/subject admission");
             ipc_frame(STDOUT_FILENO, request, REQUEST, 1, deadline);
-            ipc_frame(STDIN_FILENO, reply, REPLY, 0, deadline);
-            tls_frame(ssl, reply, REPLY, 1, deadline); send_end(ssl, deadline);
+            if(faults) {
+                unsigned char size[4];io_exact(STDIN_FILENO,size,sizeof(size),0,deadline);
+                uint32_t length=((uint32_t)size[0]<<24)|((uint32_t)size[1]<<16)|((uint32_t)size[2]<<8)|size[3];
+                require(length==0 || length==REPLY,"fault host reply width");
+                if(length==0) dropped=1; else io_exact(STDIN_FILENO,reply,REPLY,0,deadline);
+            } else ipc_frame(STDIN_FILENO, reply, REPLY, 0, deadline);
+            if(!dropped) {tls_frame(ssl, reply, REPLY, 1, deadline); send_end(ssl, deadline);}
         } else {
             require(same_certificate(peer, peers[0].certificate), "server leaf pin");
             ipc_frame(STDIN_FILENO, request, REQUEST, 0, deadline);
@@ -309,12 +314,12 @@ int main(int argc, char **argv) {
             tls_frame(ssl, reply, REPLY, 0, deadline); receive_end(ssl, deadline);
             ipc_frame(STDOUT_FILENO, reply, REPLY, 1, deadline);
         }
-        require((SSL_get_shutdown(ssl) & (SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN)) ==
+        require(dropped || (SSL_get_shutdown(ssl) & (SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN)) ==
                 (SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN), "complete authenticated shutdown");
         X509_free(peer); SSL_free(ssl); require(close(fd) == 0, "connection close");
         ++exchanges; require(exchanges <= 1024, "reference exchange capacity");
-        require(fprintf(stderr, "OPENSSL_WITNESS_OK role=%s tls=1.3 group=X25519MLKEM768 alpn=q-periapt-anchor/1 exchange=%u\n",
-                        server ? "server" : "client", exchanges) > 0 && fflush(stderr) == 0, "public result");
+        require(fprintf(stderr, "OPENSSL_WITNESS_%s role=%s tls=1.3 group=X25519MLKEM768 alpn=q-periapt-anchor/1 exchange=%u\n",
+                        dropped ? "DROPPED" : "OK", server ? "server" : "client", exchanges) > 0 && fflush(stderr) == 0, "public result");
         if (!server) break;
     }
     if (listener >= 0) require(close(listener) == 0, "listener close");

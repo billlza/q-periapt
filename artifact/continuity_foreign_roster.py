@@ -21,7 +21,7 @@ NATIVE_PREFIXES = frozenset(("C_ROSTER_LIFECYCLE", "C_ROSTER_REPLY_LOSS", "C_ROS
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified roster lifecycle language")
-    _require_execution(stdout.decode(), TESTS, 24, "foreign roster workloads did not all execute")
+    _require_execution(stdout.decode(), TESTS, 25, "foreign roster workloads did not all execute")
     scope = stderr.decode()
     calls = re.findall(r"^FOREIGN_ROSTER_CALL language=(\S+) mode=(\S+) label=(\S+)$", scope, re.MULTILINE)
     sdk.require(calls and all(row[0] == language for row in calls) and

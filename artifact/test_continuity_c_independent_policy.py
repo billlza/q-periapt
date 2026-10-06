@@ -6,7 +6,7 @@ class IndependentExecutionTests(unittest.TestCase):
     def test_exact_runtime_set_and_scope(self):
         scope = ("\n".join(independent.MARKERS) + "\n").encode()
         evidence = ("".join("test " + name + " ... ok\n" for name in sorted(independent.TESTS)) +
-                    "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out;\n").encode()
+                    "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out;\n").encode()
         self.assertTrue(independent.verify(evidence, scope)["completed"])
         for name in independent.TESTS:
             with self.subTest(missing=name), self.assertRaises(ValueError):
@@ -18,7 +18,7 @@ class IndependentExecutionTests(unittest.TestCase):
                 with self.subTest(marker=marker), self.assertRaises(ValueError):
                     independent.verify(evidence, changed)
         for changed in [evidence.replace(b"0 ignored", b"1 ignored"),
-                        evidence.replace(b"13 filtered out", b"14 filtered out"),
+                        evidence.replace(b"14 filtered out", b"15 filtered out"),
                         evidence + b"test another_case ... FAILED\n"]:
             with self.assertRaises(ValueError):
                 independent.verify(changed, scope)

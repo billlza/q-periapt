@@ -675,6 +675,11 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                 checked["exported_public_files"] = witness_openssl.export_public(
                     kind, tested, interop_evidence, output / "c-witness-openssl-public" / profile / kind)
                 qualification["execution"][kind] = checked
+            from continuity_peer_tls_preprocessing import qualify as qualify_peer_preprocessing
+            qualification["peer_preprocessing"] = qualify_peer_preprocessing(output, profile, runtime, enrollment_binary,
+                {"enrollment": registration["binary"],
+                 "C_client": dict(path=str(executable), sha256=client_identity.sha256, bytes=client_identity.size),
+                 "openssl": peer_identity}, run, language="C")
             witness_openssl.verify_dependencies(peer_identity["dependency_files"])
             qualification["completed"] = True
             runtime.pop("QPERIAPT_WITNESS_OPENSSL_PEER")

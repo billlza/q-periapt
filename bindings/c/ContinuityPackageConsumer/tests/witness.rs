@@ -16,7 +16,7 @@ use std::{
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::{atomic::Ordering, Arc, Mutex},
+    sync::{atomic::Ordering, Arc},
     thread,
     time::{Duration, Instant},
 };
@@ -31,8 +31,11 @@ fn installed_language() -> Result<&'static str> {
 }
 #[path = "common/witness_tls.rs"]
 mod common_tls;
+use common_tls as witness_tls;
 #[path = "common/witness.rs"]
 mod common_witness;
+#[path = "common/openssl_host.rs"]
+mod openssl_host;
 use common_witness::Witness;
 
 impl Witness {
