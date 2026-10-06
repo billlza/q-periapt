@@ -14,6 +14,10 @@ class ForeignAccountResultsTests(unittest.TestCase):
         rows += results.member_markers(language) * len(results.CASES)
         rows += results.traffic_markers(language) * len(results.CASES)
         rows += results.connection_markers(language) * len(results.CASES)
+        rows += results.registration_markers(language) * len(results.CASES)
+        rows += [f"FOREIGN_{component}_CALL language={language} mode={mode} label=synthetic"
+                 for component, modes in results.TRANSITION_COUNTS.items()
+                 for mode, count in modes.items() for _ in range(count * len(results.CASES))]
         rows += [results.peer_native_marker(row) for row in results.MARKERS]
         rows += [f"FOREIGN_PEER_ROSTER_CALL language={language} label={label}"
                  for label, count in results.CALL_LABEL_COUNTS.items() for _ in range(count)]
@@ -44,6 +48,9 @@ class ForeignAccountResultsTests(unittest.TestCase):
                     self.assertEqual(runtime["QPERIAPT_ACCOUNT_RESULT_LANGUAGE"], language)
                     self.assertEqual(runtime["QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT"], str(foreign))
                     self.assertEqual(runtime["QPERIAPT_PEER_ROSTER_LIFECYCLE_LANGUAGE"], language)
+                    for component in ("ENROLLMENT", *results.TRANSITION_COUNTS):
+                        self.assertEqual(runtime[f"QPERIAPT_{component}_LIFECYCLE_CLIENT"], str(foreign))
+                        self.assertEqual(runtime[f"QPERIAPT_{component}_LIFECYCLE_LANGUAGE"], language)
                     self.assertEqual(runtime["QPERIAPT_INSTALLED_CLIENT_LANGUAGE"], "C")
                     self.assertNotIn("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", runtime)
                     scope = self.scope(language)

@@ -1149,13 +1149,14 @@ request, then disconnects before calling the native witness store. It requires
 an unchanged witness image, recovery of the original sealed pending target with
 a fresh challenge for the same command, and complete original member accounting
 before retirement. No plaintext fallback is permitted. C, Swift and Kotlin run
-this same scenario through their selected clients; enrollment and local P/R still use C. The selected client also persists and
-acknowledges each original member loss report. The TLS implementation is independent,
+this same scenario through their selected clients, including registration and
+local P/R adoption. The selected client also persists and acknowledges each
+original member loss report. The TLS implementation is independent,
 while the signed witness protocol and storage engine remain shared. Native TLS
 server pre-processing interruption remains a separate gate.
 
 The foreign account-recovery workload selects one Swift or Kotlin executable
-for original account traffic before and after local P/R, peer-roster
+for registration, local P/R adoption, original account traffic and peer-roster
 admission/interruption, each member's loss-report persistence and acknowledgement,
 complete member-result reads and final metadata retirement. The nine scenarios
 require 99 completed foreign traffic calls; the optional OpenSSL scenario adds
@@ -1163,17 +1164,21 @@ require 99 completed foreign traffic calls; the optional OpenSSL scenario adds
 receivers: 18 establishments and 36 completed receiver processes, including nine
 observed post-commit exits, plus two establishments/four receivers/one exit in the
 OpenSSL case. Every original application effect is independently read back and
-must not repeat during recovery. Enrollment and local policy/roster updates
-still use C. Each language
-run requires 36 completed member-closure calls across the original nine scenarios;
+must not repeat during recovery. Each scenario requires seven registration calls,
+seven witnessed policy calls and five roster calls from that same foreign client.
+The host independently verifies registration identity and supplies root/policy
+authorities, SDK setup and witness approvals; it retains C raw-buffer controls.
+The combined scenario covers normal P/R adoption, with interruption checked in
+the separate policy/roster workloads. Each language run requires 36 completed
+member-closure calls across the original nine scenarios;
 the optional OpenSSL pre-processing scenario requires four more. The exact
 session-specific report must be durably retained and read back before its ACK.
 Every language must preserve the exact original batch/session/message identities,
 distinguish authenticated consumption from unknown delivery, durably retain the
 full host result, and refuse early retirement in the two normal carrier cases,
 four signed-TCP interruption cases and three post-commit mutual-TLS cases.
-This does not qualify those languages' P/R update APIs or an independent protocol
-implementation. The installed-package collectors require the same recorded C
+This uses one shared native protocol implementation and does not qualify
+physical platforms or the final release. The installed-package collectors require the same recorded C
 harness and explicit foreign executable, without silently falling back to C.
 
 

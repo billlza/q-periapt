@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import continuity_peer_tls_preprocessing as peer
-from continuity_foreign_account_results import member_markers, traffic_markers, connection_markers
+from continuity_foreign_account_results import member_markers, traffic_markers, connection_markers, registration_markers
 
 class PeerTlsPreprocessingTests(unittest.TestCase):
     @staticmethod
@@ -14,7 +14,9 @@ class PeerTlsPreprocessingTests(unittest.TestCase):
         rows = list(peer.MARKERS)
         if language != "C":
             rows += peer.foreign_markers(language)
-            rows += member_markers(language) + traffic_markers(language) + connection_markers(language)
+            rows += member_markers(language) + traffic_markers(language) + connection_markers(language) + registration_markers(language)
+            rows += [f"FOREIGN_{component}_CALL language={language} mode={mode} label=synthetic"
+                     for component, modes in peer.TRANSITION_COUNTS.items() for mode, count in modes.items() for _ in range(count)]
             rows += [f"{prefix} language={language} label={label}"
                      for prefix in ("FOREIGN_PEER_ROSTER_CALL", "FOREIGN_PEER_ROSTER_RAW_CONTROL") for label in sorted(peer.LABELS)]
         return stdout, ("\n".join(rows) + "\n").encode()
@@ -54,6 +56,9 @@ class PeerTlsPreprocessingTests(unittest.TestCase):
                     if language != "C":
                         self.assertEqual(runtime["QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT"], str(foreign))
                         self.assertEqual(runtime["QPERIAPT_ACCOUNT_RESULT_CLIENT"], str(foreign))
+                        for component in ("ENROLLMENT", *peer.TRANSITION_COUNTS):
+                            self.assertEqual(runtime[f"QPERIAPT_{component}_LIFECYCLE_CLIENT"], str(foreign))
+                            self.assertEqual(runtime[f"QPERIAPT_{component}_LIFECYCLE_LANGUAGE"], language)
                     stdout, stderr = self.logs(language)
                     (root / (language.lower() + "-" + label + ".stderr")).write_bytes(stderr)
                     if mutate: endpoint.write_bytes(b"changed")

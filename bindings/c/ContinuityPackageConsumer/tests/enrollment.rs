@@ -30,6 +30,40 @@ use std::{
 use zeroize::Zeroizing;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+struct PolicyClient {
+    executable: PathBuf,
+    language: &'static str,
+}
+impl PolicyClient {
+    fn selected() -> Result<Option<Self>> {
+        Self::selected_for("POLICY")
+    }
+    fn selected_for(component: &str) -> Result<Option<Self>> {
+        match (
+            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_CLIENT")),
+            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_LANGUAGE")),
+        ) {
+            (None, None) => Ok(None),
+            (Some(path), Some(language)) => {
+                let executable = PathBuf::from(path);
+                if !executable.is_absolute() || !executable.is_file() {
+                    return Err("foreign policy executable is not an absolute file".into());
+                }
+                let language = match language.to_str() {
+                    Some("Swift") => "Swift",
+                    Some("Kotlin") => "Kotlin",
+                    _ => return Err("unqualified policy lifecycle language".into()),
+                };
+                Ok(Some(Self {
+                    executable,
+                    language,
+                }))
+            }
+            _ => Err("foreign policy client and language must be selected together".into()),
+        }
+    }
+}
+
 fn executable() -> Result<PathBuf> {
     let path =
         PathBuf::from(std::env::var_os("QPERIAPT_C_OWNER_CLIENT").ok_or("C executable missing")?);

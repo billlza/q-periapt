@@ -4,7 +4,7 @@ from collections import Counter
 import re
 import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_execution
-from continuity_foreign_account_results import verify_member_calls, verify_traffic_calls, verify_connection_calls
+from continuity_foreign_account_results import verify_member_calls, verify_traffic_calls, verify_connection_calls, verify_transition_calls, verify_registration_calls, TRANSITION_COUNTS
 
 TEST = ("credential_renewal::independent_policy::witnessed::roster::traffic::fanout::"
         "c_peer_roster_tls_unprocessed_openssl_request_recovers_exact_target")
@@ -19,8 +19,8 @@ LABELS = frozenset(("peer-roster-pre-cancel", "peer-roster-interrupted", "peer-r
 
 def foreign_markers(language: str) -> list[str]:
     return [
-        f"FOREIGN_PEER_ROSTER language={language} carrier=mutual-TLS cut=Some(Unprocessed) exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_and_raw_controls=true",
-        f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier=mutual-TLS cut=Some(Unprocessed) members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true C_setup=true",
+        f"FOREIGN_PEER_ROSTER language={language} carrier=mutual-TLS cut=Some(Unprocessed) exact_target=true original_parent=true complete_foreign_results=true foreign_registration_P_R=true C_raw_controls=true",
+        f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier=mutual-TLS cut=Some(Unprocessed) members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true foreign_registration=true native_authority_setup=true",
     ]
 
 
@@ -34,6 +34,8 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
         verify_member_calls(text, language=language, cases=1)
         verify_traffic_calls(text, language=language, cases=1)
         verify_connection_calls(text, language=language, cases=1)
+        verify_transition_calls(text, language=language, cases=1)
+        verify_registration_calls(text, language=language, cases=1)
         for prefix in ("FOREIGN_PEER_ROSTER_CALL", "FOREIGN_PEER_ROSTER_RAW_CONTROL"):
             calls = re.findall(r"^" + prefix + r" language=(\S+) label=(\S+)$", text, re.MULTILINE)
             sdk.require(calls and all(row[0] == language for row in calls) and
@@ -49,13 +51,17 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
                 scope="actual TLS 1.3 X25519MLKEM768 client; complete certificate/subject-authorized frame "
                       "dropped before native witness handle, unchanged witness image, original pending target "
                       "recovered with a fresh signed challenge before full original account result accounting; "
-                      "selected caller durably accounts for each member, C enrollment/local P/R and raw controls, shared native protocol engine",
+                      "selected caller performs registration, witnessed P/R and durable member accounting, "
+                      "C raw controls, native authority/SDK/witness fixtures, shared native protocol engine",
                 foreign_peer_calls=0 if language == "C" else 3,
                 foreign_member_closure_calls=0 if language == "C" else 4,
                 foreign_account_traffic_calls=0 if language == "C" else 11,
                 foreign_connections=0 if language == "C" else 2,
                 foreign_receivers=0 if language == "C" else 4,
                 foreign_crashed_receivers=0 if language == "C" else 1,
+                foreign_policy_calls=0 if language == "C" else 7,
+                foreign_roster_calls=0 if language == "C" else 5,
+                foreign_registration_calls=0 if language == "C" else 7,
                 independent_TLS_endpoint=True, independent_protocol_implementation=False,
                 native_TLS_server_preprocessing_qualified=False, physical_platform_qualified=False,
                 release_claim_eligible=False)
@@ -85,6 +91,9 @@ def qualify(output: Path, profile: str, runtime: dict, binary: Path, source: dic
         identities[str(foreign)] = sdk.snapshot(foreign, maximum=c.MAX_BINARY).sha256
         selected.update(QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT=str(foreign), QPERIAPT_PEER_ROSTER_LIFECYCLE_LANGUAGE=language,
                         QPERIAPT_ACCOUNT_RESULT_CLIENT=str(foreign), QPERIAPT_ACCOUNT_RESULT_LANGUAGE=language)
+        for component in ("ENROLLMENT", *TRANSITION_COUNTS):
+            selected[f"QPERIAPT_{component}_LIFECYCLE_CLIENT"] = str(foreign)
+            selected[f"QPERIAPT_{component}_LIFECYCLE_LANGUAGE"] = language
     openssl.verify_dependencies(peer["dependency_files"])
     label = "peer-tls-preprocessing-" + profile + variant
     stdout = run([str(binary), "--exact", TEST, "--nocapture"], label, runtime=selected)

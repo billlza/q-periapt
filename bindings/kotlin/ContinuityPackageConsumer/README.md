@@ -522,10 +522,10 @@ session records and consumed capacity. The `recover-account-results` and
 `recover-account-settled-retire` consumer commands exercise real revoked-account
 recovery across signed-TCP and mutual-TLS interruptions. The same Kotlin client
 now admits the peer roster and performs the interruption path described below.
-C retains enrollment and local P/R updates. The same foreign client now
-retains and acknowledges each original member loss report. This
-combined workload does not qualify local P/R updates, Android Continuity
-persistence, physical devices or the final release. The separate optional OpenSSL
+That client also performs registration, witnessed local P/R updates, and durable
+acknowledgement of each original member loss report. The combined workload does
+not qualify P/R interruption, Android Continuity persistence, physical devices
+or the final release. The separate optional OpenSSL
 workload below covers pre-processing loss over mutual TLS.
 
 
@@ -633,8 +633,8 @@ by native current-roster checks. Complete-account recovery preserves every
 original member, including authenticated consumption versus unknown delivery,
 before durable host accounting permits final metadata retirement.
 
-The installed collector selects this same language for account traffic, peer
-admission and full account recovery. It obtains the original account operation,
+The installed collector selects this same language for registration, local P/R
+updates, account traffic, peer admission and full account recovery. It obtains the original account operation,
 sends to both original sessions, observes a lost application receipt, and reads
 status before and after local P/R updates. Exact retained retries preserve the
 original effects; changed membership/input, unary release and cancelled peers
@@ -645,7 +645,13 @@ both original sessions and executes the receivers: 18 sender establishments and
 after the application effect is durable but before its receipt is sent. The
 OpenSSL scenario adds two establishments and four receivers with one such exit.
 The original sessions, message IDs and independently read application files must
-remain unchanged through recovery. Enrollment and local P/R still use C.
+remain unchanged through recovery. Each scenario also requires seven registration
+calls, seven witnessed policy calls and five roster calls from the same selected
+client. Registration verifies the original signer and signed request before
+activation; P/R adoption preserves the original enrollment and established sessions.
+The native host supplies independent root/policy authorities, SDK setup and
+witness approvals. The combined path covers normal P/R adoption; separate
+policy/roster workloads retain their interruption coverage.
 Selecting an enrollment parent cannot bootstrap a new session through the
 account commands; initial establishment uses the original enrollment's explicit
 connect path. It requires nine scenarios: ordinary revocation over signed
@@ -655,7 +661,7 @@ and an observed process kill over each carrier. Every language run includes
 The same foreign client performs 36 member-closure calls: it writes and syncs
 each original loss report, reopens that exact report, then acknowledges the
 original report twice and checks its closed identity. C retains 27 raw
-input/output-buffer controls, enrollment and local P/R updates. Foreign post-dispatch failures are checked as typed
+input/output-buffer controls. Foreign post-dispatch failures are checked as typed
 errors; the separate C baseline checks untouched raw success outputs. This is
 one shared native protocol engine, not an independent implementation.
 

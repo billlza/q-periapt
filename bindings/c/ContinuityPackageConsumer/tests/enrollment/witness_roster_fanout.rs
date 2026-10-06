@@ -456,6 +456,16 @@ fn account_scenario_with_cut(
             if peer.executable != result.executable || peer.language != result.language {
                 return Err("foreign peer roster and account recovery identities differ".into());
             }
+            for component in ["ENROLLMENT", "POLICY", "ROSTER"] {
+                let selected = PolicyClient::selected_for(component)?.ok_or(
+                    "combined foreign path requires enrollment, policy and roster callers",
+                )?;
+                if selected.executable != peer.executable || selected.language != peer.language {
+                    return Err(
+                        "combined foreign enrollment/policy/roster caller identity differs".into(),
+                    );
+                }
+            }
         }
         let mut established = Vec::new();
         for (index, (remote, peer)) in recipients.iter().zip(&peers).enumerate() {
@@ -751,11 +761,11 @@ fn account_scenario_with_cut(
         }
         w.join()?;
         if let Some(client) = &g.peer_roster_client {
-            eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_and_raw_controls=true",
+            eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true foreign_registration_P_R=true C_raw_controls=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
         if let Some(client) = &g.result_client {
-            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true C_setup=true",
+            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true foreign_registration=true native_authority_setup=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
     }

@@ -159,6 +159,19 @@ fn registered_with_anchor_inputs(
         witness,
     )
 }
+fn run_registration(path: &Path, label: &str, args: &[OsString]) -> Result<String> {
+    match PolicyClient::selected_for("ENROLLMENT")? {
+        Some(client) => {
+            let output = run_client(&client.executable, path, label, args)?;
+            eprintln!(
+                "FOREIGN_ACCOUNT_REGISTRATION language={} label={label}",
+                client.language
+            );
+            Ok(output)
+        }
+        None => run(path, label, args),
+    }
+}
 fn registered_from_setup(
     s: fixture::Setup,
     lifetime: u64,
@@ -255,10 +268,14 @@ fn registered_from_setup(
     intent_bytes.extend_from_slice(&validity.until().to_be_bytes());
     fixture::store(&path, "enrollment-root", &root.public_key()?.encode())?;
     fixture::store(&path, "enrollment-intent", &intent_bytes)?;
-    run(&path, "key", &command(&path, "key"))?;
-    let created = state(&run(&path, "create", &command(&path, "create"))?)?;
+    run_registration(&path, "key", &command(&path, "key"))?;
+    let created = state(&run_registration(
+        &path,
+        "create",
+        &command(&path, "create"),
+    )?)?;
     fixture::store(&path, "signer-id", &created.1)?;
-    let empty = observation(&run(
+    let empty = observation(&run_registration(
         &path,
         "initial-renewal",
         &command(&path, "credential-status"),
@@ -274,7 +291,7 @@ fn registered_from_setup(
         ),
         (0, [0; 32], [0; 32], 0, [0; 32], 0)
     );
-    run(&path, "request", &command(&path, "request"))?;
+    run_registration(&path, "request", &command(&path, "request"))?;
     let request = fixture::read(&path, "enrollment-request", 8192)?;
     let verified = p::VerifiedEnrollmentRequest::verify(&request, &intent, fixture::now()?)?;
     let certificate = root.issue_enrollment(&verified, fixture::now()?)?;
@@ -295,9 +312,13 @@ fn registered_from_setup(
     ] {
         fixture::store(&path, name, &bytes)?;
     }
-    let accepted = state(&run(&path, "accept", &command(&path, "accept"))?)?;
+    let accepted = state(&run_registration(
+        &path,
+        "accept",
+        &command(&path, "accept"),
+    )?)?;
     assert_eq!(accepted.1, created.1);
-    run(&path, "storage", &command(&path, "storage"))?;
+    run_registration(&path, "storage", &command(&path, "storage"))?;
     if let Some(witness) = witness {
         let mut sdk = fixture::sdk(&path)?;
         let policy = fixture::protocol_policy(&path, &sdk)?;
@@ -332,7 +353,7 @@ fn registered_from_setup(
         drop(policy);
         sdk.close();
     }
-    run(
+    run_registration(
         &path,
         "activate-original",
         &with_witness_arguments(witness, false, command(&path, "activate")),

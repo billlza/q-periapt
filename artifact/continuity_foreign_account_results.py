@@ -1,8 +1,9 @@
 """Foreign complete-account result and retirement paths through the shared engine.
 
-C performs enrollment and local P/R. The selected foreign client performs peer
+The selected foreign client performs enrollment, local P/R and peer
 roster admission, actual interruption, each durable member-loss report and ACK,
 every complete result read and final metadata retirement; C retains raw controls.
+The native test host supplies independent authority/SDK/witness fixtures.
 """
 from pathlib import Path
 from collections import Counter
@@ -33,7 +34,7 @@ def peer_markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified peer roster language")
     return [f"FOREIGN_PEER_ROSTER language={language} carrier={carrier} cut={cut} "
             "exact_target=true original_parent=true complete_foreign_results=true "
-            "C_registration_P_R_and_raw_controls=true" for carrier, cut in CASES]
+            "foreign_registration_P_R=true C_raw_controls=true" for carrier, cut in CASES]
 
 
 def peer_native_marker(marker: str) -> str:
@@ -46,7 +47,7 @@ def markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified account reconciliation language")
     return [f"FOREIGN_ACCOUNT_RECONCILIATION language={language} carrier={carrier} cut={cut} "
             "members=2 original_ids=true complete_results=true consumed_vs_unknown=true "
-            "durable_host_report=true retired=true foreign_member_closure=true C_setup=true"
+            "durable_host_report=true retired=true foreign_member_closure=true foreign_registration=true native_authority_setup=true"
             for carrier, cut in CASES]
 
 
@@ -93,6 +94,35 @@ def verify_member_calls(text: str, *, language: str, cases: int) -> None:
                 "foreign durable member closure dispatch differs")
 
 
+REGISTRATION_LABELS = ("key", "create", "initial-renewal", "request", "accept", "storage", "activate-original")
+
+
+def registration_markers(language: str) -> list[str]:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified registration language")
+    return [f"FOREIGN_ACCOUNT_REGISTRATION language={language} label={label}" for label in REGISTRATION_LABELS]
+
+
+def verify_registration_calls(text: str, *, language: str, cases: int) -> None:
+    observed = re.findall(r"^FOREIGN_ACCOUNT_REGISTRATION .*?$", text, re.MULTILINE)
+    sdk.require(Counter(observed) == Counter({row: cases for row in registration_markers(language)}),
+                "foreign original registration dispatch differs")
+
+
+TRANSITION_COUNTS = {
+    "POLICY": {"witness-request": 1, "stage": 1, "witness-recover-absent": 1,
+               "witness-progress": 1, "witness-prepare": 1, "witness-recover": 1, "witness-commit": 1},
+    "ROSTER": {"prepare": 1, "recover": 1, "progress": 2, "commit": 1},
+}
+
+
+def verify_transition_calls(text: str, *, language: str, cases: int) -> None:
+    for component, expected in TRANSITION_COUNTS.items():
+        rows = re.findall(r"^FOREIGN_" + component + r"_CALL language=(\S+) mode=(\S+) label=(\S+)$", text, re.MULTILINE)
+        sdk.require(rows and all(row[0] == language for row in rows) and
+                    Counter(row[1] for row in rows) == {mode: count * cases for mode, count in expected.items()},
+                    "foreign combined transition dispatch differs: " + component)
+
+
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     _require_execution(stdout.decode(), TESTS, 25,
                        "foreign complete-account result workloads were not executed completely")
@@ -102,6 +132,8 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     verify_member_calls(text, language=language, cases=len(CASES))
     verify_traffic_calls(text, language=language, cases=len(CASES))
     verify_connection_calls(text, language=language, cases=len(CASES))
+    verify_transition_calls(text, language=language, cases=len(CASES))
+    verify_registration_calls(text, language=language, cases=len(CASES))
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign account reconciliation scope differs")
     peer = re.findall(r"^FOREIGN_PEER_ROSTER .*?$", text, re.MULTILINE)
@@ -129,11 +161,14 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
                       "retained exact retries and refused membership/input changes, current peer-roster admission, pre-cancel and in-flight cancellation, "
                       "actual process cuts after observed witness processing, unknown-commit exact-target recovery, "
                       "durable individual-member loss reports and ACKs, complete original account result observation and metadata retirement; "
-                      "C registration, local P/R updates and raw input controls; shared native engine",
+                      "foreign registration and witnessed P/R adoption bound to the original session, C raw input controls; "
+                      "native root/policy authorities and witness approve independently of the client; shared native engine",
                 foreign_peer_roster_calls=25, foreign_peer_roster_kills=2, C_raw_input_control_invocations=27,
                 foreign_member_closure_calls=36, foreign_account_traffic_calls=99,
                 foreign_connections=18, foreign_receivers=36, foreign_crashed_receivers=9,
-                peer_roster_admission_qualified=True, local_P_R_updates_qualified=False,
+                foreign_policy_calls=63, foreign_roster_calls=45, foreign_registration_calls=63,
+                peer_roster_admission_qualified=True, local_P_R_updates_qualified=True,
+                P_R_interruption_in_combined_path_qualified=False,
                 TLS_preprocessing_loss_qualified=False, independent_protocol_implementation=False,
                 physical_platform_qualified=False, release_claim_eligible=False)
 
@@ -164,6 +199,9 @@ def qualify(output: Path, profile: str, runtime: dict, native: dict, binary: Pat
                     QPERIAPT_ACCOUNT_RESULT_LANGUAGE=language,
                     QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT=str(foreign),
                     QPERIAPT_PEER_ROSTER_LIFECYCLE_LANGUAGE=language)
+    for component in ("ENROLLMENT", *TRANSITION_COUNTS):
+        selected[f"QPERIAPT_{component}_LIFECYCLE_CLIENT"] = str(foreign)
+        selected[f"QPERIAPT_{component}_LIFECYCLE_LANGUAGE"] = language
     selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
     label = "account-reconciliation-" + profile + variant
     stdout = run([str(binary), "--exact", *sorted(TESTS), "--nocapture"], label, runtime=selected)

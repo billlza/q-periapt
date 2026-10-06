@@ -2,40 +2,6 @@
 //! Real C request export, independent approval, exact restart/retry and original journal adoption.
 use super::*;
 
-struct PolicyClient {
-    executable: PathBuf,
-    language: &'static str,
-}
-impl PolicyClient {
-    fn selected() -> Result<Option<Self>> {
-        Self::selected_for("POLICY")
-    }
-    fn selected_for(component: &str) -> Result<Option<Self>> {
-        match (
-            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_CLIENT")),
-            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_LANGUAGE")),
-        ) {
-            (None, None) => Ok(None),
-            (Some(path), Some(language)) => {
-                let executable = PathBuf::from(path);
-                if !executable.is_absolute() || !executable.is_file() {
-                    return Err("foreign policy executable is not an absolute file".into());
-                }
-                let language = match language.to_str() {
-                    Some("Swift") => "Swift",
-                    Some("Kotlin") => "Kotlin",
-                    _ => return Err("unqualified policy lifecycle language".into()),
-                };
-                Ok(Some(Self {
-                    executable,
-                    language,
-                }))
-            }
-            _ => Err("foreign policy client and language must be selected together".into()),
-        }
-    }
-}
-
 fn foreign_policy_case(case: &str) -> Result<()> {
     if let Some(client) = PolicyClient::selected()? {
         eprintln!("FOREIGN_POLICY_LIFECYCLE language={} case={case} original_request=true exact_proposal=true native_outcomes=true C_registration_and_raw_controls=true shared_native_engine=true", client.language);
