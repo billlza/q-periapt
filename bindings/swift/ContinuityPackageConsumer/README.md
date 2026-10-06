@@ -499,5 +499,38 @@ remain C operations and are reported as such. This uses one shared native engine
 TLS policy reply-loss, post-dispatch policy cancellation, physical process cuts,
 platform persistence and independent implementation/security review remain
 separate qualification gates. The roster-resolution types additionally decode
-historical outcomes, including SupersededUnknown; they do not yet qualify the
-separate required-witness roster and peer-roster update APIs.
+historical outcomes, including SupersededUnknown. The separate required-witness
+roster update surface is described below; peer-roster admission remains open.
+
+
+### Witnessed roster updates
+
+`RosterRefreshID` and the complete 417-byte `RosterRefreshProposal` identify one
+same-credential roster/head update under the separate `QPRWNP01` domain.
+`prepareWitnessedRosterRefresh` takes the independently pinned current root roster
+and certificate. `RosterPolicySource` explicitly chooses original P0 or the
+already selected current P; admission failure never selects another authority.
+The native owner derives the actual predecessor and policy authorization.
+Retain the returned proposal before obtaining independent witness approval, then
+use exactly that proposal with `commitWitnessedRosterRefresh`,
+`reconcileWitnessedRosterRefresh` or `closeWitnessedRosterRefresh`.
+
+`recoverWitnessedRosterRefreshPreparation` and `witnessedRosterRefreshProgress`
+read original historical metadata without current SDK or private signing input.
+Local absence and Unavailable witness history do not prove no commit. Progress
+keeps Staged, Reserved, Applied, Closed and AbandonedBeforePreparation separate;
+terminal retirement is durable cleanup, not a new operational lease. Scope fields
+must agree with the full retained proposal. `abandonUnpreparedRosterRefresh` is
+allowed only before any proposal was released and when the original local
+pending state is absent. It never manufactures a witness Closed outcome.
+After an admitted failure, close and resume the original enrollment with the
+same operation and proposal; commit and activation still require current authority.
+
+The installed collector requires twelve scenarios and 141 foreign R dispatches:
+eight TCP/mTLS P0/current-P Applied/Closed combinations, three processed TCP
+commit/ACK reply losses, and an initial head-query failure followed by explicit
+local abandonment without current runtime or network. C still performs enrollment,
+P adoption, invalid native grammar controls, activation and successor P requests.
+This is one shared protocol engine. The foreign R qualification does not cover
+TLS commit reply loss, post-dispatch cancellation, process cuts, peer-roster
+admission, platform persistence or independent security review.

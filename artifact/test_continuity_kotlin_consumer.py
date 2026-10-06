@@ -38,7 +38,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 45)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 49)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
@@ -59,7 +59,7 @@ class KotlinConsumerTests(unittest.TestCase):
             good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
             policy.write_bytes(good)
             checked = kotlin.verify_test_reports(root)
-            self.assertEqual(checked["tests"], 45)
+            self.assertEqual(checked["tests"], 49)
             self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests", *kotlin.INDEPENDENT_TEST_SUITES})
             self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
                 "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})

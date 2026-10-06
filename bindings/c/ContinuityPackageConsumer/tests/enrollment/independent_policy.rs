@@ -8,9 +8,12 @@ struct PolicyClient {
 }
 impl PolicyClient {
     fn selected() -> Result<Option<Self>> {
+        Self::selected_for("POLICY")
+    }
+    fn selected_for(component: &str) -> Result<Option<Self>> {
         match (
-            std::env::var_os("QPERIAPT_POLICY_LIFECYCLE_CLIENT"),
-            std::env::var_os("QPERIAPT_POLICY_LIFECYCLE_LANGUAGE"),
+            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_CLIENT")),
+            std::env::var_os(format!("QPERIAPT_{component}_LIFECYCLE_LANGUAGE")),
         ) {
             (None, None) => Ok(None),
             (Some(path), Some(language)) => {

@@ -87,6 +87,31 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
      * After an admitted failure, close/resume and retry the same checkpoint pair. */
     fun resolveRosterRefresh(previous: RosterCheckpoint, target: RosterCheckpoint): RosterRefreshResolution =
         reference.call { owner -> owner.call { ContinuityNative.resolveRosterRefresh(it, previous, target) } }
+    /** Prepare one exact same-credential target; independent witness approval is still required. */
+    fun prepareWitnessedRosterRefresh(operation: RosterRefreshID, policySource: RosterPolicySource,
+        certificate: ByteArray, roster: ByteArray, pin: AccountPin): RosterRefreshProposal {
+        require(certificate.size in 1..8192 && roster.size in 1..8192) { "invalid roster target record width" }
+        val copiedCertificate = certificate.clone(); val copiedRoster = roster.clone()
+        return reference.call { owner -> owner.call {
+            ContinuityNative.prepareWitnessedRosterRefresh(it, operation, policySource, copiedCertificate, copiedRoster, pin)
+        } }
+    }
+    /** Null is local absence, never witness Closed or proof of no commit. */
+    fun recoverWitnessedRosterRefreshPreparation(): RosterRefreshProposal? =
+        reference.call { owner -> owner.call { ContinuityNative.recoverWitnessedRosterRefreshPreparation(it) } }
+    /** Historical metadata without current runtime or private signer. */
+    fun witnessedRosterRefreshProgress(): RosterRefreshProgress =
+        reference.call { owner -> owner.call { ContinuityNative.witnessedRosterRefreshProgress(it) } }
+    /** Only before releasing any proposal and when original pending state is absent. */
+    fun abandonUnpreparedRosterRefresh(operation: RosterRefreshID): RosterRefreshProgress =
+        reference.call { owner -> owner.call { ContinuityNative.abandonUnpreparedRosterRefresh(it, operation) } }
+    fun commitWitnessedRosterRefresh(proposal: RosterRefreshProposal, policySource: RosterPolicySource): RosterRefreshState =
+        reference.call { owner -> owner.call { ContinuityNative.rosterRefreshCommand(it, proposal, "commit_witnessed_roster_refresh", policySource) } }
+    /** Original terminal history is durable before witness ACK and cleanup. */
+    fun reconcileWitnessedRosterRefresh(proposal: RosterRefreshProposal): RosterRefreshState =
+        reference.call { owner -> owner.call { ContinuityNative.rosterRefreshCommand(it, proposal, "reconcile_witnessed_roster_refresh") } }
+    fun closeWitnessedRosterRefresh(proposal: RosterRefreshProposal): RosterRefreshState =
+        reference.call { owner -> owner.call { ContinuityNative.rosterRefreshCommand(it, proposal, "close_witnessed_roster_refresh") } }
     /** Read-only exact scope and signed identity material; creates no reservation. */
     fun policyRenewalRequest(operation: PolicyRenewalID): PolicyRenewalRequest =
         reference.call { owner -> owner.call { ContinuityNative.policyRenewalRequest(it, operation) } }

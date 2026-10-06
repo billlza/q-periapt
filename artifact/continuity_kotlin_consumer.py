@@ -71,6 +71,12 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "RosterRefreshTests": frozenset({
+        "retainedRosterProposalOwnsExactScopeAndRejectsOtherDomains",
+        "rosterPreparationChecksCanonicalAbsenceAndABI",
+        "rosterProgressPreservesAllSixStatesAndChecksProposalScope",
+        "rosterCallsRespectPreparedCancelledAndClosedOwners",
+    }),
     "PolicyRenewalTests": frozenset({
         "nativeLayoutsAndOffsetsMatchTheCanonicalCRecord",
         "retainedRequestOwnsEveryByteAndRoundTripsUnsignedFields",
@@ -128,7 +134,8 @@ def maven_contract() -> jvm.MavenContract:
          "ContinuityEnrollment", "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
          "PolicyRenewalScope", "PolicyRenewalRequest", "PolicyRenewalStatus", "PolicyRenewalAbandonment",
          "IndependentPolicyProposal", "IndependentPolicyState", "IndependentPolicyProgress",
-         "RosterRefreshOutcome", "RosterRefreshResolution",
+         "RosterRefreshOutcome", "RosterRefreshResolution", "RosterRefreshID", "RosterPolicySource",
+         "RosterRefreshScope", "RosterRefreshProposal", "RosterRefreshProgress", "RosterRefreshState",
          "SessionID", "MessageID", "Counter64"), FIXTURE)
 
 

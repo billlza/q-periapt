@@ -12,11 +12,19 @@ struct RCase {
     operation: p::RosterRefreshId,
 }
 fn invoke_r(c: &Registered, label: &str, mode: &str) -> Result<String> {
-    run(
-        &c.path,
-        label,
-        &c.arguments(command(&c.path, &format!("witnessed-roster-{mode}"))),
-    )
+    let args = c.arguments(command(&c.path, &format!("witnessed-roster-{mode}")));
+    match PolicyClient::selected_for("ROSTER")? {
+        Some(client) if mode != "wrong-kind" => {
+            let output = run_client(&client.executable, &c.path, label, &args)?;
+            eprintln!(
+                "FOREIGN_ROSTER_CALL language={} mode={mode} label={label}",
+                client.language
+            );
+            Ok(output)
+        }
+        // Invalid native proposal grammar cannot be expressed by a typed value.
+        _ => run(&c.path, label, &args),
+    }
 }
 fn issue_target(c: &Registered, version: u64) -> Result<p::VerifiedDevice> {
     let roster = c.root.issue_roster(

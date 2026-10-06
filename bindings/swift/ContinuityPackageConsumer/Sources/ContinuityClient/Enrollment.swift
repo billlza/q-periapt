@@ -282,6 +282,10 @@ func enrollmentCommand(_ args: [String], witness: WitnessCarrier) async throws {
         }
         try owner.finishOpen()
         let original = try owner.status()
+        if mode.hasPrefix("enrollment-witnessed-roster-") {
+            return try witnessedRosterEnrollmentCommand(owner, path: path, inputs: inputs,
+                mode: String(mode.dropFirst("enrollment-witnessed-roster-".count)))
+        }
         if mode.hasPrefix("enrollment-independent-policy-") {
             return try independentPolicyEnrollmentCommand(owner, path: path, inputs: inputs,
                 mode: String(mode.dropFirst("enrollment-independent-policy-".count)))
@@ -856,4 +860,84 @@ private func witnessedIndependentPolicyCommand(_ owner: ContinuityEnrollment, pa
         return "witness-refused:\(expected)"
     }
     return "witness-state:\(try command().rawValue)"
+}
+
+private func witnessedRosterEnrollmentCommand(_ owner: ContinuityEnrollment, path: String,
+    inputs: EnrollmentInputs, mode: String) throws -> String {
+    let operation = try RosterRefreshID(bytes: inputs.exact("roster-operation", count: 32))
+    func select() throws -> RosterPolicySource {
+        let flag = try inputs.exact("roster-policy-source", count: 1)[0]
+        try require(flag <= 1, "unknown roster policy selection")
+        if flag == 1 {
+            let targetPath = URL(fileURLWithPath: path).appendingPathComponent("independent-sdk").path
+            try owner.selectContinuedPolicy(path: targetPath, target: EnrollmentInputs(records: FixtureRecords(path: targetPath)).policyDocument())
+        }
+        return flag == 1 ? .selected : .original
+    }
+    func retained() throws -> RosterRefreshProposal {
+        try RosterRefreshProposal(retainedBytes: inputs.exact("roster-proposal", count: 417))
+    }
+    func progress(_ value: RosterRefreshProgress) throws -> String {
+        let phase: Int, retired: Bool, scope: RosterRefreshScope
+        switch value {
+        case .absent:
+            let zero = String(repeating: "0", count: 64)
+            return ["0", "0", zero, "0", zero, "0", zero, "0", zero, "0", zero].joined(separator: "\n")
+        case let .staged(s): phase = 1; retired = false; scope = s
+        case let .abandonedBeforePreparation(s): phase = 5; retired = false; scope = s
+        case let .reserved(p): try require(p == retained(), "roster original proposal changed"); phase = 2; retired = false; scope = p.scope
+        case let .applied(p, r): try require(p == retained(), "roster original proposal changed"); phase = 3; retired = r; scope = p.scope
+        case let .closed(p, r): try require(p == retained(), "roster original proposal changed"); phase = 4; retired = r; scope = p.scope
+        }
+        return [String(phase), retired ? "1" : "0", renewalHex(scope.operation.bytes),
+            String(scope.previous.version), renewalHex(scope.previous.digest), String(scope.target.version), renewalHex(scope.target.digest),
+            String(scope.policy.version), renewalHex(scope.policy.digest), scope.policyAuthorization == nil ? "0" : "1",
+            renewalHex(scope.policyAuthorization?.bytes ?? [UInt8](repeating: 0, count: 32))].joined(separator: "\n")
+    }
+    switch mode {
+    case "progress": return try progress(owner.witnessedRosterRefreshProgress())
+    case "prepare", "prepare-lost", "prepare-wrong-policy":
+        let selected = try select(), original = try inputs.pin(renewal: false)
+        let target = try RosterCheckpoint(version: inputs.counter(inputs.exact("roster-target-version", count: 8)[...]), digest: inputs.exact("roster-target-digest", count: 32))
+        let pin = try AccountPin(account: original.account, root: original.root, family: original.family, checkpoint: target)
+        let certificate = try inputs.read("grant-certificate", maximum: 8192), roster = try inputs.read("roster-target", maximum: 8192)
+        let prepare = { try owner.prepareWitnessedRosterRefresh(operation: operation, policySource: mode == "prepare-wrong-policy" ? .original : selected, certificate: certificate, roster: roster, pin: pin) }
+        if mode != "prepare" {
+            let expected: Int32 = mode == "prepare-lost" ? 218 : 103
+            _ = try expectedEnrollmentFailure(expected, prepare)
+            _ = try expectedEnrollmentFailure(2) { try owner.status() }
+            return "roster-refused:\(expected)"
+        }
+        let proposal = try prepare(); try require(prepare() == proposal, "roster retry resealed target")
+        try inputs.publish("roster-proposal", proposal.bytes); return "roster-prepared"
+    case "recover", "recover-absent":
+        let recovered = try owner.recoverWitnessedRosterRefreshPreparation()
+        if mode == "recover-absent" { try require(recovered == nil, "unexpected roster preparation"); return "roster-local-absence" }
+        try require(recovered == retained(), "roster preparation changed"); return "roster-exact-preparation"
+    case "abandon", "abandon-refused":
+        if mode == "abandon-refused" {
+            _ = try expectedEnrollmentFailure(211) { try owner.abandonUnpreparedRosterRefresh(operation: operation) }
+            return "roster-abandon-refused"
+        }
+        let value = try owner.abandonUnpreparedRosterRefresh(operation: operation)
+        guard case .abandonedBeforePreparation = value else { throw ProbeFailure.contract("roster abandonment invented witness terminal") }
+        return try progress(value)
+    default: break
+    }
+    try require(["commit", "commit-lost", "close", "close-lost", "reconcile", "substitute", "cancelled"].contains(mode), "unknown roster mode")
+    var bytes = try retained().bytes; if mode == "substitute" { bytes[416] ^= 1 }
+    let proposal = try RosterRefreshProposal(retainedBytes: bytes)
+    if mode == "cancelled" { try owner.cancel() }
+    let command: () throws -> RosterRefreshState
+    if mode == "commit" || mode == "commit-lost" {
+        let source = try select(); command = { try owner.commitWitnessedRosterRefresh(proposal, policySource: source) }
+    } else if mode == "close" || mode == "close-lost" { command = { try owner.closeWitnessedRosterRefresh(proposal) } }
+    else { command = { try owner.reconcileWitnessedRosterRefresh(proposal) } }
+    let expected: Int32 = mode == "substitute" ? 211 : mode == "cancelled" ? 302 : mode.hasSuffix("-lost") ? 218 : 0
+    if expected != 0 {
+        _ = try expectedEnrollmentFailure(expected, command)
+        _ = try expectedEnrollmentFailure(expected == 302 ? 302 : 2) { try owner.status() }
+        return "roster-refused:\(expected)"
+    }
+    return "roster-state:\(try command().rawValue)"
 }

@@ -221,6 +221,77 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
+    /// Prepare the original same-credential roster target under an explicit current policy.
+    /// Independent witness approval is still required. Retain the complete returned proposal.
+    public func prepareWitnessedRosterRefresh(operation: RosterRefreshID, policySource: RosterPolicySource,
+        certificate: [UInt8], roster: [UInt8], pin: AccountPin) throws -> RosterRefreshProposal {
+        guard (1...8192).contains(certificate.count), (1...8192).contains(roster.count) else {
+            throw ContinuityBoundaryError.inputLength
+        }
+        return try reference.call { native in try native.call { handle in
+            var raw = qpc_roster_refresh_proposal_v1(), error = qpc_error_v1()
+            let code = operation.bytes.withUnsafeBufferPointer { operation in
+                certificate.withUnsafeBufferPointer { certificate in
+                    roster.withUnsafeBufferPointer { roster in
+                        pin.withNative { pin in
+                            var target = qpc_roster_refresh_target_v1(certificate: certificate.baseAddress,
+                                certificate_length: certificate.count, roster: roster.baseAddress,
+                                roster_length: roster.count, pin: pin)
+                            return qpc_enrollment_v1_prepare_witnessed_roster_refresh(handle, operation.baseAddress,
+                                policySource.rawValue, &target, &raw, &error)
+                        }
+                    }
+                }
+            }
+            try checked(code, &error); return try rosterRefreshProposal(&raw)
+        } }
+    }
+    /// Nil is local absence only; it is not witness Closed or proof of no commit.
+    public func recoverWitnessedRosterRefreshPreparation() throws -> RosterRefreshProposal? {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_roster_refresh_preparation_v1(), error = qpc_error_v1()
+            try checked(qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation(handle, &raw, &error), &error)
+            return try rosterRefreshPreparation(&raw)
+        } }
+    }
+    /// Historical original-operation metadata, without current runtime or private signer.
+    public func witnessedRosterRefreshProgress() throws -> RosterRefreshProgress {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_roster_refresh_progress_v1(), error = qpc_error_v1()
+            try checked(qpc_enrollment_v1_witnessed_roster_refresh_progress(handle, &raw, &error), &error)
+            return try rosterRefreshProgress(&raw)
+        } }
+    }
+    /// Allowed only before a proposal was released and when original pending state is absent.
+    public func abandonUnpreparedRosterRefresh(operation: RosterRefreshID) throws -> RosterRefreshProgress {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_roster_refresh_progress_v1(), error = qpc_error_v1()
+            let code = operation.bytes.withUnsafeBufferPointer {
+                qpc_enrollment_v1_abandon_unprepared_roster_refresh(handle, $0.baseAddress, &raw, &error)
+            }
+            try checked(code, &error); return try rosterRefreshProgress(&raw)
+        } }
+    }
+    public func commitWitnessedRosterRefresh(_ proposal: RosterRefreshProposal,
+        policySource: RosterPolicySource) throws -> RosterRefreshState {
+        try rosterRefreshCommand(proposal) { qpc_enrollment_v1_commit_witnessed_roster_refresh($0, $1, policySource.rawValue, $2, $3) }
+    }
+    /// Original terminal history is retained durably before witness ACK and cleanup.
+    public func reconcileWitnessedRosterRefresh(_ proposal: RosterRefreshProposal) throws -> RosterRefreshState {
+        try rosterRefreshCommand(proposal) { qpc_enrollment_v1_reconcile_witnessed_roster_refresh($0, $1, $2, $3) }
+    }
+    public func closeWitnessedRosterRefresh(_ proposal: RosterRefreshProposal) throws -> RosterRefreshState {
+        try rosterRefreshCommand(proposal) { qpc_enrollment_v1_close_witnessed_roster_refresh($0, $1, $2, $3) }
+    }
+    private func rosterRefreshCommand(_ proposal: RosterRefreshProposal,
+        _ invoke: (UInt64, UnsafePointer<qpc_roster_refresh_proposal_v1>, UnsafeMutablePointer<UInt32>, UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> RosterRefreshState {
+        try reference.call { native in try native.call { handle in
+            var raw = proposal.native(), observed: UInt32 = 0, error = qpc_error_v1()
+            try checked(invoke(handle, &raw, &observed, &error), &error)
+            guard let state = RosterRefreshState(rawValue: observed) else { throw ContinuityBoundaryError.malformedOutput }
+            return state
+        } }
+    }
     /// Actual independent-policy scope and signed identities; this reserves nothing.
     public func policyRenewalRequest(operation: PolicyRenewalID) throws -> PolicyRenewalRequest {
         try independentPolicyRequest(operation) { qpc_enrollment_v1_policy_renewal_request($0, $1, $2, $3) }

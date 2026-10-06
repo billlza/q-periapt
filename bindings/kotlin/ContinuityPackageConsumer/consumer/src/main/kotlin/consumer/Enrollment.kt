@@ -144,6 +144,10 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
         else ContinuityEnrollment.resume(path, intent(records), witness)
     return owner.use {
         val original = it.status()
+        if (mode.startsWith("enrollment-witnessed-roster-")) {
+            require(args.size == 2)
+            return@use witnessedRosterEnrollment(it, path, records, mode.removePrefix("enrollment-witnessed-roster-"))
+        }
         if (mode.startsWith("enrollment-independent-policy-")) {
             require(args.size == 2)
             return@use independentPolicyEnrollment(it, path, records, mode.removePrefix("enrollment-independent-policy-"))

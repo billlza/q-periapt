@@ -80,6 +80,15 @@ internal object ContinuityNative {
         "proposal" to independentPolicyProposalLayout)
     private val independentPolicyProgressLayout = struct("phase" to JAVA_INT, "retired" to JAVA_INT,
         "proposal" to independentPolicyProposalLayout, "target" to checkpointLayout)
+    private val rosterProposalLayout = struct("bytes" to array(417))
+    private val rosterScopeLayout = struct("operation" to array(32), "previous" to checkpointLayout,
+        "target" to checkpointLayout, "policy" to checkpointLayout, "policy_authorization" to array(32),
+        "has_policy_authorization" to JAVA_INT, "reserved" to JAVA_INT)
+    private val rosterPreparationLayout = struct("present" to JAVA_INT, "proposal" to rosterProposalLayout, "reserved" to array(3))
+    private val rosterProgressLayout = struct("phase" to JAVA_INT, "retired" to JAVA_INT,
+        "scope" to rosterScopeLayout, "proposal" to rosterProposalLayout, "reserved" to array(7))
+    private val rosterTargetLayout = struct("certificate" to ADDRESS, "certificate_length" to JAVA_LONG,
+        "roster" to ADDRESS, "roster_length" to JAVA_LONG, "pin" to ADDRESS)
     private val servedLayout = struct("kind" to JAVA_INT, "session" to array(32),
         "message" to array(32), "duplicate" to JAVA_INT)
     private val headerLayout = struct("peer_generation" to JAVA_LONG, "confirmed_epoch" to JAVA_LONG,
@@ -135,6 +144,13 @@ internal object ContinuityNative {
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
         "witnessed_policy_renewal_request" to function("qpc_enrollment_v1_witnessed_policy_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "prepare_witnessed_roster_refresh" to function("qpc_enrollment_v1_prepare_witnessed_roster_refresh", JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
+        "recover_witnessed_roster_refresh_preparation" to function("qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation", JAVA_LONG, ADDRESS, ADDRESS),
+        "witnessed_roster_refresh_progress" to function("qpc_enrollment_v1_witnessed_roster_refresh_progress", JAVA_LONG, ADDRESS, ADDRESS),
+        "abandon_unprepared_roster_refresh" to function("qpc_enrollment_v1_abandon_unprepared_roster_refresh", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "commit_witnessed_roster_refresh" to function("qpc_enrollment_v1_commit_witnessed_roster_refresh", JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS),
+        "reconcile_witnessed_roster_refresh" to function("qpc_enrollment_v1_reconcile_witnessed_roster_refresh", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "close_witnessed_roster_refresh" to function("qpc_enrollment_v1_close_witnessed_roster_refresh", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "prepare_witnessed_policy_renewal" to function("qpc_enrollment_v1_prepare_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "recover_witnessed_policy_renewal_preparation" to function("qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation", JAVA_LONG, ADDRESS, ADDRESS),
         "witnessed_policy_renewal_progress" to function("qpc_enrollment_v1_witnessed_policy_renewal_progress", JAVA_LONG, ADDRESS, ADDRESS),
@@ -615,6 +631,45 @@ internal object ContinuityNative {
             val output = arena.allocate(policyRenewalRequestLayout)
             invoke(arena, if (witnessed) "witnessed_policy_renewal_request" else "policy_renewal_request", handle, arena.bytes(operation.encoded()), output)
             PolicyRenewalCodec.decodeRequest(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun prepareWitnessedRosterRefresh(handle: Long, operation: RosterRefreshID,
+        source: RosterPolicySource, certificate: ByteArray, roster: ByteArray, pin: AccountPin): RosterRefreshProposal =
+        Arena.ofConfined().use { arena ->
+            val target = arena.allocate(rosterTargetLayout)
+            target.set(ADDRESS, offset(rosterTargetLayout, "certificate"), arena.bytes(certificate))
+            target.set(JAVA_LONG, offset(rosterTargetLayout, "certificate_length"), certificate.size.toLong())
+            target.set(ADDRESS, offset(rosterTargetLayout, "roster"), arena.bytes(roster))
+            target.set(JAVA_LONG, offset(rosterTargetLayout, "roster_length"), roster.size.toLong())
+            target.set(ADDRESS, offset(rosterTargetLayout, "pin"), encodeAccountPin(arena, pin))
+            val output = arena.allocate(rosterProposalLayout)
+            invoke(arena, "prepare_witnessed_roster_refresh", handle, arena.bytes(operation.encoded()), source.code, target, output)
+            RosterRefreshCodec.proposal(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun recoverWitnessedRosterRefreshPreparation(handle: Long): RosterRefreshProposal? =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(rosterPreparationLayout)
+            invoke(arena, "recover_witnessed_roster_refresh_preparation", handle, output)
+            RosterRefreshCodec.preparation(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun witnessedRosterRefreshProgress(handle: Long): RosterRefreshProgress =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(rosterProgressLayout)
+            invoke(arena, "witnessed_roster_refresh_progress", handle, output)
+            RosterRefreshCodec.progress(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun abandonUnpreparedRosterRefresh(handle: Long, operation: RosterRefreshID): RosterRefreshProgress =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(rosterProgressLayout)
+            invoke(arena, "abandon_unprepared_roster_refresh", handle, arena.bytes(operation.encoded()), output)
+            RosterRefreshCodec.progress(output.toArray(JAVA_BYTE))
+        }
+    @JvmSynthetic internal fun rosterRefreshCommand(handle: Long, proposal: RosterRefreshProposal, command: String,
+        source: RosterPolicySource? = null): RosterRefreshState = Arena.ofConfined().use { arena ->
+            val input = arena.allocate(rosterProposalLayout); input.copyFrom(MemorySegment.ofArray(proposal.encoded()))
+            val output = arena.allocate(JAVA_INT)
+            if (command == "commit_witnessed_roster_refresh") invoke(arena, command, handle, input, requireNotNull(source).code, output)
+            else { require(source == null); invoke(arena, command, handle, input, output) }
+            RosterRefreshCodec.state(output.get(JAVA_INT, 0))
         }
     @JvmSynthetic internal fun prepareWitnessedPolicyRenewal(handle: Long, previous: PolicyDocument): IndependentPolicyProposal =
         Arena.ofConfined().use { arena ->
@@ -1170,6 +1225,9 @@ internal object ContinuityNative {
         "policy_renewal_scope" to policyRenewalScopeLayout,
         "policy_renewal_request" to policyRenewalRequestLayout,
         "policy_renewal_status" to policyRenewalStatusLayout,
+        "roster_proposal" to rosterProposalLayout, "roster_scope" to rosterScopeLayout,
+        "roster_preparation" to rosterPreparationLayout, "roster_progress" to rosterProgressLayout,
+        "roster_target" to rosterTargetLayout,
         "independent_policy_proposal" to independentPolicyProposalLayout,
         "independent_policy_preparation" to independentPolicyPreparationLayout,
         "independent_policy_progress" to independentPolicyProgressLayout,
