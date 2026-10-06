@@ -31,7 +31,8 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 334
+# 51 native and 12 C lifecycle sources added after the 334-file baseline.
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 397
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000

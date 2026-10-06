@@ -1429,6 +1429,15 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs",
             "research/continuity-identity-candidate/src/session_policy/continuation.rs",
             "research/continuity-identity-candidate/src/session_policy/continuation/tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal.rs",
+            "research/continuity-identity-candidate/src/anchor/store/roster_refresh.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/fanout/archive/committed.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_peer_roster_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/policy/renewal/witness.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/roster_refresh.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_roster_fanout.rs",
+
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1439,6 +1448,17 @@ class CodeQLRustQualityTests(unittest.TestCase):
             codeql_rust_quality.CodeQLRustQualityError, "not NUL terminated"
         ):
             codeql_rust_quality._decode_nul_paths(b"a.rs")
+
+    def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        missing = "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs"
+        self.assertIn(missing, tracked)
+        for paths in ([p for p in tracked if p != missing], tracked + ["unexpected.rs"]):
+            raw = b"".join(p.encode() + b"\0" for p in paths)
+            with self.subTest(paths=len(paths)), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "tracked Rust source count must be 397"):
+                codeql_rust_quality.tracked_rust_paths()
 
     def test_unresolved_macro_details_are_strictly_typed_and_canonical(self) -> None:
         rows = [["crates/a/src/lib.rs", 7, 3, "concat!..."]]

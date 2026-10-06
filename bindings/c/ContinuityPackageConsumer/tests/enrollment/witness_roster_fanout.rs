@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Complete-account C delivery through the original enrolled and renewed owners.
 use super::*;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::{fs::PermissionsExt, process::ExitStatusExt};
 
 struct Group {
     c: Registered,
@@ -120,8 +120,37 @@ fn c_required_peer_revocation_reconciles_every_original_account_member_before_re
 ) -> Result<()> {
     account_scenario(true)
 }
+#[derive(Clone, Copy, Debug)]
+enum PeerUpdateCut {
+    Unprocessed,
+    LostReply,
+    CancelInFlight,
+    KillProcess,
+}
+#[test]
+fn c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_current_sdk(
+) -> Result<()> {
+    for cut in [
+        PeerUpdateCut::Unprocessed,
+        PeerUpdateCut::LostReply,
+        PeerUpdateCut::CancelInFlight,
+        PeerUpdateCut::KillProcess,
+    ] {
+        account_scenario_with_cut(true, Some(cut))?;
+    }
+    eprintln!("C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true");
+    Ok(())
+}
 fn account_scenario(revoke: bool) -> Result<()> {
-    for tls in [false, true] {
+    account_scenario_with_cut(revoke, None)
+}
+fn account_scenario_with_cut(revoke: bool, cut: Option<PeerUpdateCut>) -> Result<()> {
+    let profiles: &[bool] = if cut.is_some() {
+        &[false]
+    } else {
+        &[false, true]
+    };
+    for &tls in profiles {
         let mut w = witness::Witness::start()?;
         let (setup, second) =
             fixture::setup_devices(Some(&w.configured), None, None, true, false, true)?;
@@ -358,7 +387,7 @@ fn account_scenario(revoke: bool) -> Result<()> {
             );
         }
         if revoke {
-            revoked_recovery(&g, batch, [first, second], [device0, device1])?;
+            revoked_recovery(&g, batch, [first, second], [device0, device1], &mut w, cut)?;
         } else {
             let remote1 = g.recipients.get(1).ok_or("second recipient")?;
             let (server, address) = start(
@@ -427,9 +456,9 @@ fn account_scenario(revoke: bool) -> Result<()> {
         }
         w.join()?;
     }
-    if revoke {
+    if cut.is_none() && revoke {
         eprintln!("C_REQUIRED_PEER_REVOCATION cases=2 recipients=2 actual_second_revocation=true TCP_TLS_witness=true partial_confirmed_unknown=true complete_original_reconciliation=true synced_full_reports=true metadata_retired=true");
-    } else {
+    } else if cut.is_none() {
         eprintln!("C_REQUIRED_P_R_FANOUT cases=2 recipients=2 TCP_TLS_witness=true original_batch=true partial_confirmed_unknown=true receiver_exit_77=true retained_no_application_exchange=true witness_still_checked=true original_member_retry=true aggregate_bypass_denied=true unchanged_effects=true");
     }
     Ok(())
@@ -440,6 +469,8 @@ fn revoked_recovery(
     batch: [u8; 32],
     messages: [[u8; 32]; 2],
     devices: [[u8; 16]; 2],
+    witness: &mut witness::Witness,
+    cut: Option<PeerUpdateCut>,
 ) -> Result<()> {
     let root =
         g.c._setup
@@ -490,49 +521,6 @@ fn revoked_recovery(
         before,
         "cancelled public peer roster cannot mutate original journal"
     );
-    let [peer0, peer1] = &g.peers;
-    let [session0, session1] = g.sessions;
-    assert_eq!(
-        run(
-            &g.c.path,
-            "peer-roster-revoke",
-            &g.args(
-                "peer-roster-admit",
-                &[
-                    public.as_os_str().into(),
-                    "suspend".into(),
-                    peer0.as_os_str().into(),
-                    hex(&session0).into(),
-                    peer1.as_os_str().into(),
-                    hex(&session1).into(),
-                    hex(&g.account).into(),
-                    hex(&batch).into(),
-                ]
-            )
-        )?,
-        "account-refused:103\npeer-roster-admitted\n"
-    );
-    let committed = snapshot(&g.c)?;
-    assert_ne!(
-        before, committed,
-        "authentic revocation changed current peer roster"
-    );
-    assert_eq!(
-        run(
-            &g.c.path,
-            "peer-roster-exact-retry",
-            &g.args(
-                "peer-roster-admit",
-                &[public.as_os_str().into(), "admit".into()]
-            )
-        )?,
-        "peer-roster-admitted\n"
-    );
-    assert_eq!(
-        snapshot(&g.c)?,
-        committed,
-        "exact target retains original image"
-    );
     let expected = |states: [u32; 2]| {
         let mut members = devices
             .into_iter()
@@ -563,6 +551,54 @@ fn revoked_recovery(
                 hex(&id).into(),
             ]),
         )
+    };
+    let committed = if let Some(cut) = cut {
+        interrupt_peer_update(g, witness, &public, batch, cut, &expected([2, 1]))?
+    } else {
+        let [peer0, peer1] = &g.peers;
+        let [session0, session1] = g.sessions;
+        assert_eq!(
+            run(
+                &g.c.path,
+                "peer-roster-revoke",
+                &g.args(
+                    "peer-roster-admit",
+                    &[
+                        public.as_os_str().into(),
+                        "suspend".into(),
+                        peer0.as_os_str().into(),
+                        hex(&session0).into(),
+                        peer1.as_os_str().into(),
+                        hex(&session1).into(),
+                        hex(&g.account).into(),
+                        hex(&batch).into(),
+                    ]
+                )
+            )?,
+            "account-refused:103\npeer-roster-admitted\n"
+        );
+        let committed = snapshot(&g.c)?;
+        assert_ne!(
+            before, committed,
+            "authentic revocation changed current peer roster"
+        );
+        assert_eq!(
+            run(
+                &g.c.path,
+                "peer-roster-exact-retry",
+                &g.args(
+                    "peer-roster-admit",
+                    &[public.as_os_str().into(), "admit".into()]
+                )
+            )?,
+            "peer-roster-admitted\n"
+        );
+        assert_eq!(
+            snapshot(&g.c)?,
+            committed,
+            "exact target retains original image"
+        );
+        committed
     };
     assert_eq!(
         recover(
@@ -647,4 +683,237 @@ fn revoked_recovery(
         "account-selection-refused:112\n"
     );
     Ok(())
+}
+
+fn ordinary_target(saved: &(Vec<u8>, Option<Vec<u8>>)) -> Result<Vec<u8>> {
+    let pending = saved.1.as_ref().ok_or("original ordinary pending intent")?;
+    assert_eq!(pending.get(..8), Some(b"QPWINT01".as_slice()));
+    let length = u32::from_be_bytes(pending.get(152..156).ok_or("target length")?.try_into()?);
+    let target = pending
+        .get(156..pending.len().checked_sub(32).ok_or("intent MAC")?)
+        .ok_or("sealed target")?;
+    assert_eq!(usize::try_from(length)?, target.len());
+    Ok(target.to_vec())
+}
+fn kill_held_update(g: &Group, args: &[OsString], marker: &Path) -> Result<()> {
+    let stdout = g.c.path.join("peer-roster-killed.stdout");
+    let stderr = g.c.path.join("peer-roster-killed.stderr");
+    let output = |path: &Path| {
+        fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(0o600)
+            .open(path)
+    };
+    let mut child = fixture::OwnedChild(
+        Command::new(executable()?)
+            .args(args)
+            .stdout(Stdio::from(output(&stdout)?))
+            .stderr(Stdio::from(output(&stderr)?))
+            .spawn()?,
+    );
+    let until = Instant::now() + Duration::from_secs(10);
+    loop {
+        match fs::read(marker) {
+            Ok(bytes) => {
+                assert_eq!(bytes, b"1");
+                break;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        if child.0.try_wait()?.is_some() || Instant::now() >= until {
+            return Err(format!(
+                "C peer-roster did not reach processed reply barrier: {}",
+                fs::read_to_string(&stderr)?
+            )
+            .into());
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(
+        child.0.try_wait()?.is_none(),
+        "kill only the observed live original C owner"
+    );
+    child.0.kill()?;
+    assert_eq!(fixture::wait(&mut child)?.signal(), Some(9));
+    assert!(fs::read(&stdout)?.is_empty());
+    assert!(fs::read(&stderr)?.is_empty());
+    Ok(())
+}
+fn interrupt_peer_update(
+    g: &Group,
+    witness: &mut witness::Witness,
+    public: &Path,
+    batch: [u8; 32],
+    cut: PeerUpdateCut,
+    expected: &str,
+) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+    let marker = g.c.path.join("peer-roster-held-advance");
+    let opcode = match cut {
+        PeerUpdateCut::Unprocessed => 42,
+        PeerUpdateCut::LostReply => 22,
+        PeerUpdateCut::CancelInFlight | PeerUpdateCut::KillProcess => {
+            let mut held = witness.hold_marker.lock().map_err(|_| "held marker lock")?;
+            assert!(held.is_none());
+            *held = Some(marker.clone());
+            3
+        }
+    };
+    let mode = match cut {
+        PeerUpdateCut::CancelInFlight => "cancel-active",
+        PeerUpdateCut::KillProcess => "admit",
+        _ => "lost",
+    };
+    let mut tail = vec![public.as_os_str().into(), mode.into()];
+    if matches!(cut, PeerUpdateCut::CancelInFlight) {
+        tail.push(marker.as_os_str().into());
+    }
+    let args = g.args("peer-roster-admit", &tail);
+    let before = snapshot(&g.c)?;
+    let first = calls(witness)?;
+    witness.arm(opcode)?;
+    if matches!(cut, PeerUpdateCut::KillProcess) {
+        kill_held_update(g, &args, &marker)?;
+    } else {
+        assert_eq!(
+            run(&g.c.path, "peer-roster-interrupted", &args)?,
+            if matches!(cut, PeerUpdateCut::CancelInFlight) {
+                "peer-roster-cancelled-after-advance\n"
+            } else {
+                "peer-roster-outcome-unavailable\n"
+            }
+        );
+    }
+    assert_eq!(
+        witness.fault.load(Ordering::Acquire),
+        0,
+        "actual intended fault consumed"
+    );
+    let interrupted = snapshot(&g.c)?;
+    assert_eq!(
+        interrupted.0, before.0,
+        "unknown reply does not install a different local image"
+    );
+    let target = ordinary_target(&interrupted)?;
+    // Remove only this fixture's live independent SDK resource. Historical cleanup
+    // still requires the exact original journal, archives, signer and witness.
+    fs::rename(
+        g.c.path.join("independent-sdk"),
+        g.c.path.join("independent-sdk-held"),
+    )?;
+    assert_eq!(
+        run(
+            &g.c.path,
+            "peer-roster-historical-original-recovery",
+            &g.c.arguments(vec![
+                "recover-account-results".into(),
+                g.c.path.as_os_str().into(),
+                hex(&batch).into()
+            ])
+        )?,
+        expected
+    );
+    let recovered = snapshot(&g.c)?;
+    assert_eq!(
+        recovered,
+        (target, None),
+        "same original sealed target is recovered before complete member results"
+    );
+    {
+        let records = witness.captured.lock().map_err(|_| "capture")?;
+        let advances = records
+            .get(first..)
+            .ok_or("new captures")?
+            .iter()
+            .filter(|r| r.request.get(204) == Some(&2))
+            .collect::<Vec<_>>();
+        let outcomes = advances
+            .iter()
+            .map(|r| r.reply.get(204).copied())
+            .collect::<Option<Vec<_>>>()
+            .ok_or("bounded reply outcomes")?;
+        let expected_outcomes: &[u8] = if matches!(cut, PeerUpdateCut::Unprocessed) {
+            &[2]
+        } else {
+            &[2, 3]
+        };
+        assert_eq!(
+            outcomes, expected_outcomes,
+            "one Advanced followed only by exact prior-command confirmation"
+        );
+        let original = advances.first().ok_or("original advance")?;
+        for (i, record) in advances.iter().enumerate() {
+            assert_eq!(
+                record.request.get(4..172),
+                original.request.get(4..172),
+                "same authority, subject and command"
+            );
+            assert_eq!(
+                record.request.get(204..301),
+                original.request.get(204..301),
+                "same full Advance operation and target"
+            );
+            assert_eq!(
+                record.reply.get(172..204),
+                record.request.get(140..172),
+                "reply bound to original command"
+            );
+            assert_eq!(
+                record.reply.get(205..286),
+                original.reply.get(205..286),
+                "same target head and retained last command"
+            );
+            assert_eq!(
+                record.delivered,
+                matches!(cut, PeerUpdateCut::Unprocessed) || i == 1
+            );
+            if i > 0 {
+                assert_ne!(
+                    record.request.get(172..204),
+                    original.request.get(172..204),
+                    "new request challenge, not replayed attempt"
+                );
+            }
+        }
+        let mut unprocessed = witness.unprocessed.lock().map_err(|_| "unprocessed")?;
+        assert_eq!(
+            unprocessed.len(),
+            usize::from(matches!(cut, PeerUpdateCut::Unprocessed))
+        );
+        if let Some(request) = unprocessed.first() {
+            assert_eq!(request.get(4..172), original.request.get(4..172));
+            assert_eq!(request.get(204..301), original.request.get(204..301));
+            assert_ne!(request.get(172..204), original.request.get(172..204));
+        }
+        // Acknowledge only the dropped records whose exact identity and fresh
+        // recovery challenge were checked above; fixture shutdown rejects leftovers.
+        unprocessed.clear();
+        eprintln!("PEER_ROSTER_COMMAND kind={cut:?} processed_outcomes={outcomes:?} unchanged_command_and_target=true fresh_challenge=true");
+    }
+
+    fs::rename(
+        g.c.path.join("independent-sdk-held"),
+        g.c.path.join("independent-sdk"),
+    )?;
+    assert_eq!(
+        run(
+            &g.c.path,
+            "peer-roster-exact-retry-after-cut",
+            &g.args(
+                "peer-roster-admit",
+                &[public.as_os_str().into(), "admit".into()]
+            )
+        )?,
+        "peer-roster-admitted\n"
+    );
+    assert_eq!(
+        snapshot(&g.c)?,
+        recovered,
+        "exact target retry did not reseal the recovered image"
+    );
+    eprintln!(
+        "PEER_ROSTER_CUT kind={cut:?} original_target=true no_current_sdk_during_recovery=true"
+    );
+    Ok(recovered)
 }

@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -236,7 +236,7 @@ class RenewalExecutionTests(unittest.TestCase):
                             for carrier, committed, expired, recovered in (("local", "199", "203", "204"), ("tcp", "299", "303", "304"), ("tls", "299", "303", "304")))
                   + "".join("C_BOTH_EXPIRED_REKEY carrier=" + carrier + " original_session=true network_epoch=1 both_direction_messages=true epoch_sequence_checked=true peer_effects=true acknowledged_after_reopen=true original_acknowledgements_retained=true\n" for carrier in ("local", "tcp", "tls"))
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out;\n").encode()
+                  + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),

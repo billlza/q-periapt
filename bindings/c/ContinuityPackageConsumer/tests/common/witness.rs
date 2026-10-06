@@ -26,6 +26,7 @@ pub(crate) struct Witness {
     pub(crate) fault: Arc<AtomicU8>,
     pub(crate) hold_marker: Arc<Mutex<Option<PathBuf>>>,
     pub(crate) captured: Arc<Mutex<Vec<Capture>>>,
+    pub(crate) unprocessed: Arc<Mutex<Vec<Vec<u8>>>>,
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
 
@@ -64,6 +65,8 @@ impl Witness {
         let stop = Arc::new(AtomicBool::new(false));
         let fault = Arc::new(AtomicU8::new(0));
         let captured = Arc::new(Mutex::new(Vec::new()));
+        let unprocessed = Arc::new(Mutex::new(Vec::new()));
+        let dropped = Arc::clone(&unprocessed);
         let hold_marker: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
         let held = Arc::clone(&hold_marker);
         let control = Arc::clone(&stop);
@@ -94,6 +97,23 @@ impl Witness {
                 stream.read_exact(&mut request).map_err(|error| {
                     io::Error::new(error.kind(), format!("witness request body: {error}"))
                 })?;
+                // Deliberately disconnect before the real witness handles this
+                // complete Advance request. Preserve it separately: there is no
+                // processed reply to invent or enter into the signed transcript.
+                if request.get(204) == Some(&2)
+                    && pending
+                        .compare_exchange(42, 0, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok()
+                {
+                    let mut dropped = dropped
+                        .lock()
+                        .map_err(|_| "unprocessed request lock poisoned")?;
+                    if dropped.len() >= 4096 {
+                        return Err("unprocessed request capacity".into());
+                    }
+                    dropped.push(request);
+                    continue;
+                }
                 let mut reply = witness
                     .lock()
                     .map_err(|_| "witness lock poisoned")?
@@ -108,7 +128,7 @@ impl Witness {
                 let drop_independent = request
                     .get(204)
                     .copied()
-                    .filter(|op| matches!(op, 1 | 11 | 14 | 16 | 19))
+                    .filter(|op| matches!(op, 1 | 2 | 11 | 14 | 16 | 19))
                     .is_some_and(|op| {
                         pending
                             .compare_exchange(20 + op, 0, Ordering::AcqRel, Ordering::Acquire)
@@ -216,6 +236,7 @@ impl Witness {
             stop,
             fault,
             captured,
+            unprocessed,
             hold_marker,
             worker: Some(worker),
         })
@@ -230,6 +251,14 @@ impl Witness {
         self.stop.store(true, Ordering::Release);
         if let Some(worker) = self.worker.take() {
             worker.join().map_err(|_| "witness worker panicked")??;
+        }
+        if !self
+            .unprocessed
+            .lock()
+            .map_err(|_| "unprocessed request lock poisoned")?
+            .is_empty()
+        {
+            return Err("unprocessed witness request was not checked by the caller".into());
         }
         if self
             .hold_marker

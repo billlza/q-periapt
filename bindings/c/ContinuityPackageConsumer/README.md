@@ -1120,3 +1120,16 @@ These are additions to the unpublished `qpc-owner/1` candidate, not product ABI 
 stability or complete 0.2.0 admission. Swift/Kotlin wrappers for the new required
 P/R and peer-roster/reconciliation paths, installed-package qualification, physical
 platform evidence and independent protocol/security review remain separate gates.
+
+The signed-TCP peer-roster interruption workload exercises a complete request
+lost before witness processing, a processed reply loss, cancellation while the
+original C call is active, and termination of that process after a processed
+partial reply. Recovery opens the original complete-account owner while the live
+independent SDK resource is unavailable. It must install the byte-identical
+sealed target and preserve each original member outcome. A processed-loss retry
+uses a fresh challenge for the same complete command: the first witness result is
+Advanced and the recovery result is AlreadyAppliedExact, with the same target and
+last command. Two requests are not two state advances. The reference client also
+checks that close is Busy during the active call, cancellation returns promptly,
+and an unknown outcome publishes no checkpoint or new account ID. Equivalent
+mutual-TLS interruption coverage remains a separate gate.

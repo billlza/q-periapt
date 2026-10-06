@@ -1203,12 +1203,12 @@ impl DeviceEnrollment {
         let signer = self.signer(image.identity, false)?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
-            active: Some(EnrolledOwners {
+            active: Some(Box::new(EnrolledOwners {
                 enrollment: self,
                 service,
                 signer,
                 device: current,
-            }),
+            })),
         })
     }
 }

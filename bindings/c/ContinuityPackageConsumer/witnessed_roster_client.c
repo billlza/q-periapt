@@ -78,5 +78,10 @@ static int witnessed_roster_command(uint64_t handle,const char *path,const char 
         int32_t want=expected==QPC_ENCODING ? QPC_OK : expected==QPC_CANCELLED ? QPC_CANCELLED : QPC_CLOSED;if(retained!=want) fail("R failure owner semantics differ");
         close_owner(handle);printf("roster-refused:%d\n",expected);return 0;
     }
-    if(observed<1 || observed>5) fail("unknown R state");close_owner(handle);printf("roster-state:%u\n",observed);return 0;
+    if(observed<1 || observed>5) {
+        fail("unknown R state");
+    }
+    close_owner(handle);
+    printf("roster-state:%u\n",observed);
+    return 0;
 }

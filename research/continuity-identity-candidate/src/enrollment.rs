@@ -883,12 +883,12 @@ impl DeviceEnrollment {
             .check_enrollment_authority(&device, policy, now)?;
         admit(&device, policy, now)?;
         Ok(EnrolledDevice {
-            active: Some(EnrolledOwners {
+            active: Some(Box::new(EnrolledOwners {
                 enrollment: self,
                 service,
                 signer,
                 device,
-            }),
+            })),
         })
     }
 }
@@ -902,7 +902,10 @@ struct EnrolledOwners {
 /// Controlled result of original enrollment and installation activation. This
 /// composes the existing service and signer, not a second traffic implementation.
 pub struct EnrolledDevice {
-    active: Option<EnrolledOwners>,
+    // Keep the exclusive aggregate behind one owned allocation. Moving the
+    // public handle through continuation Result values must not copy the
+    // service, signer and verified identity into each caller's stack frame.
+    active: Option<Box<EnrolledOwners>>,
 }
 impl EnrolledDevice {
     /// Borrow the existing service, original signer and verified local identity.

@@ -472,7 +472,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_c_independent_policy import TESTS as independent_tests, verify as verify_independent
         independent_stdout = run([str(enrollment_binary), "--exact", *sorted(independent_tests), "--nocapture"],
                                  "independent-policy-roster-trace-" + profile, runtime=renewal_runtime)
-        independent = verify_independent(independent_stdout)
+        independent_stderr = sdk.snapshot(
+            output / ("c-independent-policy-roster-trace-" + profile + ".stderr")
+        ).data
+        independent = verify_independent(independent_stdout, independent_stderr)
         sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
                     "C independent lifecycle test binary changed")
         independent["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)

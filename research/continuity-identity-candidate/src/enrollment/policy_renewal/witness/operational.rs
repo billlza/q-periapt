@@ -110,12 +110,12 @@ impl DeviceEnrollment {
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
-            active: Some(EnrolledOwners {
+            active: Some(Box::new(EnrolledOwners {
                 enrollment: self,
                 service,
                 signer,
                 device: current,
-            }),
+            })),
         })
     }
     /// Restore the original established session while retaining its registration,

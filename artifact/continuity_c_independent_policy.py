@@ -8,6 +8,7 @@ import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_execution
 
 TESTS = {
+    'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_current_sdk',
     'credential_renewal::independent_policy::c_independent_policy_rejects_changed_requests_without_publishing_or_mutating_intent',
     'credential_renewal::independent_policy::c_independent_policy_request_restarts_exact_stage_and_adopts_original_journal',
     'credential_renewal::independent_policy::c_independent_policy_restores_original_tls_session_after_lost_application_receipt',
@@ -22,6 +23,7 @@ TESTS = {
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_required_peer_revocation_reconciles_every_original_account_member_before_retirement',
 }
 MARKERS = (
+    'C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true',
     'C_INDEPENDENT_POLICY request_from_original=true signed_inputs_reverified=true pending_exact_retry=true first_approvals_retained=true actual_commit=true original_device_transfer=true historical_without_runtime_tls_signer=true',
     'C_INDEPENDENT_POLICY_ERRORS scope=true signature=true tail=true cancellation=true output_untouched=true ownership_checked=true original_intent=true',
     'C_INDEPENDENT_POLICY_TRAFFIC original_tls_session=true original_message=true receiver_effect_once=true unknown_commit_preserved=true acknowledged_after_process_reopen=true original_signer_journal_keys=true native_peer=true',
@@ -36,14 +38,18 @@ MARKERS = (
     'PUBLIC_POLICY_REFUSALS scope=true signature=true cancellation=true typed_native_errors=true original_pending_unchanged=true',
 )
 
-def verify(stdout: bytes) -> dict:
+def verify(stdout: bytes, stderr: bytes) -> dict:
     text = stdout.decode()
     _require_execution(text, TESTS, 13, "independent C lifecycle workloads were not executed completely")
+    # libtest writes result rows to stdout; the harness emits scope evidence
+    # with eprintln! on stderr. Require each in its actual captured stream.
+    scope = stderr.decode()
     for marker in MARKERS:
         prefix = marker.split(" ", 1)[0]
-        sdk.require(re.findall(r"^" + re.escape(prefix) + r" .*?$", text, re.MULTILINE) == [marker],
+        sdk.require(re.findall(r"^" + re.escape(prefix) + r" .*?$", scope, re.MULTILINE) == [marker],
                     "independent C lifecycle scope differs: " + prefix)
     return dict(completed=True, tests=sorted(TESTS), language="C",
                 scope="installed C client with shared Rust engine; independent local/required policy renewal, atomic local roster refresh, current remote-roster admission, original TLS message/rekey and partial-account recovery through TCP/mTLS witnesses; real second-recipient revocation preserves authenticated consumption versus unknown delivery and requires complete synced host accounting before metadata retirement",
+                peer_roster_interruption_carrier="signed-tcp", peer_roster_interruption_cases=4,
                 independent_protocol_implementation=False, Swift_Kotlin_new_paths_qualified=False,
                 physical_platform_qualified=False, release_claim_eligible=False)

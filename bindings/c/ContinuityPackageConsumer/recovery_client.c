@@ -235,7 +235,10 @@ static void account_reconciliation(uint64_t handle,const char *path,const uint8_
     } else {
         code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_SUSPENDED);
     }
-    if(fwrite(bytes,1,length,stdout)!=length) bad("complete reconciliation output");free(bytes);
+    if(fwrite(bytes,1,length,stdout)!=length) {
+        bad("complete reconciliation output");
+    }
+    free(bytes);
 }
 
 _Static_assert(sizeof(qpc_account_cleanup_header_v1) == 72, "account report layout");
