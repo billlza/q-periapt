@@ -82,9 +82,9 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration and policy-continuation route has 26 `qpc_enrollment_v1_*` exports. Together with
+The registration and policy-continuation route has 34 `qpc_enrollment_v1_*` exports. Together with
 peer-grant admission on the existing Device parent, this unpublished candidate
-interface now declares 82 exports. The new renewal route still requires its own
+interface now declares 90 exports. The new renewal route still requires its own
 installed-package qualification. It retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that
@@ -132,6 +132,43 @@ The witness operator must separately authorize the target. Activate the original
 parent, then restore the original peer/session and operation ID. This cannot
 replace a credential, policy, root or signer and is not a supported-version
 storage migration.
+
+If that exact refresh cannot resume under current authority, call
+`qpc_enrollment_v1_resolve_roster_refresh` with its original predecessor and target
+checkpoints after reopening the original registration. This reads the authenticated
+journal and signed original policy history; it needs neither a live SDK runtime,
+TLS inputs nor the private signer and returns no Device. Keep the original keys,
+configuration and operation identity after every unknown result.
+
+The separate 168-byte `qpc_roster_refresh_resolution_v1` reports the original pair,
+actual observed head, original journal identity and retained observation time:
+
+| Outcome | Evidence about the original target |
+| --- | --- |
+| `QPC_ROSTER_COMMITTED` | The observed checkpoint equals that target. |
+| `QPC_ROSTER_EXPIRED_UNCOMMITTED` | The target itself expired and the observed version remains below it. |
+| `QPC_ROSTER_SUPERSEDED_UNCOMMITTED` | The observed version equals the target version with a different digest. |
+| `QPC_ROSTER_SUPERSEDED_UNKNOWN` | A higher observed version cannot reveal whether the target once committed. |
+
+Retrying the original pair returns the retained observation, including its time.
+A still-live target above the observed head remains pending (215); a mismatched
+original pair fails (211). Admitted failures consume the enrollment owner but may
+have persisted state: close and resume the same record. Pre-admission argument
+errors preserve it; cancellation before admission keeps its lease until close.
+The output record remains untouched on failure. Its reserved word must be zero.
+
+The existing 152-byte enrollment status layout is unchanged. Phase 7,
+`RosterResolved`, retains the **original** previous/next pair when the actual head
+cannot yield the same credential's historical snapshot (for example, revocation
+or generation replacement). The separate resolution record contains the observed
+head. Phase 5 can be restored when that historical snapshot exists; neither phase
+is current permission to operate. Obtain current independent authorization before
+any new activity. This metadata path does not supply required-witness approval.
+
+`roster_resolution_client.c` and `tests/roster_resolution.rs` exercise the exact
+public C call and share signed fixture scenarios with the Swift/Kotlin public
+consumers. Local source and wrapper-JAR results remain separate from installed
+native archive, required-witness, other-platform and independent-engine evidence.
 
 The `--enrollment-parent LOCAL_PATH ROLE` consumer selector follows this route.
 Mandatory package workloads check original request/identity retention, separate
@@ -887,3 +924,199 @@ both SDK policy stores/configuration and local TLS files unavailable in its
 temporary fixtures. Repeated history-only calls preserve Committed or Pending
 and the original signing/wrapping/journal identity. Complete uncommitted local
 policy abandonment remains separate from this completion-only recovery.
+
+
+## Independent policy renewal on the original registration
+
+The `qpc_enrollment_v1_*_policy_renewal` entries use the native independent
+`qperiapt-policy-renewal/1` relation. The operation is separate from a credential
+renewal or a joint G/T continuation; no credential grant is manufactured.
+
+1. Retain one new policy operation ID. Resume the original enrollment and call
+   `policy_renewal_request`. Keep its exact scope and four signed identity records.
+   The returned account, original/current credentials, rosters and checkpoints
+   come from the matched original enrollment/journal. This is metadata and does
+   not reserve the operation or replace issuer authentication and deduplication.
+2. Independently approve the exact relation under both account and policy roots.
+   Retain the original request and exact approval bytes. Select the independently
+   pinned current target with `select_continued_policy`, then call
+   `stage_policy_renewal` with that request, independent original/current account
+   pins, the independently pinned previous policy document and both approvals.
+   Signed historical device records are reverified; target policy, credential,
+   roster and actual journal predecessor checks still apply.
+3. If the stage result is lost, close/resume the same registration and retry that
+   same request and operation. Do not ask for a new request while Pending.
+   `pending_policy_renewal_approval` recovers the first exact approval bytes;
+   equivalent re-signatures do not replace them. `policy_renewal_status` reports
+   the independent axis without implying current permission.
+4. `reconcile_policy_renewal` coordinates the actual original journal commit under
+   the selected current target. `activate_policy_renewal` additionally requires
+   original TLS configuration and current native authority, and transfers the same
+   controlled owner to Device. Use it to restore existing sessions. The reference
+   client selects this path with `--independent-policy-parent`, which requires an
+   existing session and refuses fresh bootstrap.
+5. `resolve_policy_renewal` reads an exact original result using signed P0/target
+   history without runtime, TLS or private-signer inputs. A live uncommitted target
+   remains Pending; resolution does not silently commit it. Native evidence can
+   report Committed or AbandonedUncommitted with its reason/head/time. Unknown
+   actual policy supersession remains an error, never fabricated no-commit.
+
+The request record is 33176 bytes with four bounded public records, each at most
+8192 bytes. Unused bytes and reserved fields must be zero. These are native ABI
+records, not a network message or a portable storage schema. The fixture writes
+and reads them only across same-platform C processes. A real application still
+needs a bounded external request format, pinned verification, account authorization,
+serialized issuer decisions and durable operation/response deduplication.
+
+A failed call never publishes success output. Admitted failure consumes the
+registration owner and releases its leases, even if durable work already occurred;
+close and resume original state. Preflight shape errors preserve the owner;
+pre-admission cancellation retains it until close. Current activation does not
+fall back to local-only operation for required-witness policies. The independent
+witness control and bounded application-session paths are described below; full
+product lifecycle qualification remains open.
+
+The scoped C reference flow covers original request export, independent signatures,
+Pending/restart retry, preservation of first signatures, real journal commit,
+controlled owner transfer and historical readback without operational inputs.
+It also restores an original TLS session and original message after receiver exit
+following application-effect commit, then obtains ACK with the original effect
+file unchanged. Its peer uses the same native implementation. These local source
+results do not qualify Swift/Kotlin, installed native archives, an independent
+engine, physical platforms, the broader failure/concurrency matrix or release.
+
+The native source snapshot in this development candidate is the qualified original independent P/R implementation. Required-witness independent P has separate canonical QPPWNP01 C descriptors and historical progress, while runtime activation keeps the same enrollment and service owners. Embedded source and local linking are not an installed release-package qualification. The separately typed R coordination interface follows the same original owner contract; language wrappers, foreign changed-recipient roster admission and complete product admission remain open.
+
+
+### Original required-witness roster refresh
+
+`qpc_enrollment_v1_prepare_witnessed_roster_refresh` receives a retained R operation
+and independently trusted current account pin, original credential and signed target
+roster. The caller explicitly selects original P0 or the already selected independent
+current P; neither path falls back after an error. The original enrollment/journal
+derive and check the actual predecessor and exact unchanged P authorization. Retain
+the full canonical 417-byte QPRWNP01 proposal before giving it to the independent
+witness operator. Exact preparation retries preserve the first encrypted target.
+
+Commit requires live current identity/P/runtime. Close and reconciliation use the
+original historical scope and full caller-retained proposal. They persist and read
+back Applied/Closed before witness ACK and exact pending cleanup. Progress is a
+624-byte explicit record with bounded scope and zero reserved bytes; its phases
+separate Absent, Staged, Reserved, Applied, Closed and AbandonedBeforePreparation.
+Only Applied/Closed carry the retirement flag. None of these historical values is
+an operational owner or a witness no-commit assertion.
+
+An unknown preparation may leave only Staged, or the exact original pending target.
+Recover preparation before deciding the next action. A locally absent preparation
+is not witness Closed. The explicit abandonment API applies only to an intent whose
+proposal was never released and whose original journal has no pending under its
+service lease. A failed initial signed head query is exercised through actual C
+processes to establish that this path needs neither a live runtime, signer nor any
+new network request. Reserved/terminal targets must reconcile their original result.
+
+The C tests cover original P0 and adopted independent P over signed TCP and mutually
+authenticated hybrid TLS, exact encrypted target installation, full proposal/type
+substitution, precancel output/owner rules, successive R after Applied/Closed and an
+actual next-P issuer request using the newly adopted roster. Separate processed
+commit/ACK reply losses preserve the original pending and recover after current SDK
+and application TLS inputs become unavailable. Historical progress can additionally
+be read without the private signer. Test hosts retain each original request/proposal
+and per-operation log before starting another operation; fixtures do not overwrite
+prior evidence. These are local native-library consumers, not an installed release
+package or a separately implemented witness protocol. Post-dispatch cancellation,
+foreign lifecycle transaction process cuts, actual foreign signed-policy expiry,
+new Kotlin/Swift APIs and complete 0.2.0 qualification remain open. macOS support is
+Apple Silicon only.
+
+### Original application session across required P/R
+
+The C application test establishes one original TLS session under P0 with a required
+witness. Its receiver process persists the business result, syncs the file and its
+directory, then exits with code 77 before reporting consumption. The sender retains
+the original message as Committed, without inventing an ACK. C owners then adopt an
+independently approved P1 and R2. The TCP witness scenario drops an actually processed
+R ACK reply and reconciles that same terminal before resuming application work.
+
+After reopening the updated owner, the original message remains Committed. A retry
+using the unchanged bootstrap bundle, session ID and message ID obtains consumption
+confirmation. The receiver callback finds its original durable result and creates
+no new effect; the original file identity, size and modification time are unchanged.
+This is a host deduplication contract, not an assertion that arbitrary business
+side effects execute exactly once. Sender and receiver then complete a real TLS
+control exchange to epoch 1 and deliver new application messages in both directions.
+The sender's original signing and wrapping files remain unchanged throughout.
+
+Both signed TCP and mutually authenticated hybrid TLS witness carriers are exercised.
+The two application endpoints use the same C binding and native implementation.
+These results establish a bounded same-host source-consumer path, including two
+actual receiver process exits. They do not establish an independent protocol engine,
+fresh-entropy compromise recovery, lifecycle transaction crash coverage, account
+changed-recipient fanout accounting, actual policy expiry, installed package/platform
+support or full release. The fixed-recipient account scenario is described next.
+
+### Complete original account batch across required P/R
+
+The C reference client accepts `account-next`, `account-status` and `account-send`
+through an explicitly selected `--enrollment-parent` or
+`--independent-policy-parent`. It transfers that same parent into the existing
+account command, whose peer children all belong to the same native device service.
+The path and initiator role must match, and an independent-policy parent refuses
+`account-connect`: continued operations do not silently bootstrap replacement
+sessions. The installed-device account path remains available unchanged.
+
+The qualification flow creates two original recipient sessions for a complete
+account, confirms the first member, and observes the second receiver process exit
+after durable application commit. After independently approved P1 and local R2,
+the original account batch remains Committed. The first member returns its exact
+retained acknowledgement with zero application exchanges, including when the complete
+input vector is reordered. The second member retries the original message ID,
+confirms consumption and then also returns its retained result. Both effect files,
+bootstrap bundles and the enrolled sender's signing/wrapping files remain unchanged.
+The test also observes new witness admissions on retained-result calls: zero
+application exchanges never means skipping the current witness checks.
+
+Unary release, changed input, an omitted original member and a cancelled member
+are rejected without journal mutation. The fixture distinguishes incomplete first
+admission (PolicyDenied) from changing an already committed batch's member set
+(ScopeConflict); it does not treat either failure as permission to rebuild a batch.
+Signed TCP and mutual-TLS witness carriers each exercise this sequence.
+
+This changes the reference client's owner routing and its tests, not the native
+protocol or C ABI. A public peer-roster admission path with original-owner/current-P
+checks is still needed to qualify foreign changed-recipient suspension and cleanup.
+Direct journal mutation in a test cannot substitute for that product boundary.
+Actual policy expiry, lifecycle transaction cuts, language wrappers, installed
+packages, independent implementations and complete 0.2.0 release remain open.
+
+### Current peer rosters and complete original-account recovery
+
+`qpc_device_v1_admit_peer_roster` accepts a bounded signed roster and an independent
+account pin through the selected original device parent. It admits only an already
+known remote account with the same authority/family and a monotonic checkpoint.
+Local roster changes still use the atomic enrollment R operation. Exact retry
+returns the current target after fresh current-policy and required-witness checks;
+errors publish no checkpoint and do not prove that an earlier write did not commit.
+Reopen the same installation after an unknown result. No fallback policy or new
+installation is selected.
+
+After a roster update prevents resuming the original account operation, close the
+traffic owner and select the original batch through the recovery owner.
+`qpc_recovery_v1_account_reconciliation` returns a bounded complete frame containing
+all original device, session and message IDs. Acknowledged and DeliveryUnknown are
+separate; Committed and ResolutionPending prohibit retirement. This uncached call
+requires the original witness head and returns no ciphertext. HistoryRetired cannot
+reconstruct whether prior settlement was acknowledgement or recorded loss.
+
+For each unresolved original session, retain every field of its closure report in
+a durable host transaction before acknowledging the exact report. Reopen the same
+batch and reconcile all members. `qpc_recovery_v1_account_retire` then removes only
+aggregate metadata, preserving session/bootstrap records and the monotonic ID.
+Persist needed results before retirement: a fresh Retired result does not recreate
+the earlier member report. The C reference client serializes each member report
+separately, syncs file and directory, and verifies the exact retained bytes before
+acknowledgement; it keeps aggregate results separately before metadata retirement.
+
+These are additions to the unpublished `qpc-owner/1` candidate, not product ABI 2
+stability or complete 0.2.0 admission. Swift/Kotlin wrappers for the new required
+P/R and peer-roster/reconciliation paths, installed-package qualification, physical
+platform evidence and independent protocol/security review remain separate gates.

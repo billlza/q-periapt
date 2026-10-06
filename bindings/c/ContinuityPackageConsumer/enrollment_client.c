@@ -111,6 +111,7 @@ static void credential_status_print(const qpc_credential_renewal_status_v1 *stat
     printf("credential-observed:%llu\n",(unsigned long long)status->observed_at);
 }
 #include "policy_client.c"
+#include "witnessed_roster_client.c"
 static int credential_command(uint64_t handle,const char *path,const char *operation) {
     qpc_error_v1 error;qpc_credential_renewal_status_v1 status;
     if(!strcmp(operation,"enrollment-credential-activate-refused")) {
@@ -240,6 +241,15 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
     int create=!strcmp(argv[1],"enrollment-create");
     uint64_t handle=enrollment_open(path,create,witness,tls);
     enrollment_status(handle,&status);
+    const char *roster_prefix="enrollment-witnessed-roster-";
+    if(!strncmp(argv[1],roster_prefix,strlen(roster_prefix))) {
+        if(argc!=3) fail("roster arguments");
+        return witnessed_roster_command(handle,path,argv[1]+strlen(roster_prefix));
+    }
+    if(!strncmp(argv[1],"enrollment-independent-policy-",30)) {
+        if(argc!=3) fail("independent policy arguments");
+        return independent_policy_command(handle,path,argv[1]+30);
+    }
     if(!strncmp(argv[1],"enrollment-policy-",18)) {
         if(argc!=3) fail("policy continuation arguments");
         return policy_command(handle,path,argv[1]);

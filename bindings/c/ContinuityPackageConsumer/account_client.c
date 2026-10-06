@@ -47,10 +47,10 @@ static void account_shape_check(void) {
         if(code!=QPC_ARGUMENT || memcmp(&result,&empty,sizeof(empty)))fail("account array shape admitted");
     }
 }
-static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls) {
+static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,int witness_tls,uint64_t parent) {
     if (argc<3) fail("account local path missing");
     account_shape_check();
-    uint64_t parent=device_open(argv[2],witness,witness_tls);
+    if (!parent) parent=device_open(argv[2],witness,witness_tls);
     qpc_error_v1 error;
     if (!strcmp(argv[1],"account-next")) {
         if(argc!=3) fail("account next arguments");
@@ -92,7 +92,10 @@ static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,i
             qpc_account_target_v1 temporary=s.targets[0];s.targets[0]=s.targets[1];s.targets[1]=temporary;
             s.selected=1-s.selected;
         }
-        if(!strcmp(mode,"omit")){s.count=1;s.selected=0;expected=QPC_POLICY_DENIED;}
+        if(!strcmp(mode,"omit") || !strcmp(mode,"omit-retained")){
+            s.count=1;s.selected=0;
+            expected=!strcmp(mode,"omit-retained") ? QPC_SCOPE_CONFLICT : QPC_POLICY_DENIED;
+        }
         else if(!strcmp(mode,"duplicate-peer")){s.targets[1].peer=peers[0];expected=QPC_ARGUMENT;}
         else if(!strcmp(mode,"duplicate-session")){memcpy(s.targets[1].session,s.targets[0].session,32);expected=QPC_ARGUMENT;}
         else if(!strcmp(mode,"cancel-peer")){require(qpc_owner_v1_cancel(peers[1],&error),&error);expected=QPC_CANCELLED;}

@@ -104,6 +104,16 @@ impl Witness {
                 // Inspect only the public signed outcome AFTER the real witness
                 // authenticated the request and durably applied its transition.
                 let advanced = reply.get(204) == Some(&2);
+                // Bounded independent-P/R faults: drop only this processed opcode's reply.
+                let drop_independent = request
+                    .get(204)
+                    .copied()
+                    .filter(|op| matches!(op, 1 | 11 | 14 | 16 | 19))
+                    .is_some_and(|op| {
+                        pending
+                            .compare_exchange(20 + op, 0, Ordering::AcqRel, Ordering::Acquire)
+                            .is_ok()
+                    });
                 // Fault 9 exposes the transport error to the live foreign owner;
                 // fault 5 holds the same committed reply until that owner dies.
                 let commit_error = request.get(204) == Some(&5)
@@ -161,10 +171,11 @@ impl Witness {
                         require_held_peer_disconnect(stream.read(&mut byte))?;
                     }
                     delivered = false;
-                } else if advanced
+                } else if (advanced
                     && pending
                         .compare_exchange(1, 0, Ordering::AcqRel, Ordering::Acquire)
-                        .is_ok()
+                        .is_ok())
+                    || drop_independent
                 {
                     delivered = false;
                 } else if pending

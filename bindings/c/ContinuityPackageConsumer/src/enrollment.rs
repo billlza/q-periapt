@@ -4,6 +4,8 @@ use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
 mod policy;
+mod roster_refresh;
+mod roster_resolution;
 
 #[repr(C)]
 pub struct Intent {
@@ -293,6 +295,13 @@ impl Owner {
                 result.previous = Checkpoint::observed(previous);
                 result.next = Checkpoint::observed(next);
                 (6, Some(journal))
+            }
+            p::EnrollmentStatus::RosterResolved(resolved) => {
+                // Preserve the original pair for exact retry; the separate
+                // resolution result carries the actual head and outcome.
+                result.previous = Checkpoint::observed(resolved.previous);
+                result.next = Checkpoint::observed(resolved.target);
+                (7, Some(resolved.journal))
             }
         };
         result.phase = phase;
@@ -997,5 +1006,34 @@ pub unsafe extern "C" fn qpc_device_v1_admit_peer_credential_renewal(
         Ok(())
     };
     // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
+
+/// Admit an independently pinned current roster for an already known remote account.
+/// # Safety
+/// The bounded wire and pin/root are immutable readable regions. Checkpoint and
+/// error are aligned, writable, nonoverlapping and disjoint from every input.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_admit_peer_roster(
+    handle: u64,
+    wire: *const u8,
+    wire_length: usize,
+    pin: *const Pin,
+    checkpoint: *mut Checkpoint,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(checkpoint)?;
+        if wire_length == 0 {
+            return Err(Failure::argument());
+        }
+        // SAFETY: copy bounded immutable caller inputs before original owner admission.
+        let (wire, pin) = unsafe { (bytes(wire, wire_length, 65536)?, Pin::read(pin)?) };
+        let result = device::parent(handle, deadline)?.admit_peer_roster(deadline, &wire, &pin)?;
+        // SAFETY: validate output before action and publish only a successful current checkpoint.
+        unsafe { put(checkpoint, Checkpoint::observed(result)) };
+        Ok(())
+    };
+    // SAFETY: invocation-local diagnostic region follows the public header contract.
     unsafe { boundary(error, false, action) }
 }

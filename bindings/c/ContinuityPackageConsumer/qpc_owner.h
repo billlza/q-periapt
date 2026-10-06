@@ -345,6 +345,35 @@ typedef struct {
     qpc_roster_checkpoint_v1 previous;
     qpc_roster_checkpoint_v1 next;
 } qpc_enrollment_status_v1;
+/* Enrollment phase 7=RosterResolved: previous/next retain the ORIGINAL refresh
+ * pair (as in phase6), not the observed current head. No operational owner is
+ * implied. Resolve that same pair below to read its retained complete outcome.
+ * The layout and meanings of phases1..6 are unchanged.
+ */
+enum {
+    QPC_ROSTER_COMMITTED = 1,
+    QPC_ROSTER_EXPIRED_UNCOMMITTED = 2,
+    QPC_ROSTER_SUPERSEDED_UNCOMMITTED = 3,
+    QPC_ROSTER_SUPERSEDED_UNKNOWN = 4
+};
+/* Historical original-operation result, never a current authorization.
+ * All checkpoints/journal/time are present; reserved is zero.
+ * 1: observed equals target (exact journal adoption).
+ * 2: observed version is below target, whose signed roster has expired.
+ * 3: observed has target's version and a different digest, excluding adoption.
+ * 4: observed version is above target; past target adoption remains UNKNOWN.
+ * previous < target; observed >= previous, with exact equality at same version.
+ * The last result survives later activity until another resolution replaces it.
+ */
+typedef struct {
+    uint32_t outcome;
+    uint32_t reserved;
+    uint8_t journal[32];
+    qpc_roster_checkpoint_v1 previous;
+    qpc_roster_checkpoint_v1 target;
+    qpc_roster_checkpoint_v1 observed;
+    uint64_t observed_at;
+} qpc_roster_refresh_resolution_v1;
 typedef struct {
     uint32_t length;
     uint8_t bytes[8192];
@@ -370,6 +399,17 @@ int32_t qpc_enrollment_v1_prepare_storage(uint64_t handle,
 int32_t qpc_enrollment_v1_refresh_roster(uint64_t handle,
     const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
     const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
+/* Local original-operation metadata only. Original signed policy files are
+ * required; SDK/TLS files and private signer are not. A still-live target beyond
+ * the actual head stays pending. A newer head never becomes proof of no commit.
+ * On success the handle remains an enrollment. On an admitted error, close and
+ * resume the original enrollment and retry the same pair; result may be durable.
+ * Inputs and outputs obey the disjoint pointer contract. A failure leaves the
+ * success output untouched. Required-witness protection is never downgraded.
+ */
+int32_t qpc_enrollment_v1_resolve_roster_refresh(uint64_t handle,
+    const qpc_roster_checkpoint_v1 *previous, const qpc_roster_checkpoint_v1 *target,
+    qpc_roster_refresh_resolution_v1 *resolution, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_activate(uint64_t handle, qpc_error_v1 *error);
 /* Independently trusted policy pin and signed public document. All pointed
  * regions are immutable, disjoint and readable for the invocation; they are
@@ -383,6 +423,123 @@ typedef struct {
     const uint8_t *wire;
     size_t wire_length;
 } qpc_policy_document_v1;
+
+/* Independent qperiapt-policy-renewal/1, distinct from joint G/T renewal.
+ * These native ABI records are bounded public metadata, not a network format.
+ * Caller retains the original operation, complete request and independently
+ * approved response across errors/restarts. Metadata does not authorize traffic.
+ */
+typedef struct { uint64_t version; uint8_t digest[32]; } qpc_policy_checkpoint_v1;
+typedef struct {
+    uint8_t operation[32], journal[32], original_owner[32];
+    uint8_t original_credential[32], current_credential[32];
+    qpc_roster_checkpoint_v1 current_roster;
+    qpc_policy_checkpoint_v1 original_policy, previous_policy;
+    uint8_t previous_authorization[32];
+    uint32_t has_previous_authorization, reserved;
+} qpc_policy_renewal_scope_v1;
+/* Exactly length valid public bytes, 1..8192. Every unused byte is zero. */
+typedef struct { uint32_t length; uint8_t bytes[8192]; } qpc_public_record_v1;
+typedef struct {
+    qpc_policy_renewal_scope_v1 scope;
+    uint8_t account[32];
+    qpc_roster_checkpoint_v1 original_roster_checkpoint;
+    qpc_public_record_v1 original_credential, original_roster;
+    qpc_public_record_v1 current_credential, current_roster;
+} qpc_policy_renewal_request_v1;
+/* phase0 Absent: all remaining fields zero.
+ * phase1 Pending / phase2 Committed: operation, statement and target set;
+ * reason, observed_roster and observed_at zero. Pending is not proof of no commit.
+ * phase3 AbandonedUncommitted: all IDs/checkpoints/time set; reason1=Expired,
+ * reason2=RosterAdvanced. Only exact unchanged predecessor evidence permits this.
+ * All phases are historical facts; no live permission or Device is implied.
+ */
+typedef struct {
+    uint32_t phase, reason;
+    uint8_t operation[32], statement[32];
+    qpc_policy_checkpoint_v1 target;
+    qpc_roster_checkpoint_v1 observed_roster;
+    uint64_t observed_at;
+} qpc_policy_renewal_status_v1;
+/* Request requires signed P0 history, not a live runtime/TLS/private signer.
+ * Pending work is refused; for an unknown prior submit, retain and reuse the
+ * original request, never request another operation to bypass it.
+ * Each output below remains untouched after failure. Admitted failures consume
+ * the enrollment owner, possibly after a durable commit; close/resume original.
+ * Preflight shape failures and pre-admission cancellation retain ownership.
+ */
+int32_t qpc_enrollment_v1_policy_renewal_request(uint64_t handle, const uint8_t operation[32],
+    qpc_policy_renewal_request_v1 *request, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_policy_renewal_status(uint64_t handle,
+    qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Select current target via select_continued_policy first. Pins and previous
+ * policy are independent expectations, never selected from untrusted approvals.
+ * Request signed identities and both approvals are reverified each time;
+ * native staging rechecks the original actual journal and retains first bytes.
+ */
+int32_t qpc_enrollment_v1_stage_policy_renewal(uint64_t handle,
+    const qpc_policy_renewal_request_v1 *request, const qpc_account_pin_v1 *original_pin,
+    const qpc_account_pin_v1 *current_pin, const uint8_t *approvals, size_t approvals_length,
+    const qpc_policy_document_v1 *previous, qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_pending_policy_renewal_approval(uint64_t handle, const uint8_t operation[32],
+    qpc_public_record_v1 *record, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_reconcile_policy_renewal(uint64_t handle,
+    qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Historical exact result, no target runtime selection or Device transfer. */
+int32_t qpc_enrollment_v1_resolve_policy_renewal(uint64_t handle, const uint8_t operation[32],
+    const uint8_t statement[32], const qpc_policy_document_v1 *target,
+    qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);
+/* Current target selection + TLS configuration required. Transfers the same
+ * owner to Device on success. Required-witness independent P additionally needs
+ * the original configured witness, durable retired enrollment completion and
+ * fresh current authority; historical progress alone never grants a Device.
+ */
+int32_t qpc_enrollment_v1_activate_policy_renewal(uint64_t handle, qpc_error_v1 *error);
+
+/* Independently typed required-witness P lifecycle; never G/T proposal grammar.
+ * Staging uses stage_policy_renewal with the independently retained request and
+ * two root approvals. The existing selected current policy is required only for
+ * prepare/commit/activation. Historical recovery/progress load no runtime or
+ * application TLS material. Explicit original witness configuration is mandatory
+ * for request/commit/status/close/activation; there is no local fallback.
+ * Proposal bytes are canonical QPPWNP01, not an approval or terminal receipt.
+ * Keep the COMPLETE proposal across calls. Commands reject substituted expected
+ * descriptors before dispatch, including after a known retired terminal.
+ * Native status 1=Prepared, 2=Applied, 3=Closed, 4=Acknowledged, 5=Unavailable.
+ * Unavailable never proves no-commit. Applied/Closed describes history only.
+ * ACK and exact pending cleanup happen only after original durable terminal.
+ */
+typedef struct { uint8_t bytes[296]; } qpc_independent_policy_proposal_v1;
+typedef struct {
+    uint32_t present, reserved; /* reserved is zero; absent bytes are all zero */
+    qpc_independent_policy_proposal_v1 proposal;
+} qpc_independent_policy_preparation_v1;
+typedef struct {
+    uint32_t phase; /* 0=no retained proposal, 1=Reserved, 2=Applied, 3=Closed */
+    uint32_t retired; /* 0/1; meaningful only for Applied/Closed */
+    qpc_independent_policy_proposal_v1 proposal;
+    qpc_policy_checkpoint_v1 target;
+} qpc_independent_policy_progress_v1;
+/* phase/present zero is LOCAL absence only; staged policy may still exist.
+ * Ordinary pointer, cancellation, unknown-outcome and owner rules still apply.
+ * Outputs remain untouched on every nonzero return; reopen original owner.
+ */
+int32_t qpc_enrollment_v1_witnessed_policy_renewal_request(uint64_t handle, const uint8_t operation[32],
+    qpc_policy_renewal_request_v1 *request, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_prepare_witnessed_policy_renewal(uint64_t handle,
+    const qpc_policy_document_v1 *previous, qpc_independent_policy_proposal_v1 *proposal, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation(uint64_t handle,
+    qpc_independent_policy_preparation_v1 *preparation, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_witnessed_policy_renewal_progress(uint64_t handle,
+    qpc_independent_policy_progress_v1 *progress, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_commit_witnessed_policy_renewal(uint64_t handle,
+    const qpc_independent_policy_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_reconcile_witnessed_policy_renewal(uint64_t handle,
+    const qpc_independent_policy_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_close_witnessed_policy_renewal(uint64_t handle,
+    const qpc_independent_policy_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);
+
+
 /* The original P0 files remain at the enrollment path. Select once per resumed
  * enrollment owner using independently provisioned SDK policy storage at sdk_path
  * (sdk.redb, sdk-policy, sdk-signature, sdk-root) and the explicit target document.
@@ -412,6 +569,68 @@ int32_t qpc_enrollment_v1_stage_continued_credential_renewal(uint64_t handle,
 /* Length is exactly296/329 for proposals and248/281 for cancellations. The
  * unused tail is zero. These are public coordination metadata, never approvals
  * or terminal receipts. Existing fixed296/248 ABI types remain unchanged. */
+
+/* Original atomic R coordination. The target must be an independently pinned
+ * current root roster retaining this exact original credential. Native state
+ * derives the actual previous roster and current P authorization; callers cannot
+ * replace either with a guessed checkpoint. R is not G or P proposal grammar.
+ * Policy choice is explicit: ORIGINAL uses only configured P0, SELECTED uses the
+ * already selected independent current P. Neither selection falls back on error.
+ * Live policy/identity/runtime are required for prepare and commit; historical
+ * recover/progress/close/reconcile/abandonment do not load a current runtime.
+ */
+enum { QPC_ROSTER_POLICY_ORIGINAL=0, QPC_ROSTER_POLICY_SELECTED=1 };
+typedef struct { uint8_t bytes[417]; } qpc_roster_refresh_proposal_v1;
+typedef struct {
+    uint8_t operation[32];
+    qpc_roster_checkpoint_v1 previous, target;
+    qpc_policy_checkpoint_v1 policy;
+    uint8_t policy_authorization[32];
+    uint32_t has_policy_authorization, reserved;
+} qpc_roster_refresh_scope_v1;
+typedef struct {
+    uint32_t present;
+    qpc_roster_refresh_proposal_v1 proposal;
+    uint8_t reserved[3];
+} qpc_roster_refresh_preparation_v1;
+typedef struct {
+    uint32_t phase; /* 0=Absent, 1=Staged, 2=Reserved, 3=Applied, 4=Closed, 5=AbandonedBeforePreparation */
+    uint32_t retired; /* 0/1; meaningful only for Applied/Closed */
+    qpc_roster_refresh_scope_v1 scope;
+    qpc_roster_refresh_proposal_v1 proposal;
+    uint8_t reserved[7];
+} qpc_roster_refresh_progress_v1;
+typedef struct {
+    const uint8_t *certificate; size_t certificate_length;
+    const uint8_t *roster; size_t roster_length;
+    const qpc_account_pin_v1 *pin;
+} qpc_roster_refresh_target_v1;
+/* Proposal is canonical QPRWNP01. Retain its COMPLETE 417 bytes across retries.
+ * State output: 1=Prepared, 2=Applied, 3=Closed, 4=Acknowledged, 5=Unavailable.
+ * Only original durable terminal readback authorizes internal ACK/cleanup.
+ * Progress and local preparation absence grant no live owner or no-commit proof.
+ * Explicit local abandonment requires no released proposal and actual local
+ * pending absence under the original service lease; it is never witness Closed.
+ * All reserved bytes are zero. Absent proposal bytes are zero. Pointer, deadline,
+ * cancellation and closed-on-admitted-failure rules are the same as other owners.
+ */
+int32_t qpc_enrollment_v1_prepare_witnessed_roster_refresh(uint64_t handle,
+    const uint8_t operation[32], uint32_t policy_source, const qpc_roster_refresh_target_v1 *target,
+    qpc_roster_refresh_proposal_v1 *proposal, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation(uint64_t handle,
+    qpc_roster_refresh_preparation_v1 *preparation, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_witnessed_roster_refresh_progress(uint64_t handle,
+    qpc_roster_refresh_progress_v1 *progress, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_abandon_unprepared_roster_refresh(uint64_t handle,
+    const uint8_t operation[32], qpc_roster_refresh_progress_v1 *progress, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_commit_witnessed_roster_refresh(uint64_t handle,
+    const qpc_roster_refresh_proposal_v1 *proposal, uint32_t policy_source,
+    uint32_t *observed, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_reconcile_witnessed_roster_refresh(uint64_t handle,
+    const qpc_roster_refresh_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_close_witnessed_roster_refresh(uint64_t handle,
+    const qpc_roster_refresh_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);
+
 typedef struct { uint32_t length; uint8_t bytes[329]; } qpc_policy_renewal_proposal_v1;
 typedef struct { uint32_t length; uint8_t bytes[281]; } qpc_policy_renewal_cancellation_v1;
 int32_t qpc_enrollment_v1_prepare_witnessed_policy_continuation(uint64_t handle,
@@ -518,6 +737,20 @@ int32_t qpc_enrollment_v1_reconcile_witnessed_credential_renewal(uint64_t handle
  * On unknown commit, close/reopen original owners and reconcile the same operation;
  * failure is not absence and never authorizes a new journal or new operation ID.
  */
+/* Current remote-roster admission through the selected original device parent.
+ * The caller supplies authentic public roster bytes (1..65536 bytes) and an
+ * independently pinned target checkpoint/root/family. Only known remote accounts
+ * with the original authority are accepted; local-account updates use atomic R.
+ * Rollback and same-version forks fail; exact retry still requires current local
+ * policy/runtime and original witness admission. A returned checkpoint describes
+ * the currently installed target, not a transaction receipt or proof of no commit.
+ * After I/O/witness/cancel failure, close and reopen the original parent, then
+ * reconcile the same target. No output is written on error. No P0 fallback.
+ */
+int32_t qpc_device_v1_admit_peer_roster(uint64_t handle, const uint8_t *wire,
+    size_t wire_length, const qpc_account_pin_v1 *pin,
+    qpc_roster_checkpoint_v1 *checkpoint, qpc_error_v1 *error);
+
 int32_t qpc_device_v1_admit_peer_credential_renewal(uint64_t handle,
     const uint8_t *wire, size_t wire_length, const qpc_account_pin_v1 *pin,
     const uint8_t operation[32], qpc_roster_checkpoint_v1 *checkpoint,
@@ -715,8 +948,9 @@ int32_t qpc_recovery_v1_restore_index(uint64_t handle, qpc_error_v1 *error);
  * Member order is the original canonical device order; all indices are zero-based.
  * Persist every field plus the batch/report IDs in a durable deduplicated host
  * transaction. Raw C struct bytes are not a serialization. Only then acknowledge
- * the exact report. Metadata retirement requires prior acknowledgement and keeps
- * every session/bootstrap tombstone and the journal counter. Repeating retirement
+ * the exact report. Metadata retirement requires whole reserved-abandonment ACK
+ * or separately settled outcomes for EVERY original committed member, and keeps
+ * every original session/bootstrap record and the journal counter. Repeating retirement
  * on the same owner is idempotent; authenticated reopen returns QPC_RETIRED after
  * retirement and QPC_DURABLE_ABSENT for a genuinely absent original operation.
  * Unknown commit/cancel requires exact original-ID reopen/status reconciliation.
@@ -734,6 +968,33 @@ typedef struct {
     uint8_t device[16], context[32], session[32];
 } qpc_account_cleanup_member_v1;
 typedef struct { uint32_t phase; uint8_t report[32]; } qpc_account_cleanup_status_v1;
+/* Fresh complete metadata-only reconciliation for a committed batch or an
+ * acknowledged abandonment. Requires the original head/witness, including after
+ * traffic policy expiry. All member IDs are original and in canonical device
+ * order; no caller subset is accepted. Committed or ResolutionPending prevents
+ * retirement; DeliveryUnknown never asserts consumption. HistoryRetired cannot
+ * distinguish earlier acknowledgement from accounted unknown delivery. Reserved
+ * or unacknowledged abandonment returns QPC_SUSPENDED; retired metadata returns
+ * QPC_RETIRED. The entire frame is written only on success; unused members and
+ * reserved fields are zero. Persist needed results before metadata retirement.
+ */
+enum {
+    QPC_RECONCILED_COMMITTED=1, QPC_RECONCILED_ACKNOWLEDGED=2,
+    QPC_RECONCILED_RESOLUTION_PENDING=3, QPC_RECONCILED_DELIVERY_UNKNOWN=4,
+    QPC_RECONCILED_HISTORY_RETIRED=5, QPC_RECONCILED_RESERVATION_ABANDONED=6
+};
+typedef struct {
+    uint8_t device[16], session[32], message[32];
+    uint32_t state, reserved_zero;
+} qpc_account_reconciled_member_v1;
+typedef struct {
+    uint8_t batch[32];
+    uint32_t member_count, reserved_zero;
+    qpc_account_reconciled_member_v1 members[32];
+} qpc_account_reconciliation_v1;
+int32_t qpc_recovery_v1_account_reconciliation(uint64_t handle,
+    qpc_account_reconciliation_v1 *result, qpc_error_v1 *error);
+
 int32_t qpc_recovery_v1_select_account(uint64_t handle, const uint8_t id[32], qpc_error_v1 *error);
 int32_t qpc_recovery_v1_account_begin(uint64_t handle, qpc_account_cleanup_header_v1 *header, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_account_status(uint64_t handle, qpc_account_cleanup_status_v1 *status, qpc_error_v1 *error);

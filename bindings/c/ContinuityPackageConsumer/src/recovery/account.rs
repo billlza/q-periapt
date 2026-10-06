@@ -350,7 +350,7 @@ pub unsafe extern "C" fn qpc_recovery_v1_account_acknowledge(
     }
 }
 
-/// Retire only this already acknowledged batch's metadata, preserving all tombstones.
+/// Retire aggregate metadata only after every original member is settled; retain sessions and IDs.
 /// # Safety
 /// Error obeys the C header diagnostic-region contract.
 #[no_mangle]
@@ -361,6 +361,81 @@ pub unsafe extern "C" fn qpc_recovery_v1_account_retire(
     unsafe {
         mutation(handle, error, |owner| {
             Ok(owner.account_owner()?.owner.journal()?.retire_metadata()?)
+        })
+    }
+}
+
+/// Original member identity and metadata-only outcome.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct ReconciledMember {
+    pub device: [u8; 16],
+    pub session: [u8; 32],
+    pub message: [u8; 32],
+    pub state: u32,
+    pub reserved_zero: u32,
+}
+/// One complete bounded result, including every original member without pagination.
+#[repr(C)]
+pub struct Reconciliation {
+    pub batch: [u8; 32],
+    pub member_count: u32,
+    pub reserved_zero: u32,
+    pub members: [ReconciledMember; p::MAX_DEVICES],
+}
+impl Reconciliation {
+    fn from_native(value: p::FanoutReconciliation) -> Result<Self> {
+        if value.members.is_empty() || value.members.len() > p::MAX_DEVICES {
+            return Err(p::DurableError::Corrupt.into());
+        }
+        let mut result = Self {
+            batch: *value.batch.as_bytes(),
+            member_count: count(value.members.len())?,
+            reserved_zero: 0,
+            members: [ReconciledMember::default(); p::MAX_DEVICES],
+        };
+        for (index, member) in value.members.into_iter().enumerate() {
+            *result
+                .members
+                .get_mut(index)
+                .ok_or(p::DurableError::Corrupt)? = ReconciledMember {
+                device: member.device,
+                session: member.session,
+                message: *member.message.as_bytes(),
+                state: match member.state {
+                    p::FanoutMemberState::Committed => 1,
+                    p::FanoutMemberState::Acknowledged => 2,
+                    p::FanoutMemberState::ResolutionPending => 3,
+                    p::FanoutMemberState::DeliveryUnknown => 4,
+                    p::FanoutMemberState::HistoryRetired => 5,
+                    p::FanoutMemberState::ReservationAbandoned => 6,
+                },
+                reserved_zero: 0,
+            };
+        }
+        Ok(result)
+    }
+}
+/// Reconcile all original member outcomes without releasing ciphertext or traffic authority.
+/// # Safety
+/// Output and error follow the aligned nonoverlapping C writable-region contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_recovery_v1_account_reconciliation(
+    handle: u64,
+    output: *mut Reconciliation,
+    error: *mut ErrorRecord,
+) -> i32 {
+    unsafe {
+        result(handle, output, error, |owner, cancel| {
+            cancelled(cancel)?;
+            let members = owner
+                .account_owner()?
+                .owner
+                .journal()?
+                .reconcile_members()?;
+            let result = Reconciliation::from_native(members)?;
+            cancelled(cancel)?;
+            Ok(result)
         })
     }
 }

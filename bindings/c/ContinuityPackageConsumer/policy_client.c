@@ -14,6 +14,7 @@ static qpc_policy_document_v1 policy_document(const char *path,uint8_t root[1985
     document.wire_length=enrollment_read(path,"protocol-policy",wire,8192);
     return document;
 }
+#include "independent_policy_client.c"
 static uint64_t continued_enrollment_parent(const char *path,const qpc_witness_v1 *witness,int tls) {
     uint64_t handle=enrollment_open(path,0,witness,tls);qpc_error_v1 error;
     char target_path[4096];enrollment_path(target_path,path,"continued-sdk");

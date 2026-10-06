@@ -277,6 +277,24 @@ impl Shared {
         Ok(poisoned)
     }
 
+    pub(crate) fn admit_peer_roster(
+        &self,
+        deadline: Instant,
+        wire: &[u8],
+        pin: &p::AccountPin,
+    ) -> Result<p::RosterCheckpoint> {
+        self.with_device(deadline, &self.cancel, |device| {
+            let policy = Arc::clone(&device.environment.authority.policy);
+            let roster = pin.verify_roster(wire, now().map_err(Failure::configuration)?)?;
+            opening::check(&self.cancel, deadline)?;
+            Ok(device.native.parts()?.0.admit_peer_roster(
+                &roster,
+                &policy,
+                now().map_err(Failure::configuration)?,
+            )?)
+        })
+    }
+
     pub(crate) fn admit_peer_credential_renewal(
         &self,
         deadline: Instant,

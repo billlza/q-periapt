@@ -102,10 +102,37 @@ fn peer_bundle(
     certificate: &[u8],
     roster: &p::IssuedRoster,
 ) -> Result<PathBuf> {
-    let mut sdk = fixture::sdk(&s.responder)?;
+    peer_bundle_with_witness(s, client, root, certificate, roster, None)
+}
+fn peer_bundle_with_witness(
+    s: &fixture::Setup,
+    client: &Path,
+    root: &p::RootSigningKey,
+    certificate: &[u8],
+    roster: &p::IssuedRoster,
+    witness: Option<&fixture::WitnessFixture>,
+) -> Result<PathBuf> {
+    peer_bundle_at(
+        &s.responder,
+        &client.join("peer"),
+        root,
+        certificate,
+        roster,
+        witness,
+    )
+}
+fn peer_bundle_at(
+    remote: &Path,
+    peer: &Path,
+    root: &p::RootSigningKey,
+    certificate: &[u8],
+    roster: &p::IssuedRoster,
+    witness: Option<&fixture::WitnessFixture>,
+) -> Result<PathBuf> {
+    let mut sdk = fixture::sdk(remote)?;
     let policy_digest = sdk.runtime()?.trusted_state().digest();
     sdk.close();
-    let mut server = fixture::Peer::open(&s.responder)?;
+    let mut server = fixture::Peer::open_with_witness(remote, witness)?;
     let context = Arc::clone(&server.context);
     let device = context.device(p::BootstrapRole::Responder);
     let at = fixture::now()?;
@@ -154,8 +181,8 @@ fn peer_bundle(
     }
     let proof =
         |kind: p::LeafKind| -> Result<&[u8]> { Ok(proofs.get(&(kind as u8)).ok_or("proof")?) };
-    let remote_certificate = fixture::read(&s.responder, "local-certificate", 8192)?;
-    let remote_roster = fixture::read(&s.responder, "local-roster", 8192)?;
+    let remote_certificate = fixture::read(remote, "local-certificate", 8192)?;
+    let remote_roster = fixture::read(remote, "local-roster", 8192)?;
     let bundle = p::BootstrapBundle::from_materials(
         p::PrekeyQuality::OneTimeBoth,
         p::BootstrapMaterials {
@@ -171,8 +198,7 @@ fn peer_bundle(
         },
     )?;
     server.close();
-    let peer = client.join("peer");
-    fs::DirBuilder::new().mode(0o700).create(&peer)?;
+    fs::DirBuilder::new().mode(0o700).create(peer)?;
     for name in [
         "responder-account",
         "responder-root",
@@ -182,7 +208,7 @@ fn peer_bundle(
         "responder-generation",
         "directory",
     ] {
-        fixture::store(&peer, name, &fixture::read(&s.responder, name, 8192)?)?;
+        fixture::store(peer, name, &fixture::read(remote, name, 8192)?)?;
     }
     for (name, bytes) in [
         ("initiator-account", root.account_id()?.to_vec()),
@@ -199,17 +225,13 @@ fn peer_bundle(
         ("initiator-generation", 1u64.to_be_bytes().to_vec()),
         ("bootstrap.bundle", bundle.as_bytes().to_vec()),
     ] {
-        fixture::store(&peer, name, &bytes)?;
+        fixture::store(peer, name, &bytes)?;
         // Independently approved new remote peer inputs; the server's local identity is unchanged.
-        fs::write(s.responder.join(name), bytes)?;
+        fs::write(remote.join(name), bytes)?;
     }
-    fixture::store(
-        &peer,
-        "tls-peer",
-        &fixture::read(&s.responder, "tls-cert", 8192)?,
-    )?;
-    fixture::store(&peer, "tls-peer-name", b"responder.test")?;
-    Ok(peer)
+    fixture::store(peer, "tls-peer", &fixture::read(remote, "tls-cert", 8192)?)?;
+    fixture::store(peer, "tls-peer-name", b"responder.test")?;
+    Ok(peer.to_owned())
 }
 
 #[test]

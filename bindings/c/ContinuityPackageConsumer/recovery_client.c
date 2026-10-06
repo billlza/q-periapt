@@ -124,10 +124,10 @@ static void saved_id(const char *path, uint8_t report[32]) {
     if (size<offset+65 || memcmp(bytes,prefix,offset) || bytes[offset+64]!='\n') bad("saved report identity");
     char text[65]; memcpy(text,bytes+offset,64); text[64]=0; decode(text,report); free(bytes);
 }
-static void snapshot(uint64_t handle, const char *path, int create, uint8_t report[32]) {
+static void snapshot_named(uint64_t handle, const char *path, int create, uint8_t report[32], uint32_t role, const char *name) {
     qpc_error_v1 e; qpc_closure_header_v1 h;
     code(qpc_recovery_v1_begin(handle,&h,&e),&e,0);
-    if (h.role!=2 || h.peer_generation!=1 || h.epoch_count>4 || h.reserved_count>4) bad("report header scope");
+    if (h.role!=role || h.peer_generation!=1 || h.epoch_count>4 || h.reserved_count>4) bad("report header scope");
     memcpy(report,h.report,32);
     char *bytes=NULL; size_t length=0; FILE *out=open_memstream(&bytes,&length);
     if (!out) bad("report stream");
@@ -174,9 +174,68 @@ static void snapshot(uint64_t handle, const char *path, int create, uint8_t repo
     if (ferror(out)) bad("report formatting");
     if (fclose(out)) bad("report stream close");
     if (!length || length>1048576) bad("report size");
-    retain(path,"c-loss-report",(const uint8_t *)bytes,length,create); free(bytes);
+    retain(path,name,(const uint8_t *)bytes,length,create); free(bytes);
     qpc_closure_status_v1 current=status(handle);
     if (current.phase!=1 || memcmp(current.report,report,32)) bad("pending report identity");
+}
+
+static void snapshot(uint64_t handle,const char *path,int create,uint8_t report[32]) {
+    snapshot_named(handle,path,create,report,2,"c-loss-report");
+}
+static int recovery_member_command(int argc,char **argv,const qpc_witness_v1 *witness,int tls) {
+    if(argc!=4) bad("member recovery arguments");
+    const char *path=argv[2];uint8_t session[32],report[32];decode(argv[3],session);
+    char name[96];int n=snprintf(name,sizeof(name),"c-member-loss-%s",argv[3]);
+    if(n<=0 || (size_t)n>=sizeof(name)) bad("member report name");
+    uint64_t handle=open_recovery(path,witness,tls);qpc_error_v1 e;
+    code(qpc_recovery_v1_select(handle,session,&e),&e,0);
+    int freeze=!strcmp(argv[1],"recover-member-freeze");
+    if(!freeze && strcmp(argv[1],"recover-member-ack")) bad("member recovery mode");
+    snapshot_named(handle,path,freeze,report,1,name);
+    if(!freeze) {
+        code(qpc_recovery_v1_acknowledge(handle,report,&e),&e,0);
+        code(qpc_recovery_v1_acknowledge(handle,report,&e),&e,0);
+        qpc_closure_status_v1 s=status(handle);
+        if(s.phase!=2 || memcmp(s.report,report,32)) bad("original accounted session outcome");
+    }
+    puts(freeze ? "member-frozen" : "member-accounted");close_recovery(handle);return 0;
+}
+_Static_assert(sizeof(qpc_account_reconciled_member_v1)==88,"reconciled member ABI");
+_Static_assert(sizeof(qpc_account_reconciliation_v1)==2856,"complete reconciliation ABI");
+_Static_assert(offsetof(qpc_account_reconciliation_v1,members)==40,"complete member offset");
+static void account_reconciliation(uint64_t handle,const char *path,const uint8_t batch[32],int retire) {
+    qpc_error_v1 e;qpc_account_reconciliation_v1 r;
+    code(qpc_recovery_v1_account_reconciliation(handle,&r,&e),&e,0);
+    if(memcmp(r.batch,batch,32) || r.reserved_zero || !r.member_count || r.member_count>32) bad("complete reconciliation scope");
+    char *bytes=NULL;size_t length=0;FILE *out=open_memstream(&bytes,&length);
+    if(!out) bad("reconciliation stream");
+    fputs("QPC-C-RECONCILIATION/1\nbatch ",out);hex(out,r.batch,32);fprintf(out,"\nmembers %u\n",r.member_count);
+    for(uint32_t i=0;i<32;i++) {
+        const qpc_account_reconciled_member_v1 *m=&r.members[i];
+        if(i>=r.member_count) {
+            qpc_account_reconciled_member_v1 zero={0};
+            if(memcmp(m,&zero,sizeof(zero))) bad("nonzero unused member");
+            continue;
+        }
+        if(m->reserved_zero || m->state<1 || m->state>6 || (i && memcmp(r.members[i-1].device,m->device,16)>=0)) bad("member reconciliation order/state");
+        if(retire && (m->state==QPC_RECONCILED_COMMITTED || m->state==QPC_RECONCILED_RESOLUTION_PENDING)) bad("unsettled member retirement");
+        fprintf(out,"member %u ",i);hex(out,m->device,16);fputc(' ',out);hex(out,m->session,32);fputc(' ',out);hex(out,m->message,32);fprintf(out," %u\n",m->state);
+    }
+    if(ferror(out) || fclose(out) || !length || length>1048576) bad("complete reconciliation serialization");
+    if(retire) {
+        retain(path,"c-account-reconciliation",(const uint8_t *)bytes,length,1);
+        retain(path,"c-account-reconciliation",(const uint8_t *)bytes,length,0);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,0);
+        qpc_account_cleanup_status_v1 s;code(qpc_recovery_v1_account_status(handle,&s,&e),&e,0);
+        if(s.phase!=QPC_ACCOUNT_RETIRED) bad("retired aggregate status");
+        qpc_account_reconciliation_v1 failed,untouched;memset(&failed,0xa5,sizeof(failed));untouched=failed;
+        code(qpc_recovery_v1_account_reconciliation(handle,&failed,&e),&e,QPC_RETIRED);
+        if(memcmp(&failed,&untouched,sizeof(failed))) bad("retired reconciliation changed output");
+    } else {
+        code(qpc_recovery_v1_account_retire(handle,&e),&e,QPC_SUSPENDED);
+    }
+    if(fwrite(bytes,1,length,stdout)!=length) bad("complete reconciliation output");free(bytes);
 }
 
 _Static_assert(sizeof(qpc_account_cleanup_header_v1) == 72, "account report layout");
@@ -310,7 +369,10 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
     qpc_account_cleanup_member_v1 unavailable;
     code(qpc_recovery_v1_account_member(handle,0,&unavailable,&e),&e,QPC_STATE);
     qpc_account_cleanup_status_v1 current=account_cleanup_status(handle);
-    if (!strcmp(mode,"recover-account-committed")) {
+    if (!strcmp(mode,"recover-account-results") || !strcmp(mode,"recover-account-settled-retire")) {
+        if(current.phase!=QPC_ACCOUNT_COMMITTED) bad("committed reconciliation phase");
+        account_reconciliation(handle,path,batch,!strcmp(mode,"recover-account-settled-retire"));
+    } else if (!strcmp(mode,"recover-account-committed")) {
         if (current.phase!=QPC_ACCOUNT_COMMITTED) { bad("committed account fixture missing"); }
         qpc_account_cleanup_header_v1 header;
         code(qpc_recovery_v1_account_begin(handle,&header,&e),&e,QPC_SCOPE_CONFLICT);
@@ -394,6 +456,7 @@ static int recovery_account_command(int argc,char **argv,const qpc_witness_v1 *w
 
 int recovery_command(int argc,char **argv,const qpc_witness_v1 *witness,int witness_tls) {
     if (argc<3 || argc>4) bad("recovery arguments");
+    if (!strncmp(argv[1],"recover-member-",15)) return recovery_member_command(argc,argv,witness,witness_tls);
     if (!strncmp(argv[1],"recover-account-",16)) {
         return recovery_account_command(argc,argv,witness,witness_tls);
     }

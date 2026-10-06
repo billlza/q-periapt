@@ -309,6 +309,7 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "setup_client.c"
 #include "enrollment_client.c"
 #include "credential_peer_client.c"
+#include "peer_roster_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
@@ -318,11 +319,12 @@ int main(int argc, char **argv) {
         options=(qpc_witness_v1){.address=(const uint8_t *)argv[2],.address_length=strlen(argv[2]),.timeout_ms=3000};
         witness=&options; argc-=2; argv+=2;
     }
-    const char *device_path=NULL; uint32_t device_role=0; int enrolled_parent=0,continued_parent=0;
-    if (!strcmp(argv[1], "--device-parent") || !strcmp(argv[1], "--enrollment-parent") || !strcmp(argv[1], "--continued-enrollment-parent")) {
+    const char *device_path=NULL; uint32_t device_role=0; int enrolled_parent=0,continued_parent=0,independent_parent=0;
+    if (!strcmp(argv[1], "--device-parent") || !strcmp(argv[1], "--enrollment-parent") || !strcmp(argv[1], "--continued-enrollment-parent") || !strcmp(argv[1], "--independent-policy-parent")) {
+        independent_parent=!strcmp(argv[1], "--independent-policy-parent");
         continued_parent=!strcmp(argv[1], "--continued-enrollment-parent");
-        enrolled_parent=continued_parent || !strcmp(argv[1], "--enrollment-parent");
-        if (argc < 7) fail("device parent arguments");
+        enrolled_parent=continued_parent || independent_parent || !strcmp(argv[1], "--enrollment-parent");
+        if (argc < 6) fail("device parent arguments");
         device_path=argv[2];
         device_role=!strcmp(argv[3],"1") ? 1U : !strcmp(argv[3],"2") ? 2U : 0U;
         if (!device_role) fail("device role");
@@ -335,7 +337,7 @@ int main(int argc, char **argv) {
         if (!strncmp(argv[1],"recover-",8) || !strcmp(argv[1],"self-check"))
             fail("existing session requires an operational command");
     }
-    if(continued_parent && (!existing || !strcmp(argv[1],"connect") ||
+    if((continued_parent || independent_parent) && strncmp(argv[1],"account-",8) && strncmp(argv[1],"peer-roster-",12) && (!existing || !strcmp(argv[1],"connect") ||
         (!strcmp(argv[1],"serve") && argc>3 && !strcmp(argv[3],"bootstrap"))))
         fail("continued enrollment requires an existing operational session");
     self_check();
@@ -355,9 +357,19 @@ int main(int argc, char **argv) {
         if (device_path || existing) fail("setup command owns its explicit installation");
         return setup_command(argc,argv,witness,witness_tls);
     }
+    if (!strncmp(argv[1],"peer-roster-",12)) {
+        if(!device_path || existing || continued_parent || strcmp(device_path,argv[2])) fail("peer roster requires exact original device parent");
+        uint64_t parent=independent_parent ? independent_policy_parent(device_path,witness,witness_tls) :
+            enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls);
+        return peer_roster_command(argc,argv,parent);
+    }
     if (!strncmp(argv[1],"account-",8)) {
-        if (device_path || existing) fail("account command owns its explicit device parent");
-        return account_command(argc,argv,witness,witness_tls);
+        if (existing || continued_parent) fail("account command requires its complete member sessions and supported original parent");
+        if (device_path && (device_role!=1 || strcmp(device_path,argv[2]))) fail("account parent path or role differs");
+        if (independent_parent && !strcmp(argv[1],"account-connect")) fail("continued account parent cannot create new bootstrap sessions");
+        uint64_t parent=device_path ? (independent_parent ? independent_policy_parent(device_path,witness,witness_tls) :
+            enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls)) : 0;
+        return account_command(argc,argv,witness,witness_tls,parent);
     }
     if (strncmp(argv[1], "device-", 7) == 0) {
         if (device_path || existing) fail("device lifecycle mode does not accept another owner selection");
@@ -382,7 +394,7 @@ int main(int argc, char **argv) {
         if (printf("rejected:%d\n", code) < 0 || fflush(stdout)) fail("output failed");
         return 0;
     }
-    uint64_t parent = device_path ? (continued_parent ? continued_enrollment_parent(device_path,witness,witness_tls) :
+    uint64_t parent = device_path ? (independent_parent ? independent_policy_parent(device_path,witness,witness_tls) : continued_parent ? continued_enrollment_parent(device_path,witness,witness_tls) :
         enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls)) : 0;
     uint64_t handle = parent ? device_peer_open(parent,argv[2],device_role,existing) :
         open_owner(argv[2],witness,witness_tls,existing);

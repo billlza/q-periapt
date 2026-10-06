@@ -56,6 +56,34 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
     "account_member", "account_reserved", "account_epoch", "account_unconfirmed", "account_delivery",
     "account_skipped", "account_acknowledge", "account_retire")}
 
+# Independent P/R lifecycle, current peer roster and complete original-member recovery.
+EXPORTS |= {
+    'qpc_device_v1_admit_peer_roster',
+    'qpc_enrollment_v1_abandon_unprepared_roster_refresh',
+    'qpc_enrollment_v1_activate_policy_renewal',
+    'qpc_enrollment_v1_close_witnessed_policy_renewal',
+    'qpc_enrollment_v1_close_witnessed_roster_refresh',
+    'qpc_enrollment_v1_commit_witnessed_policy_renewal',
+    'qpc_enrollment_v1_commit_witnessed_roster_refresh',
+    'qpc_enrollment_v1_pending_policy_renewal_approval',
+    'qpc_enrollment_v1_policy_renewal_request',
+    'qpc_enrollment_v1_policy_renewal_status',
+    'qpc_enrollment_v1_prepare_witnessed_policy_renewal',
+    'qpc_enrollment_v1_prepare_witnessed_roster_refresh',
+    'qpc_enrollment_v1_reconcile_policy_renewal',
+    'qpc_enrollment_v1_reconcile_witnessed_policy_renewal',
+    'qpc_enrollment_v1_reconcile_witnessed_roster_refresh',
+    'qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation',
+    'qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation',
+    'qpc_enrollment_v1_resolve_policy_renewal',
+    'qpc_enrollment_v1_resolve_roster_refresh',
+    'qpc_enrollment_v1_stage_policy_renewal',
+    'qpc_enrollment_v1_witnessed_policy_renewal_progress',
+    'qpc_enrollment_v1_witnessed_policy_renewal_request',
+    'qpc_enrollment_v1_witnessed_roster_refresh_progress',
+    'qpc_recovery_v1_account_reconciliation',
+}
+
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
@@ -428,12 +456,12 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
         result["execution"][profile]["enrollment"] = registration
-        from continuity_c_enrollment import verify_renewal_execution
+        from continuity_c_enrollment import RENEWAL_TESTS, verify_renewal_execution
         renewal_runtime = dict(runtime)
         # Each parallel renewal case owns an independent temporary installation.
         # The original registration export above has a single shared evidence path.
         renewal_runtime.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
-        renewal_stdout = run([str(enrollment_binary), "credential_renewal::", "--nocapture"],
+        renewal_stdout = run([str(enrollment_binary), "--exact", *sorted(RENEWAL_TESTS), "--nocapture"],
                               "credential-renewal-trace-" + profile, runtime=renewal_runtime)
         renewed = verify_renewal_execution(renewal_stdout)
         sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
@@ -441,6 +469,15 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         renewed["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_CREDENTIAL_RENEWAL_" + profile.upper() + ".json"), renewed)
         result["execution"][profile]["credential_renewal"] = renewed
+        from continuity_c_independent_policy import TESTS as independent_tests, verify as verify_independent
+        independent_stdout = run([str(enrollment_binary), "--exact", *sorted(independent_tests), "--nocapture"],
+                                 "independent-policy-roster-trace-" + profile, runtime=renewal_runtime)
+        independent = verify_independent(independent_stdout)
+        sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
+                    "C independent lifecycle test binary changed")
+        independent["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
+        sdk.write_json(output / ("C_INDEPENDENT_POLICY_ROSTER_" + profile.upper() + ".json"), independent)
+        result["execution"][profile]["independent_policy_roster"] = independent
         from continuity_c_enrollment import WITNESS_TESTS as enrollment_witness_tests, export_witness as export_enrollment_witness
         enrollment_witness_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment_witness", "--no-run",
                                        "--message-format=json", "-j", "2", *extra], "enrollment-witness-build-" + profile)

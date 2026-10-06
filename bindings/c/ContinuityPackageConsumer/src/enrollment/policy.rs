@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Explicit pinned policy inputs and the existing enrolled G/T transaction.
 use super::*;
+pub(super) mod renewal;
+
+#[derive(Clone, Copy)]
+enum ContinuationKind {
+    Joint,
+    Independent,
+}
 
 #[repr(C)]
 pub struct Document {
@@ -70,7 +77,7 @@ pub struct CancellationBytes {
     pub bytes: [u8; 281],
 }
 impl Owner {
-    fn current_target(&self) -> Result<Arc<p::VerifiedSessionPolicy>> {
+    pub(in crate::enrollment) fn current_target(&self) -> Result<Arc<p::VerifiedSessionPolicy>> {
         self.target_authority.as_ref().map(|a| Arc::clone(&a.policy)).ok_or_else(|| Failure {
             code: 1, message: "select an independently pinned current continuation policy for this enrollment owner".into(),
         })
@@ -79,6 +86,7 @@ impl Owner {
         mut self,
         entry: &Entry,
         deadline: Instant,
+        kind: ContinuationKind,
     ) -> Result<Arc<device::Shared>> {
         let original = self.historical_policy(entry, deadline)?;
         self.current_target()?;
@@ -91,20 +99,38 @@ impl Owner {
             return Err(p::DurableError::Conflict.into());
         }
         let anchor = if required {
-            Some(self.renewal_client(&original, entry)?)
+            Some(match kind {
+                ContinuationKind::Independent => self.policy_client(&original, entry)?,
+                ContinuationKind::Joint => self.renewal_client(&original, entry)?,
+            })
         } else {
             None
         };
         opening::check(&entry.cancel, deadline)?;
         let now = owner::now().map_err(Failure::configuration)?;
-        let enrolled = match anchor {
-            Some(anchor) => self.enrollment.activate_witnessed_policy_continuation(
+        let enrolled = match (kind, anchor) {
+            (ContinuationKind::Independent, None) => self.enrollment.activate_policy_renewal(
                 &original,
                 &environment.authority.policy,
                 now,
-                anchor,
             )?,
-            None => self.enrollment.activate_policy_continuation(
+            (ContinuationKind::Independent, Some(anchor)) => {
+                self.enrollment.activate_witnessed_policy_renewal(
+                    &original,
+                    &environment.authority.policy,
+                    now,
+                    anchor,
+                )?
+            }
+            (ContinuationKind::Joint, Some(anchor)) => {
+                self.enrollment.activate_witnessed_policy_continuation(
+                    &original,
+                    &environment.authority.policy,
+                    now,
+                    anchor,
+                )?
+            }
+            (ContinuationKind::Joint, None) => self.enrollment.activate_policy_continuation(
                 &original,
                 &environment.authority.policy,
                 now,
@@ -543,7 +569,7 @@ pub unsafe extern "C" fn qpc_enrollment_v1_activate_policy_continuation(
     let action = |deadline| {
         with_entry(handle, deadline, |slot, entry| {
             let owner = take_owner(slot, entry, deadline)?;
-            let device = owner.activate_continued(entry, deadline)?;
+            let device = owner.activate_continued(entry, deadline, ContinuationKind::Joint)?;
             opening::check(&entry.cancel, deadline)?;
             *slot = Some(Owned::Device(device));
             Ok(())

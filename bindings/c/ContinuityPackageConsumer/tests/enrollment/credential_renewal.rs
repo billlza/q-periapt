@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
+#[path = "independent_policy.rs"]
+mod independent_policy;
 #[path = "peer_credential_renewal.rs"]
 mod peer_credential_renewal;
 #[path = "policy_continuation.rs"]
@@ -147,6 +149,26 @@ fn registered_with_anchor_inputs(
 ) -> Result<Registered> {
     assert!(protocol.is_none() || shared_policy.is_none());
     let s = fixture::setup_with_witness(witness)?;
+    registered_from_setup(
+        s,
+        lifetime,
+        protocol,
+        protocol_seconds,
+        shared_policy,
+        role,
+        witness,
+    )
+}
+fn registered_from_setup(
+    s: fixture::Setup,
+    lifetime: u64,
+    protocol: Option<&p::PolicySigningKey>,
+    protocol_seconds: u64,
+    shared_policy: Option<&Path>,
+    role: p::BootstrapRole,
+    witness: Option<&fixture::WitnessFixture>,
+) -> Result<Registered> {
+    assert!(protocol.is_none() || shared_policy.is_none());
     let path = s
         .initiator
         .parent()
