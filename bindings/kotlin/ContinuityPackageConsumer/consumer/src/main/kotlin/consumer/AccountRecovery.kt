@@ -90,6 +90,27 @@ internal fun recoverAccount(args: List<String>, witness: WitnessCarrier): String
         val current = owner.accountCleanupStatus()
         val files = FixtureRecords(Path.of(path))
         when (mode) {
+            "recover-account-results", "recover-account-settled-retire" -> {
+                val result = owner.reconcileAccount()
+                check(result.operation == operation) { "original reconciliation scope" }
+                val lines = mutableListOf("QPC-C-RECONCILIATION/1", "batch ${hex(operation)}", "members ${result.members.size}")
+                result.members.forEachIndexed { index, member ->
+                    lines.add("member $index ${bytes(member.device)} ${hex(member.session)} ${hex(member.message)} ${member.state.code}")
+                }
+                val text = lines.joinToString("\n")
+                if (mode == "recover-account-settled-retire") {
+                    check(result.members.none { it.state == AccountMemberState.COMMITTED || it.state == AccountMemberState.RESOLUTION_PENDING }) {
+                        "unsettled original member"
+                    }
+                    val bytes = (text + "\n").toByteArray(Charsets.UTF_8)
+                    files.retain("c-account-reconciliation", bytes, true)
+                    files.retain("c-account-reconciliation", bytes, false)
+                    owner.retireAccount(); owner.retireAccount()
+                    check(owner.accountCleanupStatus() == AccountStatus.Retired) { "original batch not retired" }
+                    refused(setOf(112)) { owner.reconcileAccount() }
+                } else refused(setOf(215)) { owner.retireAccount() }
+                text
+            }
             "recover-account-committed" -> {
                 check(current == AccountStatus.Committed) { "committed account fixture missing" }
                 refused(setOf(211)) { owner.beginAccountCleanup() }

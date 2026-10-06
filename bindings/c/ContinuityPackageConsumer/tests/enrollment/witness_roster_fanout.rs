@@ -10,8 +10,50 @@ struct Group {
     sessions: [[u8; 32]; 2],
     account: [u8; 32],
     renewed: bool,
+    result_client: Option<AccountResultClient>,
+}
+struct AccountResultClient {
+    executable: PathBuf,
+    language: &'static str,
+}
+impl AccountResultClient {
+    fn selected() -> Result<Option<Self>> {
+        match (
+            std::env::var_os("QPERIAPT_ACCOUNT_RESULT_CLIENT"),
+            std::env::var_os("QPERIAPT_ACCOUNT_RESULT_LANGUAGE"),
+        ) {
+            (None, None) => Ok(None),
+            (Some(path), Some(language)) => {
+                let executable = PathBuf::from(path);
+                if !executable.is_absolute() || !executable.is_file() {
+                    return Err("foreign account result executable is not an absolute file".into());
+                }
+                let language = match language.to_str() {
+                    Some("Swift") => "Swift",
+                    Some("Kotlin") => "Kotlin",
+                    _ => return Err("unqualified account result language".into()),
+                };
+                Ok(Some(Self {
+                    executable,
+                    language,
+                }))
+            }
+            _ => Err("foreign account result client and language must be selected together".into()),
+        }
+    }
 }
 impl Group {
+    fn account_result(&self, label: &str, mode: &str, id: [u8; 32]) -> Result<String> {
+        let args = self.c.arguments(vec![
+            mode.into(),
+            self.c.path.as_os_str().into(),
+            hex(&id).into(),
+        ]);
+        match &self.result_client {
+            Some(client) => run_client(&client.executable, &self.c.path, label, &args),
+            None => run(&self.c.path, label, &args),
+        }
+    }
     fn args(&self, mode: &str, tail: &[OsString]) -> Vec<OsString> {
         let mut args = vec![
             if self.renewed {
@@ -278,6 +320,7 @@ fn account_scenario_with_cut(
             sessions,
             account,
             renewed: false,
+            result_client: AccountResultClient::selected()?,
         };
         let batch =
             decode_id(run(&g.c.path, "group-next", &g.args("account-next", &[]))?.trim_end())?;
@@ -503,6 +546,10 @@ fn account_scenario_with_cut(
             server.finish()?;
         }
         w.join()?;
+        if let Some(client) = &g.result_client {
+            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true C_setup_and_member_closure=true",
+                client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
+        }
     }
     if cut.is_none() && revoke {
         eprintln!("C_REQUIRED_PEER_REVOCATION cases=2 recipients=2 actual_second_revocation=true TCP_TLS_witness=true partial_confirmed_unknown=true complete_original_reconciliation=true synced_full_reports=true metadata_retired=true");
@@ -591,6 +638,14 @@ fn revoked_recovery(
         text
     };
     let recover = |label: &str, mode: &str, id: [u8; 32]| {
+        if matches!(
+            mode,
+            "recover-account-results"
+                | "recover-account-settled-retire"
+                | "recover-account-retired"
+        ) {
+            return g.account_result(label, mode, id);
+        }
         run(
             &g.c.path,
             label,
@@ -906,14 +961,10 @@ fn interrupt_peer_update(
         g.c.path.join("independent-sdk-held"),
     )?;
     assert_eq!(
-        run(
-            &g.c.path,
+        g.account_result(
             "peer-roster-historical-original-recovery",
-            &g.c.arguments(vec![
-                "recover-account-results".into(),
-                g.c.path.as_os_str().into(),
-                hex(&batch).into()
-            ])
+            "recover-account-results",
+            batch,
         )?,
         expected
     );

@@ -4,6 +4,52 @@ import XCTest
 import CQPCOwner
 
 final class AccountRecoveryTests: XCTestCase {
+    func testReconciliationKeepsEveryOutcomeAndRejectsPartialOrNoncanonicalFrames() throws {
+        XCTAssertEqual(MemoryLayout<qpc_account_reconciled_member_v1>.size, 88)
+        XCTAssertEqual(MemoryLayout<qpc_account_reconciliation_v1>.size, 2856)
+        XCTAssertEqual(MemoryLayout<qpc_account_reconciliation_v1>.offset(of: \.members), 40)
+        func sample() -> qpc_account_reconciliation_v1 {
+            var value = qpc_account_reconciliation_v1()
+            value.member_count = 6
+            withUnsafeMutableBytes(of: &value.batch) { $0[31] = 17 }
+            let devices: [UInt8] = [1, 127, 128, 129, 254, 255]
+            withUnsafeMutableBytes(of: &value.members) { bytes in
+                for index in 0..<6 {
+                    let offset = index * 88
+                    bytes[offset] = devices[index]
+                    bytes[offset + 47] = UInt8(index + 1)
+                    bytes[offset + 79] = UInt8(index + 3)
+                    bytes.storeBytes(of: UInt32(index + 1), toByteOffset: offset + 80, as: UInt32.self)
+                }
+            }
+            return value
+        }
+        let result = try accountReconciliation(sample())
+        XCTAssertEqual(result.operation.bytes[31], 17)
+        XCTAssertEqual(result.members.map(\.state), [.committed, .acknowledged, .resolutionPending,
+            .deliveryUnknown, .historyRetired, .reservationAbandoned])
+        XCTAssertEqual(result.members.map { $0.device[0] }, [1, 127, 128, 129, 254, 255])
+        XCTAssertEqual(result.members.map { $0.session.bytes[31] }, [1, 2, 3, 4, 5, 6])
+        XCTAssertEqual(result.members.map { $0.message.bytes[31] }, [3, 4, 5, 6, 7, 8])
+        for count in [UInt32(0), 33, .max] {
+            var value = sample(); value.member_count = count
+            XCTAssertThrowsError(try accountReconciliation(value))
+        }
+        var value = sample(); value.reserved_zero = 1
+        XCTAssertThrowsError(try accountReconciliation(value))
+        value = sample(); value.batch = qpc_account_reconciliation_v1().batch
+        XCTAssertThrowsError(try accountReconciliation(value))
+        for state in [UInt32(0), 7, 258, .max] {
+            var value = sample()
+            withUnsafeMutableBytes(of: &value.members) { $0.storeBytes(of: state, toByteOffset: 80, as: UInt32.self) }
+            XCTAssertThrowsError(try accountReconciliation(value))
+        }
+        for (offset, byte) in [(0, UInt8(0)), (47, 0), (79, 0), (84, 1), (88, 1), (6 * 88, 1)] {
+            var value = sample()
+            withUnsafeMutableBytes(of: &value.members) { $0[offset] = byte }
+            XCTAssertThrowsError(try accountReconciliation(value))
+        }
+    }
     func testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence() throws {
         var header = qpc_account_cleanup_header_v1()
         withUnsafeMutableBytes(of: &header.batch) { $0[31] = 17 }
@@ -77,6 +123,7 @@ final class AccountRecoveryTests: XCTestCase {
         let actions: [() throws -> Void] = [
             { try owner.select(account: operation) }, { _ = try owner.beginAccountCleanup() },
             { _ = try owner.accountCleanupStatus() }, { _ = try owner.accountMember(at: 0) },
+            { _ = try owner.reconcileAccount() },
             { _ = try owner.accountReservation(member: 0) }, { _ = try owner.accountEpoch(member: 0, at: 0) },
             { _ = try owner.accountUnconfirmed(member: 0, epoch: 0, at: 0) },
             { _ = try owner.accountDelivery(member: 0, epoch: 0, at: 0) },

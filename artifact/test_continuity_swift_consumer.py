@@ -119,6 +119,7 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("AccountRecoveryTests", "testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence"),
                  ("AccountRecoveryTests", "testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport"),
                  ("AccountRecoveryTests", "testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner"),
+                 ("AccountRecoveryTests", "testReconciliationKeepsEveryOutcomeAndRejectsPartialOrNoncanonicalFrames"),
                  ("DeviceTests", "testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority"),
                  ("DeviceTests", "testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates"),
                  ("DeviceTests", "testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes"),
@@ -140,7 +141,7 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("PolicyContinuationTests", "testExtendedMetadataRejectsInvalidModeTVersionAndWidth"),
                  ("PolicyContinuationTests", "testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 32 tests, with 0 failures").encode()
+                  + "\nExecuted 33 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

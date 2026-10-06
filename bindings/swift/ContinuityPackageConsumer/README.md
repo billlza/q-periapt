@@ -434,3 +434,21 @@ The consumer exposes the shared `enrollment-policy-*` local/history commands and
 `enrollment-policy-witness-prepare` / `enrollment-policy-witness-commit` TCP/TLS
 commands. See the [C consumer](../../c/ContinuityPackageConsumer/README.md) for the
 public input layout and remaining candidate qualification boundaries.
+
+After selecting an original account operation with `select(account:)`, call
+`reconcileAccount()` to obtain its complete original member set in canonical
+device order. Each `AccountReconciledMember` retains the original device, session
+and message IDs. `AccountMemberState` distinguishes committed, acknowledged,
+resolution-pending, delivery-unknown, history-retired and reservation-abandoned.
+Only acknowledged proves authenticated consumption. History-retired cannot
+recover the distinction between earlier acknowledgement and accounted unknown
+delivery. A native failure throws; it never becomes an empty successful result.
+
+Retain the needed complete result durably, and settle every original member,
+before `retireAccount()`. The native owner rechecks retirement eligibility;
+reading metadata grants no new traffic or ability to bypass an unsettled member.
+The consumer's `recover-account-results` and `recover-account-settled-retire`
+commands exercise this path after actual peer revocation and interruption over
+signed TCP and mutual TLS. That harness still uses C for enrollment, P/R updates
+and individual-member closure. It does not qualify Swift P/R update APIs,
+mutual-TLS pre-processing loss, physical platforms or the final release.

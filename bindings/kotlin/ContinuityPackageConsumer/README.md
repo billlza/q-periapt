@@ -506,3 +506,21 @@ after independent witness approval, `enrollment-policy-witness-commit` submits
 the original operation and transaction statement through the selected TCP/TLS carrier.
 The original P0 documents stay in the registered directory; P1 and its SDK store
 are in `continued-sdk`, and independent predecessor metadata is in `previous-policy`.
+
+After `selectAccount(operation)`, `reconcileAccount()` returns the complete
+original member set in canonical device order. Each `AccountReconciledMember`
+retains its device, session and message IDs. `AccountMemberState` keeps committed,
+acknowledged, resolution-pending, delivery-unknown, history-retired and
+reservation-abandoned distinct. Only acknowledged proves authenticated
+consumption; history-retired cannot distinguish earlier acknowledgement from
+accounted unknown delivery. Returned bytes and the member list are immutable.
+Native errors never become an empty successful result.
+
+Persist the needed complete result and settle every original member before
+`retireAccount()`. Native retirement rechecks eligibility and preserves original
+session records and consumed capacity. The `recover-account-results` and
+`recover-account-settled-retire` consumer commands exercise real revoked-account
+recovery across signed-TCP and mutual-TLS interruptions. C still performs the
+test's enrollment, P/R updates and individual-member closure. This evidence does
+not qualify Kotlin P/R update APIs, mutual-TLS pre-processing loss, Android
+Continuity persistence, physical devices or the final release.

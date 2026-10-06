@@ -45,6 +45,7 @@ TEST_NAMES = frozenset({
     "aggregateStatusPreservesReportsAndRejectsMalformedOutput",
     "accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes",
     "accountCleanupCannotAcquireAuthorityFromPendingCancelledOrClosedOwner",
+    "reconciliationPreservesEveryOutcomeAndRejectsPartialOrNoncanonicalFrames",
     "pendingSetupSharesCapacityAndCannotActivateAfterCancellation",
     "installationStatusRejectsUnknownPhaseAndZeroJournal",
     "originalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata",
@@ -100,6 +101,7 @@ def maven_contract() -> jvm.MavenContract:
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
         ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
+         "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
          "SessionID", "MessageID", "Counter64"), FIXTURE)
 
 

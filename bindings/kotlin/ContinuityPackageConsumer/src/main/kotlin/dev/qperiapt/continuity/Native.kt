@@ -88,6 +88,10 @@ internal object ContinuityNative {
         "sending_epoch" to JAVA_LONG, "receiving_epoch" to JAVA_LONG, "pending_epoch" to JAVA_LONG,
         "has_pending_epoch" to JAVA_INT, "role" to JAVA_INT, "epoch_count" to JAVA_INT,
         "reserved_zero" to JAVA_INT, "device" to array(16), "context" to array(32), "session" to array(32))
+    private val accountReconciledMemberLayout = struct("device" to array(16), "session" to array(32),
+        "message" to array(32), "state" to JAVA_INT, "reserved_zero" to JAVA_INT)
+    private val accountReconciliationLayout = struct("batch" to array(32), "member_count" to JAVA_INT,
+        "reserved_zero" to JAVA_INT, "members" to MemoryLayout.sequenceLayout(32, accountReconciledMemberLayout))
 
     private val linker = Linker.nativeLinker().also {
         require(ADDRESS.byteSize() == 8L && it.canonicalLayouts().getValue("size_t").withoutName() == JAVA_LONG) {
@@ -185,6 +189,7 @@ internal object ContinuityNative {
         "select_account" to function("qpc_recovery_v1_select_account", JAVA_LONG, ADDRESS, ADDRESS),
         "account_begin" to function("qpc_recovery_v1_account_begin", JAVA_LONG, ADDRESS, ADDRESS),
         "account_cleanup_status" to function("qpc_recovery_v1_account_status", JAVA_LONG, ADDRESS, ADDRESS),
+        "account_reconciliation" to function("qpc_recovery_v1_account_reconciliation", JAVA_LONG, ADDRESS, ADDRESS),
         "account_member" to function("qpc_recovery_v1_account_member", JAVA_LONG, JAVA_INT, ADDRESS, ADDRESS),
         "account_reserved" to function("qpc_recovery_v1_account_reserved", JAVA_LONG, JAVA_INT, ADDRESS, ADDRESS),
         "account_epoch" to function("qpc_recovery_v1_account_epoch", JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
@@ -943,6 +948,44 @@ internal object ContinuityNative {
         record(handle, "account_cleanup_status", statusLayout) { fields ->
             decodeAccountStatus(fields.integer("phase"), fields.bytes("report", 32))
         }
+    @JvmSynthetic internal fun accountReconciliation(handle: Long): AccountReconciliation = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(accountReconciliationLayout)
+        invoke(arena, "account_reconciliation", handle, output)
+        decodeAccountReconciliation(output.toArray(JAVA_BYTE))
+    }
+    @JvmSynthetic internal fun decodeAccountReconciliation(bytes: ByteArray): AccountReconciliation {
+        if (bytes.size != 2856) malformed("native account reconciliation width differs")
+        val record = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder())
+        val count = record.getInt(32)
+        val operation = bytes.copyOfRange(0, 32)
+        if (count !in 1..32 || record.getInt(36) != 0 || operation.all { it == 0.toByte() }) {
+            malformed("native account reconciliation scope differs")
+        }
+        val members = mutableListOf<AccountReconciledMember>()
+        for (index in 0 until 32) {
+            val offset = 40 + index * 88
+            val member = bytes.copyOfRange(offset, offset + 88)
+            if (index >= count) {
+                if (member.any { it != 0.toByte() }) malformed("native unused account member is not zero")
+                continue
+            }
+            val device = member.copyOfRange(0, 16)
+            val session = member.copyOfRange(16, 48)
+            val message = member.copyOfRange(48, 80)
+            val state = AccountMemberState.entries.singleOrNull { it.code == record.getInt(offset + 80) }
+                ?: malformed("native account member state differs")
+            val previous = members.lastOrNull()?.device?.encoded()
+            val firstDifference = previous?.let { old -> old.indices.firstOrNull { old[it] != device[it] } }
+            if (record.getInt(offset + 84) != 0 || device.all { it == 0.toByte() } ||
+                session.all { it == 0.toByte() } || message.all { it == 0.toByte() } ||
+                (previous != null && (firstDifference == null ||
+                    (previous[firstDifference].toInt() and 255) >= (device[firstDifference].toInt() and 255)))) {
+                malformed("native account member identity/order differs")
+            }
+            members.add(AccountReconciledMember(PublicBytes(device), SessionID(session), MessageID(message), state))
+        }
+        return AccountReconciliation(AccountOperationID(operation), members)
+    }
     @JvmSynthetic internal fun accountMember(handle: Long, member: Long): AccountCleanupMember =
         record(handle, "account_member", accountCleanupMemberLayout, listOf(index(member))) { fields ->
             val device = fields.bytes("device", 16)
@@ -998,6 +1041,7 @@ internal object ContinuityNative {
         "delivery" to deliveryLayout, "status" to statusLayout,
         "account_target" to accountTargetLayout, "account_delivery" to accountDeliveryLayout,
         "account_cleanup_header" to accountCleanupHeaderLayout, "account_cleanup_member" to accountCleanupMemberLayout,
+        "account_reconciled_member" to accountReconciledMemberLayout, "account_reconciliation" to accountReconciliationLayout,
     ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
     @JvmSynthetic internal fun policyDocumentOffsets(): Map<String, Long> =
         listOf("root", "root_length", "family", "version", "digest", "wire", "wire_length").associateWith {

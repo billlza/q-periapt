@@ -43,7 +43,10 @@ fn command(path: &Path, operation: &str) -> Vec<OsString> {
     ]
 }
 fn run(path: &Path, label: &str, args: &[OsString]) -> Result<String> {
-    let output = Command::new(executable()?).args(args).output()?;
+    run_client(&executable()?, path, label, args)
+}
+fn run_client(client: &Path, path: &Path, label: &str, args: &[OsString]) -> Result<String> {
+    let output = Command::new(client).args(args).output()?;
     fixture::store(path, &format!("enrollment-{label}.stdout"), &output.stdout)?;
     fixture::store(path, &format!("enrollment-{label}.stderr"), &output.stderr)?;
     if !output.status.success() || !output.stderr.is_empty() {

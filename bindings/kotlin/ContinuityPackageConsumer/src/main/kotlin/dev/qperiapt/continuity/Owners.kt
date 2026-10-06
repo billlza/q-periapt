@@ -168,6 +168,9 @@ class ContinuityRecoveryOwner private constructor(private val native: NativeOwne
     fun beginAccountCleanup(): AccountCleanupHeader = native.call { ContinuityNative.accountBegin(it) }
     /** Fresh aggregate status; it never infers delivery or cached witness permission. */
     fun accountCleanupStatus(): AccountStatus = native.call { ContinuityNative.accountCleanupStatus(it) }
+    /** Reconcile ALL original members in one native observation. Reserved or
+     * unresolved abandonment is refused; failures never become empty results. */
+    fun reconcileAccount(): AccountReconciliation = native.call { ContinuityNative.accountReconciliation(it) }
     fun accountMemberAt(member: Long): AccountCleanupMember = native.call { ContinuityNative.accountMember(it, member) }
     fun accountReservation(member: Long): ReservedLoss = native.call { ContinuityNative.accountReservation(it, member) }
     fun accountEpochAt(member: Long, epoch: Long): ClosureEpoch = native.call { ContinuityNative.accountEpoch(it, member, epoch) }
@@ -180,6 +183,8 @@ class ContinuityRecoveryOwner private constructor(private val native: NativeOwne
         native.call { ContinuityNative.accountSkipped(it, member, epoch, index) }
     /** Only after the complete report and original IDs are durable in one deduplicated host transaction. */
     fun acknowledgeAccount(report: AccountAbandonmentID) = native.call { ContinuityNative.idOperation(it, "account_acknowledge", report) }
-    /** Retires acknowledged metadata only; original tombstones and consumed capacity remain. */
+    /** Retires acknowledged abandonment or a committed batch whose EVERY original
+     * member is settled. Persist needed complete results first; original session
+     * records and consumed capacity remain. */
     fun retireAccount() = native.call { ContinuityNative.simple(it, "account_retire") }
 }

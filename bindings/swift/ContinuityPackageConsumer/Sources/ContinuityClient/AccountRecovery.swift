@@ -2,6 +2,30 @@
 import Foundation
 import QPeriaptContinuity
 
+private func reconciledAccount(_ owner: ContinuityRecoveryOwner, operation: AccountOperationID,
+                               files: FixtureRecords, retire: Bool) throws -> String {
+    let result = try owner.reconcileAccount()
+    try require(result.operation == operation, "original reconciliation scope")
+    var lines = ["QPC-C-RECONCILIATION/1", "batch " + hex(result.operation), "members \(result.members.count)"]
+    for (index, member) in result.members.enumerated() {
+        lines.append("member \(index) \(hexBytes(member.device)) \(hex(member.session)) \(hex(member.message)) \(member.state.rawValue)")
+    }
+    let text = lines.joined(separator: "\n")
+    if retire {
+        try require(result.members.allSatisfy { $0.state != .committed && $0.state != .resolutionPending },
+                    "unsettled original member")
+        let bytes = Array((text + "\n").utf8)
+        _ = try files.retain("c-account-reconciliation", bytes: bytes, create: true)
+        _ = try files.retain("c-account-reconciliation", bytes: bytes, create: false)
+        try owner.retireAccount(); try owner.retireAccount()
+        try require(owner.accountCleanupStatus() == .retired, "original batch not retired")
+        try failure([112]) { try owner.reconcileAccount() }
+    } else {
+        try failure([215]) { try owner.retireAccount() }
+    }
+    return text
+}
+
 private func accountSnapshot(_ owner: ContinuityRecoveryOwner, operation: AccountOperationID,
                              files: FixtureRecords, create: Bool) throws -> AccountAbandonmentID {
     let h = try owner.beginAccountCleanup()
@@ -99,6 +123,9 @@ func recoverAccount(_ args: [String], witness: WitnessCarrier) throws {
     let files = FixtureRecords(path: path)
     let response: String
     switch mode {
+    case "recover-account-results", "recover-account-settled-retire":
+        response = try reconciledAccount(owner, operation: operation, files: files,
+            retire: mode == "recover-account-settled-retire")
     case "recover-account-committed":
         try require(current == .committed, "committed account fixture missing")
         try failure([211]) { try owner.beginAccountCleanup() }

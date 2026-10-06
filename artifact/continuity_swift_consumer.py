@@ -55,6 +55,7 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "AccountRecoveryTests.testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence",
              "AccountRecoveryTests.testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport",
              "AccountRecoveryTests.testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner",
+             "AccountRecoveryTests.testReconciliationKeepsEveryOutcomeAndRejectsPartialOrNoncanonicalFrames",
              "DeviceTests.testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority",
              "DeviceTests.testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates",
              "DeviceTests.testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes",

@@ -33,7 +33,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 30)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 31)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
@@ -53,7 +53,7 @@ class KotlinConsumerTests(unittest.TestCase):
             good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
             policy.write_bytes(good)
             checked = kotlin.verify_test_reports(root)
-            self.assertEqual(checked["tests"], 30)
+            self.assertEqual(checked["tests"], 31)
             self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests"})
             self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
                 "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})
@@ -200,12 +200,12 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_gc_execution(changed)
 
     def test_every_owner_test_must_execute_without_skips_or_diagnostics(self):
-        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="19",
+        suite = ET.Element("testsuite", name="dev.qperiapt.continuity.OwnerTests", tests="20",
                            failures="0", errors="0", skipped="0")
         for name in sorted(kotlin.TEST_NAMES):
             ET.SubElement(suite, "testcase", name=name + "()", classname=suite.get("name"))
         data = ET.tostring(suite)
-        self.assertEqual(kotlin.verify_tests(data)["tests"], 19)
+        self.assertEqual(kotlin.verify_tests(data)["tests"], 20)
         suite.remove(suite[0])
         with self.assertRaisesRegex(ValueError, "did not all execute"):
             kotlin.verify_tests(ET.tostring(suite))

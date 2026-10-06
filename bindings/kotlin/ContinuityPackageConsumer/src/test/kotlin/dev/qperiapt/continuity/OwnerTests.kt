@@ -56,6 +56,7 @@ class OwnerTests {
             "delivery" to (48L to 8L), "status" to (36L to 4L),
             "account_target" to (40L to 8L), "account_delivery" to (88L to 4L),
             "account_cleanup_header" to (72L to 4L), "account_cleanup_member" to (136L to 8L),
+            "account_reconciled_member" to (88L to 4L), "account_reconciliation" to (2856L to 4L),
         ), ContinuityNative.layouts())
     }
     private fun enrollmentRoot(): ByteArray {
@@ -360,6 +361,7 @@ class OwnerTests {
         val report = AccountAbandonmentID(ByteArray(32) { 2 })
         val actions: List<() -> Unit> = listOf(
             { owner.selectAccount(operation) }, { owner.beginAccountCleanup() }, { owner.accountCleanupStatus() },
+            { owner.reconcileAccount() },
             { owner.accountMemberAt(0) }, { owner.accountReservation(0) }, { owner.accountEpochAt(0, 0) },
             { owner.accountUnconfirmedAt(0, 0, 0) }, { owner.accountDeliveryAt(0, 0, 0) },
             { owner.accountSkippedPosition(0, 0, 0) }, { owner.acknowledgeAccount(report) }, { owner.retireAccount() },
@@ -379,6 +381,34 @@ class OwnerTests {
             for (action in actions) fails(2, action)
         } finally { owner.close() }
         for (action in actions) fails(2, action)
+    }
+    @Test fun reconciliationPreservesEveryOutcomeAndRejectsPartialOrNoncanonicalFrames() {
+        fun sample(): ByteArray {
+            val bytes = ByteArray(2856)
+            val record = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder())
+            bytes[31] = 17; record.putInt(32, 6)
+            for ((index, device) in listOf(1, 127, 128, 129, 254, 255).withIndex()) {
+                val offset = 40 + index * 88
+                bytes[offset] = device.toByte(); bytes[offset + 47] = (index + 1).toByte()
+                bytes[offset + 79] = (index + 3).toByte(); record.putInt(offset + 80, index + 1)
+            }
+            return bytes
+        }
+        val bytes = sample()
+        val result = ContinuityNative.decodeAccountReconciliation(bytes)
+        bytes.fill(0)
+        assertEquals(17, result.operation.encoded()[31].toInt())
+        assertEquals(AccountMemberState.entries.toList(), result.members.map { it.state })
+        assertEquals(listOf(1, 127, 128, 129, 254, 255), result.members.map { it.device.encoded()[0].toInt() and 255 })
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), result.members.map { it.session.encoded()[31].toInt() })
+        assertEquals(listOf(3, 4, 5, 6, 7, 8), result.members.map { it.message.encoded()[31].toInt() })
+        val invalid = mutableListOf(sample().copyOf(2855), sample().copyOf(2857))
+        for (count in listOf(0, 33, -1)) invalid.add(sample().also { ByteBuffer.wrap(it).order(ByteOrder.nativeOrder()).putInt(32, count) })
+        for (state in listOf(0, 7, 258, -1)) invalid.add(sample().also { ByteBuffer.wrap(it).order(ByteOrder.nativeOrder()).putInt(120, state) })
+        for ((offset, value) in listOf(31 to 0, 36 to 1, 40 to 0, 87 to 0, 119 to 0, 124 to 1, 128 to 1, 568 to 1)) {
+            invalid.add(sample().also { it[offset] = value.toByte() })
+        }
+        for (value in invalid) assertFailsWith<ContinuityBoundaryFailure> { ContinuityNative.decodeAccountReconciliation(value) }
     }
     @Test fun accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes() {
         val session = SessionID(ByteArray(32) { 7 })

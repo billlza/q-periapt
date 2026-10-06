@@ -1118,7 +1118,7 @@ acknowledgement; it keeps aggregate results separately before metadata retiremen
 
 These are additions to the unpublished `qpc-owner/1` candidate, not product ABI 2
 stability or complete 0.2.0 admission. Swift/Kotlin wrappers for the new required
-P/R and peer-roster/reconciliation paths, installed-package qualification, physical
+P/R and peer-roster update paths, installed-package qualification, physical
 platform evidence and independent protocol/security review remain separate gates.
 
 The signed-TCP peer-roster interruption workload exercises a complete request
@@ -1143,3 +1143,14 @@ plaintext witness request count must remain unchanged throughout both sessions,
 the policy/roster transitions and recovery. The fixture's earlier registration
 uses its original signed carrier. Pre-processing loss over mutual TLS remains
 a separate gate; the post-commit cuts do not qualify it.
+
+The foreign account-result workload selects a Swift or Kotlin executable only
+for complete member-result reads and final metadata retirement. Enrollment,
+policy/roster updates and individual-member closure still use the C client.
+Every language must preserve the exact original batch/session/message identities,
+distinguish authenticated consumption from unknown delivery, durably retain the
+full host result, and refuse early retirement in the two normal carrier cases,
+four signed-TCP interruption cases and three post-commit mutual-TLS cases.
+This does not qualify those languages' P/R update APIs or an independent protocol
+implementation. The installed-package collectors require the same recorded C
+harness and explicit foreign executable, without silently falling back to C.
