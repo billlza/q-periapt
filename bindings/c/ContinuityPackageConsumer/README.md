@@ -1155,9 +1155,12 @@ while the signed witness protocol and storage engine remain shared. Native TLS
 server pre-processing interruption remains a separate gate.
 
 The foreign account-recovery workload selects one Swift or Kotlin executable
-for peer-roster admission/interruption, each member's loss-report persistence
-and acknowledgement, complete member-result reads and final metadata retirement.
-Enrollment and local policy/roster updates still use the C client. Each language
+for original account traffic before and after local P/R, peer-roster
+admission/interruption, each member's loss-report persistence and acknowledgement,
+complete member-result reads and final metadata retirement. The nine scenarios
+require 99 completed foreign traffic calls; the optional OpenSSL scenario adds
+11. Initial session establishment, receiver execution, enrollment and local
+policy/roster updates still use the C client. Each language
 run requires 36 completed member-closure calls across the original nine scenarios;
 the optional OpenSSL pre-processing scenario requires four more. The exact
 session-specific report must be durably retained and read back before its ACK.

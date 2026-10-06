@@ -54,7 +54,7 @@ private fun run(arguments: List<String>): String {
     val independent = args.firstOrNull() == "--independent-policy-parent"
     val continued = args.firstOrNull() == "--continued-enrollment-parent"
     val enrolled = if (continued || independent || args.firstOrNull() == "--enrollment-parent") {
-        require(args.size >= 6) { "registered parent arguments" }
+        require(args.size >= 5) { "registered parent arguments" }
         val role = when (args[2]) {
             "1" -> BootstrapRole.INITIATOR
             "2" -> BootstrapRole.RESPONDER
@@ -67,13 +67,15 @@ private fun run(arguments: List<String>): String {
         SessionID(decode(args[1])).also { args = args.drop(2) }
     } else null
     require(args.isNotEmpty()) { "command required" }
-    require(!(continued || independent) || existing != null || args[0] == "peer-roster-admit") { "continued enrollment parent requires an original session" }
+    val enrolledAccount = args[0] in setOf("account-next", "account-status", "account-send")
+    require(!(continued || independent) || existing != null || args[0] == "peer-roster-admit" || enrolledAccount) { "continued enrollment parent requires an original session" }
     require(!(continued || independent) || (args[0] != "connect" && !(args[0] == "serve" && args.getOrNull(2) == "bootstrap"))) {
         "continued enrollment parent cannot bootstrap a fresh session"
     }
     require(enrolled == null || (!inFlightGC && !interruptOpening && args[0] in setOf(
         "connect", "next", "send", "uncertain-send", "status", "rekey", "serve", "serve-rekey",
-        "busy-cancel", "cancel-send", "reject-open", "witness-failed-send", "peer-roster-admit"))) { "registered parent requires an ordinary peer operation" }
+        "busy-cancel", "cancel-send", "reject-open", "witness-failed-send", "peer-roster-admit",
+        "account-next", "account-status", "account-send"))) { "registered parent requires an ordinary peer operation" }
 
     require(existing == null || (!inFlightGC && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
         "existing session requires an ordinary operational command"
@@ -123,6 +125,14 @@ private fun run(arguments: List<String>): String {
     if (args[0].startsWith("recover-")) return recover(args, witness)
     if (args[0].startsWith("account-")) {
         require(existing == null)
+        if (enrolled != null) {
+            require(enrolledAccount && enrolled.first == args[1] && enrolled.second == BootstrapRole.INITIATOR) {
+                "account requires its original enrollment parent and existing member sessions"
+            }
+            return enrollmentParent(enrolled.first, witness,
+                if (independent) EnrollmentPolicy.INDEPENDENT else if (continued) EnrollmentPolicy.JOINT else EnrollmentPolicy.ORIGINAL
+            ).use { account(args, witness, it) }
+        }
         return account(args, witness)
     }
     return if (enrolled == null) ordinary(args, witness, existing)

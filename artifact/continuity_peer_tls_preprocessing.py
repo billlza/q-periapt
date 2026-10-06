@@ -4,7 +4,7 @@ from collections import Counter
 import re
 import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_execution
-from continuity_foreign_account_results import verify_member_calls
+from continuity_foreign_account_results import verify_member_calls, verify_traffic_calls
 
 TEST = ("credential_renewal::independent_policy::witnessed::roster::traffic::fanout::"
         "c_peer_roster_tls_unprocessed_openssl_request_recovers_exact_target")
@@ -32,6 +32,7 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     if language != "C":
         expected += foreign_markers(language)
         verify_member_calls(text, language=language, cases=1)
+        verify_traffic_calls(text, language=language, cases=1)
         for prefix in ("FOREIGN_PEER_ROSTER_CALL", "FOREIGN_PEER_ROSTER_RAW_CONTROL"):
             calls = re.findall(r"^" + prefix + r" language=(\S+) label=(\S+)$", text, re.MULTILINE)
             sdk.require(calls and all(row[0] == language for row in calls) and
@@ -50,6 +51,7 @@ def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
                       "selected caller durably accounts for each member, C enrollment/local P/R and raw controls, shared native protocol engine",
                 foreign_peer_calls=0 if language == "C" else 3,
                 foreign_member_closure_calls=0 if language == "C" else 4,
+                foreign_account_traffic_calls=0 if language == "C" else 11,
                 independent_TLS_endpoint=True, independent_protocol_implementation=False,
                 native_TLS_server_preprocessing_qualified=False, physical_platform_qualified=False,
                 release_claim_eligible=False)

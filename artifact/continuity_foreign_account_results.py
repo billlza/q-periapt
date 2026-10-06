@@ -50,6 +50,21 @@ def markers(language: str) -> list[str]:
             for carrier, cut in CASES]
 
 
+def traffic_markers(language: str) -> list[str]:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified account traffic language")
+    original = ("group-next", "group-first-send", "group-second-unknown", "group-partial-before-updates")
+    continued = ("group-partial-after-updates", "group-first-retained", "group-reverse-order-retained",
+                 "group-refuse-unary", "group-refuse-changed-input", "group-refuse-omit-retained", "group-refuse-cancel-peer")
+    return [f"FOREIGN_ACCOUNT_TRAFFIC language={language} label={label} parent={parent}"
+            for parent, labels in (("original", original), ("independent-policy", continued)) for label in labels]
+
+
+def verify_traffic_calls(text: str, *, language: str, cases: int) -> None:
+    observed = re.findall(r"^FOREIGN_ACCOUNT_TRAFFIC .*?$", text, re.MULTILINE)
+    sdk.require(Counter(observed) == Counter({row: cases for row in traffic_markers(language)}),
+                "foreign original account traffic dispatch differs")
+
+
 def member_markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified member closure language")
     return [f"FOREIGN_MEMBER_CLOSURE language={language} mode={mode} label={label}-{index}"
@@ -70,6 +85,7 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     observed = re.findall(r"^FOREIGN_ACCOUNT_RECONCILIATION .*?$", text, re.MULTILINE)
     expected = markers(language)
     verify_member_calls(text, language=language, cases=len(CASES))
+    verify_traffic_calls(text, language=language, cases=len(CASES))
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign account reconciliation scope differs")
     peer = re.findall(r"^FOREIGN_PEER_ROSTER .*?$", text, re.MULTILINE)
@@ -92,12 +108,13 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
             sdk.require(re.findall(r"^" + prefix + r" .*?$", text, re.MULTILINE) == [peer_native_marker(marker)],
                         "foreign reconciliation underlying scenario differs: " + prefix)
     return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES),
-                scope="foreign current peer-roster admission, pre-cancel and in-flight cancellation, "
+                scope="foreign original account traffic before/after local P/R, durable consumption vs unknown receipt, "
+                      "retained exact retries and refused membership/input changes, current peer-roster admission, pre-cancel and in-flight cancellation, "
                       "actual process cuts after observed witness processing, unknown-commit exact-target recovery, "
                       "durable individual-member loss reports and ACKs, complete original account result observation and metadata retirement; "
                       "C registration, local P/R updates and raw input controls; shared native engine",
                 foreign_peer_roster_calls=25, foreign_peer_roster_kills=2, C_raw_input_control_invocations=27,
-                foreign_member_closure_calls=36,
+                foreign_member_closure_calls=36, foreign_account_traffic_calls=99,
                 peer_roster_admission_qualified=True, local_P_R_updates_qualified=False,
                 TLS_preprocessing_loss_qualified=False, independent_protocol_implementation=False,
                 physical_platform_qualified=False, release_claim_eligible=False)

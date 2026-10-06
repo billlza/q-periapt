@@ -102,12 +102,14 @@ private fun connectAccount(args: List<String>, witness: WitnessCarrier): String 
     sessions.joinToString("\n", transform = ::hex)
 }
 
-internal fun account(args: List<String>, witness: WitnessCarrier): String {
+internal fun account(args: List<String>, witness: WitnessCarrier, parent: ContinuityDevice? = null): String {
     require(args.size >= 2)
+    require(parent == null || args[0] in setOf("account-next", "account-status", "account-send"))
     accountShapeChecks()
     if (args[0] == "account-connect") return connectAccount(args, witness)
     return AccountOwners().use { owners ->
-        val device = owners.own(ContinuityDevice.open(args[1], witness))
+        // A selected enrollment parent is owned by the caller's use scope.
+        val device = parent ?: owners.own(ContinuityDevice.open(args[1], witness))
         when (args[0]) {
             "account-next" -> { require(args.size == 2); return@use hex(device.nextAccountOperation()) }
             "account-status" -> {
@@ -141,6 +143,7 @@ internal fun account(args: List<String>, witness: WitnessCarrier): String {
         var expected: Int? = null
         when (mode) {
             "omit" -> { targets.removeAt(1); selected = 0; expected = 106 }
+            "omit-retained" -> { targets.removeAt(1); selected = 0; expected = 211 }
             "duplicate-peer" -> { targets[1] = AccountTarget(peers[0], sessions[1]); expected = 1 }
             "duplicate-session" -> { targets[1] = AccountTarget(peers[1], sessions[0]); expected = 1 }
             "cancel-peer" -> { peers[1].cancel(); expected = 302 }

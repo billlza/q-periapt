@@ -44,6 +44,24 @@ impl AccountResultClient {
     }
 }
 impl Group {
+    fn traffic(&self, label: &str, args: &[OsString]) -> Result<String> {
+        match &self.peer_roster_client {
+            Some(client) => {
+                let output = run_client(&client.executable, &self.c.path, label, args)?;
+                eprintln!(
+                    "FOREIGN_ACCOUNT_TRAFFIC language={} label={label} parent={}",
+                    client.language,
+                    if self.renewed {
+                        "independent-policy"
+                    } else {
+                        "original"
+                    }
+                );
+                Ok(output)
+            }
+            None => run(&self.c.path, label, args),
+        }
+    }
     fn peer_roster_inputs(&self, label: &str, args: &[OsString]) -> Result<()> {
         let client = self
             .peer_roster_client
@@ -141,15 +159,11 @@ impl Group {
         if let Some(original) = original {
             tail.push(hex(&original).into());
         }
-        run(&self.c.path, label, &self.args("account-send", &tail))
+        self.traffic(label, &self.args("account-send", &tail))
     }
     fn status(&self, label: &str, batch: [u8; 32]) -> Result<()> {
         assert_eq!(
-            run(
-                &self.c.path,
-                label,
-                &self.args("account-status", &[hex(&batch).into()])
-            )?,
+            self.traffic(label, &self.args("account-status", &[hex(&batch).into()]))?,
             format!("account-status:2\n{}\n", hex(&[0; 32]))
         );
         Ok(())
@@ -463,8 +477,10 @@ fn account_scenario_with_cut(
                 return Err("foreign peer roster and account recovery identities differ".into());
             }
         }
-        let batch =
-            decode_id(run(&g.c.path, "group-next", &g.args("account-next", &[]))?.trim_end())?;
+        let batch = decode_id(
+            g.traffic("group-next", &g.args("account-next", &[]))?
+                .trim_end(),
+        )?;
         let [session0, session1] = g.sessions;
         let [remote0, remote1] = &g.recipients;
         let device0 = fixture::array::<16>(remote0, "local-device")?;

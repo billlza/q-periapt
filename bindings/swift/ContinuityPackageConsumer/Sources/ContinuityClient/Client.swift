@@ -132,13 +132,15 @@ func waitMarker(_ path: String) throws {
             }
         }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
-        if enrollmentParent?.continued == true && command != "peer-roster-admit" {
+        let enrolledAccount = ["account-next", "account-status", "account-send"].contains(command)
+        if enrollmentParent?.continued == true && command != "peer-roster-admit" && !enrolledAccount {
             try require(existing != nil && command != "connect" &&
                 !(command == "serve" && args.count > 2 && args[2] == "bootstrap"),
                 "continued enrollment requires an existing operational session")
         }
         try require(enrollmentParent == nil || ["serve", "connect", "next", "status", "rekey", "send", "uncertain-send",
-            "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open", "peer-roster-admit"].contains(command),
+            "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open", "peer-roster-admit",
+            "account-next", "account-status", "account-send"].contains(command),
             "enrollment parent requires an operational command")
         try require(existing == nil || (!command.hasPrefix("recover-") && command != "self-check"),
                     "existing session requires an operational command")
@@ -179,7 +181,7 @@ func waitMarker(_ path: String) throws {
         }
         if command.hasPrefix("account-") {
             try require(existing == nil, "account command selects its own peers")
-            try await account(args, witness: witness)
+            try await account(args, witness: witness, enrollment: enrollmentParent)
             return
         }
         if command.hasPrefix("opening-") {

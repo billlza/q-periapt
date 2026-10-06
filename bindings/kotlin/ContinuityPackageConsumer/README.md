@@ -633,8 +633,15 @@ by native current-roster checks. Complete-account recovery preserves every
 original member, including authenticated consumption versus unknown delivery,
 before durable host accounting permits final metadata retirement.
 
-The installed collector selects this same language for peer admission and full
-account recovery. It requires nine scenarios: ordinary revocation over signed
+The installed collector selects this same language for account traffic, peer
+admission and full account recovery. It obtains the original account operation,
+sends to both original sessions, observes a lost application receipt, and reads
+status before and after local P/R updates. Exact retained retries preserve the
+original effects; changed membership/input, unary release and cancelled peers
+remain refusals. This adds 99 foreign traffic calls across the nine scenarios,
+plus 11 in the optional OpenSSL scenario. Initial session establishment, receiver
+execution, enrollment and local P/R updates still use C. Selecting an enrollment
+parent cannot bootstrap a new session through these account commands. It requires nine scenarios: ordinary revocation over signed
 TCP and mTLS; unprocessed TCP loss; processed reply loss, in-flight cancellation
 and an observed process kill over each carrier. Every language run includes
 25 completed foreign peer-control dispatches and two actual killed clients.

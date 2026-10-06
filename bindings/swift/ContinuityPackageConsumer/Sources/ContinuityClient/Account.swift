@@ -27,10 +27,15 @@ private func accountShapeChecks() throws {
     try closeDevice(device)
 }
 
-func account(_ args: [String], witness: WitnessCarrier) async throws {
+func account(_ args: [String], witness: WitnessCarrier, enrollment: EnrollmentParentSelection? = nil) async throws {
     try require(args.count >= 2, "account arguments")
     try accountShapeChecks()
     let command = args[0], path = args[1]
+    if let enrollment {
+        try require(enrollment.path == path && enrollment.role == .initiator &&
+                    ["account-next", "account-status", "account-send"].contains(command),
+                    "account requires its original enrollment parent and existing member sessions")
+    }
     if command == "account-connect" {
         try require(args.count == 8, "account connect arguments")
         // Returning prepared peers drops the public device wrapper. Their native
@@ -87,7 +92,8 @@ func account(_ args: [String], witness: WitnessCarrier) async throws {
         for session in sessions { try output(hex(session)) }
         return
     }
-    let device = try ContinuityDevice.open(path: path, witness: witness)
+    let device = try enrollment.map { try $0.openDevice(witness: witness) }
+        ?? ContinuityDevice.open(path: path, witness: witness)
     if command == "account-next" {
         try require(args.count == 2, "account next arguments")
         try output(hex(device.nextAccountOperation()))
@@ -135,6 +141,7 @@ func account(_ args: [String], witness: WitnessCarrier) async throws {
     }
     switch mode {
     case "omit": targets.removeLast(); selected = 0; expected = 106
+    case "omit-retained": targets.removeLast(); selected = 0; expected = 211
     case "duplicate-peer": targets[1] = AccountTarget(peer: peers[0], session: sessions[1]); expected = 1
     case "duplicate-session": targets[1] = AccountTarget(peer: peers[1], session: sessions[0]); expected = 1
     case "cancel-peer": try peers[1].cancel(); expected = 302
