@@ -126,7 +126,7 @@ pub unsafe extern "C" fn qpc_enrollment_v1_witnessed_policy_renewal_request(
             )
         })?;
         // SAFETY: publish only successful readback after final invocation checks.
-        unsafe { put(request, result) };
+        unsafe { result.publish(request) };
         Ok(())
     };
     // SAFETY: forwarded invocation-local diagnostics contract.

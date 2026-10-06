@@ -83,11 +83,24 @@ impl Owner {
         })
     }
     fn activate_continued(
-        mut self,
+        self: Box<Self>,
         entry: &Entry,
         deadline: Instant,
         kind: ContinuationKind,
     ) -> Result<Arc<device::Shared>> {
+        self.prepare_continued(entry, deadline, kind)?
+            .activate(entry, deadline)
+    }
+
+    // Finish configuration/signing-client preparation before reopening the
+    // durable journal and checking its retained signatures on the caller stack.
+    #[inline(never)]
+    fn prepare_continued(
+        mut self: Box<Self>,
+        entry: &Entry,
+        deadline: Instant,
+        kind: ContinuationKind,
+    ) -> Result<Box<ContinuedActivation>> {
         let original = self.historical_policy(entry, deadline)?;
         self.current_target()?;
         let authority = self.target_authority.take().ok_or_else(|| failure(5))?;
@@ -107,39 +120,76 @@ impl Owner {
             None
         };
         opening::check(&entry.cancel, deadline)?;
+        Ok(Box::new(ContinuedActivation {
+            owner: self,
+            environment,
+            original,
+            anchor,
+            kind,
+        }))
+    }
+}
+
+// Keep every original owner alive through activation; preparation must not
+// close an unused original runtime earlier than the previous single-stage path.
+struct ContinuedActivation {
+    owner: Box<Owner>,
+    environment: device::Environment,
+    original: p::HistoricalSessionPolicy,
+    anchor: Option<p::AnchorClient>,
+    kind: ContinuationKind,
+}
+type LocalActivation = fn(
+    p::DeviceEnrollment,
+    &p::HistoricalSessionPolicy,
+    &p::VerifiedSessionPolicy,
+    u64,
+) -> std::result::Result<p::EnrolledDevice, p::DurableError>;
+type WitnessedActivation = fn(
+    p::DeviceEnrollment,
+    &p::HistoricalSessionPolicy,
+    &p::VerifiedSessionPolicy,
+    u64,
+    p::AnchorClient,
+) -> std::result::Result<p::EnrolledDevice, p::DurableError>;
+impl ContinuedActivation {
+    fn activate(self: Box<Self>, entry: &Entry, deadline: Instant) -> Result<Arc<device::Shared>> {
+        opening::check(&entry.cancel, deadline)?;
         let now = owner::now().map_err(Failure::configuration)?;
-        let enrolled = match (kind, anchor) {
-            (ContinuationKind::Independent, None) => self.enrollment.activate_policy_renewal(
-                &original,
-                &environment.authority.policy,
+        // Select the native operation before the call instead of retaining
+        // separate large value-return temporaries for all four match arms.
+        let enrolled = if let Some(anchor) = self.anchor {
+            let activate: WitnessedActivation = match self.kind {
+                ContinuationKind::Independent => {
+                    p::DeviceEnrollment::activate_witnessed_policy_renewal
+                }
+                ContinuationKind::Joint => {
+                    p::DeviceEnrollment::activate_witnessed_policy_continuation
+                }
+            };
+            activate(
+                self.owner.enrollment,
+                &self.original,
+                &self.environment.authority.policy,
                 now,
-            )?,
-            (ContinuationKind::Independent, Some(anchor)) => {
-                self.enrollment.activate_witnessed_policy_renewal(
-                    &original,
-                    &environment.authority.policy,
-                    now,
-                    anchor,
-                )?
-            }
-            (ContinuationKind::Joint, Some(anchor)) => {
-                self.enrollment.activate_witnessed_policy_continuation(
-                    &original,
-                    &environment.authority.policy,
-                    now,
-                    anchor,
-                )?
-            }
-            (ContinuationKind::Joint, None) => self.enrollment.activate_policy_continuation(
-                &original,
-                &environment.authority.policy,
+                anchor,
+            )?
+        } else {
+            let activate: LocalActivation = match self.kind {
+                ContinuationKind::Independent => p::DeviceEnrollment::activate_policy_renewal,
+                ContinuationKind::Joint => p::DeviceEnrollment::activate_policy_continuation,
+            };
+            activate(
+                self.owner.enrollment,
+                &self.original,
+                &self.environment.authority.policy,
                 now,
-            )?,
+            )?
         };
         opening::check(&entry.cancel, deadline)?;
         Ok(device::Shared::from_enrolled(
             enrolled,
-            environment,
+            self.environment,
             entry.cancel.clone(),
             entry.invocation.clone(),
         ))

@@ -310,7 +310,11 @@ impl Owner {
         }
         Ok(result)
     }
-    fn activate(mut self, entry: &Entry, deadline: Instant) -> Result<Arc<device::Shared>> {
+    fn activate(
+        mut self: Box<Self>,
+        entry: &Entry,
+        deadline: Instant,
+    ) -> Result<Arc<device::Shared>> {
         self.ensure_policy(&entry.cancel, deadline)?;
         let authority = self.authority.take().ok_or_else(|| failure(5))?;
         let environment =

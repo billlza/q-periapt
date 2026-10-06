@@ -16,6 +16,31 @@ static void independent_status_print(const qpc_policy_renewal_status_v1 *s) {
     printf("%llu\n",(unsigned long long)s->observed_roster.version);encode(s->observed_roster.digest);
     printf("%llu\n",(unsigned long long)s->observed_at);
 }
+typedef struct {
+    uint64_t handle;
+    const uint8_t *operation;
+    qpc_policy_renewal_request_v1 *request;
+    qpc_error_v1 *error;
+    int witnessed;
+    int32_t code;
+} independent_request_call;
+static void *independent_request_worker(void *opaque) {
+    independent_request_call *call=opaque;
+    call->code=call->witnessed ?
+        qpc_enrollment_v1_witnessed_policy_renewal_request(call->handle,call->operation,call->request,call->error) :
+        qpc_enrollment_v1_policy_renewal_request(call->handle,call->operation,call->request,call->error);
+    return NULL;
+}
+/* Real public requests on a default foreign pthread. Inputs/output stay owned
+ * by the calling frame until join; no stack-size override or detached worker. */
+static int32_t independent_request_on_worker(uint64_t handle,const uint8_t operation[32],
+    qpc_policy_renewal_request_v1 *request,qpc_error_v1 *error,int witnessed) {
+    independent_request_call call={handle,operation,request,error,witnessed,-1};
+    pthread_t worker;
+    if(pthread_create(&worker,NULL,independent_request_worker,&call)) fail("policy request worker creation");
+    if(pthread_join(worker,NULL)) fail("policy request worker join");
+    return call.code;
+}
 static uint64_t independent_policy_parent(const char *path,const qpc_witness_v1 *witness,int tls) {
     uint64_t handle=enrollment_open(path,0,witness,tls);qpc_error_v1 error;
     char target_path[4096];enrollment_path(target_path,path,"independent-sdk");
@@ -31,7 +56,7 @@ static int independent_policy_command(uint64_t handle,const char *path,const cha
     qpc_policy_renewal_status_v1 status;memset(&status,0xa5,sizeof(status));
     if(!strcmp(mode,"request") || !strcmp(mode,"request-refused")) {
         qpc_policy_renewal_request_v1 request;memset(&request,0xa5,sizeof(request));
-        int32_t code=qpc_enrollment_v1_policy_renewal_request(handle,operation,&request,&error);record(code,&error);
+        int32_t code=independent_request_on_worker(handle,operation,&request,&error,0);record(code,&error);
         if(!strcmp(mode,"request-refused")) {
             if(code!=QPC_SUSPENDED) fail("pending policy accepted a replacement request");
             const uint8_t *bytes=(const uint8_t *)&request;for(size_t i=0;i<sizeof(request);i++) if(bytes[i]!=0xa5) fail("failed request published bytes");

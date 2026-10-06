@@ -145,8 +145,17 @@ struct CopiedRequest {
     current_roster: Vec<u8>,
 }
 impl PolicyRequest {
-    fn observed(r: &p::PolicyRenewalRequest) -> Result<Self> {
-        Ok(Self {
+    // Copy the large ABI value only after all admission and crypto frames have
+    // returned. Inlining would reserve this temporary during those operations.
+    #[inline(never)]
+    unsafe fn publish(self: Box<Self>, output: *mut Self) {
+        // SAFETY: the caller has validated its separate writable request output.
+        unsafe { put(output, *self) };
+    }
+    // Keep the 33-KiB public record out of every generic admission/panic frame.
+    // The complete record is copied to the caller only after successful admission.
+    fn observed(r: &p::PolicyRenewalRequest) -> Result<Box<Self>> {
+        Ok(Box::new(Self {
             scope: Scope::observed(r.scope()),
             account: r.original_device().account_id(),
             original_roster_checkpoint: Checkpoint::observed(
@@ -156,7 +165,7 @@ impl PolicyRequest {
             original_roster: PublicRecord::observed(r.original_roster())?,
             current_credential: PublicRecord::observed(r.current_credential())?,
             current_roster: PublicRecord::observed(r.current_roster())?,
-        })
+        }))
     }
     unsafe fn read(pointer: *const Self) -> Result<CopiedRequest> {
         if pointer.is_null() || !pointer.is_aligned() {
@@ -267,7 +276,7 @@ pub unsafe extern "C" fn qpc_enrollment_v1_policy_renewal_request(
             )
         })?;
         // SAFETY: publish only after native readback and invocation checks.
-        unsafe { put(request, result) };
+        unsafe { result.publish(request) };
         Ok(())
     };
     // SAFETY: forwarded invocation-local diagnostic contract.

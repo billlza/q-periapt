@@ -14,7 +14,7 @@ static int witnessed_independent_policy_command(uint64_t handle,const char *path
     if(!strcmp(mode,"request")) {
         uint8_t operation[32];enrollment_exact(path,"independent-operation",operation,32);
         qpc_policy_renewal_request_v1 request;memset(&request,0xa5,sizeof(request));
-        require(qpc_enrollment_v1_witnessed_policy_renewal_request(handle,operation,&request,&error),&error);
+        require(independent_request_on_worker(handle,operation,&request,&error,1),&error);
         enrollment_write(path,"independent-request",(const uint8_t *)&request,sizeof(request));
         close_owner(handle);puts("request-saved");return 0;
     }
