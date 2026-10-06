@@ -55,7 +55,7 @@ impl Owner {
         witness: Option<witness::Configuration>,
         cancel: &Cancellation,
         deadline: Instant,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         let (authority, key) = device::Authority::load(path, cancel, deadline)?;
         opening::check(cancel, deadline)?;
         let time = owner::now().map_err(Failure::configuration)?;
@@ -77,12 +77,12 @@ impl Owner {
                 time,
             )?
         };
-        let result = Self {
+        let result = Box::new(Self {
             path: path.into(),
             installation,
             authority,
             witness,
-        };
+        });
         opening::check(cancel, deadline)?;
         Ok(result)
     }

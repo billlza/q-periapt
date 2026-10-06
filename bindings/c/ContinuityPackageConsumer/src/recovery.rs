@@ -26,7 +26,7 @@ impl Recovery {
         cancel: Cancellation,
         invocation: invocation::Scope,
         deadline: Instant,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         opening::check(&cancel, deadline)?;
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
@@ -35,12 +35,12 @@ impl Recovery {
         )?;
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         opening::check(&cancel, deadline)?;
-        let result = Self {
+        let result = Box::new(Self {
             anchor: witness
                 .map(|value| value.client(path, cancel.clone(), invocation))
                 .transpose()?,
             state: State::Discovery(Box::new(p::InstallationRecovery::open(paths, key)?)),
-        };
+        });
         opening::check(&cancel, deadline)?;
         Ok(result)
     }
@@ -377,7 +377,7 @@ unsafe fn open_recovery(
             reservation.invocation.clone(),
             deadline,
         )?;
-        let id = reservation.publish(Owned::Recovery(Box::new(owner)), deadline)?;
+        let id = reservation.publish(Owned::Recovery(owner), deadline)?;
         unsafe { put(handle, id) };
         Ok(())
     };

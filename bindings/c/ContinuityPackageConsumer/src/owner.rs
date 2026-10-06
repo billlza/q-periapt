@@ -161,6 +161,69 @@ impl Admission {
             Self::Bootstrap(quality) | Self::Existing { quality, .. } => *quality,
         }
     }
+
+    // Finish public-material verification before entering activation and its
+    // witness signatures. Keeping these stages in distinct frames avoids
+    // retaining verification temporaries on foreign callers' worker stacks.
+    #[inline(never)]
+    fn verify(
+        self,
+        directory: &OwnedPrivateDirectory,
+        policy: &Arc<p::VerifiedSessionPolicy>,
+        family: [u8; 32],
+    ) -> Result<VerifiedAdmission> {
+        let initiator = account(directory, "initiator", family)?;
+        let responder = account(directory, "responder", family)?;
+        let bundle = p::BootstrapBundle::from_bytes(&read(
+            directory,
+            "bootstrap.bundle",
+            p::MAX_BOOTSTRAP_BUNDLE_BYTES,
+        )?)?;
+        let required = p::BootstrapRequirements {
+            initiator: p::ExpectedDevice::new(
+                &initiator,
+                array(directory, "initiator-device")?,
+                u64::from_be_bytes(array(directory, "initiator-generation")?),
+            )?,
+            responder: p::ExpectedDevice::new(
+                &responder,
+                array(directory, "responder-device")?,
+                u64::from_be_bytes(array(directory, "responder-generation")?),
+            )?,
+            quality: self.quality(),
+            directory: p::DirectoryExpectation::from_trusted_state(array(directory, "directory")?)?,
+        };
+        let role = match array(directory, "role")? {
+            [1] => p::BootstrapRole::Initiator,
+            [2] => p::BootstrapRole::Responder,
+            _ => return Err(Failure::argument()),
+        };
+        Ok(match self {
+            Self::Bootstrap(_) => VerifiedAdmission::Bootstrap {
+                context: Arc::new(bundle.verify(
+                    Arc::clone(policy),
+                    required,
+                    now().map_err(Failure::configuration)?,
+                )?),
+                role,
+            },
+            Self::Existing { session, .. } => VerifiedAdmission::Existing(bundle.request_reopen(
+                Arc::clone(policy),
+                required,
+                role,
+                session,
+                now().map_err(Failure::configuration)?,
+            )?),
+        })
+    }
+}
+
+enum VerifiedAdmission {
+    Bootstrap {
+        context: Arc<p::BootstrapContext>,
+        role: p::BootstrapRole,
+    },
+    Existing(p::SessionReopenRequest),
 }
 
 /// One original local installation, never a reconstructed policy permission.
@@ -196,7 +259,7 @@ impl Owner {
         cancel: Cancellation,
         invocation: crate::invocation::Scope,
         deadline: Instant,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         crate::opening::check(&cancel, deadline)?;
         let paths = p::InstallationPaths::new(
             &path.join("installation.redb"),
@@ -206,53 +269,7 @@ impl Owner {
         let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
         let (policy_store, policy, family) =
             configured_policy(path, &directory, &cancel, deadline)?;
-        let initiator = account(&directory, "initiator", family)?;
-        let responder = account(&directory, "responder", family)?;
-        let bundle = p::BootstrapBundle::from_bytes(&read(
-            &directory,
-            "bootstrap.bundle",
-            p::MAX_BOOTSTRAP_BUNDLE_BYTES,
-        )?)?;
-        let required = p::BootstrapRequirements {
-            initiator: p::ExpectedDevice::new(
-                &initiator,
-                array(&directory, "initiator-device")?,
-                u64::from_be_bytes(array(&directory, "initiator-generation")?),
-            )?,
-            responder: p::ExpectedDevice::new(
-                &responder,
-                array(&directory, "responder-device")?,
-                u64::from_be_bytes(array(&directory, "responder-generation")?),
-            )?,
-            quality: admission.quality(),
-            directory: p::DirectoryExpectation::from_trusted_state(array(
-                &directory,
-                "directory",
-            )?)?,
-        };
-        let role = match array(&directory, "role")? {
-            [1] => p::BootstrapRole::Initiator,
-            [2] => p::BootstrapRole::Responder,
-            _ => return Err(Failure::argument()),
-        };
-        enum Verified {
-            Bootstrap(Arc<p::BootstrapContext>),
-            Existing(p::SessionReopenRequest),
-        }
-        let verified = match admission {
-            Admission::Bootstrap(_) => Verified::Bootstrap(Arc::new(bundle.verify(
-                Arc::clone(&policy),
-                required,
-                now().map_err(Failure::configuration)?,
-            )?)),
-            Admission::Existing { session, .. } => Verified::Existing(bundle.request_reopen(
-                Arc::clone(&policy),
-                required,
-                role,
-                session,
-                now().map_err(Failure::configuration)?,
-            )?),
-        };
+        let verified = admission.verify(&directory, &policy, family)?;
         crate::opening::check(&cancel, deadline)?;
         let key = p::JournalKey::open(&path.join("wrap.key"))?;
         let signer = p::DeviceSigningKey::open(
@@ -269,7 +286,7 @@ impl Owner {
                 .transpose()
         };
         let (service, context) = match verified {
-            Verified::Bootstrap(context) => {
+            VerifiedAdmission::Bootstrap { context, role } => {
                 let device = context.device(role);
                 let installation = p::DeviceInstallation::open(
                     paths,
@@ -289,7 +306,7 @@ impl Owner {
                 )?;
                 (service, context)
             }
-            Verified::Existing(request) => {
+            VerifiedAdmission::Existing(request) => {
                 let anchor = make_anchor()?;
                 crate::opening::check(&cancel, deadline)?;
                 p::DeviceInstallation::reopen_session(
@@ -303,7 +320,7 @@ impl Owner {
             }
         };
         crate::opening::check(&cancel, deadline)?;
-        let mut owner = Self {
+        let mut owner = Box::new(Self {
             listener: None,
             native: crate::native_owner::NativeOwner::installed(service, signer),
             context,
@@ -314,7 +331,7 @@ impl Owner {
             peer_certificate: read(&directory, "tls-peer", 8192)?,
             peer_name: String::from_utf8(read(&directory, "tls-peer-name", 128)?)
                 .map_err(Failure::configuration)?,
-        };
+        });
         // Validate certificate/key/pin configuration before returning a handle.
         owner.operation()?.endpoint()?;
         crate::opening::check(&cancel, deadline)?;

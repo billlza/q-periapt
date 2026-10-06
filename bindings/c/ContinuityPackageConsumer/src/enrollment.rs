@@ -206,7 +206,7 @@ impl Owner {
         witness: Option<witness::Configuration>,
         cancel: &Cancellation,
         deadline: Instant,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         opening::check(cancel, deadline)?;
         let paths = p::EnrollmentPaths::new(
             &path.join("wrap.key"),
@@ -219,7 +219,7 @@ impl Owner {
         } else {
             p::DeviceEnrollment::open(paths, approved.native)?
         };
-        let result = Self {
+        let result = Box::new(Self {
             path: path.into(),
             enrollment,
             family: approved.family,
@@ -227,7 +227,7 @@ impl Owner {
             target_authority: None,
             historical: None,
             witness,
-        };
+        });
         opening::check(cancel, deadline)?;
         Ok(result)
     }

@@ -554,7 +554,7 @@ unsafe fn open_owner(
             slot.invocation.clone(),
             deadline,
         )?;
-        let id = slot.publish(Owned::Operational(Box::new(owner)), deadline)?;
+        let id = slot.publish(Owned::Operational(owner), deadline)?;
         unsafe { put(handle, id) };
         Ok(())
     };

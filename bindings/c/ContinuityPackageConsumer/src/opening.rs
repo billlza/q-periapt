@@ -106,17 +106,25 @@ impl Request {
         let path = Path::new(&self.path);
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
+        // Large constructors return their final heap owner. Constructing those
+        // boxes here reserves value-sized temporaries for unrelated match arms
+        // even while an operational owner is signing on a foreign worker stack.
         let owner = match self.kind {
-            Kind::Enrollment { create, approved } => Owned::Enrollment(Box::new(
-                enrollment::Owner::open(path, create, *approved, self.witness, &cancel, deadline)?,
-            )),
-            Kind::Setup { create } => Owned::Setup(Box::new(setup::Owner::open(
+            Kind::Enrollment { create, approved } => Owned::Enrollment(enrollment::Owner::open(
+                path,
+                create,
+                *approved,
+                self.witness,
+                &cancel,
+                deadline,
+            )?),
+            Kind::Setup { create } => Owned::Setup(setup::Owner::open(
                 path,
                 create,
                 self.witness,
                 &cancel,
                 deadline,
-            )?)),
+            )?),
             Kind::Device => Owned::Device(device::Shared::open(
                 path,
                 self.witness,
@@ -131,21 +139,21 @@ impl Request {
             } => Owned::Peer(Box::new(device::Peer::open(
                 parent, path, admission, role, &cancel, deadline,
             )?)),
-            Kind::Operational(admission) => Owned::Operational(Box::new(owner::Owner::open(
+            Kind::Operational(admission) => Owned::Operational(owner::Owner::open(
                 path,
                 admission,
                 self.witness,
                 cancel,
                 invocation,
                 deadline,
-            )?)),
-            Kind::Recovery => Owned::Recovery(Box::new(recovery::Recovery::open(
+            )?),
+            Kind::Recovery => Owned::Recovery(recovery::Recovery::open(
                 path,
                 self.witness,
                 cancel,
                 invocation,
                 deadline,
-            )?)),
+            )?),
         };
         check(&entry.cancel, deadline)?;
         Ok(owner)
