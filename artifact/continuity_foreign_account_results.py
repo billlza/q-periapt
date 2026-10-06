@@ -1,9 +1,11 @@
 """Foreign complete-account result and retirement paths through the shared engine.
 
-C performs enrollment, updates and individual-member closure. The selected
-foreign client performs every complete result read and final metadata retirement.
+C performs enrollment, local P/R and individual-member closure. The selected
+foreign client performs peer-roster admission, actual interruption and every
+complete result read and final metadata retirement; C retains raw input controls.
 """
 from pathlib import Path
+from collections import Counter
 import re
 
 import rust_sdk_profile as sdk
@@ -22,6 +24,23 @@ CASES = (("signed-TCP", "None"), ("mutual-TLS", "None"),
          *(("mutual-TLS", "Some(" + cut + ")") for cut in
            ("LostReply", "CancelInFlight", "KillProcess")))
 
+CALL_LABEL_COUNTS = {"peer-roster-pre-cancel": 9, "peer-roster-revoke": 2,
+    "peer-roster-exact-retry": 2, "peer-roster-interrupted": 5, "peer-roster-exact-retry-after-cut": 7}
+RAW_LABEL_COUNTS = dict(CALL_LABEL_COUNTS, **{"peer-roster-killed": 2})
+
+
+def peer_markers(language: str) -> list[str]:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified peer roster language")
+    return [f"FOREIGN_PEER_ROSTER language={language} carrier={carrier} cut={cut} "
+            "exact_target=true original_parent=true complete_foreign_results=true "
+            "C_registration_P_R_member_closure_and_raw_controls=true" for carrier, cut in CASES]
+
+
+def peer_native_marker(marker: str) -> str:
+    # Typed callers cannot inspect raw success-output memory after a native error.
+    # The C-only run separately preserves that original sentinel assertion.
+    return marker.replace("unchanged_error_output=true", "typed_error_results=true")
+
 
 def markers(language: str) -> list[str]:
     sdk.require(language in {"Swift", "Kotlin"}, "unqualified account reconciliation language")
@@ -39,17 +58,32 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     expected = markers(language)
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign account reconciliation scope differs")
+    peer = re.findall(r"^FOREIGN_PEER_ROSTER .*?$", text, re.MULTILINE)
+    sdk.require(len(peer) == len(CASES) and set(peer) == set(peer_markers(language)),
+                "foreign peer roster scenario scope differs")
+    for prefix, expected_counts in (("FOREIGN_PEER_ROSTER_CALL", CALL_LABEL_COUNTS),
+                                   ("FOREIGN_PEER_ROSTER_RAW_CONTROL", RAW_LABEL_COUNTS)):
+        observed_calls = re.findall(r"^" + prefix + r" language=(\S+) label=(\S+)$", text, re.MULTILINE)
+        sdk.require(observed_calls and all(row[0] == language for row in observed_calls) and
+                    Counter(row[1] for row in observed_calls) == expected_counts,
+                    "foreign peer roster dispatch differs: " + prefix)
+    killed = re.findall(r"^FOREIGN_PEER_ROSTER_KILLED .*?$", text, re.MULTILINE)
+    sdk.require(killed == [f"FOREIGN_PEER_ROSTER_KILLED language={language} signal=9 actual_processed_barrier=true"] * 2,
+                "foreign peer roster process cuts were not observed")
     for marker in MARKERS:
         if marker.split(" ", 1)[0] in {
             "C_REQUIRED_PEER_REVOCATION", "C_PEER_ROSTER_INTERRUPTION", "C_PEER_ROSTER_TLS_INTERRUPTION"
         }:
             prefix = marker.split(" ", 1)[0]
-            sdk.require(re.findall(r"^" + prefix + r" .*?$", text, re.MULTILINE) == [marker],
+            sdk.require(re.findall(r"^" + prefix + r" .*?$", text, re.MULTILINE) == [peer_native_marker(marker)],
                         "foreign reconciliation underlying scenario differs: " + prefix)
     return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES),
-                scope="foreign complete-account result observation and metadata retirement; "
-                      "C enrollment, policy/roster updates and individual-member closure; shared native protocol engine",
-                Swift_Kotlin_policy_roster_updates_qualified=False,
+                scope="foreign current peer-roster admission, pre-cancel and in-flight cancellation, "
+                      "actual process cuts after observed witness processing, unknown-commit exact-target recovery, "
+                      "complete original account result observation and metadata retirement; "
+                      "C registration, local P/R updates, individual-member closure and raw input controls; shared native engine",
+                foreign_peer_roster_calls=25, foreign_peer_roster_kills=2, C_raw_input_control_invocations=27,
+                peer_roster_admission_qualified=True, local_P_R_updates_qualified=False,
                 TLS_preprocessing_loss_qualified=False, independent_protocol_implementation=False,
                 physical_platform_qualified=False, release_claim_eligible=False)
 
@@ -77,7 +111,9 @@ def qualify(output: Path, profile: str, runtime: dict, native: dict, binary: Pat
     foreign_identity = sdk.snapshot(foreign, maximum=c.MAX_BINARY)
     selected = dict(runtime, QPERIAPT_C_OWNER_CLIENT=str(c_client),
                     QPERIAPT_INSTALLED_CLIENT_LANGUAGE="C", QPERIAPT_ACCOUNT_RESULT_CLIENT=str(foreign),
-                    QPERIAPT_ACCOUNT_RESULT_LANGUAGE=language)
+                    QPERIAPT_ACCOUNT_RESULT_LANGUAGE=language,
+                    QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT=str(foreign),
+                    QPERIAPT_PEER_ROSTER_LIFECYCLE_LANGUAGE=language)
     selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
     label = "account-reconciliation-" + profile + variant
     stdout = run([str(binary), "--exact", *sorted(TESTS), "--nocapture"], label, runtime=selected)

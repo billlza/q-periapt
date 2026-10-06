@@ -90,6 +90,7 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "RosterRefreshTests.testRosterPreparationChecksCanonicalAbsenceAndABI",
              "RosterRefreshTests.testRosterProgressPreservesAllSixStatesAndChecksProposalScope",
              "RosterRefreshTests.testRosterCallsRespectPreparedCancelledAndClosedOwners",
+             "RosterRefreshTests.testPeerRosterAdmissionRespectsBoundsAndOwnerLifetime",
              "IndependentPolicyTests.testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains",
              "IndependentPolicyTests.testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
              "IndependentPolicyTests.testProgressKeepsEveryTerminalAndRetirementStateDistinct",

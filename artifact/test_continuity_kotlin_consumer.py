@@ -25,6 +25,27 @@ class KotlinConsumerTests(unittest.TestCase):
         for name, names in kotlin.INDEPENDENT_TEST_SUITES.items():
             (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
 
+    def test_retains_every_verified_suite_for_build_and_installed_profiles(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            suites = {"OwnerTests": kotlin.TEST_NAMES, "CredentialRenewalTests": kotlin.RENEWAL_TEST_NAMES,
+                      "PolicyContinuationTests": kotlin.POLICY_TEST_NAMES, **kotlin.INDEPENDENT_TEST_SUITES}
+            for name, names in suites.items():
+                (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
+            labels = {"owner-tests", "credential-renewal-tests", "policy-continuation-tests",
+                      "independent-policy-tests", "policy-renewal-tests", "roster-resolution-tests", "roster-refresh-tests"}
+            for profile in ("", "debug", "release"):
+                output = root / (profile or "build"); output.mkdir()
+                checked = kotlin.retain_test_reports(root, output, profile=profile)
+                suffix = "-" + profile if profile else ""
+                self.assertEqual({p.name for p in output.iterdir()}, {"kotlin-" + label + suffix + ".xml" for label in labels})
+                self.assertEqual({hashlib.sha256(p.read_bytes()).hexdigest() for p in output.iterdir()},
+                                 {row["report_sha256"] for row in checked["suites"].values()})
+                self.assertEqual(checked["tests"], 50)
+                with self.assertRaises(FileExistsError): kotlin.retain_test_reports(root, output, profile=profile)
+            with self.assertRaisesRegex(ValueError, "profile"):
+                kotlin.retain_test_reports(root, root / "unused", profile="../../outside")
+
     def test_renewal_suite_is_required_and_cannot_be_replaced_by_owner_success(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -38,7 +59,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 49)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 50)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
@@ -59,7 +80,7 @@ class KotlinConsumerTests(unittest.TestCase):
             good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
             policy.write_bytes(good)
             checked = kotlin.verify_test_reports(root)
-            self.assertEqual(checked["tests"], 49)
+            self.assertEqual(checked["tests"], 50)
             self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests", *kotlin.INDEPENDENT_TEST_SUITES})
             self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
                 "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})

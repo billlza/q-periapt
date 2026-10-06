@@ -520,10 +520,11 @@ Persist the needed complete result and settle every original member before
 `retireAccount()`. Native retirement rechecks eligibility and preserves original
 session records and consumed capacity. The `recover-account-results` and
 `recover-account-settled-retire` consumer commands exercise real revoked-account
-recovery across signed-TCP and mutual-TLS interruptions. C still performs the
-test's enrollment, P/R updates and individual-member closure. This evidence does
-not qualify Kotlin P/R update APIs, mutual-TLS pre-processing loss, Android
-Continuity persistence, physical devices or the final release.
+recovery across signed-TCP and mutual-TLS interruptions. The same Kotlin client
+now admits the peer roster and performs the interruption path described below.
+C retains enrollment, local P/R updates and individual-member closure. This
+combined workload does not qualify local P/R updates, mutual-TLS pre-processing
+loss, Android Continuity persistence, physical devices or the final release.
 
 
 ### Independent policy updates
@@ -572,7 +573,7 @@ TLS policy reply-loss, post-dispatch policy cancellation, physical process cuts,
 platform persistence and independent implementation/security review remain
 separate qualification gates. The roster-resolution types additionally decode
 historical outcomes, including SupersededUnknown. The separate required-witness
-roster update surface is described below; peer-roster admission remains open.
+roster and peer-roster surfaces are described below.
 
 The Gradle test task tracks the selected native library file as an input.
 Replacing its contents at the same path reruns native-bound unit tests; an
@@ -611,3 +612,33 @@ P adoption, invalid native grammar controls, activation and successor P requests
 This is one shared protocol engine. The foreign R qualification does not cover
 TLS commit reply loss, post-dispatch cancellation, process cuts, peer-roster
 admission, platform persistence or independent security review.
+
+
+### Current peer rosters and original account recovery
+
+`ContinuityDevice.admitPeerRoster` accepts authentic public roster bytes
+(1..65536 bytes) and an independently selected account/root/family/checkpoint.
+It updates a known remote account through the original device service. It cannot
+update the local account, replace policy or create a session. The returned
+checkpoint describes installed current state; it is not a transaction receipt.
+Rollback and same-version forks remain native errors. Exact retries still need
+current local authorization and the configured original witness.
+
+After I/O, witness or cancellation failure, close the original parent and reopen
+it under current authority, then retry the same target. Unknown commit must not
+be converted to absence or a new identity. Previously opened peers remain fenced
+by native current-roster checks. Complete-account recovery preserves every
+original member, including authenticated consumption versus unknown delivery,
+before durable host accounting permits final metadata retirement.
+
+The installed collector selects this same language for peer admission and full
+account recovery. It requires nine scenarios: ordinary revocation over signed
+TCP and mTLS; unprocessed TCP loss; processed reply loss, in-flight cancellation
+and an observed process kill over each carrier. Every language run includes
+25 completed foreign peer-control dispatches and two actual killed clients.
+C retains 27 raw input/output-buffer controls, enrollment, local P/R updates and
+individual-member closure. Foreign post-dispatch failures are checked as typed
+errors; the separate C baseline checks untouched raw success outputs. This is
+one shared native protocol engine, not an independent implementation. TLS
+pre-processing interruption, physical platforms and platform persistence remain
+separate gates.

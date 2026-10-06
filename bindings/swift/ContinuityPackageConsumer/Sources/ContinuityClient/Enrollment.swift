@@ -147,6 +147,9 @@ struct EnrollmentParentSelection {
     let role: BootstrapRole
     let policy: EnrollmentPolicyMode
     var continued: Bool { policy != .original }
+    func openDevice(witness: WitnessCarrier) throws -> ContinuityDevice {
+        try activatedEnrollment(path, witness: witness, policy: policy)
+    }
     func openPeer(path peerPath: String, session: SessionID?, witness: WitnessCarrier) throws -> ConfiguredClientOwner {
         try require(!continued || session != nil, "continued enrollment requires an original session")
         let device = try activatedEnrollment(path, witness: witness, policy: policy)

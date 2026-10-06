@@ -105,4 +105,19 @@ class RosterRefreshTests {
             for (call in calls) assertEquals(2, assertFailsWith<ContinuityFailure>(block = call).code)
         }
     }
+    @Test fun peerRosterAdmissionRespectsBoundsAndOwnerLifetime() {
+        val point = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"
+        val root = ByteArray(1952) { 1 } + point.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val account = "65e7d5f0837dbd59929a47ddbc2e93a5cacebdd11efe59129e77dea8afd54d4a".chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val pin = AccountPin(AccountID(account), root, ByteArray(32) { 3 }, RosterCheckpoint(Counter64.of(2), ByteArray(32) { 4 }))
+        val owner = ContinuityDevice.prepare("/unused")
+        owner.use {
+            for (length in listOf(0, 65537)) assertFailsWith<IllegalArgumentException> { it.admitPeerRoster(ByteArray(length), pin) }
+            for (length in listOf(1, 65536)) assertEquals(6, assertFailsWith<ContinuityFailure> { it.admitPeerRoster(ByteArray(length), pin) }.code)
+            it.cancel()
+            assertEquals(302, assertFailsWith<ContinuityFailure> { it.admitPeerRoster(byteArrayOf(1), pin) }.code)
+        }
+        assertEquals(2, assertFailsWith<ContinuityFailure> { owner.admitPeerRoster(byteArrayOf(1), pin) }.code)
+    }
+
 }

@@ -67,19 +67,24 @@ private fun run(arguments: List<String>): String {
         SessionID(decode(args[1])).also { args = args.drop(2) }
     } else null
     require(args.isNotEmpty()) { "command required" }
-    require(!(continued || independent) || existing != null) { "continued enrollment parent requires an original session" }
+    require(!(continued || independent) || existing != null || args[0] == "peer-roster-admit") { "continued enrollment parent requires an original session" }
     require(!(continued || independent) || (args[0] != "connect" && !(args[0] == "serve" && args.getOrNull(2) == "bootstrap"))) {
         "continued enrollment parent cannot bootstrap a fresh session"
     }
     require(enrolled == null || (!inFlightGC && !interruptOpening && args[0] in setOf(
         "connect", "next", "send", "uncertain-send", "status", "rekey", "serve", "serve-rekey",
-        "busy-cancel", "cancel-send", "reject-open", "witness-failed-send"))) { "registered parent requires an ordinary peer operation" }
+        "busy-cancel", "cancel-send", "reject-open", "witness-failed-send", "peer-roster-admit"))) { "registered parent requires an ordinary peer operation" }
 
     require(existing == null || (!inFlightGC && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
         "existing session requires an ordinary operational command"
     }
     require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
+    if (args[0] == "peer-roster-admit") {
+        require(enrolled != null && enrolled.second == BootstrapRole.INITIATOR && existing == null)
+        return peerRosterCommand(args, enrolled.first, witness,
+            if (independent) EnrollmentPolicy.INDEPENDENT else if (continued) EnrollmentPolicy.JOINT else EnrollmentPolicy.ORIGINAL)
+    }
     if (args[0] == "gc-owner-capacity") {
         require(args.size == 1 && witness == WitnessCarrier.Local)
         return gcOwnerCapacity()

@@ -11,6 +11,7 @@ struct Group {
     account: [u8; 32],
     renewed: bool,
     result_client: Option<AccountResultClient>,
+    peer_roster_client: Option<PolicyClient>,
 }
 struct AccountResultClient {
     executable: PathBuf,
@@ -43,6 +44,42 @@ impl AccountResultClient {
     }
 }
 impl Group {
+    fn peer_roster_inputs(&self, label: &str, args: &[OsString]) -> Result<()> {
+        let client = self
+            .peer_roster_client
+            .as_ref()
+            .ok_or("foreign peer roster client")?;
+        let command = args
+            .iter()
+            .position(|v| v == "peer-roster-admit")
+            .ok_or("peer roster command")?;
+        let mut validation = args.to_vec();
+        *validation.get_mut(command + 3).ok_or("peer roster mode")? = "validate".into();
+        validation.truncate(command + 4);
+        assert_eq!(
+            run(&self.c.path, &format!("{label}-raw-inputs"), &validation)?,
+            "peer-roster-inputs-refused\n"
+        );
+        eprintln!(
+            "FOREIGN_PEER_ROSTER_RAW_CONTROL language={} label={label}",
+            client.language
+        );
+        Ok(())
+    }
+    fn peer_roster(&self, label: &str, args: &[OsString]) -> Result<String> {
+        match &self.peer_roster_client {
+            Some(client) => {
+                self.peer_roster_inputs(label, args)?;
+                let output = run_client(&client.executable, &self.c.path, label, args)?;
+                eprintln!(
+                    "FOREIGN_PEER_ROSTER_CALL language={} label={label}",
+                    client.language
+                );
+                Ok(output)
+            }
+            None => run(&self.c.path, label, args),
+        }
+    }
     fn account_result(&self, label: &str, mode: &str, id: [u8; 32]) -> Result<String> {
         let args = self.c.arguments(vec![
             mode.into(),
@@ -180,7 +217,12 @@ fn c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_
     ] {
         account_scenario_with_cut(true, Some(cut), &[false])?;
     }
-    eprintln!("C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true");
+    let error_scope = if PolicyClient::selected_for("PEER_ROSTER")?.is_some() {
+        "typed_error_results=true"
+    } else {
+        "unchanged_error_output=true"
+    };
+    eprintln!("C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true {error_scope} original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true");
     Ok(())
 }
 fn account_scenario(revoke: bool) -> Result<()> {
@@ -321,7 +363,17 @@ fn account_scenario_with_cut(
             account,
             renewed: false,
             result_client: AccountResultClient::selected()?,
+            peer_roster_client: PolicyClient::selected_for("PEER_ROSTER")?,
         };
+        if let Some(peer) = &g.peer_roster_client {
+            let result = g
+                .result_client
+                .as_ref()
+                .ok_or("foreign peer roster needs complete foreign account recovery")?;
+            if peer.executable != result.executable || peer.language != result.language {
+                return Err("foreign peer roster and account recovery identities differ".into());
+            }
+        }
         let batch =
             decode_id(run(&g.c.path, "group-next", &g.args("account-next", &[]))?.trim_end())?;
         let [session0, session1] = g.sessions;
@@ -546,6 +598,10 @@ fn account_scenario_with_cut(
             server.finish()?;
         }
         w.join()?;
+        if let Some(client) = &g.peer_roster_client {
+            eprintln!("FOREIGN_PEER_ROSTER language={} carrier={} cut={cut:?} exact_target=true original_parent=true complete_foreign_results=true C_registration_P_R_member_closure_and_raw_controls=true",
+                client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
+        }
         if let Some(client) = &g.result_client {
             eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true C_setup_and_member_closure=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
@@ -602,8 +658,7 @@ fn revoked_recovery(
     }
     let before = snapshot(&g.c)?;
     assert_eq!(
-        run(
-            &g.c.path,
+        g.peer_roster(
             "peer-roster-pre-cancel",
             &g.args(
                 "peer-roster-admit",
@@ -662,8 +717,7 @@ fn revoked_recovery(
         let [peer0, peer1] = &g.peers;
         let [session0, session1] = g.sessions;
         assert_eq!(
-            run(
-                &g.c.path,
+            g.peer_roster(
                 "peer-roster-revoke",
                 &g.args(
                     "peer-roster-admit",
@@ -687,8 +741,7 @@ fn revoked_recovery(
             "authentic revocation changed current peer roster"
         );
         assert_eq!(
-            run(
-                &g.c.path,
+            g.peer_roster(
                 "peer-roster-exact-retry",
                 &g.args(
                     "peer-roster-admit",
@@ -809,8 +862,14 @@ fn kill_held_update(g: &Group, args: &[OsString], marker: &Path) -> Result<()> {
             .mode(0o600)
             .open(path)
     };
+    let executable = if let Some(client) = &g.peer_roster_client {
+        g.peer_roster_inputs("peer-roster-killed", args)?;
+        client.executable.clone()
+    } else {
+        executable()?
+    };
     let mut child = fixture::OwnedChild(
-        Command::new(executable()?)
+        Command::new(executable)
             .args(args)
             .stdout(Stdio::from(output(&stdout)?))
             .stderr(Stdio::from(output(&stderr)?))
@@ -843,6 +902,12 @@ fn kill_held_update(g: &Group, args: &[OsString], marker: &Path) -> Result<()> {
     assert_eq!(fixture::wait(&mut child)?.signal(), Some(9));
     assert!(fs::read(&stdout)?.is_empty());
     assert!(fs::read(&stderr)?.is_empty());
+    if let Some(client) = &g.peer_roster_client {
+        eprintln!(
+            "FOREIGN_PEER_ROSTER_KILLED language={} signal=9 actual_processed_barrier=true",
+            client.language
+        );
+    }
     Ok(())
 }
 fn interrupt_peer_update(
@@ -901,7 +966,7 @@ fn interrupt_peer_update(
         kill_held_update(g, &args, &marker)?;
     } else {
         assert_eq!(
-            run(&g.c.path, "peer-roster-interrupted", &args)?,
+            g.peer_roster("peer-roster-interrupted", &args)?,
             if matches!(cut, PeerUpdateCut::CancelInFlight) {
                 "peer-roster-cancelled-after-advance\n"
             } else {
@@ -1074,8 +1139,7 @@ fn interrupt_peer_update(
         g.c.path.join("independent-sdk"),
     )?;
     assert_eq!(
-        run(
-            &g.c.path,
+        g.peer_roster(
             "peer-roster-exact-retry-after-cut",
             &g.args(
                 "peer-roster-admit",

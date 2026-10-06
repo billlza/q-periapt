@@ -132,13 +132,13 @@ func waitMarker(_ path: String) throws {
             }
         }
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
-        if enrollmentParent?.continued == true {
+        if enrollmentParent?.continued == true && command != "peer-roster-admit" {
             try require(existing != nil && command != "connect" &&
                 !(command == "serve" && args.count > 2 && args[2] == "bootstrap"),
                 "continued enrollment requires an existing operational session")
         }
         try require(enrollmentParent == nil || ["serve", "connect", "next", "status", "rekey", "send", "uncertain-send",
-            "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open"].contains(command),
+            "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open", "peer-roster-admit"].contains(command),
             "enrollment parent requires an operational command")
         try require(existing == nil || (!command.hasPrefix("recover-") && command != "self-check"),
                     "existing session requires an operational command")
@@ -149,6 +149,12 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command == "peer-roster-admit" {
+            guard let enrollmentParent else { throw ProbeFailure.contract("peer roster needs the original enrollment parent") }
+            try require(existing == nil && enrollmentParent.role == .initiator, "peer roster owns original parent/session selection")
+            try await peerRosterCommand(args, parent: enrollmentParent, witness: witness)
+            return
+        }
         if command == "credential-peer-check" {
             try require(existing == nil, "credential peer command owns its original session selection")
             guard case .local = witness else { throw ProbeFailure.contract("credential peer workload is local-only") }

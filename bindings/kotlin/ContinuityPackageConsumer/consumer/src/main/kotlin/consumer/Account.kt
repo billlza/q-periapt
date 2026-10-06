@@ -11,7 +11,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
 /** Test-owned close set. Remove only after confirmed close; preserve every cleanup failure. */
-private class AccountOwners : AutoCloseable {
+internal class AccountOwners : AutoCloseable {
     private val owners = mutableListOf<AutoCloseable>()
     fun <T : AutoCloseable> own(owner: T): T = owner.also { owners.add(it) }
     fun close(owner: AutoCloseable) { owner.close(); check(owners.remove(owner)) }

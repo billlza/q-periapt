@@ -200,6 +200,8 @@ internal object ContinuityNative {
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "reconcile_witnessed_credential_renewal" to function("qpc_enrollment_v1_reconcile_witnessed_credential_renewal",
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "admit_peer_roster" to function("qpc_device_v1_admit_peer_roster", JAVA_LONG, ADDRESS,
+            JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "admit_peer_credential_renewal" to function("qpc_device_v1_admit_peer_credential_renewal", JAVA_LONG, ADDRESS,
             JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "setup_status" to function("qpc_setup_v1_status", JAVA_LONG, ADDRESS, ADDRESS),
@@ -795,6 +797,12 @@ internal object ContinuityNative {
             invoke(arena, "recover_historical_policy_continuation", handle, arena.bytes(operation.encoded()), arena.bytes(statement.encoded()),
                 encodePolicyDocument(arena, target), output)
             decodeCredentialRenewalStatus(Fields(output, credentialRenewalStatusLayout))
+        }
+    @JvmSynthetic internal fun admitPeerRoster(handle: Long, roster: ByteArray, pin: AccountPin): RosterCheckpoint =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(checkpointLayout)
+            invoke(arena, "admit_peer_roster", handle, arena.bytes(roster), roster.size.toLong(), encodeAccountPin(arena, pin), output)
+            decodeRosterCheckpoint(output.toArray(JAVA_BYTE))
         }
     @JvmSynthetic internal fun admitPeerCredentialRenewal(handle: Long, wire: ByteArray, pin: AccountPin,
                                                           operation: CredentialRenewalID): RosterCheckpoint {

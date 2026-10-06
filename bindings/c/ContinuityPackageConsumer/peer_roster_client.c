@@ -40,6 +40,10 @@ static int peer_roster_command(int argc,char **argv,uint64_t parent) {
     credential_expect(qpc_device_v1_admit_peer_roster(parent,wire,length,&pin,&result,&error),QPC_CHECKPOINT,&error);
     pin.checkpoint.digest[0]^=1;
     if(memcmp(&result,&untouched,sizeof(result))) fail("failed roster admission changed output");
+    if(!strcmp(mode,"validate")) {
+        if(argc!=5) fail("peer roster validation arguments");
+        close_owner(parent);puts("peer-roster-inputs-refused");return 0;
+    }
     if(!strcmp(mode,"lost") || !strcmp(mode,"cancel-active")) {
         int cancelling=!strcmp(mode,"cancel-active");
         if(argc!=(cancelling ? 6 : 5)) fail("peer roster interruption arguments");

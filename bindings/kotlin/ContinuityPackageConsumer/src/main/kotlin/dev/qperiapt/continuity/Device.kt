@@ -57,6 +57,16 @@ class ContinuityDevice private constructor(private val native: NativeOwner) : Au
         activate(preparePeer(path, quality, role))
     fun reopenPeer(path: String, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
         activate(preparePeerReopen(path, quality, role, session))
+    /** Admit an independently pinned current roster for a known remote account.
+     * This cannot update the local account, replace policy or create a session.
+     * A checkpoint is current state, not a transaction receipt. After I/O,
+     * witness or cancellation failure, reopen the original parent and retry the
+     * same target; lack of a returned result never proves no commit. */
+    fun admitPeerRoster(roster: ByteArray, pin: AccountPin): RosterCheckpoint {
+        require(roster.size in 1..65536) { "peer roster must contain 1..65536 bytes" }
+        val copied = roster.clone()
+        return native.call { ContinuityNative.admitPeerRoster(it, copied, pin) }
+    }
     /** Admit a remote root grant through this original service and exact policy.
      * This cannot renew the local identity or refresh existing peer views. Reopen
      * each original session explicitly; failures retain the original operation.

@@ -76,6 +76,7 @@ INDEPENDENT_TEST_SUITES = {
         "rosterPreparationChecksCanonicalAbsenceAndABI",
         "rosterProgressPreservesAllSixStatesAndChecksProposalScope",
         "rosterCallsRespectPreparedCancelledAndClosedOwners",
+        "peerRosterAdmissionRespectsBoundsAndOwnerLifetime",
     }),
     "PolicyRenewalTests": frozenset({
         "nativeLayoutsAndOffsetsMatchTheCanonicalCRecord",
@@ -211,6 +212,20 @@ def verify_test_reports(directory: Path) -> dict:
         "TEST-dev.qperiapt.continuity." + name + ".xml")).data, name, names)
         for name, names in expected.items()}
     return {"tests": sum(row["tests"] for row in suites.values()), "suites": suites}
+
+
+def retain_test_reports(directory: Path, output: Path, *, profile: str = "") -> dict:
+    sdk.require(profile in {"", "debug", "release"}, "unqualified JVM test report profile")
+    checked = verify_test_reports(directory)
+    suffix = "-" + profile if profile else ""
+    for name, record in checked["suites"].items():
+        data = sdk.snapshot(directory / ("TEST-dev.qperiapt.continuity." + name + ".xml")).data
+        sdk.require(hashlib.sha256(data).hexdigest() == record["report_sha256"],
+                    "JVM test report changed before retention")
+        label = re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
+        with (output / ("kotlin-" + label + suffix + ".xml")).open("xb") as stream:
+            stream.write(data)
+    return checked
 
 
 def verify_execution(stdout: bytes, directory: Path) -> dict:
@@ -397,11 +412,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
         run([*flags, "--project-dir", str(builder), "test", "publishContinuityPublicationToCandidateRepository",
              "-Pqperiapt.continuity.lib=" + str(debug_lib)], "build-sdk")
         tests = builder / "build/test-results/test"
-        tested = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
-        result["owner_tests"] = verify_test_reports(tests)
-        with (output / "kotlin-owner-tests.xml").open("xb") as stream: stream.write(tested)
-        sdk.copy(tests / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml", output / "kotlin-credential-renewal-tests.xml")
-        sdk.copy(tests / "TEST-dev.qperiapt.continuity.PolicyContinuationTests.xml", output / "kotlin-policy-continuation-tests.xml")
+        result["owner_tests"] = retain_test_reports(tests, output)
         staged = builder / "build/candidate-maven"
         maven = outside / "kotlin-maven"
         for path in (staged / contract.path).iterdir(): sdk.copy(path, maven / contract.path / path.name)
@@ -445,11 +456,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             library_path = installed / "native/lib" / library_name
             run([*flags, "--project-dir", str(builder), "--rerun-tasks", "test",
                  "-Pqperiapt.continuity.lib=" + str(library_path)], "owner-tests-" + profile)
-            test_bytes = sdk.snapshot(tests / "TEST-dev.qperiapt.continuity.OwnerTests.xml").data
-            owner_tests = verify_test_reports(tests)
-            with (output / f"kotlin-owner-tests-{profile}.xml").open("xb") as stream: stream.write(test_bytes)
-            sdk.copy(tests / "TEST-dev.qperiapt.continuity.CredentialRenewalTests.xml", output / f"kotlin-credential-renewal-tests-{profile}.xml")
-            sdk.copy(tests / "TEST-dev.qperiapt.continuity.PolicyContinuationTests.xml", output / f"kotlin-policy-continuation-tests-{profile}.xml")
+            owner_tests = retain_test_reports(tests, output, profile=profile)
             classpath = os.pathsep.join(str(distribution / "lib" / name) for name in sorted(jar_files))
             argv = [str(java), "--enable-native-access=ALL-UNNAMED", "--illegal-native-access=deny",
                     "-Dqperiapt.continuity.lib=" + str(library_path), "-cp", classpath, "consumer.ContinuityClientKt"]

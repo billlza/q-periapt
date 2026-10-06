@@ -119,4 +119,31 @@ final class RosterRefreshTests: XCTestCase {
         XCTAssertThrowsError(try owner.finishOpen()) { XCTAssertEqual(($0 as? ContinuityFailure)?.code, 302) }
         for call in calls { XCTAssertThrowsError(try call()) { XCTAssertEqual(($0 as? ContinuityFailure)?.code, 2) } }
     }
+    func testPeerRosterAdmissionRespectsBoundsAndOwnerLifetime() throws {
+        let point = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"
+        let octets = Array(point.utf8)
+        let classic = try stride(from: 0, to: octets.count, by: 2).map {
+            try XCTUnwrap(UInt8(String(decoding: octets[$0..<($0 + 2)], as: UTF8.self), radix: 16))
+        }
+        let root = [UInt8](repeating: 1, count: 1952) + classic
+        let pin = try AccountPin(account: AccountID(bytes: [101, 231, 213, 240, 131, 125, 189, 89, 146, 154, 71, 221, 188, 46, 147, 165, 202, 206, 189, 209, 30, 254, 89, 18, 158, 119, 222, 168, 175, 213, 77, 74]), root: root,
+            family: [UInt8](repeating: 3, count: 32), checkpoint: RosterCheckpoint(version: 2, digest: [UInt8](repeating: 4, count: 32)))
+        let device = try ContinuityDevice.prepare(path: "/unused")
+        defer { XCTAssertNoThrow(try device.close()) }
+        for count in [0, 65537] {
+            XCTAssertThrowsError(try device.admitPeerRoster(roster: [UInt8](repeating: 1, count: count), pin: pin)) {
+                XCTAssertEqual($0 as? ContinuityBoundaryError, .inputLength)
+            }
+        }
+        for count in [1, 65536] {
+            XCTAssertThrowsError(try device.admitPeerRoster(roster: [UInt8](repeating: 1, count: count), pin: pin)) {
+                XCTAssertEqual(($0 as? ContinuityFailure)?.code, 6)
+            }
+        }
+        try device.cancel()
+        XCTAssertThrowsError(try device.admitPeerRoster(roster: [1], pin: pin)) { XCTAssertEqual(($0 as? ContinuityFailure)?.code, 302) }
+        let closed = try ContinuityDevice.prepare(path: "/unused"); try closed.close()
+        XCTAssertThrowsError(try closed.admitPeerRoster(roster: [1], pin: pin)) { XCTAssertEqual(($0 as? ContinuityFailure)?.code, 2) }
+    }
+
 }

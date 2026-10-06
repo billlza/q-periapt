@@ -8,6 +8,17 @@ import continuity_foreign_account_results as results
 
 
 class ForeignAccountResultsTests(unittest.TestCase):
+    @staticmethod
+    def scope(language):
+        rows = results.markers(language) + results.peer_markers(language)
+        rows += [results.peer_native_marker(row) for row in results.MARKERS]
+        rows += [f"FOREIGN_PEER_ROSTER_CALL language={language} label={label}"
+                 for label, count in results.CALL_LABEL_COUNTS.items() for _ in range(count)]
+        rows += [f"FOREIGN_PEER_ROSTER_RAW_CONTROL language={language} label={label}"
+                 for label, count in results.RAW_LABEL_COUNTS.items() for _ in range(count)]
+        rows += [f"FOREIGN_PEER_ROSTER_KILLED language={language} signal=9 actual_processed_barrier=true"] * 2
+        return rows
+
     def test_collector_selects_foreign_results_and_binds_both_executables(self):
         for language, variant in (("Swift", ""), ("Kotlin", "-g1")):
             with tempfile.TemporaryDirectory() as folder:
@@ -28,9 +39,11 @@ class ForeignAccountResultsTests(unittest.TestCase):
                     self.assertEqual(runtime["QPERIAPT_C_OWNER_CLIENT"], str(primary))
                     self.assertEqual(runtime["QPERIAPT_ACCOUNT_RESULT_CLIENT"], str(foreign))
                     self.assertEqual(runtime["QPERIAPT_ACCOUNT_RESULT_LANGUAGE"], language)
+                    self.assertEqual(runtime["QPERIAPT_PEER_ROSTER_LIFECYCLE_CLIENT"], str(foreign))
+                    self.assertEqual(runtime["QPERIAPT_PEER_ROSTER_LIFECYCLE_LANGUAGE"], language)
                     self.assertEqual(runtime["QPERIAPT_INSTALLED_CLIENT_LANGUAGE"], "C")
                     self.assertNotIn("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", runtime)
-                    scope = results.markers(language) + list(results.MARKERS)
+                    scope = self.scope(language)
                     (root / (language.lower() + "-" + label + ".stderr")).write_text("\n".join(scope) + "\n")
                     if mutate:
                         foreign.write_bytes(b"substituted")
@@ -45,17 +58,14 @@ class ForeignAccountResultsTests(unittest.TestCase):
     def test_exact_cases_are_required_for_each_foreign_language(self):
         stdout = ("".join("test " + name + " ... ok\n" for name in sorted(results.TESTS)) +
                   "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out;\n").encode()
-        underlying = [marker for marker in results.MARKERS if marker.split(" ", 1)[0] in {
-            "C_REQUIRED_PEER_REVOCATION", "C_PEER_ROSTER_INTERRUPTION", "C_PEER_ROSTER_TLS_INTERRUPTION"
-        }]
         for language in ("Swift", "Kotlin"):
-            markers = results.markers(language) + underlying
+            markers = [row for row in self.scope(language) if row.startswith(("FOREIGN_", "C_REQUIRED_PEER_REVOCATION", "C_PEER_ROSTER_INTERRUPTION", "C_PEER_ROSTER_TLS_INTERRUPTION"))]
             stderr = ("\n".join(markers) + "\n").encode()
             self.assertEqual(results.verify_execution(stdout, stderr, language=language)["cases"], 9)
             for marker in markers:
                 for changed in (stderr.replace((marker + "\n").encode(), b""),
                                 stderr + marker.encode() + b"\n",
-                                stderr.replace(marker.encode(), marker.replace("true", "false", 1).encode())):
+                                stderr.replace(marker.encode(), (marker.replace("true", "false", 1) if "true" in marker else marker.replace("language=", "language=wrong-")).encode())):
                     with self.subTest(language=language, marker=marker), self.assertRaises(ValueError):
                         results.verify_execution(stdout, changed, language=language)
             for changed in (stdout.replace(b"0 ignored", b"1 ignored"),
