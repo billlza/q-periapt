@@ -177,6 +177,12 @@ impl Witness {
                         "witness-cancelled-prefix",
                         &prefix,
                     )?;
+                    if !commit_error {
+                        // Configure the bounded read before publishing permission
+                        // to kill the peer. Darwin can reject setsockopt with
+                        // EINVAL once that peer has reset this socket.
+                        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+                    }
                     fixture::publish_marker(
                         marker.parent().ok_or("marker parent")?,
                         marker
@@ -186,7 +192,6 @@ impl Witness {
                             .ok_or("marker encoding")?,
                     )?;
                     if !commit_error {
-                        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
                         let mut byte = [0];
                         require_held_peer_disconnect(stream.read(&mut byte))?;
                     }

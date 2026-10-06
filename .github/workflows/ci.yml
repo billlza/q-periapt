@@ -1889,9 +1889,10 @@ jobs:
     needs: rust-publish-contract
     # OpenSSL >= 3.5 is required by the independent PQ TLS witness peer.
     runs-on: ubuntu-26.04
-    # Debug/Release Rust/C lifecycle workloads reached completion at the former
-    # 30-minute job limit. Preserve individual command and transport deadlines.
-    timeout-minutes: 45
+    # The timed-out run reached Release account cleanup after Debug completed.
+    # Allow the remaining Release lifecycle/fault workloads to run;
+    # individual command (15 minutes) and transport deadlines stay unchanged.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
