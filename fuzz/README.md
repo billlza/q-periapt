@@ -61,10 +61,12 @@ artifacts are retained, including on failure. This short run is a regression
 check; longer campaigns and stateful Continuity coverage remain separate.
 Historical execution counts from older dependency graphs are not current evidence.
 
-The corrected job has a retained [Linux execution capture](../research/sdk-alpha1/evidence/20261007-bounded-fuzz/linux-ci/README.md)
-for product source `d51b2c30`: all three bounded targets completed. Its auxiliary
-CI branch contains the same non-workflow source and fuzz steps; that result does
-not replace the product branch's complete CI or qualify subsequent source changes.
+The corrected job has retained [initial Linux execution](../research/sdk-alpha1/evidence/20261007-bounded-fuzz/linux-ci/README.md)
+and [hardened-runner execution](../research/sdk-alpha1/evidence/20261007-bounded-fuzz/linux-hardened-ci/README.md)
+captures. The latter matches product source `6ece94f2`, including the statistics
+check through the repository's Python launcher; all three bounded targets completed.
+The auxiliary CI branch contains the same non-workflow source and fuzz steps.
+These results do not replace the product branch's complete CI or qualify later changes.
 
 ## Seed corpus
 
