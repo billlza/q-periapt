@@ -846,10 +846,11 @@ jobs:
             target/sdk-wasm-node24-minimum/*.stdout
             target/sdk-wasm-node24-minimum/*.stderr
 
-  # Robustness fuzzing (nightly + libFuzzer). The fuzz crate is detached from the
-  # workspace; this compiles every target. (Time-boxed runs are done locally.)
+  # Bounded robustness fuzzing, using the actual detached crate and seeded inputs.
+  # A crash, timeout, sanitizer error or missing execution statistics fails the job.
   fuzz:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -858,10 +859,62 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
       - uses: dtolnay/rust-toolchain@efcb852328a9f50117170cc43094fb6f09eaf1ae # nightly
-      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
-      - run: cargo +nightly fetch --manifest-path fuzz/Cargo.toml --locked
-      - run: CARGO_NET_OFFLINE=true cargo +nightly fuzz build --fuzz-dir fuzz
+        with:
+          toolchain: nightly-2026-10-07
+          components: rust-src
+      - run: cargo +nightly-2026-10-07 install cargo-fuzz --version 0.13.2 --locked
+      - run: cargo +nightly-2026-10-07 fetch --manifest-path fuzz/Cargo.toml --locked
+      - name: Generate and check structured corpus seeds
+        run: cargo +1.98.1 run --locked -p q-periapt-backends --example gen_fuzz_corpus
+        env:
+          RUSTFLAGS: -D warnings
+      - run: CARGO_NET_OFFLINE=true cargo +nightly-2026-10-07 fuzz build --fuzz-dir fuzz
+        env:
+          RUSTFLAGS: -D warnings
+          CFLAGS: -fsanitize=address -fno-omit-frame-pointer
+          CC: clang
+          CXX: clang++
+      - name: Execute each fuzz target with AddressSanitizer
+        shell: bash
+        env:
+          CARGO_NET_OFFLINE: "true"
+          RUSTFLAGS: -D warnings
+          CFLAGS: -fsanitize=address -fno-omit-frame-pointer
+          CC: clang
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          mkdir -p target/fuzz-execution
+          rustc +nightly-2026-10-07 -Vv > target/fuzz-execution/rustc.txt
+          cargo fuzz --version > target/fuzz-execution/cargo-fuzz.txt
+          clang --version > target/fuzz-execution/clang.txt
+          for target in combine mlkem_decapsulate transport; do
+            cargo +nightly-2026-10-07 fuzz run --fuzz-dir fuzz "$target" -- \
+              -max_total_time=60 -timeout=10 -rss_limit_mb=1024 \
+              -malloc_limit_mb=128 -max_len=65536 -seed=1 -print_final_stats=1 \
+              2>&1 | tee "target/fuzz-execution/$target.log"
+          done
+          python3 - <<'PY'
+          import pathlib
+          import re
+          for target in ("combine", "mlkem_decapsulate", "transport"):
+              text = pathlib.Path(f"target/fuzz-execution/{target}.log").read_text()
+              counts = re.findall(r"^stat::number_of_executed_units:\s+(\d+)\s*$", text, re.M)
+              if len(counts) != 1 or int(counts[0]) <= 0:
+                  raise SystemExit(f"{target}: missing or empty libFuzzer execution statistics")
+          PY
+      - name: Retain fuzz logs, corpora and crash artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-execution
+          path: |
+            target/fuzz-execution/
+            fuzz/corpus/
+            fuzz/artifacts/
+          if-no-files-found: error
 
   bindings-swift:
     runs-on: macos-latest

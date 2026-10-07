@@ -27,6 +27,13 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "transport"
+path = "fuzz_targets/transport.rs"
+test = false
+doc = false
+bench = false
+
 # Detached from the main workspace so the nightly/libFuzzer-only fuzz crate does
 # not affect the stable `cargo build/clippy --workspace` gate.
 [workspace]
