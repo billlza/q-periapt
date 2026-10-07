@@ -6,7 +6,7 @@
 #   easycrypt why3config
 
 EC  ?= easycrypt
-SRC := BindingViaCR.ec MigrationBindingV2.ec
+SRC := BindingViaCR.ec MigrationBindingV2.ec JRejectionCountermodel.ec
 MIGRATION_SRC := MigrationBindingV2.ec
 MIGRATION_LEMMAS := \
 	migration_v2_contract_constants_exact \

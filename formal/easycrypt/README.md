@@ -134,8 +134,34 @@ counterexample. Migration semantic controls are instead checked lemmas in
 `MigrationBindingV2.ec`, required by the Makefile inventory. In particular,
 `kctx_without_nonbottom_broken` constructs two rejecting executions with distinct contexts and
 proves a probability-1 win when the explicit-rejection game omits `K != bottom`. The file does not
-currently contain a corresponding semantic countermodel for removing the `jrej_inj` idealization;
-the script's J-related controls establish only that the present reduction scripts use that axiom.
+use those tactic failures as a semantic countermodel for `jrej_inj`.
+`JRejectionCountermodel.ec` now supplies a separate, assumption-free construction:
+a constant 32-element rejection output breaks the omitted-ciphertext, X-Wing-shaped
+K-CT and seed-format K-PK comparisons with probability one, even with an injective
+seed association. The corresponding encoded outer-hash inputs are equal. This
+shows why these comparisons cannot discard all rejection-function binding
+assumptions; it does not prove that global injectivity is the weakest sufficient
+assumption, and is not an attack against ML-KEM, X-Wing or SHAKE.
+
+`BindingContract.json` records the seven existing assumptions and all 59 named
+lemma statements across the binding development and this countermodel. CI checks
+that inventory before the mandatory compiler run. Added/changed assumptions,
+removed/changed claims, dependency changes and proof escapes fail the inventory
+gate; comments cannot satisfy it. Proof bodies, definitions, standard-library
+trust and implementation correspondence still require the compiler and review.
+Run the same declaration check from the repository root with:
+
+```sh
+sh artifact/python-run.sh artifact/easycrypt_binding_contract.py
+```
+
+The earlier ContextBound reductions do not use `zof_inj` or `jrej_inj`. The
+later comparisons that do use them remain conditional idealizations. In
+particular, global injectivity of a fixed 32-byte rejection output over its
+complete input domain cannot hold for the implementation. Replacing it with a
+computational collision bound, including any seed-derivation collision term,
+is separate proof work. The byte model is also `int list`; the `be8` assumptions
+do not themselves prove the bounded-byte Rust encoding correspondence.
 
 ## Tool
 
