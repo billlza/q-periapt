@@ -34,6 +34,9 @@ FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Exact tracked Rust inventory, including native and C lifecycle sources.
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = 419
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
+# The unchanged Metrics query took 304 seconds on the pinned frozen database.
+# Keep lighter queries/decoding bounded separately; this is not a quality bypass.
+CODEQL_METRICS_TIMEOUT_SECONDS = 900
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
@@ -496,7 +499,11 @@ def _run_query(
                 "--",
                 str(query),
             ],
-            timeout_seconds=CODEQL_COMMAND_TIMEOUT_SECONDS,
+            timeout_seconds=(
+                CODEQL_METRICS_TIMEOUT_SECONDS
+                if query == METRICS_QUERY
+                else CODEQL_COMMAND_TIMEOUT_SECONDS
+            ),
             maximum_bytes=MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES,
             stderr=subprocess.STDOUT,
         )

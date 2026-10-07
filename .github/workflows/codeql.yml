@@ -20,8 +20,8 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
-    # Full Rust queries exceeded 90 minutes; retain time for quality and diagnostics.
-    timeout-minutes: ${{ matrix.language == 'rust' && 180 || 60 }}
+    # Keep the 150-minute Analyze bound plus independent quality/retention time.
+    timeout-minutes: ${{ matrix.language == 'rust' && 210 || 60 }}
     permissions:
       actions: read
       contents: read

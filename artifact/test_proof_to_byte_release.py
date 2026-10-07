@@ -1607,8 +1607,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("inherited process environment and OS runtime are trusted", normalized)
         self.assertIn(
             "Each custom query receives a fixed four-thread, 14,000 MB evaluator "
-            "budget while retaining its 300-second process deadline and bounded "
-            "diagnostic output; a resource or deadline failure blocks publication.",
+            "budget with a 900-second Metrics deadline and 300-second deadlines "
+            "for other queries and decoding, plus bounded diagnostic output; a "
+            "resource or deadline failure blocks publication.",
             normalized,
         )
         self.assertIn("public-repository Rust `ubuntu-latest` lane", normalized)

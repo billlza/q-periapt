@@ -47,7 +47,7 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 `cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
-The Rust job has a 180-minute bound, with a 150-minute limit on the upstream Analyze
+The Rust job has a 210-minute bound, with a 150-minute limit on the upstream Analyze
 step so checkout verification, the separate quality gate and diagnostic retention can finish.
 The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
 52-minute evaluation. Later full analyses reached the 90-minute step limit while still
@@ -61,8 +61,17 @@ adequacy remains subject to current-source CI results.
 
 Rust and Swift emit the pinned action's diagnostic artifacts, which can
 include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
-code-scanning results or release evidence. No query is removed, and the custom quality queries
-retain their independent 300-second limits below.
+code-scanning results or release evidence. No query is removed. On source `4fc8412a`,
+all 39 upstream queries completed, but the separate `Metrics.ql` process timed out
+at 300 seconds. An [unchanged-query bundle replay](https://github.com/billlza/q-periapt/actions/runs/37700675470)
+then completed Metrics in 304 seconds (about 65 seconds compiling and 235 evaluating),
+ExtractedPaths in 42 seconds and UnresolvedMacros in 28 seconds. All original quality
+assertions passed for that database's exact 418-source inventory. The bundle retains
+a trimmed cache; it is not the original evaluator directory, cold extraction, or
+current-source qualification. The first replay failed before querying because its
+admission code assumed a partial-archive layout; that failed attempt remains recorded.
+The measured overrun motivates a separate 900-second Metrics allowance and the larger
+job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
 419 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
@@ -74,7 +83,8 @@ zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` 
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that
 generated code. The canonical Rust 1.98.1 all-target compile and the separate WASM Node gate cover
 those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
-budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
+budget with a 900-second Metrics deadline and 300-second deadlines for other queries and decoding,
+plus bounded diagnostic output; a resource or
 deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
 upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
 publish results. The quality adapter accepts no environment-selected executable, database, or

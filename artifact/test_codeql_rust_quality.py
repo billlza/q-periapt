@@ -1338,6 +1338,23 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ],
         )
 
+        for selected, seconds in (
+            (codeql_rust_quality.METRICS_QUERY, 900),
+            (codeql_rust_quality.EXTRACTED_PATHS_QUERY, 300),
+            (codeql_rust_quality.UNRESOLVED_MACROS_QUERY, 300),
+        ):
+            with self.subTest(query=selected.name), mock.patch.object(
+                codeql_rust_quality, "capture_stdout", return_value=BoundedResult(0, b"")
+            ) as capture, mock.patch.object(
+                codeql_rust_quality, "_revalidate_fixed_codeql_bindings"
+            ):
+                codeql_rust_quality._run_query(bindings, selected, output)
+            self.assertEqual(capture.call_args.kwargs["timeout_seconds"], seconds)
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 4 * 1024 * 1024)
+            self.assertIn("--warnings=error", capture.call_args.args[0])
+            self.assertIn("--threads=4", capture.call_args.args[0])
+            self.assertIn("--ram=14000", capture.call_args.args[0])
+
         valid = b'{"#select":{"tuples":[]}}'
         with mock.patch.object(
             codeql_rust_quality,
@@ -1388,6 +1405,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
         )
         self.assertIsInstance(assignments["CODEQL_QUERY_THREADS"], ast.Constant)
         self.assertIsInstance(assignments["CODEQL_QUERY_RAM_MB"], ast.Constant)
+        for name, value in (("CODEQL_COMMAND_TIMEOUT_SECONDS", 300),
+                            ("CODEQL_METRICS_TIMEOUT_SECONDS", 900)):
+            self.assertIsInstance(assignments[name], ast.Constant)
+            self.assertEqual(ast.literal_eval(assignments[name]), value)
 
     def test_tracked_inventory_is_nonempty_and_nul_terminated(self) -> None:
         tracked = codeql_rust_quality.tracked_rust_paths()
