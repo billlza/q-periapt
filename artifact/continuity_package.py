@@ -33,7 +33,7 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         "artifact/continuity_foreign_account_results.py", "artifact/continuity_foreign_policy.py",
-        "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py",
+        "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py", "artifact/continuity_device_retirement.py",
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
         "artifact/continuity_c_account_tls.py", "artifact/continuity_c_account_tls_loss.py", "artifact/continuity_c_account_delivery.py", "artifact/continuity_c_setup.py", "artifact/continuity_c_enrollment.py", "artifact/continuity_c_independent_policy.py", "artifact/continuity_witnessed_renewal.py", "artifact/continuity_witnessed_policy_expiry.py", "artifact/continuity_witnessed_cancellation.py", "artifact/continuity_witnessed_commit_error.py", "artifact/continuity_setup_faults.py", "artifact/continuity_setup_io.py", "artifact/continuity_setup_witness_faults.py",
         "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
@@ -96,10 +96,11 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
 
 
 def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, roster_directory: Path,
-                     replacement_directory: Path) -> dict:
+                     replacement_directory: Path, retirement_directory: Path) -> dict:
     from continuity_roster_renewal import verify as verify_roster_renewal
     from continuity_enrollment import verify as verify_enrollment
     from continuity_device_replacement import verify as verify_replacement
+    from continuity_device_retirement import verify as verify_retirement
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == 3 and set(passed) == TESTS and re.search(
@@ -144,7 +145,8 @@ def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, ros
     return dict(report, enrollment=enrollment, application_readbacks=readbacks, cleanup_id=cleanup[0].hex(),
                 session_reopen=verify_reopen_execution(reopen_directory),
                 roster_renewal=verify_roster_renewal(roster_directory),
-                device_replacement=verify_replacement(replacement_directory))
+                device_replacement=verify_replacement(replacement_directory),
+                device_retirement=verify_retirement(retirement_directory))
 
 
 
@@ -344,7 +346,12 @@ def qualify(args: argparse.Namespace) -> dict:
                          env=dict(runtime_environment, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence)))
             roster = evidence.with_name(evidence.name + "-roster-renewal") / "public"
             replacement = evidence.with_name(evidence.name + "-device-replacement") / "public"
-            result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"), roster, replacement)
+            retirement = evidence.with_name(evidence.name + "-device-retirement") / "public"
+            result["execution"][profile] = verify_execution(tested, evidence, evidence.with_name(evidence.name + "-session-reopen"), roster, replacement, retirement)
+            from continuity_device_retirement import export as export_retirement
+            sdk.require(export_retirement(retirement, output / (profile + "-device-retirement-public"))
+                        == result["execution"][profile]["device_retirement"],
+                        "device retirement evidence changed before export")
             from continuity_device_replacement import export as export_replacement
             sdk.require(export_replacement(replacement, output / (profile + "-device-replacement-public"))
                         == result["execution"][profile]["device_replacement"],

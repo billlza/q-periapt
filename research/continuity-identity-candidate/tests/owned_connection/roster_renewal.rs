@@ -13,16 +13,23 @@ struct Capture {
     request: Vec<u8>,
     reply: Option<Vec<u8>>,
 }
-struct Witness {
+pub(super) struct Witness {
     _directory: tempfile::TempDir,
-    configured: WitnessFixture,
+    pub(super) configured: WitnessFixture,
     clock: Arc<AtomicU64>,
     stop: Arc<AtomicBool>,
     captures: Arc<Mutex<Vec<Capture>>>,
     worker: Option<std::thread::JoinHandle<Result<()>>>,
 }
 impl Witness {
-    fn start(at: u64) -> Result<Self> {
+    pub(super) fn start(at: u64) -> Result<Self> {
+        Self::start_clock(at, false, 256)
+    }
+    pub(super) fn start_current() -> Result<Self> {
+        // Two real generations and TLS sessions have a separate bounded trace budget.
+        Self::start_clock(now()?, true, 512)
+    }
+    fn start_clock(at: u64, realtime: bool, capture_limit: usize) -> Result<Self> {
         let directory = tempfile::Builder::new()
             .permissions(fs::Permissions::from_mode(0o700))
             .tempdir()?;
@@ -67,7 +74,11 @@ impl Witness {
                 }
                 let mut request = vec![0; 3674];
                 stream.read_exact(&mut request)?;
-                let at = time.load(Ordering::Acquire);
+                let at = if realtime {
+                    now()?
+                } else {
+                    time.load(Ordering::Acquire)
+                };
                 let reply = match state
                     .lock()
                     .map_err(|_| "witness poisoned")?
@@ -80,7 +91,7 @@ impl Witness {
                     Err(error) => return Err(error.into()),
                 };
                 let mut log = records.lock().map_err(|_| "capture poisoned")?;
-                if log.len() >= 256 {
+                if log.len() >= capture_limit {
                     return Err("witness capture limit".into());
                 }
                 log.push(Capture {
@@ -105,7 +116,10 @@ impl Witness {
             worker: Some(worker),
         })
     }
-    fn join(&mut self) -> Result<()> {
+    pub(super) fn request_count(&self) -> Result<usize> {
+        Ok(self.captures.lock().map_err(|_| "capture poisoned")?.len())
+    }
+    pub(super) fn join(&mut self) -> Result<()> {
         self.stop.store(true, Ordering::Release);
         if let Some(worker) = self.worker.take() {
             worker.join().map_err(|_| "witness panicked")??;

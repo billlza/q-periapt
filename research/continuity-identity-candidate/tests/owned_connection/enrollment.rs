@@ -8,6 +8,7 @@ pub(crate) enum SetupKind {
     RosterRenewal,
     Enrolled,
     DeviceReplacement,
+    DeviceRetirement,
 }
 
 pub(super) enum PendingOwner {
@@ -70,7 +71,7 @@ pub(super) fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
         super::paths(path)?,
     )?)
 }
-fn intent(path: &Path) -> Result<p::EnrollmentIntent> {
+pub(super) fn intent(path: &Path) -> Result<p::EnrollmentIntent> {
     let validity = array::<16>(path, "enrollment-validity")?;
     Ok(p::EnrollmentIntent::new(
         p::PublicKey::decode(&read(path, "local-root", 8192)?)?,

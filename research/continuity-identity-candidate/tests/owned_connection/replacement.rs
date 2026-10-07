@@ -2,13 +2,13 @@
 //! Fresh enrolled generation, independently trusted roster and original loss accounting.
 use super::*;
 
-struct Replacement {
-    path: PathBuf,
-    peer: PathBuf,
-    roster: p::VerifiedRoster,
+pub(super) struct Replacement {
+    pub(super) path: PathBuf,
+    pub(super) peer: PathBuf,
+    pub(super) roster: p::VerifiedRoster,
 }
 
-fn prepare(s: &Setup) -> Result<Replacement> {
+pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Replacement> {
     let root = s
         .responder_issuer
         .as_ref()
@@ -133,8 +133,53 @@ fn prepare(s: &Setup) -> Result<Replacement> {
     ] {
         store(&path, name, &bytes)?;
     }
-    enrollment.prepare(&policy, at)?;
-    let mut active = enrollment.activate(&policy, at, None)?;
+    let preparation = enrollment.prepare(&policy, at)?;
+    let anchor = match (witness, preparation) {
+        (None, p::InstallationPreparation::Local) => None,
+        (Some(witness), p::InstallationPreparation::RequiresEnrollment(genesis)) => {
+            let previous =
+                p::AnchorSubject::from_trusted_state(&read(&s.responder, "witness-subject", 96)?)?;
+            let old_roster = p::RosterCheckpoint::from_trusted_state(
+                u64::from_be_bytes(array(&s.responder, "local-roster-version")?),
+                array(&s.responder, "local-roster-digest")?,
+            )?;
+            let proofs = [(previous, old_roster, policy.historical())];
+            let mut controller = witness.store.lock().map_err(|_| "witness store poisoned")?;
+            let proposal =
+                controller.device_replacement_proposal(&genesis, &device, &policy, &proofs, at)?;
+            // Retain the original plan before its independently authorized commit.
+            store(&s.responder, "retirement-proposal", &proposal.to_bytes()?)?;
+            assert_eq!(
+                controller.replace_device(&proposal, &genesis, &device, &policy, &proofs, at)?,
+                p::AnchorDeviceReplacementState::Committed
+            );
+            store(
+                &s.responder,
+                "retirement-receipt",
+                &controller.retired_subject_receipt(&proposal, previous)?,
+            )?;
+            drop(controller);
+            let witness_pin = witness.pin()?;
+            for destination in [&path, &peer] {
+                store(destination, "witness-id", witness_pin.identity().as_bytes())?;
+                store(
+                    destination,
+                    "witness-public",
+                    &witness_pin.public_key().encode(),
+                )?;
+            }
+            store(&path, "witness-subject", &genesis.subject().to_bytes())?;
+            Some(enrollment.anchor_client(
+                &policy,
+                at,
+                witness_pin,
+                Box::new(p::AnchorTcpTransport::new(witness.address)),
+                Duration::from_secs(3),
+            )?)
+        }
+        _ => return Err("replacement changed the required witness profile".into()),
+    };
+    let mut active = enrollment.activate(&policy, at, anchor)?;
     let (service, signer, admitted) = active.parts()?;
     assert_eq!(admitted.credential_digest(), device.credential_digest());
     assert_eq!(service.stores()?.0.identity()?, journal);
@@ -286,7 +331,7 @@ pub(super) fn exercise() -> Result<()> {
             .stores()?
             .0
             .resume_message(&old_context, established.session, id, now()?)?;
-    let replacement = prepare(&s)?;
+    let replacement = prepare(&s, None)?;
     let policy = old_context.current_policy()?;
     let checkpoint =
         client

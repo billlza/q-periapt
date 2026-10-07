@@ -144,3 +144,39 @@ delivery to the peer. It does not establish atomic replacement under a required
 witness, global revocation of the lost device, account-root replacement, secret
 migration, foreign-language replacement or physical-device qualification. Those
 remain separate 0.2.0 requirements.
+
+
+## Required-witness replacement and permanent old-device retirement
+
+The same archive-shipped Rust connection now includes a separate required-witness
+trace. Original public enrollment creates both devices; a real signed TCP witness
+admits their operations. The old receiver fsyncs its application effect and exits
+before the SDK records consumption. The independent account authority enrolls a new
+generation, and the witness atomically retires the original subject while admitting
+its fresh successor. Old-subject operations are refused.
+
+Eight separately launched recovery processes use `RetiredDeviceEnrollment` through
+its public API: inventory, report preparation, report retention, original-report
+reopening, host-ACK preparation, journal erasure, signer erasure and terminal
+verification. Three exit immediately after a durable boundary without publishing a
+completion result. Recovery must read the same original report and authenticated
+terminals. The complete report retains one unconsumed SDK delivery even though the
+host effect exists; no SDK consumption or global exactly-once effect is invented.
+The final process reauthenticates the complete host record after erasure. The sender
+then admits the new roster and completes a fresh TLS session and application message
+with the new enrolled generation.
+
+`artifact/continuity_device_retirement.py` requires and exports 27 synthetic public
+fixture files per Debug/Release profile. It cross-checks the witness, frozen subject,
+replacement, inventory, report and purpose-21 ACK; eight distinct process identities;
+the unchanged host report; both actual application effects; and the original signer
+terminal. Native public APIs verify signatures and the private report MAC. The reader
+is a structural cross-check, not an independent protocol implementation. The witness
+fixture has a separate 512-request bound for this two-generation trace and records
+the actual count; the existing fixed-clock roster-renewal trace retains its 256 bound.
+
+This qualifies only the exercised Active required-witness native flow through the
+package boundary once both installed profiles actually pass. Pre-activation and
+local-profile retirement, foreign-language lifecycle APIs, cross-host/independent
+implementations and physical-device durability remain open. Logical erasure does not
+cover retained pages/backups or wrapping-key destruction.

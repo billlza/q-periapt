@@ -34,6 +34,8 @@ pub(crate) mod enrollment;
 mod reopen;
 #[path = "owned_connection/replacement.rs"]
 mod replacement;
+#[path = "owned_connection/retirement.rs"]
+mod retirement;
 #[path = "owned_connection/roster_renewal.rs"]
 mod roster_renewal;
 
@@ -413,6 +415,9 @@ pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
         enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement => {
             Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
         }
+        enrollment::SetupKind::DeviceRetirement => {
+            Err("device retirement requires its explicit witness".into())
+        }
         enrollment::SetupKind::RosterRenewal => {
             Err("roster renewal requires its explicit witness and clock".into())
         }
@@ -493,18 +498,23 @@ fn setup_devices_for(
 ) -> Result<(Setup, Option<PathBuf>)> {
     let roster_renewal = kind == enrollment::SetupKind::RosterRenewal;
     let replacement = kind == enrollment::SetupKind::DeviceReplacement;
+    let retirement = kind == enrollment::SetupKind::DeviceRetirement;
     let enrolled = matches!(
         kind,
-        enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement
+        enrollment::SetupKind::Enrolled
+            | enrollment::SetupKind::DeviceReplacement
+            | enrollment::SetupKind::DeviceRetirement
     );
     if enrolled && (!operational || multi || roster_renewal) {
         return Err("enrollment reference requires its explicit initial-connection profile".into());
     }
     let (dir, root) = if let Some(path) = std::env::var_os("QPERIAPT_PUBLIC_SERVICE_EVIDENCE") {
         let mut path = PathBuf::from(path);
-        if advertisement_seconds.is_some() || multi || roster_renewal || replacement {
+        if advertisement_seconds.is_some() || multi || roster_renewal || replacement || retirement {
             let mut name = path.file_name().ok_or("evidence filename")?.to_os_string();
-            name.push(if replacement {
+            name.push(if retirement {
+                "-device-retirement"
+            } else if replacement {
                 "-device-replacement"
             } else if roster_renewal {
                 "-roster-renewal"
@@ -1095,6 +1105,9 @@ fn service_peer_process() -> Result<()> {
     let root = Path::new(&root);
     let attempt: u8 = std::env::var("QPERIAPT_PUBLIC_SERVICE_ATTEMPT")?.parse()?;
     let mode = std::env::var("QPERIAPT_PUBLIC_SERVICE_MODE")?;
+    if let Some(mode) = mode.strip_prefix("retirement-") {
+        return retirement::device_process(root, attempt, mode);
+    }
     if let Some(mode) = mode.strip_prefix("roster-renewal-") {
         return roster_renewal::device_process(root, mode);
     }
@@ -1195,7 +1208,9 @@ fn service_peer_process() -> Result<()> {
         }
         return reopen::serve_restored_current(root, attempt, application_mode);
     }
-    let mut peer = Peer::open(root)?;
+    serve_peer(root, attempt, mode, Peer::open(root)?)
+}
+fn serve_peer(root: &Path, attempt: u8, mode: String, mut peer: Peer) -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     listener.set_nonblocking(true)?;
     let endpoint = ConnectionEndpoint::server(&peer.context, peer.credentials(), tls_limits())?;
@@ -1279,6 +1294,7 @@ pub(crate) fn send(
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
     replacement::exercise()?;
+    retirement::exercise()?;
     roster_renewal::public_roster_refresh_recovers_original_intent_over_signed_tcp()?;
     let s = setup(enrollment::SetupKind::Enrolled)?;
     marker_publication_control(&s.initiator)?;
