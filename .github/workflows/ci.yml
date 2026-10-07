@@ -1992,9 +1992,10 @@ jobs:
     needs: rust-publish-contract
     runs-on: macos-15
     # Keep every Rust/C prerequisite and both Kotlin profiles/GC variants.
-    # Kotlin reached the two-hour limit before the additional real-expiry
-    # matrices. Bound its complete job separately; command deadlines stay fixed.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 180 || 120 }}
+    # At 491b6cde, Kotlin execution took 178m35s and artifact upload 84s;
+    # job 112452386048 exceeded 180m during finalization after both succeeded.
+    # Allow 30m job headroom; individual command deadlines stay fixed.
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 210 || 120 }}
     strategy:
       fail-fast: false
       matrix:
