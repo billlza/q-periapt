@@ -562,6 +562,25 @@ fn retired_installation_process_child() {
     )
     .expect("retain original request");
     if let Some(inventory) = report_inventory {
+        if std::env::var_os("QPERIAPT_RETIRED_HOST_ACK_CHILD").is_some() {
+            let proposal = owner
+                .report_proposal()
+                .expect("saved report")
+                .expect("report request");
+            let wire = fs::read(root.join("retained-report-receipt.bin"))
+                .expect("independent report retention");
+            let retained = pin
+                .verify_retired_report(&inventory, &proposal, &wire)
+                .expect("verified report");
+            let body = fs::read(root.join("host-recorded-report.bin"))
+                .expect("durable complete host record");
+            let ack = owner
+                .prepare_host_acknowledgement(&body, &retained)
+                .expect("same original host decision");
+            fs::write(root.join("returned-host-ack"), ack.to_bytes())
+                .expect("caller visible expectation");
+            return;
+        }
         let report = owner
             .prepare_report(&inventory)
             .expect("complete original report preparation");
@@ -1194,4 +1213,275 @@ fn process_loss_before_and_after_report_request_commit_preserves_original_body()
         assert_eq!(reread.as_bytes(), expected.as_bytes());
     }
     eprintln!("RETIRED_REPORT_INSTALLATION_PROCESS before_commit=true after_commit=true no_request_returned=true complete_body_preserved=true");
+}
+
+fn recorded_host_report(
+    c: &Case,
+    owner: &mut RetiredInstallationRecovery,
+) -> (Vec<u8>, crate::AnchorRetiredReport) {
+    let inventory = retained_inventory(c, owner);
+    let proposal = owner.prepare_report(&inventory).expect("complete report");
+    let receipt = retained_report(c, &proposal);
+    let report = owner
+        .report(&inventory, &c.pin, &receipt)
+        .expect("verified full metadata");
+    let retained = c
+        .pin
+        .verify_retired_report(&inventory, &proposal, &receipt)
+        .expect("independent retention");
+    let bytes = report.as_bytes().to_vec();
+    let root = c._directory.path().canonicalize().expect("root");
+    let mut file = fs::File::create_new(root.join("host-recorded-report.bin"))
+        .expect("new host accounting record");
+    use std::io::Write;
+    file.write_all(&bytes).expect("complete host record");
+    file.sync_all().expect("host data durable");
+    fs::File::open(&root)
+        .expect("host directory")
+        .sync_all()
+        .expect("host name durable");
+    (bytes, retained)
+}
+#[test]
+fn host_ack_requires_complete_original_record_and_recovers_without_journal_or_archives() {
+    let c = Case::build(false, true);
+    let before = journal_rows(&c.paths.journal);
+    let mut owner = c.open().expect("owner");
+    let (bytes, retained) = recorded_host_report(&c, &mut owner);
+    owner.close();
+    for altered in [
+        bytes.get(..320).expect("short record").to_vec(),
+        bytes
+            .get(..bytes.len() - 1)
+            .expect("missing final byte")
+            .to_vec(),
+        {
+            let mut b = bytes.clone();
+            *b.last_mut().expect("byte") ^= 1;
+            b
+        },
+    ] {
+        let mut owner = c.open().expect("owner");
+        assert!(owner
+            .prepare_host_acknowledgement(&altered, &retained)
+            .is_err());
+        assert!(matches!(
+            owner.host_acknowledgement_proposal(),
+            Err(DurableError::Closed)
+        ));
+        assert!(c
+            .open()
+            .expect("reopen")
+            .host_acknowledgement_proposal()
+            .expect("no incomplete host intent")
+            .is_none());
+    }
+    fs::rename(
+        &c.paths.journal,
+        c.paths.journal.with_extension("retained-original"),
+    )
+    .expect("preserve unavailable journal");
+    fs::rename(
+        &c.paths.archives,
+        c.paths.archives.with_extension("retained-original"),
+    )
+    .expect("preserve unavailable archives");
+    c.peer.responder.current_policy().expect("policy").close();
+    let mut owner = c.open().expect("independent metadata");
+    let expected = owner
+        .prepare_host_acknowledgement(&bytes, &retained)
+        .expect("complete durable host record survives original data loss");
+    assert_eq!(&expected, retained.proposal());
+    assert_eq!(
+        owner
+            .prepare_host_acknowledgement(&bytes, &retained)
+            .expect("exact retry"),
+        expected
+    );
+    owner.close();
+    let mut owner = c.open().expect("reconcile metadata");
+    assert_eq!(
+        owner
+            .host_acknowledgement_proposal()
+            .expect("same original host decision"),
+        Some(expected.clone())
+    );
+    let wire = {
+        let mut w = c.store.lock().expect("controller");
+        w.acknowledge_retired_report(&expected)
+            .expect("independent explicit ACK");
+        w.retired_report_acknowledgement_receipt(&expected)
+            .expect("ACK receipt")
+    };
+    assert_eq!(
+        owner
+            .verify_host_acknowledgement(&c.pin, &wire)
+            .expect("purpose21")
+            .proposal(),
+        &expected
+    );
+    owner.close();
+    assert!(!c.paths.journal.exists());
+    assert!(!c.paths.archives.exists());
+    assert_eq!(
+        journal_rows(&c.paths.journal.with_extension("retained-original")),
+        before
+    );
+    eprintln!("RETIRED_HOST_ACK complete_host_record=true partial_record_refused=true journal_archive_loss_recoverable=true no_data_erasure=true");
+}
+#[test]
+fn every_host_ack_configuration_sync_cut_keeps_original_host_record() {
+    let calibration = Case::new();
+    let mut owner = calibration.open().expect("owner");
+    let (bytes, retained) = recorded_host_report(&calibration, &mut owner);
+    owner.close();
+    let (db, _, count, _) = fault_database_path(&calibration.paths.configuration, false);
+    let mut owner = RetiredInstallationRecovery::open_database(
+        db,
+        calibration.paths.clone(),
+        calibration.key(),
+        calibration.retired,
+    )
+    .expect("config");
+    count.store(0, Ordering::SeqCst);
+    let expected = owner
+        .prepare_host_acknowledgement(&bytes, &retained)
+        .expect("calibration");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!((2..=8).contains(&barriers));
+    owner.close();
+    let (db, remaining, count, _) = fault_database_path(&calibration.paths.configuration, false);
+    let mut owner = RetiredInstallationRecovery::open_database(
+        db,
+        calibration.paths.clone(),
+        calibration.key(),
+        calibration.retired,
+    )
+    .expect("config");
+    remaining.store(1, Ordering::SeqCst);
+    count.store(0, Ordering::SeqCst);
+    assert_eq!(
+        owner
+            .prepare_host_acknowledgement(&bytes, &retained)
+            .expect("read-only retry"),
+        expected
+    );
+    assert_eq!(count.load(Ordering::SeqCst), 0);
+    owner.close();
+    for after in [false, true] {
+        for cut in 1..=barriers {
+            let c = Case::new();
+            let mut owner = c.open().expect("owner");
+            let (bytes, retained) = recorded_host_report(&c, &mut owner);
+            owner.close();
+            let before = journal_rows(&c.paths.journal);
+            let (db, remaining, _, _) = fault_database_path(&c.paths.configuration, after);
+            let mut owner =
+                RetiredInstallationRecovery::open_database(db, c.paths.clone(), c.key(), c.retired)
+                    .expect("config");
+            remaining.store(cut, Ordering::SeqCst);
+            assert_sync_failure(owner.prepare_host_acknowledgement(&bytes, &retained), after);
+            assert!(matches!(
+                owner.host_acknowledgement_proposal(),
+                Err(DurableError::Closed)
+            ));
+            let mut reopened = c.open().expect("reopen original metadata");
+            assert_eq!(
+                &reopened
+                    .prepare_host_acknowledgement(&bytes, &retained)
+                    .expect("same exact host record"),
+                retained.proposal()
+            );
+            reopened.close();
+            assert_eq!(journal_rows(&c.paths.journal), before);
+        }
+    }
+    eprintln!(
+        "RETIRED_HOST_ACK_INSTALLATION_SYNC barriers={barriers} before_after_faults={}",
+        barriers * 2
+    );
+}
+
+#[test]
+fn process_loss_before_and_after_host_ack_intent_recovers_without_original_journal() {
+    for stage in ["retired-ack-before-commit", "retired-ack-after-commit"] {
+        let c = Case::new();
+        let mut owner = c.open().expect("owner");
+        let (body, retained) = recorded_host_report(&c, &mut owner);
+        let inventory = retained_inventory(&c, &mut owner);
+        owner.close();
+        let wire = c
+            .store
+            .lock()
+            .expect("witness")
+            .retired_report_receipt(retained.proposal())
+            .expect("report retention");
+        let root = c._directory.path().canonicalize().expect("root");
+        fs::write(
+            root.join("report-inventory.bin"),
+            inventory.proposal().to_bytes(),
+        )
+        .expect("inventory");
+        fs::write(root.join("retained-report-receipt.bin"), wire).expect("report proof");
+        fs::rename(
+            &c.paths.journal,
+            c.paths.journal.with_extension("retained-original"),
+        )
+        .expect("retain unavailable original journal");
+        fs::rename(
+            &c.paths.archives,
+            c.paths.archives.with_extension("retained-original"),
+        )
+        .expect("retain unavailable archives");
+        c.store.lock().expect("witness").close();
+        let log = fs::File::create_new(root.join("ack-child.log")).expect("log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "installation::retired::tests::retired_installation_process_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_RETIRED_INSTALLATION_CHILD", &root)
+                .env("QPERIAPT_RETIRED_REPORT_CHILD", "1")
+                .env("QPERIAPT_RETIRED_HOST_ACK_CHILD", "1")
+                .env("QPERIAPT_INSTALLATION_CUT_DIR", &root)
+                .env("QPERIAPT_INSTALLATION_CUT_STAGE", stage)
+                .stdout(Stdio::from(log.try_clone().expect("clone")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("owned child"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !root.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "host intent cut deadline"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!root.join("returned-host-ack").exists());
+        child.0.kill().expect("kill owned child");
+        assert!(!child.0.wait().expect("reap").success());
+        let db = open_private_database(&c.paths.configuration).expect("configuration");
+        assert_eq!(
+            read_configuration(&db)
+                .expect("actual host intent")
+                .retired_ack
+                .is_some(),
+            stage.ends_with("after-commit")
+        );
+        drop(db);
+        c.peer.responder.current_policy().expect("policy").close();
+        let mut reopened = c.open().expect("original independent metadata");
+        assert_eq!(
+            &reopened
+                .prepare_host_acknowledgement(&body, &retained)
+                .expect("same original recorded report"),
+            retained.proposal()
+        );
+        assert!(!c.paths.journal.exists());
+        assert!(!c.paths.archives.exists());
+    }
+    eprintln!("RETIRED_HOST_ACK_INSTALLATION_PROCESS before_commit=true after_commit=true original_data_unavailable=true same_host_record=true");
 }

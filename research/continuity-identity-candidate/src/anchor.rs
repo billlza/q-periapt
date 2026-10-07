@@ -19,6 +19,7 @@ mod store;
 pub use store::{
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredCleanup,
     AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
+    AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;

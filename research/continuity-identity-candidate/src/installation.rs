@@ -191,6 +191,7 @@ struct Configuration {
     status: InstallationStatus,
     retired: Option<crate::AnchorRetiredCleanupProposal>,
     retired_report: Option<crate::AnchorRetiredReportProposal>,
+    retired_ack: Option<crate::AnchorRetiredReportProposal>,
 }
 fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
     let tx = db.begin_read().map_err(storage)?;
@@ -204,8 +205,9 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
     let table = tx.open_table(TABLE).map_err(storage)?;
     let cleanup = table.get("retired-cleanup").map_err(storage)?;
     let report = table.get("retired-report").map_err(storage)?;
+    let ack = table.get("retired-ack").map_err(storage)?;
     if table.len().map_err(storage)?
-        != 1 + u64::from(cleanup.is_some()) + u64::from(report.is_some())
+        != 1 + u64::from(cleanup.is_some()) + u64::from(report.is_some()) + u64::from(ack.is_some())
     {
         return Err(DurableError::Corrupt);
     }
@@ -243,12 +245,28 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
             Ok(proposal)
         })
         .transpose()?;
+    let retired_ack = ack
+        .map(|row| {
+            if row.value().get(..8) != Some(b"QPCIAK01") {
+                return Err(DurableError::Corrupt);
+            }
+            let proposal = crate::AnchorRetiredReportProposal::from_trusted_state(
+                row.value().get(8..).ok_or(DurableError::Corrupt)?,
+            )
+            .map_err(|_| DurableError::Corrupt)?;
+            if retired_report.as_ref() != Some(&proposal) {
+                return Err(DurableError::Corrupt);
+            }
+            Ok(proposal)
+        })
+        .transpose()?;
     Ok(Configuration {
         identity: id,
         scope: binding.to_vec(),
         status,
         retired,
         retired_report,
+        retired_ack,
     })
 }
 pub(crate) fn missing(path: &Path) -> Result<bool, DurableError> {

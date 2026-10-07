@@ -937,10 +937,17 @@ fn cleanup_binding_process_child() {
             &fs::read(path.join("report.bin")).expect("saved report proposal"),
         )
         .expect("canonical report");
-        reopen(path)
-            .retain_retired_report(&p)
-            .expect("report binding");
-        fs::write(path.join("report-returned"), b"retained").expect("return marker");
+        if std::env::var_os("QPERIAPT_RETIRED_HOST_ACK_CHILD").is_some() {
+            reopen(path)
+                .acknowledge_retired_report(&p)
+                .expect("independent host ACK");
+            fs::write(path.join("ack-returned"), b"acknowledged").expect("return marker");
+        } else {
+            reopen(path)
+                .retain_retired_report(&p)
+                .expect("report binding");
+            fs::write(path.join("report-returned"), b"retained").expect("return marker");
+        }
         return;
     }
     let p = Cleanup::from_trusted_state(
@@ -1444,4 +1451,296 @@ fn process_loss_after_report_binding_recovers_original_report_without_erasure() 
     );
     assert!(rows(&f.path).1.is_some());
     eprintln!("RETIRED_REPORT_WITNESS_PROCESS commit_before_return=true original_report_recovered=true pending_inventory_preserved=true");
+}
+
+fn host_ack_fixture(pending: Option<bool>) -> (InventoryCase, crate::AnchorRetiredReportProposal) {
+    let mut f = fixture(pending);
+    let inventory = f.proposal();
+    f.c.store
+        .retain_retired_cleanup(&inventory)
+        .expect("original inventory");
+    let report = crate::AnchorRetiredReportProposal::from_report(inventory, [181; 32])
+        .expect("component report expectation");
+    f.c.store
+        .retain_retired_report(&report)
+        .expect("original report retention");
+    (f, report)
+}
+#[test]
+fn host_ack_is_distinct_permanent_and_uses_the_already_admitted_storage_length() {
+    use crate::{AnchorRetiredReportAcknowledgementState as AckState, AnchorRetiredReportState};
+    let (mut f, report) = host_ack_fixture(None);
+    assert_eq!(
+        f.c.store
+            .retired_report_acknowledgement_status(&report)
+            .expect("not acknowledged"),
+        AckState::Unavailable
+    );
+    assert!(matches!(
+        f.c.store.retired_report_acknowledgement_receipt(&report),
+        Err(DurableError::Absent)
+    ));
+    let inventory_wire =
+        f.c.store
+            .retired_cleanup_receipt(report.inventory())
+            .expect("inventory receipt");
+    let inventory =
+        f.c.pin
+            .verify_retired_cleanup(f.retired, report.inventory(), &inventory_wire)
+            .expect("verified inventory");
+    let report_wire =
+        f.c.store
+            .retired_report_receipt(&report)
+            .expect("report receipt");
+    let before_image = f.c.store.image().expect("before");
+    let active = f.c.store.active.as_ref().expect("owner");
+    let before = encode(&active.wrapping, &active.pin, &before_image).expect("v13");
+    assert_eq!(
+        f.c.store
+            .acknowledge_retired_report(&report)
+            .expect("explicit independent host ACK"),
+        AckState::Acknowledged
+    );
+    let after_image = f.c.store.image().expect("after");
+    let active = f.c.store.active.as_ref().expect("owner");
+    let after = encode(&active.wrapping, &active.pin, &after_image).expect("v14");
+    assert_eq!(
+        after.len(),
+        before.len(),
+        "ACK fits the exact storage already admitted by report retention"
+    );
+    assert_eq!(after.get(..8), Some(b"QPANC014".as_slice()));
+    assert_eq!(
+        decode(&active.wrapping, &active.pin, &after)
+            .expect("v14")
+            .retired_reports
+            .len(),
+        1
+    );
+    for raw in [&before, &after] {
+        let mut bad = raw.get(..raw.len() - 32).expect("body").to_vec();
+        bad.get_mut(..8)
+            .expect("version")
+            .copy_from_slice(if raw == &before {
+                b"QPANC014"
+            } else {
+                b"QPANC013"
+            });
+        let mut auth = authenticator(&active.wrapping).expect("MAC");
+        auth.update(&bad);
+        bad.extend_from_slice(&auth.finalize().into_bytes());
+        assert!(
+            matches!(
+                decode(&active.wrapping, &active.pin, &bad),
+                Err(DurableError::Corrupt)
+            ),
+            "version cannot relabel retained and acknowledged records"
+        );
+    }
+    let wire =
+        f.c.store
+            .retired_report_acknowledgement_receipt(&report)
+            .expect("purpose21 receipt");
+    assert_eq!(wire.len(), 3730);
+    assert_eq!(
+        open_envelope(&wire).expect("body").0.get(..8),
+        Some(b"QPRACK01".as_slice())
+    );
+    assert_eq!(
+        f.c.pin
+            .verify_retired_report_acknowledgement(f.retired, &report, &wire)
+            .expect("exact permanent ACK")
+            .proposal(),
+        &report
+    );
+    assert!(f
+        .c
+        .pin
+        .verify_retired_report(&inventory, &report, &wire)
+        .is_err());
+    assert!(f
+        .c
+        .pin
+        .verify_retired_report_acknowledgement(f.retired, &report, &report_wire)
+        .is_err());
+    for length in 0..wire.len() {
+        assert!(f
+            .c
+            .pin
+            .verify_retired_report_acknowledgement(
+                f.retired,
+                &report,
+                wire.get(..length).expect("prefix")
+            )
+            .is_err());
+    }
+    let mut trailing = wire.clone();
+    trailing.push(0);
+    assert!(f
+        .c
+        .pin
+        .verify_retired_report_acknowledgement(f.retired, &report, &trailing)
+        .is_err());
+    let other =
+        crate::AnchorRetiredReportProposal::from_report(report.inventory().clone(), [182; 32])
+            .expect("different report");
+    let mut different = other.to_bytes();
+    different
+        .get_mut(..8)
+        .expect("ACK tag")
+        .copy_from_slice(b"QPRACK01");
+    let signer = &f.c.store.active.as_ref().expect("signer").signer;
+    let signature = signer
+        .sign(Purpose::AnchorRetiredReportAcknowledgement, &different)
+        .expect("correctly signed other ACK");
+    assert!(matches!(
+        f.c.pin.verify_retired_report_acknowledgement(
+            f.retired,
+            &report,
+            &envelope(&different, &signature).expect("wire")
+        ),
+        Err(Error::Scope)
+    ));
+    assert!(matches!(
+        f.c.store.acknowledge_retired_report(&other),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        f.c.store.retired_report_acknowledgement_status(&other),
+        Err(DurableError::Conflict)
+    ));
+    f.c.store.close();
+    f.c.store = reopen(&f.c.server);
+    f.c.peer.responder.current_policy().expect("policy").close();
+    assert_eq!(
+        f.c.store
+            .acknowledge_retired_report(&report)
+            .expect("same historical ACK"),
+        AckState::Acknowledged
+    );
+    assert_eq!(
+        f.c.store
+            .retired_report_status(&report)
+            .expect("retention unchanged"),
+        AnchorRetiredReportState::Retained
+    );
+    assert_eq!(
+        f.c.store.image().expect("one ACK").revision,
+        before_image.revision + 1
+    );
+    assert_eq!(
+        f.c.store
+            .retired_subject_observation(&f.replacement, f.retired.subject())
+            .expect("frozen old state"),
+        f.retired
+    );
+    assert_retired(&mut f.c, AnchorOperation::query());
+    eprintln!("RETIRED_HOST_ACK immutable=true fixed_storage_length=true purpose21_separate=true old_entry_unchanged=true");
+}
+#[test]
+fn every_host_ack_witness_sync_cut_recovers_only_the_original_decision() {
+    for pending in [None, Some(false)] {
+        let (mut calibration, report) = host_ack_fixture(pending);
+        let (_, count) = with_fault_database(&mut calibration.c, false);
+        count.store(0, Ordering::SeqCst);
+        calibration
+            .c
+            .store
+            .acknowledge_retired_report(&report)
+            .expect("calibration");
+        let barriers = count.load(Ordering::SeqCst);
+        assert!((2..=8).contains(&barriers));
+        let (remaining, count) = with_fault_database(&mut calibration.c, false);
+        remaining.store(1, Ordering::SeqCst);
+        count.store(0, Ordering::SeqCst);
+        calibration
+            .c
+            .store
+            .acknowledge_retired_report(&report)
+            .expect("read-only retry");
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        for after in [false, true] {
+            for cut in 1..=barriers {
+                let (mut f, report) = host_ack_fixture(pending);
+                let before = f.c.store.image().expect("before").revision;
+                let (remaining, _) = with_fault_database(&mut f.c, after);
+                remaining.store(cut, Ordering::SeqCst);
+                crate::durable::tests::assert_sync_failure(
+                    f.c.store.acknowledge_retired_report(&report),
+                    after,
+                );
+                assert!(f.c.store.active.is_none());
+                f.c.store = reopen(&f.c.server);
+                f.c.store
+                    .acknowledge_retired_report(&report)
+                    .expect("same original ACK reconciliation");
+                assert_eq!(f.c.store.image().expect("one ACK").revision, before + 1);
+                assert_eq!(
+                    f.c.store
+                        .retired_subject_observation(&f.replacement, f.retired.subject())
+                        .expect("old entry unchanged"),
+                    f.retired
+                );
+            }
+        }
+        eprintln!(
+            "RETIRED_HOST_ACK_WITNESS_SYNC pending={} barriers={barriers} before_after_faults={}",
+            pending.is_some(),
+            barriers * 2
+        );
+    }
+}
+
+#[test]
+fn process_loss_after_host_ack_commit_retains_original_report_and_no_new_authority() {
+    let (mut f, report) = host_ack_fixture(Some(false));
+    let before = f.c.store.image().expect("before").revision;
+    fs::write(f.c.server.join("report.bin"), report.to_bytes())
+        .expect("saved original host expectation");
+    f.c.store.close();
+    let log = fs::File::create_new(f.c.server.join("ack-child.log")).expect("log");
+    let mut child = ChildGuard(
+        Process::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "anchor::store::tests::replacement::cleanup::cleanup_binding_process_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_RETIRED_CLEANUP_DIR", &f.c.server)
+            .env("QPERIAPT_RETIRED_REPORT_CHILD", "1")
+            .env("QPERIAPT_RETIRED_HOST_ACK_CHILD", "1")
+            .env("QPERIAPT_ANCHOR_SERVER_DIR", &f.c.server)
+            .env("QPERIAPT_ANCHOR_CRASH_REVISION", (before + 1).to_string())
+            .stdout(Stdio::from(log.try_clone().expect("clone")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned child"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !f.c.server.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "host ACK child deadline"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!f.c.server.join("ack-returned").exists());
+    child.0.kill().expect("kill owned child");
+    assert!(!child.0.wait().expect("reap").success());
+    f.c.store = reopen(&f.c.server);
+    f.c.peer.responder.current_policy().expect("policy").close();
+    f.c.store
+        .acknowledge_retired_report(&report)
+        .expect("same original acknowledged report");
+    assert_eq!(f.c.store.image().expect("one ACK").revision, before + 1);
+    let wire =
+        f.c.store
+            .retired_report_acknowledgement_receipt(&report)
+            .expect("permanent receipt");
+    f.c.pin
+        .verify_retired_report_acknowledgement(f.retired, &report, &wire)
+        .expect("original ACK");
+    assert!(rows(&f.path).1.is_some());
+    assert_retired(&mut f.c, AnchorOperation::query());
+    eprintln!("RETIRED_HOST_ACK_WITNESS_PROCESS commit_before_return=true exact_retry=true old_runtime_refused=true no_erasure=true");
 }

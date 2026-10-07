@@ -304,15 +304,7 @@ impl Report {
         views: Vec<View>,
     ) -> Result<Self, DurableError> {
         let bytes = canonical(inventory, &intent, &views)?;
-        let mut derived = ZeroizingBytes::<32>::zeroed();
-        hkdf::Hkdf::<Sha256>::new(None, key.0.as_bytes())
-            .expand(
-                b"Q-PERIAPT-CONTINUITY-RETIRED-DEVICE-REPORT-KEY/v1",
-                derived.as_mut_bytes(),
-            )
-            .map_err(|_| Error::Provider)?;
-        let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(derived.as_bytes())
-            .map_err(|_| Error::Provider)?;
+        let mut mac = report_authenticator(key)?;
         mac.update(&bytes);
         let proposal = AnchorRetiredReportProposal::from_report(
             inventory.clone(),
@@ -325,6 +317,37 @@ impl Report {
             bytes,
         })
     }
+}
+
+fn report_authenticator(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {
+    let mut derived = ZeroizingBytes::<32>::zeroed();
+    hkdf::Hkdf::<Sha256>::new(None, key.0.as_bytes())
+        .expand(
+            b"Q-PERIAPT-CONTINUITY-RETIRED-DEVICE-REPORT-KEY/v1",
+            derived.as_mut_bytes(),
+        )
+        .map_err(|_| Error::Provider)?;
+    let mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(derived.as_bytes())
+        .map_err(|_| Error::Provider)?;
+    Ok(mac)
+}
+/// Authenticate the complete host-retained canonical bytes against the original
+/// independently retained report ID. No journal, archives or operational owner is needed.
+pub(crate) fn verify_recorded_report(
+    key: &JournalKey,
+    proposal: &AnchorRetiredReportProposal,
+    bytes: &[u8],
+) -> Result<(), DurableError> {
+    if bytes.len() > 4 * MAX_IMAGE
+        || bytes.get(..8) != Some(b"QPRDMD01")
+        || bytes.get(8..321) != Some(proposal.inventory().to_bytes().as_slice())
+    {
+        return Err(DurableError::Conflict);
+    }
+    let mut mac = report_authenticator(key)?;
+    mac.update(bytes);
+    mac.verify_slice(proposal.report_id())
+        .map_err(|_| DurableError::Authentication)
 }
 
 struct Encoder(Vec<u8>);

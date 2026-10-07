@@ -44,7 +44,8 @@ struct Owners {
 
 /// Original independently stored request for one permanently retired installation.
 /// This owns only recovery metadata and the original wrapping key. It cannot return
-/// a service/journal, acknowledge host effects or erase data. A complete historical
+/// a service/journal or perform external host effects. Host-accounted intent is
+/// explicitly recorded only after the caller durably stores the report. A complete historical
 /// report requires independent retention of both inventory and report identity.
 /// The configuration database must remain outside old-journal backups.
 /// ```compile_fail
@@ -268,6 +269,97 @@ impl RetiredInstallationRecovery {
                 return Err(DurableError::Conflict);
             }
             Ok(report)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Persist an explicit host-accounted intent AFTER the host has durably retained
+    /// the complete report and deduplicated its effects by this report ID. This never
+    /// performs those external host effects. Supply the complete canonical bytes from
+    /// the host accounting record and verified independent report retention. This also
+    /// works after journal/archive loss; partial or changed bytes fail authentication.
+    /// Exact retries do not rewrite the intent.
+    /// The returned original report is the expectation for a separate authorized
+    /// witness acknowledgement; neither this call nor its return erases the journal.
+    pub fn prepare_host_acknowledgement(
+        &mut self,
+        recorded_report: &[u8],
+        retained: &crate::AnchorRetiredReport,
+    ) -> Result<crate::AnchorRetiredReportProposal, DurableError> {
+        let result = (|| {
+            let expected = self.report_proposal()?.ok_or(DurableError::Suspended)?;
+            if retained.proposal() != &expected {
+                return Err(DurableError::Conflict);
+            }
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            crate::retired_device::verify_recorded_report(&owners.key, &expected, recorded_report)?;
+            let saved = read_configuration(&owners.configuration)?;
+            if let Some(ack) = saved.retired_ack {
+                return Ok(ack);
+            }
+            let body = expected.to_bytes();
+            let mut wire = b"QPCIAK01".to_vec();
+            wire.extend_from_slice(&body);
+            let tx = transaction(&owners.configuration)?;
+            {
+                let mut table = tx.open_table(TABLE).map_err(storage)?;
+                if table.len().map_err(storage)? != 3
+                    || table
+                        .get("retired-report")
+                        .map_err(storage)?
+                        .as_ref()
+                        .map(|v| v.value())
+                        != Some(body.as_slice())
+                    || table.get("retired-ack").map_err(storage)?.is_some()
+                {
+                    return Err(DurableError::Conflict);
+                }
+                table
+                    .insert("retired-ack", wire.as_slice())
+                    .map_err(storage)?;
+            }
+            #[cfg(all(test, unix))]
+            super::tests::at_boundary("retired-ack-before-commit");
+            tx.commit().map_err(DurableError::CommitUncertain)?;
+            #[cfg(all(test, unix))]
+            super::tests::at_boundary("retired-ack-after-commit");
+            Ok(expected)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Recover only the original host-accounted expectation, even after journal loss.
+    /// None is local absence, not proof that an external host effect did not commit.
+    pub fn host_acknowledgement_proposal(
+        &mut self,
+    ) -> Result<Option<crate::AnchorRetiredReportProposal>, DurableError> {
+        let result = (|| {
+            self.proposal()?;
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            Ok(read_configuration(&owners.configuration)?.retired_ack)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Authenticate independent purpose-21 acknowledgement of the exact saved host intent.
+    /// This grants no current runtime and performs no logical or physical erasure.
+    pub fn verify_host_acknowledgement(
+        &mut self,
+        pin: &AnchorPin,
+        wire: &[u8],
+    ) -> Result<crate::AnchorRetiredReportAcknowledgement, DurableError> {
+        let result = (|| {
+            let expected = self
+                .host_acknowledgement_proposal()?
+                .ok_or(DurableError::Suspended)?;
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            Ok(pin.verify_retired_report_acknowledgement(owners.retired, &expected, wire)?)
         })();
         if result.is_err() {
             self.close();

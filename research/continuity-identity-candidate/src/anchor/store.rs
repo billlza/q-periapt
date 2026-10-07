@@ -26,7 +26,8 @@ pub use replacement::{
 };
 mod retired_report;
 pub use retired_report::{
-    AnchorRetiredReport, AnchorRetiredReportProposal, AnchorRetiredReportState,
+    AnchorRetiredReport, AnchorRetiredReportAcknowledgement,
+    AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
 };
 mod retired_cleanup;
 pub use retired_cleanup::{
@@ -64,7 +65,7 @@ struct Image {
     entries: BTreeMap<[u8; 32], Entry>,
     replacements: BTreeMap<[u8; 32], AnchorDeviceReplacementProposal>,
     retired_cleanup: BTreeMap<[u8; 32], AnchorRetiredCleanupProposal>,
-    retired_reports: BTreeMap<[u8; 32], AnchorRetiredReportProposal>,
+    retired_reports: BTreeMap<[u8; 32], retired_report::ReportRecord>,
 }
 struct Active {
     db: Database,
@@ -717,6 +718,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     image.check_replacements(pin)?;
     image.check_retired_cleanup(pin)?;
     image.check_retired_reports(pin)?;
+    let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
     let report_format = !image.retired_reports.is_empty();
     let cleanup_format = report_format || !image.retired_cleanup.is_empty();
     let replacement_format = cleanup_format || !image.replacements.is_empty();
@@ -759,7 +761,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if report_format {
+    let mut bytes = if acknowledged_report_format {
+        b"QPANC014".to_vec()
+    } else if report_format {
         b"QPANC013".to_vec()
     } else if cleanup_format {
         b"QPANC012".to_vec()
@@ -843,7 +847,8 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
         let version = d.array::<8>()?;
-        let has_replacement = [*b"QPANC011", *b"QPANC012", *b"QPANC013"].contains(&version);
+        let has_replacement =
+            [*b"QPANC011", *b"QPANC012", *b"QPANC013", *b"QPANC014"].contains(&version);
         if ![
             *b"QPANC001",
             *b"QPANC002",
@@ -857,6 +862,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             *b"QPANC011",
             *b"QPANC012",
             *b"QPANC013",
+            *b"QPANC014",
         ]
         .contains(&version)
             || d.array::<32>()? != pin.binding
@@ -905,6 +911,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 *b"QPANC011",
                 *b"QPANC012",
                 *b"QPANC013",
+                *b"QPANC014",
             ]
             .contains(&version)
             {
@@ -934,6 +941,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                             *b"QPANC011",
                             *b"QPANC012",
                             *b"QPANC013",
+                            *b"QPANC014",
                         ]
                         .contains(&version),
                         version == *b"QPANC006"
@@ -1039,13 +1047,13 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
         } else {
             BTreeMap::new()
         };
-        let retired_cleanup = if version == *b"QPANC012" || version == *b"QPANC013" {
+        let retired_cleanup = if [*b"QPANC012", *b"QPANC013", *b"QPANC014"].contains(&version) {
             retired_cleanup::decode_records(&mut d, pin)?
         } else {
             BTreeMap::new()
         };
-        let retired_reports = if version == *b"QPANC013" {
-            retired_report::decode_records(&mut d, pin)?
+        let retired_reports = if version == *b"QPANC013" || version == *b"QPANC014" {
+            retired_report::decode_records(&mut d, pin, version == *b"QPANC014")?
         } else {
             BTreeMap::new()
         };
@@ -1068,6 +1076,9 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
         image.check_retired_reports(pin)?;
+        if version == *b"QPANC014" && !image.retired_reports.values().any(|r| r.acknowledged) {
+            return Err(DurableError::Corrupt);
+        }
         if has_replacement && image.replacements.is_empty() {
             return Err(DurableError::Corrupt);
         }

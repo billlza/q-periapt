@@ -251,7 +251,7 @@ corruption, each measured before/after retention sync fault, and process loss af
 commit before return. Credential-with-policy-continuation inventory variants and
 installed foreign consumers still require dedicated coverage. The high-level
 coordinator below retains the original request and binds complete historical metadata;
-host acknowledgement and logical erasure remain open. Neither proof nor inventory
+logical erasure remains open. Neither proof nor inventory
 retention authorizes report acceptance, erasure or new runtime work.
 
 ### Original request retained by the installation
@@ -279,8 +279,8 @@ owner through this configuration. The restricted object cannot convert to a serv
 An I/O error may hide the request commit and returns no owner: reopen the original
 configuration and retirement proof. Exact retries do not rewrite the saved request.
 The configuration remains trusted host state outside journal backups, not a new
-anti-rollback mechanism. Report binding is a separate step below; host ACK and
-logical erasure remain unimplemented.
+anti-rollback mechanism. Report binding and explicit host acknowledgement are separate
+steps below. Logical erasure remains unimplemented.
 
 Actual installed-service tests cover interrupted roster writes with retained pending
 inventory, prior backups with the same frozen image and no pending row, missing
@@ -344,10 +344,54 @@ metadata and canonical bytes. Losing original data after saving the proposal all
 commit reconciliation but never an empty/replacement report. The witness authenticates
 retention, not semantic completeness supplied by an untrusted recovery controller.
 
-This stage performs no host accounting ACK and no logical erasure. Those require their
-own explicit durable decision and crash reconciliation. It does not make an old runtime
-current, assert remote delivery, or claim erasure of retained pages/backups. Foreign
-bindings and installed replacement flows still require separate integration/qualification.
+Report retention performs no host accounting ACK or erasure. Explicit host acknowledgement
+is the separate step below. Neither stage makes an old runtime current, asserts remote
+delivery, or claims erasure of retained pages/backups. Foreign bindings and installed
+replacement flows still require separate integration/qualification.
+
+### Explicit durable host acknowledgement
+
+The host must first durably retain the **complete** canonical report with its application
+accounting effects, deduplicated by the original report ID. The SDK cannot commit arbitrary
+external business effects. `prepare_host_acknowledgement(recorded_bytes, verified_retention)`
+then authenticates the full host record using the original private-keyed report identity
+and checks the independently verified report retention against the saved expectation.
+Shortened, changed or foreign records fail; there is no empty/default report. This bounded
+secret-MAC check does not expose an operating journal or require the original journal and
+archives to remain available after the complete host record has been saved.
+
+Before returning the request, the independent installation commits `retired-ack` as
+`QPCIAK01[8] || QPRRPT01[353]`. Its report must exactly match the prior `retired-report`
+row. `host_acknowledgement_proposal()` recovers that same original expectation after an
+unknown commit without repeating host effects or recapturing old data. Local absence
+never proves that the external application transaction did not commit. Exact repeated
+preparation authenticates the supplied original record and performs no new write.
+Older readers explicitly refuse the additional named row.
+
+An independently authorized witness controller calls `acknowledge_retired_report` only
+after the host has recorded the complete report. Report retention alone is insufficient.
+A conflicting report fails and an exact acknowledged retry is read-only. The witness
+retains its original report and old frozen G/P/R entry unchanged. The stored report
+record changes its fixed eight-byte tag from `QPRRPT01` to **QPRACK01**, keeping the same
+353-byte width and preserving the exact capacity admitted by report retention.
+
+**QPANC014** uses the v13 layout with at least one acknowledged report record; it permits
+both retained and acknowledged record tags. QPANC013 admits only retained tags. Authenticated
+version relabeling is corrupt rather than a host-ACK downgrade. No entry, report or inventory
+is evicted to make acknowledgement fit. The existing 256-entry/1 MiB limits remain.
+
+`retired_report_acknowledgement_receipt` signs the 353-byte QPRACK01 body under distinct
+purpose **21**, yielding a 3730-byte envelope. `verify_host_acknowledgement` checks it
+against the original independent host intent, original retirement and witness pin.
+Purpose-20 retention and purpose-21 acknowledgement cannot substitute for each other.
+This is a historical host-accounting decision, not peer consumption or current authority.
+
+Regression cases include complete host records with unavailable original journal/archive
+files, truncated/modified records, exact retry, fixed witness-image size, every separately
+measured before/after sync cut, and owned-process loss before/after installation intent
+commit and after witness ACK commit before return. **Logical erasure is not implemented
+by this stage.** It requires a separate authenticated terminal transaction. Enrollment's
+separate persistent signer and wrapping-key files are also not erased by this protocol.
 
 ### Explicit refresh under a newer roster
 
