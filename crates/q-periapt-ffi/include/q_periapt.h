@@ -556,6 +556,10 @@ const char *q_periapt_status_name(int32_t code);
  * Verify a detached, domain-separated signed agility policy and atomically resolve it against
  * the only suite implemented by this ABI (ML-KEM-768 + X25519).
  *
+ * Deprecated for new integrations: use `q_periapt_sdk_runtime_new` and its
+ * policy-update APIs. This retained ABI function returns caller-writable bytes;
+ * subsequent legacy KEM calls do not independently verify their signature.
+ *
  * On success `out_decision` receives [`Q_PERIAPT_POLICY_DECISION_LEN`] canonical bytes containing
  * the selected suite, profile, key format, non-zero policy version, and SHA3-256 identity of the
  * exact signed policy. A policy that requires L5/ML-KEM-1024 is rejected instead of silently
@@ -594,6 +598,9 @@ int32_t q_periapt_decision_from_signed_policy(const uint8_t *toml,
  * Generate the fixed-suite ML-KEM-768 and X25519 key pairs from the operating
  * system CSPRNG under one authenticated policy decision.
  *
+ * Deprecated for new integrations: use `q_periapt_sdk_key_generate` with a
+ * verified runtime. The legacy decision bytes are not an authorization token.
+ *
  * The decision must select the context-bound/expanded-key product profile. No
  * deterministic seed is accepted by the product ABI; deterministic derivation
  * remains an internal KAT facility so production callers cannot accidentally
@@ -625,7 +632,10 @@ int32_t q_periapt_generate_keypair(const uint8_t *decision,
 /**
  * Hybrid encapsulation authorized by an authenticated policy decision.
  *
- * This is the only product encapsulation entry point. It derives suite/profile/version from one
+ * Deprecated for new integrations: use `q_periapt_sdk_encapsulate` with a
+ * verified runtime. The legacy decision bytes are not an authorization token.
+ *
+ * This retained stateless entry point derives suite/profile/version from one
  * canonical decision and injectively wraps `application_context` together with the exact signed
  * policy digest before invoking the context-bound combiner. `CompatXWing` decisions are rejected
  * because that profile has no context input and therefore cannot commit the digest.
@@ -660,6 +670,9 @@ int32_t q_periapt_encapsulate(const uint8_t *decision,
 
 /**
  * Hybrid decapsulation authorized by an authenticated policy decision.
+ *
+ * Deprecated for new integrations: use `q_periapt_sdk_decapsulate` with an
+ * owned key. The legacy decision bytes are not an authorization token.
  *
  * Suite/profile/version and the policy-bound context are reconstructed exactly as in
  * [`q_periapt_encapsulate`]. See that function for the same-process trust

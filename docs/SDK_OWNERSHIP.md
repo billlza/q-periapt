@@ -20,6 +20,13 @@ binding's extension requirements.
 
 The old byte-oriented Swift/Kotlin/Android APIs and `q-periapt-wasm` remain expert
 or compatibility surfaces. A serialized decision is not an authorization token.
+For new C integrations, `q_periapt_decision_from_signed_policy`,
+`q_periapt_generate_keypair`, `q_periapt_encapsulate` and `q_periapt_decapsulate`
+are deprecated in the public API documentation. Their signatures, exported
+symbols and existing behavior are retained for ABI 2 compatibility; no compiler
+deprecation attribute is added to existing consumers. The five metadata/status
+functions remain supported. Use the verified runtime and owner entry points
+above instead of passing a caller-writable 40-byte decision between operations.
 Default owner construction requires the signed policy, pinned root and previous
 trusted state. Randomness is obtained from the OS/WebCrypto, never a caller seed.
 
