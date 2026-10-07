@@ -10,7 +10,7 @@ use rustls::{
     ServerConnection,
 };
 use std::io::{Read, Write};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 struct Identity {
     cert: CertificateDer<'static>,
@@ -256,6 +256,103 @@ fn standard_server_rejects_anonymous_clients_and_classic_only_peers() {
             rustls::PeerIncompatible::NoKxGroupsInCommon
         ))
     ));
+}
+
+#[derive(Debug, Default)]
+struct CertificateRequestProbe {
+    requests: Mutex<Vec<Vec<Vec<u8>>>>,
+}
+impl rustls::client::ResolvesClientCert for CertificateRequestProbe {
+    fn resolve(
+        &self,
+        root_hint_subjects: &[&[u8]],
+        _sigschemes: &[rustls::SignatureScheme],
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        self.requests
+            .lock()
+            .expect("record certificate request")
+            .push(
+                root_hint_subjects
+                    .iter()
+                    .map(|name| name.to_vec())
+                    .collect(),
+            );
+        None
+    }
+
+    fn has_certs(&self) -> bool {
+        false
+    }
+}
+
+#[test]
+fn standard_server_withholds_pinned_client_subjects_before_authentication() {
+    let server_identity = Identity::new("localhost");
+    let mut parameters = rcgen::CertificateParams::new(vec!["private-device.test".into()])
+        .expect("client parameters");
+    parameters.distinguished_name = rcgen::DistinguishedName::new();
+    parameters
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "private enrolled device 27");
+    let key = rcgen::KeyPair::generate().expect("client key");
+    let client_identity = Identity {
+        cert: parameters
+            .self_signed(&key)
+            .expect("client certificate")
+            .der()
+            .clone(),
+        key: PrivateKeyDer::Pkcs8(key.serialize_der().into()),
+    };
+    let (_, server_config) = configs(&server_identity, &client_identity);
+    let probe = Arc::new(CertificateRequestProbe::default());
+    let client_config = ClientConfig::builder_with_provider(Arc::new(restricted_provider(true)))
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .expect("versions")
+        .with_root_certificates(server_identity.roots())
+        .with_client_cert_resolver(probe.clone());
+    let mut client = ClientConnection::new(Arc::new(client_config), name("localhost"))
+        .expect("unauthenticated peer");
+    let mut server = server_config.accept().expect("server");
+    client_to_server(&mut client, &mut server, 17).expect("ClientHello");
+    server_to_client(&mut client, &mut server, 17).expect("server handshake flight");
+    // The peer can decrypt CertificateRequest before presenting any identity.
+    // Observe the actual handshake through rustls's public certificate resolver.
+    assert!(server.is_handshaking());
+    assert!(server.peer_certificates().is_none());
+    let requests = probe.requests.lock().expect("observed requests");
+    assert_eq!(requests.len(), 1);
+    assert!(
+        requests.iter().all(Vec::is_empty),
+        "unauthenticated peer received pinned client distinguished names: {requests:?}"
+    );
+    drop(requests);
+    assert!(matches!(
+        client_to_server(&mut client, &mut server, 17),
+        Err(Error::NoCertificatesPresented)
+    ));
+
+    // Empty hints must not change the pinned trust set or make auth optional.
+    for (identity, trusted) in [
+        (&client_identity, true),
+        (&Identity::new("foreign.test"), false),
+    ] {
+        let client = MutualTlsClient::new(
+            server_identity.roots(),
+            vec![identity.cert.clone()],
+            identity.key.clone_key(),
+        )
+        .expect("client config");
+        let result = drive(
+            &mut client.connect(name("localhost")).expect("client"),
+            &mut server_config.accept().expect("server"),
+            17,
+        );
+        if trusted {
+            result.expect("pinned client still authenticates");
+        } else {
+            assert!(matches!(result, Err(Error::InvalidCertificate(_))));
+        }
+    }
 }
 
 #[test]

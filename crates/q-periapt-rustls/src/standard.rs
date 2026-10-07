@@ -220,6 +220,8 @@ pub struct MutualTlsServer {
 impl MutualTlsServer {
     /// Pin client trust anchors and provide this server's certificate/key.
     /// Anonymous clients and classic-only peers are rejected during the handshake.
+    /// Client-authority name hints are omitted: a pinned peer's subject must not
+    /// be disclosed to a connecting client before it authenticates.
     pub fn new(
         client_roots: RootCertStore,
         certificates: Vec<CertificateDer<'static>>,
@@ -234,6 +236,7 @@ impl MutualTlsServer {
             Arc::new(client_roots),
             Arc::clone(&provider),
         )
+        .clear_root_hint_subjects()
         .build()
         .map_err(ConfigurationError::Verifier)?;
         let mut config = ServerConfig::builder_with_provider(provider)
