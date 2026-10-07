@@ -1,0 +1,110 @@
+{
+  "schema_version": 2,
+  "vectors": [
+    {
+      "expected": {
+        "body_len": 666,
+        "body_sha256": "de8b52e027e6e8bc304986fed40e4ab8bc189674896a302ffecd0f15b3682100",
+        "context_digest_sha3_256": "1e9c78412913e87c8bef64116a80f6e4d39458b6a7177bca38ebfbc277cc2ca0",
+        "digest_preimage_len": 803,
+        "digest_preimage_sha256": "eef604d697131cb105f235b05996833197a5cafcf5a25cfa6adaebe139b18d6f",
+        "policy_bound_kctx_len": 749,
+        "policy_bound_kctx_sha256": "4ab244ff19feab1296375f6991cc1a0759b6f3f3213ced909c8ce26fa4a1008f"
+      },
+      "input": {
+        "authentication_stage": "prekey_authenticated",
+        "direction": "initiator_to_responder",
+        "directory_checkpoint_digest": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "identity_mode": "accountable",
+        "initiator": {
+          "account_id": "0404040404040404040404040404040404040404040404040404040404040404",
+          "device_epoch": 6,
+          "device_id": "05050505050505050505050505050505",
+          "identity_credential_digest": "0707070707070707070707070707070707070707070707070707070707070707"
+        },
+        "key_schedule_transcript_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "kind": "bootstrap",
+        "policy_digest": "1313131313131313131313131313131313131313131313131313131313131313",
+        "prekey_selection": {
+          "bundle_epoch": 30,
+          "classical": {
+            "mode": "one_time",
+            "selected_prekey_id": "2020202020202020202020202020202020202020202020202020202020202020",
+            "signed_prekey_id": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f"
+          },
+          "directory_checkpoint_digest": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+          "post_quantum": {
+            "last_resort_prekey_id": "2121212121212121212121212121212121212121212121212121212121212121",
+            "mode": "one_time",
+            "selected_prekey_id": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "responder": {
+            "account_id": "0808080808080808080808080808080808080808080808080808080808080808",
+            "device_epoch": 10,
+            "device_id": "09090909090909090909090909090909",
+            "identity_credential_digest": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+          },
+          "signed_prekey_manifest_digest": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+          "suite_digest": "0202020202020202020202020202020202020202020202020202020202020202"
+        },
+        "protocol_id": "01010101010101010101010101010101",
+        "responder": {
+          "account_id": "0808080808080808080808080808080808080808080808080808080808080808",
+          "device_epoch": 10,
+          "device_id": "09090909090909090909090909090909",
+          "identity_credential_digest": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+        },
+        "roster_digest": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "roster_version": 12,
+        "session_id": "0303030303030303030303030303030303030303030303030303030303030303",
+        "suite_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+        "wire_version": 1
+      },
+      "name": "bootstrap-accountable-one-time"
+    },
+    {
+      "expected": {
+        "body_len": 626,
+        "body_sha256": "7f19b44bb4ff65dee74d13b7bf925cb04bea994eefd961493c079cf38e2a1b51",
+        "context_digest_sha3_256": "f608e8c5fe2b3cd3a7ad8d0cd49fca3722c5dddef4416881585c722174c621e6",
+        "digest_preimage_len": 763,
+        "digest_preimage_sha256": "40b16bad9e197facad91cee9f50491efbc2263861b59ddd9529cad328858722e",
+        "policy_bound_kctx_len": 709,
+        "policy_bound_kctx_sha256": "5bb0d16a205f4f18ff0346b4b39cf4a14965a17bc9d7551a25ebbc0dec54f338"
+      },
+      "input": {
+        "authentication_stage": "mutually_confirmed",
+        "direction": "responder_to_initiator",
+        "identity_mode": "accountable",
+        "initiator": {
+          "account_id": "0404040404040404040404040404040404040404040404040404040404040404",
+          "device_epoch": 6,
+          "device_id": "05050505050505050505050505050505",
+          "identity_credential_digest": "0707070707070707070707070707070707070707070707070707070707070707"
+        },
+        "kind": "root_transition",
+        "next_dh_epoch": 31,
+        "next_pq_epoch": 41,
+        "next_root_epoch": 21,
+        "policy_digest": "1313131313131313131313131313131313131313131313131313131313131313",
+        "prior_context_digest": "1212121212121212121212121212121212121212121212121212121212121212",
+        "prior_dh_epoch": 30,
+        "prior_pq_epoch": 40,
+        "prior_root_epoch": 20,
+        "protocol_id": "01010101010101010101010101010101",
+        "responder": {
+          "account_id": "0808080808080808080808080808080808080808080808080808080808080808",
+          "device_epoch": 10,
+          "device_id": "09090909090909090909090909090909",
+          "identity_credential_digest": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+        },
+        "root_transition_kind": "hybrid",
+        "session_id": "0303030303030303030303030303030303030303030303030303030303030303",
+        "suite_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+        "transition_transcript_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "wire_version": 1
+      },
+      "name": "root-hybrid-mutually-confirmed"
+    }
+  ]
+}

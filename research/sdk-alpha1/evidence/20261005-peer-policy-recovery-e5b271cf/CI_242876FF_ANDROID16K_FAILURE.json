@@ -1,0 +1,28 @@
+{
+  "head": "242876ff8225fc6fdc7c54a61c553cec0a78f9d6",
+  "run": 37254954329,
+  "job": 111591294596,
+  "artifact": 11322109698,
+  "zip_sha256": "abba53145e15c67d2862096e62bf4c1aee7f2e4d16b9222ae6a5e9b5671a4a6e",
+  "observed": "Runtime minimal instrumentation passed; test cleanup ownership copy truncated twice and ADB read failed. Uninstall outcome unconfirmed.",
+  "root_cause_identified": false,
+  "evidence": {
+    "321adb176d6a1f9b16ffe97669385371/proof/adb-instrumentation.txt": {
+      "sha256": "13f2671f70ec66dfad77c0a41e8daae2cfbb02e0c454acce90e32fc65d63a6ea",
+      "text": "INSTRUMENTATION_RESULT: qperiapt_result_json_base64=ewogICJzY2hlbWEiOiAxLAogICJzdGF0dXMiOiAicGFzcyIsCiAgInJ1bl9pZCI6ICIzMjFhZGIxNzZkNmExZjliMTZmZmU5NzY2OTM4NTM3MSIsCiAgInRlc3RfY291bnQiOiAxLAogICJwYXNzZWRfdGVzdHMiOiBbInJ1bnRpbWVWZXJzaW9uT25seSJdCn0K\nINSTRUMENTATION_RESULT: qperiapt_result_text_base64=UVBFUklBUFRfQU5EUk9JRF9ERVZJQ0VfUEFTUyBydW4taWQ9MzIxYWRiMTc2ZDZhMWY5YjE2ZmZlOTc2NjkzODUzNzEgdGVzdHM9MQo=\nINSTRUMENTATION_RESULT: qperiapt_run_id=321adb176d6a1f9b16ffe97669385371\nINSTRUMENTATION_CODE: -1\n"
+    },
+    "321adb176d6a1f9b16ffe97669385371/proof/adb-server.log": {
+      "sha256": "dd60f1c9b464c60d310b242c910a9bd66f5badcd1bf4843b5859aca462764884",
+      "text": "10-05 02:38:14.837  7527  7839 I adb-321adb176d6a1f9b16ffe97669385371: transport.cpp:1222 emulator-5584: connection terminated: read failed\n10-05 02:38:33.632  7527  9153 I adb-321adb176d6a1f9b16ffe97669385371: transport.cpp:1222 emulator-5584: connection terminated: read failed\n10-05 02:40:02.262  7527  7527 I adb-321adb176d6a1f9b16ffe97669385371: adb.cpp:1288 adb server killed by remote request\n10-05 02:40:02.262  7527  7527 I adb-321adb176d6a1f9b16ffe97669385371: blame_kill.cpp:191 unsupported address family: 1\n10-05 02:40:02.262  7527  7527 I adb-321adb176d6a1f9b16ffe97669385371: blame_kill.cpp:195 failed to parse peer address\n10-05 02:40:02.262  7527  7527 I adb-321adb176d6a1f9b16ffe97669385371: blame_kill.cpp:273 failed to find PID for TCP peer\n"
+    },
+    "321adb176d6a1f9b16ffe97669385371/proof/adb-package-cleanup-1-attempt-2.err": {
+      "sha256": "b2f041387defaa5433e2c9ab2a61d4e9ff7a05d74a2499e1b61fada6eabb9cb7",
+      "text": "{\"expected_bytes\":13588183,\"expected_sha256\":\"c8386cc7d88e1e9ef35fc86c3233e50c15fd21b480c2c0ddfe81f2038092e7a7\",\"failure\":\"bytes-mismatch\",\"observed_bytes\":5107200,\"observed_sha256\":\"1017985fb6abed3a8b84e6617f50559b4805e39a0b2093afaac9995cdd7a32f5\",\"operation\":\"installed-apk-copy\"}\n"
+    },
+    "321adb176d6a1f9b16ffe97669385371/proof/adb-package-cleanup-1-attempt-5.err": {
+      "sha256": "bb9c2b167d756a78beaed579240ecef8291d93a09c97727a682d745e9b1c07d6",
+      "text": "{\"expected_bytes\":13588183,\"expected_sha256\":\"c8386cc7d88e1e9ef35fc86c3233e50c15fd21b480c2c0ddfe81f2038092e7a7\",\"failure\":\"bytes-mismatch\",\"observed_bytes\":11776,\"observed_sha256\":\"a97a02a928844a6b386978121bb6ae137510da2fefd377add59ba77fae5bbf17\",\"operation\":\"installed-apk-copy\"}\n"
+    }
+  },
+  "release_claim_eligible": false
+}

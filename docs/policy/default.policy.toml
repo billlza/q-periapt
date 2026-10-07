@@ -1,0 +1,29 @@
+# Default algorithm policy for the PQ/T hybrid suite.
+#
+# Crypto-agility principle: applications reference THIS file, never hardcode an
+# algorithm. Migration = edit policy, not code. `min_nist_level` is the downgrade
+# floor enforced at handshake/verify time.
+#
+# Loaded by `q-periapt-policy` (TOML/serde + signed-policy verification: see ROADMAP).
+
+schema_version = 1
+policy_version = 1                 # monotonic content version; load_signed_monotonic refuses a rollback to an older one
+min_nist_level = 3                 # downgrade floor; must be a real NIST level (1/2/3/5), 3 = default, 5 = enhanced
+default_profile = "ContextBound"   # safe default; use "CompatXWing" only for explicit X-Wing interop
+
+# Hybrid by default: lattice (ML-KEM) + traditional (X25519).
+allowed_kems = ["ML-KEM-768", "X25519"]
+
+# General-purpose signatures + a hash-based anchor for roots/firmware.
+allowed_sigs = ["ML-DSA-65", "SLH-DSA-SHA2-256s"]
+
+# Denied even if otherwise listed (e.g. after an algorithm is broken).
+deprecated = []
+
+# --- Enhanced posture (see q_periapt_policy::Policy::enhanced) -----------------------
+# min_nist_level = 5
+# default_profile = "ContextBound"
+# allowed_kems = ["ML-KEM-1024", "X25519"]
+# Suite code 3 (the retired PQClean-HQC experiment) is a permanent tombstone.
+# The publish=false HQC-v5/FIPS-207-draft shadow has no policy identifier, suite code, or ABI.
+# allowed_sigs = ["ML-DSA-87", "SLH-DSA-SHA2-256s"]

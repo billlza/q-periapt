@@ -1,0 +1,215 @@
+Q-Periapt reviewer smoke test
+commit : 87b1a636df6e238b55f41ec7fce26ca6af3f1cd8
+rustc  : rustc 1.96.0 (ac68faa20 2026-05-25)
+host   : Darwin 27.0.0 arm64
+
+=== core unit tests ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/q_periapt_core-a36ce173bbf92625)
+
+running 12 tests
+test tests::compat_xwing_silently_discards_context_use_contextbound_to_bind ... ok
+test tests::ct_helpers ... ok
+test tests::deterministic_and_profiles_differ ... ok
+test tests::from_transport_rejects_overlong_length_prefix ... ok
+test tests::context_bound_requires_nonempty_context ... ok
+test tests::compat_rejects_wrong_length ... ok
+test tests::context_bound_binds_suite_and_version_and_context ... ok
+test tests::from_transport_round_trips_and_rejects_malformed ... ok
+test tests::profile_u8_round_trips ... ok
+test tests::injective_encoding_prevents_boundary_collision ... ok
+test tests::from_transport_rejects_non_four_byte_policy_version ... ok
+test tests::secure_wipe_zeroes_the_buffer ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests q_periapt_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+PASS: core unit tests
+
+=== shared reference vectors ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src/lib.rs (target/debug/deps/q_periapt_backends-e965fecc1e0a9f46)
+
+running 39 tests
+test contextbound_kat::contextbound_reference_vectors ... ok
+test acvp::acvp_ml_kem_512_conformance ... ok
+test acvp::acvp_ml_dsa_44_conformance ... ok
+test acvp::acvp_ml_kem_768_conformance ... ok
+test acvp::acvp_ml_kem_1024_conformance ... ok
+test acvp::acvp_ml_dsa_65_conformance ... ok
+test acvp::acvp_ml_dsa_87_conformance ... ok
+test differential::hybrid_compat_xwing_byte_identical_to_independent_reconstruction ... ok
+test differential::ml_dsa_44_byte_identical_to_independent_rustcrypto ... ok
+test acvp::acvp_ml_dsa_44_signature_modes ... ok
+test differential::x25519_rfc7748_diffie_hellman_kat ... ok
+test enhanced_kat::enhanced_suite_pinned_reference_vector ... ok
+test proptests::compat_xwing_deterministic ... ok
+test differential::ml_kem_512_byte_identical_to_independent_rustcrypto ... ok
+test proptests::compat_xwing_rejects_non_32 ... ok
+test differential::hybrid_enhanced_compat_xwing_byte_identical_to_independent_reconstruction ... ok
+test proptests::contextbound_rejects_empty_context ... ok
+test proptests::contextbound_injective_under_boundary_shift ... ok
+test proptests::contextbound_binds_context ... ok
+test proptests::profiles_domain_separated ... ok
+test tests::deterministic_encaps ... ok
+test tests::enhanced_hybrid_real_roundtrip_both_profiles ... ok
+test tests::hybrid_real_roundtrip_both_profiles ... ok
+test differential::x25519_byte_identical_to_independent_orion ... ok
+test tests::mldsa65_sign_verify_and_reject ... ok
+test tests::mlkem_algorithm_strings ... ok
+test tests::sha3_256_known_answer ... ok
+test tests::mlkem768_roundtrip ... ok
+test tests::x25519_roundtrip ... ok
+test tests::x25519_rejects_low_order_point ... ok
+test xwing_kat::xwing_draft_kat_byte_exact ... ok
+test acvp::acvp_ml_dsa_65_signature_modes ... ok
+test differential::ml_dsa_65_byte_identical_to_independent_rustcrypto ... ok
+test differential::ml_dsa_87_byte_identical_to_independent_rustcrypto ... ok
+test differential::ml_kem_768_byte_identical_to_independent_rustcrypto ... ok
+test differential::ml_kem_1024_byte_identical_to_independent_rustcrypto ... ok
+test acvp::acvp_ml_dsa_87_signature_modes ... ok
+test proptests::hybrid_compat_round_trip ... ok
+test proptests::hybrid_enhanced_round_trip ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+
+     Running tests/binding_keyformat_separation.rs (target/debug/deps/binding_keyformat_separation-6f82f8d02b7fcf76)
+
+running 2 tests
+test seed_dk_control_z_bound_to_key_closes_schmieg_vector ... ok
+test lean_xwing_shape_over_expanded_dk_loses_k_pk_contextbound_keeps_it ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests q_periapt_backends
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+PASS: shared reference vectors
+
+=== C-ABI tests (incl. aliasing) ===
+   Compiling q-periapt-ffi v0.0.1 (<repo>/crates/q-periapt-ffi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running unittests src/lib.rs (target/debug/deps/q_periapt_ffi-faefc08c215700b4)
+
+running 11 tests
+test tests::ffi_rejects_bad_profile_and_null ... ok
+test tests::keypair_wrong_output_length_is_length_error_before_secret_copy ... ok
+test tests::keypair_rejects_overlapping_buffers ... ok
+test tests::combine_rejects_overlapping_buffers ... ok
+test tests::hybrid_encapsulate_rejects_overlapping_buffers ... ok
+test tests::combine_matches_reference_vectors ... ok
+test tests::hybrid_encapsulate_rejects_forged_suite_id ... ok
+test tests::ffi_matches_shared_vector ... ok
+test tests::hybrid_encapsulate_rejects_low_order_x25519_share_as_public_error ... ok
+test tests::ffi_hybrid_roundtrip_context_bound ... ok
+test tests::profile_from_signed_policy_returns_selected_code_and_blocks_rollback ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+   Doc-tests q_periapt_ffi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+PASS: C-ABI tests (incl. aliasing)
+
+=== WASM shared vector (host) ===
+   Compiling q-periapt-backends v0.0.1 (<repo>/crates/q-periapt-backends)
+   Compiling q-periapt-wasm v0.0.1 (<repo>/crates/q-periapt-wasm)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
+     Running unittests src/lib.rs (target/debug/deps/q_periapt_wasm-1a2f5b04412fe288)
+
+running 3 tests
+test tests::combine_matches_reference_vectors ... ok
+test tests::decapsulate_matches_shared_vector ... ok
+test tests::keypair_encap_decap_roundtrip ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Doc-tests q_periapt_wasm
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+PASS: WASM shared vector (host)
+
+=== rustls loopback handshake ===
+   Compiling q-periapt-rustls v0.0.1 (<repo>/crates/q-periapt-rustls)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running tests/handshake.rs (target/debug/deps/handshake-99d21d440e61511c)
+
+running 1 test
+test tls13_handshake_over_q_periapt_hybrid ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+PASS: rustls loopback handshake
+
+=== C-ABI link-and-run smoke ===
+[1/2] cargo build -p q-periapt-ffi --release
+    Finished `release` profile [optimized] target(s) in 0.08s
+[2/2] cc smoke.c -> link libq_periapt_ffi, then run
+q-periapt C-ABI link smoke test
+A: combine() KAT byte-exact ....... PASS
+B: hybrid roundtrip + 2 negative controls .. PASS
+C: status-code ABI (NULL/LENGTH/POLICY, 2 fns) ... PASS
+ALL PASS
+PASS: C-ABI link-and-run smoke
+
+=== EasyCrypt no-admit gate ===
+PASS: EasyCrypt no-admit gate
+
+================ SUMMARY ================
+7 passed, 0 failed
+ALL PASS
+
+######## FULL CI-EQUIVALENT EVIDENCE (frozen capture) ########
+# Captured locally at commit 87b1a636df6e238b55f41ec7fce26ca6af3f1cd8 on Darwin 27.0.0 arm64, rustc 1.96.0 (ac68faa20 2026-05-25)
+# This is a real local run, NOT a GitHub Actions export.
+
+===== cargo test --workspace =====
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+===== cargo clippy --workspace --all-targets -D warnings =====
+warning: q-periapt-ctstats@0.0.1: valgrind/memcheck.h not found; ct_verify shim is a no-op (the dataflow constant-time check runs only under Valgrind).
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.60s
+
+===== cargo fmt --all --check =====
+fmt: clean (no diff)

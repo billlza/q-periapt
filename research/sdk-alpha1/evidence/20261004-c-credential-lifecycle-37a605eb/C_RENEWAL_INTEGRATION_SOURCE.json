@@ -1,0 +1,20 @@
+{
+  "base_commit": "37a605ebff7958afd2503491532d158bc4e26923",
+  "source": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "files": {
+    "artifact/continuity_c_consumer.py": "61dc687057de0324f8ef0cda70735e1ac0240084eb40b0f768a6bd04bf79a0f3",
+    "artifact/continuity_c_enrollment.py": "fbb591049d3010764cfd9a62c384eef1e262dceeeb047571719ceabd55865155",
+    "artifact/test_continuity_c_enrollment.py": "35416a39d0e975dae19dcfa6d58800c4c7518f4eee07dfba4dc650c82fee3295",
+    "bindings/c/ContinuityPackageConsumer/README.md": "65f7920449572a6deaaaaa74be2a87a0bebbc5d049e07182ae5cc29d5b1c9955",
+    "bindings/c/ContinuityPackageConsumer/client.c": "0b628d17e4f9fd44a9129ec44f546220f368ef56f0df0636e1f80fd6ed55f702",
+    "bindings/c/ContinuityPackageConsumer/credential_peer_client.c": "91a3d3fdc154fbb26b7f2ce13a9b19f63442f9a3f8318ffe80371c0878ec3c6a",
+    "bindings/c/ContinuityPackageConsumer/enrollment_client.c": "fa95c605221865fbbdaccc3c3a055f9f47e718ef916e6c75d674558eb5eff131",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "213a7045242afa2580b44dc4605448256d677c6fec3a971660500b79a6a2764a",
+    "bindings/c/ContinuityPackageConsumer/src/device.rs": "68c174340ecaba901435ceb1ea522144cfe39f174c233e8becec10ee24f12c65",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment.rs": "a2ea2361cef4d07f598b25999cb3f20929fb6a610e7f123ae00ad8c4235cfb06",
+    "bindings/c/ContinuityPackageConsumer/tests/enrollment.rs": "f62d3b1a6b3376396b9c1ab72d424b44a90e0a384394585457bdfaa5b84fc099",
+    "bindings/c/ContinuityPackageConsumer/tests/enrollment/credential_renewal.rs": "c0a13a64acea5967fa033a0f7953d65b6efe3ed24d42dd69c6bb23668c8713f3",
+    "bindings/c/ContinuityPackageConsumer/tests/enrollment/peer_credential_renewal.rs": "1be297a612cfe056c7facb6044ce0bfa5f2bf12af0870f2e7b5193fa4983f154"
+  },
+  "scope": "Unpublished C credential lifecycle binding and its execution gate; independent native engine not claimed"
+}

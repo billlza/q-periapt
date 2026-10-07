@@ -1,0 +1,233 @@
+{
+  "scope": "Native source integration inventory only; no files applied to MAIN or clean checkpoint",
+  "base_checkpoint": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/creation-admission-checkpoint-source",
+  "base_commit": "e72f6e9a260bffb3adaffe1ff71a33cb0c699029",
+  "candidate_source": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/expired-renewal-source/candidate/src",
+  "changes": [
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap/retained.rs",
+      "base_sha256": null,
+      "candidate_sha256": "46175335096639928d20ec472550402735157821db840b028df24c4b9494cdac"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "base_sha256": "7acee30ad29e765e935fa0509525191b5d25a18b05f8224672721b45e0417fc0",
+      "candidate_sha256": "15afc64816582c7f868071fea2406222f5180a49171331130306a8ba3888998d"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap_bundle/reopen.rs",
+      "base_sha256": "8c293faedaa4da23f4347a19617475ed74c7fad6f86ff865ef0723e467355643",
+      "candidate_sha256": "e2870978b7fbcbd0756ba9698e8ad0aed454e8cec030cdb3a1ea9b524049f302"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/crypto.rs",
+      "base_sha256": "a696274abd4450ead36cae4181715c9519dc0e5a3e9bdc253a7ed8784606cfb9",
+      "candidate_sha256": "4c55386eb183221f2d994346b2300557967337d094eddd0465d3c4fc74604b15"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/initiator.rs",
+      "base_sha256": "045c972a1b3bc7e3c80a93d07f2d952e2dcb90a30c8bc893e7a47ea342db7496",
+      "candidate_sha256": "e5fd703647db62ef43bec1da036e53ed78953a3a1854f68ccffd02179d5a3fa0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/acknowledgement.rs",
+      "base_sha256": "3b897180973c23e3ef9d9745148d7412db4583230cdf7a5fc40c2630f11693f5",
+      "candidate_sha256": "b9910916cd9aa3b8e01f0cef56e6c79aef8a0d8c45029ed0e925c525bb7563d7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+      "base_sha256": "c17c355d1c196297f993413774742a5f3a027f623d5fb8505a7344cf054691c7",
+      "candidate_sha256": "37521c15cd62ff89bf1a0c96dc2584598adb7a8190520438e3dd76ab543a0a7d"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/delivery.rs",
+      "base_sha256": "fbda01b0093317ca0b4ec59de7bf1ac785df2138bcc85977445feb8e2659e1af",
+      "candidate_sha256": "4fd72d8fae7c78af6de0ec3e03a11c24c5900c222502a7620cb2c8b84b41880a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+      "base_sha256": "71ad69b1dca2194a534c8faaa97379310d7bd4ea497983a2a2fd18af7ac5dd5b",
+      "candidate_sha256": "78d4f44bba636d23fea7baeb6d715bec973737f4b1599d65c6ae5b5d57adaddd"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "base_sha256": "026bad50a3967f5d008b622a6ff1c6b4213f3b8d690481aa9908e683cbe61cd5",
+      "candidate_sha256": "b13b20437b112a0a4005b70612cd3e23eb3a63a06913f4f6066d2b1393d3f8c5"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/driver.rs",
+      "base_sha256": "5851c07bc3417931d37d5be8599ce2149ee06857aab5be536ddb70a339c57d6c",
+      "candidate_sha256": "9a8dbb7cda056989eb68f2994643e6892a1c18ee417590063527b989a2b60365"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/request.rs",
+      "base_sha256": "aee7382e12bab215aa9c1ae620e5533bcf91582c51d31493143f373230973a36",
+      "candidate_sha256": "a610395233f2e5b86ada78d7882bb9c60d31470a74802d1ae041b88f16b78f30"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "base_sha256": "6cd67aa03fa1c115a8c3e707128c201b195f2b2061678b67b20458fb6bd34323",
+      "candidate_sha256": "03a878ea1576b4f6b36e38109586685d0b75bd0fb3436c9ab7ca0b3adfe06ce5"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "base_sha256": "bcba7351330c9fb3a67543879a46cc7102ea9cf2b8dbf8b80b73821b59e22d2a",
+      "candidate_sha256": "5fa00534ba76081824f8aaa2bff5dc89273a71ff8674e99c00b9ade73bc6aa25"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/resolution.rs",
+      "base_sha256": "e957f59e52035180862c346a709c2997511b03b1c454d70fb2819b3a809e54a6",
+      "candidate_sha256": "329084d76a7d3183fd8ebaef78170868149e4a4e988a067b0e6f98e405cde5e9"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/renewal.rs",
+      "base_sha256": null,
+      "candidate_sha256": "bcd08683da419fe2c0719122c8af547af6b3f8936b5bb1834cd2e4b60a42a151"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "base_sha256": "41a90489132630d98b29d32efefd1653e8ce5d657ed816ad710f103f63b9c0d1",
+      "candidate_sha256": "2df7eb4f32f128f573be9542a6ad2116ea4fb307f22135e82f7f6e5cec38b266"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+      "base_sha256": "15f993e8b27829fc5db68a1f992f9aac00196ed5b2ecb353bcb889d400734cc1",
+      "candidate_sha256": "691d57ee8dceef1014785269d05ffe2e0712fcf656215598772d1a07cd5c26bc"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/prekeys/tests.rs",
+      "base_sha256": "7c97e5cbcf4676081b128b017847253645c8a2309fe228538e61dc939872f909",
+      "candidate_sha256": "ec8a7938aa5e8a796d157eea0be3092053fbbee38643ad173642f16c53a80303"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/prekeys.rs",
+      "base_sha256": "84b565a7c41624a068261b50f13e52f6fd3d1938143ad7bbecbd8c52631586c9",
+      "candidate_sha256": "f203010874bd7eee2c58687814d2945496cb2e93dad4cc664353bb2b770387f9"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/local_renewal.rs",
+      "base_sha256": null,
+      "candidate_sha256": "c105bbda6466edf4114d65a3114599fadfbbbd5f6a2188713670b7ab2fdaf20a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/local_renewal_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "96fff430d9a917dc19796ea7054dfb7d1948efdb484b8fa34b3704751c4578c4"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/renewal_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "f2c5a64d379ecc0d46b0cd53722ab850923c881580f47048303328cc1ba2b3f0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/tests.rs",
+      "base_sha256": "0583d5daaec6508161e3245f7194bcba0d27daa21cb5b99539a2876aff8bede0",
+      "candidate_sha256": "476fc06695e66a20077ea29052135d0984445eaf0d34955b67f59312612d2373"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters.rs",
+      "base_sha256": "5ec8d8fa6ce33a68be2161fdee4cd1b7d7dc1cd58dd98f3de7f08dcd01ea0895",
+      "candidate_sha256": "5d04944d7cf39d25b2e1d4b1bfb403cf7db529cb00fa738dfa562a5bc7ecb9e5"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/tests.rs",
+      "base_sha256": "922f2b9cb3c495e7ef81c633d822e76c66a936d6719933b669cb5931781487fe",
+      "candidate_sha256": "5ee2bab85952ed5e465217f2fca41a265b7164ccaee2ab068f206b726fa6bc3f"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "base_sha256": "af97b2a39b7ac2b4a4734ba15f29766de70aa41481e8838afc6987737dd82112",
+      "candidate_sha256": "1ee64c9ceea03c0fbfc6ff69305d29135b0dada87428f1850d88f97a7a586c89"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/expired_renewal_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "c8d78c26588ad3ce3b50a7cd1ecbb22ad4074fcc634c0d13313e4617199c886a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal/expiry.rs",
+      "base_sha256": null,
+      "candidate_sha256": "e561d9e26ee2d5c87bf7083860581fc6a8fdd83cd5bfe1088191cb1bc74099dd"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal.rs",
+      "base_sha256": null,
+      "candidate_sha256": "69fcc4b118a6ffb0f5daa4c5f6f0247c94ed0b69ece1a3012761b41c930730fe"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal_connection_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "339646c260253c55babf938bc8b4b89d5ef8702bf66b581428c5156b48f3ec26"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "b3c02959ec02137eed01ad795c370d5a004f12c4906b9d80489ef3fbc2216024"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewed_operations_tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "36c5be2e1f398dc113a6c4ed3a20f02fc441e3340643c60098f03d80096f42cc"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/tests.rs",
+      "base_sha256": "fe72fde83dc96881374cf6cc641dd27c1bb30ccd628ec4aa387f658d57c334fc",
+      "candidate_sha256": "76d07c0b24a140a02a919c5c934e88027ff3b15dd77f1f062981661da6b7393a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment.rs",
+      "base_sha256": "c837d3ce7a9461bfa8547123cabb465c846616230590b718bfe297975d37343f",
+      "candidate_sha256": "3cfd41641ada215f39097d173f344e1210b6e9e50dc44413a770c18a9717fb6b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/identity/renewal/tests.rs",
+      "base_sha256": null,
+      "candidate_sha256": "5669d02d57491cc01a07ad60e2ea993d3412f99033476e539f0d6dd2d8b91a2c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/identity/renewal.rs",
+      "base_sha256": null,
+      "candidate_sha256": "0a67f4126e596f694fdc67959581d9f9e332885602139c475edcdca368378248"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/identity.rs",
+      "base_sha256": "68cf9089de81d3a8a15d702455e4ee4183459d9b28e0eaca8e21ff8837e3733b",
+      "candidate_sha256": "03183422c9df3a8e327d599a5f173fc94eae50ff740081bfd3ac5eaf91aee3d6"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/reopen.rs",
+      "base_sha256": "454c748d4f33fa5bdc2464a9ed8c3bdf264d9cc79b46048464e8b7177deeae57",
+      "candidate_sha256": "65471dd3823cd4471736196221665543e1935541b8e611ea516854146aa8e4eb"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen/renewal.rs",
+      "base_sha256": null,
+      "candidate_sha256": "9f93a8220fdcec43c4f718a098c6f27e4c13fd5af578f27472d14fa50efb6099"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen.rs",
+      "base_sha256": "6a03fe76b142fb716913359bdc0e411fc52976339b274c9edd214f4e0fb7896c",
+      "candidate_sha256": "3a2966c629d8f7800e24c83d4c241fafc3947789c355465ba912924ff7ae9999"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation.rs",
+      "base_sha256": "a2d3d708358df99e60db0225e626dd964b32660d9ea9ab548639b6dccb477041",
+      "candidate_sha256": "46e1ad90aaa7af5da59b60c2500cc93dfd3c072d9c6dd109a0f13df78ddad2e0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/lib.rs",
+      "base_sha256": "613cd9a89553c2de79c8bf565ed29993bd65858998b9e5a0450396351e80cc5d",
+      "candidate_sha256": "d1aa2af0e7f0f1b4e22bf2536747b157905ea7dd8555f8ae1ce12767f0384b04"
+    }
+  ],
+  "removed": [],
+  "dependencies_verified_files": 273,
+  "requires": [
+    "Current candidate full 422-case run must finish before qualification",
+    "Preserve clean e72 package checkpoint and unrelated MAIN modifications",
+    "Carry candidate-specific Cargo dev dependency/socket2 and public protocol/storage documentation deliberately; never replace a repository manifest with the normalized archive manifest",
+    "Rebuild/test integrated native source against actual current workspace graph, then controlled C/Swift/Kotlin owners and installed package consumers",
+    "Do not infer stable ABI, required-witness renewal, physical platform or independent-engine qualification from this inventory"
+  ],
+  "release_claim_eligible": false
+}

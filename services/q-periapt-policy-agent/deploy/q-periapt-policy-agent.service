@@ -1,0 +1,127 @@
+# Hardened systemd unit for the Q-Periapt policy-agent reference daemon.
+#
+# This unit is the Linux OS-level isolation contract for `serve-agent`. The
+# daemon itself enforces only filesystem-capability and cryptographic
+# boundaries; every kernel-level restriction below is enforced by the service
+# manager, so a deployment that starts the binary any other way does not get
+# these guarantees. Install the binary at /opt/qperiapt/bin, provision the
+# 0700 service/configuration directories for the dedicated account first, and
+# adjust the socket, repository, witness, and authority endpoints per host.
+#
+# The unit assumes a locked, non-login `qperiapt-agent` system account whose
+# primary group is not shared with any other service:
+#   useradd --system --shell /usr/sbin/nologin --home /var/lib/qperiapt-agent \
+#     --user-group qperiapt-agent
+
+[Unit]
+Description=Q-Periapt policy agent (ABI 2 reference service)
+After=network-online.target
+Wants=network-online.target
+# The socket unit owns the listener; the daemon refuses to start without it.
+Requires=q-periapt-policy-agent.socket
+After=q-periapt-policy-agent.socket
+
+[Service]
+Type=exec
+User=qperiapt-agent
+Group=qperiapt-agent
+# The witness and authority endpoints are deployment-provided; see the required
+# drop-in below. They are NOT hardcoded to localhost, because the deployment
+# contract requires hosting them outside this host's rollback/restore domain.
+# The '-' belongs to the PATH, not the directive name: it marks a missing file
+# as tolerable, so a deployment may instead set both variables in the required
+# drop-in with Environment=. Without it a missing file fails the unit and blocks
+# the drop-in-only path the example offers. Written as '-EnvironmentFile=' it is
+# not an optional directive at all -- systemd does not recognise the key, logs
+# it as unknown, and drops the line, so the endpoints would never be loaded.
+EnvironmentFile=-/etc/qperiapt-agent/endpoints.conf
+# The first argument is the socket path the activated listener must be bound to,
+# not a directory to bind inside: the daemon compares it against getsockname on
+# the descriptor systemd passes. It must equal ListenStream= in the socket unit.
+ExecStart=/opt/qperiapt/bin/q-periapt-policy-agent serve-agent \
+    /run/qperiapt-agent/agent.sock \
+    /var/lib/qperiapt-agent/state/agent.redb \
+    ${QPERIAPT_WITNESS_ENDPOINT} \
+    ${QPERIAPT_AUTHORITY_ENDPOINT} \
+    /var/lib/qperiapt-agent/config
+Restart=no
+# How long systemd waits after SIGTERM before it sends SIGKILL. A stop that
+# lands while a request is in flight is observed only once that request has
+# been answered or refused -- every request admits its waits against one
+# end-to-end deadline of 36 seconds, with the durable commits in between
+# covered by a one-second reserve rather than measured -- or within one
+# maintenance interval (1 second) when the daemon is idle. The daemon then
+# erases its in-process secrets, one durable two-phase commit per pending
+# session and up to 1024 of them, which no deadline bounds, budgeted at 20
+# seconds, and releases the instance lease under a 30-second budget: 87 seconds,
+# a sum of budgeted terms that a store slower than its commit reserve can
+# exceed. This is written out rather than left to DefaultTimeoutStopSec=,
+# which is host configuration in system.conf that distributions and hardening
+# baselines shorten; a SIGKILL below 87 seconds cuts the daemon off mid-release,
+# leaving the lease to lapse at its TTL and costing a redb recovery at the next
+# open. No KillMode= is set: the daemon is a single process, so the default
+# control-group kill is already the right one.
+TimeoutStopSec=90
+
+# Secrets hygiene: no core dumps, no new privileges, owner-only umask.
+LimitCORE=0
+NoNewPrivileges=yes
+UMask=0077
+
+# Filesystem isolation: read-only OS, private /tmp and /dev, no home access;
+# only the service state tree is writable.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+# Only the durable state is writable. The configuration directory holds the
+# pinned peer keys, the signed policy bundles and the authority identity, and
+# the daemon only ever reads them -- leaving it writable would let a
+# compromised process rewrite the very material that constrains it.
+ReadWritePaths=/var/lib/qperiapt-agent/state
+
+# Kernel and process isolation.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# Network: the Unix IPC socket plus the TCP witness/authority clients only.
+#
+# Deny-by-default is deliberate and stays. What this unit does NOT do is ship a
+# localhost allowance, because that silently contradicts the deployment
+# contract: README.md requires the witness and the instance-lease authority to
+# live outside this host's rollback/restore domain, and `IPAddressAllow=localhost`
+# makes exactly that configuration unreachable. Shipping both would let an
+# operator believe the rollback protection holds while the unit forbids the only
+# topology that provides it.
+#
+# The deployment MUST supply a drop-in that allows precisely the endpoints it
+# configured, and nothing wider. See the worked example in
+# q-periapt-policy-agent.service.d/10-endpoints.conf.example. Choosing to run
+# the witness and authority on this host behind a protected local relay is a
+# valid decision, but it is an explicit decision that voids the rollback claim
+# and must be recorded as such -- not the accidental default.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+
+# Syscall filter: the service-manager-enforced seccomp boundary.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

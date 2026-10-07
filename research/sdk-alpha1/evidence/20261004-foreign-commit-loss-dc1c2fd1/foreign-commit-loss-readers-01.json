@@ -1,0 +1,16 @@
+{
+  "completed": true,
+  "observed_test_summary": [
+    [
+      41,
+      11.221
+    ]
+  ],
+  "log_sha256": "13f1e38a178570543524ded03358911e3e20ca34d5112ef76784f9afac53d1be",
+  "source_hashes": {
+    "artifact/continuity_witnessed_policy_expiry.py": "da0f395609accbfd0d73d39b029eb8ea295b38be90d550f28484cfcde33ba1b6",
+    "artifact/test_continuity_witnessed_policy_expiry.py": "8eee81406a54f77032fdade5d1f4cfa296fd1afe29c8f8163bcd8fdd0779aef1"
+  },
+  "scope": "Local recorded Python boundary tests; no hosted or release claim",
+  "release_claim_eligible": false
+}

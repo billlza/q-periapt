@@ -1,0 +1,19 @@
+{
+  "completed": true,
+  "failed_head": "3e2a5b67846cfcc7e6e032c8c6d9568d7e429d05",
+  "source_hashes": {
+    ".github/workflows/codeql.yml": "205e37fca96b3f86aef7d5b2b243bb1761e11b638f2e76a15fe0bab67537142f",
+    "artifact/test_proof_to_byte_release.py": "8b39ef4295ae703769a5b857c9bbc0f981f9d10c03025f01b5656bb9dd681c8c",
+    "artifact/continuity_c_account_tls_loss.py": "ae17194b964db2b3a944accf6c4005d600bb575e44ad0e129bc2b3f08c0fded8",
+    "artifact/continuity_c_account_delivery.py": "9693944255c92950a980ba7e4a053788c1f105233cfdec6503b88ab8f73a26b8",
+    "artifact/test_continuity_c_account_tls_loss.py": "afc3cabf3a00bc0857af59c0b4526c88cdd6d52d4dfc85dff5bf76f26e07ac86",
+    "artifact/test_continuity_c_account_delivery.py": "2393e6a49db6801277853aa49fba07fc520bbd879d0d7890fd642c60cc1dc313"
+  },
+  "account_trace_count": 12,
+  "package_record": "20261004-foreign-credential-renewal-4a9f8c46",
+  "native_archive_sha256": "341dbd75827e936b921649591755a8705dc02e4d4b4c6c9d7510e9c9ee500ac6",
+  "cause": "Reopened context preparation adds an authenticated image Query plus a release Query per peer. Account commands reopen two peer sessions. Loss reservation adds four queries; six delivery phases each add four. Native commits and four lost replies remain unchanged.",
+  "codeql_cause": "Translated SwiftPM test loader cannot load arm64 test bundle even with explicit target triple; native SwiftPM process fixes local translated-parent reproduction.",
+  "scope": "Actual existing archive Debug C/Swift/Kotlin peer and own-account mutual TLS loss and delivery; 12 original successful native traces rejected by old census and accepted by corrected exact census, with independent exported public replay. Local native SwiftPM versus translated-parent reproduction, not local CodeQL extractor execution.",
+  "release_claim_eligible": false
+}

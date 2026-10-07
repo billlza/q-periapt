@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "old_count": 310,
+  "new_count": 311,
+  "added": [
+    "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_credential_renewal.rs"
+  ],
+  "removed": [],
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-c",
+    "from pathlib import Path; import codeql_rust_quality as q; paths=q.tracked_rust_paths(Path(\"/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004\")); assert len(paths)==311 and \"bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_credential_renewal.rs\" in paths; print(\"Real clean-checkout inventory: 311; required witnessed renewal source present\")"
+  ],
+  "exit": 0,
+  "seconds": 0.37020258395932615,
+  "log_sha256": "b6c7e29304595b031e903320ec4f1d49225a4c6012a257551b8a6d87b530056f",
+  "red_receipt": "historical-foreign-delta-01.json",
+  "red_log_sha256": "f04a0d7d6a3945590900ae721b088ce8d3abc6378e6010b0413eb06ec7592362",
+  "scope": "Updated verifier reads real clean checkout at identical 311-file source tree; full updated test suite remains required after checkout advance.",
+  "source_hashes": {
+    "artifact/codeql_rust_quality.py": "ba07b2824f7cf8bd941167d901db747931e2e3fa229e4ac3e44a7a34cb611c12",
+    "artifact/test_codeql_rust_quality.py": "348e38477bbba6d6c8be7fa52c8b873c3f94aa2a4e9c929a0209d8e89216c7de"
+  }
+}

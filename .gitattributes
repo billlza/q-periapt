@@ -1,0 +1,10 @@
+# Q-Periapt asserts byte-identical output across platforms, so the repository itself must
+# check out byte-for-byte identically on every OS. Without this, Git's default autocrlf on
+# Windows would rewrite LF->CRLF on checkout and silently mutate the vendored NIST/ACVP/
+# X-Wing test vectors (and the C shim), breaking reproducibility of the very vectors the
+# suite pins. Force LF for all text; never normalize the byte-sensitive vendored data.
+* text=auto eol=lf
+
+# Vendored reference/test vectors and reference data: byte-exact, no EOL conversion ever.
+*.json -text
+*.txt -text

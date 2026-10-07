@@ -1,0 +1,23 @@
+{
+  "C_object": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/fuzz-execution-current/build/aarch64-apple-darwin/release/build/q-periapt-mlkem-native-sys/25ffc56c8c1f78e2/out/ea708c7824d36062-mlkem_bridge_native.o",
+  "sha256": "ecc295742f0d2987991741204145805145360e3fb0c8c9f650fb5d9fe0d290b6",
+  "asan_imports": [
+    "___asan_init",
+    "___asan_memcpy",
+    "___asan_memset",
+    "___asan_register_image_globals",
+    "___asan_report_load1",
+    "___asan_report_load2",
+    "___asan_report_load8",
+    "___asan_report_load_n",
+    "___asan_report_store1",
+    "___asan_report_store2",
+    "___asan_report_store_n",
+    "___asan_set_shadow_00",
+    "___asan_set_shadow_f8",
+    "___asan_shadow_memory_dynamic_address",
+    "___asan_unregister_image_globals",
+    "___asan_version_mismatch_check_v8"
+  ],
+  "scope": "Native C wrapper instrumented; assembly and prebuilt standard/system libraries remain outside instrumentation."
+}

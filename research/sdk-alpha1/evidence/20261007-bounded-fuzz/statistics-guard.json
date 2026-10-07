@@ -1,0 +1,36 @@
+{
+  "workflow_parser_sha256": "354745206d77e111fd456c97427f78cd9bbbda8da980dcdcb07266697a95e93c",
+  "checks": [
+    {
+      "case": "actual",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "case": "missing",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "transport: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "zero",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "transport: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "duplicate",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "transport: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "noninteger",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "transport: missing or empty libFuzzer execution statistics\n"
+    }
+  ],
+  "completed": true
+}

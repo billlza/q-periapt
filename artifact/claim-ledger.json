@@ -1,0 +1,541 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable claim-to-evidence map. Status describes the strongest evidence actually present; boundaries are part of each claim and may not be omitted in paper summaries.",
+  "claims": [
+    {
+      "id": "K-CT-CONTEXTBOUND",
+      "title": "ContextBound ciphertext binding under the stated collision-resistance model",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": ["formal/easycrypt/BindingViaCR.ec"],
+        "implementation": ["crates/q-periapt-core/src/lib.rs"],
+        "tests": ["crates/q-periapt-backends/src/proptests.rs"]
+      },
+      "boundary": "Computational theorem is over abstract Decaps/accept and collision assumptions; there is no machine-checked FIPS-203-to-Rust refinement."
+    },
+    {
+      "id": "K-PK-CONTEXTBOUND",
+      "title": "ContextBound public-key binding and expanded-key counterexample separation",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": ["formal/easycrypt/BindingViaCR.ec"],
+        "implementation": ["crates/q-periapt-core/src/lib.rs"],
+        "tests": ["crates/q-periapt-backends/tests/binding_keyformat_separation.rs"]
+      },
+      "boundary": "The counterexample and reduction validate the model boundary; they are not a universal impossibility result for every future hybrid construction."
+    },
+    {
+      "id": "K-CTX-AUTHENTICATED-COMMITMENT",
+      "title": "Authenticated context agreement plus policy-digest/application-context byte binding",
+      "status": "implementation_tested",
+      "evidence": {
+        "formal": ["formal/tamarin/handshake.spthy", "formal/proverif/handshake.pv"],
+        "implementation": ["crates/q-periapt-core/src/lib.rs", "crates/q-periapt-ffi/src/lib.rs", "crates/q-periapt-wasm/src/lib.rs"],
+        "tests": ["bindings/swift/Tests/QPeriaptHybridTests/QPeriaptHybridTests.swift", "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptHybridTest.kt"]
+      },
+      "boundary": "K-CTX is a self-defined syntactic extension for a context-parameterized KEM, not a node in the published CDM lattice and not covered by CDM monotonicity. Hash-level key/context binding does not authenticate the meaning of caller-supplied context bytes; symbolic agreement covers only the modeled authenticated transcript. Signed-policy execution paths bind the supplied decision's exact policy digest and caller application context. Native ABI2 exports no raw hybrid, deterministic key-generation, X-Wing, or combine operation, but its decision descriptor remains a trusted-caller value; WASM retains separately scoped raw/conformance inputs. Neither is an authorization capability. Authenticity requires a trusted host to pin the verification key, produce and retain the decision through the signed-policy flow, and persist monotonic state. The rustls SupportedKxGroup path has only a fixed protocol-domain label, not per-session transcript K-CTX."
+    },
+    {
+      "id": "K-NONBOTTOM-COUNTERMODEL",
+      "title": "Explicit probability-one countermodel when non-bottom rejection output is removed",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": ["formal/easycrypt/BindingViaCR.ec"],
+        "tests": ["formal/easycrypt/negative-controls.sh"]
+      },
+      "boundary": "The countermodel assumes an explicitly rejecting input. Other deletion-hint controls are proof-dependency regression checks, not semantic necessity proofs."
+    },
+    {
+      "id": "MIG-BIND-K-STATE-V2",
+      "title": "Migration Contract V2 binds final AcceptedSessionKeyV1 secrets through ContextBound, post-KEM, role-separated Finished, and four-field revision recheck inputs",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": ["formal/easycrypt/MigrationBindingV2.ec"],
+        "implementation": [
+          "crates/q-periapt-core/src/lib.rs",
+          "models/q-periapt-migration/src/context_v2.rs",
+          "models/q-periapt-migration/src/transcript.rs",
+          "models/q-periapt-migration/src/confirmation.rs",
+          "models/q-periapt-migration/src/state.rs",
+          "artifact/migration_contract_v2.py"
+        ],
+        "tests": [
+          "models/q-periapt-migration/tests/contract_v2.rs",
+          "models/q-periapt-migration/vectors/migration-contract-v2.json",
+          "artifact/test_migration_contract_v2.py"
+        ]
+      },
+      "boundary": "EasyCrypt models one abstract H_sha3 with domain-separated H_context, H_post, H_finished, H_accept, and H_state input views. Its concrete bounded acceptance predicate requires the exact four-field current StateRevisionV1 recheck and the applicable peer Finished check, produces a key-plus-revision record, and has honest initiator/responder witnesses under both independent KEM directions. Equal non-bottom final secrets under distinct state identities imply H_accept or H_context input collisions; full-state and revision divergence add H_state, while post and Finished binding have separate H_post/H_finished collision lemmas. Checked semantic controls cover stale-current, wrong-peer-I/R, and explicit state/post/role/Finished-input omissions; the post ciphertext control is post-digest-only because ContextBound still absorbs that ciphertext. These are collision/input-binding results, not Finished forgery, PRF/MAC, temporal-ordering, crash/persistence, SHA3, signature, concrete encoder correspondence, or formal-to-Rust/model-to-byte refinement proofs. The Rust/Python frozen vector injects the same synthetic ABI2-boundary secret and checks TH through K_acc, but does not independently derive K_abi2 from the complete ContextBound input; its bytes and source hashes are translation evidence only."
+    },
+    {
+      "id": "MIG-ROLLBACK-V2",
+      "title": "A protected current-head and fence reject restored old stores and stale sessions in the bounded symbolic transition step",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": [
+          "formal/tamarin/migration_v2.spthy",
+          "formal/tamarin/migration_v2_liveness.spthy",
+          "formal/tamarin/migration_v2_rollback.spthy",
+          "formal/tamarin/migration_v2_no_witness.spthy"
+        ],
+        "implementation": [
+          "services/q-periapt-policy-agent/src/service.rs",
+          "services/q-periapt-policy-agent/src/repository.rs",
+          "services/q-periapt-policy-agent/src/witness.rs"
+        ],
+        "tests": ["models/q-periapt-migration/tests/contract_v2.rs"]
+      },
+      "boundary": "The compositional Tamarin state and focused rollback theories are Dolev-Yao, bounded one-advance CAS models over an ideal protected witness and ideal signatures. The focused theory retains replayable old stores, transition/reset competition for one linear head, a reservation that does not lock advance, and an exact witness/store acceptance recheck; executable traces show a never-accepted reservation becoming stale and an old store restored after retirement, while MIG-ROLLBACK and no-fork remain verified. The separate successor projection proves reconciliation/acceptance, and the no-witness theory exhibits an actual rollback trace. This is not a proof of OS keychain/TPM durability, fsync/crash atomicity, hostile-kernel resistance, IPC isolation, unbounded induction, or Rust refinement."
+    },
+    {
+      "id": "MIG-AGREE-V2",
+      "title": "Role-ordered two-Finished exchange gives symbolic agreement on the authenticated V2 joint decision",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": [
+          "formal/tamarin/migration_v2_agreement.spthy",
+          "formal/tamarin/migration_v2_negative_controls.spthy"
+        ],
+        "implementation": [
+          "models/q-periapt-migration/src/capability.rs",
+          "models/q-periapt-migration/src/confirmation.rs",
+          "models/q-periapt-migration/src/transcript.rs",
+          "services/q-periapt-policy-agent/src/service.rs",
+          "services/q-periapt-policy-agent/src/ipc.rs"
+        ],
+        "tests": [
+          "models/q-periapt-migration/tests/contract_v2.rs",
+          "services/q-periapt-policy-agent/src/tests.rs",
+          "artifact/test_migration_contract_v2.py"
+        ]
+      },
+      "boundary": "The symbolic model authenticates two independent role-owned capability offers under ideal pinned identity signatures before either role forms the ordered joint decision. It fixes role-separated keyed hashes over one post-KEM transcript in protocol-role order: initiator Finished, responder verification/acceptance and responder Finished, then initiator verification/acceptance; Finished values are not signatures, neither offer signature depends on the peer signature, and there is no third commit flight. The Rust typestates and reference service follow that protocol-visible order independently of KEM encapsulation direction. The responder rechecks the exact local/witness head and verifies I before accepting, and exposes R only after durable reservation release plus bounded same-process accepted-key/response retention; the initiator similarly rechecks and verifies R before returning its retained key handle. IPC is a hard schema/domain V2 cut with no V1 fallback. Exact same-handle/same-Finished response recovery requires a newly signed nonce, the same live process, and the retained key; restart does not recover the key or cached R, while a durable capability-session tombstone prevents reuse. With uncompromised offer-signing keys and the modeled shared KEM key, matching accepted-key/session commitments agree on all modeled joint projections. The machine-checked status applies to the bounded symbolic theory. Rust tests and byte correspondence are evidence links only: the agreement and state/CAS theories are compositional, not an end-to-end formal-to-Rust refinement, and do not establish concrete signature, hash/KDF, KEM, transport, service, IPC, crash, or byte-code correspondence."
+    },
+    {
+      "id": "MIG-FLOOR-V2",
+      "title": "Migration acceptance and state advance are restricted to a closed symbolic floor relation",
+      "status": "machine_checked",
+      "evidence": {
+        "formal": [
+          "formal/tamarin/migration_v2.spthy",
+          "formal/tamarin/migration_v2_negative_controls.spthy"
+        ],
+        "implementation": [
+          "models/q-periapt-migration/src/capability.rs",
+          "models/q-periapt-migration/src/context_v2.rs",
+          "models/q-periapt-migration/src/state.rs"
+        ],
+        "tests": [
+          "models/q-periapt-migration/tests/contract_v2.rs",
+          "artifact/test_migration_contract_v2.py"
+        ]
+      },
+      "boundary": "Tamarin admits only the enumerated session floor/suite/component tuples and non-decreasing transition/reset floor pairs, and the open-floor negative theory exhibits below-floor acceptance when that premise is removed. This is a finite symbolic policy table with ideal authenticated inputs, not a universal cryptographic downgrade theorem, proof that every product policy maps to the table, hostile same-process enforcement claim, or model-to-Rust refinement."
+    },
+    {
+      "id": "AUTHORITY-LEASE-FENCE-V2",
+      "title": "Exclusive instance leases and fenced key-use authority serialize recovery clones and concurrent instances behind one authenticated wire",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "services/q-periapt-policy-agent/src/authority.rs",
+          "services/q-periapt-policy-agent/src/authority_codec.rs",
+          "services/q-periapt-policy-agent/src/authority_protocol.rs",
+          "services/q-periapt-policy-agent/src/authority_store.rs",
+          "services/q-periapt-policy-agent/src/authority_transport.rs",
+          "services/q-periapt-policy-agent/src/service.rs",
+          "services/q-periapt-policy-agent/src/tests.rs"
+        ],
+        "specification": ["docs/migration/MIGRATION_CONTRACT_V2.md"]
+      },
+      "boundary": "The pure Stage 1 authority model serializes one process instance behind a single witness-clock-bounded lease: acquisition names the exact prior lease generation, every mutation names the exact current fence of lease generation plus a fresh per-process instance identity, state or configuration advances fence the previous holder and clear state-scoped capabilities and keys, capability identifiers are consume-once tombstones, and accepted-key handles bind the exact state and lease generations. The Stage 2A1 store persists that state with immediate-durability two-phase commits and quarantines any commit-uncertain path. Authority Wire V2 runs six commands over a mutually authenticated, deadline-bounded, one-request-per-connection TCP transport with pinned ML-DSA-65 keys in both directions, enforced key-role separation, a bounded time-to-live nonce cache that fails closed to an explicit rate limit, operation-ID query recovery for unknown outcomes, and idempotent receipt acknowledgement that prunes the server table only after the client reports durable retention. Unit and loopback TCP tests embedded in the listed modules cover the lease lifecycle, cross-instance fencing, replay rejection, lost-response recovery, nonce exhaustion, role separation, exact-epoch reopen, and unresponsive endpoints. The product Agent consumes this boundary for its lease lifecycle: construction fails closed while another unexpired instance holds the lease, every key-use operation re-authorizes against the authority clock before touching a pending or accepted secret, a fenced instance erases every in-process pending and accepted secret before reporting itself fenced, the RAM-only fence is never persisted so a restored host clone cannot replay it, and release is an idempotent graceful handover. Agent-level tests cover second-instance construction fencing, expired-lease takeover with secret erasure, release handover without expiry wait, lost acquire/renew response reconciliation by exact operation query, and a concurrent two-instance acquisition race resolving to exactly one lease. This is implementation and test evidence only, not a machine-checked theory or a deployment claim: no Tamarin or EasyCrypt model covers leases or fencing; the product Agent service does not yet route capability consumption or accepted-key registration through this authority; the sequential reference server is not an audited network deployment; and the authority host carries the same rollback-domain assumption as the migration witness, so hosting it on the Agent's own restorable disk defends nothing. There is no formal-to-Rust refinement or byte-code correspondence for this subsystem."
+    },
+    {
+      "id": "POLICY-ATOMIC-RESOLUTION",
+      "title": "Policy resolution is atomic and fail closed; signed entry points authenticate the decision",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": ["crates/q-periapt-policy/src/lib.rs", "crates/q-periapt-rustls/src/lib.rs", "crates/q-periapt-ffi/src/lib.rs"],
+        "tests": ["bindings/signed-policy-vectors.json", "bindings/apple-device/Sources/QPeriaptDeviceRunner/DeviceSmoke.swift"]
+      },
+      "boundary": "The signed-policy native ABI2 and WASM entry points authenticate exact policy bytes and return one atomic decision. The rustls provider is a separate parsed-policy consumer: it accepts an already parsed but unauthenticated Policy, supports both resolved profiles for the fixed ML-KEM-768+X25519/version-1 suite, and does not consume an authenticated decision, policy digest, or monotonic store. Native ABI2 removes raw and deterministic cryptographic bypass exports; its decision descriptor and WASM's raw/conformance inputs remain trusted-caller values, not authorization capabilities. Its first dynamically allocated Rust-owned policy-bound-context copy reserves capacity before sensitive bytes are written and is wiped by one RAII owner on normal return, error, or unwind. Valid-length allocation failure is opaque internal/backend failure, while oversized input remains an explicit length error. This does not wipe caller or marshalling copies, registers, paging, or abort residue. Typed wrappers reduce accidental field mixing but do not make the decision unforgeable; authenticity requires a trusted host to own the pinned verification key and monotonic state. Hostile in-process code can still forge the descriptor or invoke exported product operations."
+    },
+    {
+      "id": "XWING-COMPATIBILITY",
+      "title": "CompatXWing byte equality for the current CFRG construction and retained draft-10 vectors",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": ["crates/q-periapt-core/src/lib.rs", "crates/q-periapt-backends/src/lib.rs"],
+        "tests": ["crates/q-periapt-backends/src/xwing_kat.rs", "crates/q-periapt-backends/src/concrete_hybrid_kems_04_vector.rs", "bindings/contextbound-vectors.txt"]
+      },
+      "boundary": "The official vector from draft-irtf-cfrg-concrete-hybrid-kems-04 Appendix B.2, stored as the repository vector-0 fixture, checks the valid MLKEM768-X25519 keygen, encapsulation, and decapsulation fields; the current CFRG draft states that this construction is identical to X-Wing. Three official draft-connolly-cfrg-xwing-kem-10 vectors remain as historical regressions. A separate locally derived same-length ciphertext mutation checks deterministic implicit rejection and non-recovery of the valid secret; it has no official expected rejected-secret oracle. Both source documents are Internet-Drafts, and the current CFRG document is not an RFC. This is compatibility/KAT evidence, not a claim that Q-Periapt is standardized, deployed, interoperable with an independent endpoint, ranked above another implementation, or FIPS validated. The construction has no suite, policy-version, or external-context inputs; Q-Periapt requires their canonical absence and rejects supplied values rather than claiming they are bound."
+    },
+    {
+      "id": "MLKEM-TARGET-SELECTION-CONTRACT",
+      "title": "ML-KEM implementation selection is fixed by exact target metadata below ABI 2",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "crates/q-periapt-mlkem-native-sys/build.rs",
+          "crates/q-periapt-mlkem-native-sys/src/build_support.rs",
+          "crates/q-periapt-mlkem-native-sys/src/mlkem_config.h",
+          "crates/q-periapt-mlkem-native-sys/src/mlkem_fips202_aarch64.h",
+          "crates/q-periapt-mlkem-native-sys/src/mlkem_bridge_native.c",
+          "crates/q-periapt-mlkem-native-sys/src/mlkem_bridge_portable.c",
+          "crates/q-periapt-mlkem-native-sys/src/mlkem_bridge_asm.S",
+          "crates/q-periapt-mlkem-native-sys/src/lib.rs"
+        ],
+        "tests": [
+          "crates/q-periapt-mlkem-native-sys/src/build_support_tests.rs",
+          "crates/q-periapt-mlkem-native-sys/src/tests.rs",
+          "artifact/test_rust_publish_contract.py"
+        ],
+        "release_contract": [
+          "artifact/rust_publish_contract.py",
+          "artifact/rust-publish-contract.sh"
+        ]
+      },
+      "boundary": "Exactly the little-endian targets aarch64-apple-darwin, aarch64-apple-ios, aarch64-apple-ios-sim, aarch64-unknown-linux-gnu, and aarch64-linux-android select upstream AArch64 native arithmetic plus a fixed per-target FIPS 202 assembly profile: aarch64-apple-darwin and aarch64-apple-ios-sim, whose entire install base is FEAT_SHA3-capable Apple Silicon, pin the upstream Armv8.4-A SHA3 x1/x2 Keccak assembly under -march=armv8.4-a+sha3, while aarch64-apple-ios, aarch64-linux-android, and aarch64-unknown-linux-gnu pin the Armv8-A scalar x1 and scalar/Neon x4 paths under -march=armv8-a+nosha3. Every other target uses portable C, including x86, Windows/MSVC, Wasm, and freestanding builds. Selection is compile-time only, fixes each target's exact -march baseline, and provides no runtime dispatch. It is below and does not change ABI 2 exports/layouts, ML-KEM key/ciphertext encodings, suite/profile policy, or combiner wire bytes. Source/package tests establish the mapping and reject drift; they are not fresh target-specific package, device, binary-CT, performance, or publication evidence. All portable-derived receipts from before this source change are stale for the current target-selected build and require per-target reruns. Upstream HOL-Light evidence is limited to the selected upstream assembly source/object routines under its stated preconditions; it does not prove downstream reassembly, the Rust/C wrapper, full ABI, final package, FIPS validation, or formal implementation refinement."
+    },
+    {
+      "id": "SPEC-IMPLEMENTATION-REFINEMENT",
+      "title": "Machine-checked refinement from formal encoder/Decaps model to final binary",
+      "status": "pending",
+      "evidence": {
+        "formal": ["formal/easycrypt/README.md"],
+        "implementation": ["crates/q-periapt-core/src/lib.rs"]
+      },
+      "boundary": "Not yet proved. The role-specific Rust typestates and Policy Agent now follow the Tamarin agreement theory's protocol-visible initiator-Finished, responder-accept/Finished, initiator-accept order, independently of KEM direction, but that alignment is established by source review and tests only. KATs, cross-language tests, source hashes, IPC tests, and binary execution are evidence links, not a formal refinement theorem."
+    },
+    {
+      "id": "APPLE-CURRENT-COMMIT-RUNTIME",
+      "title": "Current clean commit executes the policy-bound path on physical iPad and iPhone",
+      "status": "pending",
+      "evidence": {
+        "harness": ["artifact/apple-device-smoke.sh", "artifact/apple_device_proof.py"]
+      },
+      "boundary": "Matrix schema v5 fixes release policy to exactly one ipad-labelled schema-v4 iPad proof over wired transport and one iphone-labelled schema-v4 iPhone proof over localNetwork transport, with verifier-recomputed distinct device commitments, run ids, child proof paths, and one identical selected trusted-local Xcode receipt. The capture rechecks device type and transport around install, launch, and result retrieval. Release freshness is fixed at 86400 seconds and each child profile must record a minimum-validity policy of at least 30 days. The target-selection/source change makes every earlier portable-derived Apple package and device proof stale for the current source. Historical schemas, pre-selection receipts, or dirty-device diagnostics do not satisfy this claim; fresh clean, same-commit physical proofs over the target-selected Apple build are required."
+    },
+    {
+      "id": "EVIDENCE-SNAPSHOT-INTEGRITY",
+      "title": "Authoritative proof JSON is strict-parsed and manifest-bound from the same byte snapshot",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "artifact/evidence_io.py",
+          "artifact/proof_manifest.py",
+          "artifact/claim_ledger.py",
+          "artifact/apple_device_proof.py",
+          "artifact/performance_gate.py",
+          "artifact/proof_to_byte_finalizer.py",
+          "artifact/proof-to-byte.sh"
+        ],
+        "tests": [
+          "artifact/test_evidence_io.py",
+          "artifact/test_proof_manifest.py",
+          "artifact/test_claim_ledger.py",
+          "artifact/test_apple_device_proof.py",
+          "artifact/test_performance_gate.py",
+          "artifact/test_proof_to_byte_release.py"
+        ]
+      },
+      "boundary": "The shared loader rejects duplicate keys, non-finite JSON including binary64 overflow, caller-controlled ancestor/final symlinks, non-regular or oversized files, and ordinary read-time mutation. Apple and performance bound verifiers compare the selected path and manifest SHA-256 before passing the same immutable bytes to semantic validation; Apple logs, plists, linkage output and binaries are also snapshotted once per verification for both hash and semantics. This closes proof and auxiliary A/B hash-versus-semantics mixing and pins one results-manifest digest across a proof-to-byte run. It does not make a dirty mutable manifest a trust root, atomically snapshot the entire live worktree, or resist a privileged writer that can replace and restore every input around process boundaries; clean signed or transparency-backed release provenance remains required."
+    },
+    {
+      "id": "GIT-PROVENANCE-INTEGRITY",
+      "title": "Clean provenance ignores caller Git state and compares HEAD, index, and actual tracked bytes",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "artifact/git_provenance.py",
+          "artifact/claim_ledger.py",
+          "artifact/apple_device_proof.py",
+          "artifact/android_device_proof.py",
+          "artifact/performance_gate.py",
+          "artifact/proof_to_byte_finalizer.py",
+          "artifact/proof-to-byte.sh"
+        ],
+        "tests": [
+          "artifact/test_git_provenance.py",
+          "artifact/test_apple_device_proof.py",
+          "artifact/test_android_device_proof.py",
+          "artifact/test_performance_gate.py",
+          "artifact/test_proof_to_byte_release.py"
+        ]
+      },
+      "boundary": "Release-critical Git inspection uses a fixed /usr/bin/git, an explicit non-symlink .git directory and worktree, and a minimal environment that inherits no caller GIT_* or PATH state. It rejects assume-unchanged and skip-worktree index flags, requires the index tree to equal HEAD, hashes actual regular-file bytes and executable modes against Git object IDs without stat-cache shortcuts, and inventories ignored as well as visible untracked source inputs under a verifier-owned fixed non-input policy rather than trusting .git/info/exclude, core.excludesFile, or worktree .gitignore rules. That policy excludes exact untracked regular .DS_Store files and explicitly enumerated generated-output locations; lookalikes and special objects remain source inputs. Any untracked .gitignore outside an explicitly declared ephemeral-output prefix fails closed. A clean proof commit may be accepted at a clean successor only when ancestry holds and the commit diff is confined to artifact/results.json or paper/camera-ready-results.txt; the separately checked canonical source digest must remain equal. The finalizer requires provenance.snapshot_commit to name that exact source commit or allowed evidence-only ancestor and derives footprint_bytes from canonical paper/footprint.csv, rejecting metadata drift before and after domain verification. This closes environment redirection, hidden-index-flag, local-exclude, unbound-successor-metadata, duplicated-footprint, and manifest/proof self-reference bypasses. Explicit generated-output exclusions are not a hermetic build-input closure; isolated-checkout release builders remain pending. It does not make local .git objects a remote trust anchor or resist a privileged writer that can replace and restore the repository around every process boundary; signed or transparency-backed release provenance remains required."
+    },
+    {
+      "id": "PYTHON-IMPORT-PROVENANCE",
+      "title": "Release Python verifiers execute source under an isolated startup and private bytecode-cache prefix",
+      "status": "implementation_tested",
+      "evidence": {
+        "implementation": [
+          "artifact/python-env.sh",
+          "artifact/python_bootstrap.py",
+          "artifact/python-run.sh",
+          "artifact/git_provenance.py",
+          "artifact/proof-to-byte.sh"
+        ],
+        "tests": [
+          "artifact/test_git_provenance.py",
+          "artifact/test_proof_to_byte_release.py"
+        ]
+      },
+      "boundary": "Every live-worktree proof, package, and device shell entrypoint selects an absolute CPython 3.11-or-newer interpreter from fixed platform candidates or an explicit absolute operator selection, resolves the executable, and invokes a source bootstrap with -I -S -B plus a fresh private pycache prefix. The bootstrap clears inherited PYTHON* state, keeps standard-library paths ahead of the two repository import roots, and rejects external or final-symlink script paths. Git provenance separately rejects repository .pyc/.pyo files, including ignored caches. The camera-ready lane instead executes fixed /usr/bin/python3 -I -S from a root-owned read-only Git archive. This closes adjacent timestamp/hash-pyc replacement, user-site/.pth startup, PYTHONPATH/PYTHONHOME injection, and stale-cache reuse in the covered entrypoints. It does not attest the selected interpreter, standard library, dynamic libraries, kernel, or privileged host; those remain external toolchain/host trust and require reproducible or signed builder provenance for a release-grade claim."
+    },
+    {
+      "id": "ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS",
+      "title": "The canonical Android AAR, release runtime, and local-consumer transaction is source-bound and selected by the results manifest",
+      "status": "diagnostic",
+      "evidence": {
+        "harness": [
+          "artifact/android-aar.sh",
+          "artifact/android_elf.py",
+          "artifact/android-device-smoke.sh",
+          "artifact/android_device_proof.py",
+          "artifact/local-release-index.sh",
+          "artifact/release_index.py",
+          "artifact/local-release-consumer-smoke.sh",
+          "artifact/release_consumer_smoke.py",
+          "artifact/proof_manifest.py",
+          "artifact/proof-to-byte.sh",
+          "artifact/proof_to_byte_finalizer.py",
+          "artifact/embedding-readiness.sh",
+          ".github/workflows/ci.yml"
+        ],
+        "tests": [
+          "artifact/test_android_elf.py",
+          "artifact/test_android_device_proof.py",
+          "artifact/test_proof_manifest.py",
+          "artifact/test_release_index.py",
+          "artifact/test_release_consumer_smoke.py",
+          "artifact/test_proof_to_byte_release.py"
+        ],
+        "data": ["artifact/results.json"]
+      },
+      "boundary": "Schema v2 freezes tracked plus ignored and visible untracked canonical source inputs under the verifier-owned fixed non-input policy, except artifact/results.json and paper/camera-ready-results.txt. The policy excludes exact untracked regular .DS_Store files and explicitly enumerated generated-output locations; lookalikes and special objects remain inputs. The digest is not a hermetic build-input closure: declared generated-output locations can be consumed only under lane-specific artifact/hash checks, and an isolated-checkout release builder remains pending. The historical transcript is bound by a named hash in the manifest, but the manifest root is not recursively hashed; only clean committed/signed provenance or the evidence-only successor rule can bind that root. The canonical Android release selector is exactly a clean schema-v6 emulator proof over the current results-selected AAR on arm64-v8a, API 35, 16 KiB pages, build-tools 36.0.0, and release mode. The ordered stable-publication transaction is AAR, canonical AVD run, first schema-v5 release index including that exact run, append-only receipt after both extracted C consumer modes pass, one evidence-only artifact/results.json successor selecting the exact AAR/runtime/index/receipt bytes, then one read-only bound gate. Physical Android execution is a separate product-readiness selector and is not a prerequisite for stable package publication. The separate android_physical_runtime section admits only current_clean_tree_physical_pass and binds its exact clean schema-v6 proof, source identity, current AAR bytes, real device facts, and passing tests; it cannot occupy or satisfy android_device_runtime. Dirty Android proofs are direct diagnostics only and cannot be selected or manifest-bound. CI executes the package job's exact AAR on real x86_64 API-35 16-KiB ART for every push and pull request, but that package-face evidence is neither the canonical arm64 release selector nor physical-device evidence. The local Android production aggregate requires AAR, canonical runtime, physical runtime, and local-consumer states all equal 1; physical API/page/release-mode facts may truthfully differ from the canonical AVD, but the proof must use the same clean source and exact AAR. The independent physical verifier and manifest-bound gate remain available; the production aggregate stays pending until a separately reviewed product-readiness evidence transition selects a fresh physical run. Any source-changing commit makes the previous selections stale. Even a current local selection is trusted-host evidence, not Maven publication, clean public release provenance, independent hostile-builder attestation, or protection against a hostile same-UID process."
+    },
+    {
+      "id": "PERFORMANCE-MATCHED-HOST-DIAGNOSTIC",
+      "title": "ContextBound profile and native-implementation performance are guarded by one canonical-source budget",
+      "status": "diagnostic",
+      "evidence": {
+        "harness": ["crates/q-periapt-backends/examples/paired_profile_perf.rs", "artifact/performance_gate.py"],
+        "budget": ["artifact/performance-budgets.json"],
+        "tests": ["artifact/test_performance_gate.py"],
+        "data": ["artifact/results.json"]
+      },
+      "boundary": "One raw-schema-v5 same-process harness contains two independently named estimands. profile_non_regression preserves the ContextBound/CompatXWing matched-backend comparison over the same ML-KEM-768 seed-dk plus X25519 backend, keys, coins, deterministic ciphertext corpus, and ABBA/BAAB schedule; strict nested profile_inputs fixes ContextBound's suite/version/application context and CompatXWing's canonical absence of those inputs (empty, zero, empty). implementation_improvement is a separate ContextBound hybrid_core encapsulation/decapsulation comparison over expanded_fips203_2400. The harness generates one expanded keypair, supplies the same key bytes, coins, and corpus to the target-selected native implementation and private symbol-renamed portable C reference, and checks every per-case encapsulation/decapsulation output for byte equality before timing; portable key generation is not invoked. Both C implementations use the same O3, PIC, macOS-11, function-section, and data-section code-generation contract with per-implementation -march pins (native armv8.4-a+sha3, portable reference armv8-a); the O3 Rust harness uses thin LTO and one codegen unit under the stable Rust/Cargo 1.96.1 producer. The implementation estimand records includes_ffi=false and includes_os_rng=false and therefore is not a policy, entropy, C-ABI, rustls, complete-product, device, or competitor comparison. Each estimand/operation is warmed independently immediately before its collection, and raw/budget metadata bind that scope. Both estimands use block-interleaved ABBA/BAAB ordering. The portable reference is linked only by the evidence build's private cfg/link contract; it is not a Cargo feature, runtime override, shipping backend, or public API. Release verification fixes policy to artifact/performance-budgets.json and freshness to 86400 seconds; a proof cannot select an alternate budget. Proof schema v8 and budget schema v10 bind the profile-specific canonical inputs, build contract, final dual-implementation binary, portable reference archive and source, raw data, canonical source tree, stable Rust/Cargo 1.96.1, Xcode Clang/ar, and the canonical macOS SDK path/version/settings digest. The implementation-improvement budget is preregistered at a one-sided 95% upper bound of 0.95 for primary p50 and p95 native/portable ratios and 1.0 for p99; any threshold drift or failure blocks the gate. Budget schema v10 separately records the statistical minimum and exact 20,480-sample release collection policy; the collector takes neither samples nor warmup from its CLI. Collection rejects repository/ancestor/user Cargo configuration, clears caller compiler/wrapper/loader controls, builds offline in a fresh private target, and rechecks toolchain inputs. A diagnostic build and small sample can validate linkage and equivalence but cannot satisfy the exact collection sample policy, controlled-host, clean-source, freshness, or selected-results requirements. Exact quantitative claims require a fresh clean controlled raw-schema-v5/proof-schema-v8 run under budget schema v10 selected by artifact/results.json. The user-writable Cargo registry cache, Rust sysroot/driver and libraries, same-UID replace-and-restore races, and local collector source-to-binary honesty remain trusted; the verifier does not independently rebuild the recorded binary. Even a passing single-host proof would establish only the registered estimand for those bytes and would not establish device energy, cross-platform performance, rustls end-to-end performance, complete ABI performance, competitor ranking, or hermetic producer attestation."
+    },
+    {
+      "id": "PERFORMANCE-IMPLEMENTATION-IMPROVEMENT",
+      "title": "Registered AArch64 native/portable expanded-key hybrid-core improvement is delegated to the results-manifest selection",
+      "status": "pending",
+      "evidence": {
+        "harness": ["crates/q-periapt-backends/examples/paired_profile_perf.rs", "artifact/performance_gate.py"],
+        "budget": ["artifact/performance-budgets.json"],
+        "tests": ["artifact/test_performance_gate.py", "artifact/test_rust_publish_contract.py"],
+        "data": ["artifact/results.json"]
+      },
+      "boundary": "The raw-v5/proof-v8/budget-v10 machine-verifiable gate and immutable material thresholds are implemented for the O3/codegen-matched ContextBound hybrid_core encapsulation/decapsulation estimand over one generated expanded_fips203_2400 keypair supplied to both implementations. Per-case outputs must be byte-equivalent before native/portable ABBA/BAAB inference, and each operation is warmed independently immediately before collection. The estimand excludes FFI and OS RNG and is not a full ABI, rustls, device, or competitor result. This registry status is deliberately the state-independent conservative floor and never asserts the quantitative result itself: the live claim state is delegated to artifact/results.json, whose performance section publishes the claim exactly while it currently selects a fresh clean-source, controlled-host, exact-sample proof for the current tree (status current_controlled_pass), and any consumer of the improvement claim must consult that selection. Historical or dirty diagnostics, profile_non_regression results, portable-only captures, thresholds, and tests cannot satisfy or self-prove this claim."
+    },
+    {
+      "id": "PERFORMANCE-NONREGRESSION",
+      "title": "End-to-end non-regression against matched PQ/T baselines remains pending",
+      "status": "pending",
+      "evidence": {
+        "harness": ["crates/q-periapt-backends/examples/paired_profile_perf.rs", "artifact/performance_gate.py", "crates/q-periapt-rustls/examples/netem_bench.rs", "camera-ready-bare-metal.sh", "artifact/camera-ready-sandbox.sh", "artifact/camera_ready_proof.py"],
+        "tests": ["artifact/test_camera_ready_proof.py"],
+        "data": ["paper/microbench-arm64.csv", "paper/camera-ready-results.txt"]
+      },
+      "boundary": "The batched, matched-backend host gate uses same-estimand time-block inference and rejects source or controlled-environment drift; the machine-readable manifest carries a path/hash/schema/source/pass summary, while the required domain verifier checks actual proof freshness and artifacts. The committed bare-metal transcript is historical and predates the hardened raw-bundle verifier, so it is missing the source archive, binaries, logs, measurement TSV, qdisc snapshots, run identity, and manifest required by the current gate. It is not current primary proof. Even a fresh passing bundle is producer-origin integrity evidence, not independent hardware attestation without an external nonce and trust anchor; it trusts the checksum-pinned dependency/toolchain closure and is not a hostile-builder source-to-binary refinement proof. The broader end-to-end claim remains pending: there is no fresh hardened bare-metal capture, paired iPad/iPhone energy evidence, stable multi-host baseline history, or parity proof against optimized production X-Wing implementations."
+    },
+    {
+      "id": "CONTINUITY-LIFECYCLE-CONTEXT-V1",
+      "title": "Candidate Continuity lifecycle context has two byte-independent encoders and frozen cross-language vectors",
+      "status": "diagnostic",
+      "evidence": {
+        "design": [
+          "docs/continuity/LIFECYCLE_CONTEXT_V1.md",
+          "docs/continuity/G1_EFFECT_LIFECYCLE.md"
+        ],
+        "implementation": [
+          "models/q-periapt-continuity-model/src/context.rs",
+          "models/q-periapt-continuity-model/src/model.rs",
+          "artifact/continuity_context.py"
+        ],
+        "formal": [
+          "formal/easycrypt/continuity/LifecycleContextV1.ec"
+        ],
+        "tests": [
+          "models/q-periapt-continuity-model/tests/context.rs",
+          "models/q-periapt-continuity-model/tests/lifecycle.rs",
+          "models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json",
+          "models/q-periapt-continuity-model/examples/continuity_context_vectors.rs",
+          "artifact/test_continuity_context.py",
+          "artifact/test_continuity_model_isolation.py"
+        ]
+      },
+      "boundary": "The publish=false dependency-free Rust model and independent Python encoder agree on frozen Bootstrap and RootTransition lifecycle-body, policy-bound K-CTX, digest-preimage, and SHA3-256 bytes. Bootstrap B21-B23 are derived from one separately verified canonical selection and reject suite/responder/checkpoint grafts. A separate EasyCrypt diagnostic proves injectivity for its modeled ordered projection and gives explicit policy/direction omission collisions. Model admission binds trusted protocol, policy, session, ordered parties, stage, transcript and legal root-epoch movement; exact state writes use version+digest CAS and reject no-op anchors before mutation. This is a non-normative diagnostic over trusted input commitments, not an outer Lifecycle decoder, production wire/snapshot/record codec, proof that the formal projection equals Rust or is semantically complete, credential or transcript verifier, context-advance protocol, prekey/ratchet implementation, formal model-to-code refinement, identity authentication, FS/PCS proof, or release evidence."
+    },
+    {
+      "id": "CONTINUITY-PREKEY-SELECTION-V1",
+      "title": "Candidate Continuity prekey selection has lossless two-leg semantics, strict bytes, and independent correspondence evidence",
+      "status": "diagnostic",
+      "evidence": {
+        "design": [
+          "docs/continuity/PREKEY_SELECTION_V1.md",
+          "docs/continuity/LIFECYCLE_CONTEXT_V1.md"
+        ],
+        "implementation": [
+          "models/q-periapt-continuity-model/src/codec.rs",
+          "models/q-periapt-continuity-model/src/commitments.rs",
+          "models/q-periapt-continuity-model/src/prekey.rs",
+          "models/q-periapt-continuity-model/src/context.rs",
+          "artifact/prekey_selection.py",
+          "artifact/continuity_context.py"
+        ],
+        "formal": [
+          "formal/easycrypt/continuity/PrekeySelectionV1.ec"
+        ],
+        "tests": [
+          "models/q-periapt-continuity-model/tests/prekey_selection.rs",
+          "models/q-periapt-continuity-model/tests/context.rs",
+          "models/q-periapt-continuity-model/vectors/prekey-selection-v1.json",
+          "models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json",
+          "models/q-periapt-continuity-model/examples/prekey_selection_vectors.rs",
+          "models/q-periapt-continuity-model/examples/continuity_context_vectors.rs",
+          "artifact/test_prekey_selection.py",
+          "artifact/test_continuity_context.py",
+          "artifact/test_continuity_model_isolation.py"
+        ]
+      },
+      "boundary": "The publish=false model fixes an exact 492-byte sixteen-field record and 555-byte digest preimage across Rust and an independent strict Python encoder/decoder. It preserves four independent classical/PQ quality quadrants; Lifecycle B21-B23 are derived atomically, and Bootstrap rejects suite, responder identity-scope, checkpoint, or direction mismatch before context construction. EasyCrypt proves structural injectivity for the modeled projection and exhibits named omission collisions. This does not prove SHA3 injectivity, digest-adapter honesty, manifest signature/membership/expiry, key-ID leaf semantics, directory consistency, unique leasing, at-most-once consumption, replay/tombstone behavior, double-lease evidence, rollback resistance, UKS/KCI, FS/PCS, protocol security, formal-to-Rust refinement, production readiness, or ABI 2 release eligibility."
+    },
+    {
+      "id": "SESSION-LIFECYCLE-PARITY",
+      "title": "Asynchronous identity, prekeys, ongoing hybrid PQ ratchet, multi-device state, and recovery match the current public protocol baseline",
+      "status": "pending",
+      "evidence": {
+        "design": [
+          "docs/CONTINUITY_RESEARCH.md",
+          "docs/continuity/REFERENCE_BASELINE.md",
+          "docs/continuity/reference-baseline.json",
+          "docs/continuity/G1_EFFECT_LIFECYCLE.md",
+          "docs/continuity/PREKEY_SELECTION_V1.md"
+        ],
+        "reference_verification": [
+          "artifact/reference_baseline.py",
+          "artifact/test_reference_baseline.py"
+        ],
+        "formal_diagnostic": [
+          "formal/easycrypt/continuity/LifecycleContextV1.ec",
+          "formal/easycrypt/continuity/PrekeySelectionV1.ec"
+        ],
+        "non_normative_model": [
+          "models/q-periapt-continuity-model/src/lib.rs",
+          "models/q-periapt-continuity-model/src/codec.rs",
+          "models/q-periapt-continuity-model/src/commitments.rs",
+          "models/q-periapt-continuity-model/src/context.rs",
+          "models/q-periapt-continuity-model/src/prekey.rs",
+          "models/q-periapt-continuity-model/src/types.rs",
+          "models/q-periapt-continuity-model/src/model.rs",
+          "models/q-periapt-continuity-model/tests/lifecycle.rs",
+          "models/q-periapt-continuity-model/tests/context.rs",
+          "models/q-periapt-continuity-model/tests/prekey_selection.rs",
+          "models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json",
+          "models/q-periapt-continuity-model/vectors/prekey-selection-v1.json",
+          "artifact/continuity_context.py",
+          "artifact/prekey_selection.py",
+          "artifact/test_continuity_context.py",
+          "artifact/test_prekey_selection.py",
+          "artifact/test_continuity_model_isolation.py"
+        ]
+      },
+      "boundary": "Not implemented. The selected public comparison pages now have a reproducible raw/Signal-cfemail-normalized drift verifier, but mutable pages are not archived and the component integration profile remains undefined. The repository has a publish=false, non-normative effect/journal lifecycle model with opaque operation commitments, a candidate canonical LifecycleContextV1 projection, and a strict model-only PrekeySelectionV1 record. Its 52 Rust tests retain a trusted pairwise SessionIdentity and structured AuthenticatedContext in abstract snapshot schema 3, reject protocol/policy/session/device/current-context grafts before reservation, derive lossless two-leg B21-B23 values atomically, use exact version+digest state advances, and reject a no-op anchor before mutation. Rust and independent Python encoders/decoders agree on frozen full-byte model vectors, but there is no outer Lifecycle or production snapshot/record/wire decoder, signed manifest/leaf verifier, lease/consumption/tombstone state, or context-advance API. The model retains exact typed pending repository and suspension intents, scrubs volatile results at every durable cut, preserves first-cause typed evidence, reconciles writes before durable quarantine, and replays exact release permits until a modeled acknowledgement. ProviderBinding is caller-selected: echo equality does not prove policy authorization, downgrade resistance, provider identity, or current epoch. Trusted genesis, credential/role/device-epoch authentication, manifest/prekey/directory authenticity, legal stage transitions, authenticated provider/repository/anchor/receipt adapters, and host fsync-before-effect remain external obligations. There is no production q-periapt-session crate, identity/prekey directory, wire protocol, persistent Double/Triple Ratchet or ML-KEM Braid state, Sesame-style session manager, storage/anchor adapter, recovery layer, or key-transparency service. The model, current KEM, demo handshake, symbolic proofs, bindings, and device proofs do not satisfy this broad parity claim."
+    },
+    {
+      "id": "SESSION-SECURITY-PERFORMANCE-LEAD",
+      "title": "Q-Periapt Continuity provides a proved security or assurance improvement without worse end-to-end session performance",
+      "status": "pending",
+      "evidence": {
+        "design": [
+          "docs/CONTINUITY_RESEARCH.md",
+          "docs/continuity/G1_EFFECT_LIFECYCLE.md",
+          "docs/continuity/PREKEY_SELECTION_V1.md"
+        ],
+        "formal_diagnostic": [
+          "formal/easycrypt/continuity/LifecycleContextV1.ec",
+          "formal/easycrypt/continuity/PrekeySelectionV1.ec"
+        ],
+        "non_normative_model": [
+          "models/q-periapt-continuity-model/src/types.rs",
+          "models/q-periapt-continuity-model/src/codec.rs",
+          "models/q-periapt-continuity-model/src/commitments.rs",
+          "models/q-periapt-continuity-model/src/context.rs",
+          "models/q-periapt-continuity-model/src/prekey.rs",
+          "models/q-periapt-continuity-model/src/model.rs",
+          "models/q-periapt-continuity-model/tests/lifecycle.rs",
+          "models/q-periapt-continuity-model/tests/context.rs",
+          "models/q-periapt-continuity-model/tests/prekey_selection.rs",
+          "models/q-periapt-continuity-model/vectors/lifecycle-context-v1.json",
+          "models/q-periapt-continuity-model/vectors/prekey-selection-v1.json",
+          "artifact/continuity_context.py",
+          "artifact/prekey_selection.py",
+          "artifact/test_continuity_context.py",
+          "artifact/test_prekey_selection.py",
+          "artifact/test_continuity_model_isolation.py"
+        ],
+        "comparison": ["docs/COMPETITIVE_ANALYSIS.md"]
+      },
+      "boundary": "Research hypothesis only. The 31-test lifecycle model exercises trusted durable pairwise session/current-context admission, reservation, full binding/result shape, exact version+digest state advances, typed persist subjects, every repository unknown stage and outcome after reconstruction, durable non-noop anchor preparation, volatile-result scrubbing, first-cause typed evidence, provider terminal-outcome contradiction, append-only suspension, fence loss, and idempotent release/ack ordering without real secrets or protocol wire bytes. Twelve context tests and eight strict prekey-selection tests plus independent Python encoders/decoders check candidate Lifecycle and Prekey bytes and frozen SHA3 vectors; one private regression checks that invalid receipt preflight cannot partially mutate the model. The prekey codec prevents opaque tuple laundering and lossless two-leg downgrade ambiguity, but it does not prove manifest authenticity, unique lease, consumption/tombstones, directory consistency, or rollback resistance. The model deliberately does not advance the authenticated context. Its five-mutant oracle is an independent monitor self-test, not exhaustive reachability. Trusted initialization is an assumption, not identity authentication. Provider profile/epoch echo equality is not policy authorization, downgrade resistance, provider identity, or epoch attestation. The model is not a credential, UKS/KCI, prekey-single-use, database durability, FS/PCS, rollback, ratchet, or session-security proof; authenticated provider/repository/anchor/receipt adapters, outer/production strict decoding, canonical snapshot/records, journal-ack-before-effect, benign rejection/dedup semantics, suspension-conflict convergence, WAL/fsync and kill/restart adapters remain open. No novelty proof, protocol proof, implementation refinement, interoperability, physical-device session benchmark, energy result, third-party audit, or deployment evidence exists. Any future claim must use the selected component-reference revisions plus separately specified manager integration, matched workloads and devices, explicit wire/latency/energy/privacy/healing budgets, and the gates in CONTINUITY_RESEARCH.md."
+    },
+    {
+      "id": "HQC-FIPS207-DRAFT-CANDIDATE-SHADOW",
+      "title": "HQC v5 is evaluated in an isolated FIPS 207 draft-candidate shadow lane",
+      "status": "diagnostic",
+      "evidence": {
+        "design": ["research/hqc-fips207-candidate/README.md"],
+        "implementation": [
+          "research/hqc-fips207-candidate/Cargo.toml",
+          "research/hqc-fips207-candidate/Cargo.lock",
+          "research/hqc-fips207-candidate/src/lib.rs"
+        ],
+        "tests": [
+          "research/hqc-fips207-candidate/tests/adapter.rs",
+          "research/hqc-fips207-candidate/scripts/verify.sh"
+        ]
+      },
+      "boundary": "The publish=false nested workspace pins hqc-kem 0.1.0-rc.0 and tests strict deterministic adapters for HQC-128/192/256 under ContextBound while rejecting CompatXWing. It has no production dependency edge, ABI export, policy identifier, or suite code; retired code 3 remains a tombstone. The upstream crate describes itself as tracking FIPS 207, but as of 2026-07-12 the official NIST FIPS 207 IPD endpoint is unavailable and NIST still calls the standard forthcoming. Dependency audit, cross-target compilation, deterministic round trips, and corrupt-ciphertext implicit rejection are research diagnostics, not official KAT reproduction, constant-time proof, interoperability, final-wire stability, FIPS validation, or production readiness."
+    },
+    {
+      "id": "DEPENDENCY-AUDIT-CLEAN",
+      "title": "All locked dependencies pass cargo-audit with warnings denied",
+      "status": "implementation_tested",
+      "evidence": {
+        "configuration": [".cargo/audit.toml", ".github/workflows/ci.yml"],
+        "lockfiles": ["Cargo.lock", "fuzz/Cargo.lock"],
+        "release_contract": [
+          "artifact/rust-publish-contract.sh",
+          "crates/q-periapt-mlkem-native-sys/vendor/INVENTORY.sha256",
+          "crates/q-periapt-mlkem-native-sys/vendor/LICENSE-INVENTORY.md",
+          "crates/q-periapt-mlkem-native-sys/vendor/PROVENANCE.md"
+        ]
+      },
+      "boundary": "No advisory is suppressed. The publishable graph uses target-selected q-periapt-mlkem-native-sys over vendored mlkem-native v1.2.0 plus exact fips204/sha3 pins and no longer contains the fips203 or libcrux/hax/proc-macro-error2 paths. CI denies every cargo-audit warning over both committed workspace and detached fuzz-harness lockfiles. The ten-crate no-upload Rust package contract applies every required downstream local patch, independently inspects the packaged sys .crate for the fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (the six upstream README files are excluded), pinned upstream license/provenance, forbidden paths, and the fixed five-target native/everywhere-else-portable build surface, then patches the sys crate into Cargo's normalized q-periapt-backends graph before auditing it. This establishes a pre-publication package-ready source/package contract, not target-specific binary publication or crates.io publication: it does not prove fresh native package/device/CT/performance evidence, upload-API acceptance, crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a registry receipt. The mlkem-native trust anchors are upstream commit 0ba906cb14b1c241476134d7403a811b382ca498 and immutable GitHub commit archive SHA-256 f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677. Upstream HOL-Light evidence is limited to selected upstream assembly source/object routines and does not prove downstream reassembly or the full ABI. The publish=false FIPS 207 draft-candidate shadow workspace remains outside the shipping graph and has its own audited lockfile gate. RustSec establishes only the absence of advisories known for the scanned Rust package graph at scan time; it does not inspect vendored C/assembly for vulnerabilities, undefined behavior, side channels, provenance or license correctness. This is not a third-party cryptographic, C/FFI or ABI audit, a maintenance guarantee, or registry/build provenance."
+    },
+    {
+      "id": "SOURCE-SECURITY-CODE-SCANNING-ADJUDICATION",
+      "title": "Exact-R CodeQL receipts record actual findings and require no unadjudicated finding",
+      "status": "implementation_tested",
+      "evidence": {
+        "gate": ["artifact/platform_candidate_attestation.py", "artifact/platform_distribution_contract.py"],
+        "tests": ["artifact/test_platform_candidate_attestation.py", "artifact/test_platform_distribution.py"],
+        "workflow": [".github/workflows/codeql.yml"],
+        "data": ["artifact/results.json"]
+      },
+      "boundary": "The stable-tag security gate selects the latest exact-R analysis for each of the six fixed CodeQL language categories, requires CodeQL 2.26.2, positive rule counts, empty error and warning fields, and an empty main-ref open-alert list, and records each analysis's actual result count in the receipt. The operative requirement is the empty open-alert list: a CodeQL finding leaves it only by being fixed or by being dismissed with a reason recorded against the alert, so the machine-checked claim is zero unadjudicated findings, not zero findings. A zero result count is not required and could not be satisfied by adjudication, because the count is a property of the uploaded analysis and includes findings already dismissed. The eventual exact-R receipt, not this static ledger, is authoritative for run IDs, analysis IDs, actual result counts, and the open-alert observation. Any dismissal must retain its reason and review comment in GitHub. This records adjudication, not absence: it is not a proof that flagged patterns are unreachable, not a substitute for review of dismissal reasons. CodeQL establishes only what its queries model at the analyzed revision; the Rust extractor does not honor cfg(test), and the suite does not inspect vendored C or assembly."
+    }
+  ]
+}

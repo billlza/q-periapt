@@ -1,0 +1,93 @@
+"""Synthetic framing regressions; native consumers separately verify signatures and report MACs."""
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+import continuity_device_retirement as retirement
+from continuity_c_witness import commit
+
+
+def fixture(path: Path):
+    path.mkdir()
+    witness_id, key, subject = b'w' * 32, b'k' * 1985, b's' * 96
+    binding = commit(b"Q-PERIAPT-CONTINUITY-ANCHOR-AUTHORITY/v1", witness_id + key)
+    replacement = b"QPDRPL01" + binding + b"synthetic replacement proposal"
+    replacement_id = commit(b"Q-PERIAPT-CONTINUITY-DEVICE-REPLACEMENT-CANDIDATE/v1", replacement)
+    head, state = b'h' * 48, b't' * 32
+    old_body = b"QPDRTR01" + binding + replacement_id + subject + head + b'\x00' * 33 + state + b'n' * 96
+    inventory = b"QPRCLP01" + binding + replacement_id + subject + state + head + b'i' * 32 + b'\x00' * 33
+    report_id = b'r' * 32
+    expected = b"QPRRPT01" + inventory + report_id
+    wire = lambda body: len(body).to_bytes(4, 'big') + body + b'\x11' * 3373
+    report = {name: bytes([index + 1]).hex() * 32 for index, name in enumerate(retirement.IDENTITIES)}
+    report['report_id'] = report_id.hex()
+    report.update(retirement.COUNTS)
+    report.update({name: True for name in retirement.FLAGS})
+    values = {'witness-request-count': (300).to_bytes(8, 'big'), 'witness-id': witness_id, 'witness-public': key, 'witness-subject': subject,
+              'retirement-proposal': replacement, 'retirement-receipt': wire(old_body),
+              'retirement-inventory': inventory, 'retirement-inventory-receipt': wire(inventory),
+              'retirement-report-proposal': expected, 'retirement-report-receipt': wire(expected),
+              'retirement-ack': wire(b"QPRACK01" + expected[8:]),
+              'retirement-host-report': b"QPRDMD01" + inventory + b'\x00' + b'synthetic full metadata',
+              'retirement-report-reopened': report_id, 'retirement-verified': report_id,
+              'signer-terminal': b"QPSRET01", 'result.json': json.dumps(report).encode()}
+    for role, payload in [('old', b'retiring device effect before unavailable receipt'),
+                          ('new', b'fresh required-witness replacement')]:
+        values[role + '-effect'] = bytes.fromhex(report[role + '_session'] + report[role + '_message']) + payload
+    for index, stage in enumerate(retirement.STAGES, 100):
+        values['retirement-process-' + stage] = index.to_bytes(8, 'big')
+    values['retirement-host-report-verified'] = values['retirement-host-report']
+    for name, data in values.items():
+        (path / name).write_bytes(data)
+
+
+class RetirementEvidenceTests(unittest.TestCase):
+    def test_complete_public_readback_and_export(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); fixture(root / 'source')
+            result = retirement.export(root / 'source', root / 'export')
+            self.assertEqual(result, retirement.verify(root / 'export'))
+            self.assertEqual(set(result['public_readbacks']), retirement.FILES)
+            self.assertEqual(len(result['recovery_process_ids']), 8)
+            self.assertFalse(result['release_claim_eligible'])
+
+    def test_every_record_is_required(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            for p in list(root.iterdir()):
+                original = p.read_bytes(); p.unlink()
+                with self.subTest(missing=p.name), self.assertRaises(ValueError):
+                    retirement.verify(root)
+                p.write_bytes(original)
+
+    def test_wrong_receipt_scope_effect_or_recovery_identity_fails(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            for name in ['witness-id', 'witness-public', 'witness-subject', 'retirement-proposal',
+                         'retirement-receipt', 'retirement-inventory', 'retirement-inventory-receipt',
+                         'retirement-report-proposal', 'retirement-report-receipt', 'retirement-ack',
+                         'retirement-host-report', 'retirement-host-report-verified', 'retirement-report-reopened', 'retirement-verified',
+                         'old-effect', 'new-effect', 'signer-terminal']:
+                p = root / name; original = p.read_bytes(); p.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+                with self.subTest(changed=name), self.assertRaises(ValueError): retirement.verify(root)
+                p.write_bytes(original)
+            p = root / 'retirement-process-verify'; p.write_bytes((100).to_bytes(8, 'big'))
+            with self.assertRaisesRegex(ValueError, 'independent recovery'): retirement.verify(root)
+
+    def test_success_flags_do_not_accept_wrong_accounting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            p = root / 'result.json'; original = json.loads(p.read_text())
+            for name in retirement.COUNTS:
+                changed = dict(original); changed[name] = True
+                p.write_text(json.dumps(changed))
+                with self.subTest(count=name), self.assertRaises(ValueError): retirement.verify(root)
+            for name in retirement.FLAGS:
+                changed = dict(original); changed[name] = False
+                p.write_text(json.dumps(changed))
+                with self.subTest(flag=name), self.assertRaises(ValueError): retirement.verify(root)
+
+
+if __name__ == '__main__':
+    unittest.main()

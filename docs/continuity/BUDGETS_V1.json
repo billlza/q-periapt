@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "frozen_product_contract": false,
+  "signature_context": "Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1",
+  "rekey_profile": "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1",
+  "rekey_profile_sha3_256": "67e912ec03fe626d642b19f3dd6a30b6934950846620656bf3863093158cfa11",
+  "message_domain": "Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/",
+  "maximums": {
+    "signed_body_bytes": 16384,
+    "bootstrap_bundle_bytes": 65536,
+    "bootstrap_field_bytes": 8192,
+    "plaintext_bytes": 16384,
+    "associated_data_bytes": 1024,
+    "skipped_keys_per_direction_epoch": 128,
+    "outstanding_messages_per_direction_epoch": 64,
+    "retained_traffic_epochs": 4,
+    "control_body_bytes": 8192,
+    "connection_frame_bytes": 32768,
+    "session_operation_records": 128,
+    "prekey_records": 1024,
+    "account_roster_records": 64,
+    "device_history_per_account": 256,
+    "journal_image_bytes": 2097152,
+    "network_exchanges": 128,
+    "run_timeout_seconds": 120,
+    "connect_timeout_seconds": 5,
+    "roster_devices": 32,
+    "manifest_prekeys": 1024
+  }
+}

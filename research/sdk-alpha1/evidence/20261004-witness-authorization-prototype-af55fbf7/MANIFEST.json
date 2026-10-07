@@ -1,0 +1,19 @@
+{
+  "QUALIFICATION.json": "b6f261e62f97e5ccbe08ddd84e134155292a5d916b6ceae71321c4ff27e17e24",
+  "owner-release.diff.txt": "0b66cefe71498531dbc25f00b16b3229af6fa3ae824ca0c46f8a934b52d5e1b4",
+  "patch-witness-authorization-experiment.py": "0757b065af64811a3e06d17abb104bae7a11ba0f3226c16b0e0e87373b2ec105",
+  "patch-witness-authorization-release.py": "30c60b20324ec8b4a7cc314b79ba270c4c8e3804d028b3dde267971b2fc521fd",
+  "query-only.diff.txt": "6bb15b8e085872c19c2c8d6d0cf03ada2fcca0509ef0879e8ccce6612f2bc841",
+  "run-witness-authorization-experiment.py": "ebc136235e803512d8531c55e7fdcc5c59fb18931ee37c2e0f029964410a78d0",
+  "witness-authorization-01.json": "9b19ffdc55c477ede3f84c67d488791358a66c10a232227dda3a00ca07be76f0",
+  "witness-authorization-01.log.gz": "89d362ea4aa54007d8513eba12673ffa143857bb50c9ead08eed16523e378eb7",
+  "witness-authorization-02.json": "4fefb7ec1d676f06f9937e041d37dfee292123ee7b33010d5c3296c99dae4051",
+  "witness-authorization-02.log.gz": "94a1e2c21dd15b57384c2b7c5b123eb2453ff4b04248cf69e4baa49d9e09bec0",
+  "witness-authorization-probe.rs.txt": "3e5657157e40c880da9f3527f08d71aaa450043e3acff3b6e59515aa2e7fceac",
+  "witness-authorization-release-01.json": "b68cdd6b14248e58417ee187149288218d0db70f0bfd5cdd5bc7affa7cc554b6",
+  "witness-authorization-release-01.log.gz": "ed409cbf985494972f848b70d3457393d55501917849a1c52733a51104603bf7",
+  "witness-authorization-release-02.json": "3664ffa51ed33250eff34cf768107c7869dd08d93cdb83d4b3fd6f647b1a92a7",
+  "witness-authorization-release-02.log.gz": "e983d25bb9b6dbef93cd78ec00921dae6010409b951e4bf4806351e77e34141a",
+  "witness-authorization-release-clippy-01.json": "b3a1895752b8d99c33e5d37a1dd57a1ce14ff375cfc5fc87ee244e646dc4f9f9",
+  "witness-authorization-release-clippy-01.log.gz": "13373fceab9a0605cb561f401ac9b709d6da042b423ded23a4a2edf0014a3a6e"
+}

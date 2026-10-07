@@ -1,0 +1,211 @@
+theory QPeriaptMigrationV2State
+/*
+  Migration Contract V2 state/CAS model. StoreSnapshot is replayable attacker
+  storage; WitnessPhase is the protected non-rollbackable head. Reservations
+  do not lock the head, so transition/reset can make an old session stale. This
+  bounded one-advance model proves the single-step invariant used inductively by
+  the service; endpoint authentication is proved separately in
+  migration_v2_agreement.spthy.
+*/
+begin
+
+builtins: signing
+functions: next_generation/1, next_epoch/1, next_fence/1
+
+rule State_Setup:
+  let state = <'generation-one', ~chain, 'epoch-one',
+               ~digest, 'floor-l3', ~fence>
+  in
+  [ Fr(~A), Fr(~transition_sk), Fr(~reset_sk)
+  , Fr(~I), Fr(~R), Fr(~chain), Fr(~digest), Fr(~fence) ]
+--[ MigrationGenesis(~I, ~R, ~A, state) ]->
+  [ !TransitionAuthority(~A, ~transition_sk)
+  , !ResetAuthority(~A, ~reset_sk)
+  , !PinnedTransitionKey(~A, pk(~transition_sk))
+  , !PinnedResetKey(~A, pk(~reset_sk))
+  , WitnessPhase(~I, ~R, ~A, state, 'idle')
+  , CanReserve(~I, ~R, ~A, state)
+  , CanIssueTransition(~I, ~R, ~A, state)
+  , CanIssueReset(~I, ~R, ~A, state)
+  , !StoreSnapshot(~I, ~R, ~A, state)
+  , !FloorAllows('floor-l1', 'suite-hybrid-l3', 'hybrid')
+  , !FloorAllows('floor-l1', 'suite-hybrid-l5', 'hybrid')
+  , !FloorAllows('floor-l1', 'suite-pq-l5', 'pq-only')
+  , !FloorAllows('floor-l3', 'suite-hybrid-l3', 'hybrid')
+  , !FloorAllows('floor-l3', 'suite-hybrid-l5', 'hybrid')
+  , !FloorAllows('floor-l3', 'suite-pq-l5', 'pq-only')
+  , !FloorAllows('floor-l5', 'suite-hybrid-l5', 'hybrid')
+  , !FloorAllows('floor-l5', 'suite-pq-l5', 'pq-only')
+  , !FloorAdvance('floor-l1', 'floor-l1')
+  , !FloorAdvance('floor-l1', 'floor-l3')
+  , !FloorAdvance('floor-l1', 'floor-l5')
+  , !FloorAdvance('floor-l3', 'floor-l3')
+  , !FloorAdvance('floor-l3', 'floor-l5')
+  , !FloorAdvance('floor-l5', 'floor-l5')
+  , Out(<~I, ~R, ~A, state, pk(~transition_sk), pk(~reset_sk)>) ]
+
+rule Adversary_Restore_Store_Image:
+  [ !StoreSnapshot(I, R, A, state) ]
+--[ StoreImageRestored(I, R, state) ]->
+  [ Out(<'migration-store-image-v2', I, R, A, state>) ]
+
+rule Issue_Signed_Transition:
+  let oldState = <generation, chain, epoch, digest, oldFloor, fence>
+      newState = <next_generation(generation), chain, next_epoch(epoch),
+                  ~nextDigest, newFloor, next_fence(fence)>
+      payload = <'q-periapt-migration-transition-v2', I, R, A,
+                 oldState, newState>
+  in
+  [ !TransitionAuthority(A, transition_sk)
+  , CanIssueTransition(I, R, A, oldState)
+  , In(newFloor), Fr(~nextDigest) ]
+--[ TransitionIssued(A, I, R, oldState, newState) ]->
+  [ Out(<newState, sign(payload, transition_sk)>) ]
+
+rule Apply_Signed_Transition:
+  let oldState = <generation, chain, epoch, digest, oldFloor, fence>
+      newState = <next_generation(generation), chain, next_epoch(epoch),
+                  nextDigest, newFloor, next_fence(fence)>
+      payload = <'q-periapt-migration-transition-v2', I, R, A,
+                 oldState, newState>
+  in
+  [ WitnessPhase(I, R, A, oldState, phase)
+  , In(<'migration-store-image-v2', I, R, A, oldState>)
+  , In(<newState, certificate>)
+  , !PinnedTransitionKey(A, transition_vk)
+  , !FloorAdvance(oldFloor, newFloor) ]
+--[ Eq(verify(certificate, payload, transition_vk), true)
+  , TransitionAccepted(A, I, R, oldState, newState)
+  , FloorAdvanceChecked(oldFloor, newFloor)
+  , StateRetired(I, R, oldState)
+  , StateAdvanced(I, R, oldState, newState) ]->
+  [ WitnessAdvanced(I, R, A, newState)
+  , !StoreSnapshot(I, R, A, newState) ]
+
+rule Issue_Signed_Reset:
+  let oldState = <oldGeneration, oldChain, oldEpoch,
+                  oldDigest, oldFloor, oldFence>
+      newState = <next_generation(oldGeneration), ~newChain, 'epoch-one',
+                  ~newDigest, newFloor, next_fence(oldFence)>
+      payload = <'q-periapt-migration-reset-v2', I, R, A,
+                 oldState, newState>
+  in
+  [ !ResetAuthority(A, reset_sk)
+  , CanIssueReset(I, R, A, oldState)
+  , In(newFloor), Fr(~newChain), Fr(~newDigest) ]
+--[ ResetAuthorized(A, I, R, oldState, newState) ]->
+  [ Out(<newState, sign(payload, reset_sk)>) ]
+
+rule Apply_Signed_Reset:
+  let oldState = <oldGeneration, oldChain, oldEpoch,
+                  oldDigest, oldFloor, oldFence>
+      newState = <next_generation(oldGeneration), newChain, 'epoch-one',
+                  newDigest, newFloor, next_fence(oldFence)>
+      payload = <'q-periapt-migration-reset-v2', I, R, A,
+                 oldState, newState>
+  in
+  [ WitnessPhase(I, R, A, oldState, phase)
+  , In(<'migration-store-image-v2', I, R, A, oldState>)
+  , In(<newState, certificate>)
+  , !PinnedResetKey(A, reset_vk)
+  , !FloorAdvance(oldFloor, newFloor) ]
+--[ Eq(verify(certificate, payload, reset_vk), true)
+  , ResetAccepted(A, I, R, oldState, newState)
+  , FloorAdvanceChecked(oldFloor, newFloor)
+  , StateRetired(I, R, oldState)
+  , StateAdvanced(I, R, oldState, newState) ]->
+  [ WitnessAdvanced(I, R, A, newState)
+  , !StoreSnapshot(I, R, A, newState) ]
+
+/* A successfully advanced head must remain live. Reconciliation requires the
+   exact successor store image before returning the successor witness to idle. */
+rule Reconcile_Advanced_State:
+  [ WitnessAdvanced(I, R, A, newState)
+  , In(<'migration-store-image-v2', I, R, A, newState>) ]
+--[ AdvancedStateReconciled(I, R, newState) ]->
+  [ WitnessPhase(I, R, A, newState, 'idle')
+  , CanReserve(I, R, A, newState) ]
+
+/* A reservation copies no trusted state. Each role must CAS-recheck the exact
+   state/fence at acceptance; an intervening advance consumes WitnessCurrent. */
+rule Reserve_Current_State:
+  let state = <generation, chain, epoch, digest, floor, fence>
+  in
+  [ WitnessPhase(I, R, A, state, 'idle')
+  , CanReserve(I, R, A, state)
+  , In(<'migration-store-image-v2', I, R, A, state>)
+  , !FloorAllows(floor, suite, mode)
+  , In(<'migration-start-v2', negotiation, suite, typed, mode>)
+  , Fr(~session), Fr(~keyCommit) ]
+--[ WitnessReconciled(I, R, state)
+  , FloorChecked(floor, suite, mode, ~session) ]->
+  [ WitnessPhase(I, R, A, state, <'reserved', ~session>)
+  , InitiatorAcceptToken(I, R, A, state, negotiation, suite, typed, mode,
+                         ~keyCommit, ~session)
+  , ResponderAcceptToken(I, R, A, state, negotiation, suite, typed, mode,
+                         ~keyCommit, ~session) ]
+
+rule Initiator_Accept_After_Recheck:
+  [ InitiatorAcceptToken(I, R, A, state, negotiation, suite, typed, mode,
+                         keyCommit, session)
+  , WitnessPhase(I, R, A, state, <'responder-accepted', session>) ]
+--[ WitnessRechecked('initiator', I, R, state, session)
+  , MigrationAccepted('initiator', I, R, state, negotiation, suite,
+                      typed, mode, keyCommit, session) ]->
+  [ WitnessPhase(I, R, A, state, <'completed', session>) ]
+
+rule Responder_Accept_After_Recheck:
+  [ ResponderAcceptToken(I, R, A, state, negotiation, suite, typed, mode,
+                         keyCommit, session)
+  , WitnessPhase(I, R, A, state, <'reserved', session>) ]
+--[ WitnessRechecked('responder', I, R, state, session)
+  , MigrationAccepted('responder', I, R, state, negotiation, suite,
+                      typed, mode, keyCommit, session) ]->
+  [ WitnessPhase(I, R, A, state, <'responder-accepted', session>) ]
+
+restriction Equality:
+  "All a b #i. Eq(a, b) @ i ==> a = b"
+
+lemma state_reservation_executable:
+  exists-trace
+  "Ex I R state negotiation suite typed mode key session #i #r.
+       MigrationAccepted('initiator', I, R, state, negotiation, suite,
+                         typed, mode, key, session) @ i
+     & MigrationAccepted('responder', I, R, state, negotiation, suite,
+                         typed, mode, key, session) @ r"
+
+lemma restored_old_store_executable:
+  exists-trace
+  "Ex I R state #restored.
+       StoreImageRestored(I, R, state) @ restored"
+
+lemma transition_authenticity:
+  "All A I R oldState newState #i.
+       TransitionAccepted(A, I, R, oldState, newState) @ i
+     ==> (Ex #j. TransitionIssued(A, I, R, oldState, newState) @ j & #j < #i)"
+
+lemma reset_authorization:
+  "All A I R oldState newState #i.
+       ResetAccepted(A, I, R, oldState, newState) @ i
+     ==> (Ex #j. ResetAuthorized(A, I, R, oldState, newState) @ j & #j < #i)"
+
+lemma mig_floor:
+  "All role I R generation chain epoch digest floor fence negotiation suite
+       typed mode key session #accepted.
+       MigrationAccepted(role, I, R,
+                         <generation, chain, epoch, digest, floor, fence>,
+                         negotiation, suite, typed, mode, key, session) @ accepted
+     ==> (Ex #checked. FloorChecked(floor, suite, mode, session) @ checked
+                      & #checked < #accepted)"
+
+lemma mig_floor_transition:
+  "All oldFloor newFloor #advanced.
+       FloorAdvanceChecked(oldFloor, newFloor) @ advanced
+     ==> (oldFloor = 'floor-l1'
+          & (newFloor = 'floor-l1' | newFloor = 'floor-l3'
+                                   | newFloor = 'floor-l5'))
+       | (oldFloor = 'floor-l3'
+          & (newFloor = 'floor-l3' | newFloor = 'floor-l5'))
+       | (oldFloor = 'floor-l5' & newFloor = 'floor-l5')"
+
+end

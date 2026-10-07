@@ -1,0 +1,13 @@
+# Q-Periapt combiner/primitive microbenchmark — the source data behind tab:bench / tab:bench-ci.
+# Host: arm64 (Apple Silicon) dev host. Tool: Criterion, 60-sample. Times in microseconds (us);
+# CI columns are Criterion's 95% confidence interval on the mean.
+# Regenerate: cargo bench -p q-periapt-backends   (then read target/criterion/*/new/estimates.json)
+# This is the SUPPORTING microbench; the bare-metal time-to-session (paper/camera-ready-results.txt,
+# tab:baremetal) is the primary network measurement. Run-to-run variance is ~1 us.
+scheme,keygen_us,keygen_ci,encaps_us,encaps_ci,decaps_us,decaps_ci
+ML-KEM-512,6.5,"[6.4,6.6]",6.1,"[6.0,6.3]",6.8,"[6.8,6.9]"
+ML-KEM-768,11.2,"[11.2,11.3]",11.0,"[10.9,11.1]",11.9,"[11.8,12.0]"
+ML-KEM-1024,18.2,"[17.9,18.5]",16.2,"[15.8,16.7]",17.0,"[16.8,17.2]"
+X25519,43.5,"[43.2,43.9]",89.8,"[89.2,90.5]",44.4,"[44.1,44.7]"
+Hybrid-ContextBound,,,109.1,"[108.4,109.9]",65.9,"[65.5,66.4]"
+Hybrid-CompatXWing,,,101.3,"[100.7,101.9]",59.2,"[58.8,59.5]"

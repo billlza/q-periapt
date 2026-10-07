@@ -1,0 +1,87 @@
+[package]
+name = "q-periapt-backends"
+description = "Third-party ML-KEM/ML-DSA/SLH-DSA, X25519, and SHA3 primitive backends wired into the q-periapt-core traits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Opt-in Linux candidate; the sys boundary checks CPU and OS AVX state at runtime.
+linux-x86_64-avx2 = ["q-periapt-mlkem-native-sys/linux-x86_64-avx2"]
+# Optional, OFF-BY-DEFAULT SLH-DSA backend. `dep:` gating keeps it out of the
+# default build while preserving the verified-green core/KEM surface.
+slh-dsa = ["dep:fips205", "dep:rand_core"]
+
+[dependencies]
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
+# FIPS 203 ML-KEM through the repository-vendored, target-selected mlkem-native
+# integration. The safe facade accepts explicit seed/coins, keeping randomness
+# at the product boundary; the exact internal version pins the reviewed C tree.
+q-periapt-mlkem-native-sys = { version = "=0.2.0", path = "../q-periapt-mlkem-native-sys" }
+# FIPS 204 ML-DSA. As above, q-periapt supplies key-generation and signing
+# randomness explicitly, so the default OS-RNG feature is unnecessary here.
+fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
+# X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
+# `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
+# Restore upstream's fixed-base table for keygen/encapsulation; the SDK A/B and
+# binary-size tradeoff are recorded in docs/SDK_X25519_TABLES.md.
+x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize", "precomputed-tables"] }
+# Standardized SHA3-256 and SHAKE-256 use the current RustCrypto split crates.
+# Both sponge state and cursor are zeroized on drop. FIPS backends retain their
+# own sha3 0.10 dependency until upstream migrates; never force its trait version.
+sha3 = { version = "=0.12.0", default-features = false, features = ["zeroize"] }
+shake = { version = "=0.1.0", default-features = false, features = ["zeroize"] }
+# --- optional backends (see [features]) ---
+# SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
+# default; caller-supplied addrnd selects the hedged variant.
+fips205 = { version = "0.4.1", optional = true }
+# Feeds caller-supplied SLH-DSA hedging randomness (and, in tests, the ACVP
+# keyGen seed replay) into the fips205 `CryptoRngCore` APIs (same rand_core 0.6
+# the `fips205` dep uses). Pulled in only with the `slh-dsa` feature.
+# Held at 0.6: this shim exists to feed fips205's RNG parameter, and fips204/205
+# (both already at their latest releases) require rand_core ^0.6.4. rand_core 0.10
+# reshaped the RngCore trait entirely, so the shim cannot implement both.
+rand_core = { version = "0.6", default-features = false, optional = true }
+
+[dev-dependencies]
+# End-to-end hybrid KEM tests exercise the real backends through q-periapt-kem.
+q-periapt-kem = { version = "=0.2.0", path = "../q-periapt-kem" }
+# Combiner micro-benchmark (cargo bench). `sha3` provides the faithful
+# *streaming* X-Wing combiner baseline to compare our staged path against.
+criterion = "0.8"
+# Independent RustCrypto ML-KEM for the multi-backend differential test; the
+# `deterministic` feature gives byte-exact keygen/encaps from explicit (d‖z, m).
+# 0.3.2 supports deterministic seeds/encapsulation, but deprecates expanded-key
+# serialization. This test oracle compares every expanded secret-key byte, so
+# retain 0.2.3 until that assertion can use a supported replacement API without
+# disabling deprecation checks or dropping the assertion. It is dev-only.
+ml-kem = { version = "=0.2.3", features = ["deterministic", "zeroize"] }
+# Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
+# X25519 + full-hybrid differential tests.
+orion = "0.18.0"
+# Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
+# deterministic keygen/sign give byte-exact comparison + cross-verification.
+ml-dsa = "=0.1.1"
+# Parse the vendored NIST ACVP conformance vectors (vectors/acvp-*.json).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Generative property-based testing of combiner/hybrid invariants.
+proptest = "1"
+
+[[bench]]
+name = "combiner"
+harness = false
+
+[[bench]]
+name = "primitives"
+harness = false

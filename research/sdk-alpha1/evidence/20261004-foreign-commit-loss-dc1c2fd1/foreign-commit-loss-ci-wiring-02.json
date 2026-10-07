@@ -1,0 +1,16 @@
+{
+  "completed": true,
+  "observed_test_summary": [
+    [
+      1,
+      0.014
+    ]
+  ],
+  "log_sha256": "fa542e8622122ca1f4cc64e9c40b3965bc4bebddd993e4ebc20bba069bce6800",
+  "source_hashes": {
+    ".github/workflows/ci.yml": "e9fd2af4879cff424512a7d32aece755fc092be5b2dc27443c154c77f9128ddd",
+    "artifact/test_proof_to_byte_release.py": "285b539f62f5c9af69c130f7b1991bfd55cc712a6b869e29d0d84d5d0670849f"
+  },
+  "scope": "Local recorded Python boundary tests; no hosted or release claim",
+  "release_claim_eligible": false
+}

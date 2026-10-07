@@ -1,0 +1,17 @@
+[package]
+name = "q-periapt-sdk-package-consumer"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[workspace]
+
+[dependencies]
+q-periapt-core = "=0.2.0"
+q-periapt-sdk = "=0.2.0"
+q-periapt-host-store = "=0.2.0"
+q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"

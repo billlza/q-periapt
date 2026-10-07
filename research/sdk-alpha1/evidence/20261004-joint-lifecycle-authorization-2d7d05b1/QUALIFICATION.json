@@ -1,0 +1,298 @@
+{
+  "schema": 1,
+  "implementation_commit": "2d7d05b19718446c2b131e9850c59735dc276f03",
+  "experiment_base_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+  "platform": "macos-arm64",
+  "release_claim_eligible": false,
+  "changes": [
+    "Permanent real-journal/witness cross-target negative regression",
+    "Joint lifecycle construction boundary and explicit proof obligations"
+  ],
+  "experimental_only": [
+    "Dual independent signatures over one scoped statement; purpose 16 exists only in the isolated source copy",
+    "No durable policy transition, witness policy transition or operational release capability"
+  ],
+  "observations": {
+    "capability": {
+      "profiles": 2,
+      "valid_P1_substitution": "refused",
+      "application_rows": "unchanged",
+      "synthetic_trusted_time": 170
+    },
+    "joint_authorization": {
+      "tests": 1,
+      "valid_targets": 2,
+      "negative_controls": 27,
+      "C0_and_P0_expired": true,
+      "durable_transition": false
+    },
+    "opaque_witness_target": {
+      "real_target": "B",
+      "approved_grant": "A",
+      "same_current_credential_and_roster": true,
+      "A_commit": "Applied",
+      "B_status": "Unavailable",
+      "exact_target_head_B_and_account_authority": "Current",
+      "full_honest_B_activation": "Suspended before and after A ACK",
+      "pending_bytes": "unchanged",
+      "network_TLS_claim": false
+    },
+    "regression": {
+      "related_tests_before_style_fix": 22,
+      "exact_final_source_added_test": 1,
+      "strict_all_target_clippy": "passed",
+      "source_gate": "passed"
+    }
+  },
+  "retained_failed_attempts": {
+    "policy-lifecycle-capability-01": "Initial whole-container-byte invariant failed; separate no-op open control in attempt 02 identifies redb container housekeeping while application rows remain unchanged. Not a product fix.",
+    "policy-joint-authorization-01": "Compile error from overlapping owner borrows; fixed by retaining the image before admission.",
+    "policy-witness-head-01": "Compile errors from nonexistent error variants in the exploratory test; actual source maps pending recovery to Suspended.",
+    "lifecycle-witness-clippy-01": "Four new test diagnostics: two direct slices and two explicit panic macros. Corrected using checked slices and exact assert matches; no suppressions or weaker conditions."
+  },
+  "limits": [
+    "Synthetic clock inputs for authorization, not real-time expiry",
+    "No full 491-test native-suite rerun in this component",
+    "Current credential recovery is not bypassed",
+    "Joint credential/policy persistence, exact witness continuation binding after ACK, retained traffic, crash/concurrency, foreign packages and lifecycle replacement remain open",
+    "All requested 0.2.0 release gates remain open until independently satisfied"
+  ],
+  "reproduction": "The retained runner scripts record the actual local source, toolchain and offline Cargo paths. Use the recorded base commit and adjust those explicit paths for another host; append the corresponding .rs.txt probe only to an isolated candidate copy. Permanent regression runs in the implementation source without experimental purpose 16.",
+  "records": {
+    "policy-lifecycle-capability-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-lifecycle-capability-01/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_lifecycle_capability_probe_retains_original_state_and_refuses_substitution",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "completed": false,
+      "source_commit": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+      "seconds": 20.637748584034853,
+      "log_sha256": "5436067feadc4ec2271b672b0abdb55f44fd4c16d59a023118a306769c029c79",
+      "probe_sha256": "b98d3b3d21194dc5dc342108e671dae9b719664ce8e5b912a8ecf5ba10a9d75e",
+      "modified_test_sha256": "7abd2e7719b82b1c2d6e4f286b309037b64a5470f4189f70646a447576c2dde9",
+      "scope": "Isolated native capability observation with explicit synthetic trusted-time values. No policy transition, foreign archive, retained-session, or release claim.",
+      "release_claim_eligible": false
+    },
+    "policy-lifecycle-capability-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-lifecycle-capability-02/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_lifecycle_capability_probe_retains_original_state_and_refuses_substitution",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+      "seconds": 20.353448707959615,
+      "log_sha256": "560138f6998db12fd8f9aa69e7414191cb518e3e56d0046b12b85a535df1ac85",
+      "probe_sha256": "9c19eb030d976b95f3e584535c0d24fece3ff78d2835ac997e4331dfe578bf17",
+      "modified_test_sha256": "b9b99361746b09770a97e168cabffc14a49f725aa21f59eb95f6578b0f02cf26",
+      "scope": "Isolated native capability observation with explicit synthetic trusted-time values. No policy transition, foreign archive, retained-session, or release claim.",
+      "release_claim_eligible": false
+    },
+    "policy-joint-authorization-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-joint-authorization-01/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_joint_authorization_probe",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "completed": false,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 6.906740749953315,
+      "log_sha256": "d042f32867c291536a99e423af1d027df04ea97e8efb6aae5ffc907449aee0b5",
+      "probe_sha256": "ae049fce71f337f5db70f8b82fb25f9519427025e8d698594e29462202553299",
+      "modified_test_sha256": "7a12c45b34afd11ebfc62bfc9e4bc091e1dc164ef65abb36716dd4cdc3bd32e2",
+      "scope": "Isolated joint authorization prototype with real candidate signatures and explicit synthetic trusted time. No durable transition, witness transition, operational release or ABI claim.",
+      "release_claim_eligible": false
+    },
+    "policy-joint-authorization-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-joint-authorization-02/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_joint_authorization_probe",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 19.000142834032886,
+      "log_sha256": "b23f6da370e0449d4a597c732d2df5e95211721f1faa3bc2899846072660b2a2",
+      "probe_sha256": "9c69946b74ab41e555e6947f9953aaaef3e45db5267c43b30c90e54e1450fad5",
+      "modified_test_sha256": "475ece2a399bbca41b68f5fc97a5732b9346fe0785ba94fb3d2196d9eefc70d4",
+      "scope": "Isolated joint authorization prototype with real candidate signatures and explicit synthetic trusted time. No durable transition, witness transition, operational release or ABI claim.",
+      "release_claim_eligible": false
+    },
+    "policy-witness-head-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-witness-head-01/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_witness_head_probe",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "completed": false,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 5.637638958054595,
+      "log_sha256": "41efd0fd4138e1400f7700aef1ff63f0e21d2e95aff3221cc1b37e1b87c0c2fe",
+      "probe_sha256": "409d13786afa242e164ddb39fe269b768945f9a0f204f408bc824d9a13e2e7e6",
+      "modified_test_sha256": "aa30a32bdfe3fb5641dc5e1ad31bd71b22b187f4f6d88ed6d3a2ee530a8d7778",
+      "scope": "Existing witness opaque-target semantic observation with real sealed pending image and real durable AnchorStore; existing honest recovery refusal is a required control. No policy transition or arbitrary local-state forgery claim.",
+      "release_claim_eligible": false
+    },
+    "policy-witness-head-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-witness-head-02/candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "policy_witness_head_probe",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 18.921151832910255,
+      "log_sha256": "1dcb3daf2e06d99e7996fa687e5cb3cd6d6d0aa4ac6cb80b2ae2d758ae5d088d",
+      "probe_sha256": "f22b39529ddaf0572d8acf8e9be1268db225eaeca89672a015cbaf76f4640c1b",
+      "modified_test_sha256": "d28846b0f24f606a93544944add35f2a07ade410eb3ea0fa16887b2a1f41da0b",
+      "scope": "Existing witness opaque-target semantic observation with real sealed pending image and real durable AnchorStore; existing honest recovery refusal is a required control. No policy transition or arbitrary local-state forgery claim.",
+      "release_claim_eligible": false
+    },
+    "lifecycle-witness-regression-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "enrollment::tests::witness_renewal",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 92.07709429098759,
+      "log_sha256": "7bd1ce78d1ef321fecab2c33ab7492fa2b88efba08d39c0dde7e61a635e17ab7",
+      "modified_test_sha256": "3d278427f6d702cbec071fe95e7e52906798fd8634eba450f8bdc72f8c791415",
+      "source_diff_sha256": "2cf69ad4d23bb4d04571b671fa8fca95ae91a42d51313b427efba5fc7b946a97",
+      "mode": "tests",
+      "scope": "Actual product checkout candidate regression or all-target strict Clippy. No policy transition or release qualification claim.",
+      "release_claim_eligible": false
+    },
+    "lifecycle-witness-regression-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--lib",
+        "opaque_witness_target_never_replaces_the_exact_renewal_receipt",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 3.7945987500716,
+      "log_sha256": "d93caf28d937367da1db195669cb5e7a6c7600dac5e6cf28cde3ee595fe8a739",
+      "modified_test_sha256": "2fb13b28d29f8f47c473e13b2a7586a6e453d6928cdfaf8dba0c722daac87527",
+      "source_diff_sha256": "8d5cb370798011c1b8d77edf082264400bbc60b98e77b9f2e18a99570be9da65",
+      "mode": "targeted",
+      "scope": "Actual product checkout candidate regression or all-target strict Clippy. No policy transition or release qualification claim.",
+      "release_claim_eligible": false
+    },
+    "lifecycle-witness-clippy-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/Cargo.toml",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 101,
+      "completed": false,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 36.25062595796771,
+      "log_sha256": "8be8286031f2bd4046cf72a3d8ef3c01fc8da583c0ee737a5ea63d42dbae6b14",
+      "modified_test_sha256": "3d278427f6d702cbec071fe95e7e52906798fd8634eba450f8bdc72f8c791415",
+      "source_diff_sha256": "2cf69ad4d23bb4d04571b671fa8fca95ae91a42d51313b427efba5fc7b946a97",
+      "mode": "clippy",
+      "scope": "Actual product checkout candidate regression or all-target strict Clippy. No policy transition or release qualification claim.",
+      "release_claim_eligible": false
+    },
+    "lifecycle-witness-clippy-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--offline",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/Cargo.toml",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "completed": true,
+      "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+      "seconds": 5.20726520800963,
+      "log_sha256": "d097bd23dd39e63298574a5d64f1179a6698da4dbcd70f9df8e53673363a813c",
+      "modified_test_sha256": "2fb13b28d29f8f47c473e13b2a7586a6e453d6928cdfaf8dba0c722daac87527",
+      "source_diff_sha256": "8d5cb370798011c1b8d77edf082264400bbc60b98e77b9f2e18a99570be9da65",
+      "mode": "clippy",
+      "scope": "Actual product checkout candidate regression or all-target strict Clippy. No policy transition or release qualification claim.",
+      "release_claim_eligible": false
+    }
+  },
+  "joint_experiment_modified_crypto_sha256": "a14bea9840168e60621129eb9e512ae4776323184db0e0ca4c4b21a15cbb3208"
+}

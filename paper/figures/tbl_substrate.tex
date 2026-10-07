@@ -1,0 +1,39 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{times}
+\usepackage{booktabs,array,amssymb}
+\newcommand{\y}{\checkmark}
+\newcommand{\n}{\textendash}
+\begin{document}
+\footnotesize\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.16}
+\begin{tabular}{@{}l@{\hskip 8mm}l@{}}
+% ---- (a) ISA targets ----
+\begin{tabular}[t]{@{}l l c c c@{}}
+\multicolumn{5}{@{}l}{\textbf{(a) ISA targets} (Rust core; the byte-level claim)}\\[2pt]
+\toprule
+\textbf{ISA} & \textbf{runner} & \textbf{build} & \textbf{byte-id.\ $K$} & \textbf{binary-CT} \\
+\midrule
+x86-64    & Linux, Win-MSVC & \y & \y\,(run)            & \y\ Memcheck \\
+aarch64   & Linux, macOS    & \y & \y\,(run)            & \y\ Memcheck \\
+wasm32    & node            & \y & \y\,(run)            & source-CT \\
+riscv64   & qemu-user       & \y & \y\,(run)$^\ddagger$ & source-CT \\
+thumbv7em & bare-metal      & \y & by constr.$^\dagger$ & n/a \\
+\bottomrule
+\multicolumn{5}{@{}l}{\footnotesize $^\ddagger$ run under qemu-user (reference-vector KATs pass byte-identically);}\\[-2pt]
+\multicolumn{5}{@{}l}{\footnotesize $^\dagger$ cross-compiled; identity from FIPS-deterministic encodings + source.}
+\end{tabular}
+&
+% ---- (b) native product workflows ----
+\begin{tabular}[t]{@{}l c c c@{}}
+\multicolumn{4}{@{}l}{\textbf{(b) native ABI~2 product workflow} (current source)}\\[2pt]
+\toprule
+\textbf{Face} & \textbf{host} & \textbf{device} & \textbf{status} \\
+\midrule
+C ABI           & macOS & n/a & \y \\
+Swift           & macOS & iOS/iPadOS & \y\ (diag.) \\
+Kotlin (JVM/FFM)& JDK~22+ & n/a & pending \\
+Android/JNI     & macOS build & Android & pending \\
+\bottomrule
+\multicolumn{4}{@{}p{78mm}@{}}{\footnotesize \y\ = verified; Swift/device is a current-source dirty diagnostic. Clean release provenance remains pending.}\\
+\end{tabular}
+\end{tabular}
+\end{document}

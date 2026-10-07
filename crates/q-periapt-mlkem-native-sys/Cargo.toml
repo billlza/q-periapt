@@ -1,0 +1,50 @@
+[package]
+name = "q-periapt-mlkem-native-sys"
+description = "Auditable safe Rust boundary for target-selected mlkem-native implementations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+build = "build.rs"
+links = "q_periapt_mlkem_native"
+include = [
+    "/Cargo.toml",
+    "/LICENSE",
+    "/LICENSES/**",
+    "/README.md",
+    "/build.rs",
+    "/src/*.S",
+    "/src/*.c",
+    "/src/*.h",
+    "/src/*.rs",
+    "/vendor/INVENTORY.sha256",
+    "/vendor/LICENSE-INVENTORY.md",
+    "/vendor/LICENSE.mlkem-native",
+    "/vendor/PROVENANCE.md",
+    "/vendor/mlkem-native/**/*.c",
+    "/vendor/mlkem-native/**/*.h",
+    "/vendor/mlkem-native/**/*.inc",
+    "/vendor/mlkem-native/**/*.S",
+]
+
+[lints]
+workspace = true
+
+[features]
+# Candidate only until Linux runtime, binary CT and performance gates qualify it.
+# Always includes the same-algorithm portable path and checks CPU/OS support.
+linux-x86_64-avx2 = []
+
+[build-dependencies]
+# SDK 0.2 pins this C build driver and qualifies its target-specific binaries.
+# Use artifact/rust-publish-contract.sh --profile sdk-020 for this source.
+# The default maintenance profile retains its historical cc 1.2.67 contract;
+# its frozen receipts do not qualify this dependency or the SDK 0.2 binaries.
+cc = "=1.5.1"
+
+[dev-dependencies]
+sha3 = { version = "=0.12.0", default-features = false }

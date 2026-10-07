@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened launchd daemon for the Q-Periapt policy-agent reference service.
+
+  This plist is the macOS OS-level isolation contract for `serve-agent`. It
+  runs the daemon under a dedicated non-login service account with an
+  owner-only umask and no core dumps; provision the `_qperiaptagent` role
+  account, the 0700 service/configuration directories, and the binary at
+  /opt/qperiapt/bin first.
+
+  Install this file as /opt/qperiapt/launchd/com.qperiapt.policy-agent.plist,
+  NOT under /Library/LaunchDaemons, and let com.qperiapt.policy-agent-rundir.plist
+  load it. launchd creates the SockPathName node but never its parent
+  directory, whose 0710 mode is the daemon's only enforced admission boundary,
+  and that parent has to sit where nothing but root can rename it: on macOS
+  /private/var/run is root:daemon 0775 without the sticky bit, so a gid-1
+  process could rename a verified directory away and put its own, or a
+  symlink, under launchd's bind. The socket therefore lives under the
+  root-owned /opt/qperiapt/run instead. That job verifies every ancestor of
+  the parent from / down -- a root-owned directory nobody else can write,
+  carrying no ACL -- creates or adopts the parent itself, strips any ACL from
+  it and verifies it at 0710 with no ACL, and only then runs launchctl
+  bootstrap system on this file. Loaded from
+  /Library/LaunchDaemons instead, this plist runs unordered against that job
+  and can bind its socket before the boundary has been verified.
+
+  Every /var path below is written canonically under /private/var. On macOS
+  /var is a symlink to private/var, and the daemon opens each path component
+  with O_NOFOLLOW, so a template written as /var/lib/... cannot start: the
+  daemon refuses to traverse the symlink rather than silently resolving it.
+
+  launchd offers no seccomp-equivalent syscall filter, and App Sandbox
+  requires a signed bundle with entitlements, so the kernel-level syscall
+  boundary documented for Linux does not exist here; the macOS boundary is
+  the dedicated uid, the daemon's own descriptor-pinned 0700/0600 filesystem
+  capabilities, and its extended-ACL rejection. Do not represent this plist
+  as an App Sandbox or code-signing attestation.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.qperiapt.policy-agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/qperiapt/bin/q-periapt-policy-agent</string>
+        <string>serve-agent</string>
+        <string>/opt/qperiapt/run/qperiapt-agent/agent.sock</string>
+        <string>/private/var/lib/qperiapt-agent/state/agent.redb</string>
+        <!-- REPLACE BOTH. Numeric IP:port only: these are parsed as a
+             SocketAddr and a hostname is rejected at start.
+
+             These placeholders are localhost, which is NOT the supported
+             topology. README.md requires the witness and the instance-lease
+             authority to live outside this host's rollback/restore domain; a
+             restore of this host would otherwise roll back the witness and the
+             lease authority with it, voiding the rollback protection they
+             exist to provide. The Linux template enforces this by denying all
+             egress until a drop-in names the real endpoints. launchd has no
+             equivalent, so on macOS it rests on this instruction: point both at
+             off-host addresses, or record the co-location as an accepted risk
+             in the deployment evidence. -->
+        <string>127.0.0.1:7841</string>
+        <string>127.0.0.1:7842</string>
+        <string>/private/var/lib/qperiapt-agent/config</string>
+    </array>
+    <!--
+      launchd owns the listening socket: it creates it, applies the ownership and
+      mode below, and removes it. The daemon adopts the descriptor published
+      under the "agent" key and refuses to start if it is not given one; there is
+      no self-bind fallback. The first ProgramArguments path above is the socket
+      path the daemon requires the listener to be bound to, and it must equal
+      SockPathName here.
+
+      Caveats verified on this platform:
+        * SockPathOwner/SockPathGroup/SockPathMode take NUMBERS, not names. The
+          installer must resolve the daemon account and the transport group to a
+          uid/gid and template this file, or pin the group to a known gid.
+        * SockPathMode is decimal: 0660 is 432. Do not include file-type bits;
+          they are discarded.
+        * SockPathOwner and SockPathGroup are documented but have no field
+          precedent: no daemon shipped with this OS uses either key. Verify the
+          resulting socket's ownership on each target OS version rather than
+          assuming it took effect.
+
+      The daemon cannot check any of this: an AF_UNIX descriptor describes a
+      socket object, not the filesystem node naming it, so fstat on the inherited
+      descriptor reports a different inode and mode than the path. The enforced
+      admission boundary is the parent directory, provisioned 0710 owned by the
+      daemon account with the transport group, so only that group can traverse to
+      the socket at all -- and every ancestor of that directory is a root-owned
+      directory nobody else can write, so no other account can rename it out
+      from under the path launchd binds. The run-directory job verifies that
+      ancestry and the parent itself ACL-free as well as at those modes: a
+      socket node inherits inheritable ACL entries from its directory when
+      launchd binds it, so the parent being ACL-free at bootstrap is what keeps
+      SockPathMode the socket's whole permission.
+    -->
+    <key>Sockets</key>
+    <dict>
+        <key>agent</key>
+        <dict>
+            <key>SockPathName</key>
+            <string>/opt/qperiapt/run/qperiapt-agent/agent.sock</string>
+            <key>SockFamily</key>
+            <string>Unix</string>
+            <key>SockType</key>
+            <string>stream</string>
+            <!-- REPLACE BOTH. These are placeholders, not defaults: 0/0 is
+                 root/wheel, which is neither the daemon account nor the
+                 transport group. Left as shipped, the socket is owned by root
+                 with mode 0660 and the daemon's own clients cannot reach it,
+                 so this fails closed rather than open -- but it does fail.
+                 Resolve the uid and gid at install time and template them. -->
+            <key>SockPathOwner</key>
+            <integer>0</integer><!-- uid of the daemon account -->
+            <key>SockPathGroup</key>
+            <integer>0</integer><!-- gid of the transport group -->
+            <key>SockPathMode</key>
+            <integer>432</integer><!-- 0660 -->
+        </dict>
+    </dict>
+    <key>UserName</key>
+    <string>_qperiaptagent</string>
+    <key>GroupName</key>
+    <string>_qperiaptagent</string>
+    <key>InitGroups</key>
+    <false/>
+    <key>Umask</key>
+    <integer>63</integer><!-- 0077 -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>Core</key>
+        <integer>0</integer>
+    </dict>
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>Core</key>
+        <integer>0</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <!--
+      How long launchd waits after SIGTERM before it sends SIGKILL. launchd's
+      default is 20 seconds. A stop that lands while a request is in flight
+      is observed once that request has been answered or refused -- every
+      request admits its waits against one end-to-end deadline of 36 seconds,
+      with the durable commits in between covered by a one-second reserve
+      rather than measured -- or within one maintenance interval (one second)
+      when the daemon is idle. The daemon then erases its in-process secrets
+      -- one durable two-phase commit per pending session, up to 1024 of them,
+      which nothing may skip and no deadline bounds, budgeted separately at 20
+      seconds -- and only then releases the instance lease, under a 30-second
+      budget of its own: up to six bounded authority round trips of at most 5
+      seconds each against an authority that accepts the connection and never
+      answers, each admitted only while it can still end within that budget.
+      That is 87 seconds, a sum of budgeted terms and not a measured wall
+      clock, and past the default; a store whose commits run slower than their
+      reserve can exceed it. A SIGKILL there costs only a
+      redb recovery at the next open, and the lease lapses at its TTL exactly
+      as after a crash; 90 -- the same value the systemd unit pins with
+      TimeoutStopSec= -- gives the erase and the release room to finish
+      instead.
+    -->
+    <key>ExitTimeOut</key>
+    <integer>90</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

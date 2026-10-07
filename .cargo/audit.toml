@@ -1,0 +1,5 @@
+# Cargo-audit configuration: no advisory is suppressed. Any warning from the
+# audited lockfiles is an explicit release blocker until an audited,
+# publishable upstream dependency path removes it.
+[advisories]
+ignore = []

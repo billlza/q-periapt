@@ -1,0 +1,30 @@
+[package]
+name = "q-periapt-policy"
+description = "Algorithm-agility policy engine: keep algorithm choices in policy files, never hardcoded in business code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+
+[lints]
+workspace = true
+
+# Host-side crate (loads/evaluates/authenticates policy); std is fine here.
+[dependencies]
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+# Verifier trait — signed-policy authentication is backend-agnostic (inject SLH-DSA).
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
+# TOML policy-file loading.
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+# Exact-byte identity for authenticated policy state. This is the same maintained
+# RustCrypto SHA-3 implementation already used elsewhere in the workspace.
+sha3 = { version = "=0.12.0", default-features = false }
+
+[dev-dependencies]
+# A concrete signer/verifier (ML-DSA-65) to exercise signed-policy load round-trips.
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }

@@ -1,0 +1,45 @@
+/target
+**/target
+**/*.rs.bk
+*.profraw
+.DS_Store
+__pycache__/
+*.pyc
+
+# EasyCrypt compiler and regression-control outputs are never proof inputs.
+/formal/easycrypt/*.eco
+/formal/easycrypt/negative-controls.log
+
+# Ephemeral review/render outputs are never execution or release inputs.
+/tmp/
+/.playwright-cli/
+/output/playwright/
+
+# Binding build artifacts
+bindings/swift/.build/
+bindings/swift/Package.resolved
+bindings/kotlin/.gradle/
+bindings/kotlin/build/
+bindings/apple-device/*.xcodeproj/
+artifact/device-runs/
+
+# Fuzzing artifacts (targets + manifest are committed; run data is not)
+fuzz/corpus/
+fuzz/artifacts/
+fuzz/coverage/
+
+# Generated SBOM/CBOM artifacts (the *generator* is committed; outputs are not)
+/sbom/*.json
+/sbom/*.cdx.json
+
+# LaTeX build artifacts (the .tex source + the final .pdf are committed; intermediates are not)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.bbl
+paper/*.blg
+paper/*.toc
+
+# NOTE: Cargo.lock is intentionally committed (auditable / reproducible builds).

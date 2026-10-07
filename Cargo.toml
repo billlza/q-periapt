@@ -1,0 +1,59 @@
+# PQ/T Hybrid Cryptographic Suite — Cargo workspace.
+#
+# Design rule: the security-critical *composition* logic lives in `q-periapt-core`,
+# which is dependency-free and `no_std`. Third-party primitive backends
+# (mlkem-native, fips204, x25519-dalek, sha3, and optional fips205) are wired in
+# behind traits in the higher crates so the core stays auditable in isolation.
+[workspace]
+resolver = "2"
+members = [
+    "crates/q-periapt-core",
+    "crates/q-periapt-kem",
+    "crates/q-periapt-sig",
+    "crates/q-periapt-policy",
+    "crates/q-periapt-mlkem-native-sys",
+    "crates/q-periapt-backends",
+    "crates/q-periapt-ffi",
+    "crates/q-periapt-wasm",
+    "crates/q-periapt-sdk",
+    "crates/q-periapt-host-store",
+    "crates/q-periapt-sdk-wasm",
+    "crates/q-periapt-tls-demo",
+    "crates/q-periapt-cli",
+    "crates/q-periapt-rustls",
+    "ctstats",
+    "models/q-periapt-continuity-model",
+    "models/q-periapt-migration",
+    "services/q-periapt-policy-agent",
+]
+exclude = ["research/hqc-fips207-candidate", "research/continuity-identity-candidate", "research/continuity-spqr-reference", "research/continuity-whole-kem-reference"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+# The durable storage backend redb 4.3 requires Rust 1.90.
+rust-version = "1.90"
+license = "Apache-2.0 OR MIT"
+authors = ["李子昂 <lza020719@gmail.com>"]
+repository = "https://github.com/billlza/q-periapt"
+homepage = "https://github.com/billlza/q-periapt"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(qperiapt_performance_evidence)"] }
+
+[workspace.lints.clippy]
+# Security-relevant hygiene; tighten over time. Not `deny` yet so the skeleton
+# stays green while it is fleshed out.
+indexing_slicing = "warn"
+panic = "warn"
+unwrap_used = "warn"
+
+# Reproducible/auditable release builds. Keep overflow checks ON even in release
+# (cheap insurance for a crypto codebase); commit Cargo.lock for supply-chain audit.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

@@ -1,0 +1,204 @@
+from pathlib import Path
+import datetime
+import hashlib
+import json
+import math
+import os
+import shutil
+import statistics
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import tomllib
+
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parents[1]
+OUT = ROOT / 'run-03'
+OUT.mkdir(mode=0o700)
+shutil.copy2(__file__, OUT / 'controller.py')
+shutil.copy2(ROOT / 'main.rs', OUT / 'probe.rs')
+sys.path.insert(0, str(REPO / 'artifact'))
+import rust_sdk_profile as sdk
+
+def digest(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+def save(name, value):
+    (OUT / name).write_text(json.dumps(value, indent=2) + '\n')
+
+def snapshot(directory):
+    return {str(p.relative_to(directory)): digest(p) for p in sorted(directory.rglob('*'))
+            if p.is_file() and not p.is_relative_to(directory / 'build')}
+
+source = REPO / 'target/tls-client-hints-current/package-source'
+report_path = source / 'target/sdk-rust-package/RUST_SDK_PACKAGE.json'
+report = json.loads(report_path.read_text())
+assert digest(report_path) == '12757679ab656ef31c8513e5c1aaa6af4d12a3cb90127ec51ddb17b0561702b4'
+assert report['source_inputs'] == sdk.source_identity()
+head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip()
+assert head == '47e201ad1b92ec2ec738d05555ff0ac3d46a0b29'
+assert not subprocess.check_output(['git', 'status', '--porcelain'], cwd=REPO, text=True)
+outside = Path(tempfile.mkdtemp(prefix='qperiapt-x25519-tables-')).resolve()
+assert not outside.is_relative_to(REPO)
+names = ['q-periapt-core', 'q-periapt-kem', 'q-periapt-sig', 'q-periapt-mlkem-native-sys',
+         'q-periapt-backends', 'q-periapt-policy', 'q-periapt-sdk']
+packages = outside / 'packages'
+packages.mkdir()
+archives = {}
+for name in names:
+    entry = report['crates'][name]
+    archive = report_path.parent / 'crates' / entry['file']
+    assert digest(archive) == entry['sha256']
+    archives[name] = entry['sha256']
+    with tarfile.open(archive, 'r:gz') as reader:
+        reader.extractall(packages, filter='data')
+
+(outside / 'src').mkdir()
+shutil.copy2(ROOT / 'main.rs', outside / 'src/main.rs')
+shutil.copytree(source / 'bindings/rust/SDKPackageConsumer/fixtures', outside / 'fixtures')
+vector = json.loads((source / 'bindings/signed-policy-vectors.json').read_text())
+(outside / 'fixtures/policy.toml').write_text(vector['policy_toml'])
+(outside / 'fixtures/signature.bin').write_bytes(bytes.fromhex(vector['signature']))
+(outside / 'fixtures/root.bin').write_bytes(bytes.fromhex(vector['verification_key']))
+manifest = '''[package]
+name = "sdk-x25519-table-probe"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.98"
+publish = false
+
+[workspace]
+
+[features]
+precomputed = ["x25519-dalek/precomputed-tables"]
+
+[dependencies]
+q-periapt-sdk = "=0.2.0"
+x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
+
+[patch.crates-io]
+'''
+manifest += ''.join(f'{name} = {{ path = "packages/{name}-0.2.0" }}\n' for name in names)
+(outside / 'Cargo.toml').write_text(manifest)
+shutil.copy2(report_path.parent / 'consumer-Cargo.lock', outside / 'Cargo.lock')
+base = Path('/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244')
+tc = base / 'rustup/toolchains/1.98.1-aarch64-apple-darwin'
+env = {k: v for k, v in os.environ.items() if k in ('HOME', 'TMPDIR', 'LANG', 'LC_ALL')}
+env.update(RUSTC=str(tc/'bin/rustc'), RUSTDOC=str(tc/'bin/rustdoc'), RUSTFLAGS='-D warnings',
+           CARGO_HOME=str(base/'apple-cargo-home-ff4a153e'), CARGO_TARGET_DIR=str(outside/'build'),
+           CARGO_NET_OFFLINE='true', CARGO_INCREMENTAL='0', CARGO_TERM_COLOR='never',
+           PATH=str(tc/'bin')+':/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+           DYLD_FALLBACK_LIBRARY_PATH=str(tc/'lib'), DEVELOPER_DIR='/Applications/Xcode.app/Contents/Developer')
+cargo = str(tc/'bin/cargo')
+
+def run(name, args, timeout=600, expect=0):
+    started = time.monotonic()
+    with (OUT / (name + '.stdout')).open('wb') as stdout, (OUT / (name + '.stderr')).open('wb') as stderr:
+        result = subprocess.run(args, cwd=outside, env=env, stdout=stdout, stderr=stderr,
+                                timeout=timeout, check=False)
+    save(name + '.json', {'args': args, 'returncode': result.returncode,
+                         'seconds': time.monotonic()-started})
+    if (expect == 0 and result.returncode != 0) or (expect != 0 and result.returncode == 0):
+        raise RuntimeError(f'{name}: unexpected exit {result.returncode}; see retained stderr')
+    print(name + ': completed', flush=True)
+
+start = time.monotonic()
+result = {'head': head, 'outside': str(outside), 'package_report': str(report_path),
+          'package_report_sha256': digest(report_path), 'archives': archives,
+          'samples_per_cell_per_process': 1000, 'blocks': 5,
+          'comparison': 'seven exact archive-derived path patches; feature unification only',
+          'completed': False, 'release_claim_eligible': False}
+save('START.json', result)
+try:
+    run('rustc', [str(tc/'bin/rustc'), '-Vv'])
+    run('resolve', [cargo, 'generate-lockfile', '--offline'])
+    original = tomllib.loads((source/'Cargo.lock').read_text())
+    identities = {(p['name'], p['version'], p.get('source'), p.get('checksum')) for p in original['package']}
+    lock = tomllib.loads((outside/'Cargo.lock').read_text())
+    external = [p for p in lock['package'] if 'source' in p]
+    assert all((p['name'], p['version'], p.get('source'), p.get('checksum')) in identities for p in external)
+    result['external_packages'] = len(external)
+    result['lock_sha256'] = digest(outside/'Cargo.lock')
+    # The format check has no mutation; a failure preserves the first attempt.
+    run('format', [cargo, 'fmt', '--all', '--', '--check'])
+    binaries = {}
+    metadata = {}
+    for label, features in [('baseline', []), ('tables', ['--features', 'precomputed'])]:
+        run(label+'-metadata', [cargo, 'metadata', '--offline', '--locked', '--format-version', '1', *features])
+        metadata[label] = json.loads((OUT/(label+'-metadata.stdout')).read_text())
+        run(label+'-clippy', [cargo, 'clippy', '--offline', '--locked', '--release', *features, '--', '-D', 'warnings'])
+        run(label+'-build', [cargo, 'build', '--offline', '--locked', '--release', *features])
+        binary = OUT / ('probe-' + label)
+        shutil.copy2(outside/'build/release/sdk-x25519-table-probe', binary)
+        binaries[label] = {'path': str(binary), 'sha256': digest(binary), 'bytes': binary.stat().st_size}
+        run(label+'-mach-o-size', ['/usr/bin/size', '-m', str(binary)])
+    def graph(meta):
+        return {node['id']: set(node['features']) for node in meta['resolve']['nodes']}
+    left, right = graph(metadata['baseline']), graph(metadata['tables'])
+    assert left.keys() == right.keys()
+    delta = {key: {'added': sorted(right[key]-left[key]), 'removed': sorted(left[key]-right[key])}
+             for key in left if left[key] != right[key]}
+    assert len(delta) == 3
+    for key, change in delta.items():
+        expected = ['precomputed'] if '#sdk-x25519-table-probe@' in key else ['precomputed-tables']
+        assert change == {'added': expected, 'removed': []}
+        assert any(name in key for name in ('sdk-x25519-table-probe', 'x25519-dalek@3.0.0', 'curve25519-dalek@5.0.0'))
+    save('feature-delta.json', delta)
+    result['binaries'] = binaries
+    frozen = snapshot(outside)
+    save('frozen-inputs.json', frozen)
+    for label in binaries:
+        run(label+'-invalid-budget', [binaries[label]['path'], '0'], timeout=10, expect=1)
+    result['host_before'] = {'load': os.getloadavg(), 'platform': dict(zip(
+        ('system', 'node', 'release', 'version', 'machine'), os.uname(), strict=True))}
+    expected_cells = [('keygen', 0)] + [(op, n) for n in (32, 4096, 65536) for op in ('encapsulate', 'decapsulate')]
+    blocks = []
+    # Builds and lint complete before any timing; alternating fresh process order.
+    for block in range(5):
+        order = ['baseline', 'tables'] if block % 2 == 0 else ['tables', 'baseline']
+        values = {}
+        for label in order:
+            assert digest(Path(binaries[label]['path'])) == binaries[label]['sha256']
+            name = f'block-{block}-{label}'
+            run(name, [binaries[label]['path'], '1000'], timeout=120)
+            lines = [json.loads(line) for line in (OUT/(name+'.stdout')).read_text().splitlines()]
+            assert len(lines) == 9
+            assert lines[0] == {'format': 1, 'precomputed_tables': label == 'tables', 'samples': 1000,
+                                'warmup': 64, 'clock': 'std::time::Instant'}
+            assert lines[-1] == {'completed': True, 'rfc7748_checks': 4, 'roundtrip_checks': 6,
+                                'context_rejections': 6, 'implicit_rejections': 6, 'revocation_checks': 2}
+            assert [(c['operation'], c['context_bytes']) for c in lines[1:-1]] == expected_cells
+            for cell in lines[1:-1]:
+                assert len(cell['ns']) == 1000
+                assert all(type(ns) is int and 0 < ns < 120_000_000_000 for ns in cell['ns'])
+            values[label] = lines[1:-1]
+        blocks.append({'block': block, 'order': order, 'values': values})
+    result['host_after'] = {'load': os.getloadavg()}
+    rows = []
+    for index, (op, size) in enumerate(expected_cells):
+        row = {'operation': op, 'context_bytes': size}
+        for percentile in (50, 95, 99):
+            per_label = {label: [sorted(b['values'][label][index]['ns'])[math.ceil(1000*percentile/100)-1]
+                                 for b in blocks] for label in binaries}
+            ratios = [b/a for a, b in zip(per_label['baseline'], per_label['tables'], strict=True)]
+            row[f'p{percentile}'] = {'baseline_us_median': statistics.median(per_label['baseline'])/1000,
+                                    'tables_us_median': statistics.median(per_label['tables'])/1000,
+                                    'ratio_median': statistics.median(ratios), 'ratio_range': [min(ratios), max(ratios)],
+                                    'block_ns': per_label}
+        rows.append(row)
+    assert frozen == snapshot(outside)
+    assert report['source_inputs'] == sdk.source_identity()
+    assert all(digest(Path(v['path'])) == v['sha256'] for v in binaries.values())
+    assert head == subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
+    result.update(completed=True, sources_unchanged=True, rows=rows,
+                  limits='Uncontrolled host load/power; five sequential AB/BA process blocks, no confidence interval. Excludes policy verification, storage, connections, FFI, concurrency, energy and constant-time evidence.')
+except Exception as error:
+    result['error'] = repr(error)
+    raise
+finally:
+    result['at_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    result['seconds'] = time.monotonic()-start
+    save('RESULT.json', result)

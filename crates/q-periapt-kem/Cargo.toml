@@ -1,0 +1,22 @@
+[package]
+name = "q-periapt-kem"
+description = "Hybrid KEM composition generic over compatible post-quantum and traditional primitive backends"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# This crate contains only generic composition. Concrete primitive integrations live
+# in q-periapt-backends; research candidates do not become product suites here.
+
+[dependencies]
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }

@@ -1,0 +1,610 @@
+{
+  "head": "47e201ad1b92ec2ec738d05555ff0ac3d46a0b29",
+  "package_report_sha256": "12757679ab656ef31c8513e5c1aaa6af4d12a3cb90127ec51ddb17b0561702b4",
+  "archives": {
+    "q-periapt-core": "1ffdce9edb6c2f169e9d56d8ef7bdb4210d7fa73307e14edf59be8cb02bb251d",
+    "q-periapt-kem": "0fd0e0d9e2bc4146adbfd84689d6ffada4b07883f1555d2faaa986e5ed724a9b",
+    "q-periapt-sig": "2af776708670bb9e89adacc149afd59c571e4358b57e6b4879eb6609973fe7c1",
+    "q-periapt-mlkem-native-sys": "e741e5ad2afd7131a0673e1f69f5b9c160220bbfaee330e435b90fffcbdd42a4",
+    "q-periapt-backends": "0e48a89353785f848d9a1f66a380c1f8da9f67df28a692350db76e70020c45da",
+    "q-periapt-policy": "389ea655cec3cfe74f738133e9475a13ca2a74760d96b71b5dc711729113579c",
+    "q-periapt-sdk": "ecf36944ed4ed05e001d30b28b2b99f3f79e1aa3eed031001ac453ad1edce514"
+  },
+  "samples_per_cell_per_process": 1000,
+  "blocks": 5,
+  "comparison": "seven exact archive-derived path patches; feature unification only",
+  "completed": true,
+  "release_claim_eligible": false,
+  "external_packages": 68,
+  "lock_sha256": "23ba55f6b6312ff97a7244b5bc23be1e856fdad78feeb8c5d6a618dcf8558324",
+  "host_before": {
+    "load": [
+      8.1025390625,
+      8.66162109375,
+      8.62548828125
+    ],
+    "platform": {
+      "system": "Darwin",
+      "release": "27.0.0",
+      "version": "Darwin Kernel Version 27.0.0: Tue Aug 11 21:22:49 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6000",
+      "machine": "arm64"
+    }
+  },
+  "host_after": {
+    "load": [
+      7.404296875,
+      8.49169921875,
+      8.56494140625
+    ]
+  },
+  "sources_unchanged": true,
+  "rows": [
+    {
+      "operation": "keygen",
+      "context_bytes": 0,
+      "p50": {
+        "baseline_us_median": 43.625,
+        "tables_us_median": 21.959,
+        "ratio_median": 0.5024023062139654,
+        "ratio_range": [
+          0.48287290359891455,
+          0.5081260744985673
+        ],
+        "block_ns": {
+          "baseline": [
+            42584,
+            43708,
+            43625,
+            44958,
+            43625
+          ],
+          "tables": [
+            21375,
+            21959,
+            21959,
+            21709,
+            22167
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 48.208,
+        "tables_us_median": 23.291,
+        "ratio_median": 0.4796219974189251,
+        "ratio_range": [
+          0.4083207126948775,
+          0.49471708458991503
+        ],
+        "block_ns": {
+          "baseline": [
+            56125,
+            49584,
+            48042,
+            48208,
+            47417
+          ],
+          "tables": [
+            22917,
+            23291,
+            23042,
+            23291,
+            23458
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 64.209,
+        "tables_us_median": 34.125,
+        "ratio_median": 0.4960842677147151,
+        "ratio_range": [
+          0.4768988764044944,
+          0.5675675675675675
+        ],
+        "block_ns": {
+          "baseline": [
+            62292,
+            69208,
+            66750,
+            60125,
+            64209
+          ],
+          "tables": [
+            34292,
+            34333,
+            31833,
+            34125,
+            31041
+          ]
+        }
+      }
+    },
+    {
+      "operation": "encapsulate",
+      "context_bytes": 32,
+      "p50": {
+        "baseline_us_median": 86.875,
+        "tables_us_median": 60.75,
+        "ratio_median": 0.7001024955949927,
+        "ratio_range": [
+          0.6834532374100719,
+          0.7164675496220118
+        ],
+        "block_ns": {
+          "baseline": [
+            86875,
+            86875,
+            86875,
+            84791,
+            86833
+          ],
+          "tables": [
+            60708,
+            60834,
+            59375,
+            60750,
+            60792
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 96.084,
+        "tables_us_median": 67.125,
+        "ratio_median": 0.7013520290884775,
+        "ratio_range": [
+          0.6812684734190916,
+          0.7061921904701223
+        ],
+        "block_ns": {
+          "baseline": [
+            94167,
+            96750,
+            102542,
+            96084,
+            95708
+          ],
+          "tables": [
+            66500,
+            68167,
+            70125,
+            65459,
+            67125
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 120.958,
+        "tables_us_median": 84.959,
+        "ratio_median": 0.7299393177797252,
+        "ratio_range": [
+          0.6678832991238649,
+          0.833339246119734
+        ],
+        "block_ns": {
+          "baseline": [
+            122000,
+            115000,
+            125209,
+            112750,
+            120958
+          ],
+          "tables": [
+            82000,
+            84959,
+            83625,
+            93959,
+            88292
+          ]
+        }
+      }
+    },
+    {
+      "operation": "decapsulate",
+      "context_bytes": 32,
+      "p50": {
+        "baseline_us_median": 48.875,
+        "tables_us_median": 48.291,
+        "ratio_median": 0.9863760774541444,
+        "ratio_range": [
+          0.9678036081111314,
+          1.0306622112939494
+        ],
+        "block_ns": {
+          "baseline": [
+            48875,
+            47583,
+            48958,
+            47625,
+            49167
+          ],
+          "tables": [
+            47584,
+            49042,
+            48291,
+            48875,
+            47584
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 53.25,
+        "tables_us_median": 51.75,
+        "ratio_median": 0.9608638497652582,
+        "ratio_range": [
+          0.8980477223427332,
+          1.0797101449275361
+        ],
+        "block_ns": {
+          "baseline": [
+            50625,
+            57084,
+            51750,
+            53250,
+            57625
+          ],
+          "tables": [
+            51000,
+            52084,
+            55875,
+            51166,
+            51750
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 69.75,
+        "tables_us_median": 70.0,
+        "ratio_median": 0.9901044965167828,
+        "ratio_range": [
+          0.9478379833791789,
+          1.028156808601266
+        ],
+        "block_ns": {
+          "baseline": [
+            68709,
+            71834,
+            69750,
+            68083,
+            75792
+          ],
+          "tables": [
+            65125,
+            72500,
+            67583,
+            70000,
+            75042
+          ]
+        }
+      }
+    },
+    {
+      "operation": "encapsulate",
+      "context_bytes": 4096,
+      "p50": {
+        "baseline_us_median": 91.625,
+        "tables_us_median": 65.5,
+        "ratio_median": 0.7148703956343793,
+        "ratio_range": [
+          0.69831421468138,
+          0.7323972027972028
+        ],
+        "block_ns": {
+          "baseline": [
+            91625,
+            91750,
+            91708,
+            89375,
+            91625
+          ],
+          "tables": [
+            65500,
+            65542,
+            64041,
+            65458,
+            65542
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 103.0,
+        "tables_us_median": 71.041,
+        "ratio_median": 0.6877686558494366,
+        "ratio_range": [
+          0.6366744813143435,
+          0.7439320388349514
+        ],
+        "block_ns": {
+          "baseline": [
+            100333,
+            107917,
+            103000,
+            100833,
+            103292
+          ],
+          "tables": [
+            68458,
+            68708,
+            76625,
+            73750,
+            71041
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 128.292,
+        "tables_us_median": 95.417,
+        "ratio_median": 0.742544747081712,
+        "ratio_range": [
+          0.6443974883483943,
+          0.8202169204652835
+        ],
+        "block_ns": {
+          "baseline": [
+            124250,
+            133458,
+            128500,
+            119583,
+            128292
+          ],
+          "tables": [
+            97666,
+            86000,
+            95417,
+            98084,
+            90500
+          ]
+        }
+      }
+    },
+    {
+      "operation": "decapsulate",
+      "context_bytes": 4096,
+      "p50": {
+        "baseline_us_median": 53.708,
+        "tables_us_median": 52.333,
+        "ratio_median": 0.9991980906921241,
+        "ratio_range": [
+          0.9728532062262605,
+          1.0061953488372093
+        ],
+        "block_ns": {
+          "baseline": [
+            53708,
+            53750,
+            53667,
+            52375,
+            53709
+          ],
+          "tables": [
+            52250,
+            54083,
+            52292,
+            52333,
+            53666
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 56.542,
+        "tables_us_median": 59.167,
+        "ratio_median": 0.9940534477540193,
+        "ratio_range": [
+          0.9783824077525158,
+          1.0638294477157035
+        ],
+        "block_ns": {
+          "baseline": [
+            56250,
+            62667,
+            56542,
+            61709,
+            56167
+          ],
+          "tables": [
+            55792,
+            66667,
+            59167,
+            60375,
+            55833
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 73.334,
+        "tables_us_median": 76.0,
+        "ratio_median": 1.02144,
+        "ratio_range": [
+          0.9804463102076889,
+          1.5081967213114753
+        ],
+        "block_ns": {
+          "baseline": [
+            71875,
+            76250,
+            73334,
+            81500,
+            72416
+          ],
+          "tables": [
+            73416,
+            115000,
+            76000,
+            80584,
+            71000
+          ]
+        }
+      }
+    },
+    {
+      "operation": "encapsulate",
+      "context_bytes": 65536,
+      "p50": {
+        "baseline_us_median": 164.333,
+        "tables_us_median": 138.292,
+        "ratio_median": 0.8411854103343465,
+        "ratio_range": [
+          0.8024524123633622,
+          0.8433231961872955
+        ],
+        "block_ns": {
+          "baseline": [
+            164083,
+            164500,
+            169792,
+            164292,
+            164333
+          ],
+          "tables": [
+            138375,
+            138375,
+            136250,
+            135500,
+            138292
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 185.792,
+        "tables_us_median": 155.083,
+        "ratio_median": 0.8329206854977609,
+        "ratio_range": [
+          0.2377664237347104,
+          0.869475138121547
+        ],
+        "block_ns": {
+          "baseline": [
+            181000,
+            195833,
+            658209,
+            185792,
+            184291
+          ],
+          "tables": [
+            157375,
+            155083,
+            156500,
+            154750,
+            153667
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 207.709,
+        "tables_us_median": 177.875,
+        "ratio_median": 0.8353032367398621,
+        "ratio_range": [
+          0.10899942926402297,
+          0.8935229920294298
+        ],
+        "block_ns": {
+          "baseline": [
+            203875,
+            222250,
+            1615458,
+            207709,
+            206958
+          ],
+          "tables": [
+            182167,
+            179542,
+            176084,
+            173500,
+            177875
+          ]
+        }
+      }
+    },
+    {
+      "operation": "decapsulate",
+      "context_bytes": 65536,
+      "p50": {
+        "baseline_us_median": 126.334,
+        "tables_us_median": 126.333,
+        "ratio_median": 0.9999920844744883,
+        "ratio_range": [
+          0.9841740850642928,
+          1.0009815251634555
+        ],
+        "block_ns": {
+          "baseline": [
+            126333,
+            126375,
+            126334,
+            126375,
+            126334
+          ],
+          "tables": [
+            126375,
+            126333,
+            126458,
+            124375,
+            126333
+          ]
+        }
+      },
+      "p95": {
+        "baseline_us_median": 140.75,
+        "tables_us_median": 143.75,
+        "ratio_median": 1.027170067838464,
+        "ratio_range": [
+          1.005626998223801,
+          1.0429287616173195
+        ],
+        "block_ns": {
+          "baseline": [
+            140750,
+            144166,
+            137833,
+            141042,
+            140625
+          ],
+          "tables": [
+            141542,
+            148083,
+            143750,
+            145625,
+            143459
+          ]
+        }
+      },
+      "p99": {
+        "baseline_us_median": 165.375,
+        "tables_us_median": 167.25,
+        "ratio_median": 1.005259203606311,
+        "ratio_range": [
+          0.9792096168294515,
+          1.0481112387162104
+        ],
+        "block_ns": {
+          "baseline": [
+            165375,
+            165334,
+            161958,
+            166375,
+            166375
+          ],
+          "tables": [
+            165958,
+            171083,
+            169750,
+            162916,
+            167250
+          ]
+        }
+      }
+    }
+  ],
+  "limits": "Uncontrolled host load/power; five sequential AB/BA process blocks, no confidence interval. Excludes policy verification, storage, connections, FFI, concurrency, energy and constant-time evidence.",
+  "at_utc": "2026-10-07T17:03:51.753985+00:00",
+  "seconds": 24.012216791976243,
+  "binaries": {
+    "baseline": {
+      "sha256": "39233b9ee3b90fa91a1b2a4a11eb342ccdf331e42da77e8468fcec2625a230a5",
+      "bytes": 915408
+    },
+    "tables": {
+      "sha256": "f20a25f1a695349565decad67ab4cabcce909f8645c387d834c818cbbab7631c",
+      "bytes": 947952
+    }
+  },
+  "hardware": "Apple M1 Max"
+}

@@ -1,0 +1,44 @@
+theory QPeriaptMigrationV2NoWitness
+/* Semantic negative control: a replayable store without a protected witness
+   admits acceptance of a retired state after restoring its old snapshot. */
+begin
+
+functions: next_epoch/1
+
+rule Weak_Setup:
+  [ Fr(~I), Fr(~R), Fr(~chain), Fr(~digest) ]
+--[ WeakGenesis(~I, ~R, ~chain, ~digest) ]->
+  [ WeakBeforeFirstAccept(~I, ~R, ~chain, 'epoch-zero', ~digest)
+  , !WeakOldStore(~I, ~R, ~chain, 'epoch-zero', ~digest) ]
+
+rule Weak_First_Accept:
+  [ WeakBeforeFirstAccept(I, R, chain, epoch, digest) ]
+--[ WeakAccepted(I, R, chain, epoch, digest) ]->
+  [ WeakReadyToAdvance(I, R, chain, epoch, digest) ]
+
+rule Weak_Advance:
+  [ WeakReadyToAdvance(I, R, chain, epoch, digest), Fr(~nextDigest) ]
+--[ WeakRetired(I, R, chain, epoch, digest) ]->
+  [ WeakAdvanced(I, R, chain, next_epoch(epoch), ~nextDigest) ]
+
+rule Weak_Restore:
+  [ WeakAdvanced(I, R, currentChain, currentEpoch, currentDigest)
+  , !WeakOldStore(I, R, oldChain, oldEpoch, oldDigest) ]
+--[ WeakOldStoreRestored(I, R, oldChain, oldEpoch, oldDigest) ]->
+  [ WeakRestored(I, R, oldChain, oldEpoch, oldDigest) ]
+
+rule Weak_Accept_After_Restore:
+  [ WeakRestored(I, R, chain, epoch, digest) ]
+--[ WeakAccepted(I, R, chain, epoch, digest) ]->
+  [ ]
+
+lemma rollback_without_witness_executable:
+  exists-trace
+  "Ex I R chain epoch digest #first #retired #restored #again.
+       WeakAccepted(I, R, chain, epoch, digest) @ first
+     & WeakRetired(I, R, chain, epoch, digest) @ retired
+     & WeakOldStoreRestored(I, R, chain, epoch, digest) @ restored
+     & WeakAccepted(I, R, chain, epoch, digest) @ again
+     & #first < #retired & #retired < #restored & #restored < #again"
+
+end

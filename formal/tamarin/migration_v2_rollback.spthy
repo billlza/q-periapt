@@ -1,0 +1,108 @@
+theory QPeriaptMigrationV2Rollback
+/* Focused rollback-safety projection. StoreSnapshot is replayable attacker
+   storage, while WitnessHead is the protected non-rollbackable current head.
+   A reservation does not lock WitnessHead: Advance_Head may retire it, leaving
+   the old reservation stale. Acceptance must recheck both the exact witness
+   head (including fence) and the exact store image. */
+begin
+
+functions: next_generation/1, next_epoch/1, next_fence/1
+
+rule Rollback_Setup:
+  let state = <'generation-one', ~chain, 'epoch-one',
+               ~digest, 'floor-l3', ~fence>
+  in
+  [ Fr(~I), Fr(~R), Fr(~chain), Fr(~digest), Fr(~fence) ]
+--[ RollbackStateCreated(~I, ~R, state) ]->
+  [ WitnessHead(~I, ~R, state)
+  , CanReserve(~I, ~R, state)
+  , CanAdvance(~I, ~R, state)
+  , CanReset(~I, ~R, state)
+  , !StoreSnapshot(~I, ~R, state) ]
+
+rule Adversary_Restore_Store_Image:
+  [ !StoreSnapshot(I, R, state) ]
+--[ StoreImageRestored(I, R, state) ]->
+  [ Out(<'migration-store-image-v2', I, R, state>) ]
+
+/* Reservation returns the witness unchanged, so a following advance can make
+   this session stale instead of being blocked by it. */
+rule Reserve_Current_Head:
+  [ WitnessHead(I, R, state)
+  , CanReserve(I, R, state)
+  , In(<'migration-store-image-v2', I, R, state>)
+  , Fr(~session) ]
+--[ SessionReserved(I, R, state, ~session) ]->
+  [ WitnessHead(I, R, state)
+  , SessionReservation(I, R, state, ~session) ]
+
+rule Advance_Head:
+  let oldState = <generation, chain, epoch, digest, floor, fence>
+      newState = <next_generation(generation), chain, next_epoch(epoch),
+                  ~nextDigest, floor, next_fence(fence)>
+  in
+  [ WitnessHead(I, R, oldState)
+  , CanAdvance(I, R, oldState)
+  , In(<'migration-store-image-v2', I, R, oldState>)
+  , Fr(~nextDigest) ]
+--[ StateRetired(I, R, oldState)
+  , StateAdvanced(I, R, oldState, newState) ]->
+  [ WitnessHead(I, R, newState)
+  , !StoreSnapshot(I, R, newState) ]
+
+rule Reset_Head:
+  let oldState = <generation, chain, epoch, digest, floor, fence>
+      newState = <next_generation(generation), ~newChain, 'epoch-one',
+                  ~nextDigest, floor, next_fence(fence)>
+  in
+  [ WitnessHead(I, R, oldState)
+  , CanReset(I, R, oldState)
+  , In(<'migration-store-image-v2', I, R, oldState>)
+  , Fr(~newChain), Fr(~nextDigest) ]
+--[ StateRetired(I, R, oldState)
+  , StateAdvanced(I, R, oldState, newState) ]->
+  [ WitnessHead(I, R, newState)
+  , !StoreSnapshot(I, R, newState) ]
+
+rule Accept_After_Exact_Recheck:
+  [ SessionReservation(I, R, state, session)
+  , WitnessHead(I, R, state)
+  , In(<'migration-store-image-v2', I, R, state>) ]
+--[ WitnessRechecked(I, R, state, session)
+  , MigrationAccepted(I, R, state, session) ]->
+  [ WitnessHead(I, R, state) ]
+
+lemma current_reservation_accepts:
+  exists-trace
+  "Ex I R state session #accepted.
+       MigrationAccepted(I, R, state, session) @ accepted"
+
+lemma concurrent_reservation_becomes_stale:
+  exists-trace
+  "Ex I R state session #reserved #retired.
+       SessionReserved(I, R, state, session) @ reserved
+     & StateRetired(I, R, state) @ retired
+     & #reserved < #retired
+     & not (Ex #accepted.
+              MigrationAccepted(I, R, state, session) @ accepted)"
+
+lemma restored_old_store_after_retire_executable:
+  exists-trace
+  "Ex I R state #retired #restored.
+       StateRetired(I, R, state) @ retired
+     & StoreImageRestored(I, R, state) @ restored
+     & #retired < #restored"
+
+lemma mig_rollback:
+  "All I R state session #retired #accepted.
+       StateRetired(I, R, state) @ retired
+     & MigrationAccepted(I, R, state, session) @ accepted
+     ==> #accepted < #retired"
+
+lemma mig_no_unauthorized_fork:
+  "All I R oldState newState0 newState1 #i #j.
+       StateAdvanced(I, R, oldState, newState0) @ i
+     & StateAdvanced(I, R, oldState, newState1) @ j
+     ==> newState0 = newState1 & #i = #j"
+
+end

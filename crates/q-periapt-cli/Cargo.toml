@@ -1,0 +1,58 @@
+[package]
+name = "q-periapt-cli"
+description = "Auditability & migration tooling: CycloneDX CBOM/SBOM emission + legacy-crypto migration scanner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "qperiapt"
+path = "src/main.rs"
+
+[dependencies]
+# The CBOM does not retype the suite's inventory, it derives it from the crates
+# that define it: every row's identifier comes from the backend's own
+# `Kem::algorithm` / `Signer::algorithm`, and its NIST level from
+# `SigAlg::nist_level` (the signature rows) or `q_periapt_policy::nist_level`
+# (the ML-KEM rows) -- with a declared 0 for the traditional partner and the two
+# FIPS 202 rows, which no layer levels and none may. A removed or renamed
+# backend is therefore a build failure here rather than a released CBOM claiming
+# an algorithm the suite does not ship. A parameter set *added* to one of the
+# backends crate's declaration macros is caught by `tests/cbom_inventory.rs`,
+# which reads the registries those macros generate -- and those registries are
+# crate-wide-unique, so a second invocation in another module of that crate is a
+# compile error rather than a registry the guard never reads. A backend added as
+# a hand-written trait impl, or through a declaration macro of its own, is in no
+# registry and is caught by nothing. These are
+# ordinary edges carrying the same exact `=` requirement as
+# every other internal dependency in the workspace, so the published crate
+# resolves them from crates.io and must be uploaded after all four.
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
+q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
+rustls = { version = "0.23.45", default-features = false, optional = true }
+
+[features]
+default = []
+# Explicit native SDK catalogue, including the configured standard TLS provider.
+# It cannot be emitted from a build which does not link those implementations.
+sdk-cbom = ["dep:q-periapt-rustls", "dep:rustls"]
+# The CBOM's three SLH-DSA rows. It forwards to `q-periapt-backends`' own
+# off-by-default gate -- on crates.io exactly as in this workspace, because the
+# edge is a normal dependency of the published crate -- so the feature cannot be
+# set without compiling the very parameter sets the rows claim. The CBOM's
+# SLH-DSA claim is therefore backed by what the build links rather than
+# asserted by whoever passed the flag.
+slh-dsa = ["q-periapt-backends/slh-dsa"]

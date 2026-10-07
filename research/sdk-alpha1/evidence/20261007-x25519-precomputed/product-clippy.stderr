@@ -1,0 +1,23 @@
+    Checking serde v1.0.229
+    Checking curve25519-dalek v5.0.0
+    Checking tempfile v3.27.0
+    Checking x25519-dalek v3.0.0
+    Checking q-periapt-backends v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-backends)
+    Checking num-traits v0.2.19
+    Checking clap_builder v4.6.7
+    Checking serde_json v1.0.151
+    Checking rusty-fork v0.3.1
+    Checking tinytemplate v1.2.1
+    Checking clap v4.6.7
+    Checking plotters v0.3.7
+    Checking ciborium v0.2.2
+    Checking q-periapt-policy v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-policy)
+    Checking module-lattice v0.2.3
+    Checking proptest v1.11.0
+    Checking ml-dsa v0.1.1
+    Checking criterion v0.8.2
+    Checking q-periapt-sdk v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sdk)
+    Checking q-periapt-rustls v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-rustls)
+    Checking q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+    Checking q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.89s

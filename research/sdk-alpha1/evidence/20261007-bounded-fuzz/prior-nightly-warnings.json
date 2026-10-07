@@ -1,0 +1,23 @@
+{
+  "run": 37650628659,
+  "job": 112892709884,
+  "source": "47e201ad1b92ec2ec738d05555ff0ac3d46a0b29",
+  "log_sha256": "f673952856d5c7b67daac75e5cdc44b88619354f22805e3ca4f905a4128050ba",
+  "selected": [
+    "2026-10-07T16:15:58.2627786Z   nightly-x86_64-unknown-linux-gnu installed - rustc 1.101.0-nightly (8d1a76430 2026-10-06)",
+    "2026-10-07T16:15:58.3001032Z   nightly-x86_64-unknown-linux-gnu unchanged - rustc 1.101.0-nightly (8d1a76430 2026-10-06)",
+    "2026-10-07T16:15:58.4559535Z rustc 1.101.0-nightly (8d1a76430 2026-10-06)",
+    "2026-10-07T16:15:58.6445370Z \u001b[1m\u001b[92m  Downloaded\u001b[0m cargo-fuzz v0.13.2",
+    "2026-10-07T16:15:58.6782153Z \u001b[1m\u001b[92m  Installing\u001b[0m cargo-fuzz v0.13.2",
+    "2026-10-07T16:16:12.5241490Z \u001b[1m\u001b[92m   Compiling\u001b[0m cargo-fuzz v0.13.2",
+    "2026-10-07T16:16:14.3850746Z \u001b[1m\u001b[92m   Installed\u001b[0m package `cargo-fuzz v0.13.2` (executable `cargo-fuzz`)",
+    "2026-10-07T16:16:14.8631967Z \u001b[1m\u001b[33mwarning\u001b[0m\u001b[1m: `package.homepage` is redundant with `package.repository`\u001b[0m",
+    "2026-10-07T16:16:14.8639790Z    \u001b[1m\u001b[94m= \u001b[0m\u001b[1mnote\u001b[0m: `cargo::redundant_homepage` is set to `warn` by default",
+    "2026-10-07T16:16:14.8641247Z \u001b[1m\u001b[33mwarning\u001b[0m\u001b[1m: `package.homepage` is redundant with `package.repository`\u001b[0m",
+    "2026-10-07T16:16:14.8644131Z    \u001b[1m\u001b[94m= \u001b[0m\u001b[1mnote\u001b[0m: `cargo::redundant_homepage` is set to `warn` by default",
+    "2026-10-07T16:16:15.6761948Z \u001b[1m\u001b[33mwarning\u001b[0m\u001b[1m: `package.homepage` is redundant with `package.repository`\u001b[0m",
+    "2026-10-07T16:16:15.6764399Z    \u001b[1m\u001b[94m= \u001b[0m\u001b[1mnote\u001b[0m: `cargo::redundant_homepage` is set to `warn` by default",
+    "2026-10-07T16:16:15.6765313Z \u001b[1m\u001b[33mwarning\u001b[0m\u001b[1m: `package.homepage` is redundant with `package.repository`\u001b[0m",
+    "2026-10-07T16:16:15.6767372Z    \u001b[1m\u001b[94m= \u001b[0m\u001b[1mnote\u001b[0m: `cargo::redundant_homepage` is set to `warn` by default"
+  ]
+}

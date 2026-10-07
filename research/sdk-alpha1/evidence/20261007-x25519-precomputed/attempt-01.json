@@ -1,0 +1,25 @@
+{
+  "head": "47e201ad1b92ec2ec738d05555ff0ac3d46a0b29",
+  "outside": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-x25519-tables-ut0zhmp5",
+  "package_report": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/tls-client-hints-current/package-source/target/sdk-rust-package/RUST_SDK_PACKAGE.json",
+  "package_report_sha256": "12757679ab656ef31c8513e5c1aaa6af4d12a3cb90127ec51ddb17b0561702b4",
+  "archives": {
+    "q-periapt-core": "1ffdce9edb6c2f169e9d56d8ef7bdb4210d7fa73307e14edf59be8cb02bb251d",
+    "q-periapt-kem": "0fd0e0d9e2bc4146adbfd84689d6ffada4b07883f1555d2faaa986e5ed724a9b",
+    "q-periapt-sig": "2af776708670bb9e89adacc149afd59c571e4358b57e6b4879eb6609973fe7c1",
+    "q-periapt-mlkem-native-sys": "e741e5ad2afd7131a0673e1f69f5b9c160220bbfaee330e435b90fffcbdd42a4",
+    "q-periapt-backends": "0e48a89353785f848d9a1f66a380c1f8da9f67df28a692350db76e70020c45da",
+    "q-periapt-policy": "389ea655cec3cfe74f738133e9475a13ca2a74760d96b71b5dc711729113579c",
+    "q-periapt-sdk": "ecf36944ed4ed05e001d30b28b2b99f3f79e1aa3eed031001ac453ad1edce514"
+  },
+  "samples_per_cell_per_process": 1000,
+  "blocks": 5,
+  "comparison": "seven exact archive-derived path patches; feature unification only",
+  "completed": false,
+  "release_claim_eligible": false,
+  "external_packages": 68,
+  "lock_sha256": "23ba55f6b6312ff97a7244b5bc23be1e856fdad78feeb8c5d6a618dcf8558324",
+  "error": "RuntimeError('baseline-clippy: unexpected exit 101; see retained stderr')",
+  "at_utc": "2026-10-07T17:00:53.600276+00:00",
+  "seconds": 8.496683291858062
+}
