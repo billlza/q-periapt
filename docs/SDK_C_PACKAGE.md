@@ -82,6 +82,16 @@ is `adeb1fff4412a6e7691aafa0dbdc3d7f3c411b90e59ad3f7cfc192e789875445`;
 its manifest is `09b9265be84936ebe34a258d4de700481a5aa17225e605d6f0c0a7be9dd0168a`.
 This is local package/consumer evidence, not publication or full session-SDK qualification.
 
+The later [options-prefix checkpoint](../research/sdk-alpha1/evidence/20261007-option-prefix/README.md)
+qualifies `6e520a99210e1be254fb95ae2a4b4ce546ab8d14` with the five C
+constructors' staged size/revision checks and matching consumer regressions.
+The same clean producer and public-archive verification both passed; 20 additional
+protected-page calls passed against the extracted shared/static libraries. This
+6,108,020-byte archive is `3401b6c3c79a504c5fc79bbb8d2734fbcd77c9f9fb919c74324fc1f0a96f82db`,
+with manifest `bb4362e08160177f7974e8732275088a4f0afaa940f66e671be3cfbee07e8857`.
+The observed platform is macOS ARM64; no current-source remote CI or other-platform
+execution is implied by this checkpoint.
+
 ## Historical diagnostic captures
 
 The [2026-09-26 checkpoint](../research/sdk-alpha1/evidence/20260926-c-sdk-package/manifest.json)

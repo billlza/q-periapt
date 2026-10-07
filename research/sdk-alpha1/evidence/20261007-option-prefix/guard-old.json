@@ -1,0 +1,105 @@
+{
+  "library_sha256": "ddb0c6cfccad02ac28a56c2f8d96fa93ea4fa2de5b1f13f3079a5e267459df6a",
+  "cases": [
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "runtime",
+        "size"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "runtime",
+        "revision"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "provision",
+        "size"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "provision",
+        "revision"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "open",
+        "size"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "open",
+        "revision"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "client",
+        "size"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "client",
+        "revision"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "server",
+        "size"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/old/guard",
+        "server",
+        "revision"
+      ],
+      "returncode": -10,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}
