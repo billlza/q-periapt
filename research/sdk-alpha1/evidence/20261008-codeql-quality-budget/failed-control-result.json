@@ -1,0 +1,68 @@
+{
+  "artifact_id": 11515742809,
+  "artifact_sha256": "85559c1778f4d43bedb889a6184a86d4a8fd5d4facdddd467519caa19dcbc3a6",
+  "cache_scope": "Frozen diagnostic bundle, retained prior results/cache if present; not cold extraction.",
+  "completed": false,
+  "current_product_ci_qualified": false,
+  "database_creation_sha": "605de309dbcf5ebdca6652e1487e9425c6e38a4b",
+  "experiment_commit": "9daef191710f90e1c96b13cd93becbfcbd82c915",
+  "failure": {
+    "message": "operation failed; inspect bounded command logs",
+    "phase": "admit_database",
+    "type": "KeyError"
+  },
+  "host": {
+    "cpus": 4,
+    "meminfo": "MemTotal:       16372440 kB\nMemFree:        13138248 kB\nMemAvailable:   15378840 kB\nBuffers:           85852 kB\nCached:          2415252 kB\nSwapCached:            0 kB\nActive:           750296 kB\nInactive:        2046968 kB\nActive(anon):     352240 kB\nInactive(anon):        0 kB\nActive(file):     398056 kB\nInactive(file):  2046968 kB\nUnevictable:       46760 kB\nMlocked:           43688 kB\nSwapTotal:       3145724 kB\nSwapFree:        3145724 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:              7816 kB\nWriteback:             0 kB\nAnonPages:        333196 kB\nMapped:           320904 kB\nShmem:             47348 kB\nKReclaimable:     113864 kB\nSlab:             194004 kB\nSReclaimable:     113864 kB\nSUnreclaim:        80140 kB\nKernelStack:        4172 kB\nPageTables:         6456 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    11331944 kB\nCommitted_AS:    2040608 kB\nVmallocTotal:   13743895347199 kB\nVmallocUsed:       41552 kB\nVmallocChunk:          0 kB\nPercpu:             2208 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:     96256 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:               0 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      124032 kB\nDirectMap2M:     4065280 kB\nDirectMap1G:    14680064 kB\n",
+    "uname": [
+      "Linux",
+      "runnervm8df0l",
+      "6.17.0-1022-azure",
+      "#22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026",
+      "x86_64"
+    ]
+  },
+  "kind": "qperiapt.codeql_quality_resource_control",
+  "queries": {},
+  "query_seconds_bound": 1200,
+  "ram_MB": 14000,
+  "release_claim_eligible": false,
+  "source_branch_head": "4fc8412a02084bb6d5de003d99eeaab2aa79079b",
+  "source_inputs": {
+    "artifact/bounded_process.py": {
+      "git_blob_sha1": "8c5669b1269451528b9d76460209c5e86376e970",
+      "sha256": "836fffda15c4a380b9dfd108a44162f245903788be507bb561936c758044ec82"
+    },
+    "artifact/codeql-rust-quality/ExtractedPaths.ql": {
+      "git_blob_sha1": "a061b7666f786a32e0f8c89bece45c1e15859ddf",
+      "sha256": "c3e7bc8285c0ce03b1100626d1fd31f6e3721819f564d9d9e0e7d5d10f7c026f"
+    },
+    "artifact/codeql-rust-quality/Metrics.ql": {
+      "git_blob_sha1": "6604699993ff402d978f7bc8b7aa15454d9e120c",
+      "sha256": "7fc3ea3cd9d56658aa1f23715d167e45991aafb977eb1eca981ccf46efc8429b"
+    },
+    "artifact/codeql-rust-quality/UnresolvedMacros.ql": {
+      "git_blob_sha1": "94770f7d21a777f45346f19cda068f9a337bdda1",
+      "sha256": "2501394e453e19c91c2cee21236df74a75075ee398a5d0b92e76fecc4292937f"
+    },
+    "artifact/codeql-rust-quality/qlpack.yml": {
+      "git_blob_sha1": "6ffb1f788ce78ca3ea1aeed800ef789dc8c6ed54",
+      "sha256": "62e5a6410a9b3d200141b3c74249f15702dc60a56f99c0d44d22a75b59caf68b"
+    },
+    "artifact/codeql_rust_quality.py": {
+      "git_blob_sha1": "37dc0d9fdc6ee09b375e59b6d8d15b211c61c28d",
+      "sha256": "1e7ea9dc24102982351b9a7db0db86eae9faeb8905475ca866f8ec835635632a"
+    },
+    "artifact/evidence_io.py": {
+      "git_blob_sha1": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "artifact/git_provenance.py": {
+      "git_blob_sha1": "abca87c463429b8b2182b5f1fa47635272667199",
+      "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f"
+    }
+  },
+  "source_tree": "b4226f96ac064e099b3c71392b2700d481ba7449",
+  "threads": 4,
+  "tracked_inventory_sha256": "ef36b955f5221c5d5f423e2503b5bad925a6bdd1e54cf9d52b2a07a3ae00a1b9"
+}

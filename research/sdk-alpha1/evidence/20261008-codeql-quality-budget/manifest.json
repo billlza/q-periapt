@@ -1,0 +1,44 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 2714,
+      "sha256": "a6d951c0a5e615e127274b0eab8233e22204050ef5f95ecc7a7c58ae09b8f582"
+    },
+    "control-result.json": {
+      "bytes": 37707,
+      "sha256": "0475f61dc40e5b547e1e18868c630e580e4a4824f392dec8c9717a5916d807e2"
+    },
+    "control-run.json": {
+      "bytes": 1839,
+      "sha256": "8ddcec4b26daf20185c6bd0970ac3542fc64d7c5602daf00e649bf9c76ffdd30"
+    },
+    "control-source-inputs.json": {
+      "bytes": 1554,
+      "sha256": "3ec0b44e98e311bd100369e2f522a0a492b4cfe428d991b5896dd46618cabf25"
+    },
+    "diagnostic-controller.py.txt": {
+      "bytes": 13602,
+      "sha256": "ad0158f5c9cd8ed053dd6a079093329a2001b7ef3b3707b9761cce851f71cfd1"
+    },
+    "diagnostic-workflow.yml.txt": {
+      "bytes": 1349,
+      "sha256": "43df86e609e09e50473ebac5d590ae51436d4f44d45c975c4690945e5049254c"
+    },
+    "failed-control-result.json": {
+      "bytes": 4490,
+      "sha256": "a0f34994ba8a5c6880f6c90c92dd80c789702321bb3994789719262fdf6ce345"
+    },
+    "qualification.json": {
+      "bytes": 3276,
+      "sha256": "398fc2934c1e25cf143744aceae69ae1a1c5bae1a2a2bd6e001015654a10491f"
+    },
+    "raw-records.json": {
+      "bytes": 109906,
+      "sha256": "5bc96466c2ef16f7c18f2d11b1a29be4c20b9957ac48eba653c2157ce628343c"
+    },
+    "source-gate.json": {
+      "bytes": 751,
+      "sha256": "0b8dc640e7011ce187a67ef848732153699f5138b80753b316e03fa5cacfbb17"
+    }
+  }
+}
