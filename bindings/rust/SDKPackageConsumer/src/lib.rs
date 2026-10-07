@@ -1,4 +1,4 @@
-//! External package consumer: only public SDK APIs and public policy fixtures.
+//! External package consumer: public APIs, public TLS fixtures and fresh policy issuers.
 #![forbid(unsafe_code)]
 
 #[cfg(test)]
@@ -312,6 +312,128 @@ mod tests {
         reopened.close();
         assert!(matches!(key.public_key(), Err(Error::Closed)));
         exercise_limited_storage(&directory.path().canonicalize()?.join("limited-policy.redb"))?;
+        exercise_independent_authority_recovery(
+            &directory.path().canonicalize()?.join("recovery.redb"),
+        )?;
+        Ok(())
+    }
+
+    // Issuer tooling is deliberately outside the store. These keys come from OS
+    // entropy, not a precomputed fixture; only public policies/approvals go to disk.
+    struct PolicyIssuer {
+        key: q_periapt_core::ZeroizingBytes<{ q_periapt_backends::ML_DSA_65_SK_LEN }>,
+        public: [u8; q_periapt_backends::ML_DSA_65_VK_LEN],
+    }
+    impl PolicyIssuer {
+        fn generate() -> Result<Self> {
+            let mut seed = q_periapt_core::ZeroizingBytes::<32>::zeroed();
+            getrandom::fill(seed.as_mut_bytes()).map_err(|_| Error::Entropy)?;
+            let (key, public) = q_periapt_backends::MlDsa65::generate(*seed.as_bytes());
+            Ok(Self {
+                key: q_periapt_core::ZeroizingBytes::from_bytes(key),
+                public,
+            })
+        }
+        fn sign(&self, message: &[u8]) -> Result<Vec<u8>> {
+            use q_periapt_sig::Signer;
+            let mut signature = vec![0; q_periapt_backends::ML_DSA_65_SIG_LEN];
+            q_periapt_backends::MlDsa65
+                .sign(self.key.as_bytes(), message, &[0; 32], &mut signature)
+                .map_err(Error::from)?;
+            Ok(signature)
+        }
+        fn policy(&self, version: u32, enabled: bool) -> Result<(Vec<u8>, Vec<u8>)> {
+            let pq = if enabled { "ML-KEM-768" } else { "ML-KEM-1024" };
+            let document = format!("schema_version = 1\npolicy_version = {version}\nmin_nist_level = 3\ndefault_profile = \"ContextBound\"\nallowed_kems = [\"{pq}\", \"X25519\"]\nallowed_sigs = [\"ML-DSA-65\"]\ndeprecated = []\n").into_bytes();
+            let signature = self.sign(&q_periapt_policy::policy_signature_message(&document))?;
+            Ok((document, signature))
+        }
+    }
+    fn exercise_independent_authority_recovery(path: &std::path::Path) -> Result {
+        use q_periapt_host_store::{
+            PolicyRecoveryAuthorization, PolicyRecoveryOutcome, PolicyRecoveryTrust,
+        };
+        let initial = PolicyIssuer::generate()?;
+        let offline = PolicyIssuer::generate()?;
+        let incoming = PolicyIssuer::generate()?;
+        let mut scope = [0; 32];
+        let mut operation = [0; 32];
+        getrandom::fill(&mut scope).map_err(|_| Error::Entropy)?;
+        getrandom::fill(&mut operation).map_err(|_| Error::Entropy)?;
+        let trust = PolicyRecoveryTrust::new(scope, &initial.public, &offline.public)?;
+        let enrollment = offline.sign(&trust.enrollment_message())?;
+        let (old_policy, old_signature) = initial.policy(u32::MAX, true)?;
+        let mut store = PolicyStore::provision_recoverable(
+            path,
+            &old_policy,
+            &old_signature,
+            &trust,
+            &enrollment,
+            Limits::default(),
+        )?;
+        let old = store.runtime()?;
+        let key = old.generate_key()?;
+        let (revoked, revoked_signature) = incoming.policy(1, false)?;
+        let request = store.prepare_authority_recovery(
+            operation,
+            &revoked,
+            &revoked_signature,
+            &incoming.public,
+        )?;
+        assert_eq!(request.trust_binding(), trust.binding());
+        assert_eq!(request.replacement_root(), incoming.public);
+        assert_eq!(request.states().0, old.trusted_state());
+        assert_eq!(request.states().1.version(), 1);
+        let possession = incoming.sign(&request.possession_message())?;
+        let forged = PolicyRecoveryAuthorization::new(
+            request.clone(),
+            &initial.sign(&request.authorization_message())?,
+            &possession,
+        )?;
+        assert!(matches!(
+            store.recover_authority(&forged, &revoked, &revoked_signature),
+            Err(StoreError::RecoveryDenied)
+        ));
+        assert!(old.is_enabled()?);
+        let approval = offline.sign(&request.authorization_message())?;
+        let authorized = PolicyRecoveryAuthorization::new(request, &approval, &possession)?;
+        let retained = path.with_extension("original-authorization");
+        std::fs::write(&retained, authorized.to_bytes())?;
+        assert_eq!(
+            store.recover_authority(&authorized, &revoked, &revoked_signature)?,
+            PolicyRecoveryOutcome::Applied
+        );
+        assert!(matches!(key.public_key(), Err(Error::Closed)));
+        assert!(!store.runtime()?.is_enabled()?);
+        store.close();
+        let original = PolicyRecoveryAuthorization::from_bytes(&std::fs::read(&retained)?)?;
+        let (mut store, outcome) = PolicyStore::open_recovering(
+            path,
+            &trust,
+            &original,
+            &revoked,
+            &revoked_signature,
+            Limits::default(),
+        )?;
+        assert_eq!(outcome, PolicyRecoveryOutcome::AlreadyApplied);
+        let (enabled, enabled_signature) = incoming.policy(2, true)?;
+        let current = store.replace_policy(
+            store.runtime()?.trusted_state(),
+            &enabled,
+            &enabled_signature,
+        )?;
+        assert!(current.is_enabled()?);
+        assert!(matches!(
+            current.prepare_policy_update(&enabled, &enabled_signature),
+            Err(Error::UpdateOwnerRequired)
+        ));
+        assert_eq!(
+            store.recover_authority(&original, &revoked, &revoked_signature)?,
+            PolicyRecoveryOutcome::AppliedThenAdvanced
+        );
+        assert_eq!(store.runtime()?.trusted_state().version(), 2);
+        store.close();
+        assert!(matches!(current.is_enabled(), Err(Error::Closed)));
         Ok(())
     }
 

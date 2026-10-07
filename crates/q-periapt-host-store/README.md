@@ -30,3 +30,15 @@ failure. Errors retain the original operation and attempted staging name. Failed
 and process crashes can leave unpublished private staging orphans; automatic selection,
 sweeping and physical erasure are not provided. Database provisioning now reuses the same internal publication capability. This
 does not enable Windows storage admission or migrate old partial formal files.
+
+The opt-in Rust v2 store adds independently pinned online-policy-root recovery.
+Provision `PolicyRecoveryTrust` before an incident, with a recovery-key enrollment
+proof; retain the exact request and both recovery/incoming-key role signatures.
+`recover_authority` persists root, policy, history and receipt before activation;
+`open_recovering` reconciles the original operation after an uncertain outcome.
+Ordinary updates retain strict monotonicity within the current root. Old roots and
+operation IDs are not reusable; the lifetime bound is 4,096 independently authorized
+replacements. V1 files and C/Swift constructors are unchanged and do not implicitly
+acquire this authority. See the detailed contract above for wire, trust, storage
+and integration limits; this is not full Continuity root migration or restored
+message-confidentiality evidence.

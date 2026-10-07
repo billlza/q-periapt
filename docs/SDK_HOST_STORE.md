@@ -66,7 +66,9 @@ permissive default.
    prepared runtime and revoke the previous one.
 
 Any storage/commit/activation failure in the mutation phase closes the store and
-its old runtime. A commit error has an explicitly uncertain outcome. The host
+its old runtime. The mutation temporarily owns its Active epoch on the stack;
+unwinding also drops and revokes it, even if a caller catches the panic. Only a
+completed activation restores the store. The panic itself is not swallowed. A commit error has an explicitly uncertain outcome. The host
 must retain/reconcile the requested signed policy before serving again; opening
 an old-or-new recoverable database is not permission to silently resume old
 rights. If persistence succeeded but another thread closed the runtime before
@@ -76,6 +78,105 @@ The connection diagnostic always reconciles its configured signed policy
 against the recovered floor before constructing an endpoint. Reapplying the
 same exact policy requires no update; a newer document is committed; an older,
 invalid or disabling configuration never opens a listener.
+
+## Independent online-root recovery (Rust development profile)
+
+The opt-in v2 image adds a fixed independent ML-DSA-65 recovery root. This is a
+Rust source implementation of SDK policy-authority recovery, not general threshold
+governance, a remotely authenticated issuer service, or Continuity identity-root
+replacement. The existing C/Swift constructors still use v1 and cannot open v2
+without its required recovery configuration; no new C export is introduced.
+
+An online root can sign `u32::MAX` and exhaust normal policy updates. A v1 store
+still cannot recover that condition. In v2, the online key cannot authorize root
+replacement or consume its separate recovery-generation budget. Replacing a root
+requires an already pinned recovery key and proof of possession by the incoming
+online key over the same exact transition. A signature on the candidate policy
+alone is insufficient. The initial and every incoming online key must differ from the recovery key,
+and an online root already used in this store cannot return later.
+
+1. At explicit first provisioning, independently retain
+   `PolicyRecoveryTrust::new(scope, initial_root, recovery_root)`. The 32-byte scope
+   must be nonzero. Obtain the recovery key's signature on `enrollment_message()`
+   to prove that the configured key is usable, and call `provision_recoverable`.
+   Existing v1 files are not silently enrolled. There is no recovery-root rotation
+   in this profile; compromise/loss of that key needs a separate trust ceremony.
+   Scope is an authorization domain, not a filesystem path or device identifier.
+   Stores with the same original trust and exact predecessor/history can accept
+   the same authorization. Use independently provisioned distinct scopes when
+   per-store approval is required; no Continuity device permission is implied.
+2. Generate one nonzero 32-byte operation ID and retain it. Call
+   `prepare_authority_recovery` with the exact candidate policy/signature/root.
+   It verifies the candidate and returns a statement with the original trust
+   commitment, exact previous root and policy, committed history, generation,
+   operation and target root/policy. It exposes no candidate runtime and changes
+   no persistent state. Concurrent policy advancement makes the statement stale.
+3. Independently inspect and authorize that statement. The recovery key signs
+   `authorization_message()`; the incoming online key signs `possession_message()`.
+   The role domains differ. Preserve the original statement, both signatures and
+   exact target policy; assemble `PolicyRecoveryAuthorization` without treating
+   that assembly/parsing as verification.
+4. `recover_authority` verifies both role signatures and the candidate policy,
+   checks exact predecessor/root/history, then atomically commits all nine image
+   fields. Only afterwards does its prepared owner revoke old aliases and activate
+   the successor. Signature/stale errors leave the old owner usable. Storage,
+   uncertain commit or activation failures close the store; no old-policy fallback
+   is returned. Allocations and successor preparation precede the commit.
+5. After an uncertain outcome, use `open_recovering` with the ORIGINAL trust,
+   authorization and target policy. `Applied` means this call committed it;
+   `AlreadyApplied` means that exact target remains current;
+   `AppliedThenAdvanced` means it committed but a later authorized policy/root is
+   current. The last case never restores the older requested policy. An unrelated
+   state fails. `open_recoverable_configured` similarly reconciles ordinary policy
+   updates under the currently authenticated root before exposing a runtime.
+
+The schema marker is `QPeriapt-Host-Policy-v2` in the existing policy table. In
+addition to schema/root/policy/signature/state, it stores the original recovery
+trust, enrollment signature, bounded authority history and latest signed receipt.
+Every history entry is root SHA-256, operation ID and request digest (96 bytes);
+genesis uses zero operation/request fields. The latest independent signature
+commits the complete predecessor history. Reopening checks the external original
+trust, enrollment, unique historical roots/operations, latest receipt signatures,
+root, and current policy at or above that receipt's floor. The signed policy is
+reverified before a runtime can be returned.
+
+The generation must increase by exactly one; callers cannot jump it to a maximum.
+There are at most **4,096 root replacements** per provisioned store. This explicit
+lifetime/storage bound is not consumed by online policy updates. No history pruning
+or capacity reset is supplied. The independent recovery authority remains trusted;
+this is not a claim to survive its compromise or an unlimited sequence of changes.
+The underlying SDK KATs, raw KEM format and 68-byte root/policy binding are unchanged.
+Never reusing a historical online root prevents a local authority epoch from
+recreating that old root identity. Possession proofs do not prove that a key is
+fresh, uncompromised or unknown to an attacker; issuers must supply appropriate keys.
+
+The canonical request is 2,168 bytes, in this order:
+
+| Field | Bytes |
+| --- | ---: |
+| `QPRCV001` | 8 |
+| SHA-256 trust commitment | 32 |
+| Recovery generation, big-endian | 8 |
+| Original operation ID | 32 |
+| SHA-256 predecessor root | 32 |
+| Previous `TrustedPolicyState` | 36 |
+| SHA-256 predecessor history commitment | 32 |
+| Incoming ML-DSA-65 root | 1,952 |
+| Target `TrustedPolicyState` | 36 |
+
+The authorization appends the 3,309-byte recovery signature and 3,309-byte incoming
+possession signature, totaling 8,786 bytes. Domain strings and canonical encodings
+are in `policy/recovery.rs`; parsing rejects truncated/trailing or out-of-bound
+containers. Public digests, IDs and parsed statements are never authority tokens.
+
+Protected-file storage still cannot detect restoration of an entire older disk
+image. This path does not erase exported keys or retained backups, authorize an
+expired Continuity credential, change a policy family, retire remote sessions,
+or establish post-compromise message confidentiality. Continuity's family is
+bound to its own policy signing key, and its renewal fixes family, signer and SDK
+binding. That migration, foreign-language APIs, installed product consumers and
+independent security review remain release work; they must not be replaced with
+weaker comparisons or an implicit new installation.
 
 ## C and Swift ownership
 

@@ -15,3 +15,7 @@ q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"
+q-periapt-backends = "=0.2.0"
+q-periapt-policy = "=0.2.0"
+q-periapt-sig = "=0.2.0"
+getrandom = "0.4"

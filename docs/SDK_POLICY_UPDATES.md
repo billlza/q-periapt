@@ -11,8 +11,11 @@ across store reopening. Closing a runtime is local revocation, not a durable
 emergency-disable policy. Neither a lower/same version nor a separately signed
 replacement root bypasses that boundary. The durable host-store regression
 `max_version_exhaustion_is_durable_and_not_a_bootstrap_fallback` preserves these
-reject paths. Independently authorized root recovery remains unimplemented; see
-the [authority design and recovery requirements](policy/UPDATE_AUTHORITY_V1.md).
+reject paths. The opt-in Rust host-store v2 image now has a separately pinned, bounded
+[recovery path](SDK_HOST_STORE.md#independent-online-root-recovery-rust-development-profile).
+Existing v1 stores cannot acquire that authority by reopening with new pins.
+General governance and Continuity root migration remain open in the
+[authority design](policy/UPDATE_AUTHORITY_V1.md).
 
 ## Host sequence
 

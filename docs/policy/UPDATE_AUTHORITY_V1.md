@@ -1,6 +1,6 @@
 # Policy Update Authority — design RFC (V1 draft)
 
-> **Status: DESIGN ONLY for dynamic authority succession and recovery.** Section 1
+> **Status: DESIGN ONLY for dynamic threshold succession and complete product root migration.** Section 1
 > distinguishes the existing fixed-root enforcement from those missing features.
 > The proposed API and authority encoding do not exist in shipped crates. This
 > document defines target semantics for authenticated policy *succession*, records the
@@ -35,7 +35,7 @@ algorithm is retired for business use. This separation is intentional. Reading
 those lists as an update-authority list would prevent some algorithm migrations.
 It is not an authentication bypass or evidence that the candidate chose its root.
 
-The lifecycle gap is real: this fixed authority cannot rotate or recover. Policy
+The lifecycle gap is real for the default fixed-root/v1 path: that authority cannot rotate or recover. Policy
 versions are `u32` and ordinary updates must strictly increase them. An authorized
 policy at `u32::MAX` prevents every further update, including a disabled policy.
 The host-store regression
@@ -46,8 +46,13 @@ the runtime revokes local aliases but does not persist an emergency-disable poli
 
 A larger counter, rejecting only the largest value, or rolling back/reinitializing
 storage would not provide independent recovery from a compromised signing key.
-The threshold-governed succession below and an independently authorized recovery
-path remain **DESIGN**, not features of the fixed-root SDK.
+The threshold-governed succession below and complete Continuity root migration
+remain **DESIGN**. A limited opt-in Rust host-store v2 profile now implements a
+fixed independently pinned recovery key, exact predecessor/history binding,
+incoming-key possession proof and durable cutover. See its
+[contract and limits](../SDK_HOST_STORE.md#independent-online-root-recovery-rust-development-profile).
+It does not implement this RFC's N-of-M governance, recovery-key rotation or
+transparent migration of existing v1 stores.
 
 ## 2. Target semantics (DESIGN)
 

@@ -100,8 +100,14 @@ OS file-size limit. Only that child ignores `SIGXFSZ`, so the kernel returns a w
 error to the packaged SDK; the parent process is unchanged. The test requires an
 explicit storage failure, retained partial state, refusal of replacement and no
 runtime admitted from malformed storage. It has a 30-second process deadline and
-requires the child result marker. This supplements the existing restart, rollback,
-reenabling and owner-close cases without filtering out any consumer test. An ambient
+requires the child result marker. The same public store group now generates three
+fresh policy issuers from OS entropy, enrolls independent recovery authority,
+rejects an online-key-forged recovery, replaces an exhausted u32::MAX authority,
+reopens the original signed request, and preserves a later normal update. All
+three test issuers run in one consumer process; this tests role verification,
+not operational offline isolation. It covers the opt-in Rust v2 contract, not
+C/Swift or Continuity root migration. These cases supplement existing restart,
+rollback, reenabling and owner-close cases without filtering any consumer test. An ambient
 child marker outside the exact invocation is rejected.
 
 ## Coordinated registry transaction

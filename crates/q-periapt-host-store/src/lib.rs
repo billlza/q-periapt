@@ -10,4 +10,8 @@ pub mod filesystem;
 mod macos_acl;
 
 mod policy;
+pub use policy::{
+    PolicyRecoveryAuthorization, PolicyRecoveryOutcome, PolicyRecoveryRequest, PolicyRecoveryTrust,
+    MAX_POLICY_AUTHORITY_RECOVERIES, POLICY_RECOVERY_AUTHORIZATION_BYTES,
+};
 pub use policy::{PolicyStore, StoreError};

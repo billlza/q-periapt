@@ -157,6 +157,43 @@ impl PolicyOwner {
         })
     }
 
+    /// Prepare a different root for a trusted persistence implementation.
+    ///
+    /// The owner must first independently authorize the exact root, policy and
+    /// predecessor, then persist the complete authority transition before
+    /// activation. The candidate's own policy signature is NOT that recovery
+    /// authorization. Never expose this owner to operational consumers; use the
+    /// host store's verified recovery boundary instead. This low-level method
+    /// cannot authenticate external governance or persistence, just as initial
+    /// construction cannot authenticate the host's independently supplied pin.
+    /// Reusing the current root to reset its version is always rejected.
+    pub fn prepare_authority_replacement(
+        &self,
+        policy: &[u8],
+        signature: &[u8],
+        root: &[u8],
+    ) -> Result<OwnedPolicyUpdate, Error> {
+        let _operation = self.runtime.state.begin_control()?;
+        if root == self.runtime.state.trust_root.as_slice() {
+            return Err(Error::PolicyDenied);
+        }
+        let next = Runtime::from_signed_policy_with_mode(
+            policy,
+            signature,
+            root,
+            None,
+            self.runtime.state.limits,
+            UpdateMode::OwnerManaged,
+        )?;
+        self.runtime.state.ensure_open()?;
+        Ok(OwnedPolicyUpdate {
+            update: PolicyUpdate {
+                previous: Arc::clone(&self.runtime.state),
+                next: Some(Arc::new(next)),
+            },
+        })
+    }
+
     /// Revoke operational aliases and outstanding preparations for this epoch.
     pub fn close(&self) {
         self.runtime.close();

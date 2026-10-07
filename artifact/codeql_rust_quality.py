@@ -32,7 +32,7 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Exact tracked Rust inventory, including native and C lifecycle sources.
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 418
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 419
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000

@@ -17,6 +17,12 @@ use std::{error::Error as StdError, fmt, fs::File, io, path::Path, sync::Arc};
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("sdk_host_policy_v1");
 const SCHEMA: &[u8] = b"QPeriapt-Host-Policy-v1";
 const MAX_POLICY_BYTES: usize = 65_536;
+mod recovery;
+pub use recovery::{
+    PolicyRecoveryAuthorization, PolicyRecoveryOutcome, PolicyRecoveryRequest, PolicyRecoveryTrust,
+    MAX_POLICY_AUTHORITY_RECOVERIES, POLICY_RECOVERY_AUTHORIZATION_BYTES,
+};
+use recovery::{RecoveryImage, SCHEMA_RECOVERY};
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -37,6 +43,12 @@ pub enum StoreError {
     RootMismatch,
     /// The caller's expected state no longer matches the current runtime.
     Stale,
+    /// This store requires its original independent recovery trust configuration.
+    RecoveryRequired,
+    /// Recovery grammar, role signatures, key independence or root reuse was rejected.
+    RecoveryDenied,
+    /// The explicitly bounded lifetime recovery history is full.
+    RecoveryLimit,
     /// Policy verification, revocation, quota or closed-runtime error.
     Policy(q_periapt_sdk::Error),
     /// A filesystem operation failed; original I/O context is retained.
@@ -57,6 +69,9 @@ impl fmt::Display for StoreError {
             Self::Corrupt => "host policy store is malformed or inconsistent",
             Self::RootMismatch => "host policy store has a different pinned root",
             Self::Stale => "host policy update expected a different state",
+            Self::RecoveryRequired => "host policy recovery trust configuration is required",
+            Self::RecoveryDenied => "host policy authority recovery was rejected",
+            Self::RecoveryLimit => "host policy authority recovery history is full",
             Self::Policy(_) => "host policy verification or runtime operation failed",
             Self::Io(_) => "host policy filesystem operation failed",
             Self::Storage(_) => "host policy database operation failed",
@@ -115,6 +130,7 @@ struct Active {
     database: Database,
     owner: PolicyOwner,
     root: Vec<u8>,
+    recovery: Option<RecoveryImage>,
 }
 impl Drop for Active {
     fn drop(&mut self) {
@@ -156,6 +172,7 @@ impl PolicyStore {
                 policy,
                 signature,
                 owner.trusted_state(),
+                None,
             ) {
                 transaction.abort().map_err(storage)?;
                 return Err(error);
@@ -170,6 +187,7 @@ impl PolicyStore {
                 database,
                 owner,
                 root: root.to_vec(),
+                recovery: None,
             }),
         })
     }
@@ -177,6 +195,15 @@ impl PolicyStore {
     /// Reopen the exact committed signed image under an independently pinned root.
     /// The application must separately reconcile any previously uncertain update.
     pub fn open(path: &Path, root: &[u8], limits: Limits) -> Result<Self, StoreError> {
+        Self::open_inner(path, root, None, limits)
+    }
+
+    fn open_inner(
+        path: &Path,
+        root: &[u8],
+        recovery_trust: Option<&PolicyRecoveryTrust>,
+        limits: Limits,
+    ) -> Result<Self, StoreError> {
         if root.len() != ML_DSA_65_VK_LEN {
             return Err(StoreError::RootMismatch);
         }
@@ -197,11 +224,23 @@ impl PolicyStore {
             return Err(StoreError::Corrupt);
         }
         let table = read.open_table(TABLE).map_err(storage)?;
-        let image = read_image(&table, root)?;
+        let image = read_image(
+            &table,
+            if recovery_trust.is_none() {
+                Some(root)
+            } else {
+                None
+            },
+        )?;
+        match (&image.recovery, recovery_trust) {
+            (None, None) => {}
+            (Some(recovery), Some(trust)) => recovery.verify(trust, &image.root, image.state)?,
+            _ => return Err(StoreError::RecoveryRequired),
+        }
         let owner = PolicyOwner::from_signed_policy(
             &image.policy,
             &image.signature,
-            root,
+            &image.root,
             Some(&image.state),
             limits,
         )?;
@@ -215,7 +254,8 @@ impl PolicyStore {
             active: Some(Active {
                 database,
                 owner,
-                root: root.to_vec(),
+                root: image.root,
+                recovery: image.recovery,
             }),
         })
     }
@@ -270,7 +310,10 @@ impl PolicyStore {
         }
         let update = active.owner.prepare_policy_update(policy, signature)?;
         let (_, next) = update.states()?;
-        let outcome = (|| {
+        // The mutation owns its epoch on the stack. Result errors AND unwinds
+        // drop it and revoke aliases; only complete activation restores the store.
+        let mut active = self.active.take().ok_or(StoreError::Closed)?;
+        let outcome: Result<Arc<Runtime>, StoreError> = (|| {
             let transaction = write_transaction(&active.database)?;
             if let Err(error) = write_image(
                 &transaction,
@@ -279,21 +322,23 @@ impl PolicyStore {
                 policy,
                 signature,
                 next,
+                active.recovery.as_ref(),
             ) {
                 transaction.abort().map_err(storage)?;
                 return Err(error);
             }
             transaction.commit().map_err(StoreError::CommitUncertain)?;
+            #[cfg(all(test, unix))]
+            tests::after_policy_commit();
             let owner = update
                 .activate_after_persist()
                 .map_err(StoreError::ActivationAfterCommit)?;
             active.owner = owner;
             Ok(active.owner.runtime()?)
         })();
-        if outcome.is_err() {
-            self.close();
-        }
-        outcome
+        let runtime = outcome?;
+        self.active = Some(active);
+        Ok(runtime)
     }
 
     /// Revoke retained runtime aliases and release the lifetime filesystem lock.
@@ -309,9 +354,11 @@ impl Drop for PolicyStore {
 }
 
 struct Image {
+    root: Vec<u8>,
     policy: Vec<u8>,
     signature: Vec<u8>,
     state: TrustedPolicyState,
+    recovery: Option<RecoveryImage>,
 }
 fn field(
     table: &impl ReadableTable<&'static str, &'static [u8]>,
@@ -330,22 +377,31 @@ fn field(
 }
 fn read_image(
     table: &impl ReadableTable<&'static str, &'static [u8]>,
-    root: &[u8],
+    root: Option<&[u8]>,
 ) -> Result<Image, StoreError> {
-    if table.len().map_err(storage)? != 5
-        || field(table, "schema", SCHEMA.len(), SCHEMA.len())? != SCHEMA
-    {
+    let schema = field(table, "schema", SCHEMA.len(), SCHEMA.len())?;
+    let recovery = if schema == SCHEMA && table.len().map_err(storage)? == 5 {
+        None
+    } else if schema == SCHEMA_RECOVERY && table.len().map_err(storage)? == 9 {
+        Some(RecoveryImage::read(table).map_err(|error| match error {
+            StoreError::RecoveryDenied => StoreError::Corrupt,
+            error => error,
+        })?)
+    } else {
         return Err(StoreError::Corrupt);
-    }
-    if field(table, "root", ML_DSA_65_VK_LEN, ML_DSA_65_VK_LEN)? != root {
+    };
+    let stored_root = field(table, "root", ML_DSA_65_VK_LEN, ML_DSA_65_VK_LEN)?;
+    if root.is_some_and(|root| stored_root != root) {
         return Err(StoreError::RootMismatch);
     }
     let state = TrustedPolicyState::decode(&field(table, "state", 36, 36)?)
         .map_err(|_| StoreError::Corrupt)?;
     Ok(Image {
+        root: stored_root,
         policy: field(table, "policy", 1, MAX_POLICY_BYTES)?,
         signature: field(table, "signature", ML_DSA_65_SIG_LEN, ML_DSA_65_SIG_LEN)?,
         state,
+        recovery,
     })
 }
 fn write_transaction(database: &Database) -> Result<redb::WriteTransaction, StoreError> {
@@ -363,23 +419,45 @@ fn write_image(
     policy: &[u8],
     signature: &[u8],
     next: TrustedPolicyState,
+    recovery: Option<&RecoveryImage>,
 ) -> Result<(), StoreError> {
     let mut table = transaction.open_table(TABLE).map_err(storage)?;
     if let Some(expected) = expected {
-        if read_image(&table, root)?.state != expected {
+        let image = read_image(&table, Some(root))?;
+        if image.state != expected || image.recovery.as_ref() != recovery {
             return Err(StoreError::Corrupt);
         }
     } else if !table.is_empty().map_err(storage)? {
         return Err(StoreError::Corrupt);
     }
+    write_fields(&mut table, root, policy, signature, next, recovery)
+}
+fn write_fields(
+    table: &mut redb::Table<&str, &[u8]>,
+    root: &[u8],
+    policy: &[u8],
+    signature: &[u8],
+    next: TrustedPolicyState,
+    recovery: Option<&RecoveryImage>,
+) -> Result<(), StoreError> {
     for (name, bytes) in [
-        ("schema", SCHEMA),
+        (
+            "schema",
+            if recovery.is_some() {
+                SCHEMA_RECOVERY
+            } else {
+                SCHEMA
+            },
+        ),
         ("root", root),
         ("policy", policy),
         ("signature", signature),
         ("state", &next.encode()),
     ] {
         table.insert(name, bytes).map_err(storage)?;
+    }
+    if let Some(recovery) = recovery {
+        recovery.write(table)?;
     }
     Ok(())
 }
