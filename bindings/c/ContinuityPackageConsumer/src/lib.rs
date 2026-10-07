@@ -121,6 +121,7 @@ impl From<q_periapt_sdk::Error> for Failure {
                 E::InvalidPurpose => 8,
                 E::InvalidPrivateKey => 9,
                 E::Backend => 10,
+                E::UpdateOwnerRequired => 11,
             };
         Self { code, message }
     }
