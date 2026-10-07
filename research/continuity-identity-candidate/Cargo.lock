@@ -872,8 +872,10 @@ dependencies = [
  "q-periapt-core",
  "q-periapt-policy",
  "q-periapt-sdk",
+ "q-periapt-sig",
  "redb",
  "rustix",
+ "sha2 0.11.0",
 ]
 
 [[package]]
