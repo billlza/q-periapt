@@ -29,7 +29,7 @@ jobs:
         with:
           packages: platform-tools
       - name: Test diagnostic capture and owned-child cleanup
-        run: python3 -m unittest discover -s artifact -p test_android_runtime_control.py
+        run: sh artifact/python-run.sh -m unittest discover -s artifact -p test_android_runtime_control.py
       - name: Install the system image used by the failed runtime job
         run: |
           test -c /dev/kvm
@@ -46,7 +46,7 @@ jobs:
           getfacl --absolute-names --omit-header /dev/kvm
           timeout 15s "$ANDROID_HOME/emulator/emulator" -no-window -accel-check
       - name: Observe a fresh image without any SDK application
-        run: python3 -I artifact/android_runtime_control.py
+        run: sh artifact/python-run.sh artifact/android_runtime_control.py
       - name: Retain public control observations including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

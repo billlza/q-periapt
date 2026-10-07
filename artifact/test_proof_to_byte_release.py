@@ -840,6 +840,30 @@ def extract_ci_check_job(workflow: str) -> str:
     return extract_workflow_job(workflow, "check")
 
 
+def workflow_path_filter_lines(source: str) -> set[int]:
+    """Identify only plain trigger path-list entries, never job/env/run content."""
+    parents: list[tuple[int, str]] = []
+    result: set[int] = set()
+    for number, line in enumerate(source.splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indentation = len(line) - len(line.lstrip(" "))
+        while parents and parents[-1][0] >= indentation:
+            parents.pop()
+        key = re.fullmatch(r" *([A-Za-z_][A-Za-z0-9_-]*):(?:\s.*)?", line)
+        if key:
+            parents.append((indentation, key.group(1)))
+        elif line.lstrip().startswith("- "):
+            path = tuple(name for _, name in parents)
+            if path in {
+                ("on", event, field)
+                for event in ("push", "pull_request", "pull_request_target")
+                for field in ("paths", "paths-ignore")
+            }:
+                result.add(number)
+    return result
+
+
 def extract_named_workflow_step(job: str, step_name: str) -> str:
     step_match = re.search(
         rf"(?ms)^      - name: {re.escape(step_name)}\n"
@@ -6366,8 +6390,10 @@ with _temporary_release_test_directories(parents):
         repository_script = re.compile(r"artifact/[A-Za-z0-9_.-]+\.py(?:\s|$)")
         runner_calls = 0
         for workflow in workflows:
+            source = workflow.read_text(encoding="utf-8")
+            path_filters = workflow_path_filter_lines(source)
             for number, line in enumerate(
-                workflow.read_text(encoding="utf-8").splitlines(), start=1
+                source.splitlines(), start=1
             ):
                 if not line.strip() or line.lstrip().startswith("#"):
                     continue
@@ -6375,7 +6401,7 @@ with _temporary_release_test_directories(parents):
                     direct_python.search(line),
                     f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
                 )
-                if repository_script.search(line):
+                if repository_script.search(line) and number not in path_filters:
                     self.assertIn(
                         "sh artifact/python-run.sh",
                         line,
@@ -6383,6 +6409,40 @@ with _temporary_release_test_directories(parents):
                     )
                 runner_calls += line.count("sh artifact/python-run.sh")
         self.assertGreaterEqual(runner_calls, 2)
+
+    def test_python_runner_guard_distinguishes_trigger_paths_and_execution(self) -> None:
+        source = """on:
+  push:
+    paths:
+      - artifact/control.py
+jobs:
+  check:
+    steps:
+      - run: sh artifact/python-run.sh artifact/control.py
+      - run: sh artifact/python-run.sh artifact/other.py
+"""
+        self.assertEqual(workflow_path_filter_lines(source), {4})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            path = workflows / "control.yml"
+            with mock.patch(__name__ + ".ROOT", root):
+                path.write_text(source, encoding="utf-8")
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for replacement, message in (
+                    ("artifact/control.py", "bypasses the one-shot runner"),
+                    ("python3 artifact/control.py", "invokes Python directly"),
+                ):
+                    with self.subTest(replacement=replacement):
+                        path.write_text(source.replace(
+                            "run: sh artifact/python-run.sh artifact/control.py",
+                            "run: " + replacement), encoding="utf-8")
+                        with self.assertRaisesRegex(AssertionError, message):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                path.write_text(source.replace("jobs:\n", "env:\n  SCRIPT: artifact/control.py\njobs:\n"), encoding="utf-8")
+                with self.assertRaisesRegex(AssertionError, "bypasses the one-shot runner"):
+                    self.test_ci_repository_python_calls_use_one_shot_runner()
 
 
 class CameraReadyEvidenceGateTests(unittest.TestCase):
