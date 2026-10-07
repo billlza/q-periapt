@@ -47,10 +47,19 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 `cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
-The Rust job has a 120-minute bound, with a 90-minute limit on the upstream Analyze
+The Rust job has a 180-minute bound, with a 150-minute limit on the upstream Analyze
 step so checkout verification, the separate quality gate and diagnostic retention can finish.
 The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
-52-minute evaluation. Rust and Swift emit the pinned action's diagnostic artifacts, which can
+52-minute evaluation. Later full analyses reached the 90-minute step limit while still
+evaluating global taint flow. A [frozen-database resource control](https://github.com/billlza/q-periapt/actions/runs/37647177049)
+completed all 39 unchanged queries in 82.6 minutes with four threads; the one-thread arm
+reached its 85-minute deadline without a complete result set. That control reused an older
+database and evaluation cache: it does not establish a cold current-source runtime, a
+resource fix, or passage of the product quality gate. The larger bound gives the complete
+analysis more time without changing its runner, queries, or evaluator settings; its
+adequacy remains subject to current-source CI results.
+
+Rust and Swift emit the pinned action's diagnostic artifacts, which can
 include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
 code-scanning results or release evidence. No query is removed, and the custom quality queries
 retain their independent 300-second limits below.
