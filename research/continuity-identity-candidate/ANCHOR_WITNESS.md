@@ -161,6 +161,91 @@ exact new journal. This does not yet qualify a complete device-service replaceme
 coordinator, retired-session loss accounting, foreign replacement APIs, cross-host
 installed flows, independent protocol implementations or physical devices.
 
+### Portable permanent-retirement proof
+
+`AnchorStore::retired_subject_receipt(proposal, subject)` signs the exact immutable
+observation under a separate signature purpose **18**. The independently provisioned
+`AnchorPin::verify_retired_subject(proposal, subject, wire)` authenticates both
+signatures and the complete expected replacement, old subject and successor. It
+returns the opaque `AnchorRetiredSubject`, with its original witness binding. There
+is no conversion to `AnchorReply`, ordinary `Current`, a new operating owner or a
+host loss-accounting acknowledgement.
+
+The body is 377 bytes: `QPDRTR01[8] || witness[32] || replacement[32] || subject[96]
+|| head[48] || last_present[1] || last_command[32] || frozen_state[32] || successor[96]`.
+The existing two-signature envelope makes the exact wire length 3754 bytes. All
+truncations, trailing data, invalid signature components and noncanonical absent
+last-command fields fail. Existing signature purposes and ordinary network request
+and reply layouts are unchanged. This new proof uses neither their tag nor purpose.
+
+The fact is permanent, so it has no freshness nonce or current-policy time grant.
+Issuance is read-only and can be repeated after policy close, witness reopen, later
+successor progress or another replacement. Randomized signatures can differ while
+the body remains identical. The original witness key and independent storage
+continuity remain trust assumptions; a compromised witness is not repaired by this
+proof. Distribute it through the application's independently authorized control
+plane, rather than adding an unauthenticated management endpoint.
+
+A valid proof identifies the frozen authoritative image, **not every retained local
+write intent**. A real `install_roster` test interrupts Advance before processing:
+the journal preserves its sealed pending target while the witness and current image
+remain unchanged. A prior backup has that same image and no pending target. Both
+therefore match the same retirement proof. Receipt-only local cleanup would fail to
+distinguish those snapshots. The separate inventory binding below preserves that
+distinction; a complete cleanup coordinator must retain the original request outside
+old-journal backups before dispatch and before releasing a report.
+
+### Independent retired-journal inventory binding
+
+`DeviceJournal::retired_cleanup_proposal(path, key, identity, retired)` reads the real
+encrypted journal under its original exclusive lease and authenticates the current
+image and complete pending record. The verified retirement must match the journal,
+owner, original policy and independently pinned witness. The current image must
+match the frozen witness head, or its authenticated, already sealed pending target
+must match that head exactly. This covers an advance committed at the witness whose
+reply was lost before local installation. A bound G/P/R target already installed
+locally retains its pending record in the inventory. Reading does not apply a target,
+change G/P/R, dispatch a network request or return an operational journal owner.
+
+The canonical `AnchorRetiredCleanupProposal` is 313 bytes:
+`QPRCLP01[8] || witness[32] || replacement[32] || subject[96] || frozen_state[32]
+|| frozen_head[48] || stored_image_digest[32] || pending_present[1] || pending_digest[32]`.
+The pending digest covers the complete authenticated local pending wire, including
+cancellation intents; absence has canonical zero padding. The proposal binding uses
+`Q-PERIAPT-CONTINUITY-RETIRED-CLEANUP-INVENTORY/v1`, and the pending digest uses
+`Q-PERIAPT-CONTINUITY-RETIRED-LOCAL-INTENT/v1`. No secret material is exported.
+
+An independently authenticated controller calls `AnchorStore::retain_retired_cleanup`
+with the original retained proposal. Public proposal bytes are not caller authority.
+The first inventory is committed permanently; exact retries are read-only and any
+different inventory for the same retired subject conflicts. An I/O failure may hide
+commit, so the coordinator must reopen and reconcile the same independently retained
+proposal, never generate a new one from whichever backup is now available. An
+`Unavailable` observation does not resolve an outstanding invocation. The store
+preserves the old entry and its G/P/R history byte for byte.
+
+Store format `QPANC012` retains the complete `QPANC011` image and appends a nonempty
+u16 count followed by sorted `subject_id[32] || proposal[313]` records. Every record
+must match its retained replacement decision and frozen subject. The existing
+256-entry and 1-MiB bounds remain; records are never evicted. Earlier supported store
+formats open with no retained cleanup inventories; an older reader rejects v12.
+
+After retention, `retired_cleanup_receipt` signs the canonical proposal under the
+distinct purpose **19**. Its envelope is 3690 bytes. `AnchorPin::verify_retired_cleanup`
+requires the exact original proposal, verified retirement and pinned witness, and
+returns an opaque `AnchorRetiredCleanup`. This permanent historical fact needs no
+current policy grant and cannot convert to an ordinary witness reply. Ordinary
+network layouts and the C ABI are unchanged.
+
+Regression coverage includes actual interrupted ordinary writes, the real roster
+Prepared / witness-Applied / locally-installed-with-pending stages, older backups
+omitting pending state, exclusive-lease and identity rejection, authenticated store
+corruption, each measured before/after sync fault, and process loss after commit
+before return. Actual G/P and cancellation inventory scenarios still need dedicated
+end-to-end coverage. The high-level coordinator, complete session/fanout loss report,
+host acknowledgement and logical erasure protocol remain open. Neither proof nor
+inventory retention authorizes report acceptance, erasure or new runtime work.
+
 ### Explicit refresh under a newer roster
 
 The native trusted operator uses

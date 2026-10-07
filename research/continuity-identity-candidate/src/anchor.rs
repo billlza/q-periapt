@@ -17,8 +17,8 @@ mod policy_renewal;
 pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
 pub use store::{
-    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredSubject,
-    AnchorStore,
+    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredCleanup,
+    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};
@@ -54,6 +54,9 @@ pub struct AnchorSubject {
     policy: [u8; 32],
 }
 impl AnchorSubject {
+    pub(crate) fn journal_parts(self) -> ([u8; 32], [u8; 32], [u8; 32]) {
+        (self.journal, self.owner, self.policy)
+    }
     /// Canonical public metadata for retention in an authenticated local intent.
     pub fn to_bytes(self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(96);

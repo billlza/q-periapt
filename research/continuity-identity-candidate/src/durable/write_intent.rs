@@ -50,6 +50,7 @@ enum BoundTransaction {
     Policy(PolicyRenewalBinding),
     Roster(crate::RosterRefreshScope),
 }
+mod retired_cleanup;
 mod roster_refresh;
 pub(super) use roster_refresh::reserve_roster_refresh;
 mod policy_renewal;
@@ -349,6 +350,7 @@ enum SnapshotAdmission {
     CredentialRecovery,
     PolicyRecovery,
     RosterRecovery,
+    RetiredCleanup,
 }
 
 fn load_snapshot_as(
@@ -406,7 +408,7 @@ fn load_pending_snapshot(
             ) | (
                 SnapshotAdmission::RosterRecovery,
                 Some(BoundTransaction::Roster(_))
-            )
+            ) | (SnapshotAdmission::RetiredCleanup, Some(_))
         ) && value.value() == intent.target
         {
             intent.check_transaction_image(&image)?;

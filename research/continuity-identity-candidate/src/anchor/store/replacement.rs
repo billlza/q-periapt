@@ -4,6 +4,9 @@ use super::*;
 use crate::{HistoricalSessionPolicy, PolicyCheckpoint, RosterCheckpoint};
 use std::collections::BTreeSet;
 
+#[path = "replacement_receipt.rs"]
+mod receipt;
+
 const MAX_PROPOSAL_BYTES: usize = 450 + MAX_ENTRIES * 224;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -188,6 +191,7 @@ pub enum AnchorDeviceReplacementState {
 /// It cannot be used as a normal anchor reply or authorize a journal advance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AnchorRetiredSubject {
+    witness: [u8; 32],
     subject: AnchorSubject,
     head: AnchorHead,
     last: Option<[u8; 32]>,
@@ -196,6 +200,10 @@ pub struct AnchorRetiredSubject {
     successor: AnchorSubject,
 }
 impl AnchorRetiredSubject {
+    /// Original independently pinned witness instance and key binding.
+    pub fn witness_binding(self) -> [u8; 32] {
+        self.witness
+    }
     /// Original retired subject.
     pub fn subject(self) -> AnchorSubject {
         self.subject
@@ -659,8 +667,21 @@ impl AnchorStore {
             return Err(Error::Scope.into());
         }
         let image = self.image()?;
+        image.retired_observation(p, subject, &pin)
+    }
+}
+impl Image {
+    pub(super) fn retired_observation(
+        &self,
+        p: &AnchorDeviceReplacementProposal,
+        subject: AnchorSubject,
+        pin: &AnchorPin,
+    ) -> Result<AnchorRetiredSubject, DurableError> {
+        if p.witness != pin.binding {
+            return Err(Error::Scope.into());
+        }
         let binding = p.binding()?;
-        if image.replacements.get(&binding) != Some(p) {
+        if self.replacements.get(&binding) != Some(p) {
             return Err(DurableError::Absent);
         }
         let predecessor = p
@@ -668,11 +689,12 @@ impl AnchorStore {
             .iter()
             .find(|old| old.subject == subject)
             .ok_or(Error::Scope)?;
-        let entry = image
+        let entry = self
             .entries
             .get(&subject.id(&pin.binding))
             .ok_or(DurableError::Corrupt)?;
         Ok(AnchorRetiredSubject {
+            witness: pin.binding,
             subject,
             head: entry.head,
             last: entry.last,

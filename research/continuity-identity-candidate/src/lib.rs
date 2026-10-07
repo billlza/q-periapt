@@ -94,6 +94,7 @@ pub use anchor::{
     AnchorCredentialRenewalState, AnchorDeviceReplacementProposal, AnchorDeviceReplacementState,
     AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
     AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply, AnchorRequest,
+    AnchorRetiredCleanup, AnchorRetiredCleanupProposal, AnchorRetiredCleanupState,
     AnchorRetiredSubject, AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore,
     AnchorSubject, AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };

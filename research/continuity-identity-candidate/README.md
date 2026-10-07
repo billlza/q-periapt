@@ -204,7 +204,9 @@ ML-DSA additionally uses `C` as its external context, with the ordinary ML-DSA
 message encoding. Purposes are credential=1, roster=2, manifest=3,
 session policy=4, bootstrap initiator=5, bootstrap responder=6, witness request=7,
 witness reply=8, rekey offer/response/final/receipt/request=9/10/11/12/13,
-enrollment request=14, credential renewal=15 and joint policy continuation=16.
+enrollment request=14, credential renewal=15, joint policy continuation=16,
+independent policy renewal=17, permanent witness retirement=18 and
+retired-journal cleanup inventory retention=19.
 The envelope is `body_length:u32 || body || signature[3373]` and admits at most
 16,384 body bytes. ECDSA and ML-DSA are both required; neither is a fallback.
 

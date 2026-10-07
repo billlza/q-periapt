@@ -1163,3 +1163,339 @@ fn adopted_policy_blocks_replacement_rollback_and_retired_policy_operations() {
         renewal.target_head()
     );
 }
+
+#[test]
+fn retirement_receipt_is_permanent_history_across_reopen_and_successor_replacement() {
+    let mut c = required_case();
+    let old = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [193; 32]).expect("old command"),
+    );
+    let head = apply_request(&mut c, &old)
+        .applied_head()
+        .expect("old head");
+    let next = fresh(&c, 2, 2, 186);
+    let p = first_proposal(&mut c, &next);
+    assert!(matches!(
+        c.store.retired_subject_receipt(&p, c.genesis.subject()),
+        Err(DurableError::Absent)
+    ));
+    commit(&mut c, &p, &next, 150).expect("retirement committed");
+    let before = c.store.image().expect("before issue").digest;
+    let receipt = c
+        .store
+        .retired_subject_receipt(&p, c.genesis.subject())
+        .expect("signed retirement");
+    assert_eq!(receipt.len(), 3754);
+    let observed = c
+        .pin
+        .verify_retired_subject(&p, c.genesis.subject(), &receipt)
+        .expect("pinned historical fact");
+    assert_eq!(observed.witness_binding(), c.pin.binding());
+    assert_eq!(observed.observed_head(), head);
+    assert_eq!(observed.last_command_id(), Some(old.command_id()));
+    assert_eq!(
+        observed,
+        c.store
+            .retired_subject_observation(&p, c.genesis.subject())
+            .expect("same trusted fact")
+    );
+    assert_eq!(
+        c.store.image().expect("issuance is read only").digest,
+        before
+    );
+    let newest = fresh(&c, 3, 3, 188);
+    let next_p = prepare(
+        &mut c,
+        &newest,
+        next.genesis.subject(),
+        next.device.roster().checkpoint(),
+    );
+    commit(&mut c, &next_p, &newest, 150).expect("successor also retired");
+    c.store.close();
+    c.store = reopen(&c.server);
+    c.peer
+        .responder
+        .current_policy()
+        .expect("original policy")
+        .close();
+    let before = c.store.image().expect("after future replacement").digest;
+    let reissued = c
+        .store
+        .retired_subject_receipt(&p, c.genesis.subject())
+        .expect("historical reissue needs no current policy");
+    assert_eq!(
+        open_envelope(&receipt).expect("first body").0,
+        open_envelope(&reissued).expect("same body").0
+    );
+    assert_eq!(
+        c.pin
+            .verify_retired_subject(&p, c.genesis.subject(), &reissued)
+            .expect("same permanent fact"),
+        observed
+    );
+    assert_eq!(
+        c.store.image().expect("no historical mutation").digest,
+        before
+    );
+    assert_retired(&mut c, AnchorOperation::query());
+}
+
+#[test]
+fn retirement_receipt_requires_both_signatures_exact_pin_proposal_and_subject() {
+    let mut c = required_case();
+    let next = fresh(&c, 2, 2, 190);
+    let alternative = fresh(&c, 2, 2, 192);
+    let p = first_proposal(&mut c, &next);
+    let other = first_proposal(&mut c, &alternative);
+    commit(&mut c, &p, &next, 150).expect("original transition");
+    let wire = c
+        .store
+        .retired_subject_receipt(&p, c.genesis.subject())
+        .expect("receipt");
+    for end in 0..wire.len() {
+        assert!(c
+            .pin
+            .verify_retired_subject(&p, c.genesis.subject(), wire.get(..end).expect("prefix"))
+            .is_err());
+    }
+    let mut trailing = wire.clone();
+    trailing.push(0);
+    assert!(c
+        .pin
+        .verify_retired_subject(&p, c.genesis.subject(), &trailing)
+        .is_err());
+    assert!(c
+        .pin
+        .verify_retired_subject(&other, c.genesis.subject(), &wire)
+        .is_err());
+    assert!(c
+        .pin
+        .verify_retired_subject(&p, next.genesis.subject(), &wire)
+        .is_err());
+    let wrong_instance = AnchorPin::new(
+        AnchorIdentity::generate().expect("other instance"),
+        c.pin.public_key().clone(),
+    );
+    assert!(wrong_instance
+        .verify_retired_subject(&p, c.genesis.subject(), &wire)
+        .is_err());
+    let wrong_key = AnchorPin::new(
+        c.pin.identity(),
+        AnchorSigningKey::generate()
+            .expect("other signer")
+            .public_key()
+            .expect("key"),
+    );
+    assert!(wrong_key
+        .verify_retired_subject(&p, c.genesis.subject(), &wire)
+        .is_err());
+    for offset in [4 + 377, 4 + 377 + 3309] {
+        let mut corrupted = wire.clone();
+        *corrupted.get_mut(offset).expect("signature component") ^= 1;
+        assert!(c
+            .pin
+            .verify_retired_subject(&p, c.genesis.subject(), &corrupted)
+            .is_err());
+    }
+    let observed = c
+        .pin
+        .verify_retired_subject(&p, c.genesis.subject(), &wire)
+        .expect("both signatures correct");
+    assert_eq!(observed.observed_head(), initial(&c));
+    assert_eq!(observed.last_command_id(), None);
+}
+
+#[test]
+fn retirement_receipt_cannot_be_an_operating_reply_or_another_signature_purpose() {
+    let mut c = required_case();
+    let next = fresh(&c, 2, 2, 194);
+    let p = first_proposal(&mut c, &next);
+    commit(&mut c, &p, &next, 150).expect("retire original");
+    let wire = c
+        .store
+        .retired_subject_receipt(&p, c.genesis.subject())
+        .expect("retirement");
+    let old_query = request(&c, AnchorOperation::query());
+    assert!(c.pin.verify_reply(&old_query, &wire).is_err());
+    let before = c.store.image().expect("before wrong request").digest;
+    assert!(c.store.handle(&wire, 150).is_err());
+    assert_eq!(c.store.image().expect("never a write").digest, before);
+    let body = open_envelope(&wire).expect("body").0;
+    let wrong_purpose = c
+        .store
+        .active
+        .as_ref()
+        .expect("owner")
+        .signer
+        .sign(Purpose::AnchorReply, body)
+        .expect("explicit wrong-purpose control");
+    let wrong = envelope(body, &wrong_purpose).expect("wire");
+    assert!(c
+        .pin
+        .verify_retired_subject(&p, c.genesis.subject(), &wrong)
+        .is_err());
+    // Even correctly signed bytes must carry the exact retained replacement,
+    // original subject, frozen state commitment and successor.
+    for offset in [8 + 32, 8 + 32 + 32, 8 + 32 + 32 + 96 + 48 + 33, 377 - 1] {
+        let mut altered = body.to_vec();
+        *altered.get_mut(offset).expect("public field") ^= 1;
+        let signature = c
+            .store
+            .active
+            .as_ref()
+            .expect("signer")
+            .signer
+            .sign(Purpose::AnchorRetirement, &altered)
+            .expect("signed substitution control");
+        let wrong = envelope(&altered, &signature).expect("wire");
+        assert!(c
+            .pin
+            .verify_retired_subject(&p, c.genesis.subject(), &wrong)
+            .is_err());
+    }
+    assert_eq!(query(&mut c, &next).outcome(), AnchorOutcome::Current);
+}
+
+#[test]
+fn retirement_head_does_not_identify_every_retained_local_write_intent() {
+    use std::{
+        io,
+        sync::{atomic::AtomicBool, Arc, Mutex},
+    };
+    struct BeforeAdvance {
+        store: Arc<Mutex<AnchorStore>>,
+        pin: AnchorPin,
+        intercepted: Arc<AtomicBool>,
+    }
+    impl crate::AnchorTransport for BeforeAdvance {
+        fn exchange(&mut self, wire: &[u8], _: Instant) -> io::Result<Vec<u8>> {
+            let request = incoming(&self.pin, wire).map_err(io::Error::other)?;
+            if matches!(request.operation.0, Command::Advance(..)) {
+                self.intercepted.store(true, Ordering::SeqCst);
+                return Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "original advance not processed",
+                ));
+            }
+            self.store
+                .lock()
+                .map_err(|_| io::Error::other("witness lock"))?
+                .handle(wire, 150)
+                .map_err(io::Error::other)
+        }
+    }
+    fn retained_rows(path: &Path) -> (Vec<u8>, Option<Vec<u8>>) {
+        let db = open_private_database(path).expect("closed original journal");
+        let read = db.begin_read().expect("read");
+        let table = read
+            .open_table(TableDefinition::<&str, &[u8]>::new(
+                "continuity_device_candidate_v21",
+            ))
+            .expect("existing journal table");
+        let image = table
+            .get("image")
+            .expect("lookup")
+            .expect("image")
+            .value()
+            .to_vec();
+        let pending = table
+            .get("pending")
+            .expect("lookup")
+            .map(|p| p.value().to_vec());
+        (image, pending)
+    }
+    let mut c = required_case();
+    let next = fresh(&c, 2, 2, 196);
+    let proposal = first_proposal(&mut c, &next);
+    let subject = c.genesis.subject();
+    let original_head = initial(&c);
+    let journal_path = c.server.parent().expect("root").join("client/state.redb");
+    let key_path = c.server.parent().expect("root").join("client/key");
+    let identity = c._journal.identity().expect("original ID");
+    c._journal.close();
+    let before = retained_rows(&journal_path);
+    assert!(before.1.is_none());
+    let original_journal_bytes = fs::read(&journal_path).expect("closed backup snapshot");
+    let store = Arc::new(Mutex::new(c.store));
+    let intercepted = Arc::new(AtomicBool::new(false));
+    let client = crate::AnchorClient::new(
+        c.pin.clone(),
+        c.peer.signer_r,
+        Box::new(BeforeAdvance {
+            store: Arc::clone(&store),
+            pin: c.pin.clone(),
+            intercepted: Arc::clone(&intercepted),
+        }),
+        Duration::from_secs(5),
+    )
+    .expect("real signed client");
+    let (policy, original, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("original authority");
+    let mut journal = DeviceJournal::open_anchored(
+        &journal_path,
+        JournalKey::open(&key_path).expect("same key"),
+        original,
+        policy,
+        identity,
+        client,
+    )
+    .expect("actual current journal");
+    let devices = c.peer.initiator.devices();
+    let remote_roster = devices.first().expect("initiator device").roster();
+    assert_ne!(remote_roster.account_id(), original.account_id());
+    let attempted = journal.install_roster(remote_roster, 150);
+    assert!(
+        matches!(attempted, Err(DurableError::Anchor(_))),
+        "actual roster result: {attempted:?}"
+    );
+    assert!(intercepted.load(Ordering::SeqCst));
+    assert!(matches!(journal.identity(), Err(DurableError::Closed)));
+    let after = retained_rows(&journal_path);
+    assert_eq!(after.0, before.0);
+    assert!(
+        after.1.is_some(),
+        "actual original sealed write intent remains"
+    );
+    let observed = {
+        let mut witness = store.lock().expect("trusted controller");
+        let proof = [(subject, original.roster().checkpoint(), policy.historical())];
+        witness
+            .replace_device(&proposal, &next.genesis, &next.device, policy, &proof, 150)
+            .expect("same unchanged witness predecessor");
+        let wire = witness
+            .retired_subject_receipt(&proposal, subject)
+            .expect("actual retirement proof");
+        c.pin
+            .verify_retired_subject(&proposal, subject, &wire)
+            .expect("permanent frozen fact")
+    };
+    assert_eq!(observed.observed_head(), original_head);
+    assert_eq!(
+        observed.observed_head().digest(),
+        digest(b"Q-PERIAPT-CONTINUITY-VAULT-IMAGE-CANDIDATE/v2", &after.0)
+    );
+    let backup = c
+        .server
+        .parent()
+        .expect("root")
+        .join("before-intent-backup");
+    fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&backup)
+        .expect("private backup directory");
+    let backup_path = backup.join("state.redb");
+    fs::write(&backup_path, original_journal_bytes).expect("restore exact earlier snapshot");
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600)).expect("private snapshot");
+    let restored = retained_rows(&backup_path);
+    assert_eq!(restored.0, after.0);
+    assert!(restored.1.is_none());
+    eprintln!("RETIRED_LOCAL_INTENT_BOUNDARY actual_roster_write=true advance_unprocessed=true same_frozen_image=true retained_pending_differs=true retirement_receipt_is_not_complete_local_inventory=true");
+}
+
+#[path = "retired_cleanup_tests.rs"]
+mod cleanup;
