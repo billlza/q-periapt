@@ -33,7 +33,9 @@ q-periapt-mlkem-native-sys = { version = "=0.2.0", path = "../q-periapt-mlkem-na
 fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
 # X25519: deterministic from a 32-byte scalar (no RNG needed via StaticSecret).
 # `zeroize` makes StaticSecret wipe its scalar on drop (defense-in-depth for ephemeral secrets).
-x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
+# Restore upstream's fixed-base table for keygen/encapsulation; the SDK A/B and
+# binary-size tradeoff are recorded in docs/SDK_X25519_TABLES.md.
+x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize", "precomputed-tables"] }
 # Standardized SHA3-256 and SHAKE-256 use the current RustCrypto split crates.
 # Both sponge state and cursor are zeroized on drop. FIPS backends retain their
 # own sha3 0.10 dependency until upstream migrates; never force its trait version.

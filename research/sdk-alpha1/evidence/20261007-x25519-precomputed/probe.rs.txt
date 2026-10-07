@@ -1,0 +1,172 @@
+#![forbid(unsafe_code)]
+
+use q_periapt_sdk::{Ciphertext, Error, HybridKey, Limits, Runtime};
+use std::{hint::black_box, time::Instant};
+
+type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
+const WARMUP: usize = 64;
+
+fn runtime() -> Result<Runtime> {
+    Ok(Runtime::from_signed_policy(
+        include_bytes!("../fixtures/policy.toml"),
+        include_bytes!("../fixtures/signature.bin"),
+        include_bytes!("../fixtures/root.bin"),
+        None,
+        Limits::default(),
+    )?)
+}
+
+fn hex32(input: &str) -> Result<[u8; 32]> {
+    if input.len() != 64 {
+        return Err("invalid fixed test vector".into());
+    }
+    let mut out = [0; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&input[i * 2..i * 2 + 2], 16)?;
+    }
+    Ok(out)
+}
+
+fn rfc7748() -> Result {
+    use x25519_dalek::{PublicKey, StaticSecret};
+    // Public RFC 7748 section 6.1 vectors, also shipped in upstream tests.
+    let alice = StaticSecret::from(hex32(
+        "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+    )?);
+    let bob = StaticSecret::from(hex32(
+        "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+    )?);
+    let alice_public = PublicKey::from(&alice);
+    let bob_public = PublicKey::from(&bob);
+    assert_eq!(
+        alice_public.to_bytes(),
+        hex32("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")?
+    );
+    assert_eq!(
+        bob_public.to_bytes(),
+        hex32("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")?
+    );
+    let shared = hex32("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742")?;
+    assert_eq!(alice.diffie_hellman(&bob_public).to_bytes(), shared);
+    assert_eq!(bob.diffie_hellman(&alice_public).to_bytes(), shared);
+    Ok(())
+}
+
+fn roundtrip(runtime: &Runtime, key: &HybridKey, context: &[u8]) -> Result {
+    let sent = runtime.encapsulate(key.public_key()?, context)?;
+    let received = key.decapsulate(&sent.ciphertext, context)?;
+    let expected = sent.secret.export_for_protocol()?;
+    assert_eq!(
+        expected.as_bytes(),
+        received.export_for_protocol()?.as_bytes()
+    );
+    let mut wrong_context = context.to_vec();
+    wrong_context[0] ^= 1;
+    let wrong = key.decapsulate(&sent.ciphertext, &wrong_context)?;
+    assert_ne!(expected.as_bytes(), wrong.export_for_protocol()?.as_bytes());
+    let mut corrupt = sent.ciphertext.to_bytes();
+    corrupt[0] ^= 1;
+    let rejected = key.decapsulate(&Ciphertext::from_bytes(&corrupt)?, context)?;
+    assert_ne!(
+        expected.as_bytes(),
+        rejected.export_for_protocol()?.as_bytes()
+    );
+    Ok(())
+}
+
+fn sample(mut operation: impl FnMut() -> Result, count: usize) -> Result<Vec<u64>> {
+    for _ in 0..WARMUP {
+        operation()?;
+    }
+    let mut times = Vec::with_capacity(count);
+    for _ in 0..count {
+        let start = Instant::now();
+        operation()?;
+        let ns = u64::try_from(start.elapsed().as_nanos())?;
+        if ns == 0 {
+            return Err("timer returned zero elapsed nanoseconds".into());
+        }
+        times.push(ns);
+    }
+    Ok(times)
+}
+
+fn cell(operation: &str, context_bytes: usize, times: Vec<u64>) {
+    println!(
+        "{{\"operation\":\"{operation}\",\"context_bytes\":{context_bytes},\"ns\":{times:?}}}"
+    );
+}
+
+fn main() -> Result {
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.len() != 1 {
+        return Err("one sample count is required (200..5000)".into());
+    }
+    let count: usize = args[0].parse()?;
+    if !(200..=5000).contains(&count) {
+        return Err("sample count outside 200..5000".into());
+    }
+    rfc7748()?;
+    let runtime = runtime()?;
+    let key = runtime.generate_key()?;
+    println!("{{\"format\":1,\"precomputed_tables\":{},\"samples\":{count},\"warmup\":{WARMUP},\"clock\":\"std::time::Instant\"}}", cfg!(feature = "precomputed"));
+    cell(
+        "keygen",
+        0,
+        sample(
+            || {
+                let mut fresh = runtime.generate_key()?;
+                black_box(fresh.public_key()?.to_bytes());
+                fresh.close();
+                Ok(())
+            },
+            count,
+        )?,
+    );
+    for size in [32, 4096, 65536] {
+        let context = vec![0x53; size];
+        roundtrip(&runtime, &key, &context)?;
+        let input = runtime.encapsulate(key.public_key()?, &context)?;
+        cell(
+            "encapsulate",
+            size,
+            sample(
+                || {
+                    let mut encapsulated = runtime.encapsulate(key.public_key()?, &context)?;
+                    black_box(encapsulated.ciphertext.to_bytes());
+                    let exported = encapsulated.secret.export_for_protocol()?;
+                    black_box(exported.as_bytes());
+                    drop(exported);
+                    encapsulated.secret.close();
+                    Ok(())
+                },
+                count,
+            )?,
+        );
+        cell(
+            "decapsulate",
+            size,
+            sample(
+                || {
+                    let mut secret = key.decapsulate(&input.ciphertext, &context)?;
+                    let exported = secret.export_for_protocol()?;
+                    black_box(exported.as_bytes());
+                    drop(exported);
+                    secret.close();
+                    Ok(())
+                },
+                count,
+            )?,
+        );
+        roundtrip(&runtime, &key, &context)?;
+    }
+    let pending = runtime.encapsulate(key.public_key()?, &[0x53; 32])?;
+    runtime.close();
+    assert!(matches!(key.public_key(), Err(Error::Closed)));
+    assert!(matches!(
+        pending.secret.export_for_protocol(),
+        Err(Error::Closed)
+    ));
+    println!("{{\"completed\":true,\"rfc7748_checks\":4,\"roundtrip_checks\":6,\"context_rejections\":6,\"implicit_rejections\":6,\"revocation_checks\":2}}");
+    Ok(())
+}

@@ -13,6 +13,15 @@ existing library identities are retained; the SDK has an exact 43-export contrac
 including the original nine unchanged declarations. This source is unpublished;
 the release and evidence statements below refer to the historical 0.1.5 cohort.
 
+The **current 0.2.0 source** selects `mlkem-native` **2.0.0**, `sha3` **0.12.0**,
+`shake` **0.1.0**, and `x25519-dalek` **3.0.0** with fixed-base precomputed tables.
+The tables reduce observed key-generation and encapsulation latency in the
+[installed-archive Rust SDK comparison](docs/SDK_X25519_TABLES.md), with a measured
+binary-size cost. This is a local observation, not a cross-platform performance
+or constant-time guarantee. The [dependency policy](docs/SDK_DEPENDENCY_POLICY.md)
+records the current pins; historical 0.1.5 timing and binary-CT receipts do not
+qualify this dependency graph.
+
 For the product JavaScript/TypeScript entry, use the
 [WASM SDK package quickstart](crates/q-periapt-sdk-wasm/PackageREADME.md).
 Its local npm candidate supports Node CJS/ESM and browser ESM with owned keys;
@@ -406,11 +415,11 @@ The exact status and non-claims are in
 frozen phase-1 bytes remain in
 [`docs/migration/MIGRATION_CONTEXT_V1.md`](docs/migration/MIGRATION_CONTEXT_V1.md).
 
-## Feature matrix vs the target dimensions
+## Retained 0.1.5 feature and research matrix
 
 Legend: ✅ implemented & exercised · 🟡 partial / scaffolded · ⛔ planned, not started.
 
-| Dimension | Target | Today (v0.1.5 stable-version ABI 2 source line) |
+| Dimension | Target | Retained 0.1.5 ABI 2 source baseline |
 |---|---|---|
 | Auditable `no_std` core | dependency-free combiner + traits, builds bare-metal | ✅ `q-periapt-core` (zero crypto deps; `#![deny(unsafe_code)]` with ONE documented shared secure-wipe block; builds `thumbv7em-none-eabihf`) |
 | Hybrid KEM | ML-KEM-768 + X25519, with independently bounded algorithm-diversity research | ✅ ML-KEM-768 through the target-selected `q-periapt-mlkem-native-sys` boundary (`mlkem-native` v1.2.0) + X25519 (x25519-dalek) are wired. Exactly five little-endian AArch64 Apple/Linux/Android targets use the fixed native arithmetic/FIPS 202 profile; every other target, including Wasm, stays portable C. Real hybrid encap/decap round-trips run under `ContextBound` with expanded ML-KEM keys and under `CompatXWing` with the X-Wing seed-dk backend. The **enhanced** suite **ML-KEM-1024 + X25519** is instantiated end-to-end (real `HybridKem<MlKem1024,X25519>`, ACVP + differential + a pinned, independently cross-checked KAT) and is `ContextBound`-only. **ML-KEM-512** (L1) also has a verified backend, so the FIPS-203 family (512/768/1024) is ACVP + differential covered for agility. The old timing-leaky/unmaintained PQClean-HQC adapter and `hqc` feature are gone from the publishable graph; suite code `3` is tombstoned. RustCrypto `hqc-kem 0.1.0-rc.0` lives only in the `publish = false` HQC-v5/FIPS-207-draft shadow crate, with deterministic round-trip/size research tests but no product-suite, ABI, official-IPD-conformance, or final-standard claim. |
@@ -653,7 +662,11 @@ CT attestation. The differential testing (the whole KEM chain — ML-KEM-768, X2
 and the full hybrid — vs independent implementations) proves *output equality*, never
 CT equality.
 
-## Status & disclaimer
+## Historical 0.1.5 status & disclaimer
+
+The dependencies and evidence in this section describe the retained 0.1.5
+source contract. For 0.2.0, use the current dependency policy and readiness
+ledger linked above; the historical results are not transferable.
 
 This is a **research artifact for a doctoral thesis**, not a product.
 
