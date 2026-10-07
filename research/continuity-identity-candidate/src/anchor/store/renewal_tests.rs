@@ -899,6 +899,7 @@ fn killed_prepare_apply_close_and_ack_keep_original_state_without_early_reply() 
 #[test]
 fn joint_storage_upgrade_is_explicit_and_authenticated_inconsistent_floors_are_refused() {
     let mut c = credential_case();
+    legacy_without_original_identity(&mut c);
     let g = credential_grant_first(&c);
     let p = proposal(&c, &g, 223);
     let old = c.store.image().expect("old image");
@@ -1241,11 +1242,14 @@ fn grant_only_close_never_creates_target_or_current_authority_and_floor_survives
             .expect("exact retry"),
         Cancel::Closed
     );
-    let image = c.store.image().expect("image");
+    let mut image = c.store.image().expect("image");
+    for entry in image.entries.values_mut() {
+        entry.original_identity = None;
+    }
     let active = c.store.active.as_ref().expect("active");
     assert_eq!(
         encode(&active.wrapping, &active.pin, &image)
-            .expect("new encoding")
+            .expect("legacy cancellation encoding")
             .get(..8)
             .expect("version tag"),
         b"QPANC004"
@@ -1645,6 +1649,9 @@ fn cancellation_scope_fresh_reply_and_authenticated_storage_shape_are_exact() {
         .is_err());
     let active = c.store.active.as_ref().expect("active");
     let mut image = load(&active.db, &active.wrapping, &active.pin).expect("valid image");
+    for entry in image.entries.values_mut() {
+        entry.original_identity = None;
+    }
     let valid = encode(&active.wrapping, &active.pin, &image).expect("004 encoding");
     for floor in [0, 1, 3, u64::MAX] {
         image

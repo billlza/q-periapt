@@ -18,6 +18,8 @@ const MAX_IMAGE: usize = 1024 * 1024;
 #[cfg(all(test, unix))]
 mod tests;
 
+mod lineage;
+use lineage::OriginalIdentity;
 mod roster_refresh;
 use roster_refresh::RosterRefresh;
 mod policy_renewal;
@@ -27,6 +29,7 @@ use renewal::{CredentialRenewalRecord, PolicyAuthority};
 
 struct Entry {
     subject: AnchorSubject,
+    original_identity: Option<OriginalIdentity>,
     device: PublicKey,
     credential_owner: [u8; 32],
     authority: [u8; 32],
@@ -173,6 +176,7 @@ impl AnchorStore {
             id,
             Entry {
                 subject,
+                original_identity: Some(OriginalIdentity::from_verified(device)),
                 device: device.key.clone(),
                 credential_owner: storage_owner(device),
                 authority: device.authority_binding(),
@@ -616,10 +620,15 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
-    let roster_format = image
+    let lineage_format = image
         .entries
         .values()
-        .any(|entry| entry.independent_roster.is_some());
+        .any(|entry| entry.original_identity.is_some());
+    let roster_format = lineage_format
+        || image
+            .entries
+            .values()
+            .any(|entry| entry.independent_roster.is_some());
     let independent = roster_format
         || image
             .entries
@@ -649,7 +658,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if roster_format {
+    let mut bytes = if lineage_format {
+        b"QPANC010".to_vec()
+    } else if roster_format {
         b"QPANC009".to_vec()
     } else if independent {
         b"QPANC008".to_vec()
@@ -669,6 +680,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     bytes.extend_from_slice(&(image.entries.len() as u16).to_be_bytes());
     for (id, entry) in &image.entries {
         entry.check_renewal_state(pin)?;
+        if let Some(identity) = &entry.original_identity {
+            identity.check(entry)?;
+        }
         bytes.extend_from_slice(id);
         entry.subject.encode(&mut bytes);
         bytes.extend_from_slice(&entry.device.encode());
@@ -718,6 +732,15 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
                 }
             }
         }
+        if lineage_format {
+            match &entry.original_identity {
+                None => bytes.push(0),
+                Some(identity) => {
+                    bytes.push(1);
+                    identity.encode(&mut bytes);
+                }
+            }
+        }
     }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -748,6 +771,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             *b"QPANC007",
             *b"QPANC008",
             *b"QPANC009",
+            *b"QPANC010",
         ]
         .contains(&version)
             || d.array::<32>()? != pin.binding
@@ -792,6 +816,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 *b"QPANC007",
                 *b"QPANC008",
                 *b"QPANC009",
+                *b"QPANC010",
             ]
             .contains(&version)
             {
@@ -817,15 +842,18 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                             *b"QPANC007",
                             *b"QPANC008",
                             *b"QPANC009",
+                            *b"QPANC010",
                         ]
                         .contains(&version),
                         version == *b"QPANC006"
                             || version == *b"QPANC007"
                             || version == *b"QPANC008"
-                            || version == *b"QPANC009",
+                            || version == *b"QPANC009"
+                            || version == *b"QPANC010",
                         version == *b"QPANC007"
                             || version == *b"QPANC008"
-                            || version == *b"QPANC009",
+                            || version == *b"QPANC009"
+                            || version == *b"QPANC010",
                     )?,
                 )
             } else {
@@ -836,6 +864,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 || version == *b"QPANC007"
                 || version == *b"QPANC008"
                 || version == *b"QPANC009"
+                || version == *b"QPANC010"
             {
                 let floor = d.u64()?;
                 let (credential, policy) = match d.array::<1>()? {
@@ -851,19 +880,29 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             } else {
                 (0, None, None)
             };
-            let independent_policy = if version == *b"QPANC008" || version == *b"QPANC009" {
+            let independent_policy =
+                if version == *b"QPANC008" || version == *b"QPANC009" || version == *b"QPANC010" {
+                    match d.array::<1>()? {
+                        [0] => None,
+                        [1] => Some(PolicyRenewal::decode(&mut d)?),
+                        _ => return Err(DurableError::Corrupt),
+                    }
+                } else {
+                    None
+                };
+            let independent_roster = if version == *b"QPANC009" || version == *b"QPANC010" {
                 match d.array::<1>()? {
                     [0] => None,
-                    [1] => Some(PolicyRenewal::decode(&mut d)?),
+                    [1] => Some(RosterRefresh::decode(&mut d)?),
                     _ => return Err(DurableError::Corrupt),
                 }
             } else {
                 None
             };
-            let independent_roster = if version == *b"QPANC009" {
+            let original_identity = if version == *b"QPANC010" {
                 match d.array::<1>()? {
                     [0] => None,
-                    [1] => Some(RosterRefresh::decode(&mut d)?),
+                    [1] => Some(OriginalIdentity::decode(&mut d)?),
                     _ => return Err(DurableError::Corrupt),
                 }
             } else {
@@ -878,6 +917,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             }
             let entry = Entry {
                 subject,
+                original_identity,
                 device,
                 credential_owner,
                 authority,
@@ -895,9 +935,19 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 independent_roster,
             };
             entry.check_renewal_state(pin)?;
+            if let Some(identity) = &entry.original_identity {
+                identity.check(&entry)?;
+            }
             entries.insert(id, entry);
         }
         d.finish()?;
+        if version == *b"QPANC010"
+            && !entries
+                .values()
+                .any(|entry| entry.original_identity.is_some())
+        {
+            return Err(DurableError::Corrupt);
+        }
         Ok(Image {
             revision,
             digest: image_digest(bytes),

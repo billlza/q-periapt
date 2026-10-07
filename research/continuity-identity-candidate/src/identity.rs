@@ -182,6 +182,22 @@ pub(crate) fn account_id(root: &PublicKey) -> [u8; 32] {
 fn certificate_digest(body: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-CREDENTIAL-CANDIDATE/v1", body)
 }
+// Reconstruct the existing canonical credential commitment for authenticated
+// storage invariants. This projection does not verify a signature or admit a user.
+pub(crate) fn device_credential_digest(
+    account: [u8; 32],
+    description: &DeviceDescription,
+    key: &PublicKey,
+) -> [u8; 32] {
+    certificate_digest(
+        &Credential {
+            account,
+            description: description.clone(),
+            key: key.clone(),
+        }
+        .encode(),
+    )
+}
 fn roster_digest(body: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ROSTER-CANDIDATE/v1", body)
 }

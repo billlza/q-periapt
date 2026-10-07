@@ -1712,8 +1712,11 @@ fn credential_authority_renewal_refuses_wrong_scope_operation_predecessor_and_fo
 #[test]
 fn credential_authority_renewal_upgrades_authenticated_original_witness_storage_without_reset() {
     let mut c = credential_case();
-    let image = c.store.image().expect("original");
+    let mut image = c.store.image().expect("original");
     assert_eq!(image.entries.len(), 1);
+    for entry in image.entries.values_mut() {
+        entry.original_identity = None;
+    }
     let active = c.store.active.as_ref().expect("active");
     let mut legacy = encode(&active.wrapping, &active.pin, &image).expect("v2 image");
     legacy.truncate(legacy.len() - 32);
@@ -1985,3 +1988,471 @@ fn credential_authority_renewal_process_loss_recovers_original_grant_before_any_
 
 #[path = "renewal_tests.rs"]
 mod joint;
+
+// Materialize the actual pre-lineage format for migration tests. This is an
+// authenticated legacy fixture, not a product API for deleting retained identity.
+fn legacy_without_original_identity(c: &mut Case) {
+    let mut image = c.store.image().expect("current source fixture");
+    for entry in image.entries.values_mut() {
+        entry.original_identity = None;
+    }
+    let active = c.store.active.as_ref().expect("active");
+    let bytes = encode(&active.wrapping, &active.pin, &image).expect("legacy format");
+    let tx = transaction(&active.db).expect("legacy fixture transaction");
+    tx.open_table(TABLE)
+        .expect("table")
+        .insert("image", bytes.as_slice())
+        .expect("fixture");
+    tx.commit().expect("durable legacy fixture");
+    c.store.close();
+    c.store = reopen(&c.server);
+}
+
+#[test]
+fn original_identity_enrollment_and_expired_exact_retry_preserve_all_authority() {
+    let mut c = renewal_case();
+    let (_, original, _) = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("original identity");
+    let original = original.clone();
+    let before = c.store.image().expect("enrolled");
+    let id = c.genesis.subject().id(&c.pin.binding());
+    let entry = before.entries.get(&id).expect("entry");
+    assert_eq!(
+        entry.original_identity,
+        Some(OriginalIdentity::from_verified(&original))
+    );
+    let active = c.store.active.as_ref().expect("active");
+    let bytes = encode(&active.wrapping, &active.pin, &before).expect("new encoding");
+    assert_eq!(bytes.get(..8), Some(b"QPANC010".as_slice()));
+    assert!(matches!(
+        original.roster().check_time(180),
+        Err(Error::Validity)
+    ));
+    c.store
+        .retain_original_identity(c.genesis.subject(), &original)
+        .expect("history is metadata");
+    assert_eq!(c.store.image().expect("exact retry").digest, before.digest);
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert_eq!(
+        c.store.image().expect("retained original").digest,
+        before.digest
+    );
+}
+
+#[test]
+fn original_identity_migration_after_real_renewal_keeps_current_authority_and_last_command() {
+    let mut c = credential_case();
+    let grant = credential_grant_first(&c);
+    let operation = AnchorOperation::advance(initial(&c), [211; 32]).expect("advance");
+    let first = request(&c, operation);
+    let head = apply_request(&mut c, &first).applied_head().expect("head");
+    let policy = c.peer.responder.current_policy().expect("policy");
+    c.store
+        .renew_credential_authority(c.genesis.subject(), &grant, grant.operation(), policy, 170)
+        .expect("actual renewal");
+    let origin = grant.previous_device().clone();
+    legacy_without_original_identity(&mut c);
+    let before = c.store.image().expect("legacy renewal");
+    let id = c.genesis.subject().id(&c.pin.binding());
+    let old = before.entries.get(&id).expect("entry");
+    assert!(old.original_identity.is_none());
+    assert_ne!(old.credential_owner, storage_owner(&origin));
+    assert!(matches!(
+        c.store
+            .retain_original_identity(c.genesis.subject(), grant.successor_device()),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    assert_eq!(
+        c.store.image().expect("successor is not original").digest,
+        before.digest
+    );
+    c.store
+        .retain_original_identity(c.genesis.subject(), &origin)
+        .expect("original historical owner");
+    c.store.close();
+    c.store = reopen(&c.server);
+    let after = c.store.image().expect("migrated");
+    let new = after.entries.get(&id).expect("entry");
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(
+        new.original_identity,
+        Some(OriginalIdentity::from_verified(&origin))
+    );
+    assert_eq!(
+        (
+            new.subject,
+            new.credential_owner,
+            new.authority,
+            new.validity,
+            new.genesis,
+            new.head,
+            new.last
+        ),
+        (
+            old.subject,
+            old.credential_owner,
+            old.authority,
+            old.validity,
+            old.genesis,
+            old.head,
+            old.last
+        )
+    );
+    assert_eq!(new.head, head);
+    c.store
+        .retain_original_identity(c.genesis.subject(), &origin)
+        .expect("exact retry");
+    assert_eq!(
+        c.store.image().expect("no duplicate mutation").digest,
+        after.digest
+    );
+    let retry = request(&c, operation);
+    assert_eq!(
+        apply_request(&mut c, &retry).outcome(),
+        AnchorOutcome::AlreadyAppliedExact
+    );
+}
+
+#[test]
+fn original_identity_rejects_other_scope_even_on_idempotent_readback() {
+    let mut c = case();
+    let (_, original, _) = c.peer.responder.inventory_inputs().expect("identity");
+    let original = original.clone();
+    let before = c.store.image().expect("original").digest;
+    assert!(matches!(
+        c.store
+            .retain_original_identity(c.genesis.subject(), c.peer.initiator_device()),
+        Err(DurableError::Protocol(Error::Scope))
+    ));
+    for dimension in 0..5 {
+        let mut changed = original.clone();
+        match dimension {
+            0 => changed.account = [213; 32],
+            1 => changed.description.id = [214; 16],
+            2 => changed.description.generation += 1,
+            3 => changed.description.family = [215; 32],
+            _ => {
+                changed.description.validity = Validity::new(110, 190).expect("different interval")
+            }
+        }
+        // Authenticated types cannot be altered through the public API. A forged
+        // internal value must also fail the reconstructed original commitment.
+        assert!(matches!(
+            c.store
+                .retain_original_identity(c.genesis.subject(), &changed),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+    }
+    let mut absent = c.genesis.subject();
+    absent.journal = [216; 32];
+    assert!(matches!(
+        c.store.retain_original_identity(absent, &original),
+        Err(DurableError::Absent)
+    ));
+    assert_eq!(
+        c.store
+            .image()
+            .expect("all rejected proofs read only")
+            .digest,
+        before
+    );
+    c.store.close();
+    assert!(matches!(
+        c.store
+            .retain_original_identity(c.genesis.subject(), &original),
+        Err(DurableError::Closed)
+    ));
+}
+
+#[test]
+fn original_identity_authenticated_field_substitution_and_noncanonical_shape_fail_closed() {
+    let mut c = case();
+    let image = c.store.image().expect("original image");
+    let active = c.store.active.as_ref().expect("active");
+    let wire = encode(&active.wrapping, &active.pin, &image).expect("lineage encoding");
+    let start = wire.len() - 32 - 105;
+    assert_eq!(wire.get(start), Some(&1));
+    for offset in [0, 1, 33, 49, 57, 65, 73] {
+        let mut body = wire.get(..wire.len() - 32).expect("body").to_vec();
+        *body.get_mut(start + offset).expect("lineage field") ^= 1;
+        let mut auth = authenticator(&active.wrapping).expect("test MAC");
+        auth.update(&body);
+        body.extend_from_slice(&auth.finalize().into_bytes());
+        assert!(
+            decode(&active.wrapping, &active.pin, &body).is_err(),
+            "lineage offset {offset}"
+        );
+    }
+    let mut malformed = c.store.image().expect("original");
+    malformed
+        .entries
+        .values_mut()
+        .next()
+        .expect("entry")
+        .original_identity
+        .as_mut()
+        .expect("identity")
+        .description
+        .family = [219; 32];
+    let active = c.store.active.as_ref().expect("active");
+    assert!(matches!(
+        encode(&active.wrapping, &active.pin, &malformed),
+        Err(DurableError::Corrupt)
+    ));
+}
+
+#[test]
+fn original_identity_migration_each_sync_failure_recovers_once_without_new_permission() {
+    let mut calibration = renewal_case();
+    legacy_without_original_identity(&mut calibration);
+    let original = calibration
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("identity")
+        .1
+        .clone();
+    let (_, count) = with_fault_database(&mut calibration, false);
+    count.store(0, Ordering::SeqCst);
+    calibration
+        .store
+        .retain_original_identity(calibration.genesis.subject(), &original)
+        .expect("calibrate");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!((2..=8).contains(&barriers));
+    for after in [false, true] {
+        for cut in 1..=barriers {
+            let mut c = renewal_case();
+            legacy_without_original_identity(&mut c);
+            let original = c
+                .peer
+                .responder
+                .inventory_inputs()
+                .expect("identity")
+                .1
+                .clone();
+            let before = c.store.image().expect("legacy image");
+            let (remaining, _) = with_fault_database(&mut c, after);
+            remaining.store(cut, Ordering::SeqCst);
+            let result = c
+                .store
+                .retain_original_identity(c.genesis.subject(), &original);
+            crate::durable::tests::assert_sync_failure(result, after);
+            assert!(c.store.active.is_none());
+            c.store = reopen(&c.server);
+            c.store
+                .retain_original_identity(c.genesis.subject(), &original)
+                .expect("original proof exact retry");
+            let current = c.store.image().expect("one migration");
+            assert_eq!(current.revision, before.revision + 1);
+            let id = c.genesis.subject().id(&c.pin.binding());
+            let entry = current.entries.get(&id).expect("entry");
+            let old = before.entries.get(&id).expect("original");
+            assert_eq!(
+                (
+                    entry.head,
+                    entry.last,
+                    entry.validity,
+                    entry.credential_owner,
+                    entry.authority
+                ),
+                (
+                    old.head,
+                    old.last,
+                    old.validity,
+                    old.credential_owner,
+                    old.authority
+                )
+            );
+            assert_eq!(
+                entry.original_identity,
+                Some(OriginalIdentity::from_verified(&original))
+            );
+            assert!(matches!(entry.validity.check(180), Err(Error::Validity)));
+        }
+    }
+    eprintln!(
+        "ANCHOR_ORIGINAL_IDENTITY_SYNC barriers={barriers} before_after_faults={}",
+        barriers * 2
+    );
+}
+
+#[test]
+fn original_identity_partial_legacy_migration_never_classifies_another_subject() {
+    let mut c = case();
+    let path = c
+        .server
+        .parent()
+        .expect("canonical test root")
+        .join("second-device");
+    fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&path)
+        .expect("second device directory");
+    let device = c.peer.initiator_device().clone();
+    let policy = c.peer.initiator.current_policy().expect("second policy");
+    let mut journal = new_store(&path, &device);
+    let genesis = journal
+        .anchor_genesis(&device, policy)
+        .expect("second actual genesis");
+    c.store
+        .enroll(&genesis, &device, policy, 150)
+        .expect("second independent subject");
+    let origin = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("original identity")
+        .1
+        .clone();
+    legacy_without_original_identity(&mut c);
+    c.store
+        .retain_original_identity(c.genesis.subject(), &origin)
+        .expect("one classified subject");
+    c.store.close();
+    c.store = reopen(&c.server);
+    let image = c.store.image().expect("mixed image");
+    assert_eq!(image.entries.len(), 2);
+    assert_eq!(
+        image
+            .entries
+            .values()
+            .filter(|e| e.original_identity.is_some())
+            .count(),
+        1
+    );
+    assert!(image
+        .entries
+        .get(&genesis.subject().id(&c.pin.binding()))
+        .expect("other legacy subject")
+        .original_identity
+        .is_none());
+    let policy = c.peer.initiator.current_policy().expect("same policy");
+    c.store
+        .enroll(&genesis, &device, policy, 150)
+        .expect("exact old enrollment is not migration");
+    assert_eq!(
+        c.store.image().expect("old retry read only").digest,
+        image.digest
+    );
+    c.store
+        .retain_original_identity(genesis.subject(), &device)
+        .expect("explicit second proof");
+    c.store.close();
+    c.store = reopen(&c.server);
+    assert!(c
+        .store
+        .image()
+        .expect("both classified")
+        .entries
+        .values()
+        .all(|e| e.original_identity.is_some()));
+}
+
+#[test]
+fn original_identity_migration_process_child() {
+    let Some(path) = std::env::var_os("QPERIAPT_ANCHOR_IDENTITY_DIR") else {
+        return;
+    };
+    let path = Path::new(&path);
+    let subject = AnchorSubject::from_trusted_state(
+        &fs::read(path.join("identity-subject")).expect("retained original subject"),
+    )
+    .expect("subject");
+    let peer = crate::bootstrap::tests::fixture_with_public_validity(
+        PrekeyQuality::OneTimeBoth,
+        Validity::new(100, 160).expect("original roster"),
+        Validity::new(100, 160).expect("advertisement"),
+    );
+    let original = peer
+        .responder
+        .inventory_inputs()
+        .expect("original identity")
+        .1;
+    let mut store = reopen(path);
+    store
+        .retain_original_identity(subject, original)
+        .expect("original proof");
+    fs::write(path.join("returned-identity"), b"retained").expect("returned marker");
+}
+
+#[test]
+fn original_identity_process_loss_after_commit_keeps_original_head_and_exact_last_command() {
+    let mut c = renewal_case();
+    let first = request(
+        &c,
+        AnchorOperation::advance(initial(&c), [223; 32]).expect("original write"),
+    );
+    let head = apply_request(&mut c, &first).applied_head().expect("head");
+    legacy_without_original_identity(&mut c);
+    let before = c.store.image().expect("original legacy state");
+    fs::write(
+        c.server.join("identity-subject"),
+        c.genesis.subject().to_bytes(),
+    )
+    .expect("retained public subject");
+    c.store.close();
+    let log = fs::File::create_new(c.server.join("identity-child.log")).expect("log");
+    let mut child = ChildGuard(
+        Process::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "anchor::store::tests::original_identity_migration_process_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_ANCHOR_IDENTITY_DIR", &c.server)
+            .env("QPERIAPT_ANCHOR_SERVER_DIR", &c.server)
+            .env(
+                "QPERIAPT_ANCHOR_CRASH_REVISION",
+                (before.revision + 1).to_string(),
+            )
+            .stdout(Stdio::from(log.try_clone().expect("log clone")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned child"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !c.server.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "identity child deadline"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!c.server.join("returned-identity").exists());
+    child.0.kill().expect("kill after durable commit");
+    assert!(!child.0.wait().expect("reap").success());
+    c.store = reopen(&c.server);
+    let original = c
+        .peer
+        .responder
+        .inventory_inputs()
+        .expect("original identity")
+        .1
+        .clone();
+    c.store
+        .retain_original_identity(c.genesis.subject(), &original)
+        .expect("reconcile same proof");
+    let after = c.store.image().expect("one committed migration");
+    let entry = after
+        .entries
+        .get(&c.genesis.subject().id(&c.pin.binding()))
+        .expect("subject");
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(
+        entry.original_identity,
+        Some(OriginalIdentity::from_verified(&original))
+    );
+    assert_eq!(entry.head, head);
+    assert_eq!(entry.last, Some(first.command_id()));
+    let retry = request(&c, first.operation);
+    assert_eq!(
+        apply_request(&mut c, &retry).outcome(),
+        AnchorOutcome::AlreadyAppliedExact
+    );
+    eprintln!("ANCHOR_ORIGINAL_IDENTITY_PROCESS commit_before_return=true same_subject=true same_head=true same_last_command=true exact_metadata_retry=true");
+}

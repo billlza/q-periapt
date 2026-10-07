@@ -43,6 +43,53 @@ cannot create registrations. Enrollment does not track later roster changes
 automatically. Revocation, credential/policy replacement and migration need their
 own authenticated control-plane transitions.
 
+### Immutable original identity and legacy witness migration
+
+New `enroll` entries retain the original account, device ID, generation, credential
+validity and policy family. The entry's full device key and the existing canonical
+credential encoder reconstruct the original credential digest; the resulting
+storage-owner commitment must equal `subject.owner`. This invariant is checked
+before encoding and after authenticated decoding. It binds every identity field,
+including family and validity, without adding another credential parser.
+
+`AnchorStore::retain_original_identity(subject, original)` explicitly fills this
+record for a legacy subject. The operator authenticates the original certificate
+and roster against independently retained original pins; expired inputs use the
+existing `AccountPin::verify_historical_device`. The complete original public key
+and reconstructed owner must match. A renewed current credential is not a substitute
+for the original credential. Historical identity grants no current time, roster,
+policy or runtime permission.
+
+The operation changes only this immutable metadata and the outer witness image
+revision. It preserves the original subject/genesis, current credential and roster
+authority, validity, journal head/fence, last data command, and G/P/R state. An exact
+retry is read-only, including after witness reopen or a lost result. An I/O failure
+closes the owner and may follow commit; reopen the same witness and retry the same
+proof. Ordinary network requests and exact legacy enrollment retries cannot fill
+missing identity records.
+
+`QPANC010` retains the complete v9 entry layout, with all optional lifecycle fields
+explicitly present, followed by `identity_present:u8`. Value 0 represents an
+unclassified legacy entry; value 1 adds
+`account[32] || device[16] || generation:u64be || validity[16] || family[32]`.
+Other tags fail. Every present record is checked against the original owner and
+full key. A v10 image must contain at least one classified entry. Existing supported
+v1-v9 formats still decode with absent identity metadata, and remain unclassified
+until explicit proof admission. Mixed images preserve those absences. Limits remain
+256 entries and 1 MiB; identity metadata does not evict existing history.
+
+Native tests cover genuine credential renewal before migration, retained old data
+command receipts, expired identity without current permission, partial migration,
+wrong proofs, authenticated field substitution, every measured before/after-sync
+failure and a real child-process kill after commit before return. Existing legacy
+format tests construct explicit legacy inputs and retain their format assertions.
+
+This metadata is a prerequisite for device replacement. It does not retire any
+subject, impose a generation floor or implement atomic replacement. A future
+replacement transaction must establish complete affected membership; unclassified
+legacy entries cannot silently be treated as unrelated devices. Retired operational
+queries and authorized historical loss accounting also remain separate work.
+
 ### Explicit refresh under a newer roster
 
 The native trusted operator uses
