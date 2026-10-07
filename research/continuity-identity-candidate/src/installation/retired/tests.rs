@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+mod erasure;
 use crate::{
     bootstrap::tests::{fixture_with_anchor_and_budget, Fixture},
     durable::tests::{assert_sync_failure, directory, fault_database_path, ChildGuard},
@@ -561,6 +562,14 @@ fn retired_installation_process_child() {
         retired,
     )
     .expect("retain original request");
+    if std::env::var_os("QPERIAPT_RETIRED_ERASURE_CHILD").is_some() {
+        let wire = fs::read(root.join("erasure-ack.bin")).expect("saved original ACK");
+        owner
+            .erase_journal(&pin, &wire)
+            .expect("atomic journal erasure");
+        fs::write(root.join("returned-erasure"), b"committed").expect("caller visible completion");
+        return;
+    }
     if let Some(inventory) = report_inventory {
         if std::env::var_os("QPERIAPT_RETIRED_HOST_ACK_CHILD").is_some() {
             let proposal = owner

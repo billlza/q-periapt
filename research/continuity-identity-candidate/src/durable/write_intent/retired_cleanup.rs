@@ -2,6 +2,7 @@
 //! Read a frozen journal's complete original inventory without operational recovery.
 use super::*;
 use crate::{AnchorRetiredCleanupProposal, AnchorRetiredSubject};
+mod erasure;
 
 fn check_scope(
     image: &Image,

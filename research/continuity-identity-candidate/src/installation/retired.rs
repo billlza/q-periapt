@@ -255,6 +255,16 @@ impl RetiredInstallationRecovery {
             pin.verify_retired_report(retained, &proposal, receipt)?;
             let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
             let saved = read_configuration(&owners.configuration)?;
+            if DeviceJournal::retired_journal_has_terminal(
+                &owners.paths.journal,
+                &owners.key,
+                saved.identity,
+                owners.retired,
+                pin,
+                &proposal,
+            )? {
+                return Err(Error::Retired.into());
+            }
             let mut archives =
                 crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity)?;
             let report = DeviceJournal::retired_report(
@@ -364,6 +374,60 @@ impl RetiredInstallationRecovery {
         if result.is_err() {
             self.close();
         }
+        result
+    }
+    /// Read the exact original journal inventory or its authenticated terminal proof.
+    /// Missing or different state is an error, never evidence of successful erasure.
+    /// This requires the independently saved host intent but performs no erasure.
+    pub fn journal_erasure_status(
+        &mut self,
+        pin: &AnchorPin,
+    ) -> Result<crate::retired_device::JournalErasureState, DurableError> {
+        let result = (|| {
+            let expected = self
+                .host_acknowledgement_proposal()?
+                .ok_or(DurableError::Suspended)?;
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let saved = read_configuration(&owners.configuration)?;
+            DeviceJournal::retired_journal_state(
+                &owners.paths.journal,
+                &owners.key,
+                saved.identity,
+                owners.retired,
+                pin,
+                &expected,
+            )
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    /// Atomically replace the exact original image and pending rows with a terminal
+    /// authenticated by the original key and purpose-21 witness acknowledgement.
+    /// A verified receipt must match the independently saved host-accounted intent.
+    /// Always closes this owner; after an uncertain commit, reopen the same installation
+    /// and inspect/retry the same decision. An existing matching terminal is read-only.
+    /// This is logical journal erasure, not erasure of old pages, backups, archives,
+    /// wrapping/signing key files or the independent installation/host report.
+    pub fn erase_journal(&mut self, pin: &AnchorPin, receipt: &[u8]) -> Result<(), DurableError> {
+        let result = (|| {
+            let expected = self
+                .host_acknowledgement_proposal()?
+                .ok_or(DurableError::Suspended)?;
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let saved = read_configuration(&owners.configuration)?;
+            DeviceJournal::erase_retired_journal(
+                &owners.paths.journal,
+                &owners.key,
+                saved.identity,
+                owners.retired,
+                pin,
+                &expected,
+                receipt,
+            )
+        })();
+        self.close();
         result
     }
     /// Release original owners without changing the request or acknowledging loss.

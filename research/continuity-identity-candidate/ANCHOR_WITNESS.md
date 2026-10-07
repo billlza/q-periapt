@@ -251,7 +251,7 @@ corruption, each measured before/after retention sync fault, and process loss af
 commit before return. Credential-with-policy-continuation inventory variants and
 installed foreign consumers still require dedicated coverage. The high-level
 coordinator below retains the original request and binds complete historical metadata;
-logical erasure remains open. Neither proof nor inventory
+logical erasure follows explicit host acknowledgement as described below. Neither proof nor inventory
 retention authorizes report acceptance, erasure or new runtime work.
 
 ### Original request retained by the installation
@@ -280,7 +280,7 @@ An I/O error may hide the request commit and returns no owner: reopen the origin
 configuration and retirement proof. Exact retries do not rewrite the saved request.
 The configuration remains trusted host state outside journal backups, not a new
 anti-rollback mechanism. Report binding and explicit host acknowledgement are separate
-steps below. Logical erasure remains unimplemented.
+steps below, followed by a separate logical erasure transaction.
 
 Actual installed-service tests cover interrupted roster writes with retained pending
 inventory, prior backups with the same frozen image and no pending row, missing
@@ -389,9 +389,51 @@ This is a historical host-accounting decision, not peer consumption or current a
 Regression cases include complete host records with unavailable original journal/archive
 files, truncated/modified records, exact retry, fixed witness-image size, every separately
 measured before/after sync cut, and owned-process loss before/after installation intent
-commit and after witness ACK commit before return. **Logical erasure is not implemented
-by this stage.** It requires a separate authenticated terminal transaction. Enrollment's
-separate persistent signer and wrapping-key files are also not erased by this protocol.
+commit and after witness ACK commit before return. This acknowledgement stage does not
+erase data. Enrollment's separate persistent signer and wrapping-key files are not
+erased by this protocol.
+
+### Authenticated logical journal erasure
+
+After the host records the complete report and the independent witness acknowledges
+that same report, `RetiredInstallationRecovery::erase_journal(pin, purpose21_receipt)`
+atomically replaces the exact original `image` and optional `pending` rows with one
+`retired` row in the existing device table. The independent installation must already
+contain the original host-accounted intent. The SDK verifies the signed receipt before
+opening the journal, holds its original exclusive database lease, authenticates the
+complete original inventory, and rechecks both byte fingerprints inside the destructive
+transaction. An older backup with the same image but a missing pending intent conflicts.
+Missing files never count as successful erasure; admitted basenames are never unlinked.
+
+The terminal is **QPRJER01[8] || purpose21_receipt[3730] || HMAC-SHA256[32]**, 3770 bytes.
+Its MAC key is HKDF-SHA256 from the original JournalKey with domain
+`Q-PERIAPT-CONTINUITY-RETIRED-JOURNAL-TERMINAL-KEY/v1`. Readers require exactly this one
+row and authenticate both the local MAC and the full original witness signature against
+the independently saved report, retirement and pin. Knowledge of the wrapping key alone
+cannot turn a purpose-20 retention or a foreign report into a host-acknowledged terminal.
+Equivalent newly issued signatures for the same acknowledged proposal permit read-only
+retries. The operation never applies pending work or invokes ordinary Advance/G/P/R.
+
+`journal_erasure_status(pin)` returns `Retained` only after matching the authenticated
+original inventory, or `Erased` only after verifying the terminal. Corrupt, foreign,
+missing or substituted state fails explicitly. `erase_journal` closes its owner on both
+success and failure. After an uncertain commit, reopen the same independent installation,
+query or retry the same decision; no replacement inventory is selected. Report retrieval
+after an authenticated terminal returns the existing `Retired` protocol error even when
+archives are unavailable. Ordinary journal admission remains refused.
+
+This is **logical journal erasure** only. Old database pages, backups, closure archives,
+separate wrapping/signing files and the independent installation/host report remain
+outside its erasure claim. Full enrolled-device owner retirement remains a separate gate.
+The transaction retains a durable verification marker; it does not prove that an attacker
+has lost earlier knowledge.
+
+Regression cases cover an actual installed session, retained pending state, substituted
+purpose-20/foreign/modified receipts, correctly MACed terminals with invalid witness
+proofs, missing state and competing leases. Both empty and pending journal histories
+calibrate all synchronous before/after fault cuts independently. Owned-child termination
+before and after terminal commit checks atomic recovery without an early success return;
+exact terminal retry is checked to perform zero database synchronization writes.
 
 ### Explicit refresh under a newer roster
 

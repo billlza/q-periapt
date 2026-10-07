@@ -8,6 +8,16 @@ use crate::{
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+/// Authenticated local journal state for one independently retained retired report.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum JournalErasureState {
+    /// The exact original authenticated image and pending inventory remain stored.
+    Retained,
+    /// Those logical rows were atomically replaced by a witness-acknowledged terminal.
+    /// This makes no claim about retained pages, backups, archives or separate key files.
+    Erased,
+}
+
 /// Meaning of an authenticated image relative to the permanently frozen witness head.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ViewRole {
