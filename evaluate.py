@@ -21,6 +21,7 @@ ARTIFACT_ID = 11515742809
 ARCHIVE_BYTES = 371808439
 ARCHIVE_SHA = "85559c1778f4d43bedb889a6184a86d4a8fd5d4facdddd467519caa19dcbc3a6"
 DB_BYTES = 348024890
+DB_SHA = "d263dedda807fde1c2b3a5aca053ff1f99148c8ce39392495771fb58d6677550"
 MERGE_SHA = "605de309dbcf5ebdca6652e1487e9425c6e38a4b"
 TREE_SHA = "b4226f96ac064e099b3c71392b2700d481ba7449"
 EVALUATION_SECONDS = 1200
@@ -124,29 +125,29 @@ def run_command(command, prefix, environment, seconds):
 
 
 def inspect_database(path):
-    require(path.stat().st_size == DB_BYTES, "database archive size differs")
+    require(path.stat().st_size == DB_BYTES and sha(path) == DB_SHA,
+            "database archive identity differs")
     # Called only after the complete enclosing archive's pinned digest is verified.
     with zipfile.ZipFile(path) as archive:
         members = archive.infolist()
-        require(0 < len(members) < 25000 and len({m.filename for m in members}) == len(members)
-                and sum(m.file_size for m in members) < 12 * 1024**3,
+        require(len(members) == len({m.filename for m in members}) == 3163
+                and sum(m.file_size for m in members) == 966548955,
                 "database inventory exceeds bounds or contains duplicates")
         for member in members:
-            safe_name(member)
-        metadata = archive.read("codeql-database.yml").decode()
+            require(safe_name(member).parts[0] == "db-rust", "database bundle root differs")
+        metadata = archive.read("db-rust/codeql-database.yml").decode()
         require("\nfinalised: true\n" in metadata and f"  sha: {MERGE_SHA}\n" in metadata
                 and "  cliVersion: 2.27.1\n" in metadata
                 and "primaryLanguage: rust\n" in metadata, "database metadata differs")
-        config = json.loads(archive.read("temp/analysisConfig.json"))
-        require(config == {"extensionPacks": [], "threatModels": ["local"]},
-                "database threat model or extensions differ")
+        require(not any(m.filename.startswith(("db-rust/temp/", "db-rust/results/"))
+                        for m in members), "standard bundle unexpectedly contains temp/results")
         return {"sha256": sha(path), "members": len(members),
                 "expanded_bytes": sum(m.file_size for m in members),
-                "metadata": metadata, "analysis_config": config,
+                "metadata": metadata, "temp_and_results_included": False,
                 "initial_results": {m.filename: hashlib.sha256(archive.read(m)).hexdigest()
                                     for m in members if m.filename.endswith(".bqrs")},
                 "cache_members": [{"path": m.filename, "bytes": m.file_size}
-                                  for m in members if m.filename.startswith("db-rust/default/cache/")]}
+                                  for m in members if m.filename.startswith("db-rust/db-rust/default/cache/")]}
 
 
 def evaluate(args):
@@ -162,13 +163,14 @@ def evaluate(args):
               "artifact_id": ARTIFACT_ID, "artifact_sha256": ARCHIVE_SHA,
               "database_creation_sha": MERGE_SHA, "source_tree": TREE_SHA,
               "source_branch_head": "4fc8412a02084bb6d5de003d99eeaab2aa79079b",
-              "cache_scope": "Frozen diagnostic bundle, retained prior results/cache if present; not cold extraction.",
+              "cache_scope": "Standard finalized bundle with trimmed cache; no temp or prior results. Not cold extraction or the full failed evaluator cache.",
               "host": {"uname": list(os.uname()), "cpus": os.cpu_count(),
                        "meminfo": Path("/proc/meminfo").read_text()},
               "experiment_commit": os.environ.get("GITHUB_SHA"), "queries": {}}
     write(evidence / "RESULT.json", report)
     phase = "source_admission"
-    database = root / "database"
+    extracted_bundle = root / "extracted"
+    database = extracted_bundle / "db-rust"
     initial_logs = set()
     try:
         manifest = json.loads((ROOT / "source-inputs.json").read_text())
@@ -194,10 +196,10 @@ def evaluate(args):
         inventory = inspect_database(database_zip)
         write(evidence / "database-inventory.json", inventory)
         report["database_zip_sha256"] = inventory["sha256"]
-        database.mkdir(mode=0o700)
+        extracted_bundle.mkdir(mode=0o700)
         with zipfile.ZipFile(database_zip) as archive:
             for member in archive.infolist():
-                destination = database / safe_name(member)
+                destination = extracted_bundle / safe_name(member)
                 if member.is_dir():
                     destination.mkdir(parents=True, exist_ok=True)
                 else:
