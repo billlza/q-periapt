@@ -143,7 +143,7 @@ class Control:
             "system-server": ["pidof", "system_server"],
             "uptime": ["cat", "/proc/uptime"],
             "logcat": ["logcat", "-d", "-t", "2000", "-b", "all", "-v", "threadtime",
-                       "lmkd:*", "lowmemorykiller:*", "libc:F", "DEBUG:*", "ActivityManager:I", "*:S"],
+                       "lmkd:*", "lowmemorykiller:*", "libc:F", "DEBUG:*", "AndroidRuntime:E", "ActivityManager:I", "*:S"],
         }
         for name, args in probes.items():
             record = self.adb_command(label + "-" + name, ["shell", *args])
@@ -211,6 +211,11 @@ class Control:
         if fingerprint != FINGERPRINT or page_size != "16384":
             raise RuntimeError("running image or page size differs")
         self.result.update(fingerprint=fingerprint, runtime_page_size=int(page_size))
+        self.result["boot_observed_monotonic"] = time.monotonic()
+        self.save()
+        self.observe()
+
+    def observe(self):
         # Guest hashes bracket each transfer; successful exit alone is insufficient.
         size_text = self.text(self.adb_command("file-size", ["shell", "stat", "-c", "%s", GUEST_FILE]))
         if not size_text.isdecimal() or not 1024 * 1024 <= int(size_text) <= 64 * 1024 * 1024:
@@ -272,7 +277,7 @@ class Control:
         self.save()
 
 
-def main() -> int:
+def run_control(control_type: type[Control], output_name: str) -> int:
     if (os.environ.get("GITHUB_ACTIONS") != "true"
             or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
             or platform.system() != "Linux" or platform.machine() != "x86_64"):
@@ -282,9 +287,9 @@ def main() -> int:
     manager = shutil.which("avdmanager")
     if manager is None:
         raise RuntimeError("avdmanager missing")
-    output = Path(os.environ["GITHUB_WORKSPACE"]) / "target/android-runtime-control"
+    output = Path(os.environ["GITHUB_WORKSPACE"]) / "target" / output_name
     output.parent.mkdir(exist_ok=True)
-    control = Control(output, sdk, Path(manager))
+    control = control_type(output, sdk, Path(manager))
     try:
         control.run()
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
@@ -294,6 +299,10 @@ def main() -> int:
     return 0 if (control.result.get("completed")
                  and control.result.get("observations_clean")
                  and not control.result["cleanup_failures"]) else 1
+
+
+def main() -> int:
+    return run_control(Control, "android-runtime-control")
 
 
 if __name__ == "__main__":
