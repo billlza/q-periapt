@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import struct
 import time
 import uuid
 import zipfile
@@ -77,12 +78,27 @@ def check_apk(apk: Path, dex: Path) -> dict:
         names = archive.namelist()
         if len(names) != len(set(names)) or not set(names) <= allowed:
             raise RuntimeError("control APK contains unexpected or duplicate entries")
-        if not {"AndroidManifest.xml", "classes.dex"} <= set(names):
-            raise RuntimeError("control APK is missing manifest or DEX")
+        if not {"AndroidManifest.xml", "resources.arsc", "classes.dex"} <= set(names):
+            raise RuntimeError("control APK is missing manifest, resources or DEX")
+        resources = archive.getinfo("resources.arsc")
+        if resources.compress_type != zipfile.ZIP_STORED:
+            raise RuntimeError("control APK resource table is compressed")
+        # zipalign skips compressed entries. Android R+ additionally requires an
+        # uncompressed resource table, so verify the signed APK's local header.
+        with apk.open("rb") as raw:
+            raw.seek(resources.header_offset)
+            header = raw.read(30)
+        if len(header) != 30 or header[:4] != b"PK\x03\x04":
+            raise RuntimeError("control APK resource header is invalid")
+        name_length, extra_length = struct.unpack_from("<HH", header, 26)
+        resource_offset = resources.header_offset + 30 + name_length + extra_length
+        if resource_offset % 4:
+            raise RuntimeError("control APK resource table is not four-byte aligned")
         if archive.read("classes.dex") != dex.read_bytes():
             raise RuntimeError("control APK substituted the compiled DEX")
         return {"sha256": file_hash(apk), "bytes": apk.stat().st_size,
-                "entries": sorted(names), "dex_sha256": file_hash(dex)}
+                "entries": sorted(names), "dex_sha256": file_hash(dex),
+                "resources_compression": "stored", "resources_data_offset": resource_offset}
 
 
 def build_apk(control: Control) -> Path:
@@ -126,8 +142,10 @@ def build_apk(control: Control) -> Path:
     with zipfile.ZipFile(base) as src, zipfile.ZipFile(unsigned, "w", compression=zipfile.ZIP_DEFLATED) as out:
         if sorted(src.namelist()) != ["AndroidManifest.xml", "resources.arsc"]:
             raise RuntimeError("unexpected control manifest APK entries")
-        for name in src.namelist():
-            out.writestr(name, src.read(name))
+        # Preserve aapt2's storage method, particularly the uncompressed resource
+        # table. Recreating entries by name applies the archive's DEFLATED default.
+        for entry in src.infolist():
+            out.writestr(entry, src.read(entry))
         out.write(dex_file, "classes.dex")
     aligned = build / "aligned.apk"
     control.text(control.command("align-control", [str(tools / "zipalign"), "-P", "16", "4", str(unsigned), str(aligned)]))

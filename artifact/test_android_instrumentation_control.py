@@ -50,12 +50,42 @@ class EvidenceTest(unittest.TestCase):
             ):
                 apk = root / (label + ".apk")
                 with zipfile.ZipFile(apk, "w") as z:
+                    z.writestr("resources.arsc", b"table")
                     z.writestr("AndroidManifest.xml", b"manifest")
                     z.writestr("classes.dex", actual)
                     for name, body in additional.items():
                         z.writestr(name, body)
                 with self.assertRaises(RuntimeError):
                     control.check_apk(apk, dex)
+
+    def test_resource_table_requires_uncompressed_aligned_storage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dex = root / "classes.dex"
+            dex.write_bytes(b"test compiler output")
+            for label, compression, aligned in (
+                ("compressed", zipfile.ZIP_DEFLATED, True),
+                ("unaligned", zipfile.ZIP_STORED, False),
+                ("valid", zipfile.ZIP_STORED, True),
+            ):
+                apk = root / (label + ".apk")
+                resource = zipfile.ZipInfo("resources.arsc")
+                resource.compress_type = compression
+                # 30-byte header + 14-byte filename are aligned; a valid five-
+                # byte extra field moves the resource data off that boundary.
+                if not aligned:
+                    resource.extra = b"\xff\xff\x01\x00\x00"
+                with zipfile.ZipFile(apk, "w") as archive:
+                    archive.writestr(resource, b"table")
+                    archive.writestr("AndroidManifest.xml", b"manifest")
+                    archive.writestr("classes.dex", dex.read_bytes())
+                if label == "valid":
+                    info = control.check_apk(apk, dex)
+                    self.assertEqual(info["resources_compression"], "stored")
+                    self.assertEqual(info["resources_data_offset"], 44)
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "resource table"):
+                        control.check_apk(apk, dex)
 
     def test_instrumentation_cannot_run_on_desktop(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}), \
