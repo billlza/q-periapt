@@ -55,6 +55,91 @@ fn provision(path: &Path, document: &Signed) -> std::result::Result<PolicyStore,
 }
 
 #[test]
+fn max_version_exhaustion_is_durable_and_not_a_bootstrap_fallback() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("exhausted.redb");
+    let initial = signed(u32::MAX - 1, true);
+    let exhausted = signed(u32::MAX, true);
+    let same_version_revocation = signed(u32::MAX, false);
+    let lower = signed(1, false);
+    let mut store = provision(&path, &initial)?;
+    let previous = store.runtime()?;
+    let current = store.replace_policy(
+        previous.trusted_state(),
+        &exhausted.policy,
+        &exhausted.signature,
+    )?;
+    assert!(matches!(
+        previous.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    let floor = current.trusted_state();
+    let binding = current.policy_binding()?;
+    assert_eq!(floor.version(), u32::MAX);
+    assert!(current.is_enabled()?);
+
+    // A different document at the same version is equivocation, including an
+    // otherwise valid emergency-disable document. Lower versions are rollback.
+    for rejected in [&same_version_revocation, &lower] {
+        assert!(matches!(
+            store.replace_policy(floor, &rejected.policy, &rejected.signature),
+            Err(StoreError::Policy(q_periapt_sdk::Error::PolicyDenied))
+        ));
+        assert_eq!(store.runtime()?.policy_binding()?, binding);
+        assert!(current.is_enabled()?);
+    }
+    store.close();
+    assert!(matches!(
+        current.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    assert!(matches!(
+        PolicyStore::open_configured(
+            &path,
+            &lower.policy,
+            &lower.signature,
+            &initial.root,
+            Limits::default()
+        ),
+        Err(StoreError::Policy(q_periapt_sdk::Error::PolicyDenied))
+    ));
+
+    let reopened = PolicyStore::open(&path, &initial.root, Limits::default())?;
+    assert_eq!(reopened.runtime()?.trusted_state(), floor);
+    assert!(reopened.runtime()?.is_enabled()?);
+    drop(reopened);
+
+    // A separately valid root/policy cannot select itself as the store's root.
+    // Recovery will need its own previously provisioned authorization boundary.
+    let (new_key, new_root) = MlDsa65::generate([92; 32]);
+    let mut new_signature = vec![0; ML_DSA_65_SIG_LEN];
+    MlDsa65
+        .sign(
+            &new_key,
+            &policy_signature_message(&lower.policy),
+            &[0; 32],
+            &mut new_signature,
+        )
+        .map_err(|error| io::Error::other(format!("new-root policy signature: {error:?}")))?;
+    assert_ne!(new_root.as_slice(), initial.root.as_slice());
+    assert!(!Runtime::from_signed_policy(
+        &lower.policy,
+        &new_signature,
+        &new_root,
+        None,
+        Limits::default()
+    )?
+    .is_enabled()?);
+    assert!(matches!(
+        PolicyStore::open(&path, &new_root, Limits::default()),
+        Err(StoreError::RootMismatch)
+    ));
+    let unchanged = PolicyStore::open(&path, &initial.root, Limits::default())?;
+    assert_eq!(unchanged.runtime()?.policy_binding()?, binding);
+    Ok(())
+}
+
+#[test]
 fn borrowed_runtimes_cannot_prepare_updates_outside_the_durable_owner() -> Result<()> {
     let folder = directory()?;
     let path = folder.path().canonicalize()?.join("policy.redb");

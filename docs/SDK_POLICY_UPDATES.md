@@ -5,6 +5,15 @@ Policy signatures, pinned roots, exact-byte digests, monotonic versions and
 same-version equivocation checks remain in `q-periapt-policy`. An update does not
 accept an unsigned decision or change its runtime's trust root.
 
+The current fixed-root format has a real exhaustion boundary: a valid policy at
+`u32::MAX` permits no later update, including a disabled policy. This persists
+across store reopening. Closing a runtime is local revocation, not a durable
+emergency-disable policy. Neither a lower/same version nor a separately signed
+replacement root bypasses that boundary. The durable host-store regression
+`max_version_exhaustion_is_durable_and_not_a_bootstrap_fallback` preserves these
+reject paths. Independently authorized root recovery remains unimplemented; see
+the [authority design and recovery requirements](policy/UPDATE_AUTHORITY_V1.md).
+
 ## Host sequence
 
 1. Prepare a strictly newer signed document with `prepare_policy_update` /

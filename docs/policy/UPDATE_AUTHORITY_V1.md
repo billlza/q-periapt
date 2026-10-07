@@ -1,8 +1,9 @@
 # Policy Update Authority — design RFC (V1 draft)
 
-> **Status: DESIGN ONLY. Nothing in this document is implemented.** No API,
-> encoding, or guarantee described here exists in the shipped crates today. It
-> defines the target semantics for authenticated policy *succession*, records the
+> **Status: DESIGN ONLY for dynamic authority succession and recovery.** Section 1
+> distinguishes the existing fixed-root enforcement from those missing features.
+> The proposed API and authority encoding do not exist in shipped crates. This
+> document defines target semantics for authenticated policy *succession*, records the
 > ABI constraints that bound any implementation, and states what is explicitly out
 > of scope. Tags follow [`THREAT_MODEL.md`](../THREAT_MODEL.md): **ENFORCED** (a CI
 > gate or type-level invariant fails the build on regression), **DESIGN** (agreed
@@ -13,44 +14,40 @@
 > session-acceptance layer above this one),
 > [`crates/q-periapt-policy/src/lib.rs`](../../crates/q-periapt-policy/src/lib.rs).
 
-## 1. Problem
+## 1. Current contract and missing lifecycle
 
-`Policy::load_signed` authenticates a policy document against a caller-supplied
-key and returns an `AuthenticatedPolicy` — a value the caller may then treat as
-trusted. Two properties of that design are wrong, independent of any
-implementation bug:
+The current SDK pins one independently supplied ML-DSA-65 root when it creates a
+runtime. `Runtime::prepare_policy_update` obtains the verification key from that
+runtime, not from the candidate policy or a new caller argument. The host store
+persists the root and rejects opening it with a different root. This fixed-root
+design is an authorization rule; a candidate cannot authorize its own key.
 
-**1.1 The document authorizes its own signer.** After parsing, the only
-policy-derived gate on the signer is:
+`Policy::load_signed_monotonic` is a lower-level verifier with caller-supplied
+root/algorithm and optional prior state. It does not implement a persistent
+succession authority. Supplying `None` explicitly bootstraps verification; a host
+must not use it as a recovery fallback for missing or rejected trusted state.
+The owned SDK/store paths already retain the established root and state instead.
 
-```rust
-if verifier.algorithm().nist_level() < policy.min_nist_level() {
-    return Err(PolicyError::WeakSigner);
-}
-```
+The candidate's `min_nist_level` checks its signer's strength. Business signature
+allow-lists (`allowed_sigs` / `deprecated`) are a different role from authority to
+update policy: an ML-DSA-65 policy signature can remain authorized even when that
+algorithm is retired for business use. This separation is intentional. Reading
+those lists as an update-authority list would prevent some algorithm migrations.
+It is not an authentication bypass or evidence that the candidate chose its root.
 
-`policy` here is the *newly parsed document*. The bar the signer must clear is
-therefore set by the document being authorized. The stated intent ("an L1 root
-must not sign an L5 policy") holds, but the converse — an L1 key signing a new
-document that declares `min_nist_level = 1` — is self-consistent and accepted.
-Authority must come from the predecessor, never from the candidate.
+The lifecycle gap is real: this fixed authority cannot rotate or recover. Policy
+versions are `u32` and ordinary updates must strictly increase them. An authorized
+policy at `u32::MAX` prevents every further update, including a disabled policy.
+The host-store regression
+`max_version_exhaustion_is_durable_and_not_a_bootstrap_fallback` verifies that the
+condition survives reopening, that same-version/lower-version disable attempts
+fail, and that a separately valid replacement root cannot select itself. Closing
+the runtime revokes local aliases but does not persist an emergency-disable policy.
 
-**1.2 Succession is not modelled.** `load_signed_monotonic` accepts
-`last_trusted: Option<&TrustedPolicyState>`, but `TrustedPolicyState` carries only
-`(version, digest)`. The predecessor therefore *cannot* express who may sign its
-successor, so no authorization decision is possible even in principle. `None`
-additionally means "no predecessor, accept anything" — an implicit bootstrap
-fallback inside the same entry point as normal succession.
-
-A consequence observed in review: a policy that explicitly deprecates `ML-DSA-65`
-is accepted when signed by `ML-DSA-65`. `allowed_sigs`/`deprecated` have no
-bearing on who may update the policy.
-
-**Not a vulnerability.** The verification key and `Verifier` are supplied by the
-caller per call, so an attacker cannot forge a signature; and the signature is
-verified before the document is parsed, so document content never influences its
-own signature check. These are *semantic* defects that make the trust chain
-unable to express succession — not an authentication bypass.
+A larger counter, rejecting only the largest value, or rolling back/reinitializing
+storage would not provide independent recovery from a compromised signing key.
+The threshold-governed succession below and an independently authorized recovery
+path remain **DESIGN**, not features of the fixed-root SDK.
 
 ## 2. Target semantics (DESIGN)
 
@@ -76,20 +73,27 @@ sign the transition policy that retires `X`, because `P_n` (which still authoriz
 `X` for updates) governs that transition. Once committed, `X` loses update
 eligibility unless `P_{n+1}` explicitly re-grants it.
 
-## 3. Binding constraint: ABI 2 is frozen (ENFORCED)
+## 3. Binding constraint: preserve existing ABI 2 contracts (ENFORCED)
 
-Any implementation is bounded by two CI-gated freezes in
-[`artifact/c_abi_contract.py`](../../artifact/c_abi_contract.py):
+[`artifact/c_abi_contract.py`](../../artifact/c_abi_contract.py) checks a
+version-specific closed export set: nine symbols for 0.1.5 and **43 for 0.2.0**.
+The latter imports its additive owner declarations from
+[`artifact/sdk_abi2_spec.py`](../../artifact/sdk_abi2_spec.py). All original nine
+signatures/status values and the 36-byte trusted-policy-state encoding remain
+unchanged. The current 43-symbol allow-list must not silently grow either.
 
-| Frozen item | Value | Consequence for this design |
-|---|---|---|
-| `Q_PERIAPT_TRUSTED_POLICY_STATE_LEN` | `36` (`c_abi_contract.py:76`, `:206`) | The trusted state **cannot grow** to carry an authority commitment. The FFI statically asserts it equals `TrustedPolicyState::ENCODED_LEN`. |
-| `EXPECTED_EXPORTS` | exactly nine symbols, exact-match (`c_abi_contract.py:87`, checked at `:426`) | **No new C entry point** (`q_periapt_policy_advance`, …) may be added. |
+This RFC previously mistook the historical nine-symbol snapshot for a permanent
+ban on additive ABI 2 entry points. That was incorrect. Existing structures and
+encodings cannot be widened in place, but a separate versioned authority state
+and explicitly reviewed additive interface do not inherently require ABI major 3.
+Any such implementation must update the SDK extension/package contract, generated
+headers, language wrappers, and old/new installed-consumer validation together.
+No new export or authority encoding is specified or approved by this RFC itself.
 
-Therefore **the authenticated succession state machine cannot be exposed through
-ABI 2 at all.** This is the central constraint, and it rules out the obvious
-implementations (extend the state; add an `advance` export). Any proposal that
-requires either is an ABI 3 proposal.
+The 36-byte value identifies a policy version/digest. It must not be relabelled as
+a complete authenticated authority/recovery state. Use a distinct versioned state
+with an explicit connection-binding contract; preserve existing KATs and byte
+contracts rather than overloading their fields.
 
 ## 4. Proposed shape (DESIGN)
 
@@ -119,7 +123,8 @@ Policy::advance(current: &TrustedState, toml, sigs) -> (Policy, TrustedState)
 policy::verify_detached(key, toml, sig) -> VerifiedBytes
 ```
 
-`load_signed` / `load_signed_monotonic` are deprecated in favour of these.
+This proposed API would supersede `load_signed` / `load_signed_monotonic` for
+authority succession; no such deprecation or replacement is implemented yet.
 Crucially, **the verification key must be taken from the trusted state, not from
 a caller argument** — otherwise the caller, not `P_n`, still decides who may sign,
 and the whole chain is decorative.
@@ -159,14 +164,18 @@ them reintroduces the lockout:
 
 1. **(done, separate)** Role/strength separation in the allow-lists —
    [PR #74](https://github.com/billlza/q-periapt/pull/74). Independent of this RFC.
-2. **This document** — pin the semantics and record the ABI constraint.
+2. **This document** — pin the semantics and distinguish current fixed-root
+   enforcement from the missing rotation/recovery lifecycle.
 3. **Rust-only implementation.** `bootstrap` / `advance` / `verify_detached` in
    `q-periapt-policy`, consumed by rustls / the policy agent / the migration model.
    This is compatible with the freeze **because it adds no C export and does not
    change the 36-byte state**: the authority commitment lives in a Rust-side state
    type, and the 36-byte ABI 2 state remains the policy-identity value it is today.
-4. **ABI 3 (separate proposal).** Expose succession through the C ABI, which
-   requires a new export and a wider state — both out of scope here.
+4. **Product interface review.** Expose the completed lifecycle through a distinct
+   versioned state and reviewed additive owner interface, or propose a new ABI
+   major if existing layouts/signatures must change. Include durable host storage,
+   language wrappers and installed consumers; a Rust-only verifier is not closure
+   of the product lifecycle.
 
 ## 6. Open questions (OPEN)
 
@@ -188,3 +197,40 @@ them reintroduces the lockout:
 This RFC does not propose key transparency, a policy distribution transport, a
 revocation service, multi-tenant policy scoping, or any change to the combiner,
 suite negotiation, or ABI 2 byte contract.
+
+## 8. Recovery requirements and unresolved integration (DESIGN)
+
+Recovery authorization must be independently pinned before an online-root
+compromise. Neither the candidate policy nor the compromised online signer may
+replace that recovery authority. For an existing installation with no such pin,
+adding one requires a separately authorized trust-configuration/migration ceremony;
+opening with a newly supplied key is not that ceremony.
+
+An authorization must bind the deployment/lineage, exact predecessor authority and
+policy state, a distinct recovery generation, replacement authority, replacement
+policy and original operation identity. The generation advances by exactly one;
+normal policy versions remain monotonic within their authority epoch. Incoming
+keys must prove possession over the full transition, at the incoming authority's
+own threshold. A signature on a previously published policy alone is insufficient.
+
+The store must compare the predecessor and commit the new authority, policy,
+generation and original signed receipt together before exposing a runtime. An
+uncertain outcome must be reconciled using that same operation; it must not create
+a new operation, roll back a floor or fall through to first provisioning. Reopening
+must authenticate the stored successor against the independent recovery trust
+configuration. Old aliases remain revoked after successful cutover.
+
+Authority epoch/lineage must also have an explicit protocol identity. Binding only
+a per-device predecessor receipt would prevent peers that legitimately started
+from different policy versions from agreeing on the same recovered deployment.
+Binding only the policy bytes could reuse an old identity after rotation back to
+a prior key. The common fleet-level authorization and per-store compare/commit
+receipt therefore need distinct roles; their encoding and integration are **OPEN**.
+
+This path must compose with Continuity's installation, credential, roster and
+witness authority rules. The existing migration reset and device-replacement
+flows are not automatically SDK policy-root recovery. Protected-file durability
+also does not provide resistance to restoring an entire old disk image. Recovery
+can report authorized cutover; it cannot observe whether the replacement private
+keys are unknown to an attacker or assert restored message confidentiality merely
+because a root/version changed.
