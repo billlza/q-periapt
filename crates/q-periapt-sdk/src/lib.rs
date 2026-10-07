@@ -18,7 +18,7 @@ pub use purpose::{DerivedKey, KeyPurpose, MAX_PROTOCOL_LABEL_BYTES};
 /// Explicit professional key transfer; never the product key-generation default.
 pub mod expert;
 mod policy_update;
-pub use policy_update::PolicyUpdate;
+pub use policy_update::{OwnedPolicyUpdate, PolicyOwner, PolicyUpdate};
 
 use q_periapt_backends::{
     MlDsa65, MlKem768, PreparedMlKem768Key, StreamingSha3_256Xof, DEFAULT_SUITE_ID,
@@ -54,6 +54,8 @@ pub enum Error {
     InvalidLength,
     /// Signature, policy, suite, rollback or equivocation check failed.
     PolicyDenied,
+    /// Policy updates belong to the separately retained persistence owner.
+    UpdateOwnerRequired,
     /// Public key share was invalid or non-contributory.
     InvalidKeyShare,
     /// Platform cryptographic randomness is unavailable.
@@ -76,6 +78,7 @@ impl fmt::Display for Error {
             Self::Closed => "object is closed",
             Self::InvalidLength => "invalid input length",
             Self::PolicyDenied => "policy denied",
+            Self::UpdateOwnerRequired => "policy update requires its persistence owner",
             Self::InvalidKeyShare => "invalid public key share",
             Self::Entropy => "platform entropy unavailable",
             Self::ResourceLimit => "runtime resource limit reached",
@@ -129,6 +132,12 @@ impl Configuration {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UpdateMode {
+    CallerManaged,
+    OwnerManaged,
+}
+
 struct State {
     configuration: Configuration,
     digest: [u8; 32],
@@ -138,6 +147,7 @@ struct State {
     keys: AtomicUsize,
     operations: AtomicUsize,
     limits: Limits,
+    update_mode: UpdateMode,
 }
 
 struct Operation<'a>(&'a AtomicUsize);
@@ -222,6 +232,24 @@ impl Runtime {
         last_trusted: Option<&TrustedPolicyState>,
         limits: Limits,
     ) -> Result<Self, Error> {
+        Self::from_signed_policy_with_mode(
+            toml,
+            signature,
+            trust_root,
+            last_trusted,
+            limits,
+            UpdateMode::CallerManaged,
+        )
+    }
+
+    fn from_signed_policy_with_mode(
+        toml: &[u8],
+        signature: &[u8],
+        trust_root: &[u8],
+        last_trusted: Option<&TrustedPolicyState>,
+        limits: Limits,
+        update_mode: UpdateMode,
+    ) -> Result<Self, Error> {
         if !(1..=MAX_SIGNED_POLICY_BYTES).contains(&toml.len())
             || signature.len() != ML_DSA_65_SIG_LEN
             || trust_root.len() != ML_DSA_65_VK_LEN
@@ -256,6 +284,7 @@ impl Runtime {
                 keys: AtomicUsize::new(0),
                 operations: AtomicUsize::new(0),
                 limits,
+                update_mode,
             }),
         })
     }

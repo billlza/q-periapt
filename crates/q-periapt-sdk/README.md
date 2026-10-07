@@ -24,6 +24,13 @@ to reuse ephemeral material for another connection. Default generation remains f
 the host atomically persists its state pair before activating it. Activation
 revokes old owners and returns an independent, possibly disabled runtime.
 
+Persistence implementations retain a `PolicyOwner` and lend operational runtime
+aliases. An alias rejects manual update preparation with `UpdateOwnerRequired`,
+including after activation and reopening. Only the owner prepares and activates
+its successor after the host's durable commit. `PolicyOwner` performs no I/O;
+use `q-periapt-host-store::PolicyStore` for the supplied macOS/Linux store.
+Standalone `Runtime` retains the explicit host-managed persistence contract.
+
 `close()` revokes new runtime operations; admitted synchronous calls can finish.
 Key storage is erased on key close/drop. Close of a key takes `&mut self`, which
 cannot coexist with an active shared borrow in safe Rust. Closing/dropping a

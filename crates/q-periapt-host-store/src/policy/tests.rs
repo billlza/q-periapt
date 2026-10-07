@@ -54,6 +54,65 @@ fn provision(path: &Path, document: &Signed) -> std::result::Result<PolicyStore,
     )
 }
 
+#[test]
+fn borrowed_runtimes_cannot_prepare_updates_outside_the_durable_owner() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("policy.redb");
+    let initial = signed(3, true);
+    let revoked = signed(4, false);
+    let enabled = signed(5, true);
+    let mut store = provision(&path, &initial)?;
+    let original = store.runtime()?;
+    assert!(
+        matches!(
+            original.prepare_policy_update(&revoked.policy, &revoked.signature),
+            Err(q_periapt_sdk::Error::UpdateOwnerRequired)
+        ),
+        "an operational store alias issued an in-memory update capability"
+    );
+    assert_eq!(store.runtime()?.trusted_state().version(), 3);
+    assert!(original.is_enabled()?);
+    let replacement = store.replace_policy(
+        original.trusted_state(),
+        &revoked.policy,
+        &revoked.signature,
+    )?;
+    assert!(matches!(
+        original.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    assert!(!replacement.is_enabled()?);
+    assert!(matches!(
+        replacement.prepare_policy_update(&enabled.policy, &enabled.signature),
+        Err(q_periapt_sdk::Error::UpdateOwnerRequired)
+    ));
+    store.close();
+    assert!(matches!(
+        replacement.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    let mut reopened = PolicyStore::open(&path, &initial.root, Limits::default())?;
+    let current = reopened.runtime()?;
+    assert_eq!(current.trusted_state().version(), 4);
+    assert!(!current.is_enabled()?);
+    assert!(matches!(
+        current.prepare_policy_update(&enabled.policy, &enabled.signature),
+        Err(q_periapt_sdk::Error::UpdateOwnerRequired)
+    ));
+    let active =
+        reopened.replace_policy(current.trusted_state(), &enabled.policy, &enabled.signature)?;
+    assert!(active.is_enabled()?);
+    drop(reopened);
+    assert!(matches!(
+        active.is_enabled(),
+        Err(q_periapt_sdk::Error::Closed)
+    ));
+    let final_store = PolicyStore::open(&path, &initial.root, Limits::default())?;
+    assert_eq!(final_store.runtime()?.trusted_state().version(), 5);
+    assert!(final_store.runtime()?.is_enabled()?);
+    Ok(())
+}
+
 #[derive(Debug)]
 struct GenesisResultLoss;
 impl std::fmt::Display for GenesisResultLoss {
@@ -377,17 +436,18 @@ fn real_file_commit_failure_revokes_old_runtime_and_requires_reconciliation() ->
         armed: Arc::clone(&armed),
         close_on_sync: None,
     })?;
-    let runtime = Arc::new(Runtime::from_signed_policy(
+    let owner = PolicyOwner::from_signed_policy(
         &initial.policy,
         &initial.signature,
         &initial.root,
         None,
         Limits::default(),
-    )?);
+    )?;
+    let runtime = owner.runtime()?;
     let mut store = PolicyStore {
         active: Some(Active {
             database,
-            runtime: Arc::clone(&runtime),
+            owner,
             root: initial.root.clone(),
         }),
     };
@@ -420,13 +480,14 @@ fn persisted_update_survives_activation_failure_without_reviving_old_runtime() -
     let initial = signed(1, true);
     let next = signed(2, false);
     drop(provision(&path, &initial)?);
-    let runtime = Arc::new(Runtime::from_signed_policy(
+    let owner = PolicyOwner::from_signed_policy(
         &initial.policy,
         &initial.signature,
         &initial.root,
         None,
         Limits::default(),
-    )?);
+    )?;
+    let runtime = owner.runtime()?;
     let armed = Arc::new(AtomicBool::new(false));
     let file = open_private_file(&path, false).map_err(|_| "test private path")?;
     let database = Database::builder().create_with_backend(SyncFailure {
@@ -437,7 +498,7 @@ fn persisted_update_survives_activation_failure_without_reviving_old_runtime() -
     let mut store = PolicyStore {
         active: Some(Active {
             database,
-            runtime: Arc::clone(&runtime),
+            owner,
             root: initial.root.clone(),
         }),
     };

@@ -7,7 +7,7 @@ use crate::filesystem::{
 };
 use q_periapt_backends::{ML_DSA_65_SIG_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_policy::TrustedPolicyState;
-use q_periapt_sdk::{Limits, Runtime};
+use q_periapt_sdk::{Limits, PolicyOwner, Runtime};
 use redb::ReadableDatabase;
 use redb::{
     Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
@@ -113,12 +113,12 @@ impl From<PrivateDatabaseError> for StoreError {
 
 struct Active {
     database: Database,
-    runtime: Arc<Runtime>,
+    owner: PolicyOwner,
     root: Vec<u8>,
 }
 impl Drop for Active {
     fn drop(&mut self) {
-        self.runtime.close();
+        self.owner.close();
     }
 }
 
@@ -146,9 +146,7 @@ impl PolicyStore {
         root: &[u8],
         limits: Limits,
     ) -> Result<Self, StoreError> {
-        let runtime = Arc::new(Runtime::from_signed_policy(
-            policy, signature, root, None, limits,
-        )?);
+        let owner = PolicyOwner::from_signed_policy(policy, signature, root, None, limits)?;
         let database = provision_private_database(path, |database| {
             let transaction = write_transaction(database)?;
             if let Err(error) = write_image(
@@ -157,7 +155,7 @@ impl PolicyStore {
                 root,
                 policy,
                 signature,
-                runtime.trusted_state(),
+                owner.trusted_state(),
             ) {
                 transaction.abort().map_err(storage)?;
                 return Err(error);
@@ -170,7 +168,7 @@ impl PolicyStore {
         Ok(Self {
             active: Some(Active {
                 database,
-                runtime,
+                owner,
                 root: root.to_vec(),
             }),
         })
@@ -200,14 +198,14 @@ impl PolicyStore {
         }
         let table = read.open_table(TABLE).map_err(storage)?;
         let image = read_image(&table, root)?;
-        let runtime = Arc::new(Runtime::from_signed_policy(
+        let owner = PolicyOwner::from_signed_policy(
             &image.policy,
             &image.signature,
             root,
             Some(&image.state),
             limits,
-        )?);
-        if runtime.trusted_state() != image.state {
+        )?;
+        if owner.trusted_state() != image.state {
             return Err(StoreError::Corrupt);
         }
         drop(table);
@@ -216,7 +214,7 @@ impl PolicyStore {
         Ok(Self {
             active: Some(Active {
                 database,
-                runtime,
+                owner,
                 root: root.to_vec(),
             }),
         })
@@ -248,11 +246,11 @@ impl PolicyStore {
         Ok(store)
     }
 
-    /// Borrow a shared immutable runtime. Store close/drop revokes this alias.
+    /// Borrow an operational runtime without policy-update authority. Update
+    /// through [`Self::replace_policy`]; store close/drop revokes every alias.
     pub fn runtime(&self) -> Result<Arc<Runtime>, StoreError> {
         let active = self.active.as_ref().ok_or(StoreError::Closed)?;
-        active.runtime.policy_binding()?;
-        Ok(Arc::clone(&active.runtime))
+        Ok(active.owner.runtime()?)
     }
 
     /// Verify a strictly newer policy, compare expected state inside the write
@@ -267,10 +265,10 @@ impl PolicyStore {
         signature: &[u8],
     ) -> Result<Arc<Runtime>, StoreError> {
         let active = self.active.as_mut().ok_or(StoreError::Closed)?;
-        if active.runtime.trusted_state() != expected {
+        if active.owner.trusted_state() != expected {
             return Err(StoreError::Stale);
         }
-        let update = active.runtime.prepare_policy_update(policy, signature)?;
+        let update = active.owner.prepare_policy_update(policy, signature)?;
         let (_, next) = update.states()?;
         let outcome = (|| {
             let transaction = write_transaction(&active.database)?;
@@ -286,11 +284,11 @@ impl PolicyStore {
                 return Err(error);
             }
             transaction.commit().map_err(StoreError::CommitUncertain)?;
-            let runtime = update
+            let owner = update
                 .activate_after_persist()
                 .map_err(StoreError::ActivationAfterCommit)?;
-            active.runtime = Arc::clone(&runtime);
-            Ok(runtime)
+            active.owner = owner;
+            Ok(active.owner.runtime()?)
         })();
         if outcome.is_err() {
             self.close();

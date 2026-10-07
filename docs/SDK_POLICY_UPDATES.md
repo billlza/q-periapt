@@ -27,6 +27,16 @@ are explicitly not durable-store evidence. The
 and is shared by Rust, C and Swift. Both connection diagnostic peers use it.
 The packaged cross-platform reference application remains an open gate.
 
+Rust persistence implementations keep `PolicyOwner` private and lend its
+operational `Arc<Runtime>` aliases. Those aliases return `UpdateOwnerRequired`
+from manual preparation; the restriction persists in successors and reopened
+stores. The owner prepares an `OwnedPolicyUpdate`, exposes its exact state pair
+for the host's durable transaction, and returns a new owner only on activation.
+There is no conversion from an alias into its owner. `PolicyOwner` itself does
+not persist, authenticate storage, or isolate hostile same-process code. A
+standalone `Runtime::from_signed_policy` keeps the manual sequence above;
+applications using `PolicyStore` call `replace_policy` instead.
+
 For a persistent native runtime, call `q_periapt_sdk_runtime_update_store` or
 Swift's `QPeriaptPersistentRuntime.update` instead of the four manual steps.
 It verifies, commits and activates, returning a new runtime identity and

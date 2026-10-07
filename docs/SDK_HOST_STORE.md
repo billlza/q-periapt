@@ -41,7 +41,13 @@ host's configured policy before exposing the runtime: the same exact state is
 idempotent, a strictly newer valid policy is durably applied, and an older or
 invalid policy is rejected. C and Swift always require this configured form.
 
-`runtime()` returns a shared immutable SDK runtime. Keep the store alive while
+`runtime()` returns a shared operational SDK runtime without policy-update
+authority. The store privately retains `PolicyOwner`; manual
+`prepare_policy_update` on its runtime aliases returns `UpdateOwnerRequired`.
+Use `replace_policy` below. Successor aliases and reopened stores retain this
+restriction, so a consumer cannot bypass the store's commit through an alias.
+This is an API capability boundary, not isolation from hostile same-process
+code that explicitly bootstraps another runtime. Keep the store alive while
 using it: store close/drop revokes the runtime and all retained key/connection
 aliases before releasing the file lease. Already admitted SDK calls may finish
 with their existing leases. A valid disabling policy is stored and recovered as

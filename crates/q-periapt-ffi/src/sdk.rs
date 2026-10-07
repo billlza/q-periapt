@@ -119,6 +119,7 @@ fn map_error(error: sdk::Error) -> i32 {
         sdk::Error::Closed => Q_PERIAPT_ERR_CLOSED,
         sdk::Error::InvalidLength => Q_PERIAPT_ERR_LENGTH,
         sdk::Error::PolicyDenied => Q_PERIAPT_ERR_POLICY,
+        sdk::Error::UpdateOwnerRequired => Q_PERIAPT_ERR_STORAGE_REQUIRED,
         sdk::Error::InvalidKeyShare => Q_PERIAPT_ERR_INVALID_KEYSHARE,
         sdk::Error::Entropy => Q_PERIAPT_ERR_ENTROPY,
         sdk::Error::ResourceLimit => Q_PERIAPT_ERR_RESOURCE_LIMIT,

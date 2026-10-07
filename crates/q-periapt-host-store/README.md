@@ -11,6 +11,12 @@ formal or staging files. Previously published state must be reopened with origin
 expectations; loss of active storage is not first use. Bounded explicit initial
 retry and exclusive staging maintenance remain host responsibilities.
 
+The store privately retains the SDK's `PolicyOwner`. A runtime returned by
+`runtime()` or `replace_policy()` cannot prepare an in-memory policy update;
+it returns `UpdateOwnerRequired`. Apply updates through `replace_policy()` so
+the signed image and trusted state commit before successor activation. Reopening
+preserves this separation, and store close/drop revokes every operational alias.
+
 See [the API sequence, storage assumptions and actual validation](../../docs/SDK_HOST_STORE.md).
 This is neither a cross-process authorization service nor a hardware rollback
 counter. Additive C ABI 2 functions and Swift's `QPeriaptPersistentRuntime` now

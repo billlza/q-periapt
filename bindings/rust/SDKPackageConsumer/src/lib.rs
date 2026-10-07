@@ -273,11 +273,29 @@ mod tests {
         let mut store = PolicyStore::provision(&path, POLICY, SIGNATURE, ROOT, Limits::default())?;
         let old = store.runtime()?;
         let key = old.generate_key()?;
+        assert!(matches!(
+            old.prepare_policy_update(REVOKE, REVOKE_SIGNATURE),
+            Err(Error::UpdateOwnerRequired)
+        ));
         let disabled = store.replace_policy(old.trusted_state(), REVOKE, REVOKE_SIGNATURE)?;
         assert!(!disabled.is_enabled()?);
         assert!(matches!(key.public_key(), Err(Error::Closed)));
+        assert!(matches!(
+            disabled.prepare_policy_update(ENABLE, ENABLE_SIGNATURE),
+            Err(Error::UpdateOwnerRequired)
+        ));
         store.close();
         assert!(matches!(disabled.is_enabled(), Err(Error::Closed)));
+        let recovered = PolicyStore::open(&path, ROOT, Limits::default())?;
+        let recovered_alias = recovered.runtime()?;
+        assert_eq!(recovered_alias.trusted_state(), disabled.trusted_state());
+        assert!(!recovered_alias.is_enabled()?);
+        assert!(matches!(
+            recovered_alias.prepare_policy_update(ENABLE, ENABLE_SIGNATURE),
+            Err(Error::UpdateOwnerRequired)
+        ));
+        drop(recovered);
+        assert!(matches!(recovered_alias.is_enabled(), Err(Error::Closed)));
         assert!(matches!(
             PolicyStore::open_configured(&path, POLICY, SIGNATURE, ROOT, Limits::default()),
             Err(StoreError::Policy(Error::PolicyDenied))
@@ -286,6 +304,10 @@ mod tests {
             PolicyStore::open_configured(&path, ENABLE, ENABLE_SIGNATURE, ROOT, Limits::default())?;
         let active = reopened.runtime()?;
         let key = active.generate_key()?;
+        assert!(matches!(
+            active.prepare_policy_update(ENABLE, ENABLE_SIGNATURE),
+            Err(Error::UpdateOwnerRequired)
+        ));
         assert_eq!(key.public_key()?.to_bytes().len(), 1216);
         reopened.close();
         assert!(matches!(key.public_key(), Err(Error::Closed)));

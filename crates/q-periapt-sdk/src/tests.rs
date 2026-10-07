@@ -587,6 +587,90 @@ fn policy_activation_revokes_all_old_owners_but_not_the_replacement() {
 }
 
 #[test]
+fn policy_owner_keeps_update_authority_out_of_runtime_aliases_and_successors() {
+    let (policy, signature, root) = fixture();
+    let owner = PolicyOwner::from_signed_policy(policy, signature, root, None, Limits::default())
+        .expect("verified persistence owner");
+    let alias = owner.runtime().expect("operational alias");
+    let key = alias.generate_key().expect("ordinary operation");
+    let (next, signed) = signed_update(3, 42, "");
+    assert!(matches!(
+        alias.prepare_policy_update(&next, &signed),
+        Err(Error::UpdateOwnerRequired)
+    ));
+    let (foreign, foreign_signed) = signed_update(3, 43, "");
+    assert!(matches!(
+        owner.prepare_policy_update(&foreign, &foreign_signed),
+        Err(Error::PolicyDenied)
+    ));
+    let first = owner
+        .prepare_policy_update(&next, &signed)
+        .expect("owner update");
+    let (later, later_signed) = signed_update(4, 42, "");
+    let other = owner
+        .prepare_policy_update(&later, &later_signed)
+        .expect("competing owner update");
+    let (previous, persisted) = first.states().expect("exact CAS pair");
+    assert_eq!(previous, owner.trusted_state());
+    assert_eq!(persisted.version(), 3);
+    let successor = first
+        .activate_after_persist()
+        .expect("test host persisted the pair");
+    assert_eq!(successor.trusted_state(), persisted);
+    assert!(matches!(alias.is_enabled(), Err(Error::Closed)));
+    assert!(matches!(key.public_key(), Err(Error::Closed)));
+    assert!(matches!(other.activate_after_persist(), Err(Error::Closed)));
+    drop(owner);
+    let next_alias = successor
+        .runtime()
+        .expect("new owner survives old-owner drop");
+    assert!(next_alias.generate_key().is_ok());
+    assert!(matches!(
+        next_alias.prepare_policy_update(&later, &later_signed),
+        Err(Error::UpdateOwnerRequired)
+    ));
+    drop(successor);
+    assert!(matches!(next_alias.is_enabled(), Err(Error::Closed)));
+}
+
+#[test]
+fn dropping_or_cancelling_owned_preparation_preserves_original_until_owner_closes() {
+    let (policy, signature, root) = fixture();
+    let owner = PolicyOwner::from_signed_policy(policy, signature, root, None, Limits::default())
+        .expect("verified persistence owner");
+    let alias = owner.runtime().expect("alias");
+    let (next, signed) = signed_update(3, 42, "");
+    let mut cancelled = owner
+        .prepare_policy_update(&next, &signed)
+        .expect("prepare");
+    cancelled.close();
+    assert!(matches!(cancelled.states(), Err(Error::Closed)));
+    assert!(matches!(
+        cancelled.activate_after_persist(),
+        Err(Error::Closed)
+    ));
+    assert!(alias.is_enabled().expect("cancel did not revoke original"));
+    drop(
+        owner
+            .prepare_policy_update(&next, &signed)
+            .expect("abandoned preparation"),
+    );
+    assert!(alias.is_enabled().expect("drop did not revoke original"));
+    let pending = owner
+        .prepare_policy_update(&next, &signed)
+        .expect("prepare before owner loss");
+    drop(owner);
+    assert!(matches!(
+        pending.activate_after_persist(),
+        Err(Error::Closed)
+    ));
+    assert!(matches!(
+        alias.prepare_policy_update(&next, &signed),
+        Err(Error::Closed)
+    ));
+}
+
+#[test]
 fn racing_policy_candidates_have_exactly_one_activation_winner() {
     let owner = runtime(Limits::default());
     let barrier = Arc::new(std::sync::Barrier::new(3));
