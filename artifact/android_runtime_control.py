@@ -156,7 +156,7 @@ class Control:
         self.result["system_image_sha256"] = identity
         if identity != IMAGE_HASHES:
             raise RuntimeError("installed system image differs from the failed 8b8d6320 run")
-        version = self.text(self.command("emulator-version", [str(self.emulator), "-version"]))
+        version = self.text(self.command("emulator-version", [str(self.emulator), "-no-window", "-version"]))
         if "Android emulator version 37.2.12.0" not in version:
             raise RuntimeError("emulator version differs from the failed run")
         self.result["tools"] = {"adb": file_hash(self.adb), "emulator": file_hash(self.emulator)}
