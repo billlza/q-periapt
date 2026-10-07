@@ -5646,7 +5646,7 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = ((CI_WORKFLOW, 26), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        workflows = ((CI_WORKFLOW, 27), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
         self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
         for path, expected_count in workflows:
             with self.subTest(workflow=path.name):
@@ -5693,7 +5693,7 @@ with _temporary_release_test_directories(parents):
                     "abi2-windows-package-2022": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
                     "abi2-linux-package": (CANONICAL_RUST_TOOLCHAIN,),
                     "bindings-wasm": (CANONICAL_RUST_TOOLCHAIN,),
-                    "fuzz": ("nightly",),
+                    "fuzz": ("nightly-2026-10-07",),
                     # Header generation and the installed Rust-package audit.
                     "bindings-swift": (CANONICAL_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN),
                     "bindings-kotlin": (CANONICAL_RUST_TOOLCHAIN,),
@@ -5761,8 +5761,9 @@ with _temporary_release_test_directories(parents):
         self.assertIn("target/sdk-rust-msrv/consumer-Cargo.lock", package_job)
         self.assertNotIn("continue-on-error:", package_job)
         fuzz = extract_workflow_job(ci, "fuzz")
-        self.assertIn("cargo +nightly fetch", fuzz)
-        self.assertIn("cargo +nightly fuzz build", fuzz)
+        self.assertIn("          toolchain: nightly-2026-10-07\n", fuzz)
+        self.assertIn("cargo +nightly-2026-10-07 fetch", fuzz)
+        self.assertIn("cargo +nightly-2026-10-07 fuzz build", fuzz)
 
     def test_pretag_windows_2022_package_gate_matches_candidate_substrate(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
