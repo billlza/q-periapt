@@ -46,7 +46,7 @@ TOPOLOGY = (
     ("q-periapt-backends", ("q-periapt-mlkem-native-sys", "q-periapt-core", "q-periapt-sig")),
     ("q-periapt-policy", ("q-periapt-core", "q-periapt-sig")),
     ("q-periapt-sdk", ("q-periapt-core", "q-periapt-kem", "q-periapt-backends", "q-periapt-policy")),
-    ("q-periapt-host-store", ("q-periapt-core", "q-periapt-backends", "q-periapt-policy", "q-periapt-sdk")),
+    ("q-periapt-host-store", ("q-periapt-core", "q-periapt-sig", "q-periapt-backends", "q-periapt-policy", "q-periapt-sdk")),
     ("q-periapt-rustls", ("q-periapt-core", "q-periapt-kem", "q-periapt-backends", "q-periapt-policy", "q-periapt-sdk")),
     ("q-periapt-ffi", ("q-periapt-core", "q-periapt-kem", "q-periapt-backends", "q-periapt-policy",
                       "q-periapt-sdk", "q-periapt-host-store", "q-periapt-rustls")),
