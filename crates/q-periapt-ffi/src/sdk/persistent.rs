@@ -52,11 +52,11 @@ unsafe fn construct(
     out_runtime: *mut u64,
     provision: bool,
 ) -> i32 {
-    if options.is_null() {
-        return Q_PERIAPT_ERR_NULL;
-    }
-    if !region_ok(options.cast(), size_of::<QPeriaptStoreOptions>()) {
-        return Q_PERIAPT_ERR_LENGTH;
+    // SAFETY: the public constructor requires the staged readable prefix.
+    if let Err(error) =
+        unsafe { validate_options_prefix(options.cast(), size_of::<QPeriaptStoreOptions>()) }
+    {
+        return error;
     }
     // SAFETY: the caller supplies a complete initialized options object.
     let config = unsafe { options.read_unaligned() };
@@ -77,11 +77,6 @@ unsafe fn construct(
             ],
             [(output, 8)],
             || {
-                if config.struct_size as usize != header.len
-                    || config.extension_version != Q_PERIAPT_SDK_EXTENSION_VERSION
-                {
-                    return Err(Q_PERIAPT_ERR_LIMITS);
-                }
                 #[cfg(any(target_os = "macos", target_os = "linux"))]
                 {
                     let mut slot = owner_registry().reserve(0)?;
@@ -119,8 +114,11 @@ unsafe fn construct(
 /// This call can block on filesystem synchronization. Only public policy/state
 /// are persisted, not private KEM/TLS keys. The returned runtime owns its lease.
 /// # Safety
-/// Options/inputs are complete, readable and immutable for the call. out_runtime
-/// is writable for eight bytes, disjoint from every input and the options object.
+/// Options initially provides four readable immutable bytes (struct_size).
+/// Matching size requires the eight-byte size/revision prefix; matching revision
+/// requires the complete initialized structure and readable immutable inputs.
+/// Unsupported size/revision returns LIMITS with output untouched. out_runtime
+/// is writable for eight bytes, disjoint from every accepted input/options object.
 #[no_mangle]
 pub unsafe extern "C" fn q_periapt_sdk_runtime_provision_store(
     options: *const QPeriaptStoreOptions,
@@ -134,7 +132,8 @@ pub unsafe extern "C" fn q_periapt_sdk_runtime_provision_store(
 /// Missing/corrupt storage and rollback fail; they never become first installation.
 /// A newer valid revocation persists a disabled runtime. Disk work can block.
 /// # Safety
-/// Same complete disjoint input/output contract as runtime_provision_store.
+/// Same staged options prefix and disjoint input/output contract as
+/// runtime_provision_store.
 #[no_mangle]
 pub unsafe extern "C" fn q_periapt_sdk_runtime_open_store(
     options: *const QPeriaptStoreOptions,

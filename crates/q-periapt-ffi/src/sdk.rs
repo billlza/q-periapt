@@ -114,6 +114,37 @@ pub struct QPeriaptRuntimeOptions {
     pub max_in_flight: u32,
 }
 
+// All three repr(C) options types start with these two u32 fields. Inspect
+// only the supported prefix before reading pointer-bearing fields. A rejected
+// header is a shape failure: no output is initialized or handle consulted.
+// SAFETY: four readable immutable bytes are required initially; matching size
+// requires eight, and a matching revision requires the complete options object.
+unsafe fn validate_options_prefix(options: *const u8, expected: usize) -> StatusResult<()> {
+    if options.is_null() {
+        return Err(Q_PERIAPT_ERR_NULL);
+    }
+    if !region_ok(options, size_of::<u32>()) {
+        return Err(Q_PERIAPT_ERR_LENGTH);
+    }
+    // SAFETY: the initial size word is readable even for an unsupported layout.
+    let supplied = unsafe { options.cast::<u32>().read_unaligned() };
+    if supplied as usize != expected {
+        return Err(Q_PERIAPT_ERR_LIMITS);
+    }
+    if !region_ok(options, 2 * size_of::<u32>()) {
+        return Err(Q_PERIAPT_ERR_LENGTH);
+    }
+    // SAFETY: matching size requires the two-word prefix; no other field is read.
+    let revision = unsafe { options.add(size_of::<u32>()).cast::<u32>().read_unaligned() };
+    if revision != Q_PERIAPT_SDK_EXTENSION_VERSION {
+        return Err(Q_PERIAPT_ERR_LIMITS);
+    }
+    if !region_ok(options, expected) {
+        return Err(Q_PERIAPT_ERR_LENGTH);
+    }
+    Ok(())
+}
+
 fn map_error(error: sdk::Error) -> i32 {
     match error {
         sdk::Error::Closed => Q_PERIAPT_ERR_CLOSED,
@@ -488,7 +519,10 @@ pub unsafe extern "C" fn q_periapt_sdk_policy_update_activate(
 /// key operations return POLICY, while future signed updates remain possible.
 ///
 /// # Safety
-/// `options` points to a fully initialized complete options structure. Every
+/// `options` initially provides four readable immutable bytes (`struct_size`).
+/// Matching size requires the eight-byte size/revision prefix; matching revision
+/// requires the fully initialized complete structure. Unsupported size/revision
+/// returns LIMITS without reading later fields or writing output. Every accepted
 /// input buffer is readable and immutable for its length throughout the call;
 /// `out_runtime` is writable for eight bytes. No input/output regions may overlap.
 #[no_mangle]
@@ -496,11 +530,12 @@ pub unsafe extern "C" fn q_periapt_sdk_runtime_new(
     options: *const QPeriaptRuntimeOptions,
     out_runtime: *mut u64,
 ) -> i32 {
-    if options.is_null() {
-        return Q_PERIAPT_ERR_NULL;
-    }
-    if !region_ok(options.cast(), size_of::<QPeriaptRuntimeOptions>()) {
-        return Q_PERIAPT_ERR_LENGTH;
+    // SAFETY: the caller supplies the readable prefix and, when supported,
+    // the complete object according to the staged validity contract above.
+    if let Err(error) =
+        unsafe { validate_options_prefix(options.cast(), size_of::<QPeriaptRuntimeOptions>()) }
+    {
+        return error;
     }
     // SAFETY: complete initialized structure is required by this function's contract.
     let config = unsafe { options.read_unaligned() };
@@ -529,11 +564,6 @@ pub unsafe extern "C" fn q_periapt_sdk_runtime_new(
             ],
             [(output, 8)],
             || {
-                if config.struct_size as usize != size_of::<QPeriaptRuntimeOptions>()
-                    || config.extension_version != Q_PERIAPT_SDK_EXTENSION_VERSION
-                {
-                    return Err(Q_PERIAPT_ERR_LIMITS);
-                }
                 let mut slot = owner_registry().reserve(0)?;
                 let previous = read(config.previous_state)?;
                 let previous = if previous.is_empty() {

@@ -101,6 +101,13 @@ C shape/alias errors leave outputs untouched. After valid I/O has been admitted,
 subsequent errors or caught Rust panics zero all outputs. JNI/Swift/JVM do not
 return partially constructed results. ML-KEM implicit rejection remains a
 correct-length ciphertext-to-secret operation; no classic fallback is added.
+The five C runtime/store/endpoint constructors inspect the four-byte
+`struct_size` word first, then the eight-byte size/revision prefix, before reading
+any pointer-bearing fields. Unsupported size or revision returns `ERR_LIMITS`
+with output untouched. An accepted prefix still requires the complete initialized
+current structure and valid buffers. This safely rejects shorter/unknown layouts;
+it does not accept them or promise automatic prefix compatibility. A caller must
+provide the readable prefix and must not lie about a supported complete layout.
 Native statuses retain their old values and add `ERR_CLOSED=-9`,
 `ERR_RESOURCE_LIMIT=-10`, `ERR_LIMITS=-11`, `ERR_PURPOSE=-12`, and
 `ERR_INVALID_PRIVATE_KEY=-13`.

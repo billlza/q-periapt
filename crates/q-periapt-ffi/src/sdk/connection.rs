@@ -134,15 +134,14 @@ unsafe fn endpoint_new(
     out_endpoint: *mut u64,
     client: bool,
 ) -> i32 {
-    if options.is_null() {
-        return Q_PERIAPT_ERR_NULL;
-    }
-    if !region_ok(options.cast(), size_of::<QPeriaptConnectionOptions>()) {
-        return Q_PERIAPT_ERR_LENGTH;
+    // SAFETY: the public constructor requires the staged readable prefix.
+    if let Err(error) =
+        unsafe { validate_options_prefix(options.cast(), size_of::<QPeriaptConnectionOptions>()) }
+    {
+        return error;
     }
     // SAFETY: the caller supplies a complete initialized configuration.
-    let options_value = unsafe { options.read_unaligned() };
-    let config = options_value;
+    let config = unsafe { options.read_unaligned() };
     let header = QPeriaptInput {
         data: options.cast(),
         len: size_of::<QPeriaptConnectionOptions>(),
@@ -160,11 +159,6 @@ unsafe fn endpoint_new(
             ],
             [(output, 8)],
             || {
-                if config.struct_size as usize != header.len
-                    || config.extension_version != Q_PERIAPT_SDK_EXTENSION_VERSION
-                {
-                    return Err(Q_PERIAPT_ERR_LIMITS);
-                }
                 let runtime = runtime(handle)?;
                 let mut slot = owner_registry().reserve(handle)?;
                 let credentials = transport::Credentials {
@@ -195,8 +189,11 @@ unsafe fn endpoint_new(
 
 /// Construct an explicitly standard-TLS client endpoint under a verified runtime.
 /// # Safety
-/// Options and all inputs are readable/immutable for their specified extents;
-/// out_endpoint is writable for eight bytes and disjoint from all inputs.
+/// Options initially provides four readable immutable bytes (struct_size).
+/// Matching size requires the eight-byte size/revision prefix; matching revision
+/// requires the complete initialized structure and readable immutable inputs.
+/// Unsupported size/revision returns LIMITS with output untouched. out_endpoint
+/// is writable for eight bytes and disjoint from every accepted input/options object.
 #[no_mangle]
 pub unsafe extern "C" fn q_periapt_sdk_connection_client_new(
     handle: u64,
@@ -208,7 +205,7 @@ pub unsafe extern "C" fn q_periapt_sdk_connection_client_new(
 }
 /// Construct a server endpoint requiring the explicit client certificate pin.
 /// # Safety
-/// Same complete, disjoint input/output validity contract as connection_client_new.
+/// Same staged options prefix and disjoint input/output contract as connection_client_new.
 #[no_mangle]
 pub unsafe extern "C" fn q_periapt_sdk_connection_server_new(
     handle: u64,

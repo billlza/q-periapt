@@ -5,6 +5,7 @@
 #include "sdk_policy_update_fixture.h"
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(value) do { if (!(value)) { fprintf(stderr, "SDK C check failed at line %d\n", __LINE__); return 1; } } while (0)
@@ -32,9 +33,41 @@ _Static_assert(offsetof(QPeriaptStoreOptions, signature) == 8 + 4 * sizeof(uintp
 _Static_assert(offsetof(QPeriaptStoreOptions, trust_root) == 8 + 6 * sizeof(uintptr_t), "store root offset");
 _Static_assert(offsetof(QPeriaptStoreOptions, max_live_keys) == 8 + 8 * sizeof(uintptr_t), "store limits offset");
 _Static_assert(sizeof(QPeriaptStoreOptions) == 16 + 8 * sizeof(uintptr_t), "store options size");
+_Static_assert(offsetof(QPeriaptRuntimeOptions, struct_size) == 0 && offsetof(QPeriaptRuntimeOptions, extension_version) == 4, "runtime prefix");
+_Static_assert(offsetof(QPeriaptStoreOptions, struct_size) == 0 && offsetof(QPeriaptStoreOptions, extension_version) == 4, "store prefix");
+_Static_assert(offsetof(QPeriaptConnectionOptions, struct_size) == 0 && offsetof(QPeriaptConnectionOptions, extension_version) == 4, "connection prefix");
+
+static int reject_short_options(void)
+{
+    /* malloc supplies suitably aligned storage, with no initialized trailing
+       options fields. Each unsupported prefix must be rejected without reading
+       past this allocation, touching output, or consulting runtime handle 0. */
+    for (size_t words = 1; words <= 2; words++) {
+        uint32_t *prefix = malloc(words * sizeof(*prefix));
+        CHECK(prefix != NULL);
+        prefix[0] = words == 1 ? 4 : sizeof(QPeriaptRuntimeOptions);
+        if (words == 2) prefix[1] = 0;
+        uint64_t output = UINT64_MAX;
+        CHECK(q_periapt_sdk_runtime_new((const QPeriaptRuntimeOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        if (words == 2) prefix[0] = sizeof(QPeriaptStoreOptions);
+        CHECK(q_periapt_sdk_runtime_provision_store((const QPeriaptStoreOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        CHECK(q_periapt_sdk_runtime_open_store((const QPeriaptStoreOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        if (words == 2) prefix[0] = sizeof(QPeriaptConnectionOptions);
+        CHECK(q_periapt_sdk_connection_client_new(0, (const QPeriaptConnectionOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        CHECK(q_periapt_sdk_connection_server_new(0, (const QPeriaptConnectionOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        free(prefix);
+    }
+    return 0;
+}
 
 int main(void)
 {
+    CHECK(reject_short_options() == 0);
     const QPeriaptRuntimeOptions options = {
         .struct_size = sizeof(QPeriaptRuntimeOptions),
         .extension_version = Q_PERIAPT_SDK_EXTENSION_VERSION,

@@ -751,7 +751,10 @@ int32_t q_periapt_sdk_policy_update_activate(uint64_t handle, uint64_t *out_runt
  * key operations return POLICY, while future signed updates remain possible.
  *
  * # Safety
- * `options` points to a fully initialized complete options structure. Every
+ * `options` initially provides four readable immutable bytes (`struct_size`).
+ * Matching size requires the eight-byte size/revision prefix; matching revision
+ * requires the fully initialized complete structure. Unsupported size/revision
+ * returns LIMITS without reading later fields or writing output. Every accepted
  * input buffer is readable and immutable for its length throughout the call;
  * `out_runtime` is writable for eight bytes. No input/output regions may overlap.
  */
@@ -851,8 +854,11 @@ int32_t q_periapt_sdk_close(uint64_t handle);
 /**
  * Construct an explicitly standard-TLS client endpoint under a verified runtime.
  * # Safety
- * Options and all inputs are readable/immutable for their specified extents;
- * out_endpoint is writable for eight bytes and disjoint from all inputs.
+ * Options initially provides four readable immutable bytes (struct_size).
+ * Matching size requires the eight-byte size/revision prefix; matching revision
+ * requires the complete initialized structure and readable immutable inputs.
+ * Unsupported size/revision returns LIMITS with output untouched. out_endpoint
+ * is writable for eight bytes and disjoint from every accepted input/options object.
  */
 int32_t q_periapt_sdk_connection_client_new(uint64_t handle,
                                             const QPeriaptConnectionOptions *options,
@@ -861,7 +867,7 @@ int32_t q_periapt_sdk_connection_client_new(uint64_t handle,
 /**
  * Construct a server endpoint requiring the explicit client certificate pin.
  * # Safety
- * Same complete, disjoint input/output validity contract as connection_client_new.
+ * Same staged options prefix and disjoint input/output contract as connection_client_new.
  */
 int32_t q_periapt_sdk_connection_server_new(uint64_t handle,
                                             const QPeriaptConnectionOptions *options,
@@ -969,8 +975,11 @@ int32_t q_periapt_sdk_connection_shutdown(uint64_t handle);
  * This call can block on filesystem synchronization. Only public policy/state
  * are persisted, not private KEM/TLS keys. The returned runtime owns its lease.
  * # Safety
- * Options/inputs are complete, readable and immutable for the call. out_runtime
- * is writable for eight bytes, disjoint from every input and the options object.
+ * Options initially provides four readable immutable bytes (struct_size).
+ * Matching size requires the eight-byte size/revision prefix; matching revision
+ * requires the complete initialized structure and readable immutable inputs.
+ * Unsupported size/revision returns LIMITS with output untouched. out_runtime
+ * is writable for eight bytes, disjoint from every accepted input/options object.
  */
 int32_t q_periapt_sdk_runtime_provision_store(const QPeriaptStoreOptions *options,
                                               uint64_t *out_runtime);
@@ -980,7 +989,8 @@ int32_t q_periapt_sdk_runtime_provision_store(const QPeriaptStoreOptions *option
  * Missing/corrupt storage and rollback fail; they never become first installation.
  * A newer valid revocation persists a disabled runtime. Disk work can block.
  * # Safety
- * Same complete disjoint input/output contract as runtime_provision_store.
+ * Same staged options prefix and disjoint input/output contract as
+ * runtime_provision_store.
  */
 int32_t q_periapt_sdk_runtime_open_store(const QPeriaptStoreOptions *options,
                                          uint64_t *out_runtime);

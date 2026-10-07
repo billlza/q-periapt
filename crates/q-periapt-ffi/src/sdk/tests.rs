@@ -43,6 +43,72 @@ fn options() -> QPeriaptRuntimeOptions {
         max_in_flight: 2,
     }
 }
+
+#[test]
+fn constructors_reject_short_option_prefixes_before_reading_fields() {
+    // Matching layout/revision still requires a complete initialized structure.
+    // Unsupported layouts require only the four-byte size word; unsupported
+    // revisions require only the eight-byte prefix. No later pointer is valid.
+    for size_only in [0_u32, 4, u32::MAX] {
+        let ptr = std::ptr::from_ref(&size_only).cast::<u8>();
+        let mut output = u64::MAX;
+        // SAFETY: the readable size word names an unsupported layout. The ABI
+        // rejects it before reading any later bytes; output is separate/valid.
+        unsafe {
+            assert_eq!(
+                q_periapt_sdk_runtime_new(ptr.cast(), &mut output),
+                Q_PERIAPT_ERR_LIMITS
+            );
+            assert_eq!(
+                q_periapt_sdk_runtime_provision_store(ptr.cast(), &mut output),
+                Q_PERIAPT_ERR_LIMITS
+            );
+            assert_eq!(
+                q_periapt_sdk_runtime_open_store(ptr.cast(), &mut output),
+                Q_PERIAPT_ERR_LIMITS
+            );
+            assert_eq!(
+                q_periapt_sdk_connection_client_new(0, ptr.cast(), &mut output),
+                Q_PERIAPT_ERR_LIMITS
+            );
+            assert_eq!(
+                q_periapt_sdk_connection_server_new(0, ptr.cast(), &mut output),
+                Q_PERIAPT_ERR_LIMITS
+            );
+        }
+        assert_eq!(output, u64::MAX);
+    }
+    let runtime_prefix = [size_of::<QPeriaptRuntimeOptions>() as u32, 0];
+    let store_prefix = [size_of::<QPeriaptStoreOptions>() as u32, 0];
+    let connection_prefix = [size_of::<QPeriaptConnectionOptions>() as u32, 0];
+    let mut output = u64::MAX;
+    // SAFETY: each prefix is readable and carries an unsupported revision.
+    // No complete options value is needed or constructed on this reject path.
+    unsafe {
+        assert_eq!(
+            q_periapt_sdk_runtime_new(runtime_prefix.as_ptr().cast(), &mut output),
+            Q_PERIAPT_ERR_LIMITS
+        );
+        assert_eq!(
+            q_periapt_sdk_runtime_provision_store(store_prefix.as_ptr().cast(), &mut output),
+            Q_PERIAPT_ERR_LIMITS
+        );
+        assert_eq!(
+            q_periapt_sdk_runtime_open_store(store_prefix.as_ptr().cast(), &mut output),
+            Q_PERIAPT_ERR_LIMITS
+        );
+        assert_eq!(
+            q_periapt_sdk_connection_client_new(0, connection_prefix.as_ptr().cast(), &mut output),
+            Q_PERIAPT_ERR_LIMITS
+        );
+        assert_eq!(
+            q_periapt_sdk_connection_server_new(0, connection_prefix.as_ptr().cast(), &mut output),
+            Q_PERIAPT_ERR_LIMITS
+        );
+    }
+    assert_eq!(output, u64::MAX);
+}
+
 pub(super) fn create() -> u64 {
     let mut handle = 0;
     // SAFETY: options and its fixture buffers are live; handle is disjoint/writable.
