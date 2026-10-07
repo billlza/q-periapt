@@ -47,6 +47,14 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 `cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
+The Rust job has a 120-minute bound, with a 90-minute limit on the upstream Analyze
+step so checkout verification, the separate quality gate and diagnostic retention can finish.
+The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
+52-minute evaluation. Rust and Swift emit the pinned action's diagnostic artifacts, which can
+include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
+code-scanning results or release evidence. No query is removed, and the custom quality queries
+retain their independent 300-second limits below.
+
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
 406 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source

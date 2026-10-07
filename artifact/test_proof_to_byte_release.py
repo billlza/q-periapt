@@ -1325,7 +1325,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common, source)
         self.assertLess(source.index("          swift build --build-tests" + swift_common),
                         source.index("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common))
-        self.assertIn("          debug: ${{ matrix.language == 'swift' }}", source)
+        self.assertIn("          debug: ${{ matrix.language == 'rust' || matrix.language == 'swift' }}", source)
         self.assertIn("          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics", source)
         # Kotlin builds its host library; the 0.2.0 Swift tracer and static
         # archive are both explicitly bound to Apple Silicon macOS.
