@@ -34,6 +34,17 @@ jobs:
         run: |
           test -c /dev/kvm
           sdkmanager "emulator" "system-images;android-35;google_apis_ps16k;x86_64"
+      - name: Prepare the same runner-only KVM access as the SDK runtime lane
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          runner_user=$(id -un)
+          test -c /dev/kvm && test ! -L /dev/kvm
+          stat -c 'device=%t:%T inode=%i mode=%a owner=%u:%g' /dev/kvm
+          getfacl --absolute-names --omit-header /dev/kvm
+          sudo setfacl -m "u:$runner_user:rw" /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          getfacl --absolute-names --omit-header /dev/kvm
+          timeout 15s "$ANDROID_HOME/emulator/emulator" -no-window -accel-check
       - name: Observe a fresh image without any SDK application
         run: python3 -I artifact/android_runtime_control.py
       - name: Retain public control observations including failures
