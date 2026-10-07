@@ -299,6 +299,97 @@ fn activation_reuses_reserved_capacity_and_ignores_call_exhaustion_without_reusi
 }
 
 #[test]
+fn activation_cleanup_failure_revokes_every_owner_and_recovers_from_next_state() {
+    let _tests = TESTS.lock().expect("serial test guard");
+    let runtime = create();
+    let poisoned_key = key(runtime);
+    let other_key = key(runtime);
+    let value = match owner_registry().get(poisoned_key).expect("key").0 {
+        Object::Key(value) => Ok(value),
+        _ => Err(Q_PERIAPT_ERR_CLOSED),
+    }
+    .expect("expected key owner");
+    // A caught panic poisons this child, not the registry or the test guard.
+    let poison = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _borrow = value.write().expect("unpoisoned key");
+        std::panic::resume_unwind(Box::new("injected child panic before policy activation"));
+    }));
+    assert!(poison.is_err());
+    assert!(value.is_poisoned());
+
+    let (policy, signature) = update_policy(true);
+    let mut update = 0;
+    // SAFETY: all input/output allocations remain live, valid and disjoint.
+    unsafe {
+        assert_eq!(
+            q_periapt_sdk_runtime_prepare_update(
+                runtime,
+                span(&policy),
+                span(&signature),
+                &mut update,
+            ),
+            0
+        );
+        let mut states = [0; 72];
+        assert_eq!(
+            q_periapt_sdk_policy_update_states(update, out(&mut states)),
+            0
+        );
+        let successor = match owner_registry().get(update).expect("candidate").0 {
+            Object::PolicyUpdate { successor, .. } => Ok(successor),
+            _ => Err(Q_PERIAPT_ERR_CLOSED),
+        }
+        .expect("expected policy-update owner");
+        // This models the host's saved CAS result; it does not test durable I/O.
+        let persisted_next = &states[36..];
+        let mut replacement = u64::MAX;
+        assert_eq!(
+            q_periapt_sdk_policy_update_activate(update, &mut replacement),
+            Q_PERIAPT_ERR_INTERNAL
+        );
+        assert_eq!(replacement, 0);
+        for handle in [runtime, poisoned_key, other_key, update, successor] {
+            assert!(matches!(
+                owner_registry().get(handle),
+                Err(Q_PERIAPT_ERR_CLOSED)
+            ));
+        }
+        // Cleanup continues past the poisoned child. Neither key is usable.
+        for handle in [poisoned_key, other_key] {
+            let mut exported = [0xa5; sdk::expert::EXPANDED_KEY_LEN];
+            assert_eq!(
+                q_periapt_sdk_expert_key_export(handle, out(&mut exported)),
+                Q_PERIAPT_ERR_CLOSED
+            );
+            assert_eq!(exported, [0; sdk::expert::EXPANDED_KEY_LEN]);
+        }
+
+        let mut recovery = options();
+        recovery.previous_state = span(persisted_next);
+        // Reusing the old document cannot undo a committed policy floor.
+        assert_eq!(
+            q_periapt_sdk_runtime_new(&recovery, &mut replacement),
+            Q_PERIAPT_ERR_POLICY
+        );
+        assert_eq!(replacement, 0);
+        recovery.policy = span(&policy);
+        recovery.signature = span(&signature);
+        assert_eq!(q_periapt_sdk_runtime_new(&recovery, &mut replacement), 0);
+        assert_ne!(replacement, successor);
+        let mut recovered_state = [0; 36];
+        assert_eq!(
+            q_periapt_sdk_runtime_state(replacement, out(&mut recovered_state)),
+            0
+        );
+        assert_eq!(recovered_state, persisted_next);
+        let mut enabled = 99;
+        assert_eq!(q_periapt_sdk_runtime_enabled(replacement, &mut enabled), 0);
+        assert_eq!(enabled, 0);
+        assert_eq!(q_periapt_sdk_close(replacement), 0);
+    }
+}
+
+#[test]
 fn closing_parent_while_activation_waits_prevents_new_runtime_publication() {
     let _tests = TESTS.lock().expect("serial test guard");
     let runtime = create();

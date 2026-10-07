@@ -100,6 +100,20 @@ is required after persistence. Prepared activation and close are exempt from
 the global call budget so exhaustion cannot prevent revocation. Disposing old
 children occurs outside the table lock and may wait for existing borrows.
 
+The manual C activation result also covers disposal of old children. If a child
+lock was poisoned by a caught panic, disposal erases that child and continues
+draining the others, but reports `ERR_INTERNAL`. The old runtime is already
+revoked, the unpublished successor is dropped, and the output handle is zero.
+This is an availability interruption, not rollback or permission to use the old
+policy. Reconstruct using the pinned root, the host's committed **next** state
+and its matching signed policy; supplying the old policy still fails the floor.
+The regression `activation_cleanup_failure_revokes_every_owner_and_recovers_from_next_state`
+exercises this exact public C sequence, with an in-memory saved state rather
+than a durable-I/O claim. Returning a usable successor alongside a cleanup
+failure would require an explicit outcome contract across the language wrappers;
+silently ignoring the error or publishing before reporting failure would violate
+the current output-ownership contract. That availability improvement remains open.
+
 Old runtime/update wrappers cannot close the successor because it has its own
 identity and no old-parent link. Swift/JVM candidates retain the old runtime
 wrapper until activation/close; Rust/WASM require the caller to keep it alive.
