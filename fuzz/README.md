@@ -61,6 +61,11 @@ artifacts are retained, including on failure. This short run is a regression
 check; longer campaigns and stateful Continuity coverage remain separate.
 Historical execution counts from older dependency graphs are not current evidence.
 
+The corrected job has a retained [Linux execution capture](../research/sdk-alpha1/evidence/20261007-bounded-fuzz/linux-ci/README.md)
+for product source `d51b2c30`: all three bounded targets completed. Its auxiliary
+CI branch contains the same non-workflow source and fuzz steps; that result does
+not replace the product branch's complete CI or qualify subsequent source changes.
+
 ## Seed corpus
 
 `corpus/<target>/` holds the seed inputs libFuzzer starts mutation from. The
