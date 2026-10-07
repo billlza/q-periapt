@@ -17,7 +17,7 @@ run is macOS ARM64; Linux execution is still pending. A release build requires
 a clean standalone Git checkout. A diagnostic build can explicitly use
 `QPERIAPT_ALLOW_DIRTY_C_PACKAGE=1` and a fresh `QPERIAPT_C_PACKAGE_OUT_DIR` under
 that checkout's `target` directory. The existing provenance guard still rejects
-linked worktrees. The local run used a separately copied, byte-matched build
+linked worktrees. The earlier diagnostic run used a separately copied, byte-matched build
 checkout and recorded the dirty state; no commit or publication was performed.
 
 The archive installs headers under `include/qperiapt/abi2`, shared/static
@@ -57,9 +57,9 @@ manifest/outer archive digest is pinned before extraction and rechecked after
 execution; rehashing a changed installed payload cannot silently replace it.
 Source-byte fingerprints are compared before and after the build.
 
-The native CBOM, complete workspace-lock SBOM, 72 target-specific Cargo dependency
-notices in the observed macOS build, vendored provider notices and Rust 1.96.1
-standard-library notices are included. The closed payload has 166 files plus its
+The native CBOM, complete workspace-lock SBOM, 76 target-specific Cargo dependency
+notices in the 2026-10-07 macOS build, vendored provider notices and Rust 1.98.1
+standard-library notices are included. The closed payload has 174 files plus its
 manifest/checksum file. The workspace SBOM is not an exact per-target code census;
 the inventory boundaries in [SDK_CBOM.md](SDK_CBOM.md) apply.
 
@@ -68,8 +68,21 @@ Public archive revalidation uses the same `--profile sdk-020` argument with
 contract, target and version values. It rejects a dirty diagnostic source image
 even when all supplied digests match. Local negative controls observe rejection
 for an incorrect archive digest, target, manifest digest and dirty source.
-A positive clean-source public run and Linux hosted execution remain pending;
-the current candidate must not be relabeled as clean release evidence.
+A clean-source public revalidation passed on macOS ARM64 for the source below.
+Linux hosted execution for that corrected source and full release qualification
+remain separate requirements.
+
+The [2026-10-07 clean-source checkpoint](../research/sdk-alpha1/evidence/20261007-clean-c-sdk/README.md)
+uses commit `814721fafbdffdc0a6cd4ee2cce7fb90289413c2`, with no dirty-source
+override. All four external pkg-config consumers, the frozen-header consumer and
+four CMake tests passed, including shared/static linkage and the new legacy
+input-boundary cases. The public archive verification entrypoint then repeated
+those checks with pinned expected identities. The 6,107,734-byte archive SHA-256
+is `adeb1fff4412a6e7691aafa0dbdc3d7f3c411b90e59ad3f7cfc192e789875445`;
+its manifest is `09b9265be84936ebe34a258d4de700481a5aa17225e605d6f0c0a7be9dd0168a`.
+This is local package/consumer evidence, not publication or full session-SDK qualification.
+
+## Historical diagnostic captures
 
 The [2026-09-26 checkpoint](../research/sdk-alpha1/evidence/20260926-c-sdk-package/manifest.json)
 records the actual local producer/installation run, three independent dynamic

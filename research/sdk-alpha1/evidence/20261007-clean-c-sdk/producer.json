@@ -1,0 +1,18 @@
+{
+  "at_utc": "2026-10-07T20:33:33.541867+00:00",
+  "head": "814721fafbdffdc0a6cd4ee2cce7fb90289413c2",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/package-source",
+  "source_clean_before_and_after": true,
+  "command": [
+    "sh",
+    "artifact/c-package.sh",
+    "--profile",
+    "sdk-020"
+  ],
+  "returncode": 0,
+  "seconds": 165.5373053329531,
+  "stdout_sha256": "825f87bf891cbe9f21e314741400c79579a58997b6301f4dce0b863eb226b37c",
+  "stderr_sha256": "ef657b09ed1b91f8119a2bcbe66722dca362aba29c1dbe46147ae4aa3ab20d0c",
+  "allow_dirty": false,
+  "package_output": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/package-source/target/installed-sdk-c"
+}

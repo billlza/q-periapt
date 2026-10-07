@@ -1,0 +1,12 @@
+{
+  "abi_major": 2,
+  "archive_sha256": "adeb1fff4412a6e7691aafa0dbdc3d7f3c411b90e59ad3f7cfc192e789875445",
+  "cmake_tests": 4,
+  "frozen_header_consumer": 1,
+  "kind": "qperiapt.c_sdk_installed_consumer",
+  "manifest_sha256": "09b9265be84936ebe34a258d4de700481a5aa17225e605d6f0c0a7be9dd0168a",
+  "outside_source_checkout": true,
+  "pkg_config_consumers": 4,
+  "release_claim_eligible": false,
+  "source_validation": "pinned-public-archive"
+}
