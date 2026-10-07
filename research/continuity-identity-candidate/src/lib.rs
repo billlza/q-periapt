@@ -43,7 +43,7 @@ pub use enrollment::{
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
     InstallationRecovery, InstallationStatus, InstalledAccountRecovery, InstalledSessionRecovery,
-    ReopenedPeer, ReopenedSession,
+    ReopenedPeer, ReopenedSession, RetiredInstallationRecovery,
 };
 pub use session_archives::SessionArchiveStore;
 

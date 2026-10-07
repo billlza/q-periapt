@@ -246,6 +246,39 @@ end-to-end coverage. The high-level coordinator, complete session/fanout loss re
 host acknowledgement and logical erasure protocol remain open. Neither proof nor
 inventory retention authorizes report acceptance, erasure or new runtime work.
 
+### Original request retained by the installation
+
+`RetiredInstallationRecovery::open(paths, key, retired)` now owns the first local
+request-retention step. It admits only the existing Active installation, its original
+key, independently configured paths and verified permanent retirement. On first use,
+it reads the actual authenticated journal inventory and commits the complete proposal
+to the independent installation database **before** returning a request to dispatch.
+The `retired-cleanup` row is `QPCICL01[8] || QPRCLP01[313]`; the existing installation
+row is unchanged. Only this named additional row is admitted, with exact journal,
+owner, original policy and witness matching. Older readers reject the added row.
+
+Every later open reads that saved proposal and never recaptures a newly selected
+backup. The original request remains available after journal loss and policy expiry
+so an independently authorized controller can reconcile an unknown witness commit.
+`verify_retained(pin, wire)` authenticates permanent witness retention of that exact
+saved request. Neither operation claims the old data is present or complete for a
+loss report. The future report reader must still authenticate the exact independently
+bound image and pending inventory, and reject missing or substituted state.
+
+Once the row exists, ordinary `DeviceInstallation` and `InstallationRecovery` open
+paths return `Suspended`; they do not release an operational or per-session cleanup
+owner through this configuration. The restricted object cannot convert to a service.
+An I/O error may hide the request commit and returns no owner: reopen the original
+configuration and retirement proof. Exact retries do not rewrite the saved request.
+The configuration remains trusted host state outside journal backups, not a new
+anti-rollback mechanism. Complete report binding, host ACK and logical erasure remain
+separate unimplemented steps.
+
+Actual installed-service tests cover interrupted roster writes with retained pending
+inventory, prior backups with the same frozen image and no pending row, missing
+journals, wrong key/retirement, every measured request-commit sync cut, and owned-child
+process loss before and after commit before any request returns to the caller.
+
 ### Explicit refresh under a newer roster
 
 The native trusted operator uses

@@ -50,7 +50,7 @@ impl AnchorRetiredCleanupProposal {
         }
         Ok(())
     }
-    fn check_retirement(&self, retired: AnchorRetiredSubject) -> Result<(), Error> {
+    pub(crate) fn check_retirement(&self, retired: AnchorRetiredSubject) -> Result<(), Error> {
         self.check_shape()?;
         if self.witness != retired.witness_binding()
             || self.replacement != retired.replacement_binding()
@@ -122,6 +122,9 @@ impl AnchorRetiredCleanupProposal {
     /// Original permanently retired journal subject.
     pub fn subject(&self) -> AnchorSubject {
         self.subject
+    }
+    pub(crate) fn witness_binding(&self) -> [u8; 32] {
+        self.witness
     }
     /// Actual encrypted current-image fingerprint, possibly preceding a sealed
     /// target already committed at the witness. It is not a currentness grant.

@@ -19,8 +19,10 @@ const TAG: &[u8; 8] = b"QPCINS01";
 
 mod recovery;
 mod reopen;
+mod retired;
 pub use recovery::{InstallationRecovery, InstalledAccountRecovery, InstalledSessionRecovery};
 pub use reopen::{BootstrapPeer, ReopenedPeer, ReopenedSession};
+pub use retired::RetiredInstallationRecovery;
 
 /// Exact independently configured paths. Keep the installation database and
 /// wrapping key outside journal backups. Missing configuration is not first use.
@@ -177,6 +179,19 @@ fn scope_for_owner(
     Ok(bytes)
 }
 fn read(db: &Database) -> Result<(JournalIdentity, Vec<u8>, InstallationStatus), DurableError> {
+    let saved = read_configuration(db)?;
+    if saved.retired.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    Ok((saved.identity, saved.scope, saved.status))
+}
+struct Configuration {
+    identity: JournalIdentity,
+    scope: Vec<u8>,
+    status: InstallationStatus,
+    retired: Option<crate::AnchorRetiredCleanupProposal>,
+}
+fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
     let tx = db.begin_read().map_err(storage)?;
     let tables: Vec<_> = tx.list_tables().map_err(storage)?.collect();
     if tables.len() != 1
@@ -186,7 +201,8 @@ fn read(db: &Database) -> Result<(JournalIdentity, Vec<u8>, InstallationStatus),
         return Err(DurableError::Corrupt);
     }
     let table = tx.open_table(TABLE).map_err(storage)?;
-    if table.len().map_err(storage)? != 1 {
+    let cleanup = table.get("retired-cleanup").map_err(storage)?;
+    if table.len().map_err(storage)? != if cleanup.is_some() { 2 } else { 1 } {
         return Err(DurableError::Corrupt);
     }
     let row = table
@@ -210,7 +226,15 @@ fn read(db: &Database) -> Result<(JournalIdentity, Vec<u8>, InstallationStatus),
         2 => InstallationStatus::Active,
         _ => return Err(DurableError::Corrupt),
     };
-    Ok((id, binding.to_vec(), status))
+    let retired = cleanup
+        .map(|row| retired::decode_request(row.value(), binding, status))
+        .transpose()?;
+    Ok(Configuration {
+        identity: id,
+        scope: binding.to_vec(),
+        status,
+        retired,
+    })
 }
 pub(crate) fn missing(path: &Path) -> Result<bool, DurableError> {
     match std::fs::symlink_metadata(path) {

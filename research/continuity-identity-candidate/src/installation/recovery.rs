@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Authority {
-    fn retained(
+    pub(super) fn retained(
         saved: &[u8],
         paths: &InstallationPaths,
         identity: JournalIdentity,

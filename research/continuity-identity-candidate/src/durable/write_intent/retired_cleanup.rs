@@ -41,17 +41,25 @@ impl DeviceJournal {
         expected: JournalIdentity,
         retired: AnchorRetiredSubject,
     ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
+        Self::retired_cleanup_inventory(path, &key, expected, retired)
+    }
+    pub(crate) fn retired_cleanup_inventory(
+        path: &Path,
+        key: &JournalKey,
+        expected: JournalIdentity,
+        retired: AnchorRetiredSubject,
+    ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
         let (_, owner, _) = retired.subject().journal_parts();
         let db = open_private_database(path)?;
         let (image, pending) =
-            load_pending_snapshot(&db, &key, owner, SnapshotAdmission::RetiredCleanup)?;
+            load_pending_snapshot(&db, key, owner, SnapshotAdmission::RetiredCleanup)?;
         check_scope(&image, expected, retired)?;
         let current = image.protection.head(image.revision, image.digest)?;
         if current != retired.observed_head() {
             let Some(PendingIntent::Write(pending)) = &pending else {
                 return Err(DurableError::Conflict);
             };
-            let target = pending.authenticated_target(&key, owner)?;
+            let target = pending.authenticated_target(key, owner)?;
             check_scope(&target, expected, retired)?;
             if target.protection.head(target.revision, target.digest)? != retired.observed_head() {
                 return Err(DurableError::Conflict);
