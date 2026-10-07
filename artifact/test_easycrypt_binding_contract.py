@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import copy
-import json
+from pathlib import Path
 import re
+import tempfile
 import unittest
 import easycrypt_binding_contract as contract
 
@@ -12,7 +13,7 @@ class BindingContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = contract.ROOT / "formal" / "easycrypt"
         self.sources = {name: (self.directory / name).read_text() for name in contract.SOURCE_NAMES}
-        self.expected = json.loads((self.directory / "BindingContract.json").read_text())
+        self.expected = contract.load_contract(self.directory / "BindingContract.json")
 
     def reject_binding(self, source: str) -> None:
         self.sources["BindingViaCR.ec"] = source
@@ -90,9 +91,14 @@ class BindingContractTests(unittest.TestCase):
             with self.subTest(mutation=mutation), self.assertRaises(contract.ContractError):
                 contract.verify(self.sources, altered)
 
-    def test_duplicate_json_keys_are_rejected(self) -> None:
-        with self.assertRaises(contract.ContractError):
-            json.loads('{"sources": {}, "sources": {}}', object_pairs_hook=contract.no_duplicate_keys)
+    def test_duplicate_nonfinite_and_oversized_json_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "contract.json"
+            for data in (b'{"sources": {}, "sources": {}}', b'{"notes": NaN}',
+                         b'{"notes": Infinity}', b' ' * (128 * 1024 + 1)):
+                path.write_bytes(data)
+                with self.subTest(bytes=len(data)), self.assertRaises(contract.ContractError):
+                    contract.load_contract(path)
 
     def test_compiler_and_inventory_are_unconditional_ci_gates(self) -> None:
         source = (contract.ROOT / ".github/workflows/ci.yml").read_text()

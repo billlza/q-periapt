@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_NAMES = ("BindingViaCR.ec", "JRejectionCountermodel.ec")
@@ -101,22 +102,20 @@ def verify(sources: dict[str, str], contract: object) -> dict[str, int]:
     return counts
 
 
-def no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ContractError(f"duplicate contract key: {key}")
-        result[key] = value
-    return result
+def load_contract(path: Path) -> object:
+    """Use the shared bounded reader and duplicate/non-finite-rejecting parser."""
+    try:
+        snapshot = read_regular_snapshot(path, maximum=128 * 1024, label="binding proof contract")
+        return parse_strict_json_bytes(snapshot.data, label="binding proof contract")
+    except EvidenceIOError as error:
+        raise ContractError(str(error)) from error
 
 
 def main() -> int:
     directory = ROOT / "formal" / "easycrypt"
     try:
         contract_path = directory / "BindingContract.json"
-        if contract_path.stat().st_size > 128 * 1024:
-            raise ContractError("proof contract exceeds bound")
-        contract = json.loads(contract_path.read_text(encoding="utf-8"), object_pairs_hook=no_duplicate_keys)
+        contract = load_contract(contract_path)
         sources = {}
         for name in SOURCE_NAMES:
             path = directory / name
