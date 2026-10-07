@@ -1,0 +1,70 @@
+{
+  "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+  "completed": true,
+  "host_arch": "arm64",
+  "host_os": "Darwin",
+  "kind": "qperiapt.rust_sdk_msrv_qualification",
+  "native_abi_major": 2,
+  "outside_checkout": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-msrv-5cdm8ffh",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "resolution": {
+    "external_packages": 102,
+    "lockfile_sha256": "cc5574d4f90f75daed318f4310ee91472fc0fa5dbcb3c8afce7ee18313962167",
+    "product_crates": 9
+  },
+  "rust_report_sha256": "5c17a8657fafbdd8b1a8a8904962a832a32be31f51eb0a22f3a19d16033c5f72",
+  "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)\nbinary: rustc\ncommit-hash: 1159e78c4747b02ef996e55082b704c09b970588\ncommit-date: 2025-09-14\nhost: aarch64-apple-darwin\nrelease: 1.90.0\nLLVM version: 20.1.8\n",
+  "schema_version": 1,
+  "scope": "public APIs from nine pinned archives on this host; not full workspace development tests or a platform matrix",
+  "source_inputs": {
+    "files": {
+      "README.md": "2dfd67bed23c265b306dd6291ada50569e03ca420c0445b323193d7e1a5bb405",
+      "artifact/bounded_process.py": "836fffda15c4a380b9dfd108a44162f245903788be507bb561936c758044ec82",
+      "artifact/c_package_manifest.py": "62d599bd5759b30183d0b73749806a619e1b8b93c407a748a576d28843e47233",
+      "artifact/crates_io_registry_metadata.py": "d589e128746c28244d6f3c0d099906a6764f3c87c97b7c67d4d83f76dc18ab04",
+      "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+      "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+      "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+      "artifact/rust-publish-contract.sh": "1bbf6e141abb5fd5892d281066994f81a98158367a3918148752a09a234ed6fd",
+      "artifact/rust_publish_contract.py": "42f1385fba51fcf8fab1b922eebd53d15193b3001dc3c799547aee718249b06f",
+      "artifact/rust_sdk_msrv.py": "3180cde3c6f5e507859935615c96bcd378d1b98c09d1a38fb50c893e4c2efb62",
+      "artifact/rust_sdk_profile.py": "e9ad8917ee4c69fbb019757022627dda33f8f029175ef8e0368adf83b43d20b6",
+      "bindings/rust/SDKPackageConsumer/Cargo.toml": "d48d8b1e24a610ba72ac28c9f4af70aa1757c8163b877645b0d3ca784d008719",
+      "bindings/rust/SDKPackageConsumer/fixtures/README.md": "13dfffdfbea6b474b56f9552f955d34b7109b8792e5f10a92a0bf9e8e8bb47cd",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.der": "7996323125beb371e63f45dc38798d339c2fbc3bb2b0d51f57d1e77de90f0e3c",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.key.der": "5319d21790dda809339d5f5f2fc377df97016af8d3c33acd717712907f612afe",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.der": "699c14c660013e3edb92913bbe50916f1d1f121fe8934c694e6ac145cd99f7b3",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.key.der": "086f61cd8f9d9999e684b99422b4ff13bc18623408622e22e54af7a3a4c5691f",
+      "bindings/rust/SDKPackageConsumer/src/lib.rs": "3c11cc93ca6ba5d1a52c433154e55fba6c31b867ebb49bdd9d164f6ecdc10e6e",
+      "bindings/sdk-policy-revocation-vectors.json": "ffa88a68b549ccd72fa2b10d7b6015435f43187239c80f552ea4fee475a61add",
+      "bindings/sdk-policy-update-vectors.json": "9c1d14716b51d0d687f1877a8c65bb119494ef2c0e8606e89337ba0c57b0aa47",
+      "bindings/signed-policy-vectors.json": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5"
+    },
+    "rust_workspace_sha256": "7bf5102d2ebc7aff1ee9e339aa4baef171e3c03705e8384a22f01cb8f5bc27de"
+  },
+  "sources_unchanged": true,
+  "tests": [
+    "owned_roundtrip_derivation_transfer_and_revocation",
+    "private_store_restart_rollback_rejection_and_reenable",
+    "public_reference_connection_with_mutual_identity_and_fragmented_io",
+    "signed_policy_failures_and_explicit_transition"
+  ],
+  "tool_binaries": {
+    "cargo": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+      "sha256": "b617f75ab3fadd5d764368413b7e87532dfa45039aac431f9c0af883b824a6e6"
+    },
+    "rustc": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/rustc",
+      "sha256": "b2011d06d5c7efff7b48b1e1aec6106989e44f3a5ad1d171e06a41c0fbc3ffea"
+    },
+    "rustdoc": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/rustdoc",
+      "sha256": "07908f4c9e558bc6a4025c9aa3c717eeabf6cdb916b02f4790dc7b655a8744e4"
+    }
+  },
+  "version": "0.2.0"
+}

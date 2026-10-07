@@ -1,0 +1,64 @@
+from pathlib import Path
+import os,sys,subprocess,json,hashlib,tempfile,shutil,time
+here=Path(__file__).resolve().parent; repo=here.parents[2]; package=here.parent/'package-source/target/sdk-rust-package'
+report=json.loads((package/'RUST_SDK_PACKAGE.json').read_text());installed=Path(report['consumer']['path']); head='8d835c634a20a8d45e5f2a2ff62a74ec43e8d963'
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()==head
+names=['q-periapt-core','q-periapt-backends','q-periapt-policy','q-periapt-sdk','q-periapt-host-store','q-periapt-sig']
+patches=['q-periapt-mlkem-native-sys','q-periapt-core','q-periapt-kem','q-periapt-sig','q-periapt-backends','q-periapt-policy','q-periapt-sdk','q-periapt-host-store']
+lines=['[package]','name = "policy-recovery-openssl-check"','version = "0.0.0"','edition = "2021"','publish = false','[workspace]','[dependencies]']+[name+' = "=0.2.0"' for name in names]+['[patch.crates-io]']+[name+' = { path = '+json.dumps(str(installed/'packages'/(name+'-0.2.0')))+' }' for name in patches]
+(here/'Cargo.toml').write_text('\n'.join(lines)+'\n');shutil.copy2(installed/'Cargo.lock',here/'Cargo.lock')
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest();inputs={str(p):sha(p) for folder in [installed/'packages'] for p in folder.rglob('*') if p.is_file()};inputs[str(package/'RUST_SDK_PACKAGE.json')]=sha(package/'RUST_SDK_PACKAGE.json')
+base=Path('/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244');tc=base/'rustup/toolchains/1.98.1-aarch64-apple-darwin'
+env={k:v for k,v in os.environ.items() if not k.startswith(('RUST','CARGO_','QPERIAPT_','DYLD_','LD_','PYTHON'))};env.update(RUSTC=str(tc/'bin/rustc'),RUSTDOC=str(tc/'bin/rustdoc'),RUSTUP_HOME=str(base/'rustup'),RUSTUP_TOOLCHAIN=tc.name,RUSTUP_AUTO_INSTALL='0',CARGO_HOME=str(package/'cargo-home'),CARGO_TARGET_DIR=str(package/'consumer-target'),CARGO_NET_OFFLINE='true',CARGO_BUILD_JOBS='2',RUSTFLAGS='-D warnings',PATH=str(tc/'bin')+':/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin')
+out=here/'result-02';out.mkdir(mode=0o700);records=[]
+def run(label,cmd):
+ t=time.monotonic();r=subprocess.run(cmd,cwd=here,env=env,capture_output=True,timeout=180);(out/(label+'.stdout')).write_bytes(r.stdout);(out/(label+'.stderr')).write_bytes(r.stderr);records.append({'name':label,'command':cmd,'returncode':r.returncode,'seconds':time.monotonic()-t,'stdout_sha256':hashlib.sha256(r.stdout).hexdigest(),'stderr_sha256':hashlib.sha256(r.stderr).hexdigest()});assert r.returncode==0,(label,r.returncode,r.stderr.decode());assert b'warning:' not in r.stderr.lower(),(label,'unexpected warning',r.stderr.decode());return r.stdout
+run('build',[str(tc/'bin/cargo'),'build','--offline'])
+exe=package/'consumer-target/debug/policy-recovery-openssl-check';openssl='/opt/homebrew/opt/openssl@3/bin/openssl';version=run('openssl-version',[openssl,'version']).decode().strip()
+def tlv(data,tag):
+ assert len(data)>=2 and data[0]==tag
+ n=data[1];offset=2
+ if n&128:
+  width=n&127;assert 1<=width<=4 and len(data)>=offset+width
+  assert data[offset]!=0;n=int.from_bytes(data[offset:offset+width],'big');offset+=width;assert n>=128
+ assert offset+n<=len(data)
+ return data[offset:offset+n],data[offset+n:]
+mask=os.umask(0o077)
+try:
+ with tempfile.TemporaryDirectory(prefix='qperiapt-openssl-recovery-') as temporary:
+  d=Path(temporary).resolve()
+  for role in ['recovery','incoming']:
+   run(role+'-keygen',[openssl,'genpkey','-algorithm','ML-DSA-65','-out',str(d/(role+'.private.pem'))])
+   run(role+'-public',[openssl,'pkey','-in',str(d/(role+'.private.pem')),'-pubout','-outform','DER','-out',str(d/(role+'.der'))])
+   body,rest=tlv((d/(role+'.der')).read_bytes(),0x30);assert not rest
+   algorithm,tail=tlv(body,0x30);oid,rest=tlv(algorithm,0x06);assert not rest and oid==bytes.fromhex('608648016503040312')
+   bits,rest=tlv(tail,0x03);assert not rest and len(bits)==1953 and bits[0]==0
+   (d/(role+'.raw')).write_bytes(bits[1:])
+  run('messages',[str(exe),'messages',str(d)])
+  for label,role,msg in [('enrollment','recovery','enrollment-message.bin'),('policy','incoming','policy-message.bin')]:
+   run(label+'-sign',[openssl,'pkeyutl','-sign','-inkey',str(d/(role+'.private.pem')),'-in',str(d/msg),'-out',str(d/(label+'.sig'))])
+  run('prepare',[str(exe),'prepare',str(d)])
+  # Independently decode and recompute every fixed-width request field, including
+  # the signed genesis-history link. This is separate Python code, not Rust parsing.
+  request=(d/'request.bin').read_bytes();initial=(d/'initial.raw').read_bytes();recovery=(d/'recovery.raw').read_bytes();incoming=(d/'incoming.raw').read_bytes()
+  assert len(request)==2168 and request[:8]==b'QPRCV001'
+  trust=hashlib.sha256(b'Q-PERIAPT-SDK-RECOVERY-TRUST/v1'+bytes([50])*32+initial+recovery).digest()
+  previous_root=hashlib.sha256(initial).digest();history=hashlib.sha256(b'Q-PERIAPT-SDK-RECOVERY-HISTORY/v1'+previous_root+bytes(64)).digest()
+  previous_state=(2**32-1).to_bytes(4,'big')+hashlib.sha3_256((d/'initial-policy.toml').read_bytes()).digest()
+  next_state=(1).to_bytes(4,'big')+hashlib.sha3_256((d/'target.toml').read_bytes()).digest()
+  expected=b'QPRCV001'+trust+(1).to_bytes(8,'big')+bytes([17])*32+previous_root+previous_state+history+incoming+next_state
+  assert request==expected
+  assert (d/'authorization-message.bin').read_bytes()==b'Q-PERIAPT-SDK-RECOVERY-AUTHORIZE/v1'+expected
+  assert (d/'possession-message.bin').read_bytes()==b'Q-PERIAPT-SDK-RECOVERY-POSSESSION/v1'+expected
+  assert (d/'enrollment-message.bin').read_bytes()==b'Q-PERIAPT-SDK-RECOVERY-ENROLL/v1'+bytes([50])*32+initial+recovery
+  for label,role,msg in [('authorization','recovery','authorization-message.bin'),('possession','incoming','possession-message.bin')]:
+   run(label+'-sign',[openssl,'pkeyutl','-sign','-inkey',str(d/(role+'.private.pem')),'-in',str(d/msg),'-out',str(d/(label+'.sig'))])
+  run('apply',[str(exe),'apply',str(d)])
+  public=[]
+  for p in sorted(d.iterdir()):
+   if p.suffix in ('.bin','.raw','.der','.sig','.toml'):
+    shutil.copy2(p,out/p.name);public.append({'path':p.name,'sha256':sha(p),'bytes':p.stat().st_size})
+finally:os.umask(mask)
+assert all(sha(Path(p))==h for p,h in inputs.items());assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()==head
+record={'head':head,'openssl':version,'installed_consumer':str(installed),'installed_sources_unchanged':True,'inputs':inputs,'commands':records,'public_files':public,'canonical_request_independently_reconstructed':True,'roles_swapped_rejected':True,'recovery_applied_and_reopened':True,'fresh_OpenSSL_private_key_files_retained':False,'initial_public_fixture_seed':91,'archive_dependencies':8,'scope':'Independent OpenSSL signer to installed Rust verifier/store; not separate full session-protocol implementation, offline isolation, formal proof or release qualification.'}
+(out/'RESULT.json').write_text(json.dumps(record,indent=2)+'\n');print(json.dumps({k:v for k,v in record.items() if k not in ('inputs','commands','public_files')},indent=2))
