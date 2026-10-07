@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Immutable signing owners, provisioned before enrollment or public-key release.
+//! Signing owners provisioned before release; only acknowledged device retirement mutates a file.
 use super::{Material, PublicKey, SigningSeed, PUBLIC_KEY_BYTES};
 use crate::{codec::Decoder, DurableError, Error, JournalKey};
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
@@ -9,6 +9,8 @@ use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs::File, io::Read, path::Path};
 use zeroize::Zeroizing;
+
+pub(super) mod retirement;
 
 const HEADER: usize = 8 + 1 + 32 + 24;
 const PLAINTEXT: usize = 8 + 32 + 32 + PUBLIC_KEY_BYTES;

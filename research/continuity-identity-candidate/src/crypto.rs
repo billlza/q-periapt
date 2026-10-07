@@ -13,6 +13,11 @@ use std::fmt;
 use zeroize::Zeroize;
 
 mod persistence;
+pub(crate) use persistence::retirement::SigningFilePlan;
+#[cfg(all(test, unix))]
+pub(crate) use persistence::retirement::{
+    inject as inject_signer_io, IoFault as SignerIoFault, IoStage as SignerIoStage,
+};
 pub use persistence::SigningKeyId;
 
 const CLASSIC_PUBLIC_BYTES: usize = 33;

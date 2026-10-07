@@ -427,7 +427,9 @@ archives are unavailable. Ordinary journal admission remains refused.
 
 This is **logical journal erasure** only. Old database pages, backups, closure archives,
 separate wrapping/signing files and the independent installation/host report remain
-outside its erasure claim. Full enrolled-device owner retirement remains a separate gate.
+outside its erasure claim. The native Active required-witness enrollment coordinator and separate signer-file
+transaction are described in `ENROLLMENT.md`; other initialization states, profiles
+and installed foreign consumers remain separate gates.
 The transaction retains a durable verification marker; it does not prove that an attacker
 has lost earlier knowledge.
 

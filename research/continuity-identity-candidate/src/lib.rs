@@ -37,8 +37,9 @@ pub use durable::retired_report as retired_device;
 pub use enrollment::{
     CredentialRenewalRequest, CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice,
     EnrollmentIntent, EnrollmentPaths, EnrollmentStatus, PolicyRenewalAbandonment,
-    PolicyRenewalRequest, PolicyRenewalStatus, RosterRefreshOutcome, RosterRefreshResolution,
-    VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
+    PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment, RosterRefreshOutcome,
+    RosterRefreshResolution, SigningFileErasureState, VerifiedEnrollmentRequest,
+    WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
     WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress,
 };
 pub use installation::{

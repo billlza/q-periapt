@@ -25,6 +25,8 @@ const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
 mod policy_renewal;
 mod renewal;
+mod retirement;
+pub use retirement::{RetiredDeviceEnrollment, SigningFileErasureState};
 mod roster_refresh;
 mod roster_resolution;
 pub(crate) use policy_renewal::{EnrollmentPolicyCompletion, PersistedPolicyTerminal};
@@ -1101,6 +1103,17 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
     Ok(bytes)
 }
 fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Image, DurableError> {
+    let (image, retirement) = load_snapshot(database, key, binding)?;
+    if retirement.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    Ok(image)
+}
+fn load_snapshot(
+    database: &Database,
+    key: &JournalKey,
+    binding: [u8; 32],
+) -> Result<(Image, Option<retirement::State>), DurableError> {
     let tx = database.begin_read().map_err(storage)?;
     let tables: Vec<_> = tx.list_tables().map_err(storage)?.collect();
     if tables.len() != 1
@@ -1110,7 +1123,12 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         return Err(DurableError::Corrupt);
     }
     let table = tx.open_table(TABLE).map_err(storage)?;
-    if table.len().map_err(storage)? != 1 {
+    let retirement = table
+        .get("retirement")
+        .map_err(storage)?
+        .map(|row| retirement::State::decode(row.value(), key, binding))
+        .transpose()?;
+    if table.len().map_err(storage)? != if retirement.is_some() { 2 } else { 1 } {
         return Err(DurableError::Corrupt);
     }
     let saved = table
@@ -1323,7 +1341,10 @@ fn load(database: &Database, key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         roster_witness,
     };
     image.validate_policy_phase()?;
-    Ok(image)
+    if let Some(state) = &retirement {
+        state.check_image(&image, wire)?;
+    }
+    Ok((image, retirement))
 }
 fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
     let tx = transaction(database)?;

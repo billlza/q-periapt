@@ -651,3 +651,66 @@ revocation is installed locally. Each release fails through its specific authori
 boundary and leaves the original authenticated journal revision/digest intact.
 The revocation scenario validates dispatch enforcement after receipt of a trusted
 update; it does not qualify an external lost-device revocation control plane.
+
+## Permanent enrolled-device retirement and logical signer erasure
+
+The native `RetiredDeviceEnrollment` coordinator holds the original enrollment lease
+through cleanup. `EnrolledDevice::retire(pin, retired_subject)` consumes the existing
+service and signing owner while keeping that enrollment lease. After a process loss,
+`RetiredDeviceEnrollment::open` uses the original paths, enrollment intent, verified
+permanent retirement and original witness pin. It authenticates historical original
+identity metadata without returning an operational owner or requiring a live policy.
+This path currently requires the original **Active, required-witness installation**.
+Pre-activation retirement, local-profile retirement, foreign bindings and other
+platform durability remain separate qualification gates.
+
+`installation()` borrows the existing restricted installation flow described in
+`ANCHOR_WITNESS.md`. Its saved inventory, complete report, explicit durable host record,
+independent purpose-21 acknowledgement and journal erasure keep their existing order.
+A subsequent borrow reopens only that same saved expectation, including after
+`erase_journal` closes its child. A missing file or another backup is never selected
+as a new original. The host still owns business-effect accounting and deduplication.
+
+After authenticated journal erasure, `prepare_signer_erasure(ack_receipt)` verifies the
+original host decision and persists an exact signing-file plan **before** file mutation.
+The plan binds the original signing-file identity, device role and public key, complete
+sealed bytes, filesystem device/inode, and the original report. Exact preparation
+retries keep the first plan. `erase_signer()` needs only this saved acknowledged plan;
+it returns success after durable logical erasure and always closes the owner. Reopen
+and query `signer_erasure_status()` or retry the same plan after an uncertain result.
+`Retained` means encrypted seed bytes remain, even if a partial retirement header already
+prevents ordinary opening. `Erased` requires the exact terminal inode and independently
+verified host acknowledgement. Missing, foreign and corrupt files fail explicitly.
+
+The additional enrollment row, named `retirement`, is `QPERTR01` under the existing
+binding-specific enrollment MAC. It includes the exact original enrollment-row digest,
+signing identity and original cleanup inventory. The pre-plan form is 450 bytes. The
+4621-byte prepared form additionally retains `QPSRPL01` (441 bytes) and the full
+3730-byte purpose-21 receipt; the row is bounded at 8192 bytes. The original enrollment
+row is unchanged. Ordinary enrollment admission returns `Suspended` once the retirement
+row exists. Older readers refuse the extra row, rather than silently dropping it.
+
+File erasure holds an exclusive lease on the exact private, admitted inode. It writes
+`QPSRET01` over the eight-byte public header and syncs that file, then truncates it to
+those eight bytes and syncs again. No admitted basename is unlinked or replaced.
+During recovery, only original/retirement header-byte mixtures may be reconstructed
+in memory. The entire remaining ciphertext must reproduce the original fingerprint,
+authenticate under the original wrapping key, and reconstruct the original device
+public key. Even a forged local plan MAC/fingerprint cannot authorize erasing another
+public key using the old device's signed host ACK. A replaced pathname is preserved;
+an operation that erased only its original admitted inode reports the name conflict.
+
+The terminal tag by itself proves no host decision. The independent enrollment plan,
+original report receipt and original file identity are all required for reconciliation.
+The original wrapping key remains necessary for historical metadata verification.
+Retained pages, filesystem snapshots/backups, closure archives and signing owners
+previously copied outside this coordinator remain outside the logical erasure claim.
+This is not cryptographic erasure or proof that an attacker has lost earlier knowledge.
+
+Regression coverage includes a live enrolled-owner transfer; policy adoption and carry
+at all three real G transaction cuts; wrong-purpose/corrupt receipts; missing, swapped
+and modified signing files; a correctly MACed foreign-file fingerprint; all nine public
+header write prefixes and ten before/after I/O cuts; separately calibrated enrollment
+marker and signing-plan commit failures; four owned-child process cuts; and an admitted
+basename replacement while the child is paused. Full initialization-state, installed
+foreign-language and physical-device acceptance is not inferred from these cases.
