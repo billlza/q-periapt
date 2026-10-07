@@ -237,14 +237,22 @@ returns an opaque `AnchorRetiredCleanup`. This permanent historical fact needs n
 current policy grant and cannot convert to an ordinary witness reply. Ordinary
 network layouts and the C ABI are unchanged.
 
-Regression coverage includes actual interrupted ordinary writes, the real roster
-Prepared / witness-Applied / locally-installed-with-pending stages, older backups
-omitting pending state, exclusive-lease and identity rejection, authenticated store
-corruption, each measured before/after sync fault, and process loss after commit
-before return. Actual G/P and cancellation inventory scenarios still need dedicated
-end-to-end coverage. The high-level coordinator, complete session/fanout loss report,
-host acknowledgement and logical erasure protocol remain open. Neither proof nor
-inventory retention authorizes report acceptance, erasure or new runtime work.
+Regression coverage includes actual interrupted ordinary writes and real credential,
+independent-policy and roster targets at Prepared / witness-Applied /
+locally-installed-with-pending stages. These use sealed journal targets and real
+witness transactions, preserve the complete pending wire across local installation,
+and check historical capture after policy closure without applying or erasing either
+row. Target-free credential cancellation is exercised both before witness closure
+and after it: a backup with the same frozen image but no cancellation intent conflicts
+with the independently retained inventory. Ordinary G/P/R operations stay refused
+after replacement, and the complete frozen witness observation stays unchanged.
+Other coverage includes exclusive-lease and identity rejection, authenticated store
+corruption, each measured before/after retention sync fault, and process loss after
+commit before return. Credential-with-policy-continuation inventory variants and
+installed foreign consumers still require dedicated coverage. The high-level
+coordinator below retains the original request; complete session/fanout loss reports,
+host acknowledgement and logical erasure remain open. Neither proof nor inventory
+retention authorizes report acceptance, erasure or new runtime work.
 
 ### Original request retained by the installation
 

@@ -33,6 +33,83 @@ impl InventoryCase {
         self.capture(&self.path).expect("actual original inventory")
     }
 }
+
+fn control_client(store: &Arc<Mutex<AnchorStore>>, pin: &AnchorPin) -> crate::AnchorClient {
+    crate::AnchorClient::new(
+        pin.clone(),
+        DeviceSigningKey::deterministic([96; 32], [97; 32]).expect("original signer"),
+        Box::new(InterruptedAdvance {
+            store: Arc::clone(store),
+            pin: pin.clone(),
+            after: false,
+            intercepted: Arc::new(AtomicBool::new(false)),
+        }),
+        Duration::from_secs(5),
+    )
+    .expect("original signed control client")
+}
+
+fn retain_inventory(
+    c: &mut Case,
+    replacement: &Proposal,
+    path: &Path,
+    key: &Path,
+    identity: crate::JournalIdentity,
+) -> (AnchorRetiredSubject, Cleanup) {
+    let subject = c.genesis.subject();
+    let wire = c
+        .store
+        .retired_subject_receipt(replacement, subject)
+        .expect("permanent retirement receipt");
+    let retired = c
+        .pin
+        .verify_retired_subject(replacement, subject, &wire)
+        .expect("verified retirement");
+    c.peer
+        .responder
+        .current_policy()
+        .expect("old policy")
+        .close();
+    let before = rows(path);
+    let proposal = DeviceJournal::retired_cleanup_proposal(
+        path,
+        JournalKey::open(key).expect("original key"),
+        identity,
+        retired,
+    )
+    .expect("original inventory after policy closure");
+    assert!(proposal.pending_intent_digest().is_some());
+    assert_eq!(
+        proposal.pending_intent_digest(),
+        Some(digest(
+            b"Q-PERIAPT-CONTINUITY-RETIRED-LOCAL-INTENT/v1",
+            before.1.as_ref().expect("complete original pending wire")
+        ))
+    );
+    c.store
+        .retain_retired_cleanup(&proposal)
+        .expect("independent inventory retention");
+    let receipt = c.store.retired_cleanup_receipt(&proposal).expect("receipt");
+    assert_eq!(
+        c.pin
+            .verify_retired_cleanup(retired, &proposal, &receipt)
+            .expect("verified original inventory")
+            .proposal(),
+        &proposal
+    );
+    assert_eq!(
+        rows(path),
+        before,
+        "historical capture must preserve both rows"
+    );
+    assert_eq!(
+        c.store
+            .retired_subject_observation(replacement, subject)
+            .expect("frozen whole witness entry"),
+        retired
+    );
+    (retired, proposal)
+}
 struct InterruptedAdvance {
     store: Arc<Mutex<AnchorStore>>,
     pin: AnchorPin,
@@ -242,6 +319,400 @@ fn capture_finds_actual_sealed_committed_target_without_applying_it() {
             .expect("frozen head"),
         f.retired
     );
+}
+
+#[test]
+fn historical_inventory_preserves_real_credential_targets_at_all_three_cuts() {
+    use crate::AnchorCredentialRenewalState as RenewalState;
+    for stage in 0..3 {
+        let mut c = required_case();
+        let original = c
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("original")
+            .1
+            .clone();
+        let identity = c._journal.identity().expect("original identity");
+        let path = c.server.parent().expect("root").join("client/state.redb");
+        let key = c.server.parent().expect("root").join("client/key");
+        let grant = credential_grant(&c, &original, 2, 240);
+        c.store.close();
+        let store = Arc::new(Mutex::new(reopen(&c.server)));
+        let policy = c.peer.responder.current_policy().expect("current policy");
+        c._journal
+            .activate_anchor(&original, policy, control_client(&store, &c.pin))
+            .expect("original journal activation");
+        let proposal = c
+            ._journal
+            .prepare_local_credential_renewal(&original, &grant, grant.operation(), policy, 150)
+            .expect("real sealed G target");
+        assert!(matches!(c._journal.identity(), Err(DurableError::Closed)));
+        assert_eq!(
+            store
+                .lock()
+                .expect("controller")
+                .prepare_credential_renewal(proposal, &grant, policy, 150)
+                .expect("independent G approval"),
+            RenewalState::Prepared
+        );
+        let prepared_rows = rows(&path);
+        if stage > 0 {
+            let request = AnchorRequest::new(
+                &c.pin,
+                c.genesis.subject(),
+                AnchorOperation::commit_credential_renewal(&proposal),
+                &c.peer.signer_r,
+            )
+            .expect("original G commit");
+            let wire = store
+                .lock()
+                .expect("controller")
+                .handle(request.as_bytes(), 150)
+                .expect("actual G transaction");
+            assert_eq!(
+                c.pin
+                    .verify_reply(&request, &wire)
+                    .expect("signed G commit")
+                    .credential_renewal_state(&proposal)
+                    .expect("exact G"),
+                RenewalState::Applied
+            );
+        }
+        if stage == 2 {
+            assert_eq!(
+                DeviceJournal::recover_credential_renewal(
+                    &path,
+                    JournalKey::open(&key).expect("original key"),
+                    &original,
+                    policy,
+                    identity,
+                    proposal,
+                    &mut control_client(&store, &c.pin)
+                )
+                .expect("install exact already committed target"),
+                RenewalState::Applied
+            );
+        }
+        let before = rows(&path);
+        assert_eq!(
+            before.1, prepared_rows.1,
+            "full G intent survives target installation"
+        );
+        assert_eq!(before.0 == prepared_rows.0, stage != 2);
+        c.store = Arc::into_inner(store)
+            .expect("exclusive controller")
+            .into_inner()
+            .expect("lock");
+        let next = fresh(&c, 2, 3, 212);
+        let checkpoint = if stage == 0 {
+            original.roster().checkpoint()
+        } else {
+            grant.successor_device().roster().checkpoint()
+        };
+        let subject = c.genesis.subject();
+        let replacement = prepare(&mut c, &next, subject, checkpoint);
+        commit(&mut c, &replacement, &next, 150).expect("replace at G cut");
+        let (retired, cleanup) = retain_inventory(&mut c, &replacement, &path, &key, identity);
+        assert_eq!(
+            cleanup.stored_image_digest() == retired.observed_head().digest(),
+            stage != 1
+        );
+        assert_eq!(rows(&path), before, "do not apply, close or erase G");
+        for op in [
+            AnchorOperation::commit_credential_renewal(&proposal),
+            AnchorOperation::credential_renewal_status(&proposal),
+            AnchorOperation::close_credential_renewal(&proposal),
+            AnchorOperation::acknowledge_credential_renewal(&proposal),
+        ] {
+            assert_retired(&mut c, op);
+        }
+        assert_eq!(
+            c.store
+                .retired_subject_observation(&replacement, subject)
+                .expect("G stays frozen"),
+            retired
+        );
+    }
+    eprintln!("RETIRED_CLEANUP_BOUND_CREDENTIAL stages=3 prepared=true witness_applied=true local_target_with_pending=true original_wire_preserved=true");
+}
+
+#[test]
+fn historical_inventory_keeps_target_free_cancellation_and_refuses_omitting_backup() {
+    for closed_at_witness in [false, true] {
+        let mut c = required_case();
+        let original = c
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("original")
+            .1
+            .clone();
+        let identity = c._journal.identity().expect("original identity");
+        c._journal.close();
+        let root = c.server.parent().expect("root");
+        let path = root.join("client/state.redb");
+        let key = root.join("client/key");
+        let backup_dir = root.join("before-cancellation");
+        fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&backup_dir)
+            .expect("private directory");
+        let backup = backup_dir.join("state.redb");
+        fs::copy(&path, &backup).expect("original image before intent");
+        fs::set_permissions(&backup, fs::Permissions::from_mode(0o600)).expect("private copy");
+        let original_rows = rows(&path);
+        let grant = credential_grant(&c, &original, 2, 240);
+        let policy = c.peer.responder.current_policy().expect("policy");
+        let cancellation = DeviceJournal::reserve_enrollment_credential_cancellation(
+            &path,
+            JournalKey::open(&key).expect("key"),
+            &original,
+            policy.historical(),
+            identity,
+            grant.historical(),
+            None,
+        )
+        .expect("actual target-free cancellation reservation");
+        let before = rows(&path);
+        assert_eq!(before.0, original_rows.0, "reservation has no target image");
+        let pending = before.1.as_ref().expect("full cancellation intent");
+        assert_eq!(pending.len(), 320);
+        assert_eq!(pending.get(..8), Some(b"QPWINT03".as_slice()));
+        assert_eq!(
+            pending.get(40..288),
+            Some(cancellation.to_bytes().as_slice())
+        );
+        if closed_at_witness {
+            assert_eq!(
+                c.store
+                    .close_unprepared_credential_renewal(cancellation, &grant, policy)
+                    .expect("independent original cancellation"),
+                crate::AnchorCredentialCancellationState::Closed
+            );
+        }
+        let next = fresh(&c, 2, 3, 212);
+        let replacement = first_proposal(&mut c, &next);
+        commit(&mut c, &replacement, &next, 150).expect("retire with cancellation retained");
+        let (retired, cleanup) = retain_inventory(&mut c, &replacement, &path, &key, identity);
+        assert_eq!(
+            cleanup.stored_image_digest(),
+            retired.observed_head().digest()
+        );
+        let missing = DeviceJournal::retired_cleanup_proposal(
+            &backup,
+            JournalKey::open(&key).expect("key"),
+            identity,
+            retired,
+        )
+        .expect("same frozen image without local cancellation");
+        assert_eq!(missing.stored_image_digest(), cleanup.stored_image_digest());
+        assert!(missing.pending_intent_digest().is_none());
+        assert_ne!(missing.binding(), cleanup.binding());
+        assert!(matches!(
+            c.store.retain_retired_cleanup(&missing),
+            Err(DurableError::Conflict)
+        ));
+        for op in [
+            AnchorOperation::credential_cancellation_status(&cancellation),
+            AnchorOperation::acknowledge_credential_cancellation(&cancellation),
+        ] {
+            assert_retired(&mut c, op);
+        }
+        assert_eq!(rows(&path), before, "no target invention or intent removal");
+        assert_eq!(
+            c.store
+                .retired_subject_observation(&replacement, c.genesis.subject())
+                .expect("cancellation metadata frozen"),
+            retired
+        );
+    }
+    eprintln!("RETIRED_CLEANUP_CANCELLATION states=2 locally_reserved=true witness_closed=true target_free=true missing_intent_backup_conflicts=true");
+}
+
+#[test]
+fn historical_inventory_preserves_real_policy_targets_at_all_three_cuts() {
+    use crate::{AnchorPolicyRenewalState as PolicyState, PolicyRenewalMaterials};
+    for stage in 0..3 {
+        let mut c = required_case();
+        let original = c
+            .peer
+            .responder
+            .inventory_inputs()
+            .expect("original")
+            .1
+            .clone();
+        let identity = c._journal.identity().expect("original identity");
+        let path = c.server.parent().expect("root").join("client/state.redb");
+        let key = c.server.parent().expect("root").join("client/key");
+        let (issuer, _, _, runtime) = crate::tests::session_policy_fixture_with_budget(
+            &[PrekeyQuality::OneTimeBoth],
+            crate::AnchorRequirement::required(&c.pin),
+            crate::ApplicationSendBudget::new(1024).expect("budget"),
+        );
+        let issued = issuer
+            .issue_session_policy(
+                &runtime,
+                crate::SessionPolicyParameters::new(
+                    2,
+                    Validity::new(100, 300).expect("validity"),
+                    crate::AllowedPrekeyModes::new(&[PrekeyQuality::OneTimeBoth]).expect("modes"),
+                    crate::AnchorRequirement::required(&c.pin),
+                    crate::ApplicationSendBudget::new(1024).expect("budget"),
+                )
+                .expect("parameters"),
+            )
+            .expect("signed target policy");
+        let target = crate::PolicyPin::new(
+            issuer.policy_family().expect("family"),
+            issuer.public_key().expect("policy key"),
+            issued.checkpoint(),
+        )
+        .expect("independent policy pin")
+        .verify(issued.as_bytes(), runtime, 150)
+        .expect("verified target policy");
+        let policy = c.peer.responder.current_policy().expect("original policy");
+        let scope = crate::PolicyRenewalScope {
+            operation: crate::PolicyRenewalId::generate().expect("P operation"),
+            journal: identity,
+            original_owner: crate::bootstrap::storage_owner(&original),
+            original_credential: original.credential_digest(),
+            current_credential: original.credential_digest(),
+            current_roster: original.roster().checkpoint(),
+            original_policy: policy.checkpoint(),
+            previous_policy: policy.checkpoint(),
+            previous_authorization: None,
+        };
+        let materials = PolicyRenewalMaterials {
+            original: policy.historical(),
+            previous: policy.historical(),
+            target: &target,
+            original_device: &original,
+            current_device: &original,
+        };
+        let statement =
+            crate::PolicyRenewalStatement::new(&scope, &materials, 150).expect("exact P statement");
+        let root = crate::RootSigningKey::deterministic([94; 32], [95; 32])
+            .expect("original account authority");
+        let approval = crate::VerifiedPolicyRenewal::verify(
+            &root
+                .approve_policy_renewal(&statement)
+                .expect("account approval"),
+            &issuer
+                .approve_policy_renewal(&statement)
+                .expect("policy approval"),
+            &scope,
+            &materials,
+            150,
+        )
+        .expect("independently authenticated P");
+        c.store.close();
+        let store = Arc::new(Mutex::new(reopen(&c.server)));
+        c._journal
+            .activate_anchor(&original, policy, control_client(&store, &c.pin))
+            .expect("original journal activation");
+        let proposal = c
+            ._journal
+            .prepare_policy_renewal(&approval, &materials, 150)
+            .expect("actual sealed policy-only target");
+        assert!(matches!(c._journal.identity(), Err(DurableError::Closed)));
+        assert_eq!(
+            store
+                .lock()
+                .expect("controller")
+                .prepare_policy_renewal(proposal, &approval, &materials, 150)
+                .expect("independent P preparation"),
+            PolicyState::Prepared
+        );
+        let prepared_rows = rows(&path);
+        if stage > 0 {
+            assert_eq!(
+                control_client(&store, &c.pin)
+                    .exchange(
+                        c.genesis.subject(),
+                        AnchorOperation::commit_policy_renewal(&proposal)
+                    )
+                    .expect("actual witness P commit")
+                    .policy_renewal_state(&proposal)
+                    .expect("original P result"),
+                PolicyState::Applied
+            );
+        }
+        if stage == 2 {
+            assert_eq!(
+                DeviceJournal::recover_policy_renewal(
+                    &path,
+                    JournalKey::open(&key).expect("key"),
+                    &original,
+                    policy.historical(),
+                    identity,
+                    proposal,
+                    &mut control_client(&store, &c.pin)
+                )
+                .expect("install exact authenticated P target"),
+                PolicyState::Applied
+            );
+        }
+        let before = rows(&path);
+        assert_eq!(
+            before.1, prepared_rows.1,
+            "full P intent survives target installation"
+        );
+        assert_eq!(before.0 == prepared_rows.0, stage != 2);
+        c.store = Arc::into_inner(store)
+            .expect("exclusive controller")
+            .into_inner()
+            .expect("lock");
+        let replacement_policy = if stage == 0 { policy } else { &target };
+        let next = fresh_with_policy(&c, replacement_policy, 2, 2, 212);
+        let proofs = [(
+            c.genesis.subject(),
+            original.roster().checkpoint(),
+            replacement_policy.historical(),
+        )];
+        let replacement = c
+            .store
+            .device_replacement_proposal(
+                &next.genesis,
+                &next.device,
+                replacement_policy,
+                &proofs,
+                150,
+            )
+            .expect("replace using current policy lineage");
+        c.store
+            .replace_device(
+                &replacement,
+                &next.genesis,
+                &next.device,
+                replacement_policy,
+                &proofs,
+                150,
+            )
+            .expect("permanent retirement at P cut");
+        let (retired, cleanup) = retain_inventory(&mut c, &replacement, &path, &key, identity);
+        target.close();
+        assert_eq!(
+            cleanup.stored_image_digest() == retired.observed_head().digest(),
+            stage != 1
+        );
+        assert_eq!(rows(&path), before, "do not apply, close or erase P");
+        for op in [
+            AnchorOperation::commit_policy_renewal(&proposal),
+            AnchorOperation::policy_renewal_status(&proposal),
+            AnchorOperation::close_policy_renewal(&proposal),
+            AnchorOperation::acknowledge_policy_renewal(&proposal),
+        ] {
+            assert_retired(&mut c, op);
+        }
+        assert_eq!(
+            c.store
+                .retired_subject_observation(&replacement, c.genesis.subject())
+                .expect("P stays frozen"),
+            retired
+        );
+    }
+    eprintln!("RETIRED_CLEANUP_BOUND_POLICY stages=3 prepared=true witness_applied=true local_target_with_pending=true original_wire_preserved=true");
 }
 
 #[test]
