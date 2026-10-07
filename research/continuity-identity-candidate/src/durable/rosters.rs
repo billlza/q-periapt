@@ -1225,3 +1225,16 @@ impl DeviceJournal {
         self.check_operational_release(image, context.current_policy()?, now)
     }
 }
+
+// Re-encode only this public roster/history grammar, never an arbitrary record payload.
+pub(super) fn historical_metadata(
+    id: &[u8; 32],
+    record: &Record,
+) -> Result<super::retired_report::RecordMetadata, DurableError> {
+    let stored = decode(id, record)?;
+    Ok(super::retired_report::RecordMetadata::Roster {
+        account: stored.roster.account_id(),
+        checkpoint: stored.roster.checkpoint(),
+        public_history: stored.record()?.payload.to_vec(),
+    })
+}

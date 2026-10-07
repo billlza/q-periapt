@@ -791,3 +791,86 @@ fn archived_fanout_reconciles_every_shared_lifecycle_sync_barrier() {
         eprintln!("ARCHIVED_FANOUT_SYNC stage={stage} measured_barriers={barriers} before_after_faults={}",barriers*2);
     }
 }
+
+#[test]
+fn historical_fanout_projection_covers_reserved_committed_and_abandoned_original_members() {
+    use crate::retired_device::{MemberState, RecordMetadata};
+    for reserved in [false, true] {
+        let mut n = Network::new(4, false);
+        let mut index = retain(&mut n);
+        let batch = if reserved {
+            reserve(&mut n)
+        } else {
+            let id = n.sender.next_fanout_id().expect("ID");
+            n.send(id, b"original whole-batch input")
+                .expect("committed aggregate");
+            id
+        };
+        let key = JournalKey::open(&n.sender_path.join("key")).expect("key");
+        for phase in 0..if reserved { 3 } else { 1 } {
+            let image = n.sender.image().expect("authenticated actual image");
+            let record_id = *image
+                .records
+                .iter()
+                .find(|(_, record)| record.kind == RecordKind::Fanout)
+                .expect("only actual batch")
+                .0;
+            let record = image.records.get(&record_id).expect("actual batch");
+            let projected = super::super::super::fanout::historical_fanout(
+                &image, &key, &record_id, record, &mut index,
+            )
+            .expect("all original members");
+            let (status, members) = match projected {
+                RecordMetadata::Fanout {
+                    status, members, ..
+                } => Ok((status, members)),
+                _ => Err("expected batch"),
+            }
+            .expect("batch projection");
+            assert_eq!(members.len(), n.sessions.len());
+            for ((member, session), peer) in members.iter().zip(&n.sessions).zip(&n.f.peers) {
+                assert_eq!(member.session, *session);
+                assert_eq!(
+                    (member.device, member.generation, member.credential),
+                    (
+                        peer.device_id(),
+                        peer.generation(),
+                        peer.credential_digest()
+                    )
+                );
+                assert_eq!(
+                    member.state,
+                    if reserved {
+                        if phase == 2 {
+                            MemberState::Retained(FanoutMemberState::ReservationAbandoned)
+                        } else {
+                            MemberState::Reserved
+                        }
+                    } else {
+                        MemberState::Retained(FanoutMemberState::Committed)
+                    }
+                );
+                assert_eq!(member.ciphertext_digest.is_some(), !reserved);
+            }
+            if reserved && phase == 0 {
+                assert_eq!(status, FanoutStatus::Reserved);
+                n.sender
+                    .begin_fanout_abandonment(batch, &targets(&n.f, &n.sessions))
+                    .expect("original pending closure");
+            }
+            if reserved && phase == 1 {
+                let report = match status {
+                    FanoutStatus::Abandoning(id) => Ok(id),
+                    _ => Err("expected original pending report"),
+                }
+                .expect("report");
+                n.sender
+                    .acknowledge_fanout_abandonment(batch, report, &targets(&n.f, &n.sessions))
+                    .expect("prior host acknowledgment");
+            }
+            if reserved && phase == 2 {
+                assert!(matches!(status, FanoutStatus::Abandoned(_)));
+            }
+        }
+    }
+}

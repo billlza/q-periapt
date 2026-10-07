@@ -1448,6 +1448,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs",
             "research/continuity-identity-candidate/src/installation/retired.rs",
             "research/continuity-identity-candidate/src/installation/retired/tests.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/messages/retired.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
 
         ):
             with self.subTest(source=sdk_source):
@@ -1475,6 +1478,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs",
             "research/continuity-identity-candidate/src/installation/retired.rs",
             "research/continuity-identity-candidate/src/installation/retired/tests.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/messages/retired.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

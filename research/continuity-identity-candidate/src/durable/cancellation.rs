@@ -240,13 +240,7 @@ fn report(image: &Image, op: [u8; 32]) -> Result<BootstrapCancellation, DurableE
         inventory: prekeys::cancellation_inventory(image, &op)?,
     })
 }
-pub(super) fn metadata(
-    key: &JournalKey,
-    image: &Image,
-    op: [u8; 32],
-) -> Result<Metadata, DurableError> {
-    let r = image.records.get(&op).ok_or(DurableError::Absent)?;
-    let bits = mask(r.kind, r.phase)?;
+fn flight_values(r: &Record, bits: u8) -> Result<[Option<[u8; 32]>; 4], DurableError> {
     let mut values = [None; 4];
     if bits & 1 != 0 {
         let wire = if r.kind == RecordKind::Initiator {
@@ -286,6 +280,64 @@ pub(super) fn metadata(
             wire.get(..104).ok_or(DurableError::Corrupt)?,
         ));
     }
+    Ok(values)
+}
+
+pub(super) fn historical_metadata(
+    image: &Image,
+    op: [u8; 32],
+) -> Result<super::retired_report::RecordMetadata, DurableError> {
+    use super::retired_report::{BootstrapFlights, RecordMetadata};
+    let record = image.records.get(&op).ok_or(DurableError::Corrupt)?;
+    let cancelled = if record.phase == DurableStatus::BootstrapCancelled {
+        Some(report(image, op)?)
+    } else {
+        None
+    };
+    let values = if let Some(c) = &cancelled {
+        [c.initial_hash, c.reply_hash, c.final_hash, c.session]
+    } else {
+        let bits = match (record.kind, record.phase) {
+            (RecordKind::Initiator | RecordKind::Responder, DurableStatus::Messages) => 15,
+            (RecordKind::Initiator, DurableStatus::Rejected) => 0,
+            (RecordKind::Responder, DurableStatus::Rejected) => 1,
+            _ => mask(record.kind, record.phase)?,
+        };
+        flight_values(record, bits)?
+    };
+    let request = if record.kind == RecordKind::Initiator {
+        Some(InitiationId::from_trusted_state(
+            record
+                .payload
+                .get(..32)
+                .ok_or(DurableError::Corrupt)?
+                .try_into()
+                .map_err(|_| DurableError::Corrupt)?,
+        )?)
+    } else {
+        None
+    };
+    Ok(RecordMetadata::Bootstrap {
+        entry: entry(op, record)?,
+        request,
+        flights: BootstrapFlights {
+            initial: values[0],
+            reply: values[1],
+            final_confirmation: values[2],
+            session: values[3],
+        },
+        cancellation: cancelled.map(Box::new),
+    })
+}
+
+pub(super) fn metadata(
+    key: &JournalKey,
+    image: &Image,
+    op: [u8; 32],
+) -> Result<Metadata, DurableError> {
+    let r = image.records.get(&op).ok_or(DurableError::Absent)?;
+    let bits = mask(r.kind, r.phase)?;
+    let values = flight_values(r, bits)?;
     let mut derived = ZeroizingBytes::<32>::zeroed();
     hkdf::Hkdf::<Sha256>::new(None, key.0.as_bytes())
         .expand(

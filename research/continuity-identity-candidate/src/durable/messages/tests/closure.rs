@@ -618,3 +618,60 @@ fn independent_session_closure_fences_pending_rekey_flights_before_and_after_cut
         );
     }
 }
+
+#[test]
+fn historical_session_projection_preserves_prior_closure_and_terminal_counts() {
+    use crate::retired_device::{RecordMetadata, SessionState};
+    let mut p = populated();
+    let key = JournalKey::open(&p.pr.join("key")).expect("key");
+    let mut archives = crate::SessionArchiveStore::provision(
+        &p.pr.join("history-archives.redb"),
+        p.jr.identity().expect("identity"),
+    )
+    .expect("archives");
+    let archive =
+        p.jr.archive_session_closure(&p.f.responder, p.session)
+            .expect("original peer binding");
+    archives
+        .retain(&p.jr, &p.f.responder, p.session, &archive)
+        .expect("retain archive");
+    let prior =
+        p.jr.begin_session_closure(&p.f.responder, p.session)
+            .expect("original closure");
+    for terminal in [false, true] {
+        if terminal {
+            p.jr.acknowledge_session_closure(&p.f.responder, p.session, prior.report)
+                .expect("prior host acknowledgment");
+        }
+        let image = p.jr.image().expect("original image");
+        let record = image.records.get(&record_id(&p.session)).expect("session");
+        let projected = super::super::historical_session(&image, &key, record, &mut archives)
+            .expect("historical metadata");
+        let state = match projected {
+            RecordMetadata::Session(session) => Ok(session.state),
+            _ => Err("expected session"),
+        }
+        .expect("session");
+        match state {
+            SessionState::Live {
+                epochs,
+                previous_closure,
+            } => {
+                assert!(!terminal);
+                assert_eq!(previous_closure, Some(prior.report));
+                assert_eq!(epochs.len(), prior.epochs.len());
+            }
+            SessionState::Terminal { report, epochs, .. } => {
+                assert!(terminal);
+                assert_eq!(report, *prior.report.as_bytes());
+                assert_eq!(epochs.len(), prior.epochs.len());
+                for (retained, original) in epochs.iter().zip(&prior.epochs) {
+                    assert_eq!(
+                        (retained.epoch, retained.sent, retained.acknowledged),
+                        (original.epoch, original.sent, original.acknowledged_before)
+                    );
+                }
+            }
+        }
+    }
+}

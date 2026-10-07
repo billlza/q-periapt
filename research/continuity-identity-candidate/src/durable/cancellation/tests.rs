@@ -218,6 +218,11 @@ fn real_bootstrap_stages_cancel_after_process_loss_and_reopen_without_policy_obj
                 let e = entries.first().expect("one record");
                 assert_eq!(e.status, phase);
                 let image = owner.journal.image().expect("image");
+                let projected = historical_metadata(&image, e.operation.0)
+                    .expect("historical projection of every actual bootstrap cut");
+                assert!(
+                    matches!(projected,crate::retired_device::RecordMetadata::Bootstrap {entry,cancellation:None,..} if entry==*e)
+                );
                 let expected = metadata(
                     &owner.journal.active.as_ref().expect("active").key,
                     &image,
@@ -293,6 +298,11 @@ fn real_bootstrap_stages_cancel_after_process_loss_and_reopen_without_policy_obj
                     if role == "initiator" { 32 } else { 5817 }
                 );
                 assert_eq!(record.phase, BootstrapCancelled);
+                let projected = historical_metadata(&image, e.operation.0)
+                    .expect("historical cancellation metadata");
+                assert!(
+                    matches!(projected,crate::retired_device::RecordMetadata::Bootstrap {cancellation:Some(saved),..} if *saved==receipt)
+                );
                 assert!(
                     seal(&owner.journal.active.as_ref().expect("active").key, &image)
                         .expect("image")

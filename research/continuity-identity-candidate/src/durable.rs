@@ -54,6 +54,7 @@ pub(crate) use rosters::{
     LocalPolicyRenewalCommit, LocalPolicyRenewalResolution, LocalPolicyRenewalTarget,
     LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget, RenewalRequestSnapshot,
 };
+pub mod retired_report;
 mod write_intent;
 use anchoring::{AttachedAnchor, Protection};
 pub use initiator::{CommittedInitiation, InitiationId};

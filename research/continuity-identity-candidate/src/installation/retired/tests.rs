@@ -41,6 +41,7 @@ struct Case {
     store: Arc<Mutex<AnchorStore>>,
     pin: AnchorPin,
     retired: AnchorRetiredSubject,
+    messages: Option<ReportMessages>,
 }
 fn journal_rows(path: &Path) -> Vec<(String, Vec<u8>)> {
     let db = open_private_database(path).expect("closed original journal");
@@ -70,6 +71,9 @@ impl Case {
         Self::with_pending(false)
     }
     fn with_pending(pending: bool) -> Self {
+        Self::build(pending, false)
+    }
+    fn build(pending: bool, populated: bool) -> Self {
         let directory = directory();
         let root = directory.path().canonicalize().expect("root");
         let server = root.join("witness");
@@ -142,6 +146,11 @@ impl Case {
                 Some(client),
             )
             .expect("actual original service");
+        let messages = if populated {
+            Some(populate_messages(&mut service, &peer, &store, &pin, &root))
+        } else {
+            None
+        };
         service.close();
 
         if pending {
@@ -273,6 +282,7 @@ impl Case {
             store,
             pin,
             retired,
+            messages,
         }
     }
 }
@@ -522,6 +532,21 @@ fn retired_installation_process_child() {
     let retired = pin
         .verify_retired_subject(&replacement, subject, &wire)
         .expect("verified retirement");
+    let report_inventory = if std::env::var_os("QPERIAPT_RETIRED_REPORT_CHILD").is_some() {
+        let proposal = Proposal::from_trusted_state(
+            &fs::read(root.join("report-inventory.bin")).expect("original saved inventory"),
+        )
+        .expect("inventory");
+        let wire = witness
+            .retired_cleanup_receipt(&proposal)
+            .expect("original permanent retention");
+        Some(
+            pin.verify_retired_cleanup(retired, &proposal, &wire)
+                .expect("verified inventory"),
+        )
+    } else {
+        None
+    };
     witness.close();
     let old = root.join("old");
     let paths = InstallationPaths::new(
@@ -536,6 +561,14 @@ fn retired_installation_process_child() {
         retired,
     )
     .expect("retain original request");
+    if let Some(inventory) = report_inventory {
+        let report = owner
+            .prepare_report(&inventory)
+            .expect("complete original report preparation");
+        fs::write(root.join("returned-report"), report.to_bytes())
+            .expect("caller visible report request");
+        return;
+    }
     fs::write(
         root.join("returned-request"),
         owner.proposal().expect("durable request").to_bytes(),
@@ -606,4 +639,559 @@ fn process_loss_before_and_after_request_commit_reopens_only_the_original_invent
         );
     }
     eprintln!("RETIRED_INSTALLATION_PROCESS before_commit=true after_commit=true no_request_returned=true original_pending_preserved=true");
+}
+
+struct ReportMessages {
+    session: [u8; 32],
+    inbox: crate::MessageId,
+    consumed: crate::MessageId,
+    outgoing: crate::MessageId,
+}
+fn populate_messages(
+    service: &mut DeviceService,
+    peer: &Fixture,
+    store: &Arc<Mutex<AnchorStore>>,
+    pin: &AnchorPin,
+    root: &Path,
+) -> ReportMessages {
+    let dir = root.join("peer");
+    fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&dir)
+        .expect("peer directory");
+    let policy = peer.initiator.current_policy().expect("peer policy");
+    let device = peer.initiator_device();
+    let mut initiator = DeviceJournal::provision_anchored(
+        &dir.join("state.redb"),
+        JournalKey::provision(&dir.join("key")).expect("peer key"),
+        device,
+        policy,
+        JournalIdentity::generate().expect("peer ID"),
+        150,
+    )
+    .expect("peer journal");
+    let genesis = initiator
+        .anchor_genesis(device, policy)
+        .expect("actual peer genesis");
+    store
+        .lock()
+        .expect("store")
+        .enroll(&genesis, device, policy, 150)
+        .expect("independent peer enrollment");
+    let client = AnchorClient::new(
+        pin.clone(),
+        DeviceSigningKey::deterministic([92; 32], [93; 32]).expect("peer signer"),
+        Box::new(Transport(Arc::clone(store), Arc::new(AtomicUsize::new(0)))),
+        Duration::from_secs(5),
+    )
+    .expect("peer client");
+    initiator
+        .activate_anchor(device, policy, client)
+        .expect("peer activation");
+    let request = crate::InitiationId::generate().expect("original initiation");
+    let initial = initiator
+        .initiate(Arc::clone(&peer.initiator), request, &peer.signer_i, 150)
+        .expect("initial");
+    let (journal, archives) = service.stores().expect("real installation stores");
+    let (pq, classical) = peer.sources();
+    let reply = journal
+        .respond(
+            Arc::clone(&peer.responder),
+            &initial,
+            &peer.signer_r,
+            pq,
+            classical,
+            150,
+        )
+        .expect("reply");
+    let completion = initiator
+        .accept_reply(Arc::clone(&peer.initiator), request, &reply, 150)
+        .expect("final");
+    let session = completion.session_id();
+    journal
+        .finish(
+            Arc::clone(&peer.responder),
+            &initial,
+            completion.final_message(),
+            150,
+        )
+        .expect("finish");
+    let archive = journal
+        .archive_session_closure(&peer.responder, session)
+        .expect("authenticated original archive");
+    archives
+        .retain(journal, &peer.responder, session, &archive)
+        .expect("independent archive before activation");
+    initiator
+        .activate_initiator_messages(Arc::clone(&peer.initiator), request, 150)
+        .expect("initiator message state");
+    journal
+        .activate_responder_messages(Arc::clone(&peer.responder), &initial, 150)
+        .expect("responder message state");
+    let mut ids = Vec::new();
+    for n in 0..3 {
+        let id = initiator
+            .next_message_id(&peer.initiator, session, 150)
+            .expect("message ID");
+        let wire = initiator
+            .send_message(
+                &peer.initiator,
+                session,
+                id,
+                b"private incoming plaintext marker",
+                b"original ad",
+                150,
+            )
+            .expect("committed original send");
+        if n != 1 {
+            journal
+                .receive_message(&peer.responder, session, &wire, b"original ad", 150)
+                .expect("real inbound message");
+        }
+        if n == 2 {
+            journal
+                .consume_message(&peer.responder, session, id, 150)
+                .expect("consume out of order");
+        }
+        ids.push(id);
+    }
+    let outgoing = journal
+        .next_message_id(&peer.responder, session, 150)
+        .expect("original outgoing");
+    journal
+        .send_message(
+            &peer.responder,
+            session,
+            outgoing,
+            b"private outgoing plaintext marker",
+            b"original ad",
+            150,
+        )
+        .expect("unconfirmed send");
+    initiator.close();
+    ReportMessages {
+        session,
+        inbox: *ids.first().expect("first received ID"),
+        consumed: *ids.get(2).expect("out-of-order consumed ID"),
+        outgoing,
+    }
+}
+fn retained_inventory(c: &Case, owner: &mut RetiredInstallationRecovery) -> AnchorRetiredCleanup {
+    let inventory = owner.proposal().expect("original inventory");
+    let mut witness = c.store.lock().expect("witness");
+    witness
+        .retain_retired_cleanup(&inventory)
+        .expect("independent inventory retention");
+    let wire = witness
+        .retired_cleanup_receipt(&inventory)
+        .expect("inventory receipt");
+    owner
+        .verify_retained(&c.pin, &wire)
+        .expect("verified inventory")
+}
+fn retained_report(c: &Case, proposal: &crate::AnchorRetiredReportProposal) -> Vec<u8> {
+    let mut witness = c.store.lock().expect("witness");
+    witness
+        .retain_retired_report(proposal)
+        .expect("independently bind exact report");
+    witness
+        .retired_report_receipt(proposal)
+        .expect("report receipt")
+}
+#[test]
+fn complete_report_retains_real_inbox_holes_unknown_sends_and_original_peer_without_mutation() {
+    use crate::retired_device::{RecordMetadata, SessionState, ViewRole};
+    let c = Case::build(false, true);
+    let expected = c.messages.as_ref().expect("real message fixture");
+    let before = journal_rows(&c.paths.journal);
+    let mut owner = c.open().expect("retired installation");
+    let inventory = retained_inventory(&c, &mut owner);
+    let proposal = owner
+        .prepare_report(&inventory)
+        .expect("prepare all records");
+    assert_eq!(
+        owner.prepare_report(&inventory).expect("exact retry"),
+        proposal
+    );
+    assert!(c
+        .store
+        .lock()
+        .expect("witness")
+        .retired_report_receipt(&proposal)
+        .is_err());
+    let receipt = retained_report(&c, &proposal);
+    c.peer
+        .responder
+        .current_policy()
+        .expect("old policy")
+        .close();
+    let report = owner
+        .report(&inventory, &c.pin, &receipt)
+        .expect("independently retained complete metadata");
+    assert_eq!(report.proposal(), &proposal);
+    assert_eq!(report.views().len(), 1);
+    let view = report.views().first().expect("whole view");
+    assert_eq!(view.role, ViewRole::Authoritative);
+    let sessions: Vec<_> = view
+        .records
+        .iter()
+        .filter_map(|r| match &r.metadata {
+            RecordMetadata::Session(s) => Some(s),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(sessions.len(), 1);
+    let session = sessions.first().expect("exact one session");
+    assert_eq!(session.session, expected.session);
+    let original_peer = c.peer.initiator_device();
+    assert_eq!(
+        (
+            session.peer_account,
+            session.peer_device,
+            session.peer_generation
+        ),
+        (
+            original_peer.account_id(),
+            original_peer.device_id(),
+            original_peer.generation()
+        )
+    );
+    let epochs = match &session.state {
+        SessionState::Live {
+            epochs,
+            previous_closure: None,
+        } => Ok(epochs),
+        _ => Err("expected original live metadata"),
+    }
+    .expect("state");
+    let epoch = epochs.first().expect("retained epoch");
+    assert_eq!(epoch.accounting.sent, 1);
+    assert_eq!(epoch.accounting.acknowledged_before, 0);
+    assert_eq!(epoch.accounting.consumed_before, 0);
+    assert_eq!(epoch.accounting.received, 3);
+    assert_eq!(epoch.accounting.skipped, vec![1]);
+    assert_eq!(epoch.accounting.unconfirmed.len(), 1);
+    assert_eq!(
+        epoch
+            .accounting
+            .unconfirmed
+            .first()
+            .expect("exact one outstanding send")
+            .message_id(),
+        expected.outgoing
+    );
+    assert_eq!(epoch.accounting.deliveries.len(), 1);
+    assert_eq!(
+        epoch
+            .accounting
+            .deliveries
+            .first()
+            .expect("exact one unconsumed delivery")
+            .message,
+        expected.inbox
+    );
+    assert_eq!(
+        epoch
+            .accounting
+            .deliveries
+            .first()
+            .expect("exact one unconsumed delivery")
+            .plaintext_bytes,
+        b"private incoming plaintext marker".len()
+    );
+    assert_eq!(epoch.consumed_out_of_order.len(), 1);
+    assert_eq!(
+        epoch
+            .consumed_out_of_order
+            .first()
+            .expect("exact one consumed hole")
+            .message,
+        expected.consumed
+    );
+    assert!(view.records.iter().any(|r| matches!(&r.metadata, RecordMetadata::Bootstrap { flights, .. } if flights.session == Some(expected.session))));
+    for secret in [
+        b"private incoming plaintext marker".as_slice(),
+        b"private outgoing plaintext marker".as_slice(),
+    ] {
+        assert!(!report.as_bytes().windows(secret.len()).any(|w| w == secret));
+    }
+    let original_bytes = report.as_bytes().to_vec();
+    owner.close();
+    let mut reopened = c.open().expect("same historical config");
+    assert_eq!(
+        reopened.report_proposal().expect("exact saved expectation"),
+        Some(proposal)
+    );
+    assert_eq!(
+        reopened
+            .report(&inventory, &c.pin, &receipt)
+            .expect("same report")
+            .as_bytes(),
+        original_bytes
+    );
+    reopened.close();
+    assert_eq!(journal_rows(&c.paths.journal), before);
+    eprintln!("RETIRED_REPORT actual_session=true consumed_hole_preserved=true skipped_index_preserved=true unconfirmed_send=true original_peer_authenticated=true no_plaintext=true");
+}
+#[test]
+fn report_request_survives_missing_journal_but_body_is_never_replaced_by_empty_metadata() {
+    let c = Case::new();
+    let mut owner = c.open().expect("owner");
+    let inventory = retained_inventory(&c, &mut owner);
+    let proposal = owner
+        .prepare_report(&inventory)
+        .expect("complete report request");
+    owner.close();
+    fs::rename(
+        &c.paths.journal,
+        c.paths.journal.with_extension("retained-original"),
+    )
+    .expect("retain unavailable original");
+    let mut owner = c.open().expect("independent config survives");
+    assert_eq!(
+        owner
+            .prepare_report(&inventory)
+            .expect("original proposal without recapture"),
+        proposal
+    );
+    let receipt = retained_report(&c, &proposal);
+    assert!(owner.report(&inventory, &c.pin, &receipt).is_err());
+    assert!(matches!(owner.report_proposal(), Err(DurableError::Closed)));
+    assert!(!c.paths.journal.exists());
+}
+#[test]
+fn uncommitted_target_is_separate_and_a_missing_original_archive_refuses_the_whole_report() {
+    use crate::retired_device::ViewRole;
+    let c = Case::with_pending(true);
+    let before = journal_rows(&c.paths.journal);
+    let mut owner = c.open().expect("owner");
+    let inventory = retained_inventory(&c, &mut owner);
+    let proposal = owner
+        .prepare_report(&inventory)
+        .expect("original intent report");
+    let receipt = retained_report(&c, &proposal);
+    let report = owner
+        .report(&inventory, &c.pin, &receipt)
+        .expect("both complete views");
+    assert_eq!(
+        report.views().iter().map(|v| v.role).collect::<Vec<_>>(),
+        vec![ViewRole::Authoritative, ViewRole::UncommittedTarget]
+    );
+    assert!(
+        report
+            .views()
+            .get(1)
+            .expect("candidate target")
+            .records
+            .len()
+            > report
+                .views()
+                .first()
+                .expect("authoritative source")
+                .records
+                .len()
+    );
+    owner.close();
+    assert_eq!(journal_rows(&c.paths.journal), before);
+    let c = Case::build(false, true);
+    let mut owner = c.open().expect("owner");
+    let inventory = retained_inventory(&c, &mut owner);
+    fs::rename(
+        &c.paths.archives,
+        c.paths.archives.with_extension("retained-original"),
+    )
+    .expect("retain missing index");
+    crate::SessionArchiveStore::provision(
+        &c.paths.archives,
+        JournalIdentity::from_trusted_state(c.retired.subject().journal_parts().0)
+            .expect("original journal ID"),
+    )
+    .expect("older empty index")
+    .close();
+    assert!(matches!(
+        owner.prepare_report(&inventory),
+        Err(DurableError::ArchiveRequired)
+    ));
+    assert!(c
+        .open()
+        .expect("metadata reopen")
+        .report_proposal()
+        .expect("no partial request")
+        .is_none());
+}
+
+#[test]
+fn every_report_request_sync_cut_recovers_same_complete_report() {
+    let calibration = Case::with_pending(true);
+    let mut owner = calibration.open().expect("owner");
+    let inventory = retained_inventory(&calibration, &mut owner);
+    owner.close();
+    let (db, _, count, _) = fault_database_path(&calibration.paths.configuration, false);
+    let mut owner = RetiredInstallationRecovery::open_database(
+        db,
+        calibration.paths.clone(),
+        calibration.key(),
+        calibration.retired,
+    )
+    .expect("original config");
+    count.store(0, Ordering::SeqCst);
+    let proposal = owner.prepare_report(&inventory).expect("calibrate");
+    let barriers = count.load(Ordering::SeqCst);
+    assert!((2..=8).contains(&barriers));
+    owner.close();
+    let (db, remaining, count, _) = fault_database_path(&calibration.paths.configuration, false);
+    let mut owner = RetiredInstallationRecovery::open_database(
+        db,
+        calibration.paths.clone(),
+        calibration.key(),
+        calibration.retired,
+    )
+    .expect("original config");
+    remaining.store(1, Ordering::SeqCst);
+    count.store(0, Ordering::SeqCst);
+    assert_eq!(
+        owner.prepare_report(&inventory).expect("read only retry"),
+        proposal
+    );
+    assert_eq!(count.load(Ordering::SeqCst), 0);
+    owner.close();
+    for after in [false, true] {
+        for cut in 1..=barriers {
+            let c = Case::with_pending(true);
+            let mut owner = c.open().expect("owner");
+            let inventory = retained_inventory(&c, &mut owner);
+            owner.close();
+            let id = JournalIdentity::from_trusted_state(c.retired.subject().journal_parts().0)
+                .expect("identity");
+            let mut archives =
+                crate::SessionArchiveStore::open(&c.paths.archives, id).expect("original archives");
+            let expected = DeviceJournal::retired_report(
+                &c.paths.journal,
+                &c.key(),
+                id,
+                c.retired,
+                &inventory,
+                &mut archives,
+            )
+            .expect("complete original report")
+            .proposal()
+            .clone();
+            archives.close();
+            let before = journal_rows(&c.paths.journal);
+            let (db, remaining, _, _) = fault_database_path(&c.paths.configuration, after);
+            let mut owner =
+                RetiredInstallationRecovery::open_database(db, c.paths.clone(), c.key(), c.retired)
+                    .expect("original config");
+            remaining.store(cut, Ordering::SeqCst);
+            assert_sync_failure(owner.prepare_report(&inventory), after);
+            assert!(matches!(owner.report_proposal(), Err(DurableError::Closed)));
+            let mut reopened = c.open().expect("reconcile original request");
+            assert_eq!(
+                reopened.prepare_report(&inventory).expect("same report"),
+                expected
+            );
+            let receipt = retained_report(&c, &expected);
+            assert_eq!(
+                reopened
+                    .report(&inventory, &c.pin, &receipt)
+                    .expect("full body")
+                    .proposal(),
+                &expected
+            );
+            reopened.close();
+            assert_eq!(journal_rows(&c.paths.journal), before);
+        }
+    }
+    eprintln!("RETIRED_REPORT_INSTALLATION_SYNC barriers={barriers} before_after_faults={} original_report_preserved=true",barriers*2);
+}
+
+#[test]
+fn process_loss_before_and_after_report_request_commit_preserves_original_body() {
+    for stage in [
+        "retired-report-before-commit",
+        "retired-report-after-commit",
+    ] {
+        let c = Case::with_pending(true);
+        let mut owner = c.open().expect("owner");
+        let inventory = retained_inventory(&c, &mut owner);
+        owner.close();
+        let id =
+            JournalIdentity::from_trusted_state(c.retired.subject().journal_parts().0).expect("ID");
+        let mut archives =
+            crate::SessionArchiveStore::open(&c.paths.archives, id).expect("archives");
+        let expected = DeviceJournal::retired_report(
+            &c.paths.journal,
+            &c.key(),
+            id,
+            c.retired,
+            &inventory,
+            &mut archives,
+        )
+        .expect("complete original body");
+        archives.close();
+        let root = c._directory.path().canonicalize().expect("root");
+        fs::write(
+            root.join("report-inventory.bin"),
+            inventory.proposal().to_bytes(),
+        )
+        .expect("retained inventory");
+        c.store.lock().expect("witness").close();
+        let log = fs::File::create_new(root.join("report-child.log")).expect("log");
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().expect("binary"))
+                .args([
+                    "--exact",
+                    "installation::retired::tests::retired_installation_process_child",
+                    "--nocapture",
+                ])
+                .env("QPERIAPT_RETIRED_INSTALLATION_CHILD", &root)
+                .env("QPERIAPT_RETIRED_REPORT_CHILD", "1")
+                .env("QPERIAPT_INSTALLATION_CUT_DIR", &root)
+                .env("QPERIAPT_INSTALLATION_CUT_STAGE", stage)
+                .stdout(Stdio::from(log.try_clone().expect("clone")))
+                .stderr(Stdio::from(log))
+                .spawn()
+                .expect("owned child"),
+        );
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !root.join("ready").exists() {
+            assert!(
+                child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+                "report cut deadline"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!root.join("returned-report").exists());
+        child.0.kill().expect("kill owned child");
+        assert!(!child.0.wait().expect("reap").success());
+        let db = open_private_database(&c.paths.configuration).expect("configuration");
+        assert_eq!(
+            read_configuration(&db)
+                .expect("actual saved state")
+                .retired_report
+                .is_some(),
+            stage.ends_with("after-commit")
+        );
+        drop(db);
+        let mut owner = c.open().expect("original recovery");
+        assert_eq!(
+            owner
+                .prepare_report(&inventory)
+                .expect("same complete expectation"),
+            *expected.proposal()
+        );
+        let mut archives =
+            crate::SessionArchiveStore::open(&c.paths.archives, id).expect("same archives");
+        let reread = DeviceJournal::retired_report(
+            &c.paths.journal,
+            &c.key(),
+            id,
+            c.retired,
+            &inventory,
+            &mut archives,
+        )
+        .expect("same complete original body");
+        assert_eq!(reread.as_bytes(), expected.as_bytes());
+    }
+    eprintln!("RETIRED_REPORT_INSTALLATION_PROCESS before_commit=true after_commit=true no_request_returned=true complete_body_preserved=true");
 }

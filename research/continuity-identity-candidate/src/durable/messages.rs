@@ -1130,3 +1130,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
 
 #[cfg(all(test, unix))]
 mod tests;
+
+mod retired;
+pub(super) use fanout::historical_fanout;
+pub(super) use retired::historical_session;

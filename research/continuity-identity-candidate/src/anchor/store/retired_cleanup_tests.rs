@@ -932,6 +932,17 @@ fn cleanup_binding_process_child() {
         return;
     };
     let path = Path::new(&path);
+    if std::env::var_os("QPERIAPT_RETIRED_REPORT_CHILD").is_some() {
+        let p = crate::AnchorRetiredReportProposal::from_trusted_state(
+            &fs::read(path.join("report.bin")).expect("saved report proposal"),
+        )
+        .expect("canonical report");
+        reopen(path)
+            .retain_retired_report(&p)
+            .expect("report binding");
+        fs::write(path.join("report-returned"), b"retained").expect("return marker");
+        return;
+    }
     let p = Cleanup::from_trusted_state(
         &fs::read(path.join("cleanup.bin")).expect("original cleanup request"),
     )
@@ -1149,4 +1160,288 @@ fn actual_bound_roster_inventory_survives_prepared_applied_and_locally_installed
         );
     }
     eprintln!("RETIRED_CLEANUP_BOUND_ROSTER stages=3 prepared=true witness_applied=true local_target_with_pending=true no_new_GPR_transition=true");
+}
+
+#[test]
+fn report_retention_requires_original_inventory_and_is_purpose_separated_and_permanent() {
+    use crate::{AnchorRetiredReportProposal as Report, AnchorRetiredReportState as ReportState};
+    let mut f = fixture(None);
+    let inventory = f.proposal();
+    let report =
+        Report::from_report(inventory.clone(), [171; 32]).expect("component report expectation");
+    assert!(matches!(
+        f.c.store.retain_retired_report(&report),
+        Err(DurableError::Conflict)
+    ));
+    f.c.store
+        .retain_retired_cleanup(&inventory)
+        .expect("original inventory first");
+    let inventory_wire =
+        f.c.store
+            .retired_cleanup_receipt(&inventory)
+            .expect("inventory receipt");
+    let retained =
+        f.c.pin
+            .verify_retired_cleanup(f.retired, &inventory, &inventory_wire)
+            .expect("verified inventory");
+    assert_eq!(
+        f.c.store
+            .retired_report_status(&report)
+            .expect("observation"),
+        ReportState::Unavailable
+    );
+    assert!(matches!(
+        f.c.store.retired_report_receipt(&report),
+        Err(DurableError::Absent)
+    ));
+    let body = report.to_bytes();
+    assert_eq!(body.len(), 353);
+    for length in 0..body.len() {
+        assert!(Report::from_trusted_state(body.get(..length).expect("prefix")).is_err());
+    }
+    let mut trailing = body.clone();
+    trailing.push(0);
+    assert!(Report::from_trusted_state(&trailing).is_err());
+    let mut zero = body.clone();
+    zero.get_mut(321..).expect("report ID").fill(0);
+    assert!(Report::from_trusted_state(&zero).is_err());
+    let before = f.c.store.image().expect("before").revision;
+    f.c.store
+        .retain_retired_report(&report)
+        .expect("first report binding");
+    let image = f.c.store.image().expect("v13 image");
+    let active = f.c.store.active.as_ref().expect("owner");
+    let encoded = encode(&active.wrapping, &active.pin, &image).expect("v13");
+    assert_eq!(encoded.get(..8), Some(b"QPANC013".as_slice()));
+    assert_eq!(
+        decode(&active.wrapping, &active.pin, &encoded)
+            .expect("authenticated v13")
+            .retired_reports
+            .len(),
+        1
+    );
+    // A correctly authenticated storage image cannot associate a report with a different inventory.
+    let mut forged = encoded.get(..encoded.len() - 32).expect("body").to_vec();
+    let position = forged
+        .windows(body.len())
+        .position(|w| w == body)
+        .expect("one retained report");
+    *forged
+        .get_mut(position + 8 + 248)
+        .expect("stored image binding") ^= 1;
+    let mut auth = authenticator(&active.wrapping).expect("local MAC");
+    auth.update(&forged);
+    forged.extend_from_slice(&auth.finalize().into_bytes());
+    assert!(matches!(
+        decode(&active.wrapping, &active.pin, &forged),
+        Err(DurableError::Corrupt)
+    ));
+    f.c.store.close();
+    f.c.store = reopen(&f.c.server);
+    f.c.peer.responder.current_policy().expect("policy").close();
+    assert_eq!(
+        f.c.store
+            .retain_retired_report(&report)
+            .expect("read-only exact retry"),
+        ReportState::Retained
+    );
+    assert_eq!(
+        f.c.store.image().expect("one report commit").revision,
+        before + 1
+    );
+    let other = Report::from_report(inventory.clone(), [172; 32]).expect("different report");
+    assert!(matches!(
+        f.c.store.retain_retired_report(&other),
+        Err(DurableError::Conflict)
+    ));
+    assert!(matches!(
+        f.c.store.retired_report_status(&other),
+        Err(DurableError::Conflict)
+    ));
+    let wire =
+        f.c.store
+            .retired_report_receipt(&report)
+            .expect("purpose20");
+    assert_eq!(wire.len(), 3730);
+    assert_eq!(
+        f.c.pin
+            .verify_retired_report(&retained, &report, &wire)
+            .expect("verified report")
+            .proposal(),
+        &report
+    );
+    for length in 0..wire.len() {
+        assert!(f
+            .c
+            .pin
+            .verify_retired_report(&retained, &report, wire.get(..length).expect("prefix"))
+            .is_err());
+    }
+    let mut extra = wire.clone();
+    extra.push(0);
+    assert!(f
+        .c
+        .pin
+        .verify_retired_report(&retained, &report, &extra)
+        .is_err());
+    let signer = &f.c.store.active.as_ref().expect("signer").signer;
+    let signature = signer
+        .sign(Purpose::AnchorRetiredCleanup, &body)
+        .expect("different purpose");
+    assert!(f
+        .c
+        .pin
+        .verify_retired_report(
+            &retained,
+            &report,
+            &envelope(&body, &signature).expect("envelope")
+        )
+        .is_err());
+    let other_body = other.to_bytes();
+    let signature = signer
+        .sign(Purpose::AnchorRetiredReport, &other_body)
+        .expect("signed other report");
+    assert!(matches!(
+        f.c.pin.verify_retired_report(
+            &retained,
+            &report,
+            &envelope(&other_body, &signature).expect("envelope")
+        ),
+        Err(Error::Scope)
+    ));
+    assert!(f
+        .c
+        .pin
+        .verify_retired_cleanup(f.retired, &inventory, &wire)
+        .is_err());
+    let request = request(&f.c, AnchorOperation::query());
+    assert!(f.c.pin.verify_reply(&request, &wire).is_err());
+    assert_eq!(
+        f.c.store
+            .retired_subject_observation(&f.replacement, f.retired.subject())
+            .expect("old frozen entry"),
+        f.retired
+    );
+    assert_retired(&mut f.c, AnchorOperation::query());
+}
+#[test]
+fn every_report_binding_sync_cut_keeps_the_exact_report_and_old_retirement() {
+    use crate::AnchorRetiredReportProposal as Report;
+    // These have different actual redb histories and measured barrier counts.
+    // Calibrate and inject every barrier separately for each original inventory.
+    for pending in [None, Some(false)] {
+        let mut calibration = fixture(pending);
+        let inventory = calibration.proposal();
+        calibration
+            .c
+            .store
+            .retain_retired_cleanup(&inventory)
+            .expect("inventory");
+        let report = Report::from_report(inventory, [174; 32]).expect("report");
+        let (_, count) = with_fault_database(&mut calibration.c, false);
+        count.store(0, Ordering::SeqCst);
+        calibration
+            .c
+            .store
+            .retain_retired_report(&report)
+            .expect("calibration");
+        let barriers = count.load(Ordering::SeqCst);
+        assert!((2..=8).contains(&barriers));
+        let (remaining, count) = with_fault_database(&mut calibration.c, false);
+        remaining.store(1, Ordering::SeqCst);
+        count.store(0, Ordering::SeqCst);
+        calibration
+            .c
+            .store
+            .retain_retired_report(&report)
+            .expect("exact retry");
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+        for after in [false, true] {
+            for cut in 1..=barriers {
+                let mut f = fixture(pending);
+                let inventory = f.proposal();
+                f.c.store
+                    .retain_retired_cleanup(&inventory)
+                    .expect("inventory");
+                let report = Report::from_report(inventory, [175; 32]).expect("report");
+                let before = f.c.store.image().expect("before").revision;
+                let (remaining, _) = with_fault_database(&mut f.c, after);
+                remaining.store(cut, Ordering::SeqCst);
+                crate::durable::tests::assert_sync_failure(
+                    f.c.store.retain_retired_report(&report),
+                    after,
+                );
+                assert!(f.c.store.active.is_none());
+                f.c.store = reopen(&f.c.server);
+                f.c.store
+                    .retain_retired_report(&report)
+                    .expect("same report retry");
+                assert_eq!(f.c.store.image().expect("one commit").revision, before + 1);
+                assert_eq!(
+                    f.c.store
+                        .retired_subject_observation(&f.replacement, f.retired.subject())
+                        .expect("old entry unchanged"),
+                    f.retired
+                );
+            }
+        }
+        eprintln!("RETIRED_REPORT_WITNESS_SYNC pending={} barriers={barriers} before_after_faults={} exact_retry_read_only=true",pending.is_some(),barriers*2);
+    }
+}
+
+#[test]
+fn process_loss_after_report_binding_recovers_original_report_without_erasure() {
+    let mut f = fixture(Some(false));
+    let inventory = f.proposal();
+    f.c.store
+        .retain_retired_cleanup(&inventory)
+        .expect("inventory");
+    let report = crate::AnchorRetiredReportProposal::from_report(inventory, [179; 32])
+        .expect("original report expectation");
+    let before = f.c.store.image().expect("before").revision;
+    fs::write(f.c.server.join("report.bin"), report.to_bytes())
+        .expect("saved original report request");
+    f.c.store.close();
+    let log = fs::File::create_new(f.c.server.join("report-child.log")).expect("log");
+    let mut child = ChildGuard(
+        Process::new(std::env::current_exe().expect("binary"))
+            .args([
+                "--exact",
+                "anchor::store::tests::replacement::cleanup::cleanup_binding_process_child",
+                "--nocapture",
+            ])
+            .env("QPERIAPT_RETIRED_CLEANUP_DIR", &f.c.server)
+            .env("QPERIAPT_RETIRED_REPORT_CHILD", "1")
+            .env("QPERIAPT_ANCHOR_SERVER_DIR", &f.c.server)
+            .env("QPERIAPT_ANCHOR_CRASH_REVISION", (before + 1).to_string())
+            .stdout(Stdio::from(log.try_clone().expect("log clone")))
+            .stderr(Stdio::from(log))
+            .spawn()
+            .expect("owned child"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !f.c.server.join("ready").exists() {
+        assert!(
+            child.0.try_wait().expect("status").is_none() && Instant::now() < deadline,
+            "report child deadline"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!f.c.server.join("report-returned").exists());
+    child.0.kill().expect("kill owned child");
+    assert!(!child.0.wait().expect("reap").success());
+    f.c.store = reopen(&f.c.server);
+    f.c.peer.responder.current_policy().expect("policy").close();
+    f.c.store
+        .retain_retired_report(&report)
+        .expect("same original report retry");
+    assert_eq!(f.c.store.image().expect("one commit").revision, before + 1);
+    assert_eq!(
+        f.c.store
+            .retired_subject_observation(&f.replacement, f.retired.subject())
+            .expect("old entry"),
+        f.retired
+    );
+    assert!(rows(&f.path).1.is_some());
+    eprintln!("RETIRED_REPORT_WITNESS_PROCESS commit_before_return=true original_report_recovered=true pending_inventory_preserved=true");
 }

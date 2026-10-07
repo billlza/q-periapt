@@ -18,7 +18,8 @@ pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
 pub use store::{
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredCleanup,
-    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredSubject, AnchorStore,
+    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
+    AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};

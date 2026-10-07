@@ -107,6 +107,23 @@ impl Scope {
 /// Account/device linkage is public in this archive and may be privacy sensitive.
 pub struct SessionClosureArchive([u8; ARCHIVE_BYTES]);
 impl SessionClosureArchive {
+    pub(in crate::durable::messages) fn authenticate_historical(
+        &self,
+        key: &JournalKey,
+        image: &Image,
+        session: [u8; 32],
+    ) -> Result<([u8; 32], [u8; 16], u64), DurableError> {
+        let scope = self.authenticate(key, JournalIdentity(image.id))?;
+        scope.check(image)?;
+        if scope.binding.session != session {
+            return Err(DurableError::Conflict);
+        }
+        Ok((
+            scope.binding.peer_account,
+            scope.binding.peer_device,
+            scope.binding.peer_generation,
+        ))
+    }
     // Each immutable batch member must match independently MAC-authenticated
     // original session scope. A valid archive for a different member is not enough.
     pub(in crate::durable::messages) fn authenticate_fanout_member(

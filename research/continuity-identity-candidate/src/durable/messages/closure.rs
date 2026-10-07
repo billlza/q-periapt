@@ -392,3 +392,9 @@ impl DeviceJournal {
         self.check_release(&image)
     }
 }
+
+impl Pending {
+    pub(in crate::durable::messages) fn report_id(&self) -> SessionClosureId {
+        self.report
+    }
+}

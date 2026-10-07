@@ -33,6 +33,7 @@ mod session_policy;
 #[cfg(feature = "anchor-tls")]
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
+pub use durable::retired_report as retired_device;
 pub use enrollment::{
     CredentialRenewalRequest, CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice,
     EnrollmentIntent, EnrollmentPaths, EnrollmentStatus, PolicyRenewalAbandonment,
@@ -95,6 +96,7 @@ pub use anchor::{
     AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
     AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply, AnchorRequest,
     AnchorRetiredCleanup, AnchorRetiredCleanupProposal, AnchorRetiredCleanupState,
+    AnchorRetiredReport, AnchorRetiredReportProposal, AnchorRetiredReportState,
     AnchorRetiredSubject, AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore,
     AnchorSubject, AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };

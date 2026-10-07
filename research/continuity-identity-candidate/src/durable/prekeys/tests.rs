@@ -332,6 +332,24 @@ fn inventory_roundtrips_every_quality_and_atomically_retires_only_selected_one_t
                     277
                 }
             );
+            let projected = historical_metadata(
+                image
+                    .records
+                    .get(&id(*request))
+                    .expect("actual prekey record"),
+            )
+            .expect("metadata projection");
+            let source = if expected == PrekeyStatus::Consumed {
+                Some(
+                    BootstrapOperationId::for_response(f.peer.responder.digest(), &initial)
+                        .expect("original response ID"),
+                )
+            } else {
+                None
+            };
+            assert!(
+                matches!(projected,crate::retired_device::RecordMetadata::Prekey {request:saved,kind:selected,public_fingerprint:Some(fingerprint),source:operation,..} if saved==*request && selected==kind && fingerprint==entry.leaf().expect("public leaf").key_fingerprint() && operation==source)
+            );
             if expected == PrekeyStatus::Consumed {
                 assert!(matches!(
                     f.store.prekey_leaf(policy, device, *request, 150),

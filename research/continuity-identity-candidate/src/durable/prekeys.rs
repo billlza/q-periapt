@@ -860,3 +860,35 @@ pub(super) fn cancellation_inventory(
         })
         .collect()
 }
+
+// Only public identity and disposition leave this decoder; recovery tokens never do.
+pub(super) fn historical_metadata(
+    record: &Record,
+) -> Result<super::retired_report::RecordMetadata, DurableError> {
+    let entry = Entry::decode(record)?;
+    let source = if matches!(
+        record.phase,
+        DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned
+    ) {
+        Some(BootstrapOperationId::from_trusted_state(
+            entry
+                .data
+                .as_slice()
+                .try_into()
+                .map_err(|_| DurableError::Corrupt)?,
+        )?)
+    } else {
+        None
+    };
+    Ok(super::retired_report::RecordMetadata::Prekey {
+        request: entry.request,
+        kind: entry.kind,
+        validity: entry.validity,
+        public_fingerprint: if entry.has_public() {
+            Some(entry.leaf()?.key_fingerprint())
+        } else {
+            None
+        },
+        source,
+    })
+}

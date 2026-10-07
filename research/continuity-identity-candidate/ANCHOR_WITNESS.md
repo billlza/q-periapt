@@ -250,7 +250,7 @@ Other coverage includes exclusive-lease and identity rejection, authenticated st
 corruption, each measured before/after retention sync fault, and process loss after
 commit before return. Credential-with-policy-continuation inventory variants and
 installed foreign consumers still require dedicated coverage. The high-level
-coordinator below retains the original request; complete session/fanout loss reports,
+coordinator below retains the original request and binds complete historical metadata;
 host acknowledgement and logical erasure remain open. Neither proof nor inventory
 retention authorizes report acceptance, erasure or new runtime work.
 
@@ -270,8 +270,8 @@ backup. The original request remains available after journal loss and policy exp
 so an independently authorized controller can reconcile an unknown witness commit.
 `verify_retained(pin, wire)` authenticates permanent witness retention of that exact
 saved request. Neither operation claims the old data is present or complete for a
-loss report. The future report reader must still authenticate the exact independently
-bound image and pending inventory, and reject missing or substituted state.
+loss report. The report reader below authenticates the exact independently bound image and
+pending inventory, and rejects missing or substituted state.
 
 Once the row exists, ordinary `DeviceInstallation` and `InstallationRecovery` open
 paths return `Suspended`; they do not release an operational or per-session cleanup
@@ -279,13 +279,75 @@ owner through this configuration. The restricted object cannot convert to a serv
 An I/O error may hide the request commit and returns no owner: reopen the original
 configuration and retirement proof. Exact retries do not rewrite the saved request.
 The configuration remains trusted host state outside journal backups, not a new
-anti-rollback mechanism. Complete report binding, host ACK and logical erasure remain
-separate unimplemented steps.
+anti-rollback mechanism. Report binding is a separate step below; host ACK and
+logical erasure remain unimplemented.
 
 Actual installed-service tests cover interrupted roster writes with retained pending
 inventory, prior backups with the same frozen image and no pending row, missing
 journals, wrong key/retirement, every measured request-commit sync cut, and owned-child
 process loss before and after commit before any request returns to the caller.
+
+### Complete historical report and independent report retention
+
+`prepare_report(verified_inventory)` authenticates the exact original image and full
+pending wire under the exclusive journal lease. The authenticated records choose the
+complete inventory; the archive index cannot select a subset. Every message session
+and every fanout member requires its original MAC-authenticated closure archive with
+matching journal, protection, context, role and peer identity. Missing state or archives
+fails the whole preparation. It never applies a pending target or changes G/P/R.
+
+The `retired_device::Report` contains explicit views: the witness-committed authoritative
+image, and a superseded source or an uncommitted target where still retained. A locally
+installed bound target with a retained intent has one authoritative view plus the exact
+original transaction metadata. Candidate target outcomes must not be counted as committed
+work. Both views preserve original operation IDs. No earlier deleted history is invented.
+
+Metadata covers bootstrap request/flight identities and existing cancellation receipts;
+prekey request/kind/validity, public fingerprint and consumed/abandoned source operation;
+public authenticated roster/renewal history; live and previously closed sessions; all
+retained epoch floors, outgoing IDs and ciphertext fingerprints, unconsumed lengths,
+out-of-order consumed IDs, skipped indices and reservations with original fanout IDs;
+and every original fanout recipient/credential/context/session/message and disposition.
+Prior session, epoch and fanout report identities remain unchanged. Private keys, recovery
+tokens, signing/KEM coins, plaintext, associated data and private input commitments are
+not projected. Public metadata includes account/device linkage and lengths and should
+remain private to the host's accounting storage.
+
+Canonical report metadata is `QPRDMD01`; all counts/lengths and integers are unsigned
+big-endian u64, optional fields have an explicit presence byte, and records/views follow
+the deterministic typed encoder in `src/durable/retired_report.rs`. The original cleanup
+proposal is included in full. An HKDF-separated HMAC-SHA256 key derived from the original
+wrapping key authenticates the complete canonical report. Metadata is bounded by four
+times the existing 2 MiB journal-image limit. This private-keyed identity is not a public
+plaintext hash, a delivery receipt or permission to erase.
+
+Before returning a proposal, the coordinator commits a separate `retired-report` row
+containing **QPRRPT01[8] || QPRCLP01[313] || report_id[32] = 353 bytes**. The exact inventory
+must match the existing `retired-cleanup` row. Ordinary installation entry points remain
+suspended; older readers reject the additional named row. `report_proposal()` recovers
+the original expectation after unknown commit or missing journal. An exact repeated
+`prepare_report` reads that saved expectation without selecting another backup.
+
+The independently authorized controller then calls `retain_retired_report`. Its first
+report for that retired subject is permanent; a different report conflicts even with the
+same inventory. Witness format **QPANC013** extends v12 with a nonempty sorted report map
+(`u16 count`, then `subject_id[32] || QPRRPT01[353]`). It retains the complete old entries,
+replacement decisions and inventory map. Older supported images have an empty report
+map; original 256-entry/1 MiB limits remain, without eviction. Storage authentication
+cannot excuse a report with a missing/different independently retained inventory.
+
+`retired_report_receipt` uses distinct signature purpose **20** and a 3730-byte envelope.
+`verify_retired_report` authenticates the original saved expectation and inventory.
+`report(verified_inventory, pin, receipt)` only then rereads the exact original journal
+and archives and recomputes the same report identity before returning complete typed
+metadata and canonical bytes. Losing original data after saving the proposal allows
+commit reconciliation but never an empty/replacement report. The witness authenticates
+retention, not semantic completeness supplied by an untrusted recovery controller.
+
+This stage performs no host accounting ACK and no logical erasure. Those require their
+own explicit durable decision and crash reconciliation. It does not make an old runtime
+current, assert remote delivery, or claim erasure of retained pages/backups. Foreign
+bindings and installed replacement flows still require separate integration/qualification.
 
 ### Explicit refresh under a newer roster
 

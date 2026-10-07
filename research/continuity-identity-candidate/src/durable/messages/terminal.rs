@@ -217,3 +217,25 @@ impl Retired {
         })
     }
 }
+
+impl Retired {
+    pub(in crate::durable::messages) fn historical_counts(
+        &self,
+    ) -> (
+        RekeyProgress,
+        Vec<crate::durable::retired_report::TerminalEpoch>,
+    ) {
+        (
+            self.progress,
+            self.epochs
+                .iter()
+                .map(|e| crate::durable::retired_report::TerminalEpoch {
+                    epoch: e.epoch,
+                    sent: e.sent,
+                    acknowledged: e.acknowledged,
+                    reservation_abandoned: e.reserved,
+                })
+                .collect(),
+        )
+    }
+}

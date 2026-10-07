@@ -610,3 +610,81 @@ pub(super) fn require_individual(
     Ok(())
 }
 pub(super) use codec::{validate_image, validate_pending};
+
+pub(in crate::durable) fn historical_fanout(
+    image: &Image,
+    key: &JournalKey,
+    id: &[u8; 32],
+    record: &Record,
+    archives: &mut crate::SessionArchiveStore,
+) -> Result<crate::durable::retired_report::RecordMetadata, DurableError> {
+    use crate::durable::retired_report::{Member, MemberState, RecordMetadata};
+    let batch = Batch::decode(image, id, record)?;
+    let mut members = Vec::with_capacity(batch.members.len());
+    for member in &batch.members {
+        let archive = archives.get(member.session).map_err(|e| {
+            if matches!(e, DurableError::Absent) {
+                DurableError::ArchiveRequired
+            } else {
+                e
+            }
+        })?;
+        archive.authenticate_fanout_member(
+            key,
+            JournalIdentity(image.id),
+            image,
+            batch.account,
+            member,
+        )?;
+        let (state, ciphertext_digest) = if matches!(
+            batch.state,
+            BatchState::Reserved(_) | BatchState::Abandoning { .. }
+        ) {
+            (MemberState::Reserved, None)
+        } else {
+            match codec::record_output(image, &batch, member)? {
+                FanoutOutput::Committed(wire) => (
+                    MemberState::Retained(FanoutMemberState::Committed),
+                    Some(*UnconfirmedMessage::new(member.message, &wire).ciphertext_digest()),
+                ),
+                FanoutOutput::Acknowledged => {
+                    (MemberState::Retained(FanoutMemberState::Acknowledged), None)
+                }
+                FanoutOutput::ResolutionPending => (
+                    MemberState::Retained(FanoutMemberState::ResolutionPending),
+                    None,
+                ),
+                FanoutOutput::DeliveryUnknown => (
+                    MemberState::Retained(FanoutMemberState::DeliveryUnknown),
+                    None,
+                ),
+                FanoutOutput::HistoryRetired => (
+                    MemberState::Retained(FanoutMemberState::HistoryRetired),
+                    None,
+                ),
+                FanoutOutput::ReservationAbandoned => (
+                    MemberState::Retained(FanoutMemberState::ReservationAbandoned),
+                    None,
+                ),
+            }
+        };
+        members.push(Member {
+            device: member.device,
+            generation: member.generation,
+            credential: member.credential,
+            context: member.context,
+            session: member.session,
+            role: member.role,
+            message: member.message,
+            state,
+            ciphertext_digest,
+        });
+    }
+    Ok(RecordMetadata::Fanout {
+        batch: batch.id,
+        account: batch.account,
+        roster: batch.roster,
+        status: batch.status(),
+        members,
+    })
+}
