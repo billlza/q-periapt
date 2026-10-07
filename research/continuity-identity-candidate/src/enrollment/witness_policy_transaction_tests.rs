@@ -585,3 +585,293 @@ fn witnessed_policy_owner_requires_ack_and_fresh_current_g_t_after_each_reopen()
         }
     }
 }
+
+#[test]
+fn retired_inventory_reports_and_erases_adopted_and_carried_policy_at_all_three_cuts() {
+    use crate::{
+        retired_device, AnchorCredentialRenewalState as State, AnchorError, AnchorOperation,
+        AnchorRequest, AnchorSubject, RetiredInstallationRecovery,
+    };
+    use std::{io::Write, os::unix::fs::DirBuilderExt};
+    for carry in [false, true] {
+        for stage in 0..3 {
+            let f = fixture_with_policy_expiry(Some(160));
+            let g1 = grant(&f, &f.original, 2, 180);
+            let p1 = super::super::policy_continuation::policy(&f.c, 2, 190, 170);
+            let scope = super::super::policy_continuation::scope(&f.c, &g1, f.id);
+            let t1 = super::super::policy_continuation::joint(&f.c, &g1, &scope, &f.c.policy, &p1);
+            let first = prepare_policy(&f, &g1, Some(&t1), &p1);
+            let g2 = grant(&f, g1.successor_device(), 3, 185);
+            let (proposal, grant) = if carry {
+                let mut owner = open(&f.c);
+                let mut anchor = client(&f, &mut owner, 170);
+                assert_eq!(
+                    owner
+                        .commit_witnessed_policy_continuation(
+                            &first,
+                            f.c.policy.historical(),
+                            &p1,
+                            170,
+                            &mut anchor,
+                        )
+                        .expect("complete original adoption before later credential renewal"),
+                    committed(&g1, &first)
+                );
+                owner.close();
+                (prepare_policy(&f, &g2, None, &p1), &g2)
+            } else {
+                (first, &g1)
+            };
+            assert_eq!(proposal.adopts_policy(), !carry);
+            assert_eq!(proposal.policy_continuation(), Some(t1.statement_digest()));
+            let prepared = disk(&f);
+            let mut owner = open(&f.c);
+            let mut anchor = client(&f, &mut owner, 170);
+            owner.close();
+            if stage > 0 {
+                assert_eq!(
+                    anchor
+                        .exchange(
+                            proposal.subject(),
+                            AnchorOperation::commit_credential_renewal(&proposal)
+                        )
+                        .expect("original witness commit")
+                        .credential_renewal_state(&proposal)
+                        .expect("exact decision"),
+                    State::Applied
+                );
+            }
+            if stage == 2 {
+                assert_eq!(
+                    DeviceJournal::recover_credential_renewal(
+                        f.c.paths.installation.files()[1],
+                        JournalKey::open(&f.c.paths.wrapping).expect("original key"),
+                        &f.original,
+                        f.c.policy.historical(),
+                        f.id,
+                        proposal,
+                        &mut anchor,
+                    )
+                    .expect("install exact original target without ACK"),
+                    State::Applied
+                );
+            }
+            let before = disk(&f);
+            assert_eq!(
+                before.1, prepared.1,
+                "retain complete original bound intent"
+            );
+            assert_eq!(before.0 == prepared.0, stage != 2);
+            let predecessor = if stage == 0 {
+                grant.previous_device()
+            } else {
+                grant.successor_device()
+            };
+            let previous_policy = if !carry && stage == 0 {
+                f.c.policy.historical()
+            } else {
+                p1.historical()
+            };
+            let signer = DeviceSigningKey::generate().expect("fresh replacement signer");
+            let mut description = grant.successor_device().description.clone();
+            description.generation += 1;
+            description.validity = Validity::new(100, 200).expect("replacement validity");
+            let certificate =
+                f.c.root
+                    .issue_device(description, signer.public_key().expect("fresh public key"))
+                    .expect("fresh generation");
+            let roster =
+                f.c.root
+                    .issue_roster(
+                        4,
+                        Validity::new(100, 200).expect("roster validity"),
+                        &[f.c.root.roster_entry(&certificate).expect("new member")],
+                    )
+                    .expect("replacement roster");
+            let next = AccountPin::new(
+                f.original.account_id(),
+                f.c.root.public_key().expect("root"),
+                roster.checkpoint(),
+                p1.family(),
+            )
+            .expect("independent current pin")
+            .verify_device(&certificate, roster.as_bytes(), 170)
+            .expect("current replacement identity");
+            let root =
+                f.c.paths
+                    .wrapping
+                    .parent()
+                    .expect("original private directory");
+            let dir = root.join("retired-policy-replacement");
+            fs::DirBuilder::new()
+                .mode(0o700)
+                .create(&dir)
+                .expect("private replacement path");
+            let mut next_journal = DeviceJournal::provision_anchored(
+                &dir.join("state.redb"),
+                JournalKey::provision(&dir.join("key")).expect("fresh wrapping"),
+                &next,
+                &p1,
+                JournalIdentity::generate().expect("fresh identity"),
+                170,
+            )
+            .expect("fresh genesis journal");
+            let genesis = next_journal
+                .anchor_genesis(&next, &p1)
+                .expect("actual genesis");
+            next_journal.close();
+            let subject = AnchorSubject::for_device(f.id, &f.original, &f.c.policy)
+                .expect("original subject");
+            let proofs = [(subject, predecessor.roster().checkpoint(), previous_policy)];
+            let (replacement, retired) = {
+                let mut witness = f.carrier.store.lock().expect("independent controller");
+                let replacement = witness
+                    .device_replacement_proposal(&genesis, &next, &p1, &proofs, 170)
+                    .expect("all original state bound");
+                witness
+                    .replace_device(&replacement, &genesis, &next, &p1, &proofs, 170)
+                    .expect("atomic replacement");
+                let wire = witness
+                    .retired_subject_receipt(&replacement, subject)
+                    .expect("permanent retirement");
+                let retired = f
+                    .pin
+                    .verify_retired_subject(&replacement, subject, &wire)
+                    .expect("original retirement proof");
+                (replacement, retired)
+            };
+            let mut registration = open(&f.c);
+            let saved = registration.image().expect("original registration");
+            let old_signer = registration
+                .signer(saved.identity, false)
+                .expect("original persistent signer");
+            registration.close();
+            for op in [
+                AnchorOperation::commit_credential_renewal(&proposal),
+                AnchorOperation::credential_renewal_status(&proposal),
+                AnchorOperation::close_credential_renewal(&proposal),
+                AnchorOperation::acknowledge_credential_renewal(&proposal),
+            ] {
+                let request = AnchorRequest::new(&f.pin, subject, op, &old_signer)
+                    .expect("original signed operation");
+                assert!(matches!(
+                    f.carrier
+                        .store
+                        .lock()
+                        .expect("witness")
+                        .handle(request.as_bytes(), 170),
+                    Err(AnchorError::Rejected(Error::Scope))
+                ));
+            }
+            let mut cleanup = RetiredInstallationRecovery::open(
+                f.c.paths.installation.clone(),
+                JournalKey::open(&f.c.paths.wrapping).expect("original key"),
+                retired,
+            )
+            .expect("original independent installation");
+            let inventory = cleanup.proposal().expect("complete original inventory");
+            let wire = {
+                let mut witness = f.carrier.store.lock().expect("controller");
+                witness
+                    .retain_retired_cleanup(&inventory)
+                    .expect("independent exact inventory");
+                witness
+                    .retired_cleanup_receipt(&inventory)
+                    .expect("inventory proof")
+            };
+            let retained = cleanup
+                .verify_retained(&f.pin, &wire)
+                .expect("exact inventory");
+            assert_eq!(
+                disk(&f),
+                before,
+                "capture cannot apply or remove the bound intent"
+            );
+            assert_eq!(
+                inventory.stored_image_digest() == retired.observed_head().digest(),
+                stage != 1
+            );
+            let expected = cleanup
+                .prepare_report(&retained)
+                .expect("complete G/T report");
+            let wire = {
+                let mut witness = f.carrier.store.lock().expect("controller");
+                witness
+                    .retain_retired_report(&expected)
+                    .expect("independent report");
+                witness
+                    .retired_report_receipt(&expected)
+                    .expect("report proof")
+            };
+            let report = cleanup
+                .report(&retained, &f.pin, &wire)
+                .expect("verified full report");
+            assert!(matches!(report.intent(), retired_device::Intent::Write {
+                transaction: retired_device::Transaction::Credential { operation, statement, policy: Some((adopt, policy)) }, ..
+            } if operation == grant.operation().as_bytes() && *statement == grant.statement_digest()
+                && *adopt != carry && *policy == t1.statement_digest()));
+            let roles: Vec<_> = report.views().iter().map(|v| v.role).collect();
+            use retired_device::ViewRole::{Authoritative, SupersededSource, UncommittedTarget};
+            assert_eq!(
+                roles,
+                match stage {
+                    0 => vec![Authoritative, UncommittedTarget],
+                    1 => vec![SupersededSource, Authoritative],
+                    _ => vec![Authoritative],
+                }
+            );
+            let mut file = fs::File::create_new(root.join("retired-policy-host-report.bin"))
+                .expect("host record");
+            file.write_all(report.as_bytes())
+                .expect("complete original report");
+            file.sync_all().expect("durable host report");
+            fs::File::open(root)
+                .expect("parent")
+                .sync_all()
+                .expect("durable host name");
+            let verified = f
+                .pin
+                .verify_retired_report(&retained, &expected, &wire)
+                .expect("independent retention");
+            cleanup
+                .prepare_host_acknowledgement(report.as_bytes(), &verified)
+                .expect("original host-accounted intent");
+            let wire = {
+                let mut witness = f.carrier.store.lock().expect("controller");
+                witness
+                    .acknowledge_retired_report(&expected)
+                    .expect("independent host ACK");
+                assert_eq!(
+                    witness
+                        .retired_subject_observation(&replacement, subject)
+                        .expect("unchanged frozen G/T"),
+                    retired
+                );
+                witness
+                    .retired_report_acknowledgement_receipt(&expected)
+                    .expect("purpose21")
+            };
+            assert_eq!(
+                disk(&f),
+                before,
+                "no mutation before explicit journal erasure"
+            );
+            cleanup
+                .erase_journal(&f.pin, &wire)
+                .expect("erase exact adopted/carried original inventory");
+            let mut reopened = RetiredInstallationRecovery::open(
+                f.c.paths.installation.clone(),
+                JournalKey::open(&f.c.paths.wrapping).expect("original key"),
+                retired,
+            )
+            .expect("same independent metadata");
+            assert_eq!(
+                reopened
+                    .journal_erasure_status(&f.pin)
+                    .expect("authenticated terminal"),
+                retired_device::JournalErasureState::Erased
+            );
+            eprintln!("RETIRED_G_POLICY carry={carry} stage={stage} real_enrollment=true report_exact_intent=true original_rows_unchanged_before_ack=true erased_after_purpose21=true");
+        }
+    }
+}

@@ -248,8 +248,11 @@ with the independently retained inventory. Ordinary G/P/R operations stay refuse
 after replacement, and the complete frozen witness observation stays unchanged.
 Other coverage includes exclusive-lease and identity rejection, authenticated store
 corruption, each measured before/after retention sync fault, and process loss after
-commit before return. Credential-with-policy-continuation inventory variants and
-installed foreign consumers still require dedicated coverage. The high-level
+commit before return. Credential renewal with policy adoption and with policy carry each also cover all
+three cuts through actual enrolled-device preparation, complete report retention,
+explicit host ACK and authenticated logical erasure. Reports preserve the exact G/T
+identity and adoption mode, the source/target roles, and all original pending bytes
+until erasure. Installed foreign consumers still require dedicated coverage. The high-level
 coordinator below retains the original request and binds complete historical metadata;
 logical erasure follows explicit host acknowledgement as described below. Neither proof nor inventory
 retention authorizes report acceptance, erasure or new runtime work.
