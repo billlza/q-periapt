@@ -91,11 +91,11 @@ mod tests;
 pub use anchor::{
     AnchorClient, AnchorClientError, AnchorCredentialCancellationState,
     AnchorCredentialRenewalCancellation, AnchorCredentialRenewalProposal,
-    AnchorCredentialRenewalState, AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity,
-    AnchorOperation, AnchorOutcome, AnchorPin, AnchorPolicyRenewalProposal,
-    AnchorPolicyRenewalState, AnchorReply, AnchorRequest, AnchorRosterRefreshProposal,
-    AnchorRosterRefreshState, AnchorStore, AnchorSubject, AnchorTcpTransport, AnchorTransport,
-    RosterRefreshId, RosterRefreshScope,
+    AnchorCredentialRenewalState, AnchorDeviceReplacementProposal, AnchorDeviceReplacementState,
+    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
+    AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply, AnchorRequest,
+    AnchorRetiredSubject, AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore,
+    AnchorSubject, AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,

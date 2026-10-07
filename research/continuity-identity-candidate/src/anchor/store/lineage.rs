@@ -35,7 +35,7 @@ impl OriginalIdentity {
         self.description.validity.encode(out);
         out.extend_from_slice(&self.description.family);
     }
-    pub(super) fn decode(d: &mut Decoder<'_>) -> Result<Self, DurableError> {
+    pub(super) fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
         let account = d.array()?;
         nonzero(&account)?;
         let id = d.array()?;

@@ -158,6 +158,12 @@ pub(super) enum CredentialRenewalRecord {
     },
 }
 impl CredentialRenewalRecord {
+    pub(super) fn roster_floor(&self) -> u64 {
+        match self {
+            Self::Joint(record) => record.version,
+            Self::GrantClosed { version, .. } => *version,
+        }
+    }
     pub(super) fn is_cancellation(&self) -> bool {
         matches!(self, Self::GrantClosed { .. })
     }
@@ -548,6 +554,7 @@ impl AnchorStore {
         let mut record = JointRenewalRecord::for_grant(proposal, grant, target_policy, phase)?;
         let id = proposal.subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
+        image.require_live(proposal.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
         if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
             return Err(DurableError::Conflict);
@@ -716,6 +723,7 @@ impl AnchorStore {
         let version = grant.successor_checkpoint().version();
         let id = cancellation.subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
+        image.require_live(cancellation.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
         if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
             return Err(DurableError::Conflict);

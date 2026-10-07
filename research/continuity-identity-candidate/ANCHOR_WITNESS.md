@@ -84,11 +84,82 @@ wrong proofs, authenticated field substitution, every measured before/after-sync
 failure and a real child-process kill after commit before return. Existing legacy
 format tests construct explicit legacy inputs and retain their format assertions.
 
-This metadata is a prerequisite for device replacement. It does not retire any
-subject, impose a generation floor or implement atomic replacement. A future
-replacement transaction must establish complete affected membership; unclassified
-legacy entries cannot silently be treated as unrelated devices. Retired operational
-queries and authorized historical loss accounting also remain separate work.
+This metadata is a prerequisite for the native replacement transaction below.
+Unclassified legacy entries cannot silently be treated as unrelated devices.
+
+### Atomic device generation replacement at the witness
+
+The trusted native controller calls `device_replacement_proposal` with a fresh
+anchored journal's actual genesis, an independently admitted root-signed higher
+device generation and roster, its current policy, and every active predecessor's
+original subject, current roster checkpoint and authenticated historical policy.
+The proposal is a read-only compare-and-set snapshot; retain its complete bytes
+before calling `replace_device`. Neither parsing nor possession of these bytes
+supplies account authorization. This is a local trusted-controller API, not a new
+unauthenticated enrollment or network management endpoint.
+
+Every known entry must have original identity metadata. For the selected account
+and device ID, the target generation must exceed all retained generations, its
+signing key components must be fresh, and its roster must exceed the supplied
+current checkpoints and retained G/R floors. The supplied predecessor set must be
+exactly the active set for that device. The target roster must also retain the
+exact current credentials of all other known live devices in that account; this
+single-device operation cannot silently include their revocation or replacement.
+This check does not claim global roster adoption or discovery of unknown devices.
+Ordinary `enroll` admits a previously unknown device ID; an already known ID needs
+this explicit transaction. New enrollment is suspended while any legacy entry
+remains unclassified. Exact active enrollment retries retain their prior behavior.
+
+The previous policy proofs must match each entry's actual adopted policy and
+validity, including independent policy renewal. The target policy cannot roll back
+an adopted version or fork its digest at the same version. A merely prepared policy
+target does not become adopted by replacement. Both target and historical proofs
+must bind the same policy family and required witness. Creation and a new commit
+require current target authorization. Exact retries of an already committed
+proposal still require the original public inputs and authenticated historical
+policy proofs, and return a historical `Committed` even after expiry, successor
+advancement or subsequent replacement. They grant no current operating owner.
+
+One existing durable witness transaction inserts the new genesis and the complete
+replacement decision. All predecessor entries remain byte-for-byte intact. Their
+normal queries, exact write retries, new writes, fences, authority admissions and
+G/P/R operations are rejected with `Scope`; trusted renewal/refresh entry points
+also refuse them. An old cached certificate or valid mutual TLS connection does
+not bypass this decision. Other live subjects continue normally. There is no new
+positive network outcome or receipt that could be mistaken for release authority.
+
+Any I/O error can hide a committed result: reopen the same witness and retry the
+original proposal. `device_replacement_status` observes that exact retained local
+decision. `retired_subject_observation` provides the frozen head, last command ID,
+complete G/P/R state commitment and original successor binding. This metadata is
+**not** an ACK, a loss-accounting report, a historical journal mutation permit, or a
+freshness receipt. The complete retired state is retained without eviction.
+
+`QPDRPL01` proposals encode witness[32], original target identity[104], subject[96],
+genesis[32], key commitment[32], authority[32], admitted validity[16], roster[40],
+policy[40], policy validity[16], and a u16be predecessor count. Each sorted unique
+predecessor contains subject[96], roster[40], policy[40], policy validity[16] and
+frozen entry commitment[32]. The size is `450 + 224 * count` (674 bytes for one).
+The proposal binding and frozen-state commitment use distinct domain separators;
+the latter includes the witness binding and the existing complete entry encoder.
+Truncation, trailing bytes, unsorted/duplicate subjects and inconsistent fields fail.
+
+`QPANC011` keeps complete v10 entries, then a nonempty u16be decision count and
+sorted `(binding[32], proposal_size:u32be, proposal_bytes)` records before the
+existing image authenticator. Every decision is cross-checked against its target
+and frozen predecessor entries. Each affected device has exactly one live highest
+generation; a subject is retired at most once. Limits remain 256 entries and 1 MiB,
+with no eviction or reset to admit an additional generation. Previously supported
+schemas decode with no replacement decisions. Older binaries cannot read v11;
+rolling a witness binary back after replacement is unsupported.
+
+Native component tests exercise competing targets, state changes between proposal
+and commit, policy forks/rollback, preserved G/P/R state, other-device membership,
+measured before/after-sync failures, and a real child kill after commit before
+return. A mutual TLS test rejects the original inactive journal and activates the
+exact new journal. This does not yet qualify a complete device-service replacement
+coordinator, retired-session loss accounting, foreign replacement APIs, cross-host
+installed flows, independent protocol implementations or physical devices.
 
 ### Explicit refresh under a newer roster
 

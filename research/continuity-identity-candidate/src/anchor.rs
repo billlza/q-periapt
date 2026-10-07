@@ -16,7 +16,10 @@ pub use roster_refresh::{
 mod policy_renewal;
 pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
-pub use store::AnchorStore;
+pub use store::{
+    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredSubject,
+    AnchorStore,
+};
 mod transport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};
 #[cfg(feature = "anchor-tls")]

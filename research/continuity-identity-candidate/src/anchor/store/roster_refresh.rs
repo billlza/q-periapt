@@ -46,6 +46,12 @@ pub(super) struct RosterRefresh {
     record: Option<Record>,
 }
 impl RosterRefresh {
+    pub(super) fn roster_floor(&self) -> u64 {
+        self.floor.max(
+            self.record
+                .map_or(0, |r| r.proposal.scope().target.version()),
+        )
+    }
     pub(super) fn pending(&self) -> bool {
         self.record.is_some()
     }
@@ -333,6 +339,7 @@ impl AnchorStore {
             phase,
         };
         let mut image = self.image()?;
+        image.require_live(subject)?;
         let entry = image
             .entries
             .get_mut(&subject.id(&pin.binding))

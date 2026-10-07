@@ -2456,3 +2456,6 @@ fn original_identity_process_loss_after_commit_keeps_original_head_and_exact_las
     );
     eprintln!("ANCHOR_ORIGINAL_IDENTITY_PROCESS commit_before_return=true same_subject=true same_head=true same_last_command=true exact_metadata_retry=true");
 }
+
+#[path = "replacement_tests.rs"]
+mod replacement;

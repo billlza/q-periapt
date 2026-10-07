@@ -20,6 +20,10 @@ mod tests;
 
 mod lineage;
 use lineage::OriginalIdentity;
+mod replacement;
+pub use replacement::{
+    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredSubject,
+};
 mod roster_refresh;
 use roster_refresh::RosterRefresh;
 mod policy_renewal;
@@ -50,6 +54,7 @@ struct Image {
     revision: u64,
     digest: [u8; 32],
     entries: BTreeMap<[u8; 32], Entry>,
+    replacements: BTreeMap<[u8; 32], AnchorDeviceReplacementProposal>,
 }
 struct Active {
     db: Database,
@@ -78,6 +83,7 @@ impl AnchorStore {
             revision: 1,
             digest: [0; 32],
             entries: BTreeMap::new(),
+            replacements: BTreeMap::new(),
         };
         let bytes = encode(&wrapping, &pin, &image)?;
         let db = provision_private_database(path, |db| {
@@ -134,7 +140,9 @@ impl AnchorStore {
     /// Trusted control-plane enrollment of a new journal at revision/fence 1.
     /// The operator must independently validate the supplied account/roster/policy
     /// pins and genesis image. Ordinary request bytes cannot call this operation.
-    /// Exact retries never reset an already advanced entry.
+    /// Exact retries never reset an already advanced entry. A known device ID
+    /// requires explicit replacement; unclassified legacy identities suspend new
+    /// enrollment until their original authenticated metadata is retained.
     pub fn enroll(
         &mut self,
         genesis: &AnchorGenesis,
@@ -146,9 +154,9 @@ impl AnchorStore {
         let genesis = genesis.digest;
         let validity = self.admit_enrollment(subject, device, policy, now)?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let head = AnchorHead::from_trusted_state(1, 1, genesis)?;
         let id = subject.id(&active.pin.binding);
         let mut image = self.image()?;
+        image.require_live(subject)?;
         if let Some(entry) = image.entries.get(&id) {
             return if entry.subject == subject
                 && entry.device == device.key
@@ -162,6 +170,7 @@ impl AnchorStore {
                 Err(DurableError::Conflict)
             };
         }
+        image.admit_new_device(device)?;
         if image
             .entries
             .values()
@@ -172,28 +181,9 @@ impl AnchorStore {
         if image.entries.len() >= MAX_ENTRIES {
             return Err(DurableError::Capacity);
         }
-        image.entries.insert(
-            id,
-            Entry {
-                subject,
-                original_identity: Some(OriginalIdentity::from_verified(device)),
-                device: device.key.clone(),
-                credential_owner: storage_owner(device),
-                authority: device.authority_binding(),
-                validity,
-                genesis,
-                head,
-                last: None,
-                renewal_floor: 0,
-                renewal_ack: None,
-                renewal: None,
-                credential_authorization: None,
-                policy_authorization: None,
-                policy_floor: 0,
-                independent_policy: None,
-                independent_roster: None,
-            },
-        );
+        image
+            .entries
+            .insert(id, Entry::at_genesis(subject, genesis, device, validity)?);
         self.persist(&mut image)
     }
     fn admit_enrollment(
@@ -266,6 +256,7 @@ impl AnchorStore {
     ) -> Result<crate::RosterCheckpoint, DurableError> {
         let id = subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
+        image.require_live(subject)?;
         let entry = match image.entries.get_mut(&id) {
             Some(entry) => entry,
             // Only an enrolled subject with retained T can explain a policy
@@ -356,6 +347,7 @@ impl AnchorStore {
         let validity = self.admit_current_device(next, policy, now)?;
         let id = subject.id(&self.pin()?.binding);
         let mut image = self.image()?;
+        image.require_live(subject)?;
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
         // Once this subject uses joint renewal, terminal retirement must never
         // reopen the legacy authority-only path for an old signed target.
@@ -395,6 +387,9 @@ impl AnchorStore {
         let pin = self.pin()?;
         let request = incoming(&pin, wire)?;
         let mut image = self.image()?;
+        if image.retirement(request.subject).is_some() {
+            return Err(Error::Scope.into());
+        }
         let entry = image
             .entries
             .get_mut(&request.subject.id(&pin.binding))
@@ -616,14 +611,104 @@ fn authenticator(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {
 fn image_digest(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-IMAGE/v1", bytes)
 }
+#[derive(Clone, Copy)]
+struct EntryFormat {
+    joint: bool,
+    policy: bool,
+    independent: bool,
+    roster: bool,
+    lineage: bool,
+}
+impl EntryFormat {
+    const COMPLETE: Self = Self {
+        joint: true,
+        policy: true,
+        independent: true,
+        roster: true,
+        lineage: true,
+    };
+}
+fn encode_entry(
+    entry: &Entry,
+    pin: &AnchorPin,
+    format: EntryFormat,
+    out: &mut Vec<u8>,
+) -> Result<(), DurableError> {
+    entry.check_renewal_state(pin)?;
+    if let Some(identity) = &entry.original_identity {
+        identity.check(entry)?;
+    }
+    entry.subject.encode(out);
+    out.extend_from_slice(&entry.device.encode());
+    out.extend_from_slice(&entry.credential_owner);
+    out.extend_from_slice(&entry.authority);
+    entry.validity.encode(out);
+    out.extend_from_slice(&entry.genesis);
+    entry.head.encode(out);
+    encode_last(entry.last, out);
+    if format.joint {
+        out.extend_from_slice(&entry.renewal_floor.to_be_bytes());
+        out.push(u8::from(entry.renewal_ack.is_some()));
+        out.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
+        if let Some(record) = &entry.renewal {
+            record.encode(out);
+        } else {
+            out.push(0);
+        }
+    }
+    if format.policy {
+        out.extend_from_slice(&entry.policy_floor.to_be_bytes());
+        match (entry.credential_authorization, entry.policy_authorization) {
+            (None, None) => out.push(0),
+            (Some(credential), Some(policy)) => {
+                out.push(1);
+                out.extend_from_slice(&credential);
+                policy.encode(out);
+            }
+            _ => return Err(DurableError::Corrupt),
+        }
+    }
+    if format.independent {
+        match &entry.independent_policy {
+            None => out.push(0),
+            Some(state) => {
+                out.push(1);
+                state.encode(out);
+            }
+        }
+    }
+    if format.roster {
+        match &entry.independent_roster {
+            None => out.push(0),
+            Some(state) => {
+                out.push(1);
+                state.encode(out);
+            }
+        }
+    }
+    if format.lineage {
+        match &entry.original_identity {
+            None => out.push(0),
+            Some(identity) => {
+                out.push(1);
+                identity.encode(out);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
-    let lineage_format = image
-        .entries
-        .values()
-        .any(|entry| entry.original_identity.is_some());
+    image.check_replacements(pin)?;
+    let replacement_format = !image.replacements.is_empty();
+    let lineage_format = replacement_format
+        || image
+            .entries
+            .values()
+            .any(|entry| entry.original_identity.is_some());
     let roster_format = lineage_format
         || image
             .entries
@@ -658,7 +743,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if lineage_format {
+    let mut bytes = if replacement_format {
+        b"QPANC011".to_vec()
+    } else if lineage_format {
         b"QPANC010".to_vec()
     } else if roster_format {
         b"QPANC009".to_vec()
@@ -679,67 +766,35 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     bytes.extend_from_slice(&image.revision.to_be_bytes());
     bytes.extend_from_slice(&(image.entries.len() as u16).to_be_bytes());
     for (id, entry) in &image.entries {
-        entry.check_renewal_state(pin)?;
-        if let Some(identity) = &entry.original_identity {
-            identity.check(entry)?;
-        }
         bytes.extend_from_slice(id);
-        entry.subject.encode(&mut bytes);
-        bytes.extend_from_slice(&entry.device.encode());
-        bytes.extend_from_slice(&entry.credential_owner);
-        bytes.extend_from_slice(&entry.authority);
-        entry.validity.encode(&mut bytes);
-        bytes.extend_from_slice(&entry.genesis);
-        entry.head.encode(&mut bytes);
-        encode_last(entry.last, &mut bytes);
-        if joint || policy_format || independent {
-            bytes.extend_from_slice(&entry.renewal_floor.to_be_bytes());
-            bytes.push(u8::from(entry.renewal_ack.is_some()));
-            bytes.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
-            if let Some(record) = &entry.renewal {
-                record.encode(&mut bytes);
-            } else {
-                bytes.push(0);
-            }
-        }
-        if policy_format || independent {
-            bytes.extend_from_slice(&entry.policy_floor.to_be_bytes());
-            match (entry.credential_authorization, entry.policy_authorization) {
-                (None, None) => bytes.push(0),
-                (Some(credential), Some(policy)) => {
-                    bytes.push(1);
-                    bytes.extend_from_slice(&credential);
-                    policy.encode(&mut bytes);
-                }
-                _ => return Err(DurableError::Corrupt),
-            }
-        }
-        if independent {
-            match &entry.independent_policy {
-                None => bytes.push(0),
-                Some(state) => {
-                    bytes.push(1);
-                    state.encode(&mut bytes);
-                }
-            }
-        }
-        if roster_format {
-            match &entry.independent_roster {
-                None => bytes.push(0),
-                Some(state) => {
-                    bytes.push(1);
-                    state.encode(&mut bytes);
-                }
-            }
-        }
-        if lineage_format {
-            match &entry.original_identity {
-                None => bytes.push(0),
-                Some(identity) => {
-                    bytes.push(1);
-                    identity.encode(&mut bytes);
-                }
-            }
+        encode_entry(
+            entry,
+            pin,
+            EntryFormat {
+                joint: joint || policy_format || independent,
+                policy: policy_format || independent,
+                independent,
+                roster: roster_format,
+                lineage: lineage_format,
+            },
+            &mut bytes,
+        )?;
+    }
+    if replacement_format {
+        bytes.extend_from_slice(
+            &u16::try_from(image.replacements.len())
+                .map_err(|_| DurableError::Capacity)?
+                .to_be_bytes(),
+        );
+        for (binding, proposal) in &image.replacements {
+            bytes.extend_from_slice(binding);
+            let encoded = proposal.to_bytes()?;
+            bytes.extend_from_slice(
+                &u32::try_from(encoded.len())
+                    .map_err(|_| DurableError::Capacity)?
+                    .to_be_bytes(),
+            );
+            bytes.extend_from_slice(&encoded);
         }
     }
     if bytes.len() + 32 > MAX_IMAGE {
@@ -772,6 +827,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             *b"QPANC008",
             *b"QPANC009",
             *b"QPANC010",
+            *b"QPANC011",
         ]
         .contains(&version)
             || d.array::<32>()? != pin.binding
@@ -817,6 +873,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 *b"QPANC008",
                 *b"QPANC009",
                 *b"QPANC010",
+                *b"QPANC011",
             ]
             .contains(&version)
             {
@@ -843,17 +900,18 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                             *b"QPANC008",
                             *b"QPANC009",
                             *b"QPANC010",
+                            *b"QPANC011",
                         ]
                         .contains(&version),
                         version == *b"QPANC006"
                             || version == *b"QPANC007"
                             || version == *b"QPANC008"
                             || version == *b"QPANC009"
-                            || version == *b"QPANC010",
+                            || (version == *b"QPANC010" || version == *b"QPANC011"),
                         version == *b"QPANC007"
                             || version == *b"QPANC008"
                             || version == *b"QPANC009"
-                            || version == *b"QPANC010",
+                            || (version == *b"QPANC010" || version == *b"QPANC011"),
                     )?,
                 )
             } else {
@@ -864,7 +922,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 || version == *b"QPANC007"
                 || version == *b"QPANC008"
                 || version == *b"QPANC009"
-                || version == *b"QPANC010"
+                || (version == *b"QPANC010" || version == *b"QPANC011")
             {
                 let floor = d.u64()?;
                 let (credential, policy) = match d.array::<1>()? {
@@ -880,17 +938,21 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             } else {
                 (0, None, None)
             };
-            let independent_policy =
-                if version == *b"QPANC008" || version == *b"QPANC009" || version == *b"QPANC010" {
-                    match d.array::<1>()? {
-                        [0] => None,
-                        [1] => Some(PolicyRenewal::decode(&mut d)?),
-                        _ => return Err(DurableError::Corrupt),
-                    }
-                } else {
-                    None
-                };
-            let independent_roster = if version == *b"QPANC009" || version == *b"QPANC010" {
+            let independent_policy = if version == *b"QPANC008"
+                || version == *b"QPANC009"
+                || (version == *b"QPANC010" || version == *b"QPANC011")
+            {
+                match d.array::<1>()? {
+                    [0] => None,
+                    [1] => Some(PolicyRenewal::decode(&mut d)?),
+                    _ => return Err(DurableError::Corrupt),
+                }
+            } else {
+                None
+            };
+            let independent_roster = if version == *b"QPANC009"
+                || (version == *b"QPANC010" || version == *b"QPANC011")
+            {
                 match d.array::<1>()? {
                     [0] => None,
                     [1] => Some(RosterRefresh::decode(&mut d)?),
@@ -899,7 +961,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             } else {
                 None
             };
-            let original_identity = if version == *b"QPANC010" {
+            let original_identity = if version == *b"QPANC010" || version == *b"QPANC011" {
                 match d.array::<1>()? {
                     [0] => None,
                     [1] => Some(OriginalIdentity::decode(&mut d)?),
@@ -940,19 +1002,30 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             }
             entries.insert(id, entry);
         }
+        let replacements = if version == *b"QPANC011" {
+            replacement::decode_decisions(&mut d)?
+        } else {
+            BTreeMap::new()
+        };
         d.finish()?;
-        if version == *b"QPANC010"
+        if (version == *b"QPANC010" || version == *b"QPANC011")
             && !entries
                 .values()
                 .any(|entry| entry.original_identity.is_some())
         {
             return Err(DurableError::Corrupt);
         }
-        Ok(Image {
+        let image = Image {
             revision,
             digest: image_digest(bytes),
             entries,
-        })
+            replacements,
+        };
+        image.check_replacements(pin)?;
+        if version == *b"QPANC011" && image.replacements.is_empty() {
+            return Err(DurableError::Corrupt);
+        }
+        Ok(image)
     })();
     match result {
         Err(DurableError::Protocol(Error::Encoding)) => Err(DurableError::Corrupt),

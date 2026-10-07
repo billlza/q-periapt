@@ -1440,6 +1440,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_roster_fanout.rs",
             "research/continuity-identity-candidate/tests/owned_connection/replacement.rs",
             "research/continuity-identity-candidate/src/anchor/store/lineage.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_tests.rs",
 
         ):
             with self.subTest(source=sdk_source):
@@ -1459,6 +1461,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",
             "research/continuity-identity-candidate/tests/owned_connection/replacement.rs",
             "research/continuity-identity-candidate/src/anchor/store/lineage.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_tests.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

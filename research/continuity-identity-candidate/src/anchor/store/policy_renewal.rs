@@ -313,6 +313,7 @@ impl AnchorStore {
             phase,
         };
         let mut image = self.image()?;
+        image.require_live(proposal.subject())?;
         let entry = image
             .entries
             .get_mut(&proposal.subject().id(&pin.binding))
