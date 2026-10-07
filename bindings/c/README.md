@@ -70,6 +70,10 @@ in [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
 4. Policy-gated OS-random key generation, encapsulation, and decapsulation agree;
    application context changes the derived secret; a low-order X25519 keyshare
    fails atomically with ciphertext and secret outputs cleared.
+5. An input span whose end overflows the address space is rejected before input
+   reads in all four legacy policy/KEM operations; valid output regions are
+   cleared. This checks numeric boundary rejection, not the validity of arbitrary
+   inaccessible or dangling C pointers with otherwise admissible shapes.
 
 Exit code `0` and `ALL PASS` mean every check passed.
 

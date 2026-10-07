@@ -69,7 +69,7 @@ jobs:
               -malloc_limit_mb=128 -max_len=65536 -seed=1 -print_final_stats=1 \
               2>&1 | tee "target/fuzz-execution/$target.log"
           done
-          python3 - <<'PY'
+          sh artifact/python-run.sh - <<'PY'
           import pathlib
           import re
           for target in ("combine", "mlkem_decapsulate", "transport"):

@@ -5,6 +5,8 @@
  * The multi-buffer entry points check byte ranges before constructing input slices or writing
  * outputs. Runtime options metadata is copied first to inspect its pointer/length fields.
  * Overlap returns Q_PERIAPT_ERR_ALIASING (-7). Pass distinct buffers regardless.
+ * Public input-size limits and impossible address ranges are rejected before input reads.
+ * Numeric checks do not establish allocation validity for otherwise admissible pointers.
  */
 
 #ifndef Q_PERIAPT_ABI2_H
@@ -569,6 +571,8 @@ const char *q_periapt_status_name(int32_t code);
  * explicit host-authorized re-enrollment/reset flow.
  *
  * # Safety
+ * Input spans rejected by numeric length or address-range checks are not read.
+ * The following allocation-validity requirements apply to admissible input spans.
  * `toml`/`signature`/`vk`/`last_trusted_state` must be readable for their lengths;
  * `out_decision` writable (it may be uninitialized — it is only written, through raw
  * pointers) for `out_decision_len`, which must equal
@@ -600,6 +604,8 @@ int32_t q_periapt_decision_from_signed_policy(const uint8_t *toml,
  * the verification key used to create it and isolate untrusted native code.
  *
  * # Safety
+ * Input spans rejected by numeric length or address-range checks are not read.
+ * The following allocation-validity requirements apply to admissible input spans.
  * `decision` must be readable for `decision_len`. All four outputs must be
  * writable for their exact published lengths and disjoint from the input and
  * from one another; they may be uninitialized (they are only written, through
@@ -631,6 +637,8 @@ int32_t q_periapt_generate_keypair(const uint8_t *decision,
  * it or bypass this entry point. Use process isolation when local native callers are untrusted.
  *
  * # Safety
+ * Input spans rejected by numeric length or address-range checks are not read.
+ * The following allocation-validity requirements apply to admissible input spans.
  * Every `(ptr, len)` pair must describe a valid region. Outputs must be writable and disjoint
  * from every input and from each other; they may be uninitialized (they are only written,
  * through raw pointers).
@@ -658,6 +666,8 @@ int32_t q_periapt_encapsulate(const uint8_t *decision,
  * boundary and `CompatXWing` rejection rationale.
  *
  * # Safety
+ * Input spans rejected by numeric length or address-range checks are not read.
+ * The following allocation-validity requirements apply to admissible input spans.
  * Every `(ptr, len)` pair must describe a valid region. `out_secret` must be writable and
  * disjoint from every input; it may be uninitialized (it is only written, through raw
  * pointers).

@@ -1,0 +1,16 @@
+{
+  "files": {
+    "cargo-fuzz.txt": "3e2aa5c2baaf44e5a4968cc3fedb864f4717f85b713deacf3fc4294162358ca1",
+    "combine-log.json": "88ef5f5c9884c9b041b3ccb828d451482a84f261a23292c68b259073034fc1e3",
+    "transport-log.json": "f61f5226deb0124a81d44048228816eba2b02feff501053e4cde13d1c803607d",
+    "corpora.json": "f7963af334646244a7a01305246a336ce2fb3034628d7d37a31d73a1db9097cc",
+    "README.md": "f03b076bdf25545adbab5ba223eab0203616aff363b564ca046b9c7e0288e17c",
+    "READBACK.json": "3c4594c4caf8625341d1433d96b8329783bfd0e570f49780ad3d0b7c623c5dbb",
+    "EXPERIMENT.json": "81e14e0e38813c31737fb98af0d957325103eae61b9e03c8d36ef25b92b1d701",
+    "clang.txt": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53",
+    "rustc.txt": "d32b8ccfb01193453f35368c09025018ecb0ef085cc7561705e471b8ef872914",
+    "mlkem_decapsulate-log.json": "4836a32af987da38dc76e523f7875d6d19fec0b6f3524401b33dd702d6d1057b"
+  },
+  "corpus_entries": 197,
+  "scope": "Frozen successful isolated Linux execution for d51b2c30; no whole-SDK or later-source coverage claim."
+}

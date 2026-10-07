@@ -7,7 +7,7 @@ mod connection;
 mod persistent;
 mod registry;
 use super::{
-    in_slice, out_buf, outputs_alias, Q_PERIAPT_ERR_ALIASING, Q_PERIAPT_ERR_ENTROPY,
+    in_slice, out_buf, outputs_alias, region_ok, Q_PERIAPT_ERR_ALIASING, Q_PERIAPT_ERR_ENTROPY,
     Q_PERIAPT_ERR_INTERNAL, Q_PERIAPT_ERR_INVALID_KEYSHARE, Q_PERIAPT_ERR_LENGTH,
     Q_PERIAPT_ERR_NULL, Q_PERIAPT_ERR_PANIC, Q_PERIAPT_ERR_POLICY, Q_PERIAPT_OK,
 };
@@ -166,10 +166,6 @@ struct InputSpec {
 fn input(span: QPeriaptInput, min: usize, max: usize) -> InputSpec {
     InputSpec { span, min, max }
 }
-fn region_ok(ptr: *const u8, len: usize) -> bool {
-    len <= isize::MAX as usize && (ptr as usize).checked_add(len).is_some()
-}
-
 struct OutputGuard<const N: usize> {
     outputs: [QPeriaptOutput; N],
     committed: bool,

@@ -32,6 +32,71 @@ static void wipe(void *value, size_t len) {
     }
 }
 
+/* The impossible span must be rejected before Rust constructs a reference.
+ * This is a numeric boundary check, not validation of arbitrary C pointers. */
+static int test_overflowing_input_regions(void) {
+    const uint8_t *wrapping = (const uint8_t *)(UINTPTR_MAX - 15);
+    uint8_t decision[Q_PERIAPT_POLICY_DECISION_LEN];
+    uint8_t sk_pq[Q_PERIAPT_MLKEM768_SK_LEN];
+    uint8_t pk_pq[Q_PERIAPT_MLKEM768_PK_LEN];
+    uint8_t sk_trad[Q_PERIAPT_X25519_LEN];
+    uint8_t pk_trad[Q_PERIAPT_X25519_LEN];
+    uint8_t ct_pq[Q_PERIAPT_MLKEM768_CT_LEN];
+    uint8_t ct_trad[Q_PERIAPT_X25519_LEN];
+    uint8_t secret[Q_PERIAPT_SECRET_LEN];
+    const uint8_t context[] = "boundary";
+    memset(decision, 0xA5, sizeof(decision));
+    int32_t rc = q_periapt_decision_from_signed_policy(
+            wrapping, 32, QP_TEST_SIGNATURE, sizeof(QP_TEST_SIGNATURE),
+            QP_TEST_VERIFICATION_KEY, sizeof(QP_TEST_VERIFICATION_KEY),
+            NULL, 0, decision, sizeof(decision));
+    if (rc != Q_PERIAPT_ERR_LENGTH || !all_zero(decision, sizeof(decision))) {
+        printf("overflowing policy input: rc=%d\n", rc);
+        return 1;
+    }
+
+    memset(sk_pq, 0xA5, sizeof(sk_pq));
+    memset(pk_pq, 0xA5, sizeof(pk_pq));
+    memset(sk_trad, 0xA5, sizeof(sk_trad));
+    memset(pk_trad, 0xA5, sizeof(pk_trad));
+    rc = q_periapt_generate_keypair(
+            wrapping, Q_PERIAPT_POLICY_DECISION_LEN,
+            sk_pq, sizeof(sk_pq), pk_pq, sizeof(pk_pq),
+            sk_trad, sizeof(sk_trad), pk_trad, sizeof(pk_trad));
+    if (rc != Q_PERIAPT_ERR_LENGTH || !all_zero(sk_pq, sizeof(sk_pq)) ||
+            !all_zero(pk_pq, sizeof(pk_pq)) || !all_zero(sk_trad, sizeof(sk_trad)) ||
+            !all_zero(pk_trad, sizeof(pk_trad))) {
+        printf("overflowing keypair input: rc=%d\n", rc);
+        return 1;
+    }
+
+    memset(ct_pq, 0xA5, sizeof(ct_pq));
+    memset(ct_trad, 0xA5, sizeof(ct_trad));
+    memset(secret, 0xA5, sizeof(secret));
+    rc = q_periapt_encapsulate(
+            wrapping, Q_PERIAPT_POLICY_DECISION_LEN,
+            pk_pq, sizeof(pk_pq), pk_trad, sizeof(pk_trad), context, sizeof(context),
+            ct_pq, sizeof(ct_pq), ct_trad, sizeof(ct_trad), secret, sizeof(secret));
+    if (rc != Q_PERIAPT_ERR_LENGTH || !all_zero(ct_pq, sizeof(ct_pq)) ||
+            !all_zero(ct_trad, sizeof(ct_trad)) || !all_zero(secret, sizeof(secret))) {
+        printf("overflowing encapsulation input: rc=%d\n", rc);
+        return 1;
+    }
+
+    memset(secret, 0xA5, sizeof(secret));
+    rc = q_periapt_decapsulate(
+            wrapping, Q_PERIAPT_POLICY_DECISION_LEN,
+            sk_pq, sizeof(sk_pq), ct_pq, sizeof(ct_pq), pk_pq, sizeof(pk_pq),
+            sk_trad, sizeof(sk_trad), ct_trad, sizeof(ct_trad), pk_trad, sizeof(pk_trad),
+            context, sizeof(context), secret, sizeof(secret));
+    if (rc != Q_PERIAPT_ERR_LENGTH || !all_zero(secret, sizeof(secret))) {
+        printf("overflowing decapsulation input: rc=%d\n", rc);
+        return 1;
+    }
+    printf("overflowing input regions ................ PASS\n");
+    return 0;
+}
+
 static int test_runtime_metadata(void) {
     if (q_periapt_abi_version() != Q_PERIAPT_ABI_VERSION) {
         printf("metadata: ABI mismatch\n");
@@ -229,6 +294,7 @@ int main(void) {
     int failures = 0;
     printf("Q-Periapt ABI 2 product C smoke\n");
     failures += test_runtime_metadata();
+    failures += test_overflowing_input_regions();
     failures += test_signed_policy_fail_closed();
     failures += test_product_roundtrip_and_atomic_failure();
     if (failures == 0) {

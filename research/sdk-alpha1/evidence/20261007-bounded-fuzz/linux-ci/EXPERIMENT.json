@@ -1,0 +1,28 @@
+{
+  "product_commit": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+  "auxiliary_commit": "d59a45b72d5f4d84e8803247629083d569aa8d00",
+  "tree": "b308f98f214b62f955b2ef158cbdab14d68aaaeb",
+  "branch": "lza/fuzz-execution-control",
+  "exact_product_fuzz_job_sha256": "59f7cc283846d3e0cbeb1325f6ae77499decf68b6efcc21a05889bf978344897",
+  "workflow_sha256": "ef2c13dad772e90c408b9c43cb905dd585826a72c156baee5c7bb8cfd50ab9c5",
+  "only_tree_differences": [
+    ".github/workflows/abi2-platform-candidate.yml",
+    ".github/workflows/android-platform-probe.yml",
+    ".github/workflows/android-runtime-control.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/codeql.yml",
+    ".github/workflows/fuzz-control.yml"
+  ],
+  "all_nonworkflow_tracked_bytes_equal": true,
+  "same_job_and_global_environment": true,
+  "actionlint": true,
+  "no_product_branch_push": true,
+  "CI_uploaded": true,
+  "execution_completed": true,
+  "scope": "isolated Linux fuzz execution; no full CI, package or release claim",
+  "run": 37680568824,
+  "job": 112995221137,
+  "status": "completed",
+  "conclusion": "success",
+  "readback_sha256": "3c4594c4caf8625341d1433d96b8329783bfd0e570f49780ad3d0b7c623c5dbb"
+}
