@@ -9,7 +9,7 @@ seventeen owner extensions). See the [ownership contract](../../docs/SDK_OWNERSH
 [explicit private-key transfer](../../docs/SDK_KEY_TRANSFER.md) and
 [prepare/persist/activate policy updates](../../docs/SDK_POLICY_UPDATES.md).
 The `sdk-020` packaging profile builds all four native ABI slices, checks the
-closed 50-export/26-JNI surface and retains the same library identities. Local
+closed 51-export/26-JNI surface and retains the same library identities. Local
 host JNI execution, Android cross-compilation and APK assembly remain distinct
 from ART/device qualification. The packaging history and nine-method records
 below the SDK section apply to the retained 0.1.5 releases.
@@ -20,7 +20,7 @@ The fixed Maven coordinate is `dev.qperiapt:q-periapt-android:0.2.0`.
 See [the packaged installation and lifecycle instructions](PackageREADME.md).
 The producer has an explicit profile so legacy 0.1.5 verification still requires
 nine exports, nine JNI methods and manifest schema 4. The SDK profile requires
-50/26, non-preview Java 11 classes, all owner types, minSdk 23, native/Rust notices
+51/26, non-preview Java 11 classes, all owner types, minSdk 23, native/Rust notices
 and its separately typed schema-5 manifest. A manifest cannot choose its own
 verification profile. Old runtime/release receipts do not qualify this AAR.
 

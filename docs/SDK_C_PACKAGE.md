@@ -3,7 +3,7 @@
 The shared C packager has a `sdk-020` profile for 0.2.0. ABI major
 remains **2**, including the original nine declarations/status values and native
 library identities. Its separate schema-3 package manifest requires the exact
-50-export SDK contract and the native 37-asset CBOM. Historical schema-2 / 0.1.5
+51-export SDK contract and the native 37-asset CBOM. Historical schema-2 / 0.1.5
 packages retain their own profile and cannot substitute for this SDK.
 Windows uses a [separate MSVC producer and manifest](SDK_WINDOWS_PACKAGE.md).
 
