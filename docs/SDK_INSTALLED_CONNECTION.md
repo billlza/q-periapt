@@ -7,9 +7,11 @@ checkout. The Rust peer and certificate-fixture program come from the shipped
 `q-periapt-rustls` examples. The driver reuses the existing TCP scenarios;
 it does not introduce another protocol or cryptographic implementation.
 
-This local gate runs on macOS and records both endpoint platforms. The required
-Swift/macOS-to-native-Rust/Linux acceptance remains a separate open gate. The
-reference's wire and trust contract is described in [SDK_CONNECTION.md](SDK_CONNECTION.md).
+This producer runs its baseline on macOS and records both endpoint platforms.
+The separate 2026-10-08 checkpoint below also executes the same cases against a
+native Linux peer in a local VM. Independent physical-host qualification remains
+open. The reference's wire and trust contract is described in
+[SDK_CONNECTION.md](SDK_CONNECTION.md).
 
 ## Package selection and build
 
@@ -124,3 +126,28 @@ attempt are retained.
 After this correction, a fresh rebuild and twelve-case installed TCP run pass.
 The failed intermediate run stays separate. The OpenSSL result identifies its
 original archive-built peer binary and the same package cohort explicitly.
+
+## 2026-10-08 native Linux checkpoint
+
+The [installed macOS-to-Linux checkpoint](../research/sdk-alpha1/evidence/20261008-installed-macos-linux-connection/README.md)
+passes all twelve cases with an installed Swift/macOS arm64 client and an
+archive-derived Rust/Linux aarch64 server. The host driver is `b20cafd7`, the
+Linux harness source is `33ca8c5c`, and both product inputs match the qualified
+`de2c49e9` Rust cohort. A fresh complete Apple package at `33ca8c5c` supplies the
+static client library and Swift wrappers. Source identities and the exact
+installed baseline, executable and linker-map hashes are retained.
+
+The Linux peer runs as UID 1000 in a Debian 12 container inside a native VZ VM
+on the same Mac. A pinned private SSH TCP forward carries the SDK ciphertext
+unchanged; the isolated adapter changes only the listener announcement. The
+peers keep separate persistent stores. A hash-checked copy of the closed Linux
+store is used only by the evidence collector and never sent back to the peer.
+Original case predicates and deadlines are unchanged. Three failed harness
+attempts precede the successful fresh run and remain in the checkpoint.
+
+This establishes execution across different OS kernels and filesystems using
+the same SDK implementation. It does not establish independent physical hosts,
+an independent application protocol implementation, minimum-OS/device execution,
+controlled latency/energy results or full Continuity/release readiness. The
+main producer above still provides the same-host baseline; the isolated VM
+adapter is a retained experiment, not a general remote-host setup interface.
