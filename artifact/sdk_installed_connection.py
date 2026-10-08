@@ -14,11 +14,12 @@ import tempfile
 import apple_sdk_profile as apple
 import rust_sdk_profile as rust
 from bounded_process import capture_output
-from c_package_manifest import rust_workspace_source_digest
+from c_package_manifest import EXPECTED_CARGO_VERSION, EXPECTED_RUSTC_VERSION, rust_workspace_source_digest
 from deterministic_archive import extract_zip
 from evidence_io import (fresh_output_directory, load_json_object_snapshot,
                          parse_strict_json_bytes, read_regular_snapshot)
 from sdk_connection_interop import StaticClientLinkage, run_boundary
+from rust_sdk_msrv import tool_identity
 
 ROOT = Path(__file__).resolve().parent.parent
 SWIFT_FIXTURE = "bindings/swift/SDKConnectionConsumer/Package.swift"
@@ -61,6 +62,7 @@ def source_inputs() -> dict:
              "artifact/sdk_installed_connection.py", "artifact/sdk_connection_interop.py",
              "artifact/standard_tls_interop.py", "artifact/apple_sdk_profile.py",
              "artifact/rust_sdk_profile.py", "artifact/c_package_manifest.py",
+             "artifact/rust_sdk_msrv.py",
              "artifact/deterministic_archive.py", "artifact/evidence_io.py", "artifact/bounded_process.py",
              "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
              *("bindings/" + name for name in apple.POLICIES))
@@ -106,6 +108,24 @@ def fresh_output_path(path: Path) -> Path:
     return fresh_output_directory(path, within=ROOT / "target", label="installed connection output")
 
 
+def rust_tools(toolchain: Path) -> dict:
+    identity = tool_identity(toolchain)
+    for name in ("cargo-clippy", "clippy-driver"):
+        path = toolchain / "bin" / name
+        identity[name] = {"path": str(path), "sha256": snapshot(path).sha256}
+    return identity
+
+
+def rust_environment(environment: dict, toolchain: Path, cargo_home: Path, target: Path) -> dict:
+    selected = {key: value for key, value in environment.items()
+                if not key.startswith(("CARGO_", "RUST", "SWIFT_", "DYLD_", "LD_"))}
+    selected.update(CARGO_HOME=str(cargo_home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
+        CARGO_TARGET_DIR=str(target), RUSTFLAGS="-D warnings",
+        RUSTC=str(toolchain / "bin/rustc"), RUSTDOC=str(toolchain / "bin/rustdoc"),
+        PATH=str(toolchain / "bin") + os.pathsep + selected.get("PATH", os.defpath))
+    return selected
+
+
 def qualify(args: argparse.Namespace) -> dict:
     require(os.uname().sysname == "Darwin", "installed Swift connection qualification requires macOS")
     rust.validate_no_registry_credentials(os.environ)
@@ -113,6 +133,8 @@ def qualify(args: argparse.Namespace) -> dict:
                     key in {"RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER"}),
             "loader and Rust compiler overrides must be unset for installed qualification")
     before = source_inputs()
+    toolchain_root = args.toolchain_root.resolve(strict=True)
+    tools_before = rust_tools(toolchain_root)
     swift = pinned(args.swift_zip, args.swift_sha256)
     native = apple.verified_xcframework_files(args.swift_native_zip, args.swift_native_sha256)
     report_snapshot = pinned(args.rust_report, args.rust_report_sha256)
@@ -131,7 +153,8 @@ def qualify(args: argparse.Namespace) -> dict:
     result = {"kind": "qperiapt.installed_connection_qualification", "completed": False,
               "release_claim_eligible": False, "network": "loopback", "client_platform": os.uname().sysname,
               "server_platform": os.uname().sysname, "native_linux_server_executed": False,
-              "outside_checkout": str(outside), "abi_major": 2, "swift_zip_sha256": swift.sha256,
+              "outside_checkout": str(outside), "abi_major": 2, "rust_tool_binaries": tools_before,
+              "swift_zip_sha256": swift.sha256,
               "swift_native_zip_sha256": args.swift_native_sha256, "rust_report_sha256": report_snapshot.sha256}
     try:
         extract_zip(args.swift_zip, outside / "install", root_name="QPeriapt", mtime=apple.MTIME,
@@ -152,22 +175,25 @@ def qualify(args: argparse.Namespace) -> dict:
         copy(ROOT / RUST_FIXTURE, rust_consumer / "Cargo.toml")
         rust.extract_recorded_crates(rust_consumer, args.rust_report.parent, report["crates"])
         copy(ROOT / "Cargo.lock", rust_consumer / "Cargo.lock")
-        environment = {key: value for key, value in os.environ.items()
-                       if not key.startswith(("CARGO_", "RUST", "SWIFT_", "DYLD_", "LD_"))}
         cargo_home = args.cargo_home.resolve(strict=True)
-        require(not any((cargo_home / name).exists() for name in ("config", "config.toml", "credentials", "credentials.toml")),
+        require(not any((cargo_home / name).exists() or (cargo_home / name).is_symlink()
+                        for name in ("config", "config.toml", "credentials", "credentials.toml")),
                 "selected offline Cargo cache must not contain config/credential overrides")
-        environment.update(CARGO_HOME=str(cargo_home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
-                           CARGO_TARGET_DIR=str(outside / "rust-build"), RUSTFLAGS="-D warnings")
-        toolchain = run_command(["rustc", "+1.98.1", "--version"], output, "rustc", outside, environment).decode().strip()
-        require(toolchain == "rustc 1.98.1 (48a229cea 2026-09-01)", "installed Rust compiler differs")
-        run_command(["cargo", "+1.98.1", "build", "--offline", "--bins", "-j", "2"], output, "rust-build", rust_consumer, environment)
+        environment = rust_environment(os.environ, toolchain_root, cargo_home, outside / "rust-build")
+        cargo, rustc = (str(toolchain_root / "bin" / name) for name in ("cargo", "rustc"))
+        toolchain = run_command([rustc, "--version"], output, "rustc", outside, environment).decode().strip()
+        require(toolchain == EXPECTED_RUSTC_VERSION, "installed Rust compiler differs")
+        cargo_version = run_command([cargo, "--version"], output, "cargo", outside, environment).decode().strip()
+        require(cargo_version == EXPECTED_CARGO_VERSION, "installed Cargo version differs")
+        sysroot = run_command([rustc, "--print", "sysroot"], output, "rust-sysroot", outside, environment).decode().strip()
+        require(Path(sysroot).resolve(strict=True) == toolchain_root, "installed compiler sysroot differs")
+        run_command([cargo, "build", "--offline", "--bins", "-j", "2"], output, "rust-build", rust_consumer, environment)
         metadata = parse_strict_json_bytes(run_command(
-            ["cargo", "+1.98.1", "metadata", "--locked", "--offline", "--format-version", "1"],
+            [cargo, "metadata", "--locked", "--offline", "--format-version", "1"],
             output, "rust-metadata", rust_consumer, environment), label="installed connection Cargo metadata")
         result["rust_resolution"] = verify_rust_resolution(metadata, rust_consumer, snapshot(rust_consumer / "Cargo.lock").data,
                                                             snapshot(ROOT / "Cargo.lock").data)
-        run_command(["cargo", "+1.98.1", "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
+        run_command([cargo, "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
                     output, "rust-clippy", rust_consumer, environment)
         copy(rust_consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         rust.verify_consumed_sources(rust_consumer, args.rust_report.parent, report["crates"])
@@ -201,6 +227,7 @@ def qualify(args: argparse.Namespace) -> dict:
         apple.verified_xcframework_files(args.swift_native_zip, args.swift_native_sha256)
         pinned(args.rust_report, report_snapshot.sha256)
         require(source_inputs() == before, "installed connection source inputs changed during qualification")
+        require(rust_tools(toolchain_root) == tools_before, "installed connection Rust tools changed")
         result["completed"] = True
     except Exception as error:
         result["failure"] = str(error)
@@ -212,7 +239,7 @@ def qualify(args: argparse.Namespace) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("output", "swift-zip", "swift-native-zip", "rust-report", "cargo-home"):
+    for name in ("output", "swift-zip", "swift-native-zip", "rust-report", "cargo-home", "toolchain-root"):
         parser.add_argument("--" + name, type=Path, required=True)
     for name in ("swift-sha256", "swift-native-sha256", "rust-report-sha256"):
         parser.add_argument("--" + name, required=True)

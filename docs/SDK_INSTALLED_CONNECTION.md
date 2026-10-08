@@ -27,7 +27,9 @@ every product to the extracted path and exact SDK version. External dependency
 versions, registry origins and checksums must match the locked workspace.
 This is consumption of packaged crates, not public-registry installation.
 
-The builds use Rust 1.98.1 with warnings denied, Clippy with warnings denied, and
+The builds use the explicitly selected Rust 1.98.1 toolchain's real binaries,
+verify its sysroot and Cargo version, and retain before/after tool hashes.
+They use Rust warnings denied, Clippy with warnings denied, and
 Swift release compilation with complete concurrency checks and warnings as errors.
 The Swift linker map must identify the selected packaged static archive; its
 bytes must match the native ZIP. At runtime, dyld must identify the frozen
@@ -44,7 +46,8 @@ sh artifact/python-run.sh artifact/sdk_installed_connection.py \
   --swift-native-sha256 "$SELECTED_XCFRAMEWORK_SHA256" \
   --rust-report "$SELECTED_RUST_COHORT_REPORT" \
   --rust-report-sha256 "$SELECTED_RUST_REPORT_SHA256" \
-  --cargo-home "$SELECTED_OFFLINE_CARGO_CACHE"
+  --cargo-home "$SELECTED_OFFLINE_CARGO_CACHE" \
+  --toolchain-root "$SELECTED_RUST_1_98_1_TOOLCHAIN"
 ```
 
 Use a fresh output directory. The input digests should come from the selected

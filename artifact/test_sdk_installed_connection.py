@@ -2,6 +2,7 @@
 from pathlib import Path
 import copy
 import hashlib
+import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -12,6 +13,37 @@ from sdk_connection_interop import StaticClientLinkage, verify_client_load, veri
 
 
 class InstalledConnectionAdmissionTests(unittest.TestCase):
+    def test_explicit_toolchain_replaces_ambient_compiler_and_selector_settings(self):
+        original = {"PATH": "/ambient/bin", "RUSTUP_HOME": "/ambient/rustup",
+            "RUSTC": "/ambient/rustc", "RUSTC_WRAPPER": "/ambient/wrapper",
+            "RUSTFLAGS": "--cfg bypass", "CARGO_ENCODED_RUSTFLAGS": "hostile",
+            "CARGO_HOME": "/ambient/cache", "DYLD_LIBRARY_PATH": "/ambient/libraries"}
+        selected = installed.rust_environment(original, Path("/selected/toolchain"),
+                                               Path("/selected/cache"), Path("/outside/build"))
+        self.assertEqual(selected["RUSTC"], "/selected/toolchain/bin/rustc")
+        self.assertEqual(selected["RUSTDOC"], "/selected/toolchain/bin/rustdoc")
+        self.assertEqual(selected["PATH"].split(os.pathsep)[0], "/selected/toolchain/bin")
+        self.assertEqual(selected["CARGO_HOME"], "/selected/cache")
+        self.assertEqual(selected["RUSTFLAGS"], "-D warnings")
+        for name in ("RUSTUP_HOME", "RUSTC_WRAPPER", "CARGO_ENCODED_RUSTFLAGS", "DYLD_LIBRARY_PATH"):
+            self.assertNotIn(name, selected)
+        self.assertEqual(original["RUSTC"], "/ambient/rustc")
+
+    def test_tool_identity_requires_compiler_and_clippy_and_detects_replacement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / "bin").mkdir()
+            names = ("cargo", "rustc", "rustdoc", "cargo-clippy", "clippy-driver")
+            for name in names:
+                (root / "bin" / name).write_bytes(name.encode())
+            before = installed.rust_tools(root)
+            self.assertEqual(set(before), set(names))
+            (root / "bin/clippy-driver").write_bytes(b"different driver")
+            self.assertNotEqual(before, installed.rust_tools(root))
+            (root / "bin/cargo-clippy").unlink()
+            with self.assertRaises(ValueError):
+                installed.rust_tools(root)
+
     def test_output_admission_uses_the_actual_destination_without_creating_it(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

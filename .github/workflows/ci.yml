@@ -1161,7 +1161,8 @@ jobs:
             --swift-zip "$sdk_dir/QPeriapt-Swift-SDK-0.2.0.zip" --swift-sha256 "$swift_sha256" \
             --swift-native-zip "$sdk_dir/CQPeriapt.xcframework.zip" --swift-native-sha256 "$native_sha256" \
             --rust-report "$report" --rust-report-sha256 "$report_sha256" \
-            --cargo-home target/sdk-connection-rust-package/cargo-home
+            --cargo-home target/sdk-connection-rust-package/cargo-home \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)"
       - name: Retain installed package connection evidence without test keys
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
