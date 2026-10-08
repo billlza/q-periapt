@@ -5688,7 +5688,8 @@ with _temporary_release_test_directories(parents):
             (
                 CI_WORKFLOW,
                 {
-                    "check": (CANONICAL_RUST_TOOLCHAIN,),
+                    # Header generator and installed policy-store maintenance CLI.
+                    "check": (CANONICAL_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN),
                     "rust-publish-contract": (CANONICAL_RUST_TOOLCHAIN,),
                     "windows": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
                     "abi2-windows-package-2022": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),

@@ -1336,7 +1336,9 @@ class RustPublishContractTests(unittest.TestCase):
         # Opt-in sealed SDK operations add exactly seven registry packages:
         # aead, chacha20, chacha20poly1305, cipher, inout, poly1305 and universal-hash
         # (231 -> 238). The current stable refresh adds sponge-cursor and
-        # updated WASM support; exact current registry counts are 240 and 46.
+        # updated WASM support (238 -> 240). The opt-in offline policy-store
+        # migration command adds redb 2.6.4 and twox-hash 2.1.4 (240 -> 242),
+        # without changing the default SDK closure or the 46-package fuzz scope.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1346,7 +1348,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            240,
+            242,
         )
         self.assertEqual(
             len(

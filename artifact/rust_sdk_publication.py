@@ -51,7 +51,8 @@ TOPOLOGY = (
     ("q-periapt-ffi", ("q-periapt-core", "q-periapt-kem", "q-periapt-backends", "q-periapt-policy",
                       "q-periapt-sdk", "q-periapt-host-store", "q-periapt-rustls")),
     ("q-periapt-wasm", ("q-periapt-core", "q-periapt-kem", "q-periapt-backends", "q-periapt-policy")),
-    ("q-periapt-cli", ("q-periapt-core", "q-periapt-sig", "q-periapt-backends", "q-periapt-policy", "q-periapt-rustls")),
+    ("q-periapt-cli", ("q-periapt-core", "q-periapt-sig", "q-periapt-backends", "q-periapt-policy",
+                      "q-periapt-sdk", "q-periapt-host-store", "q-periapt-rustls")),
 )
 if sdk.VERSION != RELEASE.value or tuple(name for name, _ in TOPOLOGY) != sdk.COHORT:
     raise RuntimeError("SDK publication order differs from package production")

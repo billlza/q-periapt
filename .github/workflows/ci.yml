@@ -67,7 +67,7 @@ jobs:
           install_root="$RUNNER_TEMP/qperiapt-policy-store-migration"
           mkdir -m 700 "$install_root"
           export PATH="$install_root/bin:$PATH"
-          cargo install --locked --path crates/q-periapt-cli --features policy-store-migration --root "$install_root"
+          cargo +1.98.1 install --locked --path crates/q-periapt-cli --features policy-store-migration --root "$install_root"
           sh artifact/python-run.sh artifact/policy_store_migration_installed.py \
             --binary "$install_root/bin/qperiapt" --output target/policy-store-migration-installed
       - name: Verify current SDK ABI 2 header and retained 0.1.5 contract
