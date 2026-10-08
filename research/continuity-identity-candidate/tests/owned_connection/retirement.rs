@@ -4,7 +4,132 @@ use super::*;
 use p::retired_device::{JournalErasureState, RecordMetadata, SessionState, ViewRole};
 
 const OLD_PAYLOAD: &[u8] = b"retiring device effect before unavailable receipt";
-const NEW_PAYLOAD: &[u8] = b"fresh required-witness replacement";
+// Use the existing foreign test application's exact accepted payload; every
+// consumer still checks and durably records the complete session/message bytes.
+const NEW_PAYLOAD: &[u8] = b"persisted before process exit";
+
+fn traffic_log(path: &Path, mode: &str, stream: &str) -> Result<Vec<u8>> {
+    // Empty stdout is expected before readiness, and successful stderr is empty.
+    // Keep this log reader distinct from nonempty authenticated input records.
+    let file = fs::File::open(path.join(format!("successor-traffic-{mode}.{stream}")))?;
+    if !file.metadata()?.is_file() {
+        return Err("foreign traffic log is not a file".into());
+    }
+    let mut bytes = Vec::new();
+    file.take(8193).read_to_end(&mut bytes)?;
+    if bytes.len() > 8192 {
+        return Err("foreign traffic log exceeded bound".into());
+    }
+    Ok(bytes)
+}
+
+fn traffic(
+    path: &Path,
+    mode: &str,
+    session: Option<[u8; 32]>,
+    client: Option<&Path>,
+    witness: &WitnessFixture,
+) -> Result<(OwnedChild, SocketAddr)> {
+    let (attempt, native_mode) = match (mode, session) {
+        ("bootstrap", None) => (0, "retirement-traffic-bootstrap"),
+        ("message", Some(_)) => (1, "retirement-traffic-application"),
+        _ => return Err("replacement traffic invocation shape".into()),
+    };
+    let Some(client) = client else {
+        return spawn(path, attempt, native_mode);
+    };
+    let stdout_path = path.join(format!("successor-traffic-{mode}.stdout"));
+    let stderr_path = path.join(format!("successor-traffic-{mode}.stderr"));
+    let create = |path: &Path| {
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)
+    };
+    let mut command = Command::new(client);
+    command
+        .arg("--witness")
+        .arg(witness.address.to_string())
+        .arg("--enrollment-parent")
+        .arg(path)
+        .arg("2");
+    if let Some(session) = session {
+        command.arg("--session").arg(hex(&session));
+    }
+    let mut child = OwnedChild(
+        command
+            .arg("serve")
+            .arg(path)
+            .arg(mode)
+            .stdout(Stdio::from(create(&stdout_path)?))
+            .stderr(Stdio::from(create(&stderr_path)?))
+            .spawn()?,
+    );
+    store(
+        path,
+        &format!("successor-traffic-{mode}.pid"),
+        &u64::from(child.0.id()).to_be_bytes(),
+    )?;
+    let deadline = Instant::now() + Duration::from_secs(25);
+    loop {
+        let output = traffic_log(path, mode, "stdout")?;
+        let text = std::str::from_utf8(&output)?;
+        if let Some((first, _)) = text.split_once('\n') {
+            let port: u16 = first
+                .strip_prefix("listening:")
+                .ok_or("foreign replacement readiness")?
+                .parse()?;
+            if port == 0 {
+                return Err("foreign replacement returned zero port".into());
+            }
+            return Ok((child, SocketAddr::from(([127, 0, 0, 1], port))));
+        }
+        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
+            return Err(format!(
+                "foreign replacement readiness failed: {}",
+                String::from_utf8_lossy(&traffic_log(path, mode, "stderr")?)
+            )
+            .into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn finish_traffic(
+    child: &mut OwnedChild,
+    path: &Path,
+    mode: &str,
+    session: [u8; 32],
+    message: Option<p::MessageId>,
+    foreign: bool,
+) -> Result<()> {
+    assert!(wait(child)?.success());
+    if foreign {
+        assert!(traffic_log(path, mode, "stderr")?.is_empty());
+        let stdout = traffic_log(path, mode, "stdout")?;
+        let text = std::str::from_utf8(&stdout)?;
+        let lines: Vec<_> = text.lines().collect();
+        let [ready, served, actual_session, actual_message] = lines.as_slice() else {
+            return Err("foreign replacement traffic result shape".into());
+        };
+        assert!(ready.starts_with("listening:"));
+        assert_eq!(
+            *served,
+            if message.is_some() {
+                "served:2:0:1:1"
+            } else {
+                "served:1:0:0:0"
+            }
+        );
+        assert_eq!(*actual_session, hex(&session));
+        assert_eq!(
+            *actual_message,
+            message.map_or_else(|| hex(&[0; 32]), |id| hex(id.as_bytes()))
+        );
+    }
+    Ok(())
+}
 
 fn pin(path: &Path) -> Result<p::AnchorPin> {
     Ok(p::AnchorPin::new(
@@ -458,7 +583,8 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
     initiator.peer_certificate = read(&next.peer, "tls-peer", 8192)?;
     initiator.peer_name = String::from_utf8(read(&next.peer, "tls-peer-name", 256)?)?;
     let endpoint = ConnectionEndpoint::client(&new_context, initiator.credentials(), tls_limits())?;
-    let (mut server, address) = spawn(&next.path, 0, "retirement-traffic-bootstrap")?;
+    let (mut server, address) =
+        traffic(&next.path, "bootstrap", None, client, &witness.configured)?;
     let peer_name = initiator.peer_name.clone();
     let fresh = endpoint
         .establish(
@@ -473,7 +599,14 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
             now,
         )?
         .session;
-    assert!(wait(&mut server)?.success());
+    finish_traffic(
+        &mut server,
+        &next.path,
+        "bootstrap",
+        fresh,
+        None,
+        client.is_some(),
+    )?;
     assert_ne!(fresh, session);
     let fresh_message =
         initiator
@@ -481,7 +614,13 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
             .stores()?
             .0
             .next_message_id(&new_context, fresh, now()?)?;
-    let (mut server, address) = spawn(&next.path, 1, "retirement-traffic-application")?;
+    let (mut server, address) = traffic(
+        &next.path,
+        "message",
+        Some(fresh),
+        client,
+        &witness.configured,
+    )?;
     send(
         &mut initiator,
         &endpoint,
@@ -490,7 +629,14 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
         fresh_message,
         NEW_PAYLOAD,
     )?;
-    assert!(wait(&mut server)?.success());
+    finish_traffic(
+        &mut server,
+        &next.path,
+        "message",
+        fresh,
+        Some(fresh_message),
+        client.is_some(),
+    )?;
     effect(&next.path, fresh, fresh_message, NEW_PAYLOAD)?;
     let witness_requests = u64::try_from(witness.request_count()?)?
         .checked_add(u64::from(client.is_some()))
@@ -498,6 +644,18 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
     assert!(witness_requests > 0 && witness_requests <= 512);
     let public = root.join("public");
     fs::DirBuilder::new().mode(0o700).create(&public)?;
+    let traffic_trace = if client.is_some() {
+        let mut trace = String::new();
+        for mode in ["bootstrap", "message"] {
+            let pid =
+                u64::from_be_bytes(array(&next.path, &format!("successor-traffic-{mode}.pid"))?);
+            trace.push_str(&format!("{mode} {pid}\n"));
+        }
+        trace.into_bytes()
+    } else {
+        b"native\n".to_vec()
+    };
+    store(&public, "successor-traffic-trace", &traffic_trace)?;
     store(
         &public,
         "witness-request-count",

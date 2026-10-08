@@ -638,7 +638,11 @@ the existing enrollment API: generation-2 creation, original-request reopen,
 grant acceptance/retry, exact genesis preparation, refusal before witness
 replacement, and activation/reopen after its independently authorized commit.
 An interrupted `Activating` enrollment resumes its original genesis without
-preparing another installation. Account issuance, witness replacement approval,
-successor prekeys and fresh-generation TLS remain native Rust. Qualification of
+preparing another installation. Two more Swift processes serve the successor's
+fresh TLS bootstrap and then open that exact session to durably consume a message.
+Their session/message identities and complete host effect match the native sender;
+the existing callback reentrancy and application confirmation checks remain active.
+Account issuance, witness replacement approval and successor prekey preparation
+remain native Rust. Qualification of
 each current archive is separate; this is not a complete foreign replacement
 flow or an independent protocol implementation.

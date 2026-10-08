@@ -14,11 +14,12 @@ STAGES = ("inventory", "prepare-report", "report", "report-reopen", "prepare-ack
           "erase-journal", "erase-signer", "verify")
 SUCCESSOR_STAGES = ("key", "create", "request", "request-retry", "accept", "accept-retry",
                     "storage", "activate-before-replacement", "activate", "activate-reopen")
+TRAFFIC_STAGES = ("bootstrap", "message")
 FILES = frozenset({"witness-request-count", "witness-id", "witness-public", "witness-subject", "retirement-proposal",
                    "retirement-receipt", "retirement-inventory", "retirement-inventory-receipt",
                    "retirement-report-proposal", "retirement-report-receipt", "retirement-host-report", "retirement-host-report-verified",
                    "retirement-report-reopened", "retirement-ack", "retirement-verified", "old-effect",
-                   "new-effect", "signer-terminal", "result.json", "successor-enrollment-trace"}
+                   "new-effect", "signer-terminal", "result.json", "successor-enrollment-trace", "successor-traffic-trace"}
                   | {"retirement-process-" + stage for stage in STAGES})
 IDENTITIES = ("old_session", "old_message", "new_session", "new_message", "report_id")
 FLAGS = ("required_witness", "old_authority_refused", "original_report_reopened", "journal_erased", "signer_erased")
@@ -109,14 +110,26 @@ def verify(directory: Path) -> dict:
         sdk.require(len(set(successor_pids)) == len(SUCCESSOR_STAGES)
                     and not set(successor_pids).intersection(pids),
                     "successor enrollment reused a recovery process identity")
+    traffic = read("successor-traffic-trace", 8192)
+    traffic_pids = []
+    if successor_pids:
+        expected = b"".join(name.encode() + rb" ([1-9][0-9]*)\n" for name in TRAFFIC_STAGES)
+        matched = re.fullmatch(expected, traffic)
+        sdk.require(matched is not None, "foreign successor traffic was not executed")
+        traffic_pids = [int(value) for value in matched.groups()]
+        sdk.require(len(set(traffic_pids)) == len(TRAFFIC_STAGES)
+                    and not set(traffic_pids).intersection(pids + successor_pids),
+                    "successor traffic reused a previous process identity")
+    else:
+        sdk.require(traffic == b"native\n", "native successor traffic mode differs")
     for role, payload in (("old", b"retiring device effect before unavailable receipt"),
-                          ("new", b"fresh required-witness replacement")):
+                          ("new", b"persisted before process exit")):
         sdk.require(read(role + "-effect") == bytes.fromhex(result[role + "_session"] + result[role + "_message"]) + payload,
                     "retirement actual application effect differs")
     sdk.require(fixed("signer-terminal", 8) == b"QPSRET01", "retirement signer terminal differs")
     sdk.require(set(public) == FILES, "retirement evidence left unread files")
     return {"completed": True, "scope": SCOPE, "outcomes": result, "recovery_process_ids": pids,
-            "successor_process_ids": successor_pids, "witness_requests": request_count,
+            "successor_process_ids": successor_pids, "traffic_process_ids": traffic_pids, "witness_requests": request_count,
             "public_readbacks": public, "release_claim_eligible": False}
 
 
@@ -148,7 +161,8 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
         f"{language} restricted retired-enrollment API across eight actual cleanup processes; "
         f"ten {language} successor processes create generation 2, reopen its original request, accept the independent "
         "grant, preserve its genesis, refuse activation before replacement, and activate/reopen after authorization. "
-        "Account issuance, required-witness replacement commit and fresh-generation TLS traffic remain native Rust. "
+        f"Two further {language} processes establish the fresh TLS session and durably consume its application message. "
+        "Account issuance, required-witness replacement commit and successor prekeys remain native Rust. "
         "Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and "
         "logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; "
         "no physical erasure, independent protocol or complete foreign-device lifecycle claim."

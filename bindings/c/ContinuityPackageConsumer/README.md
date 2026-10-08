@@ -1256,8 +1256,12 @@ genesis. Activation before witness replacement is refused. The persisted
 again. After the independent account/witness controller commits replacement,
 the C client activates and reopens the same journal. Eight further C processes
 perform cleanup, with independent native report readback and three exits without
-completion after durable work. Account issuance, witness replacement authorization,
-successor prekeys and fresh-generation TLS remain native Rust in this workload.
+completion after durable work. Two more C processes then reopen the enrolled
+successor: one serves the fresh TLS bootstrap, and another opens that exact session
+and durably consumes its application message. Returned session/message identities,
+callback counts and complete host effect bytes must match the native sender.
+Account issuance, witness replacement authorization and successor prekey
+preparation remain native Rust in this workload.
 It also exercises snapshots, invalid receipt/length refusal, cancellation and
 consumed-owner behavior. Debug/Release installed execution is required by the
 package producer. Source execution alone does not qualify installed archives,

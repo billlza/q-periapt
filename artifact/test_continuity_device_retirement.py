@@ -32,9 +32,9 @@ def fixture(path: Path):
               'retirement-host-report': b"QPRDMD01" + inventory + b'\x00' + b'synthetic full metadata',
               'retirement-report-reopened': report_id, 'retirement-verified': report_id,
               'signer-terminal': b"QPSRET01", 'result.json': json.dumps(report).encode(),
-              'successor-enrollment-trace': b"native\n"}
+              'successor-enrollment-trace': b"native\n", 'successor-traffic-trace': b"native\n"}
     for role, payload in [('old', b'retiring device effect before unavailable receipt'),
-                          ('new', b'fresh required-witness replacement')]:
+                          ('new', b'persisted before process exit')]:
         values[role + '-effect'] = bytes.fromhex(report[role + '_session'] + report[role + '_message']) + payload
     for index, stage in enumerate(retirement.STAGES, 100):
         values['retirement-process-' + stage] = index.to_bytes(8, 'big')
@@ -53,11 +53,13 @@ class RetirementEvidenceTests(unittest.TestCase):
                 retirement.export_foreign(stdout, root / "source", root / "rejected", language="C")
             (root / 'source/successor-enrollment-trace').write_bytes(b''.join(
                 f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.SUCCESSOR_STAGES, 200)))
+            (root / 'source/successor-traffic-trace').write_bytes(b'bootstrap 400\nmessage 401\n')
             result = retirement.export_foreign(stdout, root / "source", root / "export", language="C")
             self.assertEqual(result["consumer_language"], "C")
             self.assertEqual(result["public_readbacks"], retirement.verify(root / "source")["public_readbacks"])
             self.assertIn("ten C successor processes", result["scope"])
             self.assertEqual(result["successor_process_ids"], list(range(200, 210)))
+            self.assertEqual(result["traffic_process_ids"], [400, 401])
             for bad in (b"", stdout.replace(b"1 passed", b"0 passed"), stdout + stdout,
                         stdout.replace(b" ... ok", b" ... ignored"),
                         stdout.replace(b"3 filtered", b"28 filtered"),
@@ -92,6 +94,19 @@ class RetirementEvidenceTests(unittest.TestCase):
                         original.replace(b'accept-retry', b'accept')):
                 path.write_bytes(bad)
                 with self.subTest(trace=bad), self.assertRaisesRegex(ValueError, 'successor enrollment'):
+                    retirement.verify(root)
+
+    def test_foreign_traffic_cannot_be_native_missing_or_reuse_a_process(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            (root / 'successor-enrollment-trace').write_bytes(b''.join(
+                f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.SUCCESSOR_STAGES, 200)))
+            path = root / 'successor-traffic-trace'
+            for bad in (b'native\n', b'', b'bootstrap 400\n', b'message 401\nbootstrap 400\n',
+                        b'bootstrap 400\nmessage 400\n', b'bootstrap 100\nmessage 401\n',
+                        b'bootstrap 200\nmessage 401\n'):
+                path.write_bytes(bad)
+                with self.subTest(trace=bad), self.assertRaisesRegex(ValueError, 'successor traffic'):
                     retirement.verify(root)
 
     def test_every_record_is_required(self):

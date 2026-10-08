@@ -715,7 +715,10 @@ Kotlin processes through the existing registration API: generation-2 creation,
 original-request reopen, grant acceptance/retry, original genesis preparation,
 refusal before witness replacement and activation/reopen after authorization.
 After an activation failure, retained `Activating` state resumes that genesis;
-it cannot prepare another installation. Account issuance, witness replacement
-approval, successor prekeys and fresh-generation TLS still use the native Rust
-harness. This adds client lifecycle coverage without giving device clients
-account-root signing authority.
+it cannot prepare another installation. Two more Kotlin processes serve the
+successor's fresh TLS bootstrap and reopen the same session for durable message
+consumption. Exact returned identities, callback counts and complete host effect
+bytes must match the native sender. Account issuance, witness replacement approval
+and successor prekey preparation still use the native Rust harness. This adds
+client lifecycle and traffic coverage without giving device clients account-root
+signing authority.
