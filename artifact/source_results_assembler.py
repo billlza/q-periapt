@@ -677,7 +677,7 @@ def _sdk_source_ci_gate(expected_results_sha256: str, expected_commit: str) -> S
         )
         for contract_path, header_path, count in (
             ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
-             "crates/q-periapt-ffi/include/q_periapt.h", 43),
+             "crates/q-periapt-ffi/include/q_periapt.h", 50),
             ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
              "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h", 9),
         ):

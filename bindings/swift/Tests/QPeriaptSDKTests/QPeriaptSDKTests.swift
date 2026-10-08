@@ -12,7 +12,7 @@ private struct Fixture: Decodable {
 private enum FixtureError: Error { case invalidHex }
 
 final class QPeriaptSDKTests: XCTestCase {
-    private func hex(_ value: String) throws -> [UInt8] {
+    func hex(_ value: String) throws -> [UInt8] {
         guard value.count.isMultiple(of: 2) else { throw FixtureError.invalidHex }
         var bytes: [UInt8] = []
         var cursor = value.startIndex
@@ -31,7 +31,7 @@ final class QPeriaptSDKTests: XCTestCase {
         return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: file))
     }
 
-    private func storeDirectory() throws -> URL {
+    func storeDirectory() throws -> URL {
         let folder = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
             .appendingPathComponent("qperiapt-store-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false,
@@ -46,7 +46,7 @@ final class QPeriaptSDKTests: XCTestCase {
         return URL(fileURLWithPath: String(cString: canonical), isDirectory: true)
     }
 
-    private func removeStoreDirectory(_ folder: URL) {
+    func removeStoreDirectory(_ folder: URL) {
         do { try FileManager.default.removeItem(at: folder) }
         catch { XCTFail("temporary store cleanup failed: \(error)") }
     }

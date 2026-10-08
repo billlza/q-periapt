@@ -33,6 +33,62 @@ final class QPeriaptSDKBinaryConsumerTests: XCTestCase {
                                    trustRoot: hex(f.verification_key), maxLiveKeys: 2, maxInFlight: 2)
     }
 
+    func testInstalledPolicyAuthorityRecoveryAndAdvancedReplay() async throws {
+        guard let resource = Bundle.module.url(forResource: "sdk-policy-recovery-vectors.json",
+            withExtension: nil, subdirectory: "Resources") else { throw FixtureError.resource }
+        let fields = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: resource))
+        func bytes(_ name: String) throws -> [UInt8] {
+            guard let value = fields[name] else { throw FixtureError.resource }
+            return try hex(value)
+        }
+        let trust = try QPeriaptPolicyRecoveryTrust(scope: bytes("scope"),
+            initialRoot: bytes("initial_root"), recoveryRoot: bytes("recovery_root"))
+        XCTAssertEqual(trust.enrollmentMessage, try bytes("enrollment_message"))
+        let authorization = try QPeriaptPolicyRecoveryAuthorization(encoded: bytes("authorization"))
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("qperiapt-root-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false,
+                                               attributes: [.posixPermissions: 0o700])
+        defer {
+            do { try FileManager.default.removeItem(at: folder) }
+            catch { XCTFail("owned recovery directory cleanup failed: \(error)") }
+        }
+        guard let canonical = folder.path.withCString({ realpath($0, nil) }) else { throw FixtureError.path }
+        defer { free(canonical) }
+        let path = String(cString: canonical) + "/policy.redb"
+        let original = try await QPeriaptPersistentRuntime.provisionRecoverable(at: path,
+            policy: bytes("initial_policy"), signature: bytes("initial_signature"), trust: trust,
+            enrollmentSignature: bytes("enrollment_signature"))
+        let oldKey = try original.runtime.generateKey()
+        let request = try await original.prepareAuthorityRecovery(operation: bytes("operation"),
+            policy: bytes("next_policy"), signature: bytes("next_signature"), incomingRoot: bytes("incoming_root"))
+        XCTAssertEqual(request.encoded, try bytes("request"))
+        let applied = try await original.recoverAuthority(authorization,
+            policy: bytes("next_policy"), signature: bytes("next_signature"))
+        guard case let .applied(disabled) = applied else { XCTFail("expected applied owner"); return }
+        XCTAssertFalse(try disabled.runtime.isEnabled())
+        XCTAssertThrowsError(try oldKey.publicKey())
+        let current = try await disabled.update(policy: bytes("current_policy"), signature: bytes("current_signature"))
+        let key = try current.runtime.generateKey()
+        let publicKey = try key.publicKey().bytes
+        let replay = try await current.recoverAuthority(authorization,
+            policy: bytes("next_policy"), signature: bytes("next_signature"))
+        switch replay {
+        case .applied(let unexpected):
+            try await unexpected.close(); XCTFail("advanced replay returned a replacement owner")
+        case .alreadyApplied: XCTFail("advanced replay lost later policy")
+        case .appliedThenAdvanced: break
+        }
+        XCTAssertEqual(try key.publicKey().bytes, publicKey)
+        try await current.close()
+        let reopened = try await QPeriaptPersistentRuntime.openRecovering(at: path,
+            policy: bytes("next_policy"), signature: bytes("next_signature"), trust: trust, authorization: authorization)
+        XCTAssertEqual(reopened.disposition, .appliedThenAdvanced)
+        XCTAssertEqual(try reopened.runtime.runtime.trustedState().prefix(4), [0, 0, 0, 2])
+        try await reopened.runtime.close()
+        try await original.close()
+        try await disabled.close()
+    }
+
     func testInstalledMetadataOwnersDerivationAndRevocation() throws {
         XCTAssertEqual(QPeriaptHybrid.runtimeAbiVersion, 2)
         XCTAssertEqual(QPeriaptHybrid.runtimeVersion, "0.2.0")

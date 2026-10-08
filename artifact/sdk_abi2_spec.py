@@ -41,6 +41,7 @@ STATUS_CODES = {
     "Q_PERIAPT_ERR_STORE_COMMITTED": -22,
     "Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM": -23,
     "Q_PERIAPT_ERR_STORAGE_REQUIRED": -24,
+    "Q_PERIAPT_ERR_RECOVERY_REQUIRED": -25,
 }
 MACROS = {
     **STATUS_CODES,
@@ -68,6 +69,14 @@ MACROS = {
     "Q_PERIAPT_CONNECTION_RESPONSE_READY": 7,
     "Q_PERIAPT_CONNECTION_CLOSING": 8,
     "Q_PERIAPT_STORE_MAX_PATH_BYTES": 4096,
+    "Q_PERIAPT_POLICY_RECOVERY_REQUEST_LEN": 2168,
+    "Q_PERIAPT_POLICY_RECOVERY_AUTHORIZATION_LEN": 8786,
+    "Q_PERIAPT_POLICY_RECOVERY_ENROLLMENT_MESSAGE_LEN": 3968,
+    "Q_PERIAPT_POLICY_RECOVERY_APPROVAL_MESSAGE_LEN": 2203,
+    "Q_PERIAPT_POLICY_RECOVERY_POSSESSION_MESSAGE_LEN": 2204,
+    "Q_PERIAPT_POLICY_RECOVERY_APPLIED": 1,
+    "Q_PERIAPT_POLICY_RECOVERY_ALREADY_APPLIED": 2,
+    "Q_PERIAPT_POLICY_RECOVERY_APPLIED_THEN_ADVANCED": 3,
 }
 EXPORTS = (
     ("q_periapt_sdk_extension_version", "metadata", "uint32_t q_periapt_sdk_extension_version(void);"),
@@ -104,6 +113,13 @@ EXPORTS = (
     ("q_periapt_sdk_runtime_provision_store", "persistence", "int32_t q_periapt_sdk_runtime_provision_store(const QPeriaptStoreOptions *options, uint64_t *out_runtime);"),
     ("q_periapt_sdk_runtime_open_store", "persistence", "int32_t q_periapt_sdk_runtime_open_store(const QPeriaptStoreOptions *options, uint64_t *out_runtime);"),
     ("q_periapt_sdk_runtime_update_store", "persistence", "int32_t q_periapt_sdk_runtime_update_store(uint64_t handle, QPeriaptInput policy, QPeriaptInput signature, uint64_t *out_runtime);"),
+    ("q_periapt_sdk_policy_recovery_enrollment_message", "policy", "int32_t q_periapt_sdk_policy_recovery_enrollment_message(QPeriaptInput scope, QPeriaptInput initial_root, QPeriaptInput recovery_root, QPeriaptOutput output);"),
+    ("q_periapt_sdk_runtime_provision_recoverable_store", "persistence", "int32_t q_periapt_sdk_runtime_provision_recoverable_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);"),
+    ("q_periapt_sdk_runtime_open_recoverable_store", "persistence", "int32_t q_periapt_sdk_runtime_open_recoverable_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);"),
+    ("q_periapt_sdk_runtime_open_recovering_store", "persistence", "int32_t q_periapt_sdk_runtime_open_recovering_store(const QPeriaptRecoverableStoreOptions *options, QPeriaptInput authorization, uint64_t *out_runtime, uint32_t *out_outcome);"),
+    ("q_periapt_sdk_runtime_prepare_recovery", "policy", "int32_t q_periapt_sdk_runtime_prepare_recovery(uint64_t handle, QPeriaptInput operation, QPeriaptInput policy, QPeriaptInput signature, QPeriaptInput incoming_root, QPeriaptOutput output);"),
+    ("q_periapt_sdk_policy_recovery_signing_messages", "policy", "int32_t q_periapt_sdk_policy_recovery_signing_messages(QPeriaptInput request, QPeriaptOutput approval, QPeriaptOutput possession);"),
+    ("q_periapt_sdk_runtime_recover_authority", "persistence", "int32_t q_periapt_sdk_runtime_recover_authority(uint64_t handle, QPeriaptInput authorization, QPeriaptInput policy, QPeriaptInput signature, uint64_t *out_runtime, uint32_t *out_outcome);"),
 )
 NATIVE_STRUCTS = {
     "QPeriaptInput": "typedef struct { const uint8_t *data; uintptr_t len; } QPeriaptInput;",
@@ -127,5 +143,11 @@ NATIVE_STRUCTS = {
         "typedef struct { uint32_t struct_size; uint32_t extension_version; "
         "QPeriaptInput path; QPeriaptInput policy; QPeriaptInput signature; QPeriaptInput trust_root; "
         "uint32_t max_live_keys; uint32_t max_in_flight; } QPeriaptStoreOptions;"
+    ),
+    "QPeriaptRecoverableStoreOptions": (
+        "typedef struct { uint32_t struct_size; uint32_t extension_version; "
+        "QPeriaptInput path; QPeriaptInput policy; QPeriaptInput signature; QPeriaptInput scope; "
+        "QPeriaptInput initial_root; QPeriaptInput recovery_root; QPeriaptInput enrollment_signature; "
+        "uint32_t max_live_keys; uint32_t max_in_flight; } QPeriaptRecoverableStoreOptions;"
     ),
 }

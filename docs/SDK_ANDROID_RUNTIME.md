@@ -3,7 +3,8 @@
 The SDK retains **ABI major 2**, `libq_periapt_ffi_abi2.so` and
 `libqperiapt_jni_abi2.so`. Its package version is `0.2.0`. The original
 nine C functions retain their signatures; the SDK package has a separate closed
-allowlist of 43 C exports and 26 JNI methods.
+allowlist of 50 C exports and 26 JNI methods. Native policy persistence/recovery
+entry points report unsupported on Android; this does not add Android store support.
 
 This document describes the maintainer runtime gate. Normal application setup
 is in [the Android package guide](../bindings/android/PackageREADME.md).

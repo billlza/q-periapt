@@ -3,6 +3,8 @@ use super::*;
 use q_periapt_host_store::{PolicyStore, StoreError};
 use std::{path::Path, sync::Mutex};
 
+pub(super) mod recovery;
+
 #[cfg(test)]
 mod tests;
 
@@ -30,6 +32,9 @@ fn map(error: StoreError) -> i32 {
         StoreError::Closed | StoreError::Stale => Q_PERIAPT_ERR_CLOSED,
         StoreError::Policy(error) => map_error(error),
         StoreError::RootMismatch => Q_PERIAPT_ERR_POLICY,
+        StoreError::RecoveryRequired => Q_PERIAPT_ERR_RECOVERY_REQUIRED,
+        StoreError::RecoveryDenied => Q_PERIAPT_ERR_POLICY,
+        StoreError::RecoveryLimit => Q_PERIAPT_ERR_RESOURCE_LIMIT,
         StoreError::Busy => Q_PERIAPT_ERR_STORE_BUSY,
         StoreError::CommitUncertain(_) => Q_PERIAPT_ERR_COMMIT_UNCERTAIN,
         StoreError::ActivationAfterCommit(_) => Q_PERIAPT_ERR_STORE_COMMITTED,

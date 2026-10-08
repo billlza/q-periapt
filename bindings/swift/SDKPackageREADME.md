@@ -34,6 +34,17 @@ try await store.close()
 Close owners on both success and error paths. A cancelled persistent operation
 may have committed: reopen with the latest requested signed policy instead of
 assuming rollback. A policy update returns a new owner and revokes the old epoch.
+For independently authorized policy-root replacement, explicitly provision with
+`provisionRecoverable` and a `QPeriaptPolicyRecoveryTrust` containing your original
+scope, online root and separate recovery root, plus its enrollment signature.
+Retain that original trust outside the store. `prepareAuthorityRecovery` produces
+the exact statement for recovery-key approval and incoming-key possession proofs;
+assemble `QPeriaptPolicyRecoveryAuthorization` and call `recoverAuthority`.
+Only `.applied(owner)` returns replacement ownership. `.alreadyApplied` and
+`.appliedThenAdvanced` preserve your current owner. After cancellation or an
+uncertain/committed error, `openRecovering` reconciles the original authorization
+and requested signed policy before returning a runtime. This is policy-authority
+recovery; it does not claim recovery of message confidentiality after compromise.
 The macOS persistent-store API explicitly reports unsupported on iOS. An iOS
 host constructs `QPeriaptRuntime` with its pinned root and protected stored state,
 then durably accepts `trustedState()` before admitting key use; it also owns

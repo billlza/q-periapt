@@ -40,8 +40,10 @@ The working release candidate now uses package version **0.2.0**, producer
 profile **`sdk-020`** and native CBOM profile **`native-sdk-020`**. This transition
 coordinates Cargo workspace/dependency versions, Maven/npm metadata, package
 filenames, installed consumers, CI intake paths and the C contract snapshot.
-ABI major 2, extension revision 1, all 43 C declarations and all 26 JNI
-registrations are unchanged. The 0.1.5 contracts and historical results retain
+ABI major 2 and extension revision 1 remain. All prior 43 C declarations/layouts
+and all 26 JNI registrations are retained; seven explicit native policy-recovery
+helpers/entry points bring the unpublished C table to 50. Earlier 43-export
+package observations below do not qualify this expanded surface. The 0.1.5 contracts and historical results retain
 their original bytes. Earlier alpha.1 observations below remain tied to their
 recorded commits; the 0.2.0 candidate requires fresh source and package checks.
 

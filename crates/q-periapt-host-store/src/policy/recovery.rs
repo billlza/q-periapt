@@ -475,7 +475,7 @@ impl PolicyStore {
         enrollment_signature: &[u8],
         limits: Limits,
     ) -> Result<Self, StoreError> {
-        let recovery = RecoveryImage::initial(trust, enrollment_signature)?;
+        let recovery = Box::new(RecoveryImage::initial(trust, enrollment_signature)?);
         let owner =
             PolicyOwner::from_signed_policy(policy, signature, &trust.initial, None, limits)?;
         let database = provision_private_database(path, |database| {

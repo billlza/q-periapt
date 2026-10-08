@@ -5,7 +5,7 @@ For the unpublished **0.2.0 source**, start with the
 [owned SDK API and lifecycle contract](../docs/SDK_OWNERSHIP.md). Rust, C, Swift,
 Kotlin/JVM, Android/JNI and WASM now expose native/linear-memory key owners.
 ABI major and native library names remain **2**. The current extension has
-43 exact C exports; the historical 0.1.5 contract has nine and is retained
+50 exact C exports; the historical 0.1.5 contract has nine and is retained
 separately. Current host checks do not replace package or device qualification;
 see the [release-readiness ledger](../docs/SDK_0_2_RELEASE_READINESS.md).
 

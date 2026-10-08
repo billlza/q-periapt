@@ -204,6 +204,7 @@ pub extern "C" fn q_periapt_status_name(code: i32) -> *const c_char {
         Q_PERIAPT_ERR_STORE_COMMITTED => b"ERR_STORE_COMMITTED\0",
         Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM => b"ERR_UNSUPPORTED_PLATFORM\0",
         Q_PERIAPT_ERR_STORAGE_REQUIRED => b"ERR_STORAGE_REQUIRED\0",
+        Q_PERIAPT_ERR_RECOVERY_REQUIRED => b"ERR_RECOVERY_REQUIRED\0",
         _ => b"UNKNOWN_STATUS\0",
     };
     name.as_ptr().cast()

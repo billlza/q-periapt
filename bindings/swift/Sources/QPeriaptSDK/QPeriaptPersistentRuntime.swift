@@ -12,7 +12,7 @@ public final class QPeriaptPersistentRuntime: Sendable {
     /// This reference keeps its epoch; a successful update returns a new owner.
     public let runtime: QPeriaptRuntime
 
-    private init(handle: UInt64) { runtime = QPeriaptRuntime(owned: OwnedHandle(handle)) }
+    init(handle: UInt64) { runtime = QPeriaptRuntime(owned: OwnedHandle(handle)) }
 
     /// Explicit first installation; parent directory must already be private.
     /// Never overwrites an existing file or stores private KEM/TLS keys.
@@ -100,6 +100,16 @@ public final class QPeriaptPersistentRuntime: Sendable {
 @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
 func runPersistentOperation(_ operation: @escaping @Sendable () throws -> QPeriaptPersistentRuntime)
     async throws -> QPeriaptPersistentRuntime {
+    try await runPersistentOperation(operation, discard: { try await $0.close() })
+}
+
+/// Share admitted-worker cancellation across mutations and public recovery statements.
+/// The result-specific disposer closes only ownership returned by that operation.
+@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+func runPersistentOperation<Result: Sendable>(
+    _ operation: @escaping @Sendable () throws -> Result,
+    discard: @escaping @Sendable (Result) async throws -> Void
+) async throws -> Result {
     try Task.checkCancellation()
     let worker = Task.detached {
         try Task.checkCancellation()
@@ -111,7 +121,7 @@ func runPersistentOperation(_ operation: @escaping @Sendable () throws -> QPeria
         worker.cancel()
     }
     if Task.isCancelled {
-        try await result.close()
+        try await discard(result)
         throw CancellationError()
     }
     return result

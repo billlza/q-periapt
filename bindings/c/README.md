@@ -1,8 +1,9 @@
 # C ABI 2 product smoke
 
 The current source version is **0.2.0**, unpublished. ABI major 2 and
-the `_abi2` library names are retained. The current table has exactly 43 exports:
-the original nine below plus 34 SDK functions. The closed 0.2.0 contract
+the `_abi2` library names are retained. The current table has exactly 50 exports:
+the original nine below plus 41 SDK functions, including seven policy-recovery
+helpers and persistent entry points. The closed 0.2.0 contract
 is [`q-periapt-c-abi-v2-sdk-020.json`](../../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json).
 The separate historical 0.1.5 contract still accepts exactly nine.
 

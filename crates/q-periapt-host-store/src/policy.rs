@@ -130,7 +130,9 @@ struct Active {
     database: Database,
     owner: PolicyOwner,
     root: Vec<u8>,
-    recovery: Option<RecoveryImage>,
+    // Keep large public trust/receipt images off each caller's stack, including
+    // unoptimized foreign-language worker threads. Ownership remains exclusive.
+    recovery: Option<Box<RecoveryImage>>,
 }
 impl Drop for Active {
     fn drop(&mut self) {
@@ -322,7 +324,7 @@ impl PolicyStore {
                 policy,
                 signature,
                 next,
-                active.recovery.as_ref(),
+                active.recovery.as_deref(),
             ) {
                 transaction.abort().map_err(storage)?;
                 return Err(error);
@@ -358,7 +360,7 @@ struct Image {
     policy: Vec<u8>,
     signature: Vec<u8>,
     state: TrustedPolicyState,
-    recovery: Option<RecoveryImage>,
+    recovery: Option<Box<RecoveryImage>>,
 }
 fn field(
     table: &impl ReadableTable<&'static str, &'static [u8]>,
@@ -383,10 +385,12 @@ fn read_image(
     let recovery = if schema == SCHEMA && table.len().map_err(storage)? == 5 {
         None
     } else if schema == SCHEMA_RECOVERY && table.len().map_err(storage)? == 9 {
-        Some(RecoveryImage::read(table).map_err(|error| match error {
-            StoreError::RecoveryDenied => StoreError::Corrupt,
-            error => error,
-        })?)
+        Some(Box::new(RecoveryImage::read(table).map_err(
+            |error| match error {
+                StoreError::RecoveryDenied => StoreError::Corrupt,
+                error => error,
+            },
+        )?))
     } else {
         return Err(StoreError::Corrupt);
     };
@@ -424,7 +428,7 @@ fn write_image(
     let mut table = transaction.open_table(TABLE).map_err(storage)?;
     if let Some(expected) = expected {
         let image = read_image(&table, Some(root))?;
-        if image.state != expected || image.recovery.as_ref() != recovery {
+        if image.state != expected || image.recovery.as_deref() != recovery {
             return Err(StoreError::Corrupt);
         }
     } else if !table.is_empty().map_err(storage)? {

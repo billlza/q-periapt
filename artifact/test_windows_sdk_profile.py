@@ -201,7 +201,7 @@ class WindowsSDKProfileTests(unittest.TestCase):
         manifest = self.create()
         self.assertEqual(manifest["schema_version"], 4)
         self.assertEqual(manifest["kind"], windows.SDK_KIND)
-        self.assertEqual((manifest["abi"]["major"], manifest["abi"]["export_count"]), (2, 43))
+        self.assertEqual((manifest["abi"]["major"], manifest["abi"]["export_count"]), (2, 50))
         self.assertIs(manifest["release_claim_eligible"], False)
         self.assertEqual(manifest["authenticode"]["reason"], windows.SDK_UNSIGNED_REASON)
         self.assertNotIn("attestations", manifest["authenticode"]["reason"])
@@ -236,7 +236,7 @@ class WindowsSDKProfileTests(unittest.TestCase):
             self.reseal(changed)
             with self.subTest(field=key, value=value), self.assertRaises(windows.WindowsPackageError):
                 self.verify()
-        for key, value in (("major", 3), ("major", 2.0), ("export_count", 9), ("export_count", 43.0)):
+        for key, value in (("major", 3), ("major", 2.0), ("export_count", 9), ("export_count", 50.0)):
             changed = copy.deepcopy(original)
             changed["abi"][key] = value
             self.reseal(changed)

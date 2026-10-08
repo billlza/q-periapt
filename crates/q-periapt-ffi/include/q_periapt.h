@@ -355,6 +355,51 @@
 #define Q_PERIAPT_STORE_MAX_PATH_BYTES 4096
 
 /**
+ * Original recovery trust is required, or this store was not enrolled for recovery.
+ */
+#define Q_PERIAPT_ERR_RECOVERY_REQUIRED -25
+
+/**
+ * Canonical recovery request, without either role signature.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_REQUEST_LEN 2168
+
+/**
+ * Request followed by recovery-authority and incoming-key ML-DSA-65 signatures.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_AUTHORIZATION_LEN 8786
+
+/**
+ * Full domain-separated enrollment message for the independently pinned recovery key.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_ENROLLMENT_MESSAGE_LEN 3968
+
+/**
+ * Full domain-separated transition message for the recovery authority.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_APPROVAL_MESSAGE_LEN 2203
+
+/**
+ * Full domain-separated transition message for the incoming online policy key.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_POSSESSION_MESSAGE_LEN 2204
+
+/**
+ * This call committed and activated the original authorized recovery.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_APPLIED 1
+
+/**
+ * Original recovery was already applied and its exact policy is still current.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_ALREADY_APPLIED 2
+
+/**
+ * Original recovery was applied, followed by a later policy or root transition.
+ */
+#define Q_PERIAPT_POLICY_RECOVERY_APPLIED_THEN_ADVANCED 3
+
+/**
  * Borrowed input bytes. Null is allowed only when length is zero.
  */
 typedef struct {
@@ -525,6 +570,58 @@ typedef struct {
      */
     uint32_t max_in_flight;
 } QPeriaptStoreOptions;
+
+/**
+ * Explicit recovery-enabled store configuration. Original scope and both roots
+ * must be retained independently of incoming policies and the database itself.
+ * Existing v1 stores are never implicitly enrolled or overwritten.
+ */
+typedef struct {
+    /**
+     * Exact complete structure size; the staged size/revision contract applies.
+     */
+    uint32_t struct_size;
+    /**
+     * Q_PERIAPT_SDK_EXTENSION_VERSION; existing layouts and ABI 2 are unchanged.
+     */
+    uint32_t extension_version;
+    /**
+     * Private, absolute UTF-8 store path, at most 4096 bytes, with no NUL.
+     */
+    QPeriaptInput path;
+    /**
+     * Desired exact signed policy, at most 65536 bytes.
+     */
+    QPeriaptInput policy;
+    /**
+     * Detached policy signature, exactly 3309 bytes.
+     */
+    QPeriaptInput signature;
+    /**
+     * Independently selected nonzero 32-byte authorization scope.
+     */
+    QPeriaptInput scope;
+    /**
+     * ORIGINAL online policy root, exactly 1952 bytes, retained across recoveries.
+     */
+    QPeriaptInput initial_root;
+    /**
+     * Independent recovery root, exactly 1952 bytes, distinct from the online root.
+     */
+    QPeriaptInput recovery_root;
+    /**
+     * Exactly 3309 bytes for provision; canonical empty input for either open.
+     */
+    QPeriaptInput enrollment_signature;
+    /**
+     * Per-runtime key quota, 1..=1024.
+     */
+    uint32_t max_live_keys;
+    /**
+     * Per-runtime operation quota, 1..=64.
+     */
+    uint32_t max_in_flight;
+} QPeriaptRecoverableStoreOptions;
 
 /**
  * Return the C ABI version implemented by this library. Consumers should compare this against
@@ -1022,5 +1119,104 @@ int32_t q_periapt_sdk_runtime_update_store(uint64_t handle,
                                            QPeriaptInput policy,
                                            QPeriaptInput signature,
                                            uint64_t *out_runtime);
+
+/**
+ * Build the public enrollment statement to sign before first provisioning.
+ * This does not verify authority, perform I/O, or enroll an existing store.
+ * Available on the reviewed macOS/Linux persistent-store hosts.
+ * # Safety
+ * Inputs are readable/immutable for 32, 1952 and 1952 bytes respectively.
+ * Output is writable for exactly 3968 bytes and disjoint from every input.
+ */
+int32_t q_periapt_sdk_policy_recovery_enrollment_message(QPeriaptInput scope,
+                                                         QPeriaptInput initial_root,
+                                                         QPeriaptInput recovery_root,
+                                                         QPeriaptOutput output);
+
+/**
+ * Provision a new recovery-enabled macOS/Linux store with an enrollment proof.
+ * Original independent trust must be preserved outside the database. Existing
+ * files, including v1 stores, are never replaced or implicitly upgraded.
+ * # Safety
+ * Options initially supplies four readable immutable size bytes; matching size
+ * requires eight prefix bytes, and matching revision requires the entire object.
+ * Accepted referenced inputs remain readable/immutable throughout the call.
+ * out_runtime is writable for eight bytes, disjoint from all accepted inputs.
+ */
+int32_t q_periapt_sdk_runtime_provision_recoverable_store(const QPeriaptRecoverableStoreOptions *options,
+                                                          uint64_t *out_runtime);
+
+/**
+ * Open a recovery-enabled store using ORIGINAL trust and reconcile a configured
+ * ordinary policy under its current authorized root. Enrollment input is empty.
+ * Recover uncertain root replacement with runtime_open_recovering_store instead.
+ * # Safety
+ * Same staged options/input/output contract as runtime_provision_recoverable_store.
+ */
+int32_t q_periapt_sdk_runtime_open_recoverable_store(const QPeriaptRecoverableStoreOptions *options,
+                                                     uint64_t *out_runtime);
+
+/**
+ * Reconcile the original signed recovery before exposing a runtime. On success,
+ * always returns a new owner and APPLIED/ALREADY_APPLIED/APPLIED_THEN_ADVANCED.
+ * A later authorized state is retained; the old target is never rolled back.
+ * Enrollment input is empty. Keep the original authorization across retries.
+ * # Safety
+ * Same staged options contract; authorization is readable/immutable for 8786
+ * bytes. Both outputs are writable for eight/four bytes and mutually disjoint
+ * from each other and every accepted input. Failure leaves valid outputs zero.
+ */
+int32_t q_periapt_sdk_runtime_open_recovering_store(const QPeriaptRecoverableStoreOptions *options,
+                                                    QPeriaptInput authorization,
+                                                    uint64_t *out_runtime,
+                                                    uint32_t *out_outcome);
+
+/**
+ * Prepare a public recovery request without mutation or a usable candidate runtime.
+ * Operation is an original nonzero 32-byte ID. Incoming root and target policy
+ * are verified; independent recovery and possession signatures remain required.
+ * # Safety
+ * Inputs are readable/immutable for their declared lengths: operation32,
+ * policy1..65536, signature3309, incoming_root1952. Output is writable for exactly
+ * 2168 bytes, disjoint from every input. A persistent recovery-enabled owner is required.
+ */
+int32_t q_periapt_sdk_runtime_prepare_recovery(uint64_t handle,
+                                               QPeriaptInput operation,
+                                               QPeriaptInput policy,
+                                               QPeriaptInput signature,
+                                               QPeriaptInput incoming_root,
+                                               QPeriaptOutput output);
+
+/**
+ * Parse a public request and return its two complete, distinct signing messages.
+ * This verifies grammar only. An approver must independently inspect the scope,
+ * predecessor, incoming root, target policy and original operation before signing.
+ * Authorization encoding is request || authority_signature || possession_signature.
+ * # Safety
+ * Request is readable/immutable for2168 bytes. Outputs are writable for2203 and
+ *2204 bytes respectively and disjoint from each other and the request.
+ */
+int32_t q_periapt_sdk_policy_recovery_signing_messages(QPeriaptInput request,
+                                                       QPeriaptOutput approval,
+                                                       QPeriaptOutput possession);
+
+/**
+ * Durably recover the online root using BOTH role signatures and the original
+ * request. APPLIED returns a distinct successor and revokes the old owner/children.
+ * ALREADY_APPLIED/APPLIED_THEN_ADVANCED return a zero successor and preserve this
+ * owner and its children. Those are successful no-mutation outcomes, not rollback.
+ * On failure, valid outputs are zero. After uncertain/committed failure or lost
+ * reply, close old ownership and open_recovering_store with the SAME authorization.
+ * # Safety
+ * Authorization8786, policy1..65536 and signature3309 inputs remain readable and
+ * immutable. Runtime/outcome outputs are writable for8/4 bytes and mutually
+ * disjoint from all inputs. Persistent disk work is synchronous and may block.
+ */
+int32_t q_periapt_sdk_runtime_recover_authority(uint64_t handle,
+                                                QPeriaptInput authorization,
+                                                QPeriaptInput policy,
+                                                QPeriaptInput signature,
+                                                uint64_t *out_runtime,
+                                                uint32_t *out_outcome);
 
 #endif  /* Q_PERIAPT_ABI2_H */

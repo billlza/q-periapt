@@ -34,14 +34,14 @@ VERSION = "0.2.0"
 CONTRACT = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 SDK_FILES = (
     "ConnectionEngine.swift", "NetworkTransport.swift", "QPeriaptConnection.swift",
-    "QPeriaptPersistentRuntime.swift", "QPeriaptSDK.swift",
+    "QPeriaptPersistentRuntime.swift", "QPeriaptPolicyRecovery.swift", "QPeriaptSDK.swift",
 )
 FIXTURE = "bindings/swift/SDKBinaryConsumerFixture"
 HOST_TARGETS = ("aarch64-apple-darwin",)
 TARGETS = (*HOST_TARGETS, "aarch64-apple-ios",
            "aarch64-apple-ios-sim", "x86_64-apple-ios")
 SLICES = ("macos-arm64", "ios-arm64", "ios-arm64_x86_64-simulator")
-POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
+POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json", "sdk-policy-recovery-vectors.json")
 CONTENTS = "PACKAGE_CONTENTS.json"
 ARCHIVE_NAME = "QPeriapt-Swift-SDK-0.2.0.zip"
 MTIME = 946684800
@@ -130,7 +130,7 @@ def verify_apple_exports(library: Path, llvm_nm: Path) -> dict:
                 thin = folder / architecture / frozen.name
                 lipo([str(frozen), "-thin", architecture, "-output", str(thin)])
             verify_static_library(contract, thin, "macos", llvm_nm)
-    return {"abi_major": 2, "architectures": sorted(architectures), "exports_per_architecture": 43,
+    return {"abi_major": 2, "architectures": sorted(architectures), "exports_per_architecture": 50,
             "static_archive_sha256": snapshot.sha256, "status": "pass"}
 
 
@@ -231,7 +231,7 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     if {p.name for p in source.iterdir()} != set(SDK_FILES):
         raise ValueError("SDK Swift source inventory differs; review packaging before proceeding")
     contract = load_contract(ROOT / CONTRACT)
-    if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 43:
+    if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 50:
         raise ValueError("alpha SDK ABI contract differs")
     snapshot = read_regular_snapshot(xcframework_zip, maximum=MAX_ARTIFACT_BYTES, label="SDK XCFramework ZIP")
     _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)

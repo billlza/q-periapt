@@ -5,7 +5,8 @@ sequence on macOS/Linux. Rust, three additive C functions and Swift's
 `QPeriaptPersistentRuntime` share that implementation. Both peers in the local
 connection diagnostic recover persisted state before use. Installed packages
 and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
-table now has 43 exports.** This crate is unpublished.
+table now has 50 exports**, including seven explicit policy-recovery helpers and
+entry points. Existing declarations/layouts remain unchanged. This crate is unpublished.
 
 ## Accepted state and ownership
 
@@ -79,13 +80,13 @@ against the recovered floor before constructing an endpoint. Reapplying the
 same exact policy requires no update; a newer document is committed; an older,
 invalid or disabling configuration never opens a listener.
 
-## Independent online-root recovery (Rust development profile)
+## Independent online-root recovery
 
 The opt-in v2 image adds a fixed independent ML-DSA-65 recovery root. This is a
-Rust source implementation of SDK policy-authority recovery, not general threshold
-governance, a remotely authenticated issuer service, or Continuity identity-root
-replacement. The existing C/Swift constructors still use v1 and cannot open v2
-without its required recovery configuration; no new C export is introduced.
+SDK policy-authority recovery profile exposed through Rust, C and Swift. It does
+not implement threshold governance, a remotely authenticated issuer service, or
+Continuity identity-root replacement. The original C/Swift constructors retain
+v1 behavior and cannot open v2 without its required recovery configuration.
 
 An online root can sign `u32::MAX` and exhaust normal policy updates. A v1 store
 still cannot recover that condition. In v2, the online key cannot authorize root
@@ -174,11 +175,41 @@ image. This path does not erase exported keys or retained backups, authorize an
 expired Continuity credential, change a policy family, retire remote sessions,
 or establish post-compromise message confidentiality. Continuity's family is
 bound to its own policy signing key, and its renewal fixes family, signer and SDK
-binding. That migration, foreign-language APIs, installed product consumers and
+binding. That migration, installed product qualification and
 independent security review remain release work; they must not be replaced with
 weaker comparisons or an implicit new installation.
 
 ## C and Swift ownership
+
+The additive recovery API uses `QPeriaptRecoverableStoreOptions`: the same
+size/version prefix, path, candidate signed policy, runtime limits, and explicit
+original scope/initial/recovery roots. `enrollment_signature` is required only
+for `q_periapt_sdk_runtime_provision_recoverable_store`; both open functions
+require its canonical empty form. The enrollment-message and recovery-signing-
+messages helpers produce canonical public statements without granting authority.
+`q_periapt_sdk_runtime_prepare_recovery` changes no state. Retain its exact
+request and collect both signatures before `q_periapt_sdk_runtime_recover_authority`.
+
+An `APPLIED` mutation returns a new runtime handle and revokes the old epoch.
+`ALREADY_APPLIED` and `APPLIED_THEN_ADVANCED` return **zero successor handle** and
+preserve the current owner and children. They must not be treated as new owners.
+`q_periapt_sdk_runtime_open_recovering_store` always returns an owner on success
+because it acquires a new store lease, including when the receipt was already
+applied. A post-commit publication failure reports `ERR_STORE_COMMITTED`; reopen
+using the original authorization instead of assuming rollback. A v1 store reports
+`ERR_RECOVERY_REQUIRED` and is never automatically enrolled.
+
+Swift exposes `QPeriaptPolicyRecoveryTrust`, `QPeriaptPolicyRecoveryRequest`,
+`QPeriaptPolicyRecoveryAuthorization`, and the corresponding persistent runtime
+methods. `recoverAuthority` returns `.applied(owner)`, `.alreadyApplied`, or
+`.appliedThenAdvanced`. Cancellation waits for admitted work and disposes only a
+newly returned owner; cancelling a successful replay leaves the current owner
+usable. Parsing or assembling these public containers is not signature verification.
+The original trust, signed request and exact requested policy must be available
+after process restart. Public test vectors are examples, never deployment roots.
+
+Recovery storage is currently implemented on macOS/Linux. Other platforms expose
+the C symbols but return `ERR_UNSUPPORTED_PLATFORM` for storage operations.
 
 `q_periapt_sdk_runtime_provision_store` and `q_periapt_sdk_runtime_open_store`
 take `QPeriaptStoreOptions`: exact structure size/extension version, UTF-8

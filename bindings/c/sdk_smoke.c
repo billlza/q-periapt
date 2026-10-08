@@ -36,6 +36,12 @@ _Static_assert(sizeof(QPeriaptStoreOptions) == 16 + 8 * sizeof(uintptr_t), "stor
 _Static_assert(offsetof(QPeriaptRuntimeOptions, struct_size) == 0 && offsetof(QPeriaptRuntimeOptions, extension_version) == 4, "runtime prefix");
 _Static_assert(offsetof(QPeriaptStoreOptions, struct_size) == 0 && offsetof(QPeriaptStoreOptions, extension_version) == 4, "store prefix");
 _Static_assert(offsetof(QPeriaptConnectionOptions, struct_size) == 0 && offsetof(QPeriaptConnectionOptions, extension_version) == 4, "connection prefix");
+_Static_assert(offsetof(QPeriaptRecoverableStoreOptions, struct_size) == 0 && offsetof(QPeriaptRecoverableStoreOptions, extension_version) == 4, "recoverable store prefix");
+_Static_assert(offsetof(QPeriaptRecoverableStoreOptions, path) == 8, "recoverable path offset");
+_Static_assert(offsetof(QPeriaptRecoverableStoreOptions, scope) == 8 + 6 * sizeof(uintptr_t), "recoverable scope offset");
+_Static_assert(offsetof(QPeriaptRecoverableStoreOptions, enrollment_signature) == 8 + 12 * sizeof(uintptr_t), "recoverable enrollment offset");
+_Static_assert(offsetof(QPeriaptRecoverableStoreOptions, max_live_keys) == 8 + 14 * sizeof(uintptr_t), "recoverable limits offset");
+_Static_assert(sizeof(QPeriaptRecoverableStoreOptions) == 16 + 14 * sizeof(uintptr_t), "recoverable options size");
 
 static int reject_short_options(void)
 {
@@ -60,6 +66,15 @@ static int reject_short_options(void)
         CHECK(output == UINT64_MAX);
         CHECK(q_periapt_sdk_connection_server_new(0, (const QPeriaptConnectionOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
         CHECK(output == UINT64_MAX);
+        if (words == 2) prefix[0] = sizeof(QPeriaptRecoverableStoreOptions);
+        uint32_t disposition = UINT32_MAX;
+        CHECK(q_periapt_sdk_runtime_provision_recoverable_store((const QPeriaptRecoverableStoreOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        CHECK(q_periapt_sdk_runtime_open_recoverable_store((const QPeriaptRecoverableStoreOptions *)prefix, &output) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX);
+        CHECK(q_periapt_sdk_runtime_open_recovering_store((const QPeriaptRecoverableStoreOptions *)prefix,
+            (QPeriaptInput){NULL, 0}, &output, &disposition) == Q_PERIAPT_ERR_LIMITS);
+        CHECK(output == UINT64_MAX && disposition == UINT32_MAX);
         free(prefix);
     }
     return 0;

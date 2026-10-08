@@ -3,7 +3,9 @@
 This is the current, unpublished source API. Native library identity and ABI
 major remain **2**. The original nine C entry points are unchanged; SDK extension
 revision 1 adds seventeen owner entry points, fourteen connection entry points
-and three persistent-runtime entry points. The frozen 0.1.5 nine-symbol contract and
+and three persistent-runtime entry points, plus seven policy-recovery helpers and
+persistent entry points. All previous 43 declarations and layouts are retained;
+the current unpublished table has 50 exports. The frozen 0.1.5 nine-symbol contract and
 header remain separately verifiable. A 0.1.5 library cannot satisfy a new SDK
 binding's extension requirements.
 
@@ -12,7 +14,7 @@ binding's extension requirements.
 | Platform | Product API | Local verification |
 | --- | --- | --- |
 | Rust | `q_periapt_sdk::Runtime` | Workspace tests, non-clone compile-fail check |
-| C | `q_periapt_sdk_*` from `q_periapt.h` | Independent C11 consumer and exact 43-export contract |
+| C | `q_periapt_sdk_*` from `q_periapt.h` | Independent C11 consumer and exact 50-export contract |
 | Swift | `QPeriaptSDK` package product | Strict concurrency, warnings as errors, actual library tests |
 | Kotlin/JVM | `dev.qperiapt.QPeriaptRuntime` | JDK 25 FFM, Kotlin warnings as errors, actual library tests |
 | Android Java/Kotlin | `dev.qperiapt.android.QPeriaptSDK` | Host JNI execution, fault injection, NDK compilation; ART/device gate remains open |

@@ -258,7 +258,7 @@ def verify_native(root: Path, manifest_sha: str, host: str) -> dict:
     identity = contract.document["package"]["platforms"][platform]
     abi = manifest["abi"]
     exports = hashlib.sha256(("\n".join(sorted(contract.export_names)) + "\n").encode()).hexdigest()
-    require(abi == {"major": 2, "export_count": 43, "platform": platform, "runtime_identity": identity,
+    require(abi == {"major": 2, "export_count": 50, "platform": platform, "runtime_identity": identity,
             "contract_path": SDK_CONTRACT_PATH, "embedded_contract_path": SDK_EMBEDDED_CONTRACT,
             "contract_sha256": contract.sha256, "exports_sha256": exports,
             "shared_filename": identity["shared_filename"], "static_filename": identity["static_filename"]},

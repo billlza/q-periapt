@@ -34,7 +34,7 @@ class CSDKProfileTests(unittest.TestCase):
         shutil.copy2(self.repository / cpm.SDK_CONTRACT_PATH, self.package / cpm.SDK_EMBEDDED_CONTRACT)
         abi = self.manifest["abi"]
         abi.update(contract_path=cpm.SDK_CONTRACT_PATH, embedded_contract_path=cpm.SDK_EMBEDDED_CONTRACT,
-                   contract_sha256=contract.sha256, export_count=43,
+                   contract_sha256=contract.sha256, export_count=50,
                    exports_sha256=hashlib.sha256(("\n".join(sorted(contract.export_names)) + "\n").encode()).hexdigest())
         self.manifest["source_inputs_sha256"] = {
             **cpm.source_fingerprints(self.repository, "sdk-020"),
@@ -71,7 +71,7 @@ class CSDKProfileTests(unittest.TestCase):
                                   **kwargs)
 
     def test_exact_alpha_profile_and_explicit_diagnostic_boundary(self):
-        self.assertEqual(self.verify(profile="sdk-020")["abi"]["export_count"], 43)
+        self.assertEqual(self.verify(profile="sdk-020")["abi"]["export_count"], 50)
         with self.assertRaises(cpm.CPackageManifestError): self.verify()
         self.manifest.update(git_dirty=True, diagnostic_only=True)
         self.seal()

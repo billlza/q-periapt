@@ -3,6 +3,9 @@
 //! Disk work is synchronous and never runs under the registry table lock.
 use super::*;
 
+mod recovery;
+pub use recovery::*;
+
 /// Protected storage is missing, insecure, corrupt, or failed an I/O operation.
 pub const Q_PERIAPT_ERR_STORAGE: i32 = -19;
 /// Another process/owner holds the store's exclusive lifetime lease.

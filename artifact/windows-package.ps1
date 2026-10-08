@@ -1242,7 +1242,7 @@ function Assert-ImportLibrarySymbols {
     if ($Profile -eq "sdk-020") {
         $contractDocument = Get-Content -LiteralPath $Contract -Raw | ConvertFrom-Json
         $expected = @($contractDocument.abi.exports | ForEach-Object { $_.name } | Sort-Object -CaseSensitive)
-        if ($expected.Count -ne 43 -or @($expected | Sort-Object -Unique -CaseSensitive).Count -ne 43) {
+        if ($expected.Count -ne 50 -or @($expected | Sort-Object -Unique -CaseSensitive).Count -ne 50) {
             throw "SDK import-library contract export inventory differs"
         }
         # /LINKERMEMBER:1 emits each public symbol with its member offset.
@@ -1251,7 +1251,7 @@ function Assert-ImportLibrarySymbols {
             $pattern = '(?m)^[ \t]*[0-9A-Fa-f]+[ \t]+' + $prefix + '(?<name>q_periapt_[^\s]+)[ \t]*\r?$'
             $observed = @([regex]::Matches($Output, $pattern) | ForEach-Object { $_.Groups["name"].Value } | Sort-Object -CaseSensitive)
             if ($observed.Count -ne $expected.Count -or ($observed -join ",") -cne ($expected -join ",")) {
-                throw "SDK import-library public symbols differ from the exact 43-export contract"
+                throw "SDK import-library public symbols differ from the exact 50-export contract"
             }
         }
     }
@@ -1860,7 +1860,7 @@ if ($Profile -eq "sdk-020") {
     # header declares dllexport even for static builds. Remove only that
     # storage-class modifier in AWS-LC's x64 MSVC compilation; dllimport,
     # alignment, noinline and every entropy/crypto operation stay intact.
-    # Rust's 43 public exports are unaffected. The final export gate is exact.
+    # Rust's 50 public exports are unaffected. The final export gate is exact.
     $targetCompilerEnvironment["AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc"] = "1"
     $targetCompilerEnvironment["AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc"] = "0"
     $targetCompilerEnvironment["AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"] = $sdkCompilerFlags + ' /Ddllexport='
@@ -2231,7 +2231,7 @@ if ($Profile -eq "sdk-020") {
 
 ## Owned SDK (alpha)
 
-This unpublished candidate uses ABI 2 with the exact 43-export SDK surface,
+This unpublished candidate uses ABI 2 with the exact 50-export SDK surface,
 including the original nine declarations. sdk_smoke.c exercises verified
 runtime owners, platform randomness, expert transfer, purpose derivation,
 revocation and failure handling. The supplied policies are public test data;
