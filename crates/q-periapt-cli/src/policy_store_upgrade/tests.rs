@@ -292,8 +292,28 @@ impl Control {
 }
 #[derive(Debug)]
 struct Instrumented {
-    inner: LockedFileBackend,
+    inner: MigrationBackend,
     control: Arc<Control>,
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn existing_legacy_flock_refuses_migration_before_content_reads() -> TestResult {
+    let dir = directory()?;
+    let root = dir.path().canonicalize()?;
+    let fixture = Fixture::new(12, true);
+    let path = root.join("policy.redb");
+    fixture.write(&path)?;
+    let (key, state) = fixture.trust_files(&root)?;
+    let old_file = OpenOptions::new().read(true).write(true).open(&path)?;
+    let old_owner = redb_legacy::backends::FileBackend::new(old_file)?;
+    let before = fs::read(&path)?;
+    let error = run(&path, &key, &state).expect_err("an old owner's flock must fence migration");
+    assert_eq!(error.stage, "legacy exclusive file lease");
+    assert_eq!(fs::read(&path)?, before);
+    drop(old_owner);
+    run(&path, &key, &state)?;
+    fixture.verify(&path, true)
 }
 impl StorageBackend for Instrumented {
     fn len(&self) -> io::Result<u64> {

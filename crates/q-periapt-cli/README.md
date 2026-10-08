@@ -45,6 +45,12 @@ existing file must have mode `0600`, be owned by the user, have no extended ACL
 and have exactly one link. The command uses the same private path and exclusive
 file-lease admission as the host store. Missing files, symlinks and busy files
 are errors; they never become first-use provisioning.
+On Linux it additionally holds the legacy `flock` on the same open file
+description, since that namespace can be independent of current OFD range
+locks. Both acquisitions must succeed before content inspection. A filesystem
+that cannot provide the required leases is refused; no weaker locking mode is
+selected automatically. This follows the platform's documented
+[flock/fcntl distinction](https://man7.org/linux/man-pages/man2/flock.2.html).
 
 The root input is a raw ML-DSA-65 verification key. The expected state is the
 exact 36-byte `TrustedPolicyState::encode()` value, obtained and retained

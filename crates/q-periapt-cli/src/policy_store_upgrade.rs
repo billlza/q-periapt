@@ -96,6 +96,52 @@ struct Attempt {
     backend: Box<dyn StorageBackend>,
     failure: Mutex<Option<SharedIo>>,
 }
+
+/// Linux's legacy flock and current OFD range locks have separate namespaces.
+/// Acquire both on the same admitted open file description before content reads.
+/// Neither provider may create/drop an independent lock-managing legacy backend.
+#[derive(Debug)]
+struct MigrationBackend {
+    current: LockedFileBackend,
+    #[cfg(target_os = "linux")]
+    legacy_lock: File,
+}
+impl StorageBackend for MigrationBackend {
+    fn len(&self) -> io::Result<u64> {
+        self.current.len()
+    }
+    fn read(&self, offset: u64, bytes: &mut [u8]) -> io::Result<()> {
+        self.current.read(offset, bytes)
+    }
+    fn write(&self, offset: u64, bytes: &[u8]) -> io::Result<()> {
+        self.current.write(offset, bytes)
+    }
+    fn set_len(&self, len: u64) -> io::Result<()> {
+        self.current.set_len(len)
+    }
+    fn sync_data(&self) -> io::Result<()> {
+        self.current.sync_data()
+    }
+    fn try_lock_range(
+        &self,
+        start: Bound<u64>,
+        end: Bound<u64>,
+    ) -> std::result::Result<bool, redb::BackendError> {
+        self.current.try_lock_range(start, end)
+    }
+    fn close(&self) -> io::Result<()> {
+        let current = self.current.close();
+        #[cfg(target_os = "linux")]
+        {
+            // Attempt both unlocks, and do not turn one successful unlock into
+            // success when the other failed. Final descriptor drop is still owned.
+            let legacy = self.legacy_lock.unlock();
+            current.and(legacy)
+        }
+        #[cfg(not(target_os = "linux"))]
+        current
+    }
+}
 impl Attempt {
     fn record<T>(&self, result: io::Result<T>) -> io::Result<T> {
         result.map_err(|error| {
@@ -473,10 +519,14 @@ pub(super) fn run(path: &Path, root_path: &Path, state_path: &Path) -> Result<se
     convert(attempt, &root, state)
 }
 
-fn admit(path: &Path) -> Result<LockedFileBackend> {
+fn admit(path: &Path) -> Result<MigrationBackend> {
     let file = open_private_file(path, false).map_err(|e| at("private-file admission", e))?;
     let probe = file.try_clone().map_err(|e| at("inode probe", e))?;
     let backend = LockedFileBackend::new(file).map_err(|e| at("exclusive file lease", e))?;
+    #[cfg(target_os = "linux")]
+    probe
+        .try_lock()
+        .map_err(|e| at("legacy exclusive file lease", e))?;
     let metadata = probe
         .metadata()
         .map_err(|e| at("locked inode metadata", e))?;
@@ -484,5 +534,9 @@ fn admit(path: &Path) -> Result<LockedFileBackend> {
         return Err(refuse("locked file has an invalid link count or extent"));
     }
     refuse_unclean_foreign_redb(&backend).map_err(|e| at("two-phase recovery admission", e))?;
-    Ok(backend)
+    Ok(MigrationBackend {
+        current: backend,
+        #[cfg(target_os = "linux")]
+        legacy_lock: probe,
+    })
 }
