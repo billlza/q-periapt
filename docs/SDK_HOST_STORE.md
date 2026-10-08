@@ -363,6 +363,12 @@ original file and its independent state/witness material. A separate migration
 operation must preserve the application's schema, authenticated head and
 rollback policy before a legacy deployment can move to the new producer.
 
+The [format-upgrade investigation](../research/sdk-alpha1/evidence/20261008-storage-format-upgrade/README.md)
+records successful interrupted policy-image conversions and continuous-lock
+handoffs, plus legacy-parser and corrupt-header counterexamples. In particular,
+`UpgradeRequired(2)` alone is not sufficient authority to invoke an old parser.
+Those fixture-only programs are not a deployment migration interface.
+
 `LockedFileBackend` obtains an exclusive whole-file lock before checking the
 inode, extent or recovery header. It supports redb's explicit whole-storage
 lock path; shared and byte-range modes are unavailable for protected stores.
