@@ -368,6 +368,10 @@ For the original five-field host policy image, the optional
 provides explicit format conversion on macOS/Linux with an independently
 retained root and exact expected state. Ordinary SDK opens remain unchanged.
 This command does not migrate Continuity state or enroll recovery authority.
+The [standalone maintenance package](POLICY_MAINTENANCE.md) provides the same
+command without a Rust installation. Its native CI lanes build from the
+qualified SDK archives, retain the required notices, and execute the tool after
+archive extraction; candidate availability and release approval remain separate.
 
 The [format-upgrade investigation](../research/sdk-alpha1/evidence/20261008-storage-format-upgrade/README.md)
 records successful interrupted policy-image conversions and continuous-lock

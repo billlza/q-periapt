@@ -143,6 +143,39 @@ def _zip_central_record(data: bytes, member_name: str) -> int:
 
 
 class DeterministicArchiveTests(unittest.TestCase):
+    def test_tar_explicit_executable_roundtrip_rejects_other_permission_policies(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            source = self._source(root)
+            (source / "bin").mkdir()
+            tool = source / "bin/tool"
+            tool.write_bytes(b"#!/bin/sh\nprintf 'archive-executable-pass\\n'\n")
+            tool.chmod(0o755)
+            selected = frozenset({"package/bin/tool"})
+            first, second = root / "first.tar.gz", root / "second.tar.gz"
+            audit = create_tar_gz(source, first, root_name="package", mtime=MTIME, executable_paths=selected)
+            create_tar_gz(source, second, root_name="package", mtime=MTIME, executable_paths=selected)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            self.assertEqual({e.path for e in audit.entries if e.kind == "file" and e.mode == 0o755}, selected)
+            for policy in (frozenset(), frozenset({"package/README.md"}),
+                           frozenset({"package/bin/tool", "package/missing"})):
+                with self.subTest(policy=policy), self.assertRaises(DeterministicArchiveError):
+                    extract_tar_gz(first, root / "rejected", root_name="package", executable_paths=policy)
+                self.assertFalse((root / "rejected").exists())
+            extract_tar_gz(first, root / "installed", root_name="package", executable_paths=selected,
+                           expected_sha256=audit.archive_sha256)
+            installed = root / "installed/package/bin/tool"
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(installed.stat().st_mode), 0o755)
+                import subprocess
+                self.assertEqual(subprocess.check_output([str(installed)]), b"archive-executable-pass\n")
+            self._assert_host_regular_release_file(root / "installed/package/README.md")
+            for name in ("package", "package/bin", "package/missing", "elsewhere/tool", "package/../tool"):
+                with self.subTest(name=name), self.assertRaises(DeterministicArchiveError):
+                    create_tar_gz(source, root / "invalid.tar.gz", root_name="package", mtime=MTIME,
+                                  executable_paths=frozenset({name}))
+                self.assertFalse((root / "invalid.tar.gz").exists())
+
     def _source(self, root: pathlib.Path) -> pathlib.Path:
         source = root / "source"
         (source / "lib").mkdir(parents=True)

@@ -53,7 +53,7 @@ def source_inputs() -> dict:
                  "artifact/policy_store_migration_installed.py", "artifact/third_party_licenses.py",
                  "artifact/deterministic_archive.py", "artifact/rust_sdk_msrv.py",
                  "artifact/apple-sdk-rustc.sh", "artifact/python-run.sh", "artifact/python-env.sh",
-                 "artifact/python_bootstrap.py"):
+                 "artifact/python_bootstrap.py", ".github/workflows/ci.yml"):
         identity["files"][name] = sdk.snapshot(ROOT / name).sha256
     return identity
 
@@ -126,6 +126,9 @@ def qualify(args: argparse.Namespace) -> dict:
                              before["rust_workspace_sha256"])
     sdk.require(report["git_dirty"] is False and report["diagnostic_only"] is False,
                 "maintenance input must be a clean qualified Rust cohort")
+    if args.expected_crate_commit is not None:
+        sdk.require(report["base_commit"] == args.expected_crate_commit,
+                    "maintenance Rust archives do not identify the selected CI commit")
     output = fresh_output_directory(args.output, within=ROOT / "target", label="maintenance output")
     sdk.require(shutil.disk_usage(ROOT).free >= 2 * 1024**3, "maintenance packaging needs 2 GiB free")
     toolchain = args.toolchain_root.resolve(strict=True)
@@ -225,11 +228,13 @@ def qualify(args: argparse.Namespace) -> dict:
     pinned_manifest = sdk.snapshot(package / "MANIFEST.json").sha256
     verify_payload(package, target, pinned_manifest)
     archive = output / f"{package_name}.tar.gz"
-    archives.create_tar_gz(package, archive, root_name=package_name, mtime=epoch)
+    executable_paths = frozenset({f"{package_name}/bin/qperiapt"})
+    archives.create_tar_gz(package, archive, root_name=package_name, mtime=epoch, executable_paths=executable_paths)
     archive_digest = sdk.snapshot(archive, maximum=128 * 1024**2).sha256
     (output / f"{archive.name}.sha256").write_text(f"{archive_digest}  {archive.name}\n")
     installed = outside / "installed"
-    archives.extract_tar_gz(archive, installed, root_name=package_name, mtime=epoch, expected_sha256=archive_digest)
+    archives.extract_tar_gz(archive, installed, root_name=package_name, mtime=epoch, expected_sha256=archive_digest,
+                           executable_paths=executable_paths)
     installed_root = installed / package_name
     verify_payload(installed_root, target, pinned_manifest)
     run("installed", ["sh", "artifact/python-run.sh", "artifact/policy_store_migration_installed.py",
@@ -253,6 +258,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
+    parser.add_argument("--expected-crate-commit")
     parser.add_argument("--toolchain-root", required=True, type=Path)
     parser.add_argument("--cargo-home", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)

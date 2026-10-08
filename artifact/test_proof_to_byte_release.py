@@ -5647,7 +5647,7 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = ((CI_WORKFLOW, 27), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        workflows = ((CI_WORKFLOW, 28), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
         self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
         for path, expected_count in workflows:
             with self.subTest(workflow=path.name):

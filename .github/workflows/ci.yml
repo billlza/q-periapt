@@ -186,6 +186,77 @@ jobs:
             target/sdk-rust-msrv/*.stderr
             target/sdk-rust-msrv/consumer-Cargo.lock
 
+  # One prebuilt maintenance command for all native host-store consumers.
+  # The binaries consume same-run Rust archives outside this checkout.
+  policy-maintenance-package:
+    needs: rust-publish-contract
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - runner: macos-15
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        id: maintenance_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # canonical 1.98.1
+        with:
+          toolchain: 1.98.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/policy-maintenance-input
+      - name: Build, archive, extract and consume the policy maintenance command
+        env:
+          QPERIAPT_PYTHON: ${{ steps.maintenance_python.outputs.python-path }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
+          test "$(rustc +1.98.1 -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
+          cache="$RUNNER_TEMP/qperiapt-maintenance-cargo"
+          mkdir -m 700 "$cache"
+          CARGO_HOME="$cache" cargo +1.98.1 fetch --locked --target "$EXPECTED_TARGET"
+          report=target/policy-maintenance-input/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
+          sh artifact/python-run.sh artifact/policy_maintenance_package.py \
+            --report "$report" --report-sha256 "$report_sha256" \
+            --expected-crate-commit "$EXPECTED_COMMIT" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" --cargo-home "$cache" \
+            --output target/policy-maintenance-package
+      - name: Retain maintenance package and qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: policy-maintenance-${{ matrix.target }}
+          path: |
+            target/policy-maintenance-package/*.tar.gz
+            target/policy-maintenance-package/*.sha256
+            target/policy-maintenance-package/*.json
+            target/policy-maintenance-package/*.stdout
+            target/policy-maintenance-package/*.stderr
+            target/policy-maintenance-package/installed/*.json
+            target/policy-maintenance-package/installed/*.stdout
+            target/policy-maintenance-package/installed/*.stderr
+          if-no-files-found: error
+
   # Windows MSVC face. The suite claims byte-identical output across OSes, not just ISAs,
   # so exercise the full test suite on x86_64-pc-windows-msvc, including the C `ct_shim`
   # (compiled via cc/cl.exe) and the optional pure-Rust SLH-DSA backend.
