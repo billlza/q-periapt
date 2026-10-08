@@ -118,6 +118,15 @@ ADB loses transport. Uninstall is unconfirmed and the job correctly fails.
 The transport cause is unresolved; workload success does not qualify the pair's
 cleanup/export/replay boundary. The current Rust CodeQL run remains separate.
 
+The [parallel push-run comparison](../research/sdk-alpha1/evidence/20261008-android-16k-ci-comparison/README.md)
+retains an existing success at the same Git tree: both Android 16 KiB consumers,
+ownership-checked cleanup, export and independent hosted replay pass. AAR/native
+library, ADB, emulator and system-image hashes match the failed PR run. The AAR
+manifest differs only in commit/time fields; consumer APKs retain distinct run
+IDs and signing material. This establishes observed intermittency under those
+recorded inputs, not its cause or stability. No retry, RAM/image change, or
+acceptance relaxation was used to obtain the comparison.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

@@ -26,3 +26,8 @@ cleanup remain required evidence in any subsequent comparison.
 CAPTURES.zip retains the already-public CI diagnostics, complete job log and the
 separately decoded minimal workload result. A closed member hash inventory binds
 them. Private APK signing material and device-private runtime receipts are absent.
+
+The [parallel push-run comparison](../20261008-android-16k-ci-comparison/README.md)
+records an existing success under the same source tree, AAR and tool/image
+identities. It establishes intermittency and preserves this failed run; it does
+not identify the transport cause or close the stability requirement.
