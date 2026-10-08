@@ -1,0 +1,232 @@
+{
+  "head": "1f6e9edf6fe98a5ff4c572e69c346c7e088e17e5",
+  "fixture_sha256": "0ae50b5a5c7954d0b44e9687d76aa6ba2958f33c06030164df6778c43e055394",
+  "consumer_sha256": "c90dfe1ae9c6f3fb7e9eaa7fdf0a843e259814500cec98c4bb9754cff92151bf",
+  "runs": [
+    {
+      "label": "debug-legacy",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/smoke.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/abi/v0.1.5",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.07824454107321799,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "debug-legacy",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.6405770829878747,
+      "stdout_sha256": "669b526982489b5326bea4ebb65367256890da9c026d3ce54d1248ed21d0c7c4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "debug-owned",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/sdk_smoke.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/include",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-owned"
+      ],
+      "returncode": 0,
+      "seconds": 0.07617687503807247,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "debug-owned",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-owned"
+      ],
+      "returncode": 0,
+      "seconds": 0.16598233277909458,
+      "stdout_sha256": "bb0868f7f3e14addf618f596b4154627dcb55dbb0ce382c78a32ccfa4481deca",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "debug-recovery",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/recovery_consumer.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/include",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/debug",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-recovery"
+      ],
+      "returncode": 0,
+      "seconds": 0.09146845922805369,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "debug-recovery",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-recovery",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/debug-recovery-store/policy.redb"
+      ],
+      "returncode": 0,
+      "seconds": 0.427991374861449,
+      "stdout_sha256": "28eb976b457e030ccce57a9505b82139e66d7df9f1a815fc2b516c6f57260c2c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "a29588b207c169c3e57b06c6d0b5dee13b53b982194733a90d620daab6225765"
+    },
+    {
+      "label": "release-legacy",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/smoke.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/abi/v0.1.5",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.07138670794665813,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    },
+    {
+      "label": "release-legacy",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.14390516583807766,
+      "stdout_sha256": "669b526982489b5326bea4ebb65367256890da9c026d3ce54d1248ed21d0c7c4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    },
+    {
+      "label": "release-owned",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/sdk_smoke.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/include",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-owned"
+      ],
+      "returncode": 0,
+      "seconds": 0.07835675007663667,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    },
+    {
+      "label": "release-owned",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-owned"
+      ],
+      "returncode": 0,
+      "seconds": 0.14384008292108774,
+      "stdout_sha256": "bb0868f7f3e14addf618f596b4154627dcb55dbb0ce382c78a32ccfa4481deca",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    },
+    {
+      "label": "release-recovery",
+      "phase": "compile",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/recovery_consumer.c",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/include",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-recovery"
+      ],
+      "returncode": 0,
+      "seconds": 0.08736545802094042,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    },
+    {
+      "label": "release-recovery",
+      "phase": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-recovery",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/c-source-01/release-recovery-store/policy.redb"
+      ],
+      "returncode": 0,
+      "seconds": 0.27483366592787206,
+      "stdout_sha256": "28eb976b457e030ccce57a9505b82139e66d7df9f1a815fc2b516c6f57260c2c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "library_sha256": "027075a738e886e8fc7f3621d6b70bc126d644541e6cd94bc0d002cadee892ee"
+    }
+  ],
+  "pass": true
+}

@@ -1,0 +1,30 @@
+{
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+  "head": "1f6e9edf6fe98a5ff4c572e69c346c7e088e17e5",
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "artifact/test_sdk_abi2_contract.py",
+    "artifact/test_c_sdk_profile.py",
+    "artifact/test_c_package_manifest.py",
+    "artifact/test_windows_sdk_profile.py",
+    "artifact/test_android_sdk_profile.py",
+    "artifact/test_android_sdk_package.py",
+    "artifact/test_android_elf.py",
+    "artifact/test_jvm_sdk_package.py",
+    "artifact/test_apple_sdk_profile.py",
+    "artifact/test_source_results_assembler.py",
+    "artifact/test_codeql_rust_quality.py",
+    "artifact/test_sdk_jni_contract.py",
+    "artifact/test_sdk_cbom_contract.py"
+  ],
+  "returncode": 0,
+  "seconds": 22.933029833016917,
+  "clean_source_after": true,
+  "head_unchanged": true,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "41094e49aab41b54da8e835e529fe7b2526ef09bf5822434a780d9d6d12c142e"
+}

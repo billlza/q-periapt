@@ -47,6 +47,21 @@ package observations below do not qualify this expanded surface. The 0.1.5 contr
 their original bytes. Earlier alpha.1 observations below remain tied to their
 recorded commits; the 0.2.0 candidate requires fresh source and package checks.
 
+The [2026-10-08 C/Swift policy-recovery qualification](../research/sdk-alpha1/evidence/20261008-c-swift-policy-recovery/README.md)
+records the additive 50-export implementation (`1f6e9edf`) and installed Swift
+five-test gate (`046c0e4c`). It retains a real Swift Debug stack-guard failure and
+the private boxed-image repair, 48 FFI tests on canonical/minimum Rust compilers,
+42 host-store tests, strict Clippy, Swift Debug/Release calls and 189 package
+contract tests. A clean Apple Silicon C archive has real outside-checkout
+shared/static, pkg-config, CMake and frozen-header consumers. The additional
+recovery consumer and five-test SwiftPM consumer use that exact installed native
+archive. The Swift test assembly is a host-only diagnostic XCFramework, not the
+complete Apple release package. Original-operation replay/cancellation preserves
+the current owner unless a new transition applied. v1 migration, Continuity
+account-root migration, current-head hosted CI and other platform/device/security/
+performance release gates remain open. The seven recovery entries do not change
+the original scope of the retained nine stateless functions.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

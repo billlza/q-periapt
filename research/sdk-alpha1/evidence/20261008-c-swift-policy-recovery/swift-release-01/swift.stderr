@@ -1,0 +1,41 @@
+Building for production...
+[Computing dependencies]
+[Pre-planning 1 / 299]
+[Planning deferred tasks]
+[7 / 133]
+[64 / 133]
+[66 / 135] QPeriaptHybrid
+[78 / 176]
+[83 / 176]
+[88 / 176]
+[89 / 176]
+[93 / 176]
+[95 / 176]
+[99 / 176]
+[103 / 176]
+[105 / 176]
+[106 / 176]
+[109 / 176] QPeriaptHybrid
+[119 / 177] QPeriaptHybridTests-product
+[130 / 209]
+[141 / 209] QPeriaptSDK
+[150 / 213]
+[151 / 213]
+[152 / 213]
+[157 / 214] QPeriaptPathProbe-product
+[163 / 216]
+[165 / 216]
+[167 / 217]
+[170 / 217]
+[171 / 217]
+[175 / 217] QPeriaptPathProbe-product
+[176 / 217] QPeriaptPathProbe-product
+[177 / 217] QPeriaptHybridTests-product
+[188 / 217] QPeriaptConnectionProbe-product
+[190 / 217] QPeriaptHybridTests-product
+[193 / 217] QPeriaptHybridTests-product
+[199 / 218] QPeriaptConnectionProbeTests-product
+[201 / 219] QPeriaptSDKTests-product
+[211 / 219] QPeriaptConnectionProbeTests-product
+[215 / 219] QPeriaptConnectionProbeTests-product
+Build complete! (11.91秒)

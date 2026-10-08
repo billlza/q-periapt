@@ -1,0 +1,33 @@
+   Compiling jobserver v0.1.35
+   Compiling pkg-config v0.3.34
+   Compiling cc v1.5.1
+   Compiling dunce v1.0.5
+   Compiling fs_extra v1.3.0
+   Compiling aws-lc-rs v1.18.1
+   Compiling getrandom v0.2.17
+   Compiling untrusted v0.9.0
+   Compiling cmake v0.1.58
+   Compiling rustls-pki-types v1.15.1
+   Compiling aws-lc-sys v0.45.0
+   Compiling ring v0.17.14
+   Compiling q-periapt-mlkem-native-sys v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-mlkem-native-sys)
+   Compiling q-periapt-backends v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-backends)
+   Compiling rustls v0.23.45
+   Compiling q-periapt-sdk v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sdk)
+   Compiling time-core v0.1.9
+   Compiling deranged v0.5.8
+   Compiling powerfmt v0.2.0
+   Compiling log v0.4.34
+   Compiling num-conv v0.2.2
+   Compiling time v0.3.55
+   Compiling base64 v0.23.1
+   Compiling pem v4.0.0
+   Compiling q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+   Compiling yasna v0.6.0
+   Compiling rcgen v0.14.10
+   Compiling rustls-webpki v0.103.15
+   Compiling q-periapt-rustls v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-rustls)
+   Compiling q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.11s
+     Running unittests src/lib.rs (target/native-stack-debug/msrv/debug/deps/q_periapt_ffi_abi2-a689e6a8762d5bf8)
+   Doc-tests q_periapt_ffi_abi2
