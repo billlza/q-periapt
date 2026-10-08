@@ -1,0 +1,216 @@
+{
+  "scope": "Manual source review: six results have scoped dispositions; one multi-sink result is partially reviewed. No remote dismissal or query suppression. Not a complete audit.",
+  "result_index_base": 0,
+  "source_head": "1ca9ba6bc7c4feb3344be0b4a17d2e2e94349dc1",
+  "compared_current_head": "5a9f335b496cebb1377da1bf0f14821e31154402",
+  "all_22_inspected_files_identical": true,
+  "total_sarif_results": 780,
+  "reviewed_results": 7,
+  "remaining_without_disposition_in_this_record": 774,
+  "entries": [
+    {
+      "result_index": 530,
+      "rule_id": "rust/uncontrolled-allocation-size",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-ffi/examples/sdk_path_perf.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 97
+        },
+        "region": {
+          "startLine": 132,
+          "startColumn": 46,
+          "endColumn": 47
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "bf2ab5135a0c1c27:1",
+        "primaryLocationStartColumnFingerprint": "41"
+      },
+      "disposition": "bounded_benchmark_input",
+      "reason": "Both private paired() calls originate from main after 100..=5000 validation; the two Vec<u128> payload capacities sum to at most 160000 bytes."
+    },
+    {
+      "result_index": 531,
+      "rule_id": "rust/uncontrolled-allocation-size",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-ffi/examples/sdk_path_perf.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 97
+        },
+        "region": {
+          "startLine": 132,
+          "startColumn": 69,
+          "endColumn": 70
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "bf2ab5135a0c1c27:1",
+        "primaryLocationStartColumnFingerprint": "64"
+      },
+      "disposition": "bounded_benchmark_input",
+      "reason": "Second SARIF result at the same bounded private benchmark allocation; all call sites use the validated n."
+    },
+    {
+      "result_index": 680,
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-core/src/lib.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 162
+        },
+        "region": {
+          "startLine": 624,
+          "startColumn": 23,
+          "endColumn": 29
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "17a8fbc2f3f5bc01:1",
+        "primaryLocationStartColumnFingerprint": "10"
+      },
+      "disposition": "flow_false_positive",
+      "reason": "0usize initializes a checked transcript-length sum used by reserve(); it is not the bootstrap nonce. Staged nonce creation calls nonce(), which fills all 32 bytes with getrandom and propagates failure."
+    },
+    {
+      "result_index": 681,
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-sdk/src/purpose.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 169
+        },
+        "region": {
+          "startLine": 14,
+          "startColumn": 21,
+          "endColumn": 51
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "22ea16db3f77e929:1",
+        "primaryLocationStartColumnFingerprint": "20"
+      },
+      "disposition": "intentional_public_kdf_parameter",
+      "reason": "The versioned public salt enters HKDF-Extract alongside the KEM secret. Purpose/policy/root/label/context enter Expand info. A public fixed HKDF salt is not a hard-coded secret or password-KDF claim."
+    },
+    {
+      "result_index": 693,
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-sdk/src/lib.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 165
+        },
+        "region": {
+          "startLine": 315,
+          "startColumn": 13,
+          "endLine": 316,
+          "endColumn": 38
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "c461433f691b47b9:1",
+        "primaryLocationStartColumnFingerprint": "0"
+      },
+      "disposition": "flow_false_positive",
+      "reason": "is_enabled returns a configuration boolean. The reported journal AEAD key is a distinct JournalKey loaded from the protected key file or generated with getrandom, not that boolean."
+    },
+    {
+      "result_index": 695,
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-core/src/lib.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 162
+        },
+        "region": {
+          "startLine": 125,
+          "startColumn": 14,
+          "endColumn": 22
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "64a9ef7be318adcc:1",
+        "primaryLocationStartColumnFingerprint": "5"
+      },
+      "disposition": "partially_reviewed",
+      "reason": "Four emitted traces are explained by full HKDF writes before AEAD: signing-owner persistence and traffic message keys. The result actually names 23 sinks; the remaining 19 are not all reviewed in this record. Initialization alone is not evidence of a zero operational key, but this result remains open.",
+      "reviewed_related_location_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "not_fully_reviewed_related_location_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    {
+      "result_index": 696,
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "primary_location": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-sdk/src/lib.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 165
+        },
+        "region": {
+          "startLine": 303,
+          "startColumn": 27,
+          "endColumn": 34
+        }
+      },
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "c88323f9d4b97b5d:1",
+        "primaryLocationStartColumnFingerprint": "18"
+      },
+      "disposition": "flow_false_positive",
+      "reason": "All 68 initial zero bytes are overwritten by the public 32-byte root digest and 36-byte trusted state. policy_binding is public metadata; reported nonce/key sinks use separate nonce and JournalKey fields."
+    }
+  ],
+  "related_repair": {
+    "result_index": 187,
+    "status": "Path finding remains separate/open; investigation found and fixed an independent CLI per-file read-budget race in commit 5a9f335b496cebb1377da1bf0f14821e31154402."
+  },
+  "normative_reference": "https://www.rfc-editor.org/rfc/rfc5869.html#section-3.1",
+  "artifacts": {
+    "PROVENANCE.json": {
+      "bytes": 3724,
+      "sha256": "e7499dc9c0e53cdb49d4abdc8f5fcca685a145bdee52e6568a0f33e388f17074"
+    },
+    "SOURCE_IDENTITY.json": {
+      "bytes": 5622,
+      "sha256": "105472bc3babcc74fcf8af408434392014f3ab9258d77345169b8362d463602e"
+    },
+    "selected-results.json.gz": {
+      "bytes": 9378,
+      "sha256": "1e520229033aef0853dac925526be04e5cbea5f0f2340efadfd19b737c429d10"
+    }
+  },
+  "release_claim_eligible": false,
+  "completed_dispositions": 6,
+  "partially_reviewed_results": 1
+}

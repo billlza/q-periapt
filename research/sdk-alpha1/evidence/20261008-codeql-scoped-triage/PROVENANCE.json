@@ -1,0 +1,115 @@
+{
+  "run": 37703091965,
+  "job": 113070951972,
+  "head_sha": "1ca9ba6bc7c4feb3344be0b4a17d2e2e94349dc1",
+  "checkout_commit": "d31e67ba573d9b1dcfd7bde112d567b09e82fced",
+  "checkout_parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "1ca9ba6bc7c4feb3344be0b4a17d2e2e94349dc1"
+  ],
+  "checkout_tree": "81a8cce6454db1e70da51bc9e0b3a4c8aebe0b7d",
+  "head_tree": "81a8cce6454db1e70da51bc9e0b3a4c8aebe0b7d",
+  "tree_equal": true,
+  "artifact_id": 11522923268,
+  "artifact_sha256": "c2ef83c357164ff4b7d853abb9e6f33e7d20fd67e4fc375b12cccf40534c1c6c",
+  "sarif_sha256": "1b1f796d6b43da056d0139dc8c8501534354c3cfc26ee85e723eae88272843ab",
+  "checkout_log_excerpt": [
+    {
+      "line": 104,
+      "text": "2026-10-07T23:38:38.4322475Z ##[group]Checking out the ref"
+    },
+    {
+      "line": 105,
+      "text": "2026-10-07T23:38:38.4326660Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/111/merge"
+    },
+    {
+      "line": 106,
+      "text": "2026-10-07T23:38:38.7875214Z Note: switching to 'refs/remotes/pull/111/merge'."
+    },
+    {
+      "line": 107,
+      "text": "2026-10-07T23:38:38.7875672Z "
+    },
+    {
+      "line": 108,
+      "text": "2026-10-07T23:38:38.7876064Z You are in 'detached HEAD' state. You can look around, make experimental"
+    },
+    {
+      "line": 109,
+      "text": "2026-10-07T23:38:38.7876567Z changes and commit them, and you can discard any commits you make in this"
+    },
+    {
+      "line": 110,
+      "text": "2026-10-07T23:38:38.7877331Z state without impacting any branches by switching back to a branch."
+    },
+    {
+      "line": 111,
+      "text": "2026-10-07T23:38:38.7877817Z "
+    },
+    {
+      "line": 112,
+      "text": "2026-10-07T23:38:38.7878308Z If you want to create a new branch to retain commits you create, you may"
+    },
+    {
+      "line": 113,
+      "text": "2026-10-07T23:38:38.7878929Z do so (now or later) by using -c with the switch command. Example:"
+    },
+    {
+      "line": 114,
+      "text": "2026-10-07T23:38:38.7880007Z "
+    },
+    {
+      "line": 115,
+      "text": "2026-10-07T23:38:38.7880176Z   git switch -c <new-branch-name>"
+    },
+    {
+      "line": 116,
+      "text": "2026-10-07T23:38:38.7880614Z "
+    },
+    {
+      "line": 117,
+      "text": "2026-10-07T23:38:38.7880753Z Or undo this operation with:"
+    },
+    {
+      "line": 118,
+      "text": "2026-10-07T23:38:38.7881006Z "
+    },
+    {
+      "line": 119,
+      "text": "2026-10-07T23:38:38.7881117Z   git switch -"
+    },
+    {
+      "line": 120,
+      "text": "2026-10-07T23:38:38.7881268Z "
+    },
+    {
+      "line": 121,
+      "text": "2026-10-07T23:38:38.7881543Z Turn off this advice by setting config variable advice.detachedHead to false"
+    },
+    {
+      "line": 122,
+      "text": "2026-10-07T23:38:38.7881927Z "
+    },
+    {
+      "line": 123,
+      "text": "2026-10-07T23:38:38.7882711Z HEAD is now at d31e67b Merge 1ca9ba6bc7c4feb3344be0b4a17d2e2e94349dc1 into 7ed1f96a7ec33732f02a989dd5a4669cdcce39ad"
+    },
+    {
+      "line": 124,
+      "text": "2026-10-07T23:38:38.8008091Z ##[endgroup]"
+    },
+    {
+      "line": 125,
+      "text": "2026-10-07T23:38:38.8017235Z [command]/usr/bin/git log -1 --format=%H"
+    },
+    {
+      "line": 126,
+      "text": "2026-10-07T23:38:38.8058905Z d31e67ba573d9b1dcfd7bde112d567b09e82fced"
+    },
+    {
+      "line": 1937,
+      "text": "2026-10-07T23:44:06.1450095Z CODEQL_RUST_CHECKOUT_PASS commit=d31e67ba573d9b1dcfd7bde112d567b09e82fced"
+    }
+  ],
+  "log_scope": "Only checkout and checkout-guard evidence is retained here. Local job-log download was deliberately stopped after these lines; it is not a complete job log. Complete diagnostic artifact and SARIF are retained separately."
+}

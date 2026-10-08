@@ -6,6 +6,17 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## 2026-10-08 scoped CodeQL follow-up
+
+The [source-bound SARIF review](../research/sdk-alpha1/evidence/20261008-codeql-scoped-triage/README.md)
+records six specific dispositions and one partially reviewed multi-sink result
+from the successful `1ca9ba6b` analysis. The actual PR merge tree matches that
+head; 22 inspected files also match `5a9f335b`. Of 780 results, 774 still lack a
+completed disposition in this record. No remote dismissal, query suppression or
+cryptographic parameter change was made. The independently discovered scanner
+read-budget defect has a separate tested repair; it does not close filesystem
+confinement or the broader security review.
+
 ## Original installation recovery checkpoint
 
 Frozen source archive
