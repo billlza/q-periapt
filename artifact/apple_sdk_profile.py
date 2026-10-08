@@ -379,7 +379,7 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
     arguments = ["--package-path", str(consumer), "--scratch-path", str(temporary / "build")]
     tests = run("swift-test", ["swift", "test", *arguments, "-Xswiftc", "-strict-concurrency=complete",
                                 "-Xswiftc", "-warnings-as-errors"])
-    if b"Executed 4 tests, with 0 failures" not in tests:
+    if b"Executed 5 tests, with 0 failures" not in tests:
         raise ValueError("installed Swift SDK test count differs")
     output = Path(run("swift-bin", ["swift", "build", *arguments, "--show-bin-path"]).decode().strip())
     if not output.resolve(strict=True).is_relative_to(temporary):
@@ -394,7 +394,7 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
         raise ValueError("installed SwiftPM selection differs from the exact packaged macOS slice")
     verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock", expected_native_files=expected_native_files)
     return {"kind": "qperiapt.swift_sdk_installed_consumer", "outside_source_checkout": True,
-            "archive_sha256": archive_sha, "executed_tests": 4, "failures": 0,
+            "archive_sha256": archive_sha, "executed_tests": 5, "failures": 0,
             "warning_or_error_diagnostics": 0, "log_sha256": records,
             "selected_static_archive_sha256": selected.sha256,
             "probe_sha256": read_regular_snapshot(probe, maximum=64 * 1024 * 1024, label="installed SDK probe").sha256}
