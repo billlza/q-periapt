@@ -9,11 +9,17 @@ kept separate from completed observations.
 ## 2026-10-08 scoped CodeQL follow-up
 
 The [source-bound SARIF review](../research/sdk-alpha1/evidence/20261008-codeql-scoped-triage/README.md)
-records six specific dispositions and one partially reviewed multi-sink result
+records six specific dispositions and an initially partial multi-sink result
 from the successful `1ca9ba6b` analysis. The actual PR merge tree matches that
-head; 22 inspected files also match `5a9f335b`. Of 780 results, 774 still lack a
-completed disposition in this record. No remote dismissal, query suppression or
-cryptographic parameter change was made. The independently discovered scanner
+head; 22 inspected files also match `5a9f335b`. The subsequent
+[key-initialization review](../research/sdk-alpha1/evidence/20261008-codeql-key-initialization/README.md)
+checks all 23 named sinks of result 695, including producer, persisted-key and
+erased-state paths. Its 21 source files match `db9cac63` byte for byte. The
+buffers are filled before these cryptographic uses; the reported initial zero
+value is not a hard-coded operational key. Of that original 780-result analysis,
+773 still lack a completed disposition. These counts do not apply automatically
+to newer analyses. No remote dismissal, query suppression or cryptographic
+parameter change was made. The independently discovered scanner
 read-budget defect has a separate tested repair; it does not close filesystem
 confinement or the broader security review.
 

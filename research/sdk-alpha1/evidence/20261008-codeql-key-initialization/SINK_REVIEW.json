@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:21:44.502533+00:00",
+  "analysis_run": 37703091965,
+  "analysis_job": 113070951972,
+  "sarif_sha256": "1b1f796d6b43da056d0139dc8c8501534354c3cfc26ee85e723eae88272843ab",
+  "result_index_zero_based": 695,
+  "rule_id": "rust/hard-coded-cryptographic-value",
+  "related_sink_count": 23,
+  "available_traces": 4,
+  "reviewed_commit": "db9cac63870bded76e7b5b3212e720f697047d23",
+  "disposition": "The reported zero-initialization source is overwritten before these key uses, or is erased state that is fenced from further key use; not a hard-coded operational key finding.",
+  "sinks": [
+    {
+      "sink_id": 1,
+      "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "line": 62,
+      "evidence": "JournalKey::signing_owner_key fills all 32 bytes using HKDF expand; failure propagates before AEAD construction (durable.rs:243-251)."
+    },
+    {
+      "sink_id": 2,
+      "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "line": 92,
+      "evidence": "Same signing-owner HKDF key path as sink 1; decryption uses the returned initialized key."
+    },
+    {
+      "sink_id": 3,
+      "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+      "line": 429,
+      "evidence": "messages::step expands 64 bytes, then key() copies exact 32-byte halves; send calls step before constructing the cipher (messages.rs:186-225)."
+    },
+    {
+      "sink_id": 4,
+      "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+      "line": 523,
+      "evidence": "Receive uses a key from the same step or a previously stored skipped message key. The zeroed exhausted receive chain is fenced by receive_limit before further stepping (traffic.rs:448-537)."
+    },
+    {
+      "sink_id": 5,
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "line": 1623,
+      "evidence": "The test attacker calls the real step on the deliberately disclosed chain before each forged frame; the input is not a zero initializer (tests.rs:1604-1623)."
+    },
+    {
+      "sink_id": 6,
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "line": 1716,
+      "evidence": "The isolated key-only replacement test fills fresh with getrandom before copying it to the chain and deriving the message key (tests.rs:1686-1703). This does not endorse that candidate transition."
+    },
+    {
+      "sink_id": 7,
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "line": 982,
+      "evidence": "JournalKey::provision fills its complete allocation through getrandom; read_file fills it through read_exact before returning. Both errors propagate; sink receives that private JournalKey field (durable.rs:264-280,323-342)."
+    },
+    {
+      "sink_id": 8,
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "line": 1017,
+      "evidence": "Same JournalKey owner/read path as sink 7, used to decrypt the authenticated journal image."
+    },
+    {
+      "sink_id": 9,
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 830,
+      "evidence": "Initial MAC key comes from SharedSecret::derive_key/export_for_protocol; later bootstrap confirmations come from schedule/derive. Both fill the complete HKDF output; export copies all bytes. The independent vector test also derives from explicit synthetic IKM (bootstrap.rs:811-827,884-907,959-966,1935-1965; sdk/purpose.rs:64-92)."
+    },
+    {
+      "sink_id": 10,
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 835,
+      "evidence": "Verification uses the same initial_key/schedule-derived confirmation objects; ResponderState::Prepared holds the derived initiator confirmation. Closed/Idle or removed confirmation fails first (bootstrap.rs:641-661,873-874,1026-1028)."
+    },
+    {
+      "sink_id": 11,
+      "path": "research/continuity-identity-candidate/src/durable/cancellation.rs",
+      "line": 348,
+      "evidence": "Direct HKDF expansion overwrites the entire derived buffer and propagates failure before HMAC (cancellation.rs:341-349)."
+    },
+    {
+      "sink_id": 12,
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure/archive.rs",
+      "line": 18,
+      "evidence": "Direct archive-domain HKDF expansion overwrites derived and propagates failure before HMAC (closure/archive.rs:10-19)."
+    },
+    {
+      "sink_id": 13,
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+      "line": 91,
+      "evidence": "begin_session_closure fills the report key with getrandom before report_mac. Reopen decodes exact key bytes with key(); the zero placeholder paired with absent report returns None (closure.rs:70-84,315-324)."
+    },
+    {
+      "sink_id": 14,
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+      "line": 101,
+      "evidence": "begin_fanout_cleanup fills all key bytes with getrandom before report_mac, persists that same key, and reopening decodes the stored key for Abandoning. Reserved/terminal placeholders do not become that key (fanout/abandonment.rs:280-305; fanout/codec.rs:155-173)."
+    },
+    {
+      "sink_id": 15,
+      "path": "research/continuity-identity-candidate/src/durable/anchoring/tests.rs",
+      "line": 2026,
+      "evidence": "The adversarial test opens the actual journal key then calls write_intent_key, whose complete HKDF output is used to MAC the deliberately changed body (anchoring/tests.rs:2023-2027; durable.rs:233-241)."
+    },
+    {
+      "sink_id": 16,
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "line": 455,
+      "evidence": "Direct root-derived confirmation HKDF overwrites secret with error propagation before HMAC (rekey/completion.rs:448-456)."
+    },
+    {
+      "sink_id": 17,
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "line": 155,
+      "evidence": "Direct responder-confirmation HKDF overwrites secret with error propagation before HMAC (rekey/response.rs:147-156)."
+    },
+    {
+      "sink_id": 18,
+      "path": "research/continuity-identity-candidate/src/durable/messages/resolution.rs",
+      "line": 217,
+      "evidence": "begin_closed_epoch_resolution fills report_key using getrandom before setting Some and computing the ID; decoding copies exact stored bytes. Absent or erased key returns State, not a zero-key MAC (resolution.rs:216-218,316-320; traffic.rs:182-186)."
+    },
+    {
+      "sink_id": 19,
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/send_budget.rs",
+      "line": 568,
+      "evidence": "The test explicitly expands the root into the entire mac_key with expect before computing its forged confirmation (tests/send_budget.rs:561-568). Test location alone is not the disposition."
+    },
+    {
+      "sink_id": 20,
+      "path": "research/continuity-identity-candidate/src/durable/retired_report.rs",
+      "line": 340,
+      "evidence": "Direct retired-report HKDF overwrites derived and propagates failure before HMAC (retired_report.rs:332-341)."
+    },
+    {
+      "sink_id": 21,
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "line": 1972,
+      "evidence": "The test expands the recovered root into the entire confirmation buffer before verifying the actual peer tag (tests.rs:1964-1975)."
+    },
+    {
+      "sink_id": 22,
+      "path": "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs",
+      "line": 48,
+      "evidence": "Direct terminal-receipt HKDF overwrites derived and propagates failure before HMAC (write_intent/retired_cleanup/erasure.rs:40-49)."
+    },
+    {
+      "sink_id": 23,
+      "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+      "line": 336,
+      "evidence": "write_intent_key fills the complete derived output before authenticator receives it; failure propagates (durable.rs:233-241; write_intent.rs:334-337)."
+    }
+  ],
+  "old_analysis_completed_dispositions": 7,
+  "old_analysis_results_without_completed_disposition": 773,
+  "limitations": [
+    "Manual source/data-flow review, not a fresh runtime test or proof of the whole protocol.",
+    "Counts apply only to the original 780-result analysis; indices cannot be transferred to newer SARIF files.",
+    "Explicit host-supplied/stored key bytes and deliberately disclosed test keys are separate from an unfilled allocation.",
+    "No claim of universal key quality, entropy health, KDF/AEAD security, nonce uniqueness, or physical erasure."
+  ],
+  "remote_alerts_changed": false,
+  "queries_or_product_code_changed": false,
+  "release_claim_eligible": false
+}
