@@ -123,15 +123,16 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
     """Bind the actual selected foreign cleanup process trace to the same public records."""
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unqualified retirement consumer language")
     text = stdout.decode("utf-8")
-    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [FOREIGN_TEST]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE)) == 1,
+    sdk.require(re.findall(r"^test (\S+) \.\.\. (\S+)$", text, re.MULTILINE) == [(FOREIGN_TEST, "ok")]
+                and len(re.findall(r"^test result:", text, re.MULTILINE)) == 1
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
                 "foreign retirement test did not complete its exact workload")
     checked = export(directory, destination)
     checked["consumer_language"] = language
     checked["scope"] = (
         f"{language} restricted retired-enrollment API across eight actual cleanup processes; "
         "native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. "
-        "Native independent readback checks every original report field; original report/host ACK and "
+        "Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and "
         "logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; "
         "no physical erasure, independent protocol or complete foreign-device lifecycle claim."
     )

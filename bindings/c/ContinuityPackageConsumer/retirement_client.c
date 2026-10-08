@@ -109,6 +109,16 @@ static int retirement_command(int argc,char **argv) {
     } else if(!strcmp(mode,"prepare-ack")) {
         retirement_prepare_ack(handle,path);
     } else if(!strcmp(mode,"erase-journal")) {
+        /* A valid report-retention signature is not a host-accounted ACK. */
+        uint8_t report[3730];enrollment_exact(path,"retirement-report-receipt",report,sizeof(report));
+        if(qpc_retired_v1_erase_journal(handle,report,sizeof(report),&error)!=QPC_AUTHENTICATION)
+            fail("report receipt gained erasure authority");
+        uint32_t state=99;
+        if(qpc_retired_v1_journal_state(handle,&state,&error)!=QPC_CLOSED || state!=99)
+            fail("wrong-purpose receipt retained owner or changed failure output");
+        close_owner(handle);handle=retirement_open(path);
+        require(qpc_retired_v1_journal_state(handle,&state,&error),&error);
+        if(state!=0) fail("wrong-purpose receipt erased the original journal");
         uint8_t ack[3730];enrollment_exact(path,"retirement-ack",ack,sizeof(ack));
         require(qpc_retired_v1_erase_journal(handle,ack,sizeof(ack),&error),&error);_Exit(77);
     } else if(!strcmp(mode,"erase-signer")) {

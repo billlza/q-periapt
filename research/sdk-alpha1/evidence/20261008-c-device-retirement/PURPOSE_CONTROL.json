@@ -1,0 +1,52 @@
+{
+  "recorded_at": "2026-10-08T16:31:13.285728+00:00",
+  "base_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+  "source_files": {
+    "bindings/c/ContinuityPackageConsumer/retirement_client.c": "70f4e518d98c78e7763e567b9cffa994cce4dbdf661d38433981e5c1a2a652a5",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "89b57c41f88c207c453e400cd3b4106ffe0cbccde733b39f1621ea89dc8fc915"
+  },
+  "runtime": {
+    "debug": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 9.65095516690053,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f": "df351cbaffb34494cdb6cbb90be3c76f6a5fa4c6c733fd71adc44c8c6db4f1b0",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose/qpc-c-client": "09ce2c066939de68ad17b7922dd2c5943d5555118ac42361d7c9032609755d38",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59"
+      },
+      "binaries_unchanged": true
+    },
+    "release": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 9.195183292031288,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0": "a692d71e31a1efb8992e1f89d31c3c13f735885212699f90f6a8fddfb1d5940b",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-purpose/qpc-c-client": "1e92d664a5ff26c7c0e29193338187f75f13ef39731e32391491343b5c6c770c",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-purpose/libq_periapt_continuity_c_consumer.dylib": "ef57655b4bba36447623b60af55c27d882cf50bc4d5cac0cfe99519d08049901"
+      },
+      "binaries_unchanged": true
+    }
+  },
+  "core_binaries_unchanged_from_development": true,
+  "control": "Valid purpose-20 report-retention receipt is rejected with QPC_AUTHENTICATION when used as purpose-21 journal-erasure ACK. Admitted owner is consumed with output untouched; exact reopen finds original journal Retained, then the correct ACK completes erasure.",
+  "captures": {
+    "file": "PURPOSE_CAPTURES.zip",
+    "sha256": "88b92aeb88c360c9b81a3a702023b0aab7b4596343716918ec831a1601b48350",
+    "bytes": 126162,
+    "members": 70
+  },
+  "scope": "Both C source-development profiles; supplementary negative control over unchanged native libraries. Separate clean ce70bf83 installed qualification remains in progress.",
+  "release_claim_eligible": false
+}

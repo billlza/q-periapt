@@ -8,9 +8,9 @@ state machine or release operational signer/runtime authority.
 On macOS arm64, Debug and Release each pass eight actual C cleanup processes.
 The workload preserves the complete original report and host accounting, verifies
 the independent purpose-21 acknowledgement, and reconciles exits without completion
-after report persistence, journal erasure and signer erasure. Native Rust reads
-every original report field independently and rejects ordinary enrollment after
-erasure. C also checks preparation snapshots, malformed/short receipt refusal,
+after report persistence, journal erasure and signer erasure. Native Rust
+independently reconstructs and compares the complete report, checks session/message
+accounting and rejects ordinary enrollment after erasure. C also checks preparation snapshots, malformed/short receipt refusal,
 wrong owner kind, cancellation, unchanged error outputs and consumed handles.
 
 The unchanged original C registration reader passes its one executed/27 filtered
@@ -34,3 +34,19 @@ on the same host and implementation. Logical erasure is not physical erasure or
 destruction of backups/wrapping keys. No device, independent-protocol or release
 qualification is claimed. CI now retains native and C retirement public outputs;
 the live Rust CodeQL run must finish and retain its results before another push.
+
+`REVIEW.json` and `REVIEW_CAPTURES.zip` retain the clean-clone source gate and
+32 follow-up artifact tests. The reader rejects additional failed/ignored tests
+with qualified names and extra result summaries, and rechecks both actual C
+profiles. Header/docs now correctly distinguish canonical metadata bytes from
+the separately returned keyed report ID; the cryptographic implementation did
+not change. Installed execution from the frozen `ce70bf83` clone is still a
+separate gate.
+
+`PURPOSE_CONTROL.json` adds a real valid-signature substitution through both C
+profiles: a purpose-20 report-retention receipt cannot authorize purpose-21
+journal erasure. It returns `QPC_AUTHENTICATION`, consumes the admitted owner,
+preserves failure output, and exact reopen observes the original journal still
+Retained. The correct host ACK then completes the original flow. Native library
+bytes are identical to the development component; only the C consumer gained
+this additional negative control.

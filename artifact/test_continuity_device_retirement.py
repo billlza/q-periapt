@@ -55,7 +55,10 @@ class RetirementEvidenceTests(unittest.TestCase):
             for bad in (b"", stdout.replace(b"1 passed", b"0 passed"), stdout + stdout,
                         stdout.replace(b" ... ok", b" ... ignored"),
                         stdout.replace(b"3 filtered", b"28 filtered"),
-                        stdout + b"test unrelated ... ok\n"):
+                        stdout + b"test unrelated ... ok\n",
+                        stdout + b"test fixture::unrelated ... FAILED\n",
+                        stdout + b"test fixture::unrelated ... ignored\n",
+                        stdout + b"test result: FAILED. 0 passed; 1 failed;\n"):
                 with self.subTest(stdout=bad), self.assertRaisesRegex(ValueError, "exact workload"):
                     retirement.export_foreign(bad, root / "source", root / "rejected", language="C")
             with self.assertRaisesRegex(ValueError, "language"):

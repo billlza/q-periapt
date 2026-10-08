@@ -89,8 +89,9 @@ It requires the original enrollment intent, independently pinned witness authori
 exact generation-replacement proposal and permanent old-subject proof. Eight C
 processes exercise the complete original report, durable host accounting,
 independent purpose-21 acknowledgement, logical journal/signer erasure and exact
-reopening after three lost completions. Native Rust separately reads back every
-report field and fences ordinary enrollment after erasure. Debug/Release source
+reopening after three lost completions. Native Rust reconstructs and compares the
+complete report, checks session/message accounting and fences ordinary enrollment
+after erasure. Debug/Release source
 consumption passed; the installed-package producer now requires this workload.
 Fresh archive qualification and Swift/Kotlin typed retirement owners remain open.
 Enrollment, replacement authorization and fresh-generation TLS in this scenario

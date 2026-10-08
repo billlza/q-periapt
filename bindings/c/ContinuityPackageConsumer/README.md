@@ -1225,8 +1225,9 @@ The complete sequence is:
    locally retained original expectation.
 3. `load_report` authenticates both receipts and the complete original state.
    `copy_report` copies exactly the returned length of canonical `QPRDMD01`
-   metadata. The record includes every original view; account/device linkage,
-   lengths and the private MAC must remain protected host metadata.
+   metadata. The record includes every original view; its keyed report ID is
+   returned separately in the report info and original proposal. Protect these
+   identities, account/device linkage and lengths as private host metadata.
 4. Durably save the complete report and deduplicate the application's accounting
    by its report ID. Only then call `prepare_acknowledgement` with those exact
    saved bytes. The SDK does not perform or infer external host effects.
