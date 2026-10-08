@@ -675,3 +675,40 @@ three C raw-input controls. The collector requires the C baseline first and
 pins the endpoint executable and its OpenSSL dependencies. This qualifies the
 independent TLS endpoint; native TLS server pre-processing interruption,
 physical platforms and platform persistence remain separate gates.
+
+## Permanently retired enrolled devices
+
+`ContinuityRetiredEnrollment` is a separate cleanup-only owner over the existing
+native engine. Supply the original `EnrollmentIntent` and independently retained
+`RetiredEnrollmentAuthority`: witness identity/key, exact replacement proposal,
+old subject and signed permanent retirement proof. Construction checks widths;
+native preparation verifies authority. Never use an untrusted response to choose
+its own pin. `prepareOpen` snapshots inputs and `finishOpen` opens existing state.
+Close operational device/peer owners first.
+
+Read `inventory()`, obtain independent inventory retention, and prepare the report.
+Retain its original proposal and obtain the matching witness report receipt.
+`loadReport` returns every canonical byte in `RetiredDeviceReport.canonicalBytes`
+and a separate keyed report ID. Local proposal absence is not witness non-commit.
+Durably save the complete bytes/proposal and account by report ID before calling
+`prepareAcknowledgement` with the actual saved bytes. The SDK does not infer
+external host effects. Only the independently signed purpose-21 ACK authorizes
+`eraseJournal`; report-retention signatures have a different purpose.
+
+After an unknown outcome, inspect the original journal state, prepare the exact
+signer erasure, inspect signer state and erase. Successful `eraseSigner` consumes
+the resource too; close the registry handle afterwards. Native errors after
+admission consume it, while static width rejection precedes admission. Reopen
+the exact original inputs to reconcile, without resetting or changing backups.
+The wrapper retains the existing native owner through each invocation and reuses
+its Cleaner/explicit-close rules. It exposes no raw handle, operational device or
+signer. Java source cannot invoke its private owner constructor.
+
+macOS arm64/JDK 25 private Maven consumers now pass eight actual cleanup processes
+with each Debug/Release C engine under Serial and G1 configurations. Both native
+profiles pass 54 named JVM tests; original registration and wrong-purpose ACK
+refusal also pass. This does not assert that every run triggered collection or
+qualify every JVM's GC behavior. Complete Kotlin distribution qualification,
+Android/WASM persistence, complete foreign replacement and physical erasure or
+power-loss guarantees remain separate. Registration/replacement authorization
+and fresh-generation TLS in this workload still use the native Rust harness.

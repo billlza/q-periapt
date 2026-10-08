@@ -17,8 +17,8 @@ import java.nio.file.attribute.PosixFilePermissions
  * Effect and original identity share one no-clobber file. This fixture is not a
  * production database or protection against adversarial parent-directory moves.
  */
-internal class FixtureRecords(private val directory: Path) {
-    init { require(directory.isAbsolute && Files.isDirectory(directory, NOFOLLOW_LINKS)) }
+internal class FixtureRecords(private val directory: Path, private val maximumBytes: Int = 1_048_576) {
+    init { require(directory.isAbsolute && Files.isDirectory(directory, NOFOLLOW_LINKS) && maximumBytes in 1..8_388_608) }
     private fun name(value: String): Path {
         require(value.matches(Regex("[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}"))) { "invalid record name" }
         return directory.resolve(value)
@@ -27,7 +27,7 @@ internal class FixtureRecords(private val directory: Path) {
     private fun existing(path: Path): ByteArray? {
         val before = try { Files.readAttributes(path, BasicFileAttributes::class.java, NOFOLLOW_LINKS) }
             catch (_: NoSuchFileException) { return null }
-        check(before.isRegularFile && before.size() in 1..1_048_576) { "invalid record shape" }
+        check(before.isRegularFile && before.size() in 1..maximumBytes.toLong()) { "invalid record shape" }
         return FileChannel.open(path, READ, WRITE, NOFOLLOW_LINKS).use { channel ->
             check(channel.size() == before.size()) { "record changed before read" }
             val buffer = ByteBuffer.allocate(before.size().toInt() + 1)
@@ -49,7 +49,7 @@ internal class FixtureRecords(private val directory: Path) {
     }
     fun read(value: String): ByteArray = existing(name(value)) ?: error("original record absent")
     fun retain(value: String, bytes: ByteArray, create: Boolean): Boolean {
-        require(bytes.size in 1..1_048_576) { "record length outside fixture bound" }
+        require(bytes.size in 1..maximumBytes) { "record length outside fixture bound" }
         val path = name(value)
         existing(path)?.let {
             check(it.contentEquals(bytes)) { "retained original record conflicts" }

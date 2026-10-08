@@ -71,6 +71,12 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "RetirementTests": frozenset({
+        "retirementLayoutsMatchTheNativeContract",
+        "retirementAuthorityOwnsInputsAndRejectsBadWidths",
+        "retirementProposalRejectsDirtyAbsenceAndPreservesIdentity",
+        "retirementReportKeepsCompleteBytesAndRejectsUnknownStates",
+    }),
     "RosterRefreshTests": frozenset({
         "retainedRosterProposalOwnsExactScopeAndRejectsOtherDomains",
         "rosterPreparationChecksCanonicalAbsenceAndABI",
@@ -132,7 +138,9 @@ def maven_contract() -> jvm.MavenContract:
         ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
-         "ContinuityEnrollment", "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
+         "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
+         "RetiredReportProposal", "RetiredReportID", "RetiredDeviceReport", "RetiredErasureState",
+         "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
          "PolicyRenewalScope", "PolicyRenewalRequest", "PolicyRenewalStatus", "PolicyRenewalAbandonment",
          "IndependentPolicyProposal", "IndependentPolicyState", "IndependentPolicyProgress",
          "RosterRefreshOutcome", "RosterRefreshResolution", "RosterRefreshID", "RosterPolicySource",
@@ -491,7 +499,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                                             replay=lambda path: verify(stdout, path))
                 traces[label] = {"execution": checked, "public_files": exported}
             from continuity_c_enrollment import qualify_foreign as qualify_enrollment
+            from continuity_device_retirement import qualify_foreign as qualify_retirement
             enrollment = {}
+            retirement = {}
             for collector in ("Serial", "G1"):
                 enrollment_launcher = installed / ("client-enrollment-" + collector.lower())
                 command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", *argv[1:]]
@@ -501,6 +511,8 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 enrollment_digest = sdk.snapshot(enrollment_launcher).sha256
                 enrollment_runtime = dict(env, QPERIAPT_C_OWNER_CLIENT=str(enrollment_launcher),
                                           QPERIAPT_INSTALLED_CLIENT_LANGUAGE="Kotlin")
+                retirement[collector] = qualify_retirement(outside, output, profile, enrollment_runtime, row, run,
+                                                           language="Kotlin", collector=collector)
                 enrollment[collector] = qualify_enrollment(outside, output, profile, enrollment_runtime, row, run,
                                                            language="Kotlin", collector=collector)
                 sdk.require(sdk.snapshot(enrollment_launcher).sha256 == enrollment_digest,
@@ -686,6 +698,13 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityEnrollment")
             sdk.require(not list((installed / "negative-enrollment-classes").glob("**/*.class")),
                         "raw-enrollment negative control produced an executable class")
+            raw_retired = installed / "RawRetiredEnrollmentProbe.java"
+            sdk.copy(consumer / "negative/RawRetiredEnrollmentProbe.java.txt", raw_retired)
+            run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                 "-d", str(installed / "negative-retired-classes"), str(raw_retired)], "negative-raw-retired-" + profile,
+                rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityRetiredEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityRetiredEnrollment")
+            sdk.require(not list((installed / "negative-retired-classes").glob("**/*.class")),
+                        "raw-retired negative control produced an executable class")
             raw_native = installed / "RawNativeOwnerProbe.java"
             sdk.copy(consumer / "negative/RawNativeOwnerProbe.java.txt", raw_native)
             run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
@@ -703,6 +722,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
+                "device_retirement": retirement,
                 "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,

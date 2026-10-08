@@ -91,12 +91,17 @@ processes exercise the complete original report, durable host accounting,
 independent purpose-21 acknowledgement, logical journal/signer erasure and exact
 reopening after three lost completions. Native Rust reconstructs and compares the
 complete report, checks session/message accounting and fences ordinary enrollment
-after erasure. Debug/Release source
-consumption passed; the installed-package producer now requires this workload.
+after erasure. The complete `ce70bf83` native/C installed producer now passes
+both profiles, with the current reader independently checking retirement outputs.
 Swift now has the separate `ContinuityRetiredEnrollment` owner, bounded immutable
 inputs/report outputs and eight actual cleanup processes in both source profiles;
 56 tests per profile and original registration regression pass. Fresh archive
-qualification and Kotlin typed retirement owners remain open.
+qualification remains separate. Kotlin now delegates the same restricted flow,
+with immutable public inputs/outputs, private owner construction and existing
+Cleaner/call lifetime protection. Private Maven consumers run all eight cleanup
+processes under Serial/G1 with both qualified C engine profiles; 54 JVM tests per
+native profile and original registration regressions pass. Complete Kotlin
+distribution and platform qualification remain open.
 Enrollment, replacement authorization and fresh-generation TLS in this scenario
 still use Rust. It does not establish a complete foreign device-replacement flow,
 physical erasure, an independent protocol implementation or physical-device coverage.
@@ -107,7 +112,7 @@ physical erasure, an independent protocol implementation or physical-device cove
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks, original installation/policy/witness bindings, native/C same-credential enrolled roster continuation and explicit witness authority refresh | Complete product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
-| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C and Swift delegate complete report/host acknowledgement and original journal/signer erasure without operational authority | Current-source archive qualification, Kotlin owner, complete foreign replacement authorization, Android/WASM persistence and physical-device evidence |
+| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority | Complete current foreign distribution qualification, foreign replacement authorization, Android/WASM persistence and physical-device evidence |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
 The native fanout methods are in

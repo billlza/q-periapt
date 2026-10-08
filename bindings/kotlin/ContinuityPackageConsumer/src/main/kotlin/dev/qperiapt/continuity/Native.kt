@@ -54,6 +54,11 @@ internal object ContinuityNative {
     private val enrollmentStatusLayout = struct("phase" to JAVA_INT, "signing" to array(32), "journal" to array(32),
         "previous" to checkpointLayout, "next" to checkpointLayout)
     private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
+    private val retiredAuthorityLayout = struct("witness" to array(32), "public_key" to ADDRESS, "public_key_length" to JAVA_LONG,
+        "replacement" to ADDRESS, "replacement_length" to JAVA_LONG, "subject" to array(96), "receipt" to ADDRESS, "receipt_length" to JAVA_LONG)
+    private val retiredInventoryLayout = struct("bytes" to array(313))
+    private val retiredProposalLayout = struct("present" to JAVA_INT, "bytes" to array(353), "reserved" to array(3))
+    private val retiredReportInfoLayout = struct("length" to JAVA_LONG, "views" to JAVA_INT, "reserved" to JAVA_INT, "report" to array(32))
     private val rosterResolutionLayout = struct("outcome" to JAVA_INT, "reserved" to JAVA_INT,
         "journal" to array(32), "previous" to checkpointLayout, "target" to checkpointLayout,
         "observed" to checkpointLayout, "observed_at" to JAVA_LONG)
@@ -140,6 +145,7 @@ internal object ContinuityNative {
     private val prepareResumeSetup = function("qpc_setup_v1_prepare_resume", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val prepareCreateEnrollment = function("qpc_enrollment_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val prepareResumeEnrollment = function("qpc_enrollment_v1_prepare_resume", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
+    private val prepareRetiredEnrollment = function("qpc_retired_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
@@ -250,6 +256,19 @@ internal object ContinuityNative {
         "account_skipped" to function("qpc_recovery_v1_account_skipped", JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
         "account_acknowledge" to function("qpc_recovery_v1_account_acknowledge", JAVA_LONG, ADDRESS, ADDRESS),
         "account_retire" to function("qpc_recovery_v1_account_retire", JAVA_LONG, ADDRESS),
+        "retired_inventory" to function("qpc_retired_v1_inventory", JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_prepare_report" to function("qpc_retired_v1_prepare_report", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_report_proposal" to function("qpc_retired_v1_report_proposal", JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_load_report" to function("qpc_retired_v1_load_report", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_copy_report" to function("qpc_retired_v1_copy_report", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS),
+        "retired_prepare_acknowledgement" to function("qpc_retired_v1_prepare_acknowledgement", JAVA_LONG,
+            ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_acknowledgement_proposal" to function("qpc_retired_v1_acknowledgement_proposal", JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_journal_state" to function("qpc_retired_v1_journal_state", JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_erase_journal" to function("qpc_retired_v1_erase_journal", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS),
+        "retired_prepare_signer_erasure" to function("qpc_retired_v1_prepare_signer_erasure", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS),
+        "retired_signer_state" to function("qpc_retired_v1_signer_state", JAVA_LONG, ADDRESS, ADDRESS),
+        "retired_erase_signer" to function("qpc_retired_v1_erase_signer", JAVA_LONG, ADDRESS),
     )
     private fun offset(layout: MemoryLayout, name: String) = layout.byteOffset(MemoryLayout.PathElement.groupElement(name))
     private fun malformed(message: String): Nothing = throw ContinuityBoundaryFailure(message)
@@ -354,6 +373,89 @@ internal object ContinuityNative {
         }
     }
     @JvmSynthetic internal fun simple(handle: Long, operation: String) = Arena.ofConfined().use { invoke(it, operation, handle) }
+    @JvmSynthetic internal fun prepareRetired(path: String, intent: EnrollmentIntent, authority: RetiredEnrollmentAuthority): Long =
+        Arena.ofConfined().use { arena ->
+            val pathBytes = text(path, 4096)
+            val input = arena.allocate(retiredAuthorityLayout)
+            input.put(retiredAuthorityLayout, "witness", authority.witness.encoded())
+            input.put(retiredAuthorityLayout, "subject", authority.subject.encoded())
+            for ((name, value) in listOf("public_key" to authority.publicKey, "replacement" to authority.replacement,
+                                         "receipt" to authority.receipt)) {
+                val bytes = value.encoded()
+                input.set(ADDRESS, offset(retiredAuthorityLayout, name), arena.bytes(bytes))
+                input.set(JAVA_LONG, offset(retiredAuthorityLayout, name + "_length"), bytes.size.toLong())
+            }
+            val output = arena.allocate(JAVA_LONG)
+            val error = arena.allocate(errorLayout)
+            val code = prepareRetiredEnrollment.invokeWithArguments(arena.bytes(pathBytes), pathBytes.size.toLong(),
+                encodeEnrollmentIntent(arena, intent), input, output, error) as Int
+            checked("retired_prepare_open", code, error)?.let { throw it }
+            output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("retirement preparation returned a zero handle") }
+        }
+    @JvmSynthetic internal fun retiredInventory(handle: Long): RetiredInventory =
+        record(handle, "retired_inventory", retiredInventoryLayout) { RetiredInventory.decode(it.bytes("bytes", 313)) }
+    @JvmSynthetic internal fun decodeRetiredProposal(present: Int, bytes: ByteArray, reserved: ByteArray): RetiredReportProposal? {
+        if (present !in 0..1 || bytes.size != 353 || reserved.size != 3 || reserved.any { it != 0.toByte() }) {
+            malformed("retirement proposal presence or padding differs")
+        }
+        if (present == 0) {
+            if (bytes.any { it != 0.toByte() }) malformed("absent retirement proposal has bytes")
+            return null
+        }
+        return RetiredReportProposal.decode(bytes)
+    }
+    private fun retiredProposal(fields: Fields): RetiredReportProposal? =
+        decodeRetiredProposal(fields.integer("present"), fields.bytes("bytes", 353), fields.bytes("reserved", 3))
+    @JvmSynthetic internal fun retiredProposal(handle: Long, acknowledgement: Boolean): RetiredReportProposal? =
+        record(handle, if (acknowledgement) "retired_acknowledgement_proposal" else "retired_report_proposal",
+            retiredProposalLayout, decode = ::retiredProposal)
+    @JvmSynthetic internal fun prepareRetiredReport(handle: Long, receipt: ByteArray): RetiredReportProposal {
+        require(receipt.size == 3690) { "invalid inventory receipt width" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(retiredProposalLayout)
+            invoke(arena, "retired_prepare_report", handle, arena.bytes(receipt), receipt.size.toLong(), output)
+            retiredProposal(Fields(output, retiredProposalLayout)) ?: malformed("prepared report proposal is absent")
+        }
+    }
+    @JvmSynthetic internal fun loadRetiredReport(handle: Long, inventory: ByteArray, receipt: ByteArray): RetiredDeviceReport {
+        require(inventory.size == 3690 && receipt.size == 3730) { "invalid retirement receipt width" }
+        return Arena.ofConfined().use { arena ->
+            val info = arena.allocate(retiredReportInfoLayout)
+            invoke(arena, "retired_load_report", handle, arena.bytes(inventory), inventory.size.toLong(),
+                arena.bytes(receipt), receipt.size.toLong(), info)
+            val fields = Fields(info, retiredReportInfoLayout)
+            val length = info.get(JAVA_LONG, offset(retiredReportInfoLayout, "length"))
+            val views = fields.integer("views"); val reserved = fields.integer("reserved")
+            if (length !in 323L..8388608L || views !in 1..2 || reserved != 0) malformed("retirement report bounds differ")
+            val bytes = arena.allocate(length)
+            invoke(arena, "retired_copy_report", handle, bytes, length)
+            RetiredDeviceReport.decode(length, views, reserved, fields.bytes("report", 32), bytes.toArray(JAVA_BYTE))
+        }
+    }
+    @JvmSynthetic internal fun prepareRetiredAcknowledgement(handle: Long, inventory: ByteArray, receipt: ByteArray,
+                                                              recorded: ByteArray): RetiredReportProposal {
+        require(inventory.size == 3690 && receipt.size == 3730 && recorded.size in 1..8388608) { "invalid retirement record width" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(retiredProposalLayout)
+            invoke(arena, "retired_prepare_acknowledgement", handle, arena.bytes(inventory), inventory.size.toLong(),
+                arena.bytes(receipt), receipt.size.toLong(), arena.bytes(recorded), recorded.size.toLong(), output)
+            retiredProposal(Fields(output, retiredProposalLayout)) ?: malformed("prepared host acknowledgement is absent")
+        }
+    }
+    @JvmSynthetic internal fun decodeRetiredState(value: Int): RetiredErasureState = when (value) {
+        0 -> RetiredErasureState.RETAINED
+        1 -> RetiredErasureState.ERASED
+        else -> malformed("unknown retirement erasure state")
+    }
+    @JvmSynthetic internal fun retiredState(handle: Long, signer: Boolean): RetiredErasureState = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(JAVA_INT)
+        invoke(arena, if (signer) "retired_signer_state" else "retired_journal_state", handle, output)
+        decodeRetiredState(output.get(JAVA_INT, 0))
+    }
+    @JvmSynthetic internal fun retiredReceipt(handle: Long, receipt: ByteArray, operation: String) {
+        require(receipt.size == 3730) { "invalid host acknowledgement width" }
+        Arena.ofConfined().use { invoke(it, operation, handle, it.bytes(receipt), receipt.size.toLong()) }
+    }
     @JvmSynthetic internal fun decodeSetupStatus(phase: Int, journal: ByteArray): InstallationStatus {
         if (journal.size != 32 || journal.all { it == 0.toByte() }) malformed("native installation journal differs")
         val selected = when (phase) {
@@ -1226,6 +1328,8 @@ internal object ContinuityNative {
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
         "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,
+        "retired_authority" to retiredAuthorityLayout, "retired_inventory" to retiredInventoryLayout,
+        "retired_proposal" to retiredProposalLayout, "retired_report_info" to retiredReportInfoLayout,
         "roster_resolution" to rosterResolutionLayout,
         "credential_renewal_status" to credentialRenewalStatusLayout,
         "credential_renewal_proposal" to credentialRenewalProposalLayout,
@@ -1267,4 +1371,10 @@ internal object ContinuityNative {
         listOf("phase", "operation", "statement", "checkpoint", "observed_at").associateWith {
             offset(credentialRenewalStatusLayout, it)
         }
+    @JvmSynthetic internal fun retiredOffsets(): Map<String, Long> = mapOf(
+        "authority_subject" to offset(retiredAuthorityLayout, "subject"),
+        "authority_receipt" to offset(retiredAuthorityLayout, "receipt"),
+        "proposal_reserved" to offset(retiredProposalLayout, "reserved"),
+        "report_id" to offset(retiredReportInfoLayout, "report"),
+    )
 }

@@ -140,12 +140,15 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
 
 
 def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
-                    native: dict, run, *, language: str) -> dict:
+                    native: dict, run, *, language: str, collector: str | None = None) -> dict:
     """Run the selected foreign executable with the already qualified native harness."""
     import continuity_c_consumer as c
     sdk.require(profile in {"debug", "release"} and language in {"Swift", "Kotlin"}
-                and runtime.get("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") == language,
+                and runtime.get("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") == language
+                and ((language == "Swift" and collector is None)
+                     or (language == "Kotlin" and collector in {"Serial", "G1"})),
                 "unqualified foreign retirement profile")
+    variant = "-" + collector.lower() if collector else ""
     log = sdk.snapshot(output / ("c-retirement-build-" + profile + ".stdout"), maximum=32 * 1024**2)
     binary = c.built_artifact(log.data, outside / "c-consumer", outside / "build" / profile,
                               library=False, test_name="retirement")
@@ -154,12 +157,12 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
     sdk.require(original.sha256 == expected["sha256"] and original.size == expected["bytes"],
                 "foreign retirement native harness changed before execution")
     client = sdk.snapshot(Path(runtime["QPERIAPT_C_OWNER_CLIENT"]), maximum=c.MAX_BINARY)
-    evidence = outside / (language.lower() + "-" + profile + "-retirement-runtime")
+    evidence = outside / (language.lower() + "-" + profile + variant + "-retirement-runtime")
     selected = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
     stdout = run([str(binary), "--exact", FOREIGN_TEST, "--nocapture"],
-                 "retirement-trace-" + profile, runtime=selected)
+                 "retirement-trace-" + profile + variant, runtime=selected)
     directory = evidence.with_name(evidence.name + "-device-retirement") / "public"
-    checked = export_foreign(stdout, directory, output / (language.lower() + "-retirement-public") / profile,
+    checked = export_foreign(stdout, directory, output / (language.lower() + "-retirement-public") / (profile + variant),
                              language=language)
     sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == original.sha256
                 and sdk.snapshot(client.path, maximum=c.MAX_BINARY).sha256 == client.sha256,

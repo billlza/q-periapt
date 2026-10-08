@@ -39,6 +39,7 @@ internal fun waitMarker(name: String) {
     error("fixture marker deadline")
 }
 private fun run(arguments: List<String>): String {
+    if (arguments.firstOrNull() == "retired") return retirementCommand(arguments)
     var args = arguments
     val inFlightGC = args.firstOrNull() == "--gc-in-flight"
     if (inFlightGC) args = args.drop(1)

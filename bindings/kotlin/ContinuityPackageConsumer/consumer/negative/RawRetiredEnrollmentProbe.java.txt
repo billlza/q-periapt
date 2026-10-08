@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+import dev.qperiapt.continuity.ContinuityRetiredEnrollment;
+public final class RawRetiredEnrollmentProbe {
+    public static Object probe() { return new ContinuityRetiredEnrollment(null); }
+}

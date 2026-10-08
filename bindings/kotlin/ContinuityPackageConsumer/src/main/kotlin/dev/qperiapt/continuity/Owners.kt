@@ -73,6 +73,14 @@ internal class NativeOwner private constructor(private val handle: Long, parent:
                 throw failure
             }
         }
+        @JvmSynthetic internal fun <T> prepareRetired(path: String, intent: EnrollmentIntent,
+            authority: RetiredEnrollmentAuthority, wrap: (NativeOwner) -> T): T {
+            val handle = ContinuityNative.prepareRetired(path, intent, authority)
+            return try { wrap(NativeOwner(handle)) } catch (failure: Throwable) {
+                try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+                throw failure
+            }
+        }
     }
 }
 

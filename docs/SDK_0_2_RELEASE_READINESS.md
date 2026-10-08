@@ -146,6 +146,22 @@ device-replacement flow remain open. Prior `737ca3ec` Rust CodeQL completed its
 quality/upload stages and has retained diagnostics, without a new-source security
 claim or completed disposition of its findings.
 
+The [installed Rust/C retirement checkpoint](../research/sdk-alpha1/evidence/20261008-installed-c-retirement/README.md)
+completes the `ce70bf83` archive producer and both native/C profiles, including
+existing lifecycle, fault and OpenSSL witness workloads. The clean `15819e51`
+source gate and all 2660 artifact tests pass after explicitly adding the two
+retirement Rust files to the 427-file extraction census and updating its guide.
+That commit was pushed for CI after prior Rust CodeQL results were retained.
+
+The [Kotlin retirement checkpoint](../research/sdk-alpha1/evidence/20261008-kotlin-device-retirement/README.md)
+adds a restricted owner and a verified outside-checkout private Maven consumer.
+Both qualified C engines run eight JVM cleanup processes under Serial/G1; both
+native profiles pass 54 JVM tests, and original registration plus Java private
+constructor refusal pass. The 23 related tooling tests retain the observed
+checkout-boundary and stale test-census failures. Complete Kotlin distribution,
+full foreign replacement, Android/WASM persistence and device/platform gates
+remain separate.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

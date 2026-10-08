@@ -2249,6 +2249,7 @@ jobs:
             target/continuity-installed-swift/swift-enrollment-public/**
             target/continuity-installed-swift/swift-retirement-public/**
             target/continuity-installed-swift/kotlin-enrollment-public/**
+            target/continuity-installed-swift/kotlin-retirement-public/**
             target/continuity-installed-swift/kotlin-*-tests*.xml
             target/continuity-installed-swift/c-opening-public/**
             target/continuity-installed-swift/c-witness-public/**
