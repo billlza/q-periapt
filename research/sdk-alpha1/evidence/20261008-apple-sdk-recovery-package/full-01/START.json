@@ -1,0 +1,19 @@
+{
+  "at_utc": "2026-10-08T00:54:35.516664+00:00",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+  "head": "eb80aaadd43f750e721df11c3767fc48059ad439",
+  "command": [
+    "sh",
+    "artifact/swift-xcframework.sh",
+    "--profile",
+    "sdk-020"
+  ],
+  "compiler_before": {
+    "rustc": "766eda9d8f53afd6fc7f27b3cd2e444dd22afacb5afa710a5625fc8e45b8c941",
+    "cargo": "6e17e865f3a20dd55a1d212f849f58b77124179f0de7c52973096d84ba34118d",
+    "rustdoc": "8ce1ae78157758d4d75eee1355ed333f27e903ab6b0904e09d326009b333c2ee"
+  },
+  "private_rustup_home": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup",
+  "private_cargo_home": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/apple-cargo-home-ff4a153e",
+  "output_root": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-01"
+}

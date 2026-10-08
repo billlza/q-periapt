@@ -62,6 +62,18 @@ account-root migration, current-head hosted CI and other platform/device/securit
 performance release gates remain open. The seven recovery entries do not change
 the original scope of the retained nine stateless functions.
 
+The [complete Apple package checkpoint](../research/sdk-alpha1/evidence/20261008-apple-sdk-recovery-package/README.md)
+adds source `4d253e72`: all four native targets and three SDK slices pass their
+50-export checks; device/simulator consumers link at the stated deployment
+floors, and five installed Swift tests pass outside the checkout. It also fixes
+an observed SwiftPM checksum cache that dirtied the source checkout, adds the
+unsigned source-drift guard and passes 97 related tests. The full rerun keeps
+source and compiler identities unchanged. A separate run-owned iOS 27 arm64
+simulator app consumes that exact package and completes the four existing SDK
+workload groups, followed by verified app/simulator cleanup. This is simulator
+execution and complete package evidence; physical/minimum-OS runtime acceptance
+and durable iOS policy storage remain open. No Intel macOS support is added.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

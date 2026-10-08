@@ -1,0 +1,37 @@
+{
+  "at_utc": "2026-10-08T00:52:35.165096+00:00",
+  "command": [
+    "/Users/bill/.cargo/bin/rustup",
+    "toolchain",
+    "install",
+    "1.98.1-aarch64-apple-darwin",
+    "--profile",
+    "minimal",
+    "--no-self-update",
+    "--no-update",
+    "--component",
+    "llvm-tools",
+    "--target",
+    "aarch64-apple-ios-sim,x86_64-apple-ios"
+  ],
+  "returncode": 0,
+  "seconds": 0.17727049998939037,
+  "rustup_home": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup",
+  "cargo_home": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/apple-cargo-home-ff4a153e",
+  "binaries_before": {
+    "rustc": "766eda9d8f53afd6fc7f27b3cd2e444dd22afacb5afa710a5625fc8e45b8c941",
+    "rustdoc": "8ce1ae78157758d4d75eee1355ed333f27e903ab6b0904e09d326009b333c2ee",
+    "cargo": "6e17e865f3a20dd55a1d212f849f58b77124179f0de7c52973096d84ba34118d"
+  },
+  "binaries_after": {
+    "rustc": "766eda9d8f53afd6fc7f27b3cd2e444dd22afacb5afa710a5625fc8e45b8c941",
+    "rustdoc": "8ce1ae78157758d4d75eee1355ed333f27e903ab6b0904e09d326009b333c2ee",
+    "cargo": "6e17e865f3a20dd55a1d212f849f58b77124179f0de7c52973096d84ba34118d"
+  },
+  "targets": [
+    "aarch64-apple-darwin",
+    "aarch64-apple-ios"
+  ],
+  "stdout_sha256": "f92b20b62d853b6f6ec9a13ebc9d9e4e626b315fc2ba00e4cf2e476dd791204e",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
