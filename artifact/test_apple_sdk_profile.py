@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import stat
 import subprocess
+import textwrap
 import tempfile
 import unittest
 import zipfile
@@ -16,6 +17,62 @@ from test_apple_distribution import archive_bytes, thin_archive, write_zip_entry
 
 
 class AppleSDKProfileTests(unittest.TestCase):
+    def test_unsigned_packages_reject_source_drift_before_reporting_success(self):
+        builder = (sdk.ROOT / "artifact/swift-xcframework.sh").read_text()
+        function = builder.split("assert_release_source_snapshot() {\n", 1)[1].split(
+            "\n}\nassert_release_source_snapshot", 1)[0]
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary).resolve(strict=True)
+            checkout = parent / "checkout"
+            checkout.mkdir()
+            environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
+
+            def git(*arguments):
+                return subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "-C", str(checkout), *arguments],
+                                      env=environment, text=True, capture_output=True, check=True).stdout.strip()
+
+            git("init", "-q")
+            (checkout / "input.txt").write_text("source input\n")
+            git("add", "input.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "input")
+            original = git("rev-parse", "HEAD")
+            harness = parent / "harness.sh"
+            harness.write_text(textwrap.dedent('''\
+                #!/bin/sh
+                set -eu
+                ROOT=$1
+                SOURCE_COMMIT=$2
+                APPLE_RELEASE_MODE=$3
+                QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK=$4
+                QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT=$SOURCE_COMMIT
+                QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT=$ROOT
+                release_git() { git -C "$ROOT" "$@"; }
+                assert_release_source_snapshot() {
+                ''') + function + "\n}\nassert_release_source_snapshot\n")
+
+            def check(mode, dirty, passes, message=""):
+                result = subprocess.run(["sh", str(harness), str(checkout), original, mode, dirty],
+                                        env=environment, text=True, capture_output=True, check=False)
+                self.assertEqual(result.returncode == 0, passes, result.stderr)
+                if message:
+                    self.assertIn(message, result.stderr)
+
+            for mode in ("0", "1"):
+                check(mode, "0", True)
+            generated = checkout / "unexpected-cache"
+            generated.write_text("generated outside the build directory\n")
+            check("0", "0", False, "worktree changed")
+            check("1", "0", False, "worktree changed")
+            check("0", "1", True)  # Explicit unsigned diagnostics retain their existing allowance.
+            check("1", "1", False, "worktree changed")
+            generated.unlink()
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "--allow-empty", "-qm", "different commit")
+            for mode in ("0", "1"):
+                for dirty in ("0", "1"):
+                    check(mode, dirty, False, "commit changed")
+
     def test_platform_inventory_excludes_intel_macos_but_retains_ios_simulator(self):
         self.assertEqual(sdk.HOST_TARGETS, ("aarch64-apple-darwin",))
         self.assertEqual(sdk.TARGETS, ("aarch64-apple-darwin", "aarch64-apple-ios",

@@ -363,12 +363,24 @@ if ! SOURCE_COMMIT=$(release_git rev-parse HEAD); then
 	exit 2
 fi
 assert_release_source_snapshot() {
-	if [ "$APPLE_RELEASE_MODE" != "1" ]; then
-		return
-	fi
 	if ! current_commit=$(release_git rev-parse HEAD); then
 		printf 'error: unable to revalidate the Apple release source commit\n' >&2
 		exit 1
+	fi
+	if [ "$current_commit" != "$SOURCE_COMMIT" ]; then
+		printf 'error: Apple release source commit changed during the release\n' >&2
+		exit 1
+	fi
+	if ! current_status=$(release_git status --porcelain=v1 --untracked-files=normal); then
+		printf 'error: unable to revalidate the Apple release source worktree\n' >&2
+		exit 1
+	fi
+	if [ "$APPLE_RELEASE_MODE" != "1" ]; then
+		if [ -n "$current_status" ] && [ "${QPERIAPT_ALLOW_DIRTY_SWIFT_XCFRAMEWORK:-0}" != "1" ]; then
+			printf 'error: Apple release source worktree changed during the release\n' >&2
+			exit 1
+		fi
+		return
 	fi
 	if ! current_toplevel=$(release_git rev-parse --show-toplevel) || \
 		! current_common_git_dir=$(release_git rev-parse --path-format=absolute --git-common-dir); then
@@ -380,13 +392,8 @@ assert_release_source_snapshot() {
 		printf 'error: Apple release source is not the expected detached worktree\n' >&2
 		exit 1
 	fi
-	if [ "$current_commit" != "$SOURCE_COMMIT" ] || \
-		[ "$current_commit" != "$QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT" ]; then
+	if [ "$current_commit" != "$QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT" ]; then
 		printf 'error: Apple release source commit changed during the release\n' >&2
-		exit 1
-	fi
-	if ! current_status=$(release_git status --porcelain=v1 --untracked-files=normal); then
-		printf 'error: unable to revalidate the Apple release source worktree\n' >&2
 		exit 1
 	fi
 	if [ -n "$current_status" ]; then
@@ -1013,7 +1020,9 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	codesign --verify --strict --verbose=4 "$ZIP_VERIFY/CQPeriapt.xcframework"
 fi
 
-SWIFTPM_CHECKSUM=$(swift package compute-checksum "$ZIP_PATH")
+# SwiftPM may initialize a build cache even for this read-only checksum command.
+# Keep that cache inside the owned work area instead of dirtying the checkout.
+SWIFTPM_CHECKSUM=$(swift package --scratch-path "$WORK/swift-checksum-build" compute-checksum "$ZIP_PATH")
 
 printf '\n=== Generate isolated SwiftPM binary consumer ===\n'
 if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
