@@ -6,6 +6,15 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Latest retained CodeQL inventory
+
+The [67e1a5b0 inventory](../research/sdk-alpha1/evidence/20261008-codeql-67e1a5-inventory/README.md)
+records successful Rust analysis/quality/upload but a failed aggregate security
+check: 1,607 new PR alerts, 1,616 total open PR alerts and 809 raw Rust SARIF
+results. These counts have different scopes. The complete inventory and source
+identity are retained; this checkpoint completes no new dispositions. Earlier
+scoped conclusions below remain tied to their original analyses.
+
 ## 2026-10-08 scoped CodeQL follow-up
 
 The [source-bound SARIF review](../research/sdk-alpha1/evidence/20261008-codeql-scoped-triage/README.md)
