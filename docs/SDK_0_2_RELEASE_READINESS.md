@@ -74,6 +74,18 @@ workload groups, followed by verified app/simulator cleanup. This is simulator
 execution and complete package evidence; physical/minimum-OS runtime acceptance
 and durable iOS policy storage remain open. No Intel macOS support is added.
 
+The [explicit policy-store enrollment checkpoint](../research/sdk-alpha1/evidence/20261008-policy-store-enrollment/README.md)
+adds `194124cb`'s Rust/C/Swift entry for existing v1 images. It preserves the
+original signed policy and exact floor, requires independently retained recovery
+trust/proof, and reconciles an unknown result without replacing the store or
+clearing authority history. ABI 2 has 51 exports with every prior declaration
+retained. Canonical/minimum Rust tests, actual process/sync faults and Swift
+post-commit cancellation pass. C archive `0ffd7c2b` has actual installed shared/
+static enrollment consumers; complete Apple package `5b3cbfa0` passes all four
+targets, 51-export slices and six outside-checkout Swift consumers. Redb file-
+format migration, Continuity account-root migration, current-head hosted CI and
+physical/platform/security/performance gates remain open.
+
 The [scanner content-budget checkpoint](../research/sdk-alpha1/evidence/20261008-cli-bounded-read/README.md)
 fixes an actual read after a stale file-size check: growing files can no longer
 bypass the 2 MiB content limit. The old reader fails the retained regression;
