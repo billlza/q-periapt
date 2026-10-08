@@ -30,7 +30,7 @@ the legacy installation constructor. Same-credential roster refresh and original
 session restoration preserve the original request, signer and journal. Required
 witness activation checks current signed authority; local Active alone cannot
 release an owner after denial or an unavailable reply. The C interface now has
-64 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
+119 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
 authority transport and final provisioning remain independently supplied inputs;
 see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
 
@@ -84,12 +84,26 @@ qualification, Android/WASM Continuity adapters, replacement/renewal beyond the 
 and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
+The restricted C retirement owner now delegates to native `RetiredDeviceEnrollment`.
+It requires the original enrollment intent, independently pinned witness authority,
+exact generation-replacement proposal and permanent old-subject proof. Eight C
+processes exercise the complete original report, durable host accounting,
+independent purpose-21 acknowledgement, logical journal/signer erasure and exact
+reopening after three lost completions. Native Rust separately reads back every
+report field and fences ordinary enrollment after erasure. Debug/Release source
+consumption passed; the installed-package producer now requires this workload.
+Fresh archive qualification and Swift/Kotlin typed retirement owners remain open.
+Enrollment, replacement authorization and fresh-generation TLS in this scenario
+still use Rust. It does not establish a complete foreign device-replacement flow,
+physical erasure, an independent protocol implementation or physical-device coverage.
+
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
 | Explicit new lineage and exact restart | Native `DeviceEnrollment`, C registration and typed Swift/Kotlin owners commit the original signer/request, accept independent trust inputs and retain the enrollment lease; legacy setup owners delegate Creating/Active transitions with original configured inputs | Current-source archive/device qualification, Android/WASM persistence, authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Signed roster checks, original installation/policy/witness bindings, native/C same-credential enrolled roster continuation and explicit witness authority refresh | Complete product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
+| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C delegates complete report/host acknowledgement and original journal/signer erasure without operational authority | Current-source archive qualification, Swift/Kotlin owners, complete foreign replacement authorization, Android/WASM persistence and physical-device evidence |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
 The native fanout methods are in

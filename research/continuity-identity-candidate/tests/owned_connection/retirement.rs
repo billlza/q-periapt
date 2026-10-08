@@ -65,6 +65,44 @@ fn acknowledged_report(path: &Path) -> Result<Vec<u8>> {
     read(path, "retirement-host-report", 8 * 1024 * 1024)
 }
 
+fn check_report(path: &Path, report: &p::retired_device::Report) -> Result<()> {
+    assert_eq!(report.proposal(), &report_proposal(path)?);
+    assert_eq!(report.views().len(), 1);
+    let view = report
+        .views()
+        .first()
+        .ok_or("complete original report view")?;
+    assert_eq!(view.role, ViewRole::Authoritative);
+    let sessions: Vec<_> = view
+        .records
+        .iter()
+        .filter_map(|record| match &record.metadata {
+            RecordMetadata::Session(session) => Some(session),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(sessions.len(), 1);
+    let session = sessions.first().ok_or("original report session")?;
+    assert_eq!(session.session, array::<32>(path, "session")?);
+    let SessionState::Live { epochs, .. } = &session.state else {
+        return Err("original session became terminal before host ACK".into());
+    };
+    assert_eq!(epochs.len(), 1);
+    let epoch = &epochs.first().ok_or("original report epoch")?.accounting;
+    assert_eq!((epoch.received, epoch.consumed_before), (1, 0));
+    assert_eq!(epoch.deliveries.len(), 1);
+    let delivery = epoch
+        .deliveries
+        .first()
+        .ok_or("unconsumed original input")?;
+    assert_eq!(
+        delivery.message.as_bytes(),
+        &array::<32>(path, "retirement-message")?
+    );
+    assert_eq!(delivery.plaintext_bytes, OLD_PAYLOAD.len());
+    Ok(())
+}
+
 pub(super) fn device_process(path: &Path, attempt: u8, mode: &str) -> Result<()> {
     if let Some(mode) = mode.strip_prefix("traffic-") {
         return serve_peer(
@@ -99,40 +137,7 @@ pub(super) fn device_process(path: &Path, attempt: u8, mode: &str) -> Result<()>
             &pin,
             &read(path, "retirement-report-receipt", 3730)?,
         )?;
-        assert_eq!(report.proposal(), &report_proposal(path)?);
-        assert_eq!(report.views().len(), 1);
-        let view = report
-            .views()
-            .first()
-            .ok_or("complete original report view")?;
-        assert_eq!(view.role, ViewRole::Authoritative);
-        let sessions: Vec<_> = view
-            .records
-            .iter()
-            .filter_map(|record| match &record.metadata {
-                RecordMetadata::Session(session) => Some(session),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(sessions.len(), 1);
-        let session = sessions.first().ok_or("original report session")?;
-        assert_eq!(session.session, array::<32>(path, "session")?);
-        let SessionState::Live { epochs, .. } = &session.state else {
-            return Err("original session became terminal before host ACK".into());
-        };
-        assert_eq!(epochs.len(), 1);
-        let epoch = &epochs.first().ok_or("original report epoch")?.accounting;
-        assert_eq!((epoch.received, epoch.consumed_before), (1, 0));
-        assert_eq!(epoch.deliveries.len(), 1);
-        let delivery = epoch
-            .deliveries
-            .first()
-            .ok_or("unconsumed original input")?;
-        assert_eq!(
-            delivery.message.as_bytes(),
-            &array::<32>(path, "retirement-message")?
-        );
-        assert_eq!(delivery.plaintext_bytes, OLD_PAYLOAD.len());
+        check_report(path, &report)?;
         if mode == "report" {
             // Host transaction commits complete metadata before any independent ACK.
             store(path, "retirement-host-report", report.as_bytes())?;
@@ -227,8 +232,25 @@ pub(super) fn device_process(path: &Path, attempt: u8, mode: &str) -> Result<()>
     owner.close();
     Ok(())
 }
-fn stage(path: &Path, attempt: u8, mode: &str, exit: i32) -> Result<()> {
-    let mut process = child(path, attempt, &format!("retirement-{mode}"))?;
+fn stage(path: &Path, attempt: u8, mode: &str, exit: i32, client: Option<&Path>) -> Result<()> {
+    let mut process = if let Some(client) = client {
+        let log = fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(0o600)
+            .open(path.join(format!("peer-{attempt}.log")))?;
+        OwnedChild(
+            Command::new(client)
+                .arg("retired")
+                .arg(path)
+                .arg(mode)
+                .stdout(Stdio::from(log.try_clone()?))
+                .stderr(Stdio::from(log))
+                .spawn()?,
+        )
+    } else {
+        child(path, attempt, &format!("retirement-{mode}"))?
+    };
     let status = wait(&mut process)?;
     assert_eq!(
         status.code(),
@@ -239,7 +261,10 @@ fn stage(path: &Path, attempt: u8, mode: &str, exit: i32) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn exercise() -> Result<()> {
+pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
+    if client.is_some_and(|path| !path.is_absolute() || !path.is_file()) {
+        return Err("retirement client must be an existing absolute executable".into());
+    }
     let mut witness = roster_renewal::Witness::start_current()?;
     let s = setup_devices_for(
         Some(&witness.configured),
@@ -332,7 +357,7 @@ pub(super) fn exercise() -> Result<()> {
         Err(p::AnchorError::Rejected(p::Error::Scope))
     ));
     drop(old_signer);
-    stage(&s.responder, 2, "inventory", 0)?;
+    stage(&s.responder, 2, "inventory", 0, client)?;
     let inventory = p::AnchorRetiredCleanupProposal::from_trusted_state(&read(
         &s.responder,
         "retirement-inventory",
@@ -351,7 +376,7 @@ pub(super) fn exercise() -> Result<()> {
             &controller.retired_cleanup_receipt(&inventory)?,
         )?;
     }
-    stage(&s.responder, 3, "prepare-report", 0)?;
+    stage(&s.responder, 3, "prepare-report", 0, client)?;
     let expected = report_proposal(&s.responder)?;
     {
         let mut controller = witness
@@ -366,9 +391,30 @@ pub(super) fn exercise() -> Result<()> {
             &controller.retired_report_receipt(&expected)?,
         )?;
     }
-    stage(&s.responder, 4, "report", 77)?;
-    stage(&s.responder, 5, "report-reopen", 0)?;
-    stage(&s.responder, 6, "prepare-ack", 0)?;
+    stage(&s.responder, 4, "report", 77, client)?;
+    if client.is_some() {
+        // The foreign process must produce the same complete report. Preserve all
+        // native field assertions; a foreign marker or valid prefix is insufficient.
+        let mut owner = open(&s.responder)?;
+        let child = owner.installation()?;
+        let retained = child.verify_retained(
+            &pin,
+            &read(&s.responder, "retirement-inventory-receipt", 3690)?,
+        )?;
+        let report = child.report(
+            &retained,
+            &pin,
+            &read(&s.responder, "retirement-report-receipt", 3730)?,
+        )?;
+        check_report(&s.responder, &report)?;
+        assert_eq!(
+            report.as_bytes(),
+            read(&s.responder, "retirement-host-report", 8 * 1024 * 1024)?
+        );
+        owner.close();
+    }
+    stage(&s.responder, 5, "report-reopen", 0, client)?;
+    stage(&s.responder, 6, "prepare-ack", 0, client)?;
     {
         let mut controller = witness
             .configured
@@ -382,9 +428,24 @@ pub(super) fn exercise() -> Result<()> {
             &controller.retired_report_acknowledgement_receipt(&expected)?,
         )?;
     }
-    stage(&s.responder, 7, "erase-journal", 77)?;
-    stage(&s.responder, 8, "erase-signer", 77)?;
-    stage(&s.responder, 9, "verify", 0)?;
+    stage(&s.responder, 7, "erase-journal", 77, client)?;
+    stage(&s.responder, 8, "erase-signer", 77, client)?;
+    stage(&s.responder, 9, "verify", 0, client)?;
+    // Keep operational-owner refusal independently checked even when the eight
+    // cleanup processes execute through a foreign language adapter.
+    assert!(matches!(
+        p::DeviceEnrollment::open(
+            enrollment::paths(&s.responder)?,
+            enrollment::intent(&s.responder)?
+        ),
+        Err(p::DurableError::Suspended)
+    ));
+    assert!(p::DeviceSigningKey::open(
+        &s.responder.join("signer.key"),
+        &key(&s.responder)?,
+        p::SigningKeyId::from_trusted_state(array(&s.responder, "signer-id")?)?,
+    )
+    .is_err());
     assert_eq!(fs::read(s.responder.join("signer.key"))?, b"QPSRET01");
     effect(&s.responder, session, message, OLD_PAYLOAD)?;
     initiator.service.parts()?.0.admit_peer_roster(

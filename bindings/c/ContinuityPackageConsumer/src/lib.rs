@@ -10,6 +10,7 @@ mod native_owner;
 mod opening;
 mod owner;
 mod recovery;
+mod retirement;
 mod server;
 mod setup;
 mod witness;
@@ -217,6 +218,7 @@ enum Owned {
     Peer(Box<device::Peer>),
     Setup(Box<setup::Owner>),
     Enrollment(Box<enrollment::Owner>),
+    Retirement(Box<retirement::Owner>),
 }
 struct Entry {
     cancel: Cancellation,

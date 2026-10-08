@@ -1006,6 +1006,78 @@ int32_t qpc_recovery_v1_account_delivery(uint64_t handle, uint32_t member, uint3
 int32_t qpc_recovery_v1_account_skipped(uint64_t handle, uint32_t member, uint32_t epoch, uint32_t index, uint64_t *position, qpc_error_v1 *error);
 int32_t qpc_recovery_v1_account_acknowledge(uint64_t handle, const uint8_t report[32], qpc_error_v1 *error);
 int32_t qpc_recovery_v1_account_retire(uint64_t handle, qpc_error_v1 *error);
+/* Permanent device retirement uses the ORIGINAL approved enrollment intent,
+ * independently retained witness pin and exact replacement/proof. Preparation
+ * snapshots all caller bytes; qpc_owner_v1_finish_open opens existing state only.
+ * No current SDK policy, TLS credentials, signer or operational service is needed
+ * or returned. No network request or external host effect is performed here.
+ * qpc_owner_v1_cancel/close and the shared 64-owner/call limits apply.
+ * Pointer, maximum-length and fixed-input-width checks precede owner admission.
+ * An admitted native failure (including a mismatch with cached report length),
+ * timeout or late cancellation consumes the resource: close the handle and reopen
+ * the exact original intent/proof to reconcile. It never provisions missing data.
+ * Non-handle outputs remain untouched on error. Every region follows the header's
+ * live/aligned/nonoverlapping contract. These are unpublished qpc-owner/1 APIs,
+ * separate from product ABI 2.
+ */
+typedef struct {
+    uint8_t witness[32];
+    const uint8_t *public_key;
+    size_t public_key_length;
+    const uint8_t *replacement;
+    size_t replacement_length; /* canonical QPDRPL01, at most 57794 bytes */
+    uint8_t subject[96];
+    const uint8_t *receipt;
+    size_t receipt_length; /* exactly 3754: signed permanent retirement */
+} qpc_retired_authority_v1;
+typedef struct { uint8_t bytes[313]; } qpc_retired_inventory_v1;
+typedef struct {
+    uint32_t present; /* 0/1; zero bytes for local absence, never witness non-commit */
+    uint8_t bytes[353];
+    uint8_t reserved_zero[3];
+} qpc_retired_proposal_v1;
+typedef struct {
+    size_t length; /* complete canonical report, at most 8388608 bytes */
+    uint32_t views, reserved_zero;
+    uint8_t report[32];
+} qpc_retired_report_info_v1;
+int32_t qpc_retired_v1_prepare_open(const uint8_t *path, size_t length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_retired_authority_v1 *authority,
+    uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_retired_v1_inventory(uint64_t handle, qpc_retired_inventory_v1 *result, qpc_error_v1 *error);
+/* Inventory receipts are 3690 bytes. Report/host-ACK receipts are 3730 bytes;
+ * their independent signature purposes are verified by the shared native engine. */
+int32_t qpc_retired_v1_prepare_report(uint64_t handle, const uint8_t *inventory_receipt,
+    size_t length, qpc_retired_proposal_v1 *result, qpc_error_v1 *error);
+int32_t qpc_retired_v1_report_proposal(uint64_t handle, qpc_retired_proposal_v1 *result, qpc_error_v1 *error);
+int32_t qpc_retired_v1_load_report(uint64_t handle,
+    const uint8_t *inventory_receipt, size_t inventory_length,
+    const uint8_t *report_receipt, size_t report_length,
+    qpc_retired_report_info_v1 *result, qpc_error_v1 *error);
+/* Copy exactly info.length bytes from the last verified immutable report.
+ * The complete QPRDMD01 record includes every metadata view and private MAC;
+ * account/device linkage and lengths remain private host metadata.
+ * Persist it and deduplicate host accounting by info.report BEFORE prepare_ack.
+ * A count, prefix, report ID, or successful copy is not durable host accounting. */
+int32_t qpc_retired_v1_copy_report(uint64_t handle, uint8_t *bytes, size_t length, qpc_error_v1 *error);
+int32_t qpc_retired_v1_prepare_acknowledgement(uint64_t handle,
+    const uint8_t *inventory_receipt, size_t inventory_length,
+    const uint8_t *report_receipt, size_t report_length,
+    const uint8_t *recorded_report, size_t recorded_length,
+    qpc_retired_proposal_v1 *result, qpc_error_v1 *error);
+int32_t qpc_retired_v1_acknowledgement_proposal(uint64_t handle, qpc_retired_proposal_v1 *result, qpc_error_v1 *error);
+/* State values are 0=Retained, 1=Erased. Missing/corrupt/foreign files are errors.
+ * Query requires the native flow's original prepared host/signer intent. */
+int32_t qpc_retired_v1_journal_state(uint64_t handle, uint32_t *state, qpc_error_v1 *error);
+int32_t qpc_retired_v1_erase_journal(uint64_t handle, const uint8_t *host_ack,
+    size_t length, qpc_error_v1 *error);
+int32_t qpc_retired_v1_prepare_signer_erasure(uint64_t handle, const uint8_t *host_ack,
+    size_t length, qpc_error_v1 *error);
+int32_t qpc_retired_v1_signer_state(uint64_t handle, uint32_t *state, qpc_error_v1 *error);
+/* Consumes the resource even on success; close the now-empty registry handle.
+ * Logical erasure does not erase prior disk pages, backups, wrapping keys or
+ * historical enrollment/configuration/report files. */
+int32_t qpc_retired_v1_erase_signer(uint64_t handle, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

@@ -27,6 +27,7 @@ SCOPE = ("Native Rust public enrollment and required-witness generation replacem
          "journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. "
          "Native APIs verify signatures/private MAC; this reader checks public framing and bindings. "
          "Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.")
+FOREIGN_TEST = "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes"
 
 
 def verify(directory: Path) -> dict:
@@ -115,4 +116,23 @@ def export(directory: Path, destination: Path) -> dict:
         with (destination / name).open("xb") as target:
             target.write(value.data)
     sdk.require(verify(destination) == checked, "exported retirement evidence differs")
+    return checked
+
+
+def export_foreign(stdout: bytes, directory: Path, destination: Path, *, language: str) -> dict:
+    """Bind the actual selected foreign cleanup process trace to the same public records."""
+    sdk.require(language in {"C", "Swift", "Kotlin"}, "unqualified retirement consumer language")
+    text = stdout.decode("utf-8")
+    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [FOREIGN_TEST]
+                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE)) == 1,
+                "foreign retirement test did not complete its exact workload")
+    checked = export(directory, destination)
+    checked["consumer_language"] = language
+    checked["scope"] = (
+        f"{language} restricted retired-enrollment API across eight actual cleanup processes; "
+        "native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. "
+        "Native independent readback checks every original report field; original report/host ACK and "
+        "logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; "
+        "no physical erasure, independent protocol or complete foreign-device lifecycle claim."
+    )
     return checked

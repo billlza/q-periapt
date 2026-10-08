@@ -18,11 +18,12 @@ class AdmissionTests(unittest.TestCase):
             "invocation::tests::sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority",
             "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
             "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
+            "retirement::tests::retirement_output_layout_has_no_implicit_padding",
             "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,
@@ -273,7 +274,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             build = root / "build/debug"
             (build / "deps").mkdir(parents=True)
             encoded = lambda value: json.dumps(value).encode() + b"\n"
-            for name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness"):
+            for name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "retirement"):
                 binary = build / ("deps/" + name + "-test")
                 binary.write_bytes(b"test")
                 outside = build / binary.name

@@ -56,6 +56,12 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
     "account_member", "account_reserved", "account_epoch", "account_unconfirmed", "account_delivery",
     "account_skipped", "account_acknowledge", "account_retire")}
 
+EXPORTS |= {"qpc_retired_v1_" + name for name in (
+    "prepare_open", "inventory", "prepare_report", "report_proposal", "load_report", "copy_report",
+    "prepare_acknowledgement", "acknowledgement_proposal", "journal_state", "erase_journal",
+    "prepare_signer_erasure", "signer_state", "erase_signer",
+)}
+
 # Independent P/R lifecycle, current peer roster and complete original-member recovery.
 EXPORTS |= {
     'qpc_device_v1_admit_peer_roster',
@@ -87,7 +93,7 @@ EXPORTS |= {
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -303,13 +309,14 @@ def verify_admission(stdout: bytes) -> None:
         "invocation::tests::sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority",
         "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
         "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
+        "retirement::tests::retirement_output_layout_has_no_implicit_padding",
         "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
         "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
     }
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -456,6 +463,23 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
         result["execution"][profile]["enrollment"] = registration
+        from continuity_device_retirement import FOREIGN_TEST, export_foreign as export_retirement
+        retirement_build = run([*cargo, "test", "--locked", "--offline", "--test", "retirement", "--no-run",
+                                "--message-format=json", "-j", "2", *extra], "retirement-build-" + profile)
+        retirement_binary = built_artifact(retirement_build, consumer, build, library=False, test_name="retirement")
+        retirement_identity = sdk.snapshot(retirement_binary, maximum=MAX_BINARY)
+        retirement_evidence = outside / ("c-" + profile + "-retirement-runtime")
+        retirement_runtime = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(retirement_evidence))
+        retirement_stdout = run([str(retirement_binary), "--exact", FOREIGN_TEST, "--nocapture"],
+                                 "retirement-trace-" + profile, runtime=retirement_runtime)
+        retirement_directory = retirement_evidence.with_name(retirement_evidence.name + "-device-retirement") / "public"
+        retired = export_retirement(retirement_stdout, retirement_directory,
+                                    output / "c-retirement-public" / profile, language="C")
+        sdk.require(sdk.snapshot(retirement_binary, maximum=MAX_BINARY).sha256 == retirement_identity.sha256,
+                    "C retirement test binary changed")
+        retired["binary"] = dict(sha256=retirement_identity.sha256, bytes=retirement_identity.size)
+        sdk.write_json(output / ("C_RETIREMENT_" + profile.upper() + ".json"), retired)
+        result["execution"][profile]["device_retirement"] = retired
         from continuity_c_enrollment import RENEWAL_TESTS, verify_renewal_execution
         renewal_runtime = dict(runtime)
         # Each parallel renewal case owns an independent temporary installation.

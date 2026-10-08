@@ -127,6 +127,15 @@ IDs and signing material. This establishes observed intermittency under those
 recorded inputs, not its cause or stability. No retry, RAM/image change, or
 acceptance relaxation was used to obtain the comparison.
 
+The [restricted C device-retirement checkpoint](../research/sdk-alpha1/evidence/20261008-c-device-retirement/README.md)
+adds eight actual cleanup processes in both Debug and Release, preserving the
+complete original report, independent host acknowledgement and logical
+journal/signer erasure across lost completions. Native report readback, the
+original registration gate, Rust 1.90 compilation and strict Clippy pass. This
+is source-based C consumption; installed archives, Swift/Kotlin retirement and
+complete foreign replacement remain open. The unpublished candidate now has
+119 C exports, separate from product ABI 2's 51.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

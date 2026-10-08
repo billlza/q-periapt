@@ -35,7 +35,7 @@ mod reopen;
 #[path = "owned_connection/replacement.rs"]
 mod replacement;
 #[path = "owned_connection/retirement.rs"]
-mod retirement;
+pub(crate) mod retirement;
 #[path = "owned_connection/roster_renewal.rs"]
 mod roster_renewal;
 
@@ -1294,7 +1294,7 @@ pub(crate) fn send(
 #[test]
 fn owned_services_connect_restart_rekey_and_reconcile_unknown_delivery() -> Result<()> {
     replacement::exercise()?;
-    retirement::exercise()?;
+    retirement::exercise(None)?;
     roster_renewal::public_roster_refresh_recovers_original_intent_over_signed_tcp()?;
     let s = setup(enrollment::SetupKind::Enrolled)?;
     marker_publication_control(&s.initiator)?;

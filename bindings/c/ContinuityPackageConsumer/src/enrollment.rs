@@ -22,6 +22,9 @@ pub(crate) struct Approved {
     family: [u8; 32],
 }
 impl Approved {
+    pub(crate) fn into_native(self) -> p::EnrollmentIntent {
+        self.native
+    }
     pub(crate) unsafe fn read(pointer: *const Intent) -> Result<Self> {
         if pointer.is_null() || !pointer.is_aligned() {
             return Err(Failure::argument());
@@ -198,6 +201,14 @@ pub(crate) struct Owner {
     historical: Option<p::HistoricalSessionPolicy>,
     witness: Option<witness::Configuration>,
 }
+pub(crate) fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
+    Ok(p::EnrollmentPaths::new(
+        &path.join("wrap.key"),
+        &path.join("signer.key"),
+        &path.join("enrollment.redb"),
+        device::paths(path)?,
+    )?)
+}
 impl Owner {
     pub(crate) fn open(
         path: &Path,
@@ -208,12 +219,7 @@ impl Owner {
         deadline: Instant,
     ) -> Result<Box<Self>> {
         opening::check(cancel, deadline)?;
-        let paths = p::EnrollmentPaths::new(
-            &path.join("wrap.key"),
-            &path.join("signer.key"),
-            &path.join("enrollment.redb"),
-            device::paths(path)?,
-        )?;
+        let paths = paths(path)?;
         let enrollment = if create {
             p::DeviceEnrollment::provision(paths, approved.native)?
         } else {

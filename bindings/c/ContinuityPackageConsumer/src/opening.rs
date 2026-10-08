@@ -21,6 +21,7 @@ enum Kind {
         create: bool,
         approved: Box<enrollment::Approved>,
     },
+    Retirement(Box<retirement::Admission>),
     Peer {
         parent: Arc<device::Shared>,
         admission: owner::Admission,
@@ -110,6 +111,9 @@ impl Request {
         // boxes here reserves value-sized temporaries for unrelated match arms
         // even while an operational owner is signing on a foreign worker stack.
         let owner = match self.kind {
+            Kind::Retirement(admission) => Owned::Retirement(retirement::Owner::open(
+                path, *admission, &cancel, deadline,
+            )?),
             Kind::Enrollment { create, approved } => Owned::Enrollment(enrollment::Owner::open(
                 path,
                 create,
@@ -158,6 +162,40 @@ impl Request {
         check(&entry.cancel, deadline)?;
         Ok(owner)
     }
+}
+
+/// Snapshot original enrollment and independently pinned permanent retirement authority.
+/// # Safety
+/// Inputs/outputs obey the C header's live, aligned, nonoverlapping region contract.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_retired_v1_prepare_open(
+    path: *const u8,
+    length: usize,
+    intent: *const enrollment::Intent,
+    authority: *const retirement::Options,
+    handle: *mut u64,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(handle)?;
+        // SAFETY: exclusive aligned handle output, distinct from inputs.
+        unsafe { put(handle, 0) };
+        // SAFETY: bounded immutable inputs are copied during this invocation.
+        let path = unsafe { text(path, length, 4096) }?;
+        let admission = unsafe { retirement::Admission::read(intent, authority) }?;
+        let request = Request {
+            path,
+            kind: Kind::Retirement(Box::new(admission)),
+            witness: None,
+        };
+        let reservation = Reservation::new()?;
+        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        // SAFETY: same validated exclusive output.
+        unsafe { put(handle, id) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic region.
+    unsafe { boundary(error, false, action) }
 }
 
 unsafe fn prepare_enrollment(

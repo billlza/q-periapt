@@ -308,10 +308,12 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "account_client.c"
 #include "setup_client.c"
 #include "enrollment_client.c"
+#include "retirement_client.c"
 #include "credential_peer_client.c"
 #include "peer_roster_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
+    if (!strcmp(argv[1], "retired")) return retirement_command(argc, argv);
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
     if (!strcmp(argv[1],"--witness") || !strcmp(argv[1],"--witness-tls")) {
         if (argc<5) fail("witness arguments");

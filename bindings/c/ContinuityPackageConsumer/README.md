@@ -1196,3 +1196,61 @@ The Swift wrapper likewise owns a bounded heap output buffer; failed native call
 never initialize, decode or publish a successful request. This addresses measured
 worker-stack exhaustion without changing thread stack sizes, signature checks,
 error-output guarantees or any of the 106 C exports.
+
+## Permanently retired enrolled devices
+
+The unpublished `qpc_retired_v1_*` family delegates whole-device cleanup to
+`RetiredDeviceEnrollment`. It accepts the original approved enrollment intent,
+an independently obtained witness pin, the complete original device replacement
+proposal, and the signed permanent retirement proof for that old subject. These
+inputs cannot be learned from an untrusted response and then treated as pins.
+The scope is an existing enrolled installation with required-witness protection;
+this interface does not authorize replacement, provision a new device, or add
+witness protection to a local-only installation.
+
+Close the original operational device/peer owners first. Call
+`qpc_retired_v1_prepare_open` to snapshot the supplied inputs, then the existing
+`qpc_owner_v1_finish_open` on that same handle. Opening may durably retain the
+original inventory and enrollment retirement metadata. An unknown commit returns
+no usable resource: close the handle and reopen the exact original inputs.
+No operational SDK policy, TLS material, signer or service is exposed by this
+restricted owner. The ordinary registry, cancellation and call limits apply.
+
+The complete sequence is:
+
+1. Read `inventory` and obtain the independently authorized witness inventory
+   retention receipt. Preparing a request is not the witness's commitment.
+2. Call `prepare_report`, retain its exact proposal, and obtain the corresponding
+   independent report-retention receipt. `report_proposal` restores only the
+   locally retained original expectation.
+3. `load_report` authenticates both receipts and the complete original state.
+   `copy_report` copies exactly the returned length of canonical `QPRDMD01`
+   metadata. The record includes every original view; account/device linkage,
+   lengths and the private MAC must remain protected host metadata.
+4. Durably save the complete report and deduplicate the application's accounting
+   by its report ID. Only then call `prepare_acknowledgement` with those exact
+   saved bytes. The SDK does not perform or infer external host effects.
+5. Obtain the independently authorized purpose-21 acknowledgement. Then
+   `erase_journal` commits the original journal's logical terminal. Inspect
+   `journal_state` after an unknown result; never reset or select another backup.
+6. `prepare_signer_erasure` authenticates journal erasure, host acknowledgement,
+   and the original encrypted signer file. Inspect `signer_state`, then call
+   `erase_signer`. The latter consumes the resource even on success; close the
+   registry handle and reopen the original inputs for further inspection.
+
+The queries distinguish local absent proposals, retained originals, authenticated
+terminals, and missing/corrupt files. None means local proposal absence only,
+not a failed remote commit. Native errors and late cancellation consume an
+admitted resource, while static pointer/length rejection precedes admission.
+Outputs stay untouched on error, except that constructor handle outputs are
+initialized to zero. A malformed receipt never becomes permission to erase.
+
+Logical erasure does not erase old disk pages, backups, wrapping keys or saved
+host metadata. After terminal erasure, reopening the signing file or ordinary
+enrollment remains refused. The C process workload uses the native replacement
+and fresh-generation TLS scenario, eight actual C cleanup processes, independent
+native report readback and three exits without completion after durable work.
+It also exercises snapshots, invalid receipt/length refusal, cancellation and
+consumed-owner behavior. Debug/Release installed execution is required by the
+package producer. Source execution alone does not qualify installed archives,
+Swift/Kotlin, physical devices or the complete device-replacement lifecycle.

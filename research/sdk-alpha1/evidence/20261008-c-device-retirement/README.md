@@ -1,0 +1,36 @@
+# Restricted C device retirement
+
+This checkpoint extends unpublished `qpc-owner/1` with 13 restricted retirement
+entries, for 119 total C exports. Product ABI 2 remains unchanged. The adapter
+delegates to `RetiredDeviceEnrollment`; it does not implement another retirement
+state machine or release operational signer/runtime authority.
+
+On macOS arm64, Debug and Release each pass eight actual C cleanup processes.
+The workload preserves the complete original report and host accounting, verifies
+the independent purpose-21 acknowledgement, and reconciles exits without completion
+after report persistence, journal erasure and signer erasure. Native Rust reads
+every original report field independently and rejects ordinary enrollment after
+erasure. C also checks preparation snapshots, malformed/short receipt refusal,
+wrong owner kind, cancellation, unchanged error outputs and consumed handles.
+
+The unchanged original C registration reader passes its one executed/27 filtered
+test census after the new workload moved into a separate test target. The original
+native connection/replacement/retirement regression also passes. Rust 1.90 checks
+all targets, Rust 1.98.1 strict Clippy passes, all 10 admission/layout tests pass,
+and the 17 directly affected artifact tests pass with warnings treated as errors.
+Earlier broader artifact tests and failed development attempts remain in captures.
+
+`QUALIFICATION.json` binds changed source hashes, build/runtime commands, exact
+binary identities and the capture digest. `CAPTURES.zip` contains logs, development
+drivers, source-copy identities and explicitly exported synthetic public records.
+It excludes wrapping keys, signer files, TLS private keys and private databases.
+The admitted SDK crate report still matches the unchanged SDK workspace; this
+checkpoint itself uses copied C sources with repository dependency patches.
+
+This is source-based development evidence. Fresh installed-archive qualification,
+Swift/Kotlin retirement owners and complete foreign replacement remain open.
+Enrollment/replacement authority and fresh-generation TLS here still run in Rust,
+on the same host and implementation. Logical erasure is not physical erasure or
+destruction of backups/wrapping keys. No device, independent-protocol or release
+qualification is claimed. CI now retains native and C retirement public outputs;
+the live Rust CodeQL run must finish and retain its results before another push.

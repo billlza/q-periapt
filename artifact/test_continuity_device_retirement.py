@@ -43,6 +43,24 @@ def fixture(path: Path):
 
 
 class RetirementEvidenceTests(unittest.TestCase):
+    def test_foreign_trace_keeps_exact_test_and_readback_requirements(self):
+        stdout = (f"test {retirement.FOREIGN_TEST} ... ok\n"
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); fixture(root / "source")
+            result = retirement.export_foreign(stdout, root / "source", root / "export", language="C")
+            self.assertEqual(result["consumer_language"], "C")
+            self.assertEqual(result["public_readbacks"], retirement.verify(root / "source")["public_readbacks"])
+            self.assertIn("native Rust enrollment", result["scope"])
+            for bad in (b"", stdout.replace(b"1 passed", b"0 passed"), stdout + stdout,
+                        stdout.replace(b" ... ok", b" ... ignored"),
+                        stdout.replace(b"3 filtered", b"28 filtered"),
+                        stdout + b"test unrelated ... ok\n"):
+                with self.subTest(stdout=bad), self.assertRaisesRegex(ValueError, "exact workload"):
+                    retirement.export_foreign(bad, root / "source", root / "rejected", language="C")
+            with self.assertRaisesRegex(ValueError, "language"):
+                retirement.export_foreign(stdout, root / "source", root / "rejected", language="other")
+
     def test_complete_public_readback_and_export(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); fixture(root / 'source')

@@ -46,6 +46,10 @@ static void enrollment_write(const char *path,const char *name,const uint8_t *by
         used+=(size_t)n;
     }
     if(fsync(fd) || close(fd)) fail("enrollment output sync");
+    /* A newly created host record includes its directory entry. Match the
+     * native fixture's file-plus-directory commit before any witness ACK. */
+    int parent=open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
+    if(parent<0 || fsync(parent) || close(parent)) fail("enrollment output directory sync");
 }
 static uint64_t enrollment_counter(const uint8_t bytes[8]) {
     uint64_t n=0;for(size_t i=0;i<8;i++) n=(n<<8)|bytes[i];return n;

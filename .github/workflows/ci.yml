@@ -2088,11 +2088,14 @@ jobs:
             target/continuity-installed-rust/release-roster-renewal-public/**
             target/continuity-installed-rust/debug-device-replacement-public/**
             target/continuity-installed-rust/release-device-replacement-public/**
+            target/continuity-installed-rust/debug-device-retirement-public/**
+            target/continuity-installed-rust/release-device-retirement-public/**
             target/continuity-installed-rust/debug-enrollment-public/**
             target/continuity-installed-rust/release-enrollment-public/**
             target/continuity-installed-rust/debug-enrollment-reopen-public/**
             target/continuity-installed-rust/release-enrollment-reopen-public/**
             target/continuity-installed-rust/c-enrollment-public/**
+            target/continuity-installed-rust/c-retirement-public/**
             target/continuity-installed-rust/c-enrollment-witness-public/**
             target/continuity-installed-rust/c-witnessed-renewal-public/**
             target/continuity-installed-rust/c-witnessed-policy-expiry-public/**
@@ -2222,11 +2225,14 @@ jobs:
             target/continuity-installed-swift/release-roster-renewal-public/**
             target/continuity-installed-swift/debug-device-replacement-public/**
             target/continuity-installed-swift/release-device-replacement-public/**
+            target/continuity-installed-swift/debug-device-retirement-public/**
+            target/continuity-installed-swift/release-device-retirement-public/**
             target/continuity-installed-swift/debug-enrollment-public/**
             target/continuity-installed-swift/release-enrollment-public/**
             target/continuity-installed-swift/debug-enrollment-reopen-public/**
             target/continuity-installed-swift/release-enrollment-reopen-public/**
             target/continuity-installed-swift/c-enrollment-public/**
+            target/continuity-installed-swift/c-retirement-public/**
             target/continuity-installed-swift/c-enrollment-witness-public/**
             target/continuity-installed-swift/c-witnessed-renewal-public/**
             target/continuity-installed-swift/c-witnessed-policy-expiry-public/**
