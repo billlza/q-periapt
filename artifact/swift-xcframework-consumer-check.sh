@@ -24,7 +24,7 @@ case "$APPLE_PACKAGE_PROFILE" in
 		EXPECTED_EXPORT_COUNT=9 ;;
 	sdk-020)
 		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json
-		EXPECTED_EXPORT_COUNT=50 ;;
+		EXPECTED_EXPORT_COUNT=51 ;;
 	*) printf 'error: unknown Apple consumer package profile\n' >&2; exit 2 ;;
 esac
 for absolute_path in "$PACKAGE_DIR" "$EVIDENCE_DIR" "$XCFRAMEWORK"; do

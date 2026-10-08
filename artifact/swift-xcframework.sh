@@ -73,8 +73,8 @@ if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	MACOS_ARCHITECTURES=arm64
 	EXPECTED_PRODUCT_VERSION="0.2.0"
 	ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
-	EXPECTED_ABI_EXPORT_COUNT=50
-	EXPECTED_CONSUMER_TESTS=5
+	EXPECTED_ABI_EXPORT_COUNT=51
+	EXPECTED_CONSUMER_TESTS=6
 	if [ "$APPLE_RELEASE_MODE" != "0" ]; then
 		printf 'error: SDK alpha signing/publication requires its new release receipt profile; legacy receipts cannot admit it\n' >&2
 		exit 2
