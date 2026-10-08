@@ -43,9 +43,17 @@ clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
 rustls = { version = "0.23.45", default-features = false, optional = true }
+q-periapt-host-store = { version = "=0.2.0", path = "../q-periapt-host-store", optional = true }
+q-periapt-sdk = { version = "=0.2.0", path = "../q-periapt-sdk", optional = true }
+redb = { version = "=4.3.0", optional = true }
+# Offline format conversion only; never linked into the default CLI or SDK.
+redb-legacy = { package = "redb", version = "=2.6.4", optional = true }
+twox-hash = { version = "=2.1.4", default-features = false, features = ["std", "xxhash3_128"], optional = true }
 
 [features]
 default = []
+# Explicit maintenance executable, not an in-process SDK migration interface.
+policy-store-migration = ["dep:q-periapt-host-store", "dep:q-periapt-sdk", "dep:redb", "dep:redb-legacy", "dep:twox-hash"]
 # Explicit native SDK catalogue, including the configured standard TLS provider.
 # It cannot be emitted from a build which does not link those implementations.
 sdk-cbom = ["dep:q-periapt-rustls", "dep:rustls"]
@@ -56,3 +64,6 @@ sdk-cbom = ["dep:q-periapt-rustls", "dep:rustls"]
 # SLH-DSA claim is therefore backed by what the build links rather than
 # asserted by whoever passed the flag.
 slh-dsa = ["q-periapt-backends/slh-dsa"]
+
+[dev-dependencies]
+tempfile = "=3.27.0"

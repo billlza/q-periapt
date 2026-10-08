@@ -363,6 +363,12 @@ original file and its independent state/witness material. A separate migration
 operation must preserve the application's schema, authenticated head and
 rollback policy before a legacy deployment can move to the new producer.
 
+For the original five-field host policy image, the optional
+[`qperiapt policy-store-upgrade` maintenance command](../crates/q-periapt-cli/README.md#offline-host-policy-store-upgrade)
+provides explicit format conversion on macOS/Linux with an independently
+retained root and exact expected state. Ordinary SDK opens remain unchanged.
+This command does not migrate Continuity state or enroll recovery authority.
+
 The [format-upgrade investigation](../research/sdk-alpha1/evidence/20261008-storage-format-upgrade/README.md)
 records successful interrupted policy-image conversions and continuous-lock
 handoffs, plus legacy-parser and corrupt-header counterexamples. In particular,

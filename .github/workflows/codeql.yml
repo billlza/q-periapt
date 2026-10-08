@@ -76,10 +76,10 @@ jobs:
           test ! -e target && test ! -L target
           RUSTFLAGS='-D warnings' \
             CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.97.0" \
-            cargo +1.97.0 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
+            cargo +1.97.0 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration
           RUSTFLAGS='-D warnings' \
             CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.98.1" \
-            cargo +1.98.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations
+            cargo +1.98.1 check --workspace --all-targets --locked --features q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration
           test ! -e target && test ! -L target
 
       - name: Compile isolated ratchet references with both analysis toolchains

@@ -21,6 +21,12 @@ qperiapt sbom [--lock Cargo.lock] [--out sbom.json]
 # Migration scan — flag legacy / quantum-vulnerable crypto and recommend a PQ/T
 # replacement. Exits 2 if any high/critical finding is present (use as a CI gate):
 qperiapt scan <path> [--json]
+
+# Explicit offline upgrade of an existing v1 host policy store, on macOS/Linux.
+# Requires a build with --features policy-store-migration. Trust inputs must
+# come from independently retained host configuration, not the target database.
+qperiapt policy-store-upgrade /private/path/policy.redb \
+  --root /trusted/path/root.bin --expected-state /trusted/path/state.bin
 ```
 
 ## Features
@@ -28,6 +34,51 @@ qperiapt scan <path> [--json]
 | Feature | Default | Effect |
 |---|---|---|
 | `slh-dsa` | off | Forwards to `q-periapt-backends/slh-dsa`, adding the `SLH-DSA-SHA2-128s/192s/256s` rows to `qperiapt cbom` |
+| `policy-store-migration` | off | Adds the offline macOS/Linux policy-store maintenance command and its pinned legacy-format reader; not an in-process SDK API |
+
+## Offline host policy-store upgrade
+
+Build the maintenance executable from the selected release source with
+`cargo build --locked -p q-periapt-cli --features policy-store-migration`.
+Stop users of the target store first. Its parent must have mode `0700` and the
+existing file must have mode `0600`, be owned by the user, have no extended ACL
+and have exactly one link. The command uses the same private path and exclusive
+file-lease admission as the host store. Missing files, symlinks and busy files
+are errors; they never become first-use provisioning.
+
+The root input is a raw ML-DSA-65 verification key. The expected state is the
+exact 36-byte `TrustedPolicyState::encode()` value, obtained and retained
+independently before the upgrade. Version alone is insufficient. The command
+will not infer trust or freshness from the database it is converting, and it
+does not allow a lower or different signed state. If independent state is lost,
+recover it through the host's authorization procedure before attempting this
+command; copying state from the suspect store is not that procedure.
+
+Only the original five-field `QPeriapt-Host-Policy-v1` image is supported.
+The command verifies both commit-slot checksums before provider selection,
+authenticates the exact signed policy against the independent root and state,
+converts redb format 2 to 3 under the same file lease, then validates the same
+image with the current backend. Root, policy bytes, signature and state do not
+change. Disabled policies and `u32::MAX` policy versions remain unchanged too.
+It creates no runtime for the host application and performs no recovery-trust
+enrollment, root replacement, Continuity migration or witness reconciliation.
+
+Success prints one JSON `verified-format-3` observation only after the current
+database has closed and the backend's final sync/close errors have been checked.
+`legacy_provider_used: false` means an already-current image was reverified;
+it is not evidence of a new conversion. An interrupted attempt may have changed
+the storage format or allocator/recovery metadata. Any error, abnormal exit or
+lost output means no successful receipt was obtained. Preserve the original
+file and retry with the same independent trust and state; do not replace it,
+lower the floor or automatically select a backup. A subsequently changed policy
+needs separate reconciliation rather than treating a stale retry as success.
+
+Slot checksums detect corruption, not adversarial provenance. Corrupt slots or
+pages can require an authorized recovery procedure instead of another retry.
+The legacy parser runs only in this maintenance executable; an upstream parser
+panic terminates the command with failure and never becomes a success response
+or an in-process SDK fallback. These are filesystem sync guarantees, not a
+claim of physical power-loss qualification or cryptographic erasure.
 
 `qperiapt cbom` does not carry a hand-written inventory: it derives every row
 from the suite crates it links (`q-periapt-core`, `q-periapt-sig`,

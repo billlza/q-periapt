@@ -1243,11 +1243,17 @@ dependencies = [
  "clap",
  "q-periapt-backends",
  "q-periapt-core",
+ "q-periapt-host-store",
  "q-periapt-policy",
  "q-periapt-rustls",
+ "q-periapt-sdk",
  "q-periapt-sig",
+ "redb 2.6.4",
+ "redb 4.3.0",
  "rustls",
  "serde_json",
+ "tempfile",
+ "twox-hash",
 ]
 
 [[package]]
@@ -1295,7 +1301,7 @@ dependencies = [
  "q-periapt-policy",
  "q-periapt-sdk",
  "q-periapt-sig",
- "redb",
+ "redb 4.3.0",
  "rustix",
  "sha2 0.11.0",
  "tempfile",
@@ -1354,7 +1360,7 @@ dependencies = [
  "q-periapt-migration",
  "q-periapt-policy",
  "q-periapt-sig",
- "redb",
+ "redb 4.3.0",
  "rustix",
  "tempfile",
 ]
@@ -1549,6 +1555,15 @@ dependencies = [
  "time",
  "x509-parser",
  "yasna",
+]
+
+[[package]]
+name = "redb"
+version = "2.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d64e07496d293ad8ed401c4d193d5b9f0f97671fbd5bf21d691a0c7d2c53dc8"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -2026,6 +2041,12 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
+
+[[package]]
+name = "twox-hash"
+version = "2.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5283634e518fe9e82c7b20520bb4bc209009fd16c82077c802f8111ecbb0117a"
 
 [[package]]
 name = "typenum"

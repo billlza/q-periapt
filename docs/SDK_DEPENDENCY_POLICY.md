@@ -28,6 +28,14 @@ new producer. No automatic migration is provided. A migration must preserve the
 application schema and authenticated state and reconcile any independent witness;
 format conversion alone cannot establish freshness. See [host storage](SDK_HOST_STORE.md).
 
+The optional CLI `policy-store-migration` feature pins redb 2.6.4 solely for
+explicit offline conversion of the original host policy image. That legacy
+provider is absent from the default CLI and native SDK dependency graphs.
+twox-hash 2.1.4 checks commit-slot corruption before dispatch; it does not supply
+cryptographic authentication. This deliberate compatibility dependency does not
+change the selected 4.3.0 runtime provider or authorize an old-reader fallback
+inside a host process. See the [maintenance command](../crates/q-periapt-cli/README.md#offline-host-policy-store-upgrade).
+
 ## Deliberate version boundaries
 
 - `fips204` 0.4.6 and `fips205` 0.4.1 still use their upstream SHA3 0.10 and
