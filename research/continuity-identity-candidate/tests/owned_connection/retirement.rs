@@ -328,7 +328,7 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
     assert_eq!(wait(&mut server)?.code(), Some(77));
     effect(&s.responder, session, message, OLD_PAYLOAD)?;
     eprintln!("PUBLIC_RETIREMENT_STAGE old_effect_committed");
-    let next = replacement::prepare(&s, Some(&witness.configured))?;
+    let next = replacement::prepare_with_client(&s, Some(&witness.configured), client)?;
     eprintln!("PUBLIC_RETIREMENT_STAGE replacement_active");
     store(
         &next.path,
@@ -492,7 +492,9 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
     )?;
     assert!(wait(&mut server)?.success());
     effect(&next.path, fresh, fresh_message, NEW_PAYLOAD)?;
-    let witness_requests = u64::try_from(witness.request_count()?)?;
+    let witness_requests = u64::try_from(witness.request_count()?)?
+        .checked_add(u64::from(client.is_some()))
+        .ok_or("witness request census overflow")?;
     assert!(witness_requests > 0 && witness_requests <= 512);
     let public = root.join("public");
     fs::DirBuilder::new().mode(0o700).create(&public)?;
@@ -549,6 +551,11 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
             &format!("application-{}", hex(fresh_message.as_bytes())),
             65536,
         )?,
+    )?;
+    store(
+        &public,
+        "successor-enrollment-trace",
+        &read(&next.path, "successor-enrollment-trace", 8192)?,
     )?;
     store(
         &public,

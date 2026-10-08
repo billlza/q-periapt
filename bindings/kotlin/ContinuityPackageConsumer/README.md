@@ -710,5 +710,12 @@ profiles pass 54 named JVM tests; original registration and wrong-purpose ACK
 refusal also pass. This does not assert that every run triggered collection or
 qualify every JVM's GC behavior. Complete Kotlin distribution qualification,
 Android/WASM persistence, complete foreign replacement and physical erasure or
-power-loss guarantees remain separate. Registration/replacement authorization
-and fresh-generation TLS in this workload still use the native Rust harness.
+power-loss guarantees remain separate. The replacement fixture also requires ten
+Kotlin processes through the existing registration API: generation-2 creation,
+original-request reopen, grant acceptance/retry, original genesis preparation,
+refusal before witness replacement and activation/reopen after authorization.
+After an activation failure, retained `Activating` state resumes that genesis;
+it cannot prepare another installation. Account issuance, witness replacement
+approval, successor prekeys and fresh-generation TLS still use the native Rust
+harness. This adds client lifecycle coverage without giving device clients
+account-root signing authority.

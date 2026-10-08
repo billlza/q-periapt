@@ -8,7 +8,166 @@ pub(super) struct Replacement {
     pub(super) roster: p::VerifiedRoster,
 }
 
+fn foreign_enrollment(
+    client: &Path,
+    path: &Path,
+    label: &str,
+    operation: &str,
+    witness: Option<&WitnessFixture>,
+    trace: &mut Vec<u8>,
+) -> Result<()> {
+    let stdout_path = path.join(format!("successor-{label}.stdout"));
+    let stderr_path = path.join(format!("successor-{label}.stderr"));
+    let create = |path: &Path| {
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)
+    };
+    let mut command = Command::new(client);
+    if let Some(witness) = witness {
+        command.arg("--witness").arg(witness.address.to_string());
+    }
+    command.arg(format!("enrollment-{operation}")).arg(path);
+    if operation == "activate-error" {
+        command.arg("218");
+    }
+    let mut child = OwnedChild(
+        command
+            .stdout(Stdio::from(create(&stdout_path)?))
+            .stderr(Stdio::from(create(&stderr_path)?))
+            .spawn()?,
+    );
+    let pid = child.0.id();
+    let status = wait(&mut child)?;
+    assert!(fs::metadata(&stdout_path)?.len() <= 8192 && fs::metadata(&stderr_path)?.len() <= 8192);
+    let stderr = fs::read(&stderr_path)?;
+    assert!(
+        status.success() && stderr.is_empty(),
+        "foreign successor {label}: {status}; {}",
+        String::from_utf8_lossy(&stderr)
+    );
+    let stdout = String::from_utf8(fs::read(&stdout_path)?)?;
+    let lines: Vec<_> = stdout.lines().collect();
+    let identifier = |line: &str| {
+        line.len() == 64
+            && line
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            && line.bytes().any(|b| b != b'0')
+    };
+    match operation {
+        "key" => assert_eq!(stdout, "enrollment-key\n"),
+        "activate-error" => assert_eq!(stdout, "enrollment-activation-refused:218\n"),
+        "activate" => {
+            let [state, batch] = lines.as_slice() else {
+                return Err("foreign activation result shape".into());
+            };
+            assert_eq!(*state, "enrollment-active");
+            assert!(identifier(batch));
+        }
+        "create" | "request" | "request-retry" | "accept" | "storage" => {
+            let phase = match operation {
+                "create" => 1,
+                "request" | "request-retry" => 2,
+                _ => 3,
+            };
+            let [state, signer, journal] = lines.as_slice() else {
+                return Err("foreign enrollment status shape".into());
+            };
+            assert_eq!(*state, format!("enrollment-phase:{phase}"));
+            assert!(identifier(signer));
+            if phase <= 2 {
+                assert_eq!(*journal, "0".repeat(64));
+            } else {
+                assert!(identifier(journal));
+            }
+        }
+        _ => return Err("unqualified successor enrollment operation".into()),
+    }
+    trace.extend_from_slice(format!("{label} {pid}\n").as_bytes());
+    Ok(())
+}
+
+fn refuse_before_replacement(
+    client: &Path,
+    path: &Path,
+    witness: &WitnessFixture,
+    subject: p::AnchorSubject,
+    trace: &mut Vec<u8>,
+) -> Result<()> {
+    // The general workload's witness treats unexpected scope errors as fatal.
+    // This one-exchange carrier expects exactly the not-yet-enrolled successor,
+    // invokes the same real store, and must observe its Scope refusal. It sends
+    // no acknowledgement and does not alter the normal witness error handling.
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let address = listener.local_addr()?;
+    let store = Arc::clone(&witness.store);
+    let binding = witness.pin()?.binding();
+    let worker = std::thread::spawn(move || -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(25);
+        let mut stream = loop {
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(error)
+                    if error.kind() == io::ErrorKind::WouldBlock && Instant::now() < deadline =>
+                {
+                    std::thread::sleep(Duration::from_millis(2));
+                }
+                Err(error) => return Err(error.into()),
+            }
+        };
+        stream.set_nonblocking(false)?;
+        stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+        let mut size = [0; 4];
+        stream.read_exact(&mut size)?;
+        assert_eq!(u32::from_be_bytes(size), 3674);
+        let mut request = [0; 3674];
+        stream.read_exact(&mut request)?;
+        assert_eq!(&request[4..12], b"QPANRQ01");
+        assert_eq!(&request[12..44], &binding);
+        assert_eq!(&request[44..140], &subject.to_bytes());
+        assert!(matches!(
+            store
+                .lock()
+                .map_err(|_| "witness store poisoned")?
+                .handle(&request, now()?),
+            Err(p::AnchorError::Rejected(p::Error::Scope))
+        ));
+        Ok(())
+    });
+    let expected = WitnessFixture {
+        store: Arc::clone(&witness.store),
+        address,
+    };
+    let called = foreign_enrollment(
+        client,
+        path,
+        "activate-before-replacement",
+        "activate-error",
+        Some(&expected),
+        trace,
+    );
+    let observed = worker
+        .join()
+        .map_err(|_| "successor refusal witness panicked")?;
+    called?;
+    observed
+}
+
 pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Replacement> {
+    prepare_with_client(s, witness, None)
+}
+
+/// The account issuer and witness controller retain their independent authority.
+/// Only device-side enrollment is delegated to the selected foreign executable.
+pub(super) fn prepare_with_client(
+    s: &Setup,
+    witness: Option<&WitnessFixture>,
+    client: Option<&Path>,
+) -> Result<Replacement> {
     let root = s
         .responder_issuer
         .as_ref()
@@ -35,7 +194,18 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
     store(&path, "role", &[2])?;
     store(&path, "owner-mode", &[2])?;
     store(&peer, "role", &[1])?;
-    p::JournalKey::provision(&path.join("wrap.key"))?;
+    // Activation admits the host TLS configuration before contacting the witness.
+    // Install this independent application input before either activation check.
+    let tls = rcgen::generate_simple_self_signed(vec!["responder.test".into()])?;
+    store(&path, "tls-cert", tls.cert.der())?;
+    store(
+        &path,
+        "tls-key",
+        &Zeroizing::new(tls.signing_key.serialize_der()),
+    )?;
+    if client.is_none() {
+        p::JournalKey::provision(&path.join("wrap.key"))?;
+    }
     let mut sdk = PolicyStore::provision(
         &path.join("sdk.redb"),
         &read(&path, "sdk-policy", 4096)?,
@@ -43,7 +213,7 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
         &read(&path, "sdk-root", 8192)?,
         q_periapt_sdk::Limits::default(),
     )?;
-    let policy = protocol_policy(&path, &sdk)?;
+    let mut policy = protocol_policy(&path, &sdk)?;
     let at = now()?;
     let validity = p::Validity::new(
         at.saturating_sub(1).max(policy.validity().from()),
@@ -63,9 +233,55 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
         root.public_key()?,
         p::DeviceDescription::new(device_id, generation, family, validity)?,
     );
-    let mut enrollment = p::DeviceEnrollment::provision(enrollment::paths(&path)?, intent.clone())?;
+    let mut foreign_trace = Vec::new();
+    let mut enrollment = if let Some(client) = client {
+        let mut bytes = device_id.to_vec();
+        bytes.extend_from_slice(&generation.to_be_bytes());
+        bytes.extend_from_slice(&family);
+        bytes.extend_from_slice(&validity.from().to_be_bytes());
+        bytes.extend_from_slice(&validity.until().to_be_bytes());
+        store(&path, "enrollment-root", &root.public_key()?.encode())?;
+        store(&path, "enrollment-intent", &bytes)?;
+        policy.close();
+        sdk.close();
+        for operation in ["key", "create", "request", "request-retry"] {
+            foreign_enrollment(
+                client,
+                &path,
+                operation,
+                operation,
+                None,
+                &mut foreign_trace,
+            )?;
+        }
+        assert_eq!(
+            read(&path, "enrollment-request", 8192)?,
+            read(&path, "enrollment-reopened-request", 8192)?,
+            "foreign successor recreated its original enrollment request"
+        );
+        sdk = super::sdk(&path)?;
+        policy = protocol_policy(&path, &sdk)?;
+        p::DeviceEnrollment::open(enrollment::paths(&path)?, intent.clone())?
+    } else {
+        p::DeviceEnrollment::provision(enrollment::paths(&path)?, intent.clone())?
+    };
     let identity = enrollment.identity()?;
     let request = enrollment.request(at)?;
+    if client.is_some() {
+        assert_eq!(request, read(&path, "enrollment-request", 8192)?);
+        for (label, phase) in [("create", 1), ("request", 2), ("request-retry", 2)] {
+            assert_eq!(
+                fs::read(path.join(format!("successor-{label}.stdout")))?,
+                format!(
+                    "enrollment-phase:{phase}\n{}\n{}\n",
+                    hex(identity.as_bytes()),
+                    hex(&[0; 32])
+                )
+                .as_bytes(),
+                "foreign successor status changed its original signer"
+            );
+        }
+    }
     enrollment.close();
     let mut enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent.clone())?;
     assert_eq!(enrollment.identity()?, identity);
@@ -95,13 +311,58 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
     let device = pin.verify_device(&certificate, issued.as_bytes(), at)?;
     assert_eq!(device.device_id(), device_id);
     assert_eq!(device.generation(), generation);
+    if let Some(client) = client {
+        for (name, bytes) in [
+            ("grant-certificate", certificate.clone()),
+            ("grant-roster", issued.as_bytes().to_vec()),
+            ("trusted-account", root.account_id()?.to_vec()),
+            (
+                "trusted-roster-version",
+                issued.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            (
+                "trusted-roster-digest",
+                issued.checkpoint().digest().to_vec(),
+            ),
+        ] {
+            store(&path, name, &bytes)?;
+        }
+        enrollment.close();
+        policy.close();
+        sdk.close();
+        for (label, operation) in [
+            ("accept", "accept"),
+            ("accept-retry", "accept"),
+            ("storage", "storage"),
+        ] {
+            foreign_enrollment(client, &path, label, operation, None, &mut foreign_trace)?;
+        }
+        sdk = super::sdk(&path)?;
+        policy = protocol_policy(&path, &sdk)?;
+        enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent.clone())?;
+        assert_eq!(enrollment.identity()?, identity);
+    }
     let journal = enrollment.accept(&certificate, issued.as_bytes(), &pin, &policy, at)?;
+    if client.is_some() {
+        for label in ["accept", "accept-retry", "storage"] {
+            assert_eq!(
+                fs::read(path.join(format!("successor-{label}.stdout")))?,
+                format!(
+                    "enrollment-phase:3\n{}\n{}\n",
+                    hex(identity.as_bytes()),
+                    hex(journal.as_bytes())
+                )
+                .as_bytes(),
+                "foreign successor acceptance or preparation changed the original journal"
+            );
+        }
+    }
     assert_ne!(
         journal.as_bytes(),
         &array::<32>(&s.responder, "accepted-journal")?
     );
     enrollment.close();
-    let mut enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent)?;
+    let mut enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent.clone())?;
     assert_eq!(
         enrollment.accept(&certificate, issued.as_bytes(), &pin, &policy, at)?,
         journal
@@ -134,7 +395,43 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
         store(&path, name, &bytes)?;
     }
     let preparation = enrollment.prepare(&policy, at)?;
-    let anchor = match (witness, preparation) {
+    if let Some(client) = client {
+        let witness = witness.ok_or("foreign successor requires witness qualification")?;
+        let witness_pin = witness.pin()?;
+        store(&path, "witness-id", witness_pin.identity().as_bytes())?;
+        store(&path, "witness-public", &witness_pin.public_key().encode())?;
+        let p::InstallationPreparation::RequiresEnrollment(genesis) = &preparation else {
+            return Err("foreign successor lost required witness".into());
+        };
+        assert_eq!(
+            read(&path, "enrollment-genesis-subject", 96)?,
+            genesis.subject().to_bytes()
+        );
+        assert_eq!(
+            read(&path, "enrollment-genesis-digest", 32)?,
+            genesis.image_digest()
+        );
+        enrollment.close();
+        policy.close();
+        sdk.close();
+        refuse_before_replacement(
+            client,
+            &path,
+            witness,
+            genesis.subject(),
+            &mut foreign_trace,
+        )?;
+        sdk = super::sdk(&path)?;
+        policy = protocol_policy(&path, &sdk)?;
+        enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent.clone())?;
+        assert_eq!(
+            enrollment.status()?,
+            p::EnrollmentStatus::Activating(journal)
+        );
+        // Keep the exact previously prepared genesis. Activating is recovery of
+        // that original operation and intentionally does not permit prepare().
+    }
+    let anchor_pin = match (witness, preparation) {
         (None, p::InstallationPreparation::Local) => None,
         (Some(witness), p::InstallationPreparation::RequiresEnrollment(genesis)) => {
             let previous =
@@ -161,6 +458,9 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
             drop(controller);
             let witness_pin = witness.pin()?;
             for destination in [&path, &peer] {
+                if client.is_some() && destination == &path {
+                    continue; // The independently pinned bytes were installed before the refusal check.
+                }
                 store(destination, "witness-id", witness_pin.identity().as_bytes())?;
                 store(
                     destination,
@@ -169,15 +469,54 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
                 )?;
             }
             store(&path, "witness-subject", &genesis.subject().to_bytes())?;
-            Some(enrollment.anchor_client(
-                &policy,
-                at,
-                witness_pin,
-                Box::new(p::AnchorTcpTransport::new(witness.address)),
-                Duration::from_secs(3),
-            )?)
+            Some(witness_pin)
         }
         _ => return Err("replacement changed the required witness profile".into()),
+    };
+    if let Some(client) = client {
+        let witness = witness.ok_or("foreign successor witness disappeared")?;
+        enrollment.close();
+        policy.close();
+        sdk.close();
+        for label in ["activate", "activate-reopen"] {
+            foreign_enrollment(
+                client,
+                &path,
+                label,
+                "activate",
+                Some(witness),
+                &mut foreign_trace,
+            )?;
+        }
+        sdk = super::sdk(&path)?;
+        policy = protocol_policy(&path, &sdk)?;
+        enrollment = p::DeviceEnrollment::open(enrollment::paths(&path)?, intent)?;
+        assert_eq!(enrollment.identity()?, identity);
+        assert_eq!(enrollment.status()?, p::EnrollmentStatus::Active(journal));
+        assert_eq!(
+            enrollment.accept(&certificate, issued.as_bytes(), &pin, &policy, now()?)?,
+            journal
+        );
+    }
+    store(
+        &path,
+        "successor-enrollment-trace",
+        if client.is_some() {
+            &foreign_trace
+        } else {
+            b"native\n"
+        },
+    )?;
+    let anchor = match (witness, anchor_pin) {
+        (Some(witness), Some(pin)) => Some(enrollment.anchor_client(
+            &policy,
+            now()?,
+            pin,
+            Box::new(p::AnchorTcpTransport::new(witness.address)),
+            Duration::from_secs(3),
+        )?),
+        (None, None) => None,
+        _ => return Err("replacement witness configuration changed".into()),
     };
     let mut active = enrollment.activate(&policy, at, anchor)?;
     let (service, signer, admitted) = active.parts()?;
@@ -241,13 +580,6 @@ pub(super) fn prepare(s: &Setup, witness: Option<&WitnessFixture>) -> Result<Rep
             one_time_classical: Some(proof(p::LeafKind::OneTimeClassical)?),
             one_time_pq: Some(proof(p::LeafKind::OneTimePq)?),
         },
-    )?;
-    let tls = rcgen::generate_simple_self_signed(vec!["responder.test".into()])?;
-    store(&path, "tls-cert", tls.cert.der())?;
-    store(
-        &path,
-        "tls-key",
-        &Zeroizing::new(tls.signing_key.serialize_der()),
     )?;
     store(&path, "tls-peer", &read(&s.initiator, "tls-cert", 8192)?)?;
     store(&path, "tls-peer-name", b"initiator.test")?;

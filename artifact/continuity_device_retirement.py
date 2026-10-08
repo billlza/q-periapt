@@ -12,11 +12,13 @@ from continuity_c_witness import commit
 
 STAGES = ("inventory", "prepare-report", "report", "report-reopen", "prepare-ack",
           "erase-journal", "erase-signer", "verify")
+SUCCESSOR_STAGES = ("key", "create", "request", "request-retry", "accept", "accept-retry",
+                    "storage", "activate-before-replacement", "activate", "activate-reopen")
 FILES = frozenset({"witness-request-count", "witness-id", "witness-public", "witness-subject", "retirement-proposal",
                    "retirement-receipt", "retirement-inventory", "retirement-inventory-receipt",
                    "retirement-report-proposal", "retirement-report-receipt", "retirement-host-report", "retirement-host-report-verified",
                    "retirement-report-reopened", "retirement-ack", "retirement-verified", "old-effect",
-                   "new-effect", "signer-terminal", "result.json"}
+                   "new-effect", "signer-terminal", "result.json", "successor-enrollment-trace"}
                   | {"retirement-process-" + stage for stage in STAGES})
 IDENTITIES = ("old_session", "old_message", "new_session", "new_message", "report_id")
 FLAGS = ("required_witness", "old_authority_refused", "original_report_reopened", "journal_erased", "signer_erased")
@@ -97,13 +99,24 @@ def verify(directory: Path) -> dict:
     pids = [int.from_bytes(fixed("retirement-process-" + stage, 8), "big") for stage in STAGES]
     sdk.require(all(pid > 0 for pid in pids) and len(set(pids)) == len(STAGES),
                 "retirement did not cross independent recovery processes")
+    successor = read("successor-enrollment-trace", 8192)
+    successor_pids = []
+    if successor != b"native\n":
+        expected = b"".join(name.encode() + rb" ([1-9][0-9]*)\n" for name in SUCCESSOR_STAGES)
+        matched = re.fullmatch(expected, successor)
+        sdk.require(matched is not None, "successor enrollment process sequence differs")
+        successor_pids = [int(value) for value in matched.groups()]
+        sdk.require(len(set(successor_pids)) == len(SUCCESSOR_STAGES)
+                    and not set(successor_pids).intersection(pids),
+                    "successor enrollment reused a recovery process identity")
     for role, payload in (("old", b"retiring device effect before unavailable receipt"),
                           ("new", b"fresh required-witness replacement")):
         sdk.require(read(role + "-effect") == bytes.fromhex(result[role + "_session"] + result[role + "_message"]) + payload,
                     "retirement actual application effect differs")
     sdk.require(fixed("signer-terminal", 8) == b"QPSRET01", "retirement signer terminal differs")
     sdk.require(set(public) == FILES, "retirement evidence left unread files")
-    return {"completed": True, "scope": SCOPE, "outcomes": result, "recovery_process_ids": pids, "witness_requests": request_count,
+    return {"completed": True, "scope": SCOPE, "outcomes": result, "recovery_process_ids": pids,
+            "successor_process_ids": successor_pids, "witness_requests": request_count,
             "public_readbacks": public, "release_claim_eligible": False}
 
 
@@ -127,11 +140,15 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
                 and len(re.findall(r"^test result:", text, re.MULTILINE)) == 1
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE),
                 "foreign retirement test did not complete its exact workload")
+    sdk.require(len(verify(directory)["successor_process_ids"]) == len(SUCCESSOR_STAGES),
+                "foreign successor enrollment was not executed")
     checked = export(directory, destination)
     checked["consumer_language"] = language
     checked["scope"] = (
         f"{language} restricted retired-enrollment API across eight actual cleanup processes; "
-        "native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. "
+        f"ten {language} successor processes create generation 2, reopen its original request, accept the independent "
+        "grant, preserve its genesis, refuse activation before replacement, and activate/reopen after authorization. "
+        "Account issuance, required-witness replacement commit and fresh-generation TLS traffic remain native Rust. "
         "Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and "
         "logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; "
         "no physical erasure, independent protocol or complete foreign-device lifecycle claim."

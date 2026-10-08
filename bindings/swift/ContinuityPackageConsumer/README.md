@@ -631,9 +631,14 @@ report-retention signature cannot substitute for a host-accounted erasure ACK.
 Logical erasure says nothing about old pages, backups, wrapping keys or physical
 power-loss durability.
 
-Debug and Release source consumers pass 56 tests and eight actual Swift cleanup
-processes, including three exits without completion and exact complete report
-readback. The installed-package producer requires the same workload. Fresh
-archive qualification remains separate; registration/replacement authorization
-and fresh-generation TLS in this scenario remain native Rust. This is not a
-complete foreign replacement flow or an independent protocol implementation.
+The installed-package producer requires all 56 named tests and eight actual Swift
+cleanup processes, including three exits without completion and exact complete
+report readback. The replacement fixture also drives ten Swift processes through
+the existing enrollment API: generation-2 creation, original-request reopen,
+grant acceptance/retry, exact genesis preparation, refusal before witness
+replacement, and activation/reopen after its independently authorized commit.
+An interrupted `Activating` enrollment resumes its original genesis without
+preparing another installation. Account issuance, witness replacement approval,
+successor prekeys and fresh-generation TLS remain native Rust. Qualification of
+each current archive is separate; this is not a complete foreign replacement
+flow or an independent protocol implementation.

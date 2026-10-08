@@ -1248,9 +1248,16 @@ initialized to zero. A malformed receipt never becomes permission to erase.
 
 Logical erasure does not erase old disk pages, backups, wrapping keys or saved
 host metadata. After terminal erasure, reopening the signing file or ordinary
-enrollment remains refused. The C process workload uses the native replacement
-and fresh-generation TLS scenario, eight actual C cleanup processes, independent
-native report readback and three exits without completion after durable work.
+enrollment remains refused. The process workload first uses the existing public
+registration API in ten C processes to create generation 2, reopen its original
+request, accept and re-accept an independently signed grant, and prepare its exact
+genesis. Activation before witness replacement is refused. The persisted
+`Activating` state resumes that original genesis; it must not call `prepare`
+again. After the independent account/witness controller commits replacement,
+the C client activates and reopens the same journal. Eight further C processes
+perform cleanup, with independent native report readback and three exits without
+completion after durable work. Account issuance, witness replacement authorization,
+successor prekeys and fresh-generation TLS remain native Rust in this workload.
 It also exercises snapshots, invalid receipt/length refusal, cancellation and
 consumed-owner behavior. Debug/Release installed execution is required by the
 package producer. Source execution alone does not qualify installed archives,
