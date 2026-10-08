@@ -78,6 +78,196 @@ pub(in crate::durable) fn inventory_at(
     }
 }
 
+fn publication_boundary_capture(
+    label: &str,
+    first: &crate::IssuedManifest,
+    second: &crate::IssuedManifest,
+) {
+    let Some(base) = std::env::var_os("QPERIAPT_PUBLICATION_BOUNDARY_CAPTURE") else {
+        return;
+    };
+    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+    let base = PathBuf::from(base);
+    assert!(base.is_absolute());
+    let path = base.join(label);
+    fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&path)
+        .expect("fresh public capture directory");
+    for (label, manifest) in [("first", first), ("second", second)] {
+        let mut records = vec![(
+            format!("{label}-manifest.bin"),
+            manifest.as_bytes().to_vec(),
+        )];
+        for index in 0..manifest.leaf_count() {
+            records.push((
+                format!("{label}-proof-{index}.bin"),
+                manifest
+                    .proof(index)
+                    .expect("public proof")
+                    .encode()
+                    .expect("public proof bytes"),
+            ));
+        }
+        for (name, bytes) in records {
+            use std::io::Write;
+            let mut output = fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .mode(0o600)
+                .open(path.join(name))
+                .expect("new public evidence file");
+            output.write_all(&bytes).expect("public evidence write");
+            output.sync_all().expect("public evidence sync");
+        }
+    }
+    fs::File::open(&path)
+        .expect("public directory")
+        .sync_all()
+        .expect("public directory sync");
+}
+
+#[test]
+fn publication_boundary_inventory_reopen_does_not_retain_manifest_signature_bytes() {
+    let mut f = inventory(PrekeyQuality::OneTimeBoth);
+    let (policy, device, _) = f.peer.responder.inventory_inputs().expect("admission");
+    let context = crate::ManifestContext::new(
+        1,
+        policy.runtime.trusted_state().digest(),
+        crate::bootstrap_suite_digest(),
+        [99; 32],
+        interval(),
+    )
+    .expect("explicit publication context");
+    let read_leaves = |store: &mut DeviceJournal| {
+        f.ids
+            .iter()
+            .map(|id| {
+                store
+                    .prekey_leaf(policy, device, *id, 150)
+                    .expect("available public leaf")
+            })
+            .collect::<Vec<_>>()
+    };
+    let revision = f.store.image().expect("original image").revision;
+    let first = f
+        .peer
+        .signer_r
+        .issue_manifest(device, context, &read_leaves(&mut f.store))
+        .expect("first signed object");
+    let first_checked = device
+        .verify_manifest(first.as_bytes(), 150)
+        .expect("first signature");
+    assert_eq!(f.store.image().expect("unchanged image").revision, revision);
+    f.store.close();
+    f.store = reopen(&f.path, device);
+    let second = f
+        .peer
+        .signer_r
+        .issue_manifest(device, context, &read_leaves(&mut f.store))
+        .expect("re-sign recovered public inventory");
+    let second_checked = device
+        .verify_manifest(second.as_bytes(), 150)
+        .expect("second signature");
+    assert_eq!(first_checked.digest(), second_checked.digest());
+    assert_eq!(
+        crate::crypto::open_envelope(first.as_bytes())
+            .expect("first body")
+            .0,
+        crate::crypto::open_envelope(second.as_bytes())
+            .expect("second body")
+            .0
+    );
+    for index in 0..first.leaf_count() {
+        assert_eq!(
+            first
+                .proof(index)
+                .expect("original proof")
+                .encode()
+                .expect("original bytes"),
+            second
+                .proof(index)
+                .expect("reopened proof")
+                .encode()
+                .expect("reopened bytes")
+        );
+    }
+    assert_eq!(f.store.image().expect("reopened image").revision, revision);
+    publication_boundary_capture("same-intent-after-reopen", &first, &second);
+    // Wire equality is an observation, not an API promise or a required property
+    // of all future valid signature backends. A durable publisher must retain
+    // the first committed envelope instead of inferring it from its body digest.
+    eprintln!("PUBLICATION_BOUNDARY same_body=true same_manifest_digest=true same_membership_proofs=true inventory_reopened=true journal_unchanged=true wire_equal={}", first.as_bytes() == second.as_bytes());
+}
+
+#[test]
+fn publication_boundary_signer_does_not_allocate_a_durable_manifest_epoch() {
+    let mut f = inventory(PrekeyQuality::OneTimeBoth);
+    let (policy, device, _) = f.peer.responder.inventory_inputs().expect("admission");
+    let context = crate::ManifestContext::new(
+        1,
+        policy.runtime.trusted_state().digest(),
+        crate::bootstrap_suite_digest(),
+        [99; 32],
+        interval(),
+    )
+    .expect("explicit publication context");
+    let mut leaves: Vec<_> = f
+        .ids
+        .iter()
+        .map(|id| {
+            f.store
+                .prekey_leaf(policy, device, *id, 150)
+                .expect("available leaf")
+        })
+        .collect();
+    let first = f
+        .peer
+        .signer_r
+        .issue_manifest(device, context, &leaves)
+        .expect("first artifact");
+    let replacement = f
+        .store
+        .generate_prekey(
+            policy,
+            device,
+            PrekeyId::from_trusted_state([44; 32]).expect("separate inventory request"),
+            LeafKind::OneTimePq,
+            interval(),
+            150,
+        )
+        .expect("another real native prekey");
+    *leaves
+        .iter_mut()
+        .find(|leaf| leaf.kind() == LeafKind::OneTimePq)
+        .expect("one-time PQ leaf") = replacement;
+    let second = f
+        .peer
+        .signer_r
+        .issue_manifest(device, context, &leaves)
+        .expect("another artifact at the same caller-selected epoch");
+    let a = device
+        .verify_manifest(first.as_bytes(), 150)
+        .expect("first signature");
+    let b = device
+        .verify_manifest(second.as_bytes(), 150)
+        .expect("second signature");
+    assert_eq!(a.context(), b.context());
+    assert_ne!(a.digest(), b.digest());
+    for artifact in [&first, &second] {
+        let verified = device
+            .verify_manifest(artifact.as_bytes(), 150)
+            .expect("manifest");
+        for index in 0..artifact.leaf_count() {
+            verified
+                .verify_leaf(&artifact.proof(index).expect("proof"), 150)
+                .expect("valid member");
+        }
+    }
+    publication_boundary_capture("same-epoch-different-intent", &first, &second);
+    eprintln!("PUBLICATION_BOUNDARY same_epoch=1 both_signatures_verified=true distinct_manifest_digests=true actual_durable_prekeys=true");
+}
+
 #[test]
 fn full_prekey_inventory_keeps_roster_admission_and_revocation_available() {
     let f = fixture(PrekeyQuality::OneTimeBoth);
