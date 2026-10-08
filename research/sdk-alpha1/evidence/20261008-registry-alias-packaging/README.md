@@ -51,8 +51,8 @@ bytes remained unchanged after building and consuming the installed binary.
 Maintenance binary SHA-256:
 `cd9b17a84635ffa06d9144d35a870f547ec0e0db6fe9a0cf6e8d363dc2327f6f`.
 Its seven cases are successful original-format upgrade, current-format retry,
-wrong trusted state, wrong independent root, corruption of either transaction
-slot, and missing-store refusal. Partial writes and process cuts remain the
+oversized independent state, missing-store refusal, corruption of either
+transaction slot, and a final current-format retry. Partial writes and process cuts remain the
 separate feature-test evidence; these seven cases do not imply power-loss safety.
 
 A preliminary expanded regression invocation ran in a Git worktree and was
