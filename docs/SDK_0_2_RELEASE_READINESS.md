@@ -74,6 +74,13 @@ workload groups, followed by verified app/simulator cleanup. This is simulator
 execution and complete package evidence; physical/minimum-OS runtime acceptance
 and durable iOS policy storage remain open. No Intel macOS support is added.
 
+The [scanner content-budget checkpoint](../research/sdk-alpha1/evidence/20261008-cli-bounded-read/README.md)
+fixes an actual read after a stale file-size check: growing files can no longer
+bypass the 2 MiB content limit. The old reader fails the retained regression;
+both Rust 1.98.1 and 1.90 pass 20 tests and strict Clippy, and eight real CLI
+processes verify JSON/exit behavior at the size and UTF-8 boundaries. This is
+tooling hardening, not a filesystem-confinement or overall security claim.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

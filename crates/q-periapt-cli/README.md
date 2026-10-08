@@ -57,6 +57,12 @@ build script compiles the vendored mlkem-native C/assembly tree with `cc`.
 Matching is case-insensitive with word boundaries (`_` counts as a boundary, so
 `rsa_sign` and `x25519_dalek` match, but `coarse` does not).
 
+Each code file must be valid UTF-8 and at most 2 MiB. The byte limit applies to
+the content read, including growth after the initial metadata check. Oversized
+or unreadable files make the scan incomplete: JSON reports `complete: false`
+and the command exits 1. The scanner does not report a truncated file as a
+complete scan. A changing directory tree is not an atomic filesystem snapshot.
+
 ## Example
 
 ```sh
