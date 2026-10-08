@@ -72,6 +72,10 @@ final class RetirementTests: XCTestCase {
         XCTAssertEqual(report.canonicalBytes, bytes)
         XCTAssertEqual(report.report.bytes, [UInt8](repeating: 7, count: 32))
         XCTAssertEqual(report.viewCount, 2)
+        let v2 = Array("QPRDMD02".utf8) + Array(bytes.dropFirst(8))
+        XCTAssertEqual(try RetiredDeviceReport(info: info, bytes: v2).canonicalBytes, v2)
+        let unknown = Array("QPRDMD03".utf8) + Array(bytes.dropFirst(8))
+        XCTAssertThrowsError(try RetiredDeviceReport(info: info, bytes: unknown))
         for count in [0, 322, 8_388_609] {
             var bad = info; bad.length = count
             XCTAssertThrowsError(try RetiredDeviceReport(info: bad, bytes: bytes))

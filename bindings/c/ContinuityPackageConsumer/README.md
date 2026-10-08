@@ -1224,7 +1224,7 @@ The complete sequence is:
    independent report-retention receipt. `report_proposal` restores only the
    locally retained original expectation.
 3. `load_report` authenticates both receipts and the complete original state.
-   `copy_report` copies exactly the returned length of canonical `QPRDMD01`
+   `copy_report` copies exactly the returned length of canonical `QPRDMD01/QPRDMD02`
    metadata. The record includes every original view; its keyed report ID is
    returned separately in the report info and original proposal. Protect these
    identities, account/device linkage and lengths as private host metadata.

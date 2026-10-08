@@ -43,6 +43,7 @@ struct Case {
     pin: AnchorPin,
     retired: AnchorRetiredSubject,
     messages: Option<ReportMessages>,
+    publication: Option<Vec<u8>>,
 }
 fn journal_rows(path: &Path) -> Vec<(String, Vec<u8>)> {
     let db = open_private_database(path).expect("closed original journal");
@@ -75,6 +76,9 @@ impl Case {
         Self::build(pending, false)
     }
     fn build(pending: bool, populated: bool) -> Self {
+        Self::build_with_publication(pending, populated, false)
+    }
+    fn build_with_publication(pending: bool, populated: bool, publication: bool) -> Self {
         let directory = directory();
         let root = directory.path().canonicalize().expect("root");
         let server = root.join("witness");
@@ -147,6 +151,80 @@ impl Case {
                 Some(client),
             )
             .expect("actual original service");
+        let publication = if publication {
+            use crate::{
+                PrekeyPublicationKey as K, PrekeyPublicationPlan, PrekeyPublicationRequest,
+                PrekeyPublicationRun,
+            };
+            let plan = PrekeyPublicationPlan::new(
+                [99; 32],
+                crate::tests::interval(),
+                &[
+                    K::generate(crate::LeafKind::SignedClassical, crate::tests::interval()),
+                    K::generate(crate::LeafKind::OneTimeClassical, crate::tests::interval()),
+                    K::generate(crate::LeafKind::LastResortPq, crate::tests::interval()),
+                    K::generate(crate::LeafKind::OneTimePq, crate::tests::interval()),
+                ],
+            )
+            .expect("complete publication");
+            let journal = service.stores().expect("stores").0;
+            let id = journal
+                .next_prekey_publication_id()
+                .expect("first publication");
+            let prepared = journal
+                .prepare_prekey_publication(
+                    PrekeyPublicationRequest {
+                        id,
+                        plan: &plan,
+                        policy,
+                        device,
+                        signer: &peer.signer_r,
+                    },
+                    PrekeyPublicationRun {
+                        cancel: &crate::Cancellation::default(),
+                        deadline: Instant::now() + Duration::from_secs(30),
+                    },
+                    || Ok(150),
+                )
+                .expect("actually witness-committed artifact");
+            let next = journal
+                .next_prekey_publication_id()
+                .expect("second publication");
+            let cancel = crate::Cancellation::default();
+            let mut calls = 0;
+            assert!(matches!(
+                journal.prepare_prekey_publication(
+                    PrekeyPublicationRequest {
+                        id: next,
+                        plan: &plan,
+                        policy,
+                        device,
+                        signer: &peer.signer_r
+                    },
+                    PrekeyPublicationRun {
+                        cancel: &cancel,
+                        deadline: Instant::now() + Duration::from_secs(30)
+                    },
+                    || {
+                        calls += 1;
+                        if calls == 2 {
+                            cancel.cancel();
+                        }
+                        Ok(150)
+                    }
+                ),
+                Err(crate::PrekeyPublicationError::Cancelled)
+            ));
+            assert!(matches!(
+                journal
+                    .prekey_publication_status(next)
+                    .expect("pending original"),
+                crate::PrekeyPublicationStatus::Reserved { .. }
+            ));
+            Some(prepared.manifest().as_bytes().to_vec())
+        } else {
+            None
+        };
         let messages = if populated {
             Some(populate_messages(&mut service, &peer, &store, &pin, &root))
         } else {
@@ -284,6 +362,7 @@ impl Case {
             pin,
             retired,
             messages,
+            publication,
         }
     }
 }
@@ -1493,4 +1572,48 @@ fn process_loss_before_and_after_host_ack_intent_recovers_without_original_journ
         assert!(!c.paths.archives.exists());
     }
     eprintln!("RETIRED_HOST_ACK_INSTALLATION_PROCESS before_commit=true after_commit=true original_data_unavailable=true same_host_record=true");
+}
+
+#[test]
+fn retired_report_v2_preserves_prepared_and_unfinished_publications_after_replacement() {
+    let c = Case::build_with_publication(false, false, true);
+    let before = journal_rows(&c.paths.journal);
+    let mut owner = c.open().expect("retired owner");
+    let inventory = retained_inventory(&c, &mut owner);
+    let proposal = owner.prepare_report(&inventory).expect("complete report");
+    let receipt = retained_report(&c, &proposal);
+    let report = owner
+        .report(&inventory, &c.pin, &receipt)
+        .expect("verified report");
+    assert!(report.as_bytes().starts_with(b"QPRDMD02"));
+    let histories: Vec<_> = report
+        .views()
+        .iter()
+        .flat_map(|v| &v.records)
+        .filter_map(|r| match &r.metadata {
+            crate::retired_device::RecordMetadata::PrekeyPublications {
+                next_epoch,
+                public_history,
+            } => Some((*next_epoch, public_history)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(histories.len(), 1);
+    let (next, history) = histories.first().expect("one complete registry");
+    assert_eq!(*next, 3);
+    assert!(history.starts_with(b"QPPREG01"));
+    let artifact = c.publication.as_ref().expect("prepared artifact");
+    assert!(history
+        .windows(artifact.len())
+        .any(|bytes| bytes == artifact));
+    assert_eq!(history.get(16..18), Some(2u16.to_be_bytes().as_slice()));
+    assert_eq!(journal_rows(&c.paths.journal), before);
+    crate::durable::retired_report::verify_recorded_report(&c.key(), &proposal, report.as_bytes())
+        .expect("keyed entire v2");
+    let mut changed = report.as_bytes().to_vec();
+    *changed.last_mut().expect("byte") ^= 1;
+    assert!(
+        crate::durable::retired_report::verify_recorded_report(&c.key(), &proposal, &changed)
+            .is_err()
+    );
 }

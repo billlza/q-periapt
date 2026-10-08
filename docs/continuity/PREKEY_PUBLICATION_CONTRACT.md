@@ -1,9 +1,11 @@
 # Owned prekey publication contract — implementation work in progress
 
-This is the required contract for the next lifecycle component. It is not an
-implemented API, a frozen storage format, or evidence that directory publication
-already exists. Existing `generate_prekey` and `issue_manifest` remain lower-level
-operations with their documented responsibilities.
+The native journal now implements the local recoverable operation below through
+`next_prekey_publication_id`, `prepare_prekey_publication`, status, abandon and
+retire. Enrolled-device C/Swift/Kotlin publication entry points and the installed
+successor's use of them remain open. This is neither a frozen storage/ABI contract
+nor evidence of remote directory publication. Existing `generate_prekey` and
+`issue_manifest` remain lower-level operations with their documented responsibilities.
 
 ## Observed boundary
 
@@ -100,10 +102,13 @@ prekey and aggregate-image budgets.
 
 ## Storage and verification obligations
 
-The present authenticated image is `QPVLT021`. A new durable record must have
-explicit format/version admission, bounded counts, validation and resource
-accounting. Existing images must remain readable; older implementations must
-refuse an unsupported new format without rebuilding state. Whole-device retired
+Images without a publication registry retain `QPVLT021`/`QPVIMG21`. The first
+atomic reservation writes `QPVLT022`/`QPVIMG22`; the registry survives even after
+all artifacts retire, preserving the next ordinal. The v21 decoder cannot admit
+the new record, and v22 requires exactly one validated registry. The database
+container/table is unchanged. New code reads both image formats; the older v21
+parser rejects the new outer tag. Actual old-binary rejection qualification remains
+a separate gate, rather than being inferred from a new-code round trip. Whole-device retired
 reports must include publication metadata, including unfinished original intent
 and retained-artifact identity, before cleanup can acknowledge the complete
 image. No journal or report variant may be silently omitted.
@@ -120,3 +125,47 @@ owner instead of native fixture prekey/manifest setup.
 Cross-language API and ABI work follows the native recoverable operation. The
 overall 0.2.0 gate still includes real distribution packages, independent
 implementations, platform/device coverage and security analysis.
+
+## Native implementation checkpoint
+
+`PrekeyPublicationPlan` binds the ordered key roles, intervals and explicit reuse
+IDs before work. A complete permitted bootstrap mode must be present. All fresh
+inventory reservations and zero-filled space for the complete final artifact are
+committed together. Subsequent generation and final serialization fit that
+reservation; current authority, clock, leaf availability and cancellation are
+rechecked before returning output. A retry of a committed artifact rebuilds
+canonical membership proofs from its retained public leaves without re-signing.
+`Prepared` is historical local state, and can remain readable after release is
+refused because a key was claimed or authority expired.
+
+There are at most 16 live publication entries, with a 512 KiB total public-registry
+budget. A new reservation may use at most 1.5 MiB of the 2 MiB aggregate image,
+leaving at least 512 KiB for subsequent ordinary work. The byte limit and live-entry
+limit are separate from the 128 session-operation slots and 1024 inventory records.
+Retirement reclaims public-registry capacity, never inventory claim tombstones.
+This gives maintenance headroom; it does not promise unlimited traffic or bypass
+the existing overall image/record limits. New inventory still has its existing
+lifetime identity budget.
+
+A prepared artifact retires only after acknowledgement of its exact artifact
+digest. Abandoning a reserved intent retires fresh unshared members atomically,
+while reused members and references from another publication remain intact.
+Neither operation asserts remote revocation or physical erasure.
+
+Complete device-retirement metadata uses `QPRDMD02` when any view includes the
+registry, including its ordinal floor and all pending/prepared public records.
+Otherwise the original `QPRDMD01` encoding remains. Native report authentication
+still covers every byte; Swift/Kotlin framing accepts only these two versions.
+The complete report contains linkable host metadata even though it contains no
+private generation tokens.
+
+Native regressions cover exact envelope/proof reopen, original-intent conflicts,
+future-ordinal refusal, partial generation, 15 observed cancellation boundaries,
+15 corresponding killed-process boundaries, 25 observed sync points with 50
+before/after-sync typed failures, and 14 real witness request/reply-loss cases.
+They also cover expired/closed authority, missing reused inventory, oversized
+plans without mutation, reclaimed publication capacity, malformed authenticated
+inventory bindings, and actual witness-retired reporting of prepared plus unfinished
+publications. These are implementation regressions on the macOS arm64 host; they
+do not establish independent implementation, cross-platform storage behavior,
+current/minimum physical-device support or post-compromise recovery security.

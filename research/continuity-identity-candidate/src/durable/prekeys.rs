@@ -177,7 +177,7 @@ impl Entry {
     }
 }
 
-fn admission(
+pub(super) fn admission(
     policy: &VerifiedSessionPolicy,
     device: &VerifiedDevice,
     kind: LeafKind,
@@ -208,6 +208,54 @@ fn admission(
     policy.check_mode(quality, now)?;
     policy.check_device(device, now)
 }
+
+pub(super) fn require_available(
+    image: &Image,
+    request: PrekeyId,
+    policy: &VerifiedSessionPolicy,
+) -> Result<(), DurableError> {
+    let record = image
+        .records
+        .get(&id(request))
+        .ok_or(DurableError::Absent)?;
+    let entry = Entry::decode(record)?;
+    if entry.sdk != policy.sdk_binding() {
+        return Err(DurableError::Conflict);
+    }
+    match phase_status(record.phase)? {
+        PrekeyStatus::Available => Ok(()),
+        PrekeyStatus::Reserved => Err(DurableError::Suspended),
+        PrekeyStatus::Consumed | PrekeyStatus::Abandoned => Err(DurableError::PrekeyClaimed),
+        PrekeyStatus::Retired => Err(DurableError::KeyRetired),
+        PrekeyStatus::Absent => Err(DurableError::Corrupt),
+    }
+}
+/// Cross-check the retained publication against its original inventory member.
+/// Historical consumed/retired entries remain valid metadata, not release grants.
+pub(super) fn publication_member(
+    image: &Image,
+    request: PrekeyId,
+    sdk: [u8; 68],
+    kind: LeafKind,
+    validity: Validity,
+    public: Option<&[u8]>,
+) -> Result<(), DurableError> {
+    let record = image
+        .records
+        .get(&id(request))
+        .ok_or(DurableError::Corrupt)?;
+    let entry = Entry::decode(record)?;
+    if entry.request != request
+        || entry.sdk != sdk
+        || entry.kind != kind
+        || entry.validity != validity
+        || public.is_some_and(|bytes| bytes != entry.public)
+    {
+        return Err(DurableError::Corrupt);
+    }
+    Ok(())
+}
+
 fn public_component(key: &HybridKey, kind: LeafKind) -> Result<Vec<u8>, Error> {
     let bytes = key.public_key()?.to_bytes();
     let bytes = if pq(kind) {
@@ -220,7 +268,7 @@ fn public_component(key: &HybridKey, kind: LeafKind) -> Result<Vec<u8>, Error> {
 }
 
 impl DeviceJournal {
-    fn inventory_owner(
+    pub(super) fn inventory_owner(
         &self,
         image: &Image,
         policy: &VerifiedSessionPolicy,
@@ -261,6 +309,73 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         Ok(entry)
+    }
+    /// Stage the same inventory reservation in an aggregate caller's image.
+    /// This never persists or releases a leaf on its own.
+    pub(super) fn reserve_inventory_entry(
+        &self,
+        image: &mut Image,
+        policy: &VerifiedSessionPolicy,
+        device: &VerifiedDevice,
+        input: (PrekeyId, LeafKind, Validity),
+        now: u64,
+    ) -> Result<(), DurableError> {
+        let (request, kind, validity) = input;
+        admission(policy, device, kind, now)?;
+        validity.check(now)?;
+        if !policy.validity().contains(validity)
+            || !device.description.validity.contains(validity)
+            || !device.roster_validity.contains(validity)
+        {
+            return Err(Error::Validity.into());
+        }
+        self.inventory_owner(image, policy, device)?;
+        rosters::authorize_local_device(image, device, policy, now)?;
+        let op = id(request);
+        if image.records.contains_key(&op) {
+            let entry = self.inventory_entry(image, policy, request)?;
+            if entry.kind != kind || entry.validity != validity {
+                return Err(DurableError::Conflict);
+            }
+            return match phase_status(image.records.get(&op).ok_or(DurableError::Corrupt)?.phase)? {
+                PrekeyStatus::Reserved | PrekeyStatus::Available => Ok(()),
+                PrekeyStatus::Consumed | PrekeyStatus::Abandoned => {
+                    Err(DurableError::PrekeyClaimed)
+                }
+                PrekeyStatus::Retired => Err(DurableError::KeyRetired),
+                PrekeyStatus::Absent => Err(DurableError::Corrupt),
+            };
+        }
+        if image.record_count(RecordKind::Prekey) >= MAX_PREKEY_RECORDS {
+            return Err(DurableError::Capacity);
+        }
+        let mut entry = Entry {
+            request,
+            sdk: policy.sdk_binding(),
+            kind,
+            validity,
+            public: vec![0; kind.key_bytes()],
+            data: Zeroizing::new(Vec::new()),
+        };
+        let token = self
+            .inventory_recovery_key()?
+            .reserve_key(&policy.runtime, &entry.scope(image))
+            .map_err(Error::from)?;
+        entry.data.extend_from_slice(token.as_bytes());
+        image.records.insert(
+            op,
+            Record {
+                kind: RecordKind::Prekey,
+                context: entry.intent(),
+                phase: DurableStatus::PrekeyReserved,
+                authorities: vec![image.local_account],
+                keys: Vec::new(),
+                prekeys: Vec::new(),
+                cancellation: None,
+                payload: entry.encode(),
+            },
+        );
+        Ok(())
     }
     fn inventory_recovery_key(&self) -> Result<RecoveryKey, DurableError> {
         RecoveryKey::from_host_key(
@@ -334,36 +449,15 @@ impl DeviceJournal {
             }
             entry
         } else {
-            if image.record_count(RecordKind::Prekey) >= MAX_PREKEY_RECORDS {
-                return Err(DurableError::Capacity);
-            }
-            let mut entry = Entry {
-                request,
-                sdk: policy.sdk_binding(),
-                kind,
-                validity,
-                public: vec![0; kind.key_bytes()],
-                data: Zeroizing::new(Vec::new()),
-            };
-            let token = recovery
-                .reserve_key(&policy.runtime, &entry.scope(&image))
-                .map_err(Error::from)?;
-            entry.data.extend_from_slice(token.as_bytes());
-            image.records.insert(
-                op,
-                Record {
-                    kind: RecordKind::Prekey,
-                    context: entry.intent(),
-                    phase: DurableStatus::PrekeyReserved,
-                    authorities: vec![image.local_account],
-                    keys: Vec::new(),
-                    prekeys: Vec::new(),
-                    cancellation: None,
-                    payload: entry.encode(),
-                },
-            );
+            self.reserve_inventory_entry(
+                &mut image,
+                policy,
+                device,
+                (request, kind, validity),
+                now,
+            )?;
             self.persist(&mut image)?;
-            entry
+            self.inventory_entry(&image, policy, request)?
         };
         match image.records.get(&op).ok_or(DurableError::Absent)?.phase {
             DurableStatus::PrekeyAvailable => {
@@ -462,14 +556,26 @@ impl DeviceJournal {
         policy: &VerifiedSessionPolicy,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        let mut entry = self.inventory_entry(&image, policy, request)?;
+        let (status, changed) = self.retire_inventory_in_image(&mut image, policy, request)?;
+        if changed {
+            self.persist(&mut image)?;
+        }
+        Ok(status)
+    }
+    pub(super) fn retire_inventory_in_image(
+        &self,
+        image: &mut Image,
+        policy: &VerifiedSessionPolicy,
+        request: PrekeyId,
+    ) -> Result<(PrekeyStatus, bool), DurableError> {
+        let mut entry = self.inventory_entry(image, policy, request)?;
         let op = id(request);
         let status = phase_status(image.records.get(&op).ok_or(DurableError::Absent)?.phase)?;
         if matches!(
             status,
             PrekeyStatus::Consumed | PrekeyStatus::Abandoned | PrekeyStatus::Retired
         ) {
-            return Ok(status);
+            return Ok((status, false));
         }
         if image.records.values().any(|r| {
             r.prekeys.contains(&op)
@@ -487,8 +593,7 @@ impl DeviceJournal {
         let record = image.records.get_mut(&op).ok_or(DurableError::Absent)?;
         record.phase = DurableStatus::PrekeyRetired;
         record.payload = entry.encode();
-        self.persist(&mut image)?;
-        Ok(PrekeyStatus::Retired)
+        Ok((PrekeyStatus::Retired, true))
     }
     fn installation_inventory(
         &mut self,

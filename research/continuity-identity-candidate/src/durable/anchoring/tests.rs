@@ -2318,3 +2318,107 @@ mod credential_recovery;
 
 #[path = "independent_policy_tests.rs"]
 mod independent_policy;
+
+#[test]
+fn publication_lost_witness_replies_reconcile_every_original_advance_before_release() {
+    use crate::{
+        PrekeyPublicationError, PrekeyPublicationKey as K, PrekeyPublicationPlan,
+        PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
+    };
+    let plan = PrekeyPublicationPlan::new(
+        [99; 32],
+        crate::tests::interval(),
+        &[
+            K::generate(crate::LeafKind::SignedClassical, crate::tests::interval()),
+            K::generate(crate::LeafKind::OneTimeClassical, crate::tests::interval()),
+            K::generate(crate::LeafKind::LastResortPq, crate::tests::interval()),
+            K::generate(crate::LeafKind::OneTimePq, crate::tests::interval()),
+        ],
+    )
+    .expect("complete publication");
+    let prepare = |c: &mut Case, id| {
+        c.journal.prepare_prekey_publication(
+            PrekeyPublicationRequest {
+                id,
+                plan: &plan,
+                policy: c.peer.initiator.current_policy().expect("policy"),
+                device: c.peer.initiator_device(),
+                signer: &c.peer.signer_i,
+            },
+            PrekeyPublicationRun {
+                cancel: &crate::Cancellation::default(),
+                deadline: Instant::now() + Duration::from_secs(30),
+            },
+            || Ok(150),
+        )
+    };
+    let mut baseline = case();
+    let id = baseline.journal.next_prekey_publication_id().expect("next");
+    let start = baseline.server.lock().expect("server").requests.len();
+    prepare(&mut baseline, id).expect("baseline");
+    let server = baseline.server.lock().expect("server");
+    let requests = server.requests.get(start..).expect("publication requests");
+    let mut cuts: Vec<_> = requests
+        .iter()
+        .enumerate()
+        .filter_map(|(i, wire)| {
+            // Every captured request was already signature-verified by the real store.
+            let (body, _) = crate::crypto::open_envelope(wire).expect("request");
+            assert_eq!(body.len(), 297);
+            let command =
+                AnchorOperation::from_trusted_state(body.get(200..).expect("canonical command"))
+                    .expect("command");
+            command
+                .to_bytes()
+                .first()
+                .is_some_and(|kind| *kind == 2)
+                .then_some(i + 1)
+        })
+        .collect();
+    assert_eq!(cuts.len(), 6, "intent, four members and signed artifact");
+    cuts.push(requests.len()); // Current check immediately before public release.
+    drop(server);
+    for after in [false, true] {
+        for cut in &cuts {
+            let mut c = case();
+            let id = c.journal.next_prekey_publication_id().expect("next");
+            let start = c.server.lock().expect("server").requests.len();
+            c.server.lock().expect("server").fail = Some((start + cut, after));
+            assert!(
+                matches!(
+                    prepare(&mut c, id),
+                    Err(PrekeyPublicationError::Durable(DurableError::Anchor(_)))
+                ),
+                "cut {cut} after {after}"
+            );
+            c.journal.close();
+            c.server.lock().expect("server").fail = None;
+            c.journal = reopen(&c).expect("reconcile same witness target");
+            let prepared = matches!(
+                c.journal
+                    .prekey_publication_status(id)
+                    .expect("original state"),
+                PrekeyPublicationStatus::Prepared { .. }
+            );
+            let before = c.journal.image().expect("recovered target");
+            let result = prepare(&mut c, id).expect("exact retry");
+            assert_eq!(result.id(), id);
+            if prepared {
+                let after = c.journal.image().expect("unchanged prepared record");
+                let original = before
+                    .records
+                    .values()
+                    .find(|r| r.kind == RecordKind::Publication)
+                    .expect("original publication");
+                let retained = after
+                    .records
+                    .values()
+                    .find(|r| r.kind == RecordKind::Publication)
+                    .expect("retained publication");
+                assert_eq!(original.payload, retained.payload, "cut {cut}");
+                assert_eq!(before.revision, after.revision);
+            }
+        }
+    }
+    eprintln!("publication witness reply matrix: {} cases", cuts.len() * 2);
+}

@@ -11,6 +11,9 @@ use std::collections::BTreeSet;
 pub const MAX_PREKEYS: usize = 1024;
 const MANIFEST_TAG: &[u8; 8] = b"QPMANF01";
 const LEAF_TAG: &[u8; 8] = b"QPLEAF01";
+pub(crate) const MANIFEST_SCOPE_BYTES: usize = 248;
+pub(crate) const MANIFEST_WIRE_BYTES: usize =
+    4 + 8 + MANIFEST_SCOPE_BYTES + 2 + 32 + crate::crypto::SIGNATURE_BYTES;
 
 /// Signed role fixes the primitive and whether a key is one-time.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -180,7 +183,7 @@ impl ManifestContext {
     }
 }
 
-fn scope(device: &VerifiedDevice, context: ManifestContext) -> Vec<u8> {
+pub(crate) fn scope(device: &VerifiedDevice, context: ManifestContext) -> Vec<u8> {
     let mut body = Vec::with_capacity(256);
     body.extend_from_slice(&device.account);
     body.extend_from_slice(&device.description.id);
@@ -206,6 +209,29 @@ pub struct IssuedManifest {
     ids: Vec<[u8; 32]>,
 }
 impl IssuedManifest {
+    /// Rebuild public membership material from an authenticated local snapshot.
+    /// The caller must still perform current device/policy admission before release.
+    pub(crate) fn from_retained(
+        wire: &[u8],
+        expected_scope: &[u8],
+        leaves: &[PrekeyLeaf],
+    ) -> Result<Self, Error> {
+        if wire.len() != MANIFEST_WIRE_BYTES || expected_scope.len() != MANIFEST_SCOPE_BYTES {
+            return Err(Error::Encoding);
+        }
+        let mut decoder = Decoder::new(expected_scope.get(128..).ok_or(Error::Encoding)?);
+        let context = ManifestContext::decode(&mut decoder)?;
+        decoder.finish()?;
+        let ManifestParts { body, leaves, ids } = manifest_parts(expected_scope, context, leaves)?;
+        if open_envelope(wire)?.0 != body {
+            return Err(Error::Scope);
+        }
+        Ok(Self {
+            wire: wire.to_vec(),
+            leaves,
+            ids,
+        })
+    }
     /// Signed manifest body and both signatures.
     pub fn as_bytes(&self) -> &[u8] {
         &self.wire
@@ -289,41 +315,58 @@ impl DeviceSigningKey {
         if self.public_key()? != device.key {
             return Err(Error::Scope);
         }
-        if leaves.is_empty() || leaves.len() > MAX_PREKEYS {
-            return Err(Error::Capacity);
-        }
         if !device.description.validity.contains(context.validity)
             || !device.roster_validity.contains(context.validity)
         {
             return Err(Error::Validity);
         }
-        let scope = scope(device, context);
-        let mut fingerprints = BTreeSet::new();
-        let mut sorted = Vec::with_capacity(leaves.len());
-        for leaf in leaves {
-            if !context.validity.contains(leaf.validity) {
-                return Err(Error::Validity);
-            }
-            if !fingerprints.insert(leaf.key_fingerprint()) {
-                return Err(Error::Scope);
-            }
-            sorted.push((leaf_id(&scope, leaf), leaf.clone()));
-        }
-        sorted.sort_by_key(|(id, _)| *id);
-        let ids: Vec<_> = sorted.iter().map(|(id, _)| *id).collect();
-        let count = u16::try_from(ids.len()).map_err(|_| Error::Capacity)?;
-        let mut body = Vec::with_capacity(8 + scope.len() + 34);
-        body.extend_from_slice(MANIFEST_TAG);
-        body.extend_from_slice(&scope);
-        body.extend_from_slice(&count.to_be_bytes());
-        body.extend_from_slice(&merkle::root(&ids)?);
+        let ManifestParts { body, leaves, ids } =
+            manifest_parts(&scope(device, context), context, leaves)?;
         let wire = envelope(&body, &self.sign(Purpose::Manifest, &body)?)?;
-        Ok(IssuedManifest {
-            wire,
-            leaves: sorted.into_iter().map(|(_, leaf)| leaf).collect(),
-            ids,
-        })
+        Ok(IssuedManifest { wire, leaves, ids })
     }
+}
+
+struct ManifestParts {
+    body: Vec<u8>,
+    leaves: Vec<PrekeyLeaf>,
+    ids: Vec<[u8; 32]>,
+}
+
+fn manifest_parts(
+    scope: &[u8],
+    context: ManifestContext,
+    leaves: &[PrekeyLeaf],
+) -> Result<ManifestParts, Error> {
+    if leaves.is_empty() || leaves.len() > MAX_PREKEYS {
+        return Err(Error::Capacity);
+    }
+    let mut fingerprints = BTreeSet::new();
+    let mut sorted = Vec::with_capacity(leaves.len());
+    for leaf in leaves {
+        if !context.validity.contains(leaf.validity) {
+            return Err(Error::Validity);
+        }
+        if !fingerprints.insert(leaf.key_fingerprint()) {
+            return Err(Error::Scope);
+        }
+        sorted.push((leaf_id(scope, leaf), leaf.clone()));
+    }
+    sorted.sort_by_key(|(id, _)| *id);
+    let ids: Vec<_> = sorted.iter().map(|(id, _)| *id).collect();
+    let mut body = MANIFEST_TAG.to_vec();
+    body.extend_from_slice(scope);
+    body.extend_from_slice(
+        &u16::try_from(ids.len())
+            .map_err(|_| Error::Capacity)?
+            .to_be_bytes(),
+    );
+    body.extend_from_slice(&merkle::root(&ids)?);
+    Ok(ManifestParts {
+        body,
+        leaves: sorted.into_iter().map(|(_, leaf)| leaf).collect(),
+        ids,
+    })
 }
 
 /// Signed manifest under an actual verified device and its exact roster binding.

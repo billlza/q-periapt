@@ -122,10 +122,13 @@ pub use durable::{
     FanoutAbandonment, FanoutAbandonmentId, FanoutAbandonmentJournal, FanoutId, FanoutInput,
     FanoutMember, FanoutMemberState, FanoutMemberStatus, FanoutOutput, FanoutReconciliation,
     FanoutStatus, FanoutTarget, InitiationId, JournalIdentity, JournalKey, MessageId,
-    MessageStatus, PrekeyId, PrekeyStatus, RekeyControlMessage, RekeyControlStep, RekeyFlight,
+    MessageStatus, PrekeyId, PrekeyPublicationError, PrekeyPublicationId, PrekeyPublicationKey,
+    PrekeyPublicationPlan, PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
+    PrekeyStatus, PreparedPrekeyPublication, RekeyControlMessage, RekeyControlStep, RekeyFlight,
     RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
     RosterRefreshMaterials, SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId,
     SessionClosureJournal, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
+    MAX_PREKEY_PUBLICATIONS,
 };
 pub use identity::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,

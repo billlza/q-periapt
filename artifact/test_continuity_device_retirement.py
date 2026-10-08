@@ -81,6 +81,17 @@ class RetirementEvidenceTests(unittest.TestCase):
             self.assertEqual(len(result['recovery_process_ids']), 8)
             self.assertFalse(result['release_claim_eligible'])
 
+    def test_report_version_two_retains_inventory_and_unknown_versions_fail(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            paths = [root / 'retirement-host-report', root / 'retirement-host-report-verified']
+            body = paths[0].read_bytes()[8:]
+            for tag in (b'QPRDMD01', b'QPRDMD02'):
+                for path in paths: path.write_bytes(tag + body)
+                retirement.verify(root)
+            for path in paths: path.write_bytes(b'QPRDMD03' + body)
+            with self.assertRaises(ValueError): retirement.verify(root)
+
     def test_successor_sequence_requires_all_distinct_processes(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder) / 'source'; fixture(root)

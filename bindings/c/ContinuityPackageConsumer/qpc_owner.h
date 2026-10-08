@@ -1055,7 +1055,7 @@ int32_t qpc_retired_v1_load_report(uint64_t handle,
     const uint8_t *report_receipt, size_t report_length,
     qpc_retired_report_info_v1 *result, qpc_error_v1 *error);
 /* Copy exactly info.length bytes from the last verified immutable report.
- * The complete QPRDMD01 record includes every metadata view. Its keyed report ID
+ * The complete QPRDMD01/QPRDMD02 record includes every metadata view. Its keyed report ID
  * is returned separately in info.report and the original report proposal;
  * account/device linkage and lengths remain private host metadata.
  * Persist it and deduplicate host accounting by info.report BEFORE prepare_ack.

@@ -47,6 +47,7 @@ pub use cancellation::{
 mod initiator;
 mod messages;
 mod prekeys;
+mod publication;
 mod responder;
 mod rosters;
 pub use rosters::RosterRefreshMaterials;
@@ -71,6 +72,11 @@ pub use messages::{
     SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
 };
 pub use prekeys::{PrekeyId, PrekeyStatus};
+pub use publication::{
+    PrekeyPublicationError, PrekeyPublicationId, PrekeyPublicationKey, PrekeyPublicationPlan,
+    PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
+    PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
+};
 pub(crate) use write_intent::CredentialCancellationTarget;
 pub(crate) use write_intent::WitnessedCredentialIntent;
 
@@ -83,6 +89,7 @@ enum RecordKind {
     Messages = 4,
     Roster = 5,
     Fanout = 6,
+    Publication = 7,
 }
 
 /// Explicit local persistence failures. No storage error is reported as absence.
@@ -435,6 +442,8 @@ pub enum DurableStatus {
     BootstrapCancelled = 29,
     /// An early cancelled bootstrap burned this claimed one-time key without a response release.
     PrekeyAbandoned = 30,
+    /// Persistent publication ordinal fence and bounded original intents/artifacts.
+    PublicationRegistry = 31,
 }
 impl DurableStatus {
     fn decode(byte: u8) -> Result<Self, DurableError> {
@@ -469,6 +478,7 @@ impl DurableStatus {
             28 => Ok(Self::MessagesClosed),
             29 => Ok(Self::BootstrapCancelled),
             30 => Ok(Self::PrekeyAbandoned),
+            31 => Ok(Self::PublicationRegistry),
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -532,7 +542,12 @@ impl Image {
     fn operation_count(&self) -> usize {
         self.records
             .values()
-            .filter(|record| !matches!(record.kind, RecordKind::Prekey | RecordKind::Roster))
+            .filter(|record| {
+                !matches!(
+                    record.kind,
+                    RecordKind::Prekey | RecordKind::Roster | RecordKind::Publication
+                )
+            })
             .count()
     }
 }
@@ -934,7 +949,18 @@ fn image_table(
     read.open_table(TABLE).map_err(storage)
 }
 fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPVIMG21".to_vec());
+    let publication = image
+        .records
+        .values()
+        .any(|r| r.kind == RecordKind::Publication);
+    let mut plaintext = Zeroizing::new(
+        if publication {
+            b"QPVIMG22"
+        } else {
+            b"QPVIMG21"
+        }
+        .to_vec(),
+    );
     image.protection.encode(&mut plaintext);
     plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
@@ -967,11 +993,17 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.operation_count() > MAX_RECORDS
         || image.record_count(RecordKind::Prekey) > prekeys::MAX_PREKEY_RECORDS
         || image.record_count(RecordKind::Roster) > rosters::MAX_ROSTERS
+        || image.record_count(RecordKind::Publication) > 1
         || plaintext.len() > MAX_IMAGE
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = b"QPVLT021".to_vec();
+    let mut wire = if publication {
+        b"QPVLT022"
+    } else {
+        b"QPVLT021"
+    }
+    .to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -998,9 +1030,11 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    if outer.array::<8>()? != *b"QPVLT021" {
-        return Err(DurableError::Corrupt);
-    }
+    let publication = match outer.array::<8>()? {
+        tag if tag == *b"QPVLT021" => false,
+        tag if tag == *b"QPVLT022" => true,
+        _ => return Err(DurableError::Corrupt),
+    };
     let id = outer.array::<32>()?;
     if outer.array::<32>()? != owner {
         return Err(DurableError::Conflict);
@@ -1024,14 +1058,25 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()? != *b"QPVIMG21" {
+    if inner.array::<8>()?
+        != *(if publication {
+            b"QPVIMG22"
+        } else {
+            b"QPVIMG21"
+        })
+    {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
     let local_account = inner.array::<32>()?;
     let next_fanout = inner.u64()?;
     let count = usize::from(inner.u16()?);
-    if count > MAX_RECORDS + prekeys::MAX_PREKEY_RECORDS + rosters::MAX_ROSTERS {
+    if count
+        > MAX_RECORDS
+            + prekeys::MAX_PREKEY_RECORDS
+            + rosters::MAX_ROSTERS
+            + usize::from(publication)
+    {
         return Err(DurableError::Capacity);
     }
     let mut records = BTreeMap::new();
@@ -1052,6 +1097,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
             4 => RecordKind::Messages,
             5 => RecordKind::Roster,
             6 => RecordKind::Fanout,
+            7 if publication => RecordKind::Publication,
             _ => return Err(DurableError::Corrupt),
         };
         let phase = DurableStatus::decode(phase)?;
@@ -1130,6 +1176,15 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
     };
     cancellation::validate_image(&image)?;
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
+    if publication
+        != image
+            .records
+            .values()
+            .any(|r| r.kind == RecordKind::Publication)
+    {
+        return Err(DurableError::Corrupt);
+    }
+    publication::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     messages::validate_image(&image)?;
     rosters::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     Ok(image)

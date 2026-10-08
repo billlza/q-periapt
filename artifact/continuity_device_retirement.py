@@ -91,7 +91,7 @@ def verify(directory: Path) -> dict:
     envelope("retirement-report-receipt", expected)
     envelope("retirement-ack", b"QPRACK01" + expected[8:])
     host = read("retirement-host-report", 8 * 1024 * 1024)
-    sdk.require(len(host) > 322 and host.startswith(b"QPRDMD01" + inventory),
+    sdk.require(len(host) > 322 and host[:8] in (b"QPRDMD01", b"QPRDMD02") and host[8:321] == inventory,
                 "retirement host report is missing its original complete inventory")
     sdk.require(read("retirement-host-report-verified", 8 * 1024 * 1024) == host,
                 "retirement complete host record changed across erasure")

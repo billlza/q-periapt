@@ -50,7 +50,8 @@ class RetiredDeviceReport private constructor(val report: RetiredReportID, val v
                                            report: ByteArray, bytes: ByteArray): RetiredDeviceReport {
             if (length !in 323L..8388608L || bytes.size.toLong() != length || views !in 1..2 || reserved != 0 ||
                 report.size != 32 || report.all { it == 0.toByte() } ||
-                !bytes.copyOfRange(0, 8).contentEquals("QPRDMD01".toByteArray(Charsets.US_ASCII))) {
+                (!bytes.copyOfRange(0, 8).contentEquals("QPRDMD01".toByteArray(Charsets.US_ASCII)) &&
+                    !bytes.copyOfRange(0, 8).contentEquals("QPRDMD02".toByteArray(Charsets.US_ASCII)))) {
                 throw ContinuityBoundaryFailure("malformed complete retirement report")
             }
             return RetiredDeviceReport(RetiredReportID(report), views, PublicBytes(bytes))

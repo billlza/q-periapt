@@ -56,6 +56,10 @@ class RetirementTests {
         bytes[0] = 0; id[0] = 0
         assertEquals('Q'.code.toByte(), report.canonicalBytes.encoded()[0]); assertEquals(7.toByte(), report.report.encoded()[0])
         val original = report.canonicalBytes.encoded(); val originalID = report.report.encoded()
+        val v2 = "QPRDMD02".toByteArray(Charsets.US_ASCII) + original.copyOfRange(8, original.size)
+        assertContentEquals(v2, RetiredDeviceReport.decode(v2.size.toLong(), 2, 0, originalID, v2).canonicalBytes.encoded())
+        val unknown = "QPRDMD03".toByteArray(Charsets.US_ASCII) + original.copyOfRange(8, original.size)
+        assertFailsWith<ContinuityBoundaryFailure> { RetiredDeviceReport.decode(unknown.size.toLong(), 2, 0, originalID, unknown) }
         for (length in listOf(-1L, 0L, 322L, 8388609L, Long.MAX_VALUE)) {
             assertFailsWith<ContinuityBoundaryFailure> { RetiredDeviceReport.decode(length, 2, 0, originalID, original) }
         }

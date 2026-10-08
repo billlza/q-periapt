@@ -203,6 +203,13 @@ pub enum RecordMetadata {
         /// Every original member, including reserved and previously settled members.
         members: Vec<Member>,
     },
+    /// Persistent publication fence and every original pending/prepared public artifact.
+    PrekeyPublications {
+        /// Next epoch; lower omitted ordinals were locally retired, never reused.
+        next_epoch: u64,
+        /// Complete validated public registry, with no key-generation tokens.
+        public_history: Vec<u8>,
+    },
 }
 /// One actual authenticated journal record. No caller-selected subset is accepted.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -302,7 +309,7 @@ impl Report {
     pub fn views(&self) -> &[View] {
         &self.views
     }
-    /// Canonical QPRDMD01 public metadata. Persist the complete bytes with the proposal.
+    /// Canonical versioned QPRDMD public metadata. Persist all bytes with the proposal.
     /// They contain account/device linkage and lengths; treat them as private host metadata.
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
@@ -349,7 +356,9 @@ pub(crate) fn verify_recorded_report(
     bytes: &[u8],
 ) -> Result<(), DurableError> {
     if bytes.len() > 4 * MAX_IMAGE
-        || bytes.get(..8) != Some(b"QPRDMD01")
+        || !bytes
+            .get(..8)
+            .is_some_and(|tag| tag == b"QPRDMD01" || tag == b"QPRDMD02")
         || bytes.get(8..321) != Some(proposal.inventory().to_bytes().as_slice())
     {
         return Err(DurableError::Conflict);
@@ -533,6 +542,14 @@ impl Encoder {
             self.list(list)?;
         }
         match &record.metadata {
+            RecordMetadata::PrekeyPublications {
+                next_epoch,
+                public_history,
+            } => {
+                self.byte(6);
+                self.number(*next_epoch);
+                self.blob(public_history)?;
+            }
             RecordMetadata::Bootstrap {
                 entry,
                 request,
@@ -646,7 +663,19 @@ fn canonical(
     intent: &Intent,
     views: &[View],
 ) -> Result<Vec<u8>, DurableError> {
-    let mut out = Encoder(b"QPRDMD01".to_vec());
+    let publication = views.iter().any(|view| {
+        view.records
+            .iter()
+            .any(|r| matches!(r.metadata, RecordMetadata::PrekeyPublications { .. }))
+    });
+    let mut out = Encoder(
+        if publication {
+            b"QPRDMD02"
+        } else {
+            b"QPRDMD01"
+        }
+        .to_vec(),
+    );
     out.raw(&inventory.to_bytes());
     match intent {
         Intent::None => out.byte(0),
@@ -730,6 +759,7 @@ pub(in crate::durable) fn project(
             RecordKind::Messages => messages::historical_session(image, key, record, archives)?,
             RecordKind::Roster => rosters::historical_metadata(id, record)?,
             RecordKind::Fanout => messages::historical_fanout(image, key, id, record, archives)?,
+            RecordKind::Publication => publication::historical_metadata(image)?,
         };
         records.push(RecordMetadataEntry {
             id: *id,

@@ -91,7 +91,7 @@ public struct RetiredDeviceReport: Sendable, Equatable {
         guard (323...8388608).contains(info.length), bytes.count == info.length,
               (1...2).contains(info.views), info.reserved_zero == 0,
               octets(info.report).contains(where: { $0 != 0 }),
-              bytes.starts(with: Array("QPRDMD01".utf8)) else {
+              (bytes.starts(with: Array("QPRDMD01".utf8)) || bytes.starts(with: Array("QPRDMD02".utf8))) else {
             throw ContinuityBoundaryError.malformedOutput
         }
         report = try RetiredReportID(bytes: octets(info.report))

@@ -1477,6 +1477,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/installation/retired.rs",
             "research/continuity-identity-candidate/src/installation/retired/tests.rs",
             "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/publication.rs",
+            "research/continuity-identity-candidate/src/durable/publication/codec.rs",
+            "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
 
@@ -1514,6 +1517,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/installation/retired.rs",
             "research/continuity-identity-candidate/src/installation/retired/tests.rs",
             "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/publication.rs",
+            "research/continuity-identity-candidate/src/durable/publication/codec.rs",
+            "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
         )
