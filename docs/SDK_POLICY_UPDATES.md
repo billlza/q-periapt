@@ -12,8 +12,11 @@ emergency-disable policy. Neither a lower/same version nor a separately signed
 replacement root bypasses that boundary. The durable host-store regression
 `max_version_exhaustion_is_durable_and_not_a_bootstrap_fallback` preserves these
 reject paths. The opt-in Rust host-store v2 image now has a separately pinned, bounded
-[recovery path](SDK_HOST_STORE.md#independent-online-root-recovery-rust-development-profile).
+[recovery path](SDK_HOST_STORE.md#independent-online-root-recovery).
 Existing v1 stores cannot acquire that authority by reopening with new pins.
+The separate [explicit enrollment entry](SDK_HOST_STORE.md#explicit-enrollment-of-an-existing-v1-policy-image)
+preserves their exact current signed policy and version/digest floor while
+atomically installing independently authorized recovery configuration.
 General governance and Continuity root migration remain open in the
 [authority design](policy/UPDATE_AUTHORITY_V1.md).
 

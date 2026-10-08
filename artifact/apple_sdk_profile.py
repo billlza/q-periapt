@@ -130,7 +130,7 @@ def verify_apple_exports(library: Path, llvm_nm: Path) -> dict:
                 thin = folder / architecture / frozen.name
                 lipo([str(frozen), "-thin", architecture, "-output", str(thin)])
             verify_static_library(contract, thin, "macos", llvm_nm)
-    return {"abi_major": 2, "architectures": sorted(architectures), "exports_per_architecture": 50,
+    return {"abi_major": 2, "architectures": sorted(architectures), "exports_per_architecture": 51,
             "static_archive_sha256": snapshot.sha256, "status": "pass"}
 
 
@@ -231,7 +231,7 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     if {p.name for p in source.iterdir()} != set(SDK_FILES):
         raise ValueError("SDK Swift source inventory differs; review packaging before proceeding")
     contract = load_contract(ROOT / CONTRACT)
-    if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 50:
+    if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 51:
         raise ValueError("alpha SDK ABI contract differs")
     snapshot = read_regular_snapshot(xcframework_zip, maximum=MAX_ARTIFACT_BYTES, label="SDK XCFramework ZIP")
     _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)
@@ -379,7 +379,7 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
     arguments = ["--package-path", str(consumer), "--scratch-path", str(temporary / "build")]
     tests = run("swift-test", ["swift", "test", *arguments, "-Xswiftc", "-strict-concurrency=complete",
                                 "-Xswiftc", "-warnings-as-errors"])
-    if b"Executed 5 tests, with 0 failures" not in tests:
+    if b"Executed 6 tests, with 0 failures" not in tests:
         raise ValueError("installed Swift SDK test count differs")
     output = Path(run("swift-bin", ["swift", "build", *arguments, "--show-bin-path"]).decode().strip())
     if not output.resolve(strict=True).is_relative_to(temporary):
@@ -394,7 +394,7 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
         raise ValueError("installed SwiftPM selection differs from the exact packaged macOS slice")
     verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock", expected_native_files=expected_native_files)
     return {"kind": "qperiapt.swift_sdk_installed_consumer", "outside_source_checkout": True,
-            "archive_sha256": archive_sha, "executed_tests": 5, "failures": 0,
+            "archive_sha256": archive_sha, "executed_tests": 6, "failures": 0,
             "warning_or_error_diagnostics": 0, "log_sha256": records,
             "selected_static_archive_sha256": selected.sha256,
             "probe_sha256": read_regular_snapshot(probe, maximum=64 * 1024 * 1024, label="installed SDK probe").sha256}

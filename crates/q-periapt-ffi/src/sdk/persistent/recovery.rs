@@ -43,7 +43,7 @@ pub struct QPeriaptRecoverableStoreOptions {
     pub initial_root: QPeriaptInput,
     /// Independent recovery root, exactly 1952 bytes, distinct from the online root.
     pub recovery_root: QPeriaptInput,
-    /// Exactly 3309 bytes for provision; canonical empty input for either open.
+    /// Exactly 3309 bytes for provision/enrollment; canonical empty input for other opens.
     pub enrollment_signature: QPeriaptInput,
     /// Per-runtime key quota, 1..=1024.
     pub max_live_keys: u32,
@@ -54,6 +54,7 @@ pub struct QPeriaptRecoverableStoreOptions {
 #[derive(Clone, Copy)]
 pub(super) enum RecoveryOpenMode {
     Provision,
+    Enroll,
     Configured,
     Recovering,
 }
@@ -124,7 +125,7 @@ unsafe fn construct_recoverable(
         data: options.cast(),
         len: size_of::<QPeriaptRecoverableStoreOptions>(),
     };
-    let enrollment_len = if matches!(mode, RecoveryOpenMode::Provision) {
+    let enrollment_len = if matches!(mode, RecoveryOpenMode::Provision | RecoveryOpenMode::Enroll) {
         3309
     } else {
         0
@@ -236,6 +237,38 @@ pub unsafe extern "C" fn q_periapt_sdk_runtime_open_recoverable_store(
         construct_recoverable(
             options,
             RecoveryOpenMode::Configured,
+            QPeriaptInput {
+                data: std::ptr::null(),
+                len: 0,
+            },
+            out_runtime,
+            &mut disposition,
+        )
+    }
+}
+
+/// Explicitly enroll an existing v1 store in independently authorized recovery.
+/// Close its old owner first. Options policy/signature must authenticate the
+/// exact currently stored state under initial_root; enrollment_signature is the
+/// original independent recovery-key proof. Preserve these inputs for retries.
+/// Original policy/root/floor remain unchanged. Missing/corrupt files are never
+/// created/replaced. The exact already-enrolled image is accepted without a write;
+/// this is a configuration predicate, not a fresh-commit receipt. Any error or
+/// cancellation can require reopening with these same inputs to reconcile.
+/// A later policy/root transition must use its corresponding recovery entry.
+/// # Safety
+/// Same staged options/input/output contract as runtime_provision_recoverable_store.
+#[no_mangle]
+pub unsafe extern "C" fn q_periapt_sdk_runtime_enroll_recovery_store(
+    options: *const QPeriaptRecoverableStoreOptions,
+    out_runtime: *mut u64,
+) -> i32 {
+    let mut disposition = 0;
+    // SAFETY: same bounded inputs and disjoint scalar output as provisioning.
+    unsafe {
+        construct_recoverable(
+            options,
+            RecoveryOpenMode::Enroll,
             QPeriaptInput {
                 data: std::ptr::null(),
                 len: 0,

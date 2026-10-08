@@ -33,7 +33,7 @@ class AndroidSDKProfileTests(unittest.TestCase):
         legacy = android.package_profile("legacy")
         self.assertEqual((legacy.version, legacy.schema, len(legacy.exports), len(legacy.jni_methods)), ("0.1.5", 4, 9, 9))
         self.assertEqual((self.profile.version, self.profile.schema, len(self.profile.exports), len(self.profile.jni_methods)),
-                         ("0.2.0", 5, 50, 26))
+                         ("0.2.0", 5, 51, 26))
         self.assertLess(legacy.exports, self.profile.exports)
         self.assertEqual({name: self.profile.jni_methods[name] for name in legacy.jni_methods}, legacy.jni_methods)
         for name in ("latest", "sdk", "0.2.0", ""):

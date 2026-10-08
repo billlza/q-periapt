@@ -232,6 +232,11 @@
         "role": "persistence"
       },
       {
+        "declaration": "int32_t q_periapt_sdk_runtime_enroll_recovery_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);",
+        "name": "q_periapt_sdk_runtime_enroll_recovery_store",
+        "role": "persistence"
+      },
+      {
         "declaration": "int32_t q_periapt_sdk_runtime_open_recovering_store(const QPeriaptRecoverableStoreOptions *options, QPeriaptInput authorization, uint64_t *out_runtime, uint32_t *out_outcome);",
         "name": "q_periapt_sdk_runtime_open_recovering_store",
         "role": "persistence"

@@ -279,7 +279,7 @@ def package_profile(name: str) -> AndroidPackageProfile:
     from sdk_abi2_spec import EXPORTS, JNI_METHODS, PACKAGE_SEMVER
     exports = FFI_EXPORTS | frozenset(row[0] for row in EXPORTS)
     methods = {**JNI_NATIVE_METHOD_DESCRIPTORS, **JNI_METHODS}
-    require(len(exports) == 50 and len(methods) == 26, "Android SDK closed export/registration count differs")
+    require(len(exports) == 51 and len(methods) == 26, "Android SDK closed export/registration count differs")
     return AndroidPackageProfile(PACKAGE_SEMVER, 5, "qperiapt.android_sdk_aar_manifest",
         "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json", exports, methods)
 

@@ -116,6 +116,7 @@ EXPORTS = (
     ("q_periapt_sdk_policy_recovery_enrollment_message", "policy", "int32_t q_periapt_sdk_policy_recovery_enrollment_message(QPeriaptInput scope, QPeriaptInput initial_root, QPeriaptInput recovery_root, QPeriaptOutput output);"),
     ("q_periapt_sdk_runtime_provision_recoverable_store", "persistence", "int32_t q_periapt_sdk_runtime_provision_recoverable_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);"),
     ("q_periapt_sdk_runtime_open_recoverable_store", "persistence", "int32_t q_periapt_sdk_runtime_open_recoverable_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);"),
+    ("q_periapt_sdk_runtime_enroll_recovery_store", "persistence", "int32_t q_periapt_sdk_runtime_enroll_recovery_store(const QPeriaptRecoverableStoreOptions *options, uint64_t *out_runtime);"),
     ("q_periapt_sdk_runtime_open_recovering_store", "persistence", "int32_t q_periapt_sdk_runtime_open_recovering_store(const QPeriaptRecoverableStoreOptions *options, QPeriaptInput authorization, uint64_t *out_runtime, uint32_t *out_outcome);"),
     ("q_periapt_sdk_runtime_prepare_recovery", "policy", "int32_t q_periapt_sdk_runtime_prepare_recovery(uint64_t handle, QPeriaptInput operation, QPeriaptInput policy, QPeriaptInput signature, QPeriaptInput incoming_root, QPeriaptOutput output);"),
     ("q_periapt_sdk_policy_recovery_signing_messages", "policy", "int32_t q_periapt_sdk_policy_recovery_signing_messages(QPeriaptInput request, QPeriaptOutput approval, QPeriaptOutput possession);"),

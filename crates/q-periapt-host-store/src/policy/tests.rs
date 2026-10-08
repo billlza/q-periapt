@@ -1248,3 +1248,342 @@ fn root_recovery_process_cuts_replay_original_authorization() -> Result<()> {
     }
     Ok(())
 }
+
+fn stored_image(store: &PolicyStore) -> Result<Image> {
+    let active = store.active.as_ref().ok_or("missing owner")?;
+    let read = active.database.begin_read()?;
+    let table = read.open_table(TABLE)?;
+    Ok(read_image(&table, Some(&active.root))?)
+}
+
+#[test]
+fn explicit_enrollment_preserves_exhausted_policy_and_enables_independent_recovery() -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    for enabled in [true, false] {
+        let folder = directory()?;
+        let path = folder.path().canonicalize()?.join("legacy.redb");
+        let initial = signed(u32::MAX, enabled);
+        let (trust, enrollment) = recovery_trust(&initial)?;
+        let mut legacy = provision(&path, &initial)?;
+        let old = legacy.runtime()?;
+        let expected = old.trusted_state();
+        let before = stored_image(&legacy)?;
+        let inode = std::fs::metadata(&path)?.ino();
+        assert!(matches!(
+            PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default()),
+            Err(StoreError::Busy)
+        ));
+        assert_eq!(old.is_enabled()?, enabled);
+        legacy.close();
+        assert!(matches!(
+            old.is_enabled(),
+            Err(q_periapt_sdk::Error::Closed)
+        ));
+        assert!(matches!(
+            PolicyStore::open_recoverable(&path, &trust, Limits::default()),
+            Err(StoreError::RecoveryRequired)
+        ));
+        let enrolled =
+            PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+        let after = stored_image(&enrolled)?;
+        assert_eq!(after.root, before.root);
+        assert_eq!(after.policy, before.policy);
+        assert_eq!(after.signature, before.signature);
+        assert_eq!(after.state, before.state);
+        assert!(before.recovery.is_none());
+        assert!(after.recovery.is_some());
+        assert_eq!(std::fs::metadata(&path)?.ino(), inode);
+        assert_eq!(enrolled.runtime()?.is_enabled()?, enabled);
+        drop(enrolled);
+        assert!(matches!(
+            PolicyStore::open(&path, &initial.root, Limits::default()),
+            Err(StoreError::RecoveryRequired)
+        ));
+        let mut replay =
+            PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+        assert!(stored_image(&replay)? == after);
+        let lower = signed(1, false);
+        assert!(matches!(
+            replay.replace_policy(expected, &lower.policy, &lower.signature),
+            Err(StoreError::Policy(q_periapt_sdk::Error::PolicyDenied))
+        ));
+        let next = signed_by(1, false, 93);
+        let auth = recovery_authorization(
+            replay.prepare_authority_recovery(
+                [1; 32],
+                &next.policy,
+                &next.signature,
+                &next.root,
+            )?,
+            93,
+        )?;
+        assert_eq!(
+            replay.recover_authority(&auth, &next.policy, &next.signature)?,
+            PolicyRecoveryOutcome::Applied
+        );
+        drop(replay);
+        // An enrollment retry must never reset the root or its recovery history.
+        assert!(matches!(
+            PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default()),
+            Err(StoreError::RootMismatch)
+        ));
+        let mut recovered = PolicyStore::open_recoverable(&path, &trust, Limits::default())?;
+        assert_eq!(recovered.runtime()?.trusted_state().version(), 1);
+        assert!(!recovered.runtime()?.is_enabled()?);
+        assert_eq!(
+            recovered.recover_authority(&auth, &next.policy, &next.signature)?,
+            PolicyRecoveryOutcome::AlreadyApplied
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn enrollment_rejects_stale_equivocal_or_untrusted_inputs_without_replacing_state() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("legacy.redb");
+    let initial = signed(3, true);
+    let (trust, enrollment) = recovery_trust(&initial)?;
+    let legacy = provision(&path, &initial)?;
+    let expected = legacy.runtime()?.trusted_state();
+    let before = stored_image(&legacy)?;
+    drop(legacy);
+    for document in [signed(2, true), signed(3, false), signed(4, true)] {
+        let wrong_state = Runtime::from_signed_policy(
+            &document.policy,
+            &document.signature,
+            &document.root,
+            None,
+            Limits::default(),
+        )?
+        .trusted_state();
+        assert!(matches!(
+            PolicyStore::enroll_recovery(
+                &path,
+                wrong_state,
+                &trust,
+                &enrollment,
+                Limits::default()
+            ),
+            Err(StoreError::Stale)
+        ));
+        let unchanged = PolicyStore::open(&path, &initial.root, Limits::default())?;
+        assert!(stored_image(&unchanged)? == before);
+    }
+    let wrong_proof = recovery_signature(91, &trust.enrollment_message())?;
+    assert!(matches!(
+        PolicyStore::enroll_recovery(&path, expected, &trust, &wrong_proof, Limits::default()),
+        Err(StoreError::RecoveryDenied)
+    ));
+    let (foreign, foreign_proof) = recovery_trust(&signed_by(3, true, 93))?;
+    assert!(matches!(
+        PolicyStore::enroll_recovery(&path, expected, &foreign, &foreign_proof, Limits::default()),
+        Err(StoreError::RootMismatch)
+    ));
+    let missing = path.with_file_name("missing.redb");
+    assert!(PolicyStore::enroll_recovery(
+        &missing,
+        expected,
+        &trust,
+        &enrollment,
+        Limits::default()
+    )
+    .is_err());
+    assert!(!missing.exists());
+    let corrupt = path.with_file_name("corrupt.redb");
+    std::fs::write(&corrupt, b"invalid existing storage")?;
+    std::fs::set_permissions(&corrupt, std::fs::Permissions::from_mode(0o600))?;
+    assert!(PolicyStore::enroll_recovery(
+        &corrupt,
+        expected,
+        &trust,
+        &enrollment,
+        Limits::default()
+    )
+    .is_err());
+    assert_eq!(std::fs::read(&corrupt)?, b"invalid existing storage");
+
+    let mut enrolled =
+        PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+    let advanced = signed(4, false);
+    enrolled.replace_policy(expected, &advanced.policy, &advanced.signature)?;
+    let current = enrolled.runtime()?.trusted_state();
+    drop(enrolled);
+    assert!(matches!(
+        PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default()),
+        Err(StoreError::Stale)
+    ));
+    let (_, different_recovery_root) = MlDsa65::generate([94; 32]);
+    let different = PolicyRecoveryTrust::new([4; 32], &initial.root, &different_recovery_root)?;
+    let different_proof = recovery_signature(94, &different.enrollment_message())?;
+    assert!(matches!(
+        PolicyStore::enroll_recovery(
+            &path,
+            current,
+            &different,
+            &different_proof,
+            Limits::default()
+        ),
+        Err(StoreError::RecoveryDenied)
+    ));
+    let preserved = PolicyStore::open_recoverable(&path, &trust, Limits::default())?;
+    assert_eq!(preserved.runtime()?.trusted_state(), current);
+    assert!(!preserved.runtime()?.is_enabled()?);
+    Ok(())
+}
+
+thread_local! {
+    static LOSE_ENROLLMENT_RESULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+pub(super) fn enrollment_boundary(phase: &str) -> std::result::Result<(), StoreError> {
+    let mode = std::env::var("QPERIAPT_ENROLLMENT_PROCESS_CUT");
+    match (phase, mode.as_deref()) {
+        ("before_commit", Ok("before_commit")) => std::process::exit(81),
+        ("committed", Ok("committed")) => std::process::exit(82),
+        ("committed", Ok("panicked")) => {
+            std::panic::resume_unwind(Box::new("injected enrollment post-commit unwind"));
+        }
+        _ => {}
+    }
+    if phase == "committed" && LOSE_ENROLLMENT_RESULT.with(|flag| flag.replace(false)) {
+        return Err(StoreError::CommitUncertain(redb::CommitError::Storage(
+            redb::StorageError::Io(io::Error::other("injected enrollment result loss")),
+        )));
+    }
+    Ok(())
+}
+
+#[test]
+fn enrollment_result_loss_retries_the_committed_configuration() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("legacy.redb");
+    let initial = signed(u32::MAX, false);
+    let (trust, enrollment) = recovery_trust(&initial)?;
+    let legacy = provision(&path, &initial)?;
+    let expected = legacy.runtime()?.trusted_state();
+    drop(legacy);
+    LOSE_ENROLLMENT_RESULT.with(|flag| assert!(!flag.replace(true)));
+    assert!(matches!(
+        PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default()),
+        Err(StoreError::CommitUncertain(_))
+    ));
+    assert!(!LOSE_ENROLLMENT_RESULT.with(|flag| flag.get()));
+    assert!(matches!(
+        PolicyStore::open(&path, &initial.root, Limits::default()),
+        Err(StoreError::RecoveryRequired)
+    ));
+    let recovered =
+        PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+    assert_eq!(recovered.runtime()?.trusted_state(), expected);
+    assert!(!recovered.runtime()?.is_enabled()?);
+    Ok(())
+}
+
+#[test]
+fn enrollment_sync_failure_keeps_an_old_or_enrolled_image_with_the_same_floor() -> Result<()> {
+    let folder = directory()?;
+    let path = folder.path().canonicalize()?.join("legacy.redb");
+    let initial = signed(u32::MAX, false);
+    let (trust, proof) = recovery_trust(&initial)?;
+    let legacy = provision(&path, &initial)?;
+    let previous = stored_image(&legacy)?;
+    drop(legacy);
+    let armed = Arc::new(AtomicBool::new(false));
+    let database = Database::builder().create_with_backend(SyncFailure {
+        inner: FileBackend::new(open_private_file(&path, false).map_err(|_| "private path")?)?,
+        armed: Arc::clone(&armed),
+        close_on_sync: None,
+    })?;
+    let enrollment = RecoveryOpen::Enroll {
+        trust: &trust,
+        expected: previous.state,
+        signature: &proof,
+    }
+    .admit(&previous)?
+    .ok_or("v1 enrollment did not prepare a transition")?;
+    armed.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        recovery::commit_enrollment(&database, &previous, &enrollment),
+        Err(StoreError::CommitUncertain(_))
+    ));
+    assert!(
+        !armed.load(Ordering::SeqCst),
+        "real sync fault was not exercised"
+    );
+    drop(database);
+    assert!(path.exists());
+    let reconciled =
+        PolicyStore::enroll_recovery(&path, previous.state, &trust, &proof, Limits::default())?;
+    assert_eq!(reconciled.runtime()?.trusted_state(), previous.state);
+    assert!(!reconciled.runtime()?.is_enabled()?);
+    Ok(())
+}
+
+#[test]
+fn enrollment_process_cuts_preserve_the_original_policy_floor() -> Result<()> {
+    const MODE: &str = "QPERIAPT_ENROLLMENT_PROCESS_CUT";
+    const STORE_PATH: &str = "QPERIAPT_ENROLLMENT_PROCESS_PATH";
+    let initial = signed(u32::MAX, false);
+    let (trust, enrollment) = recovery_trust(&initial)?;
+    let expected = Runtime::from_signed_policy(
+        &initial.policy,
+        &initial.signature,
+        &initial.root,
+        None,
+        Limits::default(),
+    )?
+    .trusted_state();
+    if let Ok(mode) = std::env::var(MODE) {
+        let path =
+            std::path::PathBuf::from(std::env::var_os(STORE_PATH).ok_or("missing child path")?);
+        if mode == "panicked" {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                PolicyStore::enroll_recovery(
+                    &path,
+                    expected,
+                    &trust,
+                    &enrollment,
+                    Limits::default(),
+                )
+            }));
+            assert!(result.is_err(), "post-commit unwind did not run");
+            std::process::exit(83);
+        }
+        PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+        return Err("enrollment process cut did not run".into());
+    }
+    for (mode, exit) in [("before_commit", 81), ("committed", 82), ("panicked", 83)] {
+        let folder = directory()?;
+        let path = folder.path().canonicalize()?.join("legacy.redb");
+        drop(provision(&path, &initial)?);
+        let child = Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "policy::tests::enrollment_process_cuts_preserve_the_original_policy_floor",
+                "--nocapture",
+            ])
+            .env(MODE, mode)
+            .env(STORE_PATH, &path)
+            .stdin(Stdio::null())
+            .spawn()?;
+        assert_eq!(wait(child)?.code(), Some(exit));
+        if mode == "before_commit" {
+            assert_eq!(
+                PolicyStore::open(&path, &initial.root, Limits::default())?
+                    .runtime()?
+                    .trusted_state(),
+                expected
+            );
+        } else {
+            assert!(matches!(
+                PolicyStore::open(&path, &initial.root, Limits::default()),
+                Err(StoreError::RecoveryRequired)
+            ));
+        }
+        let recovered =
+            PolicyStore::enroll_recovery(&path, expected, &trust, &enrollment, Limits::default())?;
+        assert_eq!(recovered.runtime()?.trusted_state(), expected);
+        assert!(!recovered.runtime()?.is_enabled()?);
+    }
+    Ok(())
+}

@@ -484,6 +484,10 @@ fn c_recovery_rejects_short_options_aliases_and_unenrolled_store() {
                 Q_PERIAPT_ERR_LIMITS
             );
             assert_eq!(
+                q_periapt_sdk_runtime_enroll_recovery_store(config, &mut handle),
+                Q_PERIAPT_ERR_LIMITS
+            );
+            assert_eq!(
                 q_periapt_sdk_runtime_open_recovering_store(
                     config,
                     span(&[]),
@@ -557,6 +561,117 @@ fn c_recovery_rejects_short_options_aliases_and_unenrolled_store() {
             Q_PERIAPT_ERR_RECOVERY_REQUIRED
         );
         assert_eq!(handle, 0);
+    }
+}
+
+#[test]
+fn c_explicit_enrollment_preserves_the_legacy_floor_and_reconciles_retries() {
+    let _serial = TESTS.lock().expect("serial SDK tests");
+    let case = Case::new();
+    let folder = directory();
+    let path = folder
+        .path()
+        .canonicalize()
+        .expect("canonical")
+        .join("enroll.redb");
+    let path = path.to_str().expect("UTF-8").as_bytes();
+    let config = QPeriaptStoreOptions {
+        struct_size: size_of::<QPeriaptStoreOptions>() as u32,
+        extension_version: 1,
+        path: span(path),
+        policy: span(&case.initial_policy),
+        signature: span(&case.initial_signature),
+        trust_root: span(&case.initial),
+        max_live_keys: 2,
+        max_in_flight: 2,
+    };
+    // SAFETY: initialized disjoint options, immutable fixture bytes and scalars.
+    unsafe {
+        let mut old = 0;
+        assert_eq!(q_periapt_sdk_runtime_provision_store(&config, &mut old), 0);
+        let expected = state(old);
+        let old_key = key(old);
+        let old_public = public(old_key);
+        let options = case.options(path, true);
+        let mut enrolled = 99;
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&options, &mut enrolled),
+            Q_PERIAPT_ERR_STORE_BUSY
+        );
+        assert_eq!(enrolled, 0);
+        assert_eq!(public(old_key), old_public);
+        assert_eq!(q_periapt_sdk_close(old), 0);
+
+        let (initial_key, _) = MlDsa65::generate([81; 32]);
+        let lower = policy(1, true);
+        let signature = sign(&initial_key, &policy_signature_message(&lower));
+        let mut rejected = options;
+        rejected.policy = span(&lower);
+        rejected.signature = span(&signature);
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&rejected, &mut enrolled),
+            Q_PERIAPT_ERR_CLOSED
+        );
+        assert_eq!(enrolled, 0);
+        let bad_proof = vec![0; ML_DSA_65_SIG_LEN];
+        rejected = options;
+        rejected.enrollment_signature = span(&bad_proof);
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&rejected, &mut enrolled),
+            Q_PERIAPT_ERR_POLICY
+        );
+        assert_eq!(enrolled, 0);
+
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&options, &mut enrolled),
+            0
+        );
+        assert_eq!(state(enrolled), expected);
+        let first = enrolled;
+        assert_eq!(q_periapt_sdk_close(enrolled), 0);
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&options, &mut enrolled),
+            0
+        );
+        assert_ne!(enrolled, first);
+        assert_eq!(state(enrolled), expected);
+        let mut request = vec![0; Q_PERIAPT_POLICY_RECOVERY_REQUEST_LEN];
+        assert_eq!(
+            q_periapt_sdk_runtime_prepare_recovery(
+                enrolled,
+                span(&[85; 32]),
+                span(&case.next_policy),
+                span(&case.next_signature),
+                span(&case.incoming),
+                out(&mut request)
+            ),
+            0
+        );
+        let authorization = case.authorization(&request);
+        let mut successor = 0;
+        let mut disposition = 0;
+        assert_eq!(
+            q_periapt_sdk_runtime_recover_authority(
+                enrolled,
+                span(&authorization),
+                span(&case.next_policy),
+                span(&case.next_signature),
+                &mut successor,
+                &mut disposition
+            ),
+            0
+        );
+        assert_eq!(disposition, Q_PERIAPT_POLICY_RECOVERY_APPLIED);
+        assert_eq!(
+            state(successor).get(..4).expect("state version"),
+            &1u32.to_be_bytes()
+        );
+        assert_eq!(q_periapt_sdk_close(successor), 0);
+        assert_eq!(
+            q_periapt_sdk_runtime_enroll_recovery_store(&options, &mut enrolled),
+            Q_PERIAPT_ERR_POLICY
+        );
+        assert_eq!(enrolled, 0);
     }
 }
 

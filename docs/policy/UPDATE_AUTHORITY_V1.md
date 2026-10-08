@@ -50,9 +50,12 @@ The threshold-governed succession below and complete Continuity root migration
 remain **DESIGN**. A limited opt-in Rust host-store v2 profile now implements a
 fixed independently pinned recovery key, exact predecessor/history binding,
 incoming-key possession proof and durable cutover. See its
-[contract and limits](../SDK_HOST_STORE.md#independent-online-root-recovery-rust-development-profile).
+[contract and limits](../SDK_HOST_STORE.md#independent-online-root-recovery).
 It does not implement this RFC's N-of-M governance, recovery-key rotation or
-transparent migration of existing v1 stores.
+transparent migration of existing v1 stores. A separate host-authorized
+[explicit enrollment](../SDK_HOST_STORE.md#explicit-enrollment-of-an-existing-v1-policy-image)
+can install that recovery configuration without changing the existing policy
+floor. Redb file-format migration and Continuity root migration remain separate.
 
 ## 2. Target semantics (DESIGN)
 
@@ -81,11 +84,11 @@ eligibility unless `P_{n+1}` explicitly re-grants it.
 ## 3. Binding constraint: preserve existing ABI 2 contracts (ENFORCED)
 
 [`artifact/c_abi_contract.py`](../../artifact/c_abi_contract.py) checks a
-version-specific closed export set: nine symbols for 0.1.5 and **43 for 0.2.0**.
+version-specific closed export set: nine symbols for 0.1.5 and **51 for 0.2.0**.
 The latter imports its additive owner declarations from
 [`artifact/sdk_abi2_spec.py`](../../artifact/sdk_abi2_spec.py). All original nine
 signatures/status values and the 36-byte trusted-policy-state encoding remain
-unchanged. The current 43-symbol allow-list must not silently grow either.
+unchanged. The current 51-symbol allow-list must not silently grow either.
 
 This RFC previously mistook the historical nine-symbol snapshot for a permanent
 ban on additive ABI 2 entry points. That was incorrect. Existing structures and

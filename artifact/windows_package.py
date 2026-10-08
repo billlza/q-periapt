@@ -925,7 +925,7 @@ def _validate_contracts(package_root: pathlib.Path, repository_root: pathlib.Pat
         )
         _require(source.sha256 == embedded.sha256, "embedded ABI contract differs from repository trust root")
     exports = sorted(item["name"] for item in embedded.document["abi"]["exports"])
-    _require(len(exports) == (50 if sdk else 9) and len(exports) == len(set(exports)),
+    _require(len(exports) == (51 if sdk else 9) and len(exports) == len(set(exports)),
              "ABI export set differs from the selected closed profile")
     exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode()).hexdigest()
     return embedded.sha256, exports_sha256
@@ -2273,7 +2273,7 @@ def create_manifest(
             "platform": ABI_PLATFORM,
             "contract_sha256": contract_sha256,
             "exports_sha256": exports_sha256,
-            "export_count": 50 if sdk else 9,
+            "export_count": 51 if sdk else 9,
             "shared_filename": "q_periapt_ffi_abi2.dll",
             "import_library_filename": "q_periapt_ffi_abi2.lib",
             "static_filename": "q_periapt_ffi_abi2_static.lib",
@@ -2480,7 +2480,7 @@ def verify_package(
         "platform": ABI_PLATFORM,
         "contract_sha256": contract_sha256,
         "exports_sha256": exports_sha256,
-        "export_count": 50 if sdk else 9,
+        "export_count": 51 if sdk else 9,
         "shared_filename": "q_periapt_ffi_abi2.dll",
         "import_library_filename": "q_periapt_ffi_abi2.lib",
         "static_filename": "q_periapt_ffi_abi2_static.lib",

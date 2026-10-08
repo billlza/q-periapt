@@ -610,7 +610,7 @@ typedef struct {
      */
     QPeriaptInput recovery_root;
     /**
-     * Exactly 3309 bytes for provision; canonical empty input for either open.
+     * Exactly 3309 bytes for provision/enrollment; canonical empty input for other opens.
      */
     QPeriaptInput enrollment_signature;
     /**
@@ -1155,6 +1155,22 @@ int32_t q_periapt_sdk_runtime_provision_recoverable_store(const QPeriaptRecovera
  */
 int32_t q_periapt_sdk_runtime_open_recoverable_store(const QPeriaptRecoverableStoreOptions *options,
                                                      uint64_t *out_runtime);
+
+/**
+ * Explicitly enroll an existing v1 store in independently authorized recovery.
+ * Close its old owner first. Options policy/signature must authenticate the
+ * exact currently stored state under initial_root; enrollment_signature is the
+ * original independent recovery-key proof. Preserve these inputs for retries.
+ * Original policy/root/floor remain unchanged. Missing/corrupt files are never
+ * created/replaced. The exact already-enrolled image is accepted without a write;
+ * this is a configuration predicate, not a fresh-commit receipt. Any error or
+ * cancellation can require reopening with these same inputs to reconcile.
+ * A later policy/root transition must use its corresponding recovery entry.
+ * # Safety
+ * Same staged options/input/output contract as runtime_provision_recoverable_store.
+ */
+int32_t q_periapt_sdk_runtime_enroll_recovery_store(const QPeriaptRecoverableStoreOptions *options,
+                                                    uint64_t *out_runtime);
 
 /**
  * Reconcile the original signed recovery before exposing a runtime. On success,

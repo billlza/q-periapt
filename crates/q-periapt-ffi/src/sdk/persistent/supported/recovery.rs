@@ -61,6 +61,29 @@ pub(in crate::sdk::persistent) fn construct(
             .map_err(map)?,
             0,
         ),
+        RecoveryOpenMode::Enroll => {
+            // Derive the independently retained exact floor from the host's
+            // authenticated original policy, never from the store being enrolled.
+            let original = sdk::Runtime::from_signed_policy(
+                config.policy,
+                config.signature,
+                config.trust.initial_root(),
+                None,
+                config.limits,
+            )
+            .map_err(map_error)?;
+            (
+                PolicyStore::enroll_recovery(
+                    path,
+                    original.trusted_state(),
+                    &config.trust,
+                    config.enrollment,
+                    config.limits,
+                )
+                .map_err(map)?,
+                0,
+            )
+        }
         RecoveryOpenMode::Configured => (
             PolicyStore::open_recoverable_configured(
                 path,

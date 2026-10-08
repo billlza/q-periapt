@@ -34,6 +34,14 @@ final class QPeriaptSDKBinaryConsumerTests: XCTestCase {
     }
 
     func testInstalledPolicyAuthorityRecoveryAndAdvancedReplay() async throws {
+        try await exerciseInstalledAuthorityRecovery(enrollLegacy: false)
+    }
+
+    func testInstalledLegacyEnrollmentAndAuthorityRecovery() async throws {
+        try await exerciseInstalledAuthorityRecovery(enrollLegacy: true)
+    }
+
+    private func exerciseInstalledAuthorityRecovery(enrollLegacy: Bool) async throws {
         guard let resource = Bundle.module.url(forResource: "sdk-policy-recovery-vectors.json",
             withExtension: nil, subdirectory: "Resources") else { throw FixtureError.resource }
         let fields = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: resource))
@@ -55,9 +63,27 @@ final class QPeriaptSDKBinaryConsumerTests: XCTestCase {
         guard let canonical = folder.path.withCString({ realpath($0, nil) }) else { throw FixtureError.path }
         defer { free(canonical) }
         let path = String(cString: canonical) + "/policy.redb"
-        let original = try await QPeriaptPersistentRuntime.provisionRecoverable(at: path,
-            policy: bytes("initial_policy"), signature: bytes("initial_signature"), trust: trust,
-            enrollmentSignature: bytes("enrollment_signature"))
+        let original: QPeriaptPersistentRuntime
+        if enrollLegacy {
+            let legacy = try await QPeriaptPersistentRuntime.provision(at: path,
+                policy: bytes("initial_policy"), signature: bytes("initial_signature"),
+                trustRoot: trust.initialRoot)
+            let expected = try legacy.runtime.trustedState()
+            try await legacy.close()
+            let enrolled = try await QPeriaptPersistentRuntime.enrollRecovery(at: path,
+                policy: bytes("initial_policy"), signature: bytes("initial_signature"), trust: trust,
+                enrollmentSignature: bytes("enrollment_signature"))
+            XCTAssertEqual(try enrolled.runtime.trustedState(), expected)
+            try await enrolled.close()
+            original = try await QPeriaptPersistentRuntime.enrollRecovery(at: path,
+                policy: bytes("initial_policy"), signature: bytes("initial_signature"), trust: trust,
+                enrollmentSignature: bytes("enrollment_signature"))
+            XCTAssertEqual(try original.runtime.trustedState(), expected)
+        } else {
+            original = try await QPeriaptPersistentRuntime.provisionRecoverable(at: path,
+                policy: bytes("initial_policy"), signature: bytes("initial_signature"), trust: trust,
+                enrollmentSignature: bytes("enrollment_signature"))
+        }
         let oldKey = try original.runtime.generateKey()
         let request = try await original.prepareAuthorityRecovery(operation: bytes("operation"),
             policy: bytes("next_policy"), signature: bytes("next_signature"), incomingRoot: bytes("incoming_root"))

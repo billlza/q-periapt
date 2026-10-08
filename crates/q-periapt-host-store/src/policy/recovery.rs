@@ -99,6 +99,11 @@ impl PolicyRecoveryTrust {
     pub fn binding(&self) -> [u8; 32] {
         hash(b"Q-PERIAPT-SDK-RECOVERY-TRUST/v1", &self.encode())
     }
+    /// Original independently configured online verification key. This remains
+    /// unchanged after recovery and is not necessarily the currently active root.
+    pub fn initial_root(&self) -> &[u8] {
+        &self.initial
+    }
     /// Sign once using the independent recovery key before provisioning. This
     /// proves possession of the configured recovery key, not authority from a peer.
     pub fn enrollment_message(&self) -> Vec<u8> {
@@ -446,6 +451,85 @@ impl RecoveryImage {
         }
     }
 }
+
+/// Opening with recovery pins never grants enrollment implicitly. The explicit
+/// migration mode compares the caller's independently retained exact state.
+pub(super) enum RecoveryOpen<'a> {
+    Fixed,
+    Required(&'a PolicyRecoveryTrust),
+    Enroll {
+        trust: &'a PolicyRecoveryTrust,
+        expected: TrustedPolicyState,
+        signature: &'a [u8],
+    },
+}
+impl RecoveryOpen<'_> {
+    pub(super) fn admit(self, image: &Image) -> Result<Option<Box<RecoveryImage>>, StoreError> {
+        match (self, &image.recovery) {
+            (Self::Fixed, None) => Ok(None),
+            (Self::Required(trust), Some(recovery)) => {
+                recovery.verify(trust, &image.root, image.state)?;
+                Ok(None)
+            }
+            (
+                Self::Enroll {
+                    trust,
+                    expected,
+                    signature,
+                },
+                existing,
+            ) => {
+                if image.root != trust.initial {
+                    return Err(StoreError::RootMismatch);
+                }
+                if image.state != expected {
+                    return Err(StoreError::Stale);
+                }
+                let enrolled = Box::new(RecoveryImage::initial(trust, signature)?);
+                match existing {
+                    None => Ok(Some(enrolled)),
+                    Some(current) if current == &enrolled => {
+                        current.verify(trust, &image.root, image.state)?;
+                        Ok(None)
+                    }
+                    // Never replace different pins/proofs or erase recovery
+                    // history in order to make an old migration retry succeed.
+                    Some(_) => Err(StoreError::RecoveryDenied),
+                }
+            }
+            _ => Err(StoreError::RecoveryRequired),
+        }
+    }
+}
+
+pub(super) fn commit_enrollment(
+    database: &Database,
+    previous: &Image,
+    enrollment: &RecoveryImage,
+) -> Result<(), StoreError> {
+    let transaction = write_transaction(database)?;
+    {
+        let mut table = transaction.open_table(TABLE).map_err(storage)?;
+        if read_image(&table, Some(&previous.root))? != *previous || previous.recovery.is_some() {
+            return Err(StoreError::Corrupt);
+        }
+        write_fields(
+            &mut table,
+            &previous.root,
+            &previous.policy,
+            &previous.signature,
+            previous.state,
+            Some(enrollment),
+        )?;
+    }
+    #[cfg(all(test, unix))]
+    tests::enrollment_boundary("before_commit")?;
+    transaction.commit().map_err(StoreError::CommitUncertain)?;
+    #[cfg(all(test, unix))]
+    tests::enrollment_boundary("committed")?;
+    Ok(())
+}
+
 fn encode_history(entries: &[Entry]) -> Vec<u8> {
     let mut out = Vec::with_capacity(entries.len() * HISTORY_ENTRY_BYTES);
     for entry in entries {
@@ -515,7 +599,39 @@ impl PolicyStore {
         trust: &PolicyRecoveryTrust,
         limits: Limits,
     ) -> Result<Self, StoreError> {
-        Self::open_inner(path, &trust.initial, Some(trust), limits)
+        Self::open_inner(path, &trust.initial, RecoveryOpen::Required(trust), limits)
+    }
+
+    /// Explicitly enroll an EXISTING v1 store in independent root recovery.
+    /// Close its previous owner first. Retain the original trust configuration,
+    /// exact expected state and enrollment proof outside incoming policy data.
+    /// This is a host-authorized trust ceremony, not authority granted by a peer.
+    ///
+    /// The original root, policy, signature and version/digest floor remain
+    /// unchanged in one durable transaction. No runtime is exposed before that
+    /// commit. Missing/corrupt paths are never provisioned or replaced. Retry an
+    /// uncertain result with the same inputs: the exact initial v2 image is
+    /// accepted without another write. A different proof/trust, later policy or
+    /// root recovery fails; reconcile those operations through their own entry
+    /// points. Success means this configuration is present, not a fresh-commit
+    /// receipt. This does not migrate redb's underlying file format.
+    pub fn enroll_recovery(
+        path: &Path,
+        expected: TrustedPolicyState,
+        trust: &PolicyRecoveryTrust,
+        enrollment_signature: &[u8],
+        limits: Limits,
+    ) -> Result<Self, StoreError> {
+        Self::open_inner(
+            path,
+            &trust.initial,
+            RecoveryOpen::Enroll {
+                trust,
+                expected,
+                signature: enrollment_signature,
+            },
+            limits,
+        )
     }
 
     /// Reconcile a desired ordinary policy update under the currently authorized

@@ -22,7 +22,7 @@ pub use recovery::{
     PolicyRecoveryAuthorization, PolicyRecoveryOutcome, PolicyRecoveryRequest, PolicyRecoveryTrust,
     MAX_POLICY_AUTHORITY_RECOVERIES, POLICY_RECOVERY_AUTHORIZATION_BYTES,
 };
-use recovery::{RecoveryImage, SCHEMA_RECOVERY};
+use recovery::{RecoveryImage, RecoveryOpen, SCHEMA_RECOVERY};
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -197,13 +197,13 @@ impl PolicyStore {
     /// Reopen the exact committed signed image under an independently pinned root.
     /// The application must separately reconcile any previously uncertain update.
     pub fn open(path: &Path, root: &[u8], limits: Limits) -> Result<Self, StoreError> {
-        Self::open_inner(path, root, None, limits)
+        Self::open_inner(path, root, RecoveryOpen::Fixed, limits)
     }
 
     fn open_inner(
         path: &Path,
         root: &[u8],
-        recovery_trust: Option<&PolicyRecoveryTrust>,
+        recovery_open: RecoveryOpen<'_>,
         limits: Limits,
     ) -> Result<Self, StoreError> {
         if root.len() != ML_DSA_65_VK_LEN {
@@ -226,19 +226,15 @@ impl PolicyStore {
             return Err(StoreError::Corrupt);
         }
         let table = read.open_table(TABLE).map_err(storage)?;
-        let image = read_image(
+        let mut image = read_image(
             &table,
-            if recovery_trust.is_none() {
-                Some(root)
-            } else {
+            if matches!(&recovery_open, RecoveryOpen::Required(_)) {
                 None
+            } else {
+                Some(root)
             },
         )?;
-        match (&image.recovery, recovery_trust) {
-            (None, None) => {}
-            (Some(recovery), Some(trust)) => recovery.verify(trust, &image.root, image.state)?,
-            _ => return Err(StoreError::RecoveryRequired),
-        }
+        let enrollment = recovery_open.admit(&image)?;
         let owner = PolicyOwner::from_signed_policy(
             &image.policy,
             &image.signature,
@@ -252,6 +248,10 @@ impl PolicyStore {
         drop(table);
         drop(tables);
         drop(read);
+        if let Some(enrollment) = enrollment {
+            recovery::commit_enrollment(&database, &image, &enrollment)?;
+            image.recovery = Some(enrollment);
+        }
         Ok(Self {
             active: Some(Active {
                 database,
@@ -355,6 +355,7 @@ impl Drop for PolicyStore {
     }
 }
 
+#[derive(PartialEq, Eq)]
 struct Image {
     root: Vec<u8>,
     policy: Vec<u8>,

@@ -5,7 +5,7 @@ sequence on macOS/Linux. Rust, three additive C functions and Swift's
 `QPeriaptPersistentRuntime` share that implementation. Both peers in the local
 connection diagnostic recover persisted state before use. Installed packages
 and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
-table now has 50 exports**, including seven explicit policy-recovery helpers and
+table now has 51 exports**, including eight explicit policy-recovery helpers and
 entry points. Existing declarations/layouts remain unchanged. This crate is unpublished.
 
 ## Accepted state and ownership
@@ -89,7 +89,8 @@ Continuity identity-root replacement. The original C/Swift constructors retain
 v1 behavior and cannot open v2 without its required recovery configuration.
 
 An online root can sign `u32::MAX` and exhaust normal policy updates. A v1 store
-still cannot recover that condition. In v2, the online key cannot authorize root
+cannot recover that condition without explicit enrollment of independently
+authorized recovery configuration. In v2, the online key cannot authorize root
 replacement or consume its separate recovery-generation budget. Replacing a root
 requires an already pinned recovery key and proof of possession by the incoming
 online key over the same exact transition. A signature on the candidate policy
@@ -181,10 +182,44 @@ weaker comparisons or an implicit new installation.
 
 ## C and Swift ownership
 
+### Explicit enrollment of an existing v1 policy image
+
+First retain the exact current signed policy/state, original online root, an
+independently chosen recovery root and scope, and its recovery-key enrollment
+proof. These trust inputs must come from host authorization outside incoming
+policies; the proof establishes possession, not that a peer may appoint a root.
+Close the previous store owner before enrollment. Rust calls
+`PolicyStore::enroll_recovery(path, expected_state, trust, proof, limits)`;
+C calls `q_periapt_sdk_runtime_enroll_recovery_store` with the original signed
+policy in `QPeriaptRecoverableStoreOptions`; Swift calls `enrollRecovery`.
+
+Enrollment opens the existing protected file under its exclusive lease. It
+authenticates the original policy and compares its exact root/version/digest to
+the retained input. One immediate two-phase transaction adds the four recovery
+fields and v2 schema marker while preserving the existing root, signed policy
+and floor, including `u32::MAX` and a disabled policy. No runtime is returned
+before persistence. Missing/corrupt files are never created or replaced.
+
+Retry an error, lost result or cancellation with the same inputs. An identical
+initial v2 configuration succeeds without another write; success states that
+the configuration is present, not that this call performed a fresh commit.
+The original retry rejects later policy/root changes and conflicting trust or
+proofs instead of clearing history. Rust reports a stale expected state as
+`StoreError::Stale`; its existing C mapping is `ERR_CLOSED`. Reconcile later
+ordinary policy or root operations using their corresponding configured/recovery
+entry points. Swift cancellation closes an undelivered owner while retaining
+the durable enrollment. The old owner and its keys remain closed.
+
+This upgrades the policy image inside a file readable by the current redb
+backend. It does not migrate redb file format 2 to 3, reset rollback state,
+rotate the recovery key, or migrate a Continuity account root.
+
+### Recovery owner transfer
+
 The additive recovery API uses `QPeriaptRecoverableStoreOptions`: the same
 size/version prefix, path, candidate signed policy, runtime limits, and explicit
-original scope/initial/recovery roots. `enrollment_signature` is required only
-for `q_periapt_sdk_runtime_provision_recoverable_store`; both open functions
+original scope/initial/recovery roots. `enrollment_signature` is required
+for explicit provisioning and enrollment; both other open functions
 require its canonical empty form. The enrollment-message and recovery-signing-
 messages helpers produce canonical public statements without granting authority.
 `q_periapt_sdk_runtime_prepare_recovery` changes no state. Retain its exact

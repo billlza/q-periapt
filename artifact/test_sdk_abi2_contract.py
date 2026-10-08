@@ -21,7 +21,7 @@ class SDKABI2ContractTests(unittest.TestCase):
     def test_current_header_is_additive_with_exactly_retained_legacy_declarations(self):
         abi.verify_header(self.contract, self.header)
         self.assertEqual(self.contract.document["abi"]["major"], 2)
-        self.assertEqual(len(self.contract.export_names), 50)
+        self.assertEqual(len(self.contract.export_names), 51)
         self.assertEqual(self.contract.document["package"]["semver"], sdk.PACKAGE_SEMVER)
         for name, signature in self.old.declarations.items():
             self.assertEqual(self.contract.declarations[name], signature)

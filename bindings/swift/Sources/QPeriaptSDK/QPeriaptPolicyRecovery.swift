@@ -135,6 +135,28 @@ extension QPeriaptPersistentRuntime {
         }
     }
 
+    /// Explicitly enroll an existing v1 store after closing its previous owner.
+    /// Retain the exact original signed policy, independent trust and enrollment
+    /// proof for retries after errors/cancellation. The policy floor is preserved;
+    /// missing files are never provisioned. Later policy/root changes require
+    /// their own recovery entry. Success does not imply a new commit occurred.
+    public static func enrollRecovery(at path: String, policy: [UInt8], signature: [UInt8],
+        trust: QPeriaptPolicyRecoveryTrust, enrollmentSignature: [UInt8],
+        maxLiveKeys: UInt32 = 32, maxInFlight: UInt32 = 4) async throws -> QPeriaptPersistentRuntime {
+        try await runPersistentOperation {
+            try enrollRecoverySynchronously(at: path, policy: policy, signature: signature, trust: trust,
+                enrollmentSignature: enrollmentSignature, maxLiveKeys: maxLiveKeys, maxInFlight: maxInFlight)
+        }
+    }
+
+    static func enrollRecoverySynchronously(at path: String, policy: [UInt8], signature: [UInt8],
+        trust: QPeriaptPolicyRecoveryTrust, enrollmentSignature: [UInt8],
+        maxLiveKeys: UInt32 = 32, maxInFlight: UInt32 = 4) throws -> QPeriaptPersistentRuntime {
+        try constructRecoverable(at: path, policy: policy, signature: signature, trust: trust,
+            enrollment: enrollmentSignature, authorization: [], mode: .enroll,
+            maxLiveKeys: maxLiveKeys, maxInFlight: maxInFlight).0
+    }
+
     /// Reconcile the SAME original authorization/target after an uncertain call
     /// or cancellation. A later authorized state is retained, never rolled back.
     public static func openRecovering(at path: String, policy: [UInt8], signature: [UInt8],
@@ -211,7 +233,7 @@ extension QPeriaptPersistentRuntime {
         }
     }
 
-    private enum RecoveryOpenMode { case provision, configured, recovering }
+    private enum RecoveryOpenMode { case provision, enroll, configured, recovering }
     private static func constructRecoverable(at path: String, policy: [UInt8], signature: [UInt8],
         trust: QPeriaptPolicyRecoveryTrust, enrollment: [UInt8], authorization: [UInt8], mode: RecoveryOpenMode,
         maxLiveKeys: UInt32, maxInFlight: UInt32) throws -> (QPeriaptPersistentRuntime, UInt32) {
@@ -237,6 +259,7 @@ extension QPeriaptPersistentRuntime {
                                             max_live_keys: maxLiveKeys, max_in_flight: maxInFlight)
                                         switch mode {
                                         case .provision: return q_periapt_sdk_runtime_provision_recoverable_store(&options, &handle)
+                                        case .enroll: return q_periapt_sdk_runtime_enroll_recovery_store(&options, &handle)
                                         case .configured: return q_periapt_sdk_runtime_open_recoverable_store(&options, &handle)
                                         case .recovering: return q_periapt_sdk_runtime_open_recovering_store(&options, approval, &handle, &disposition)
                                         }

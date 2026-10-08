@@ -1362,7 +1362,7 @@ secret copies and do not treat in-process handles as isolation from hostile code
 The package includes the 37-asset native SDK CBOM, workspace lock SBOM and Rust
 standard-library notices. This unsigned alpha package is not a stable-release,
 device, constant-time or minimum-OS qualification.
-The native ABI remains 2; the alpha export contract has 50 additive functions.
+The native ABI remains 2; the SDK contract has 51 exports.
 EOF
 fi
 
@@ -1418,7 +1418,7 @@ linux_max_glibc_version = sys.argv[12]
 linux_glibc_policy_max = sys.argv[13]
 linux_needed_libraries = sys.argv[14]
 sdk_profile = sys.argv[15] == "sdk-020"
-expected_exports = 50 if sdk_profile else 9
+expected_exports = 51 if sdk_profile else 9
 
 def sha256(path: pathlib.Path) -> str:
     hasher = hashlib.sha256()
@@ -1690,7 +1690,7 @@ expected_package = sys.argv[12]
 expected_glibc_policy_max = sys.argv[13]
 expected_needed_libraries = sys.argv[14]
 sdk_profile = sys.argv[15] == "sdk-020"
-expected_exports = 50 if sdk_profile else 9
+expected_exports = 51 if sdk_profile else 9
 contract_relative = SDK_CONTRACT_PATH if sdk_profile else "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 embedded_relative = SDK_EMBEDDED_CONTRACT if sdk_profile else "share/q-periapt/abi/q-periapt-c-abi-v2.json"
 

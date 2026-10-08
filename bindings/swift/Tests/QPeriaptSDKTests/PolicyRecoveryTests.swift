@@ -111,6 +111,96 @@ extension QPeriaptSDKTests {
         try await ordinary.close()
     }
 
+    func testExplicitLegacyEnrollmentPreservesFloorAndRecoversAuthority() async throws {
+        let fixture = try recoveryFixture()
+        let folder = try storeDirectory(); defer { removeStoreDirectory(folder) }
+        let path = folder.appendingPathComponent("legacy.redb").path
+        let policy = try fixture.bytes("initial_policy")
+        let signature = try fixture.bytes("initial_signature")
+        let trust = try fixture.trust()
+        let proof = try fixture.bytes("enrollment_signature")
+        let legacy = try await QPeriaptPersistentRuntime.provision(at: path, policy: policy,
+            signature: signature, trustRoot: trust.initialRoot)
+        let expected = try legacy.runtime.trustedState()
+        let key = try legacy.runtime.generateKey()
+        let keyBytes = try key.publicKey().bytes
+        do {
+            let unexpected = try await QPeriaptPersistentRuntime.enrollRecovery(at: path, policy: policy,
+                signature: signature, trust: trust, enrollmentSignature: proof)
+            try await unexpected.close(); XCTFail("live store lease was bypassed")
+        } catch let error as QPeriaptSDKError { XCTAssertEqual(error.code, -20) }
+        XCTAssertEqual(try key.publicKey().bytes, keyBytes)
+        try await legacy.close()
+        XCTAssertThrowsError(try key.publicKey())
+        let enrolled = try await QPeriaptPersistentRuntime.enrollRecovery(at: path, policy: policy,
+            signature: signature, trust: trust, enrollmentSignature: proof)
+        XCTAssertEqual(try enrolled.runtime.trustedState(), expected)
+        try await enrolled.close()
+        let replay = try await QPeriaptPersistentRuntime.enrollRecovery(at: path, policy: policy,
+            signature: signature, trust: trust, enrollmentSignature: proof)
+        XCTAssertEqual(try replay.runtime.trustedState(), expected)
+        let request = try await replay.prepareAuthorityRecovery(operation: fixture.bytes("operation"),
+            policy: fixture.bytes("next_policy"), signature: fixture.bytes("next_signature"),
+            incomingRoot: fixture.bytes("incoming_root"))
+        XCTAssertEqual(request.encoded, try fixture.bytes("request"))
+        let result = try await replay.recoverAuthority(fixture.authorization(),
+            policy: fixture.bytes("next_policy"), signature: fixture.bytes("next_signature"))
+        guard case let .applied(disabled) = result else { XCTFail("recovery did not apply"); return }
+        XCTAssertFalse(try disabled.runtime.isEnabled())
+        try await disabled.close()
+        do {
+            let unexpected = try await QPeriaptPersistentRuntime.enrollRecovery(at: path, policy: policy,
+                signature: signature, trust: trust, enrollmentSignature: proof)
+            try await unexpected.close(); XCTFail("old enrollment reset the recovered root")
+        } catch let error as QPeriaptSDKError { XCTAssertEqual(error.code, -3) }
+    }
+
+    func testEnrollmentCancellationDisposesOwnerAndRetainsCommittedConfiguration() async throws {
+        let fixture = try recoveryFixture()
+        let folder = try storeDirectory(); defer { removeStoreDirectory(folder) }
+        let path = folder.appendingPathComponent("cancelled-enrollment.redb").path
+        let policy = try fixture.bytes("initial_policy")
+        let signature = try fixture.bytes("initial_signature")
+        let trust = try fixture.trust()
+        let proof = try fixture.bytes("enrollment_signature")
+        let legacy = try await QPeriaptPersistentRuntime.provision(at: path, policy: policy,
+            signature: signature, trustRoot: trust.initialRoot)
+        let expected = try legacy.runtime.trustedState()
+        try await legacy.close()
+        let committed = DispatchSemaphore(value: 0)
+        let resume = DispatchSemaphore(value: 0)
+        let task = Task {
+            try await runPersistentOperation {
+                let result = try QPeriaptPersistentRuntime.enrollRecoverySynchronously(at: path,
+                    policy: policy, signature: signature, trust: trust, enrollmentSignature: proof)
+                committed.signal()
+                guard resume.wait(timeout: .now() + 10) == .success else {
+                    try result.runtime.close()
+                    throw QPeriaptSDKError(operation: "enrollment test release deadline", code: -15)
+                }
+                return result
+            }
+        }
+        let ready = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume(returning: committed.wait(timeout: .now() + 10) == .success) }
+        }
+        XCTAssertTrue(ready)
+        task.cancel(); resume.signal()
+        do {
+            let unexpected = try await task.value
+            try await unexpected.close(); XCTFail("cancelled enrollment returned ownership")
+        } catch is CancellationError { /* The durable enrollment is retained. */ }
+        do {
+            let unexpected = try await QPeriaptPersistentRuntime.open(at: path, policy: policy,
+                signature: signature, trustRoot: trust.initialRoot)
+            try await unexpected.close(); XCTFail("enrollment was rolled back by cancellation")
+        } catch let error as QPeriaptSDKError { XCTAssertEqual(error.code, -25) }
+        let recovered = try await QPeriaptPersistentRuntime.enrollRecovery(at: path, policy: policy,
+            signature: signature, trust: trust, enrollmentSignature: proof)
+        XCTAssertEqual(try recovered.runtime.trustedState(), expected)
+        try await recovered.close()
+    }
+
     func testRecoveryCancellationClosesOnlyNewlyReturnedOwnership() async throws {
         let fixture = try recoveryFixture()
         let folder = try storeDirectory(); defer { removeStoreDirectory(folder) }

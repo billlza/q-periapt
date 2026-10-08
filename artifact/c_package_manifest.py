@@ -498,7 +498,7 @@ def verify_package(
     require(profile in C_PROFILES, "unknown C package profile")
     sdk = profile == "sdk-020"
     version = SDK_PACKAGE_VERSION if sdk else PACKAGE_SEMVER
-    export_count = 50 if sdk else 9
+    export_count = 51 if sdk else 9
     source_paths = profile_source_paths(profile)
     contract_path = source_paths["c_abi_contract"]
     embedded_path = SDK_EMBEDDED_CONTRACT if sdk else "share/q-periapt/abi/q-periapt-c-abi-v2.json"
