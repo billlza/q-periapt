@@ -136,6 +136,16 @@ is source-based C consumption; installed archives, Swift/Kotlin retirement and
 complete foreign replacement remain open. The unpublished candidate now has
 119 C exports, separate from product ABI 2's 51.
 
+The [Swift retirement checkpoint](../research/sdk-alpha1/evidence/20261008-swift-device-retirement/README.md)
+adds a typed restricted owner over that same engine. Debug and Release each pass
+56 tests and eight Swift cleanup processes, including wrong-purpose signature
+refusal and exact reopening across lost completions. The original registration
+gate and 12 affected tooling tests pass. These are source-consumer results;
+fresh installed Swift archives, Kotlin retirement and the complete foreign
+device-replacement flow remain open. Prior `737ca3ec` Rust CodeQL completed its
+quality/upload stages and has retained diagnostics, without a new-source security
+claim or completed disposition of its findings.
+
 The last committed alpha.1 source, `f8a7c6d`, passes 2,280 local artifact tests
 in 457.660 seconds without skips, with warnings treated as errors and passing
 pre/post source gates. The 387 affected Android tests also pass. Its

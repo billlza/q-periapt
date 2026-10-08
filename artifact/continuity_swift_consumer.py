@@ -94,7 +94,11 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "IndependentPolicyTests.testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains",
              "IndependentPolicyTests.testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
              "IndependentPolicyTests.testProgressKeepsEveryTerminalAndRetirementStateDistinct",
-             "IndependentPolicyTests.testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries"}
+             "IndependentPolicyTests.testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries",
+             "RetirementTests.testRetirementLayoutsMatchTheNativeContract",
+             "RetirementTests.testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust",
+             "RetirementTests.testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity",
+             "RetirementTests.testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
@@ -207,6 +211,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_c_witness import export_selected
             public_files = export_selected(checked, evidence, exported, SCOPE,
                                            replay=lambda path: verify_execution(stdout, path))
+            from continuity_device_retirement import qualify_foreign as qualify_retirement
+            retirement = qualify_retirement(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_enrollment import qualify_foreign as qualify_enrollment
             enrollment = qualify_enrollment(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_account import TEST as ACCOUNT_TEST, SCOPE as ACCOUNT_SCOPE, verify_execution as verify_account
@@ -319,6 +325,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files, "enrollment": enrollment,
+                "device_retirement": retirement,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,

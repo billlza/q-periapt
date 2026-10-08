@@ -158,9 +158,13 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("IndependentPolicyTests", "testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains"),
                  ("IndependentPolicyTests", "testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags"),
                  ("IndependentPolicyTests", "testProgressKeepsEveryTerminalAndRetirementStateDistinct"),
-                 ("IndependentPolicyTests", "testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries"))
+                 ("IndependentPolicyTests", "testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries"),
+                 ("RetirementTests", "testRetirementLayoutsMatchTheNativeContract"),
+                 ("RetirementTests", "testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust"),
+                 ("RetirementTests", "testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity"),
+                 ("RetirementTests", "testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 52 tests, with 0 failures").encode()
+                  + "\nExecuted 56 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")
@@ -168,6 +172,8 @@ class SwiftConsumerTests(unittest.TestCase):
             swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"EnrollmentTests" not in line), b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"PolicyContinuationTests" not in line), b"")
+        with self.assertRaisesRegex(ValueError, "all execute"):
+            swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"RetirementTests" not in line), b"")
 
     def test_foreign_library_and_missing_installed_rpath_are_refused(self):
         dependencies = "client:\n\t@rpath/" + swift.LIBRARY + " (compatibility version 0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 0)\n"

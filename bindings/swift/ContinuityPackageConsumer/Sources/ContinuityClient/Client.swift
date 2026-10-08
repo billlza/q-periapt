@@ -106,6 +106,10 @@ func waitMarker(_ path: String) throws {
     }
     static func run(_ arguments: [String]) async throws {
         try verifyLoadedLibrary()
+        if arguments.first == "retired" {
+            try retirementCommand(arguments)
+            return
+        }
         var args = arguments
         var witness: WitnessCarrier = .local
         var existing: SessionID?

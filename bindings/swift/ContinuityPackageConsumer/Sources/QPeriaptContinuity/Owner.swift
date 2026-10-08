@@ -178,6 +178,23 @@ final class NativeOwner: Sendable {
         return NativeOwner(handle: handle)
     }
 
+    static func prepareRetired(path: String, intent: EnrollmentIntent,
+                               authority: RetiredEnrollmentAuthority) throws -> NativeOwner {
+        let path = try textBytes(path, maximum: 4096)
+        var handle: UInt64 = 0
+        var error = qpc_error_v1()
+        let code = path.withUnsafeBufferPointer { path in
+            intent.withNative { intent in
+                authority.withNative { authority in
+                    qpc_retired_v1_prepare_open(path.baseAddress, path.count, intent, authority, &handle, &error)
+                }
+            }
+        }
+        try checked(code, &error)
+        guard handle != 0 else { throw ContinuityBoundaryError.malformedOutput }
+        return NativeOwner(handle: handle)
+    }
+
     static func preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
                             role: BootstrapRole, session: SessionID?) throws -> NativeOwner {
         let path = try textBytes(path, maximum: 4096)

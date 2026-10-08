@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T16:56:50.483705+00:00",
+  "base_commit": "20d1f986e3e440edd954dadf674ddf8ca544e2fd",
+  "source_files": {
+    ".github/workflows/ci.yml": "6ca70d1dede7fd897dd16f479b91330356060602d24941229c4ff1f4c58b9a59",
+    "artifact/continuity_device_retirement.py": "e30dd198e6c96f958b20622ebd0b6e15efaee0d1dafd875bd7a72b07d13a0de1",
+    "artifact/continuity_swift_consumer.py": "da1e583211e70cf5ac1d3a82060f6bafac9cf7fa7923d90a824e6cc18171fe72",
+    "artifact/test_continuity_swift_consumer.py": "620201210de01d715eec10297076324f344b947d8c00c892bedbe81049fff630",
+    "bindings/swift/ContinuityPackageConsumer/README.md": "c724c5c8c290a70143ce033868e549fe0d26a203a9d5ff47fa37e10dbccaaaf9",
+    "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Client.swift": "492d280558c0a7f831bcd2b2749431fe45632f60549aec465cac2152483972b8",
+    "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/FixtureRecords.swift": "f1484ddeadb070c30fe3164f68d1fe0af1e55077cb27b6c3001f7d87316231fd",
+    "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Retirement.swift": "bfe9f762556b92b8abba846cbac7273c533449b2c618a471afbe04b9681201ed",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Owner.swift": "00f6505585052c6d7f607d49ca8ad50d9f0888c4b2b01da75ef666a841821f5e",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/RetiredEnrollment.swift": "518d41198468729ee584b54538d226c0bced5127f2738e3261eaf815a90cd612",
+    "bindings/swift/ContinuityPackageConsumer/Tests/QPeriaptContinuityTests/RetirementTests.swift": "09456e90b1cac6a9660314fe97f66b623759e75c51d3d0af899f46dd957a6d2f",
+    "docs/continuity/PRODUCT_ADMISSION.md": "86c54b65b39d380ea5f5bdf61342900ba0f87af394ded7ff7f9d40c6f34fdf22"
+  },
+  "development_source_consumption": true,
+  "installed_archive_qualified": false,
+  "unit_tests_per_profile": 56,
+  "eight_process_profiles": [
+    "debug",
+    "release"
+  ],
+  "artifact_tests": 12,
+  "runs": {
+    "swift-tests-debug-01": {
+      "command": [
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-debug",
+        "--configuration",
+        "debug",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xswiftc",
+        "-strict-concurrency=complete",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose"
+      ],
+      "returncode": 0,
+      "seconds": 19.66262779198587
+    },
+    "swift-tests-release-01": {
+      "command": [
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-release",
+        "--configuration",
+        "release",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xswiftc",
+        "-strict-concurrency=complete",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-purpose",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-purpose"
+      ],
+      "returncode": 0,
+      "seconds": 20.4808104170952
+    },
+    "swift-runtime-debug-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 12.404175333911553,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-debug/out/Products/Debug/ContinuityClient": "1ec60d30ab766815b33caa4f6b9ef884ad5e92300d72f0e02b23b4f942aa44c5",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f": "df351cbaffb34494cdb6cbb90be3c76f6a5fa4c6c733fd71adc44c8c6db4f1b0"
+      },
+      "binaries_unchanged": true,
+      "client_selector": [
+        "/usr/bin/xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-debug",
+        "--configuration",
+        "debug",
+        "--show-bin-path"
+      ]
+    },
+    "swift-runtime-release-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 16.812484165886417,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-release/out/Products/Release/ContinuityClient": "ba2459a062dff2b3b8cbd136e7ff04c2b3e0c5dab69b32eba71938b3ebb315b0",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-purpose/libq_periapt_continuity_c_consumer.dylib": "ef57655b4bba36447623b60af55c27d882cf50bc4d5cac0cfe99519d08049901",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0": "a692d71e31a1efb8992e1f89d31c3c13f735885212699f90f6a8fddfb1d5940b"
+      },
+      "binaries_unchanged": true,
+      "client_selector": [
+        "/usr/bin/xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-release",
+        "--configuration",
+        "release",
+        "--show-bin-path"
+      ]
+    },
+    "swift-registration-debug-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/enrollment-830774afbdf9d0b6",
+        "--exact",
+        "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 11.91913954098709,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-debug/out/Products/Debug/ContinuityClient": "1ec60d30ab766815b33caa4f6b9ef884ad5e92300d72f0e02b23b4f942aa44c5",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/enrollment-830774afbdf9d0b6": "205c68636335889820b216aee920e22985bf1df8b0bee54139ca898ee2a51d45"
+      },
+      "binaries_unchanged": true,
+      "client_selector": [
+        "/usr/bin/xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-consumer",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/swift-build-debug",
+        "--configuration",
+        "debug",
+        "--show-bin-path"
+      ]
+    },
+    "swift-artifact-tests-01": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_continuity_swift_consumer\",\"artifact.test_continuity_device_retirement\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 4.332636874867603
+    }
+  },
+  "prior_codeql": {
+    "checked_at": "2026-10-08T16:51:53.039032+00:00",
+    "run": 37792482089,
+    "job": 113363225331,
+    "head": "737ca3ec25c7979d10578219e27843678686c415",
+    "required_steps": [
+      "Analyze",
+      "Verify Rust CodeQL checkout after analysis",
+      "Verify Rust CodeQL database quality",
+      "Upload quality-gated Rust CodeQL results",
+      "Post Analyze",
+      "Post Initialize CodeQL"
+    ],
+    "conclusion": "success",
+    "completed_at": "2026-10-08T16:48:05Z",
+    "artifact_id": 11564558340,
+    "artifact_sha256": "sha256:440f91daffe7e329d78ff4fcb5499776e77697c0f5bf52f9b2ea68ca46428a98",
+    "artifact_bytes": 471554161,
+    "artifact_expires_at": "2026-10-15T16:42:20Z",
+    "remote_retained": true,
+    "downloaded": false,
+    "new_sarif_disposition_complete": false
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "8a54f582cefaa08212718d39cb81f778ae81db29f2260bde645da13360716a39",
+    "bytes": 174594,
+    "members": 154
+  },
+  "scope": "Swift typed restricted owner delegates C/native retirement. Eight real Swift cleanup processes with complete report, signed-purpose substitution refusal, original reopen and three post-commit exits. Separate native Rust enrollment/replacement/fresh-generation TLS and complete canonical-byte readback. Same host/implementation; no installed Swift archive, independent implementation, physical erasure or complete foreign replacement claim.",
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

@@ -137,3 +137,31 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
         "no physical erasure, independent protocol or complete foreign-device lifecycle claim."
     )
     return checked
+
+
+def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
+                    native: dict, run, *, language: str) -> dict:
+    """Run the selected foreign executable with the already qualified native harness."""
+    import continuity_c_consumer as c
+    sdk.require(profile in {"debug", "release"} and language in {"Swift", "Kotlin"}
+                and runtime.get("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") == language,
+                "unqualified foreign retirement profile")
+    log = sdk.snapshot(output / ("c-retirement-build-" + profile + ".stdout"), maximum=32 * 1024**2)
+    binary = c.built_artifact(log.data, outside / "c-consumer", outside / "build" / profile,
+                              library=False, test_name="retirement")
+    original = sdk.snapshot(binary, maximum=c.MAX_BINARY)
+    expected = native["device_retirement"]["binary"]
+    sdk.require(original.sha256 == expected["sha256"] and original.size == expected["bytes"],
+                "foreign retirement native harness changed before execution")
+    client = sdk.snapshot(Path(runtime["QPERIAPT_C_OWNER_CLIENT"]), maximum=c.MAX_BINARY)
+    evidence = outside / (language.lower() + "-" + profile + "-retirement-runtime")
+    selected = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+    stdout = run([str(binary), "--exact", FOREIGN_TEST, "--nocapture"],
+                 "retirement-trace-" + profile, runtime=selected)
+    directory = evidence.with_name(evidence.name + "-device-retirement") / "public"
+    checked = export_foreign(stdout, directory, output / (language.lower() + "-retirement-public") / profile,
+                             language=language)
+    sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == original.sha256
+                and sdk.snapshot(client.path, maximum=c.MAX_BINARY).sha256 == client.sha256,
+                "foreign retirement harness or executable changed during execution")
+    return dict(execution=checked, native_harness_sha256=original.sha256, foreign_client_sha256=client.sha256)

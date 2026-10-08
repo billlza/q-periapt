@@ -598,3 +598,42 @@ three C raw-input controls. The collector requires the C baseline first and
 pins the endpoint executable and its OpenSSL dependencies. This qualifies the
 independent TLS endpoint; native TLS server pre-processing interruption,
 physical platforms and platform persistence remain separate gates.
+
+## Permanently retired enrolled devices
+
+`ContinuityRetiredEnrollment` is a separate cleanup-only owner. Supply the original
+`EnrollmentIntent` and `RetiredEnrollmentAuthority` containing the independently
+retained witness pin, original replacement proposal, exact old subject and signed
+permanent retirement proof. `prepareOpen` snapshots these inputs; `finishOpen`
+opens the existing restricted native enrollment. It exposes no operational device,
+signer, runtime or raw handle. Close active device/peer owners before opening it.
+
+Read `inventory()`, obtain independent inventory retention, then call
+`prepareReport(inventoryReceipt:)`. Retain the original proposal and obtain its
+independent report receipt. `loadReport` authenticates and copies the complete
+immutable `RetiredDeviceReport.canonicalBytes`; its keyed `report` ID is separate
+from those bytes. The returned `viewCount` is descriptive, not a substitute for
+retaining the complete private host metadata. Local proposal absence does not
+prove that the witness failed to commit.
+
+Durably retain the full report and original proposal, accounting by its report ID,
+before `prepareAcknowledgement` with the actual saved bytes. Only the independent
+purpose-21 ACK authorizes `eraseJournal`. Inspect `journalState` after an unknown
+outcome, prepare the exact signer erasure, inspect `signerState`, and call
+`eraseSigner`. Successful signer erasure also consumes the resource; close the
+registry handle. Reopen the exact original intent/proof for reconciliation.
+Never reset the installation or substitute a backup to recover from an error.
+
+The wrapper reuses the existing pinned native owner for close, cancellation and
+concurrent-call admission. Static input-width rejection leaves the resource
+unchanged; admitted native failures and late cancellation consume it. A valid
+report-retention signature cannot substitute for a host-accounted erasure ACK.
+Logical erasure says nothing about old pages, backups, wrapping keys or physical
+power-loss durability.
+
+Debug and Release source consumers pass 56 tests and eight actual Swift cleanup
+processes, including three exits without completion and exact complete report
+readback. The installed-package producer requires the same workload. Fresh
+archive qualification remains separate; registration/replacement authorization
+and fresh-generation TLS in this scenario remain native Rust. This is not a
+complete foreign replacement flow or an independent protocol implementation.

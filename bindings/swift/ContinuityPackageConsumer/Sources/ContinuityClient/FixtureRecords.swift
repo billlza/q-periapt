@@ -25,7 +25,12 @@ private func withRecordDescriptor<T>(_ descriptor: Int32, _ body: (Int32) throws
 /// One no-clobber file contains both effect/accounting and its exact identity.
 struct FixtureRecords {
     let path: String
+    let maximumBytes: Int
+    init(path: String, maximumBytes: Int = 1_048_576) {
+        self.path = path; self.maximumBytes = maximumBytes
+    }
     private func validate(_ name: String) throws {
+        try require((1...8_388_608).contains(maximumBytes), "fixture record capacity")
         try require(!name.isEmpty && name.utf8.count <= 128 && name != "." && name != ".." &&
                     !name.contains("/") && !name.utf8.contains(0), "fixture record name")
     }
@@ -39,7 +44,7 @@ struct FixtureRecords {
             var info = stat()
             guard fstat(file, &info) == 0 else { throw recordIO("stat record") }
             try require(info.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) &&
-                        info.st_size > 0 && info.st_size <= 1_048_576, "fixture record shape")
+                        info.st_size > 0 && info.st_size <= maximumBytes, "fixture record shape")
             var bytes = [UInt8](repeating: 0, count: Int(info.st_size) + 1)
             var used = 0
             while used < bytes.count {
@@ -66,7 +71,7 @@ struct FixtureRecords {
     /// must match exactly; create=false refuses a missing retained original.
     func retain(_ name: String, bytes: [UInt8], create: Bool) throws -> Bool {
         try validate(name)
-        try require(!bytes.isEmpty && bytes.count <= 1_048_576, "fixture record length")
+        try require(!bytes.isEmpty && bytes.count <= maximumBytes, "fixture record length")
         let temporary = ".\(name).\(getpid()).tmp"
         return try withRecordDescriptor(open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)) { directory in
             if let old = try read(directory, name) {
