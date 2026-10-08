@@ -37,6 +37,12 @@ assuming rollback. A policy update returns a new owner and revokes the old epoch
 For independently authorized policy-root replacement, explicitly provision with
 `provisionRecoverable` and a `QPeriaptPolicyRecoveryTrust` containing your original
 scope, online root and separate recovery root, plus its enrollment signature.
+For an existing fixed-root policy store, retain its exact signed policy and
+independent recovery configuration, close the previous owner, then call
+`enrollRecovery` with those inputs. It preserves the original policy floor,
+including an exhausted version, and never creates a missing store. Retry an
+uncertain enrollment with the same inputs; a later policy or root change must
+use its corresponding recovery entry. This does not migrate redb file formats.
 Retain that original trust outside the store. `prepareAuthorityRecovery` produces
 the exact statement for recovery-key approval and incoming-key possession proofs;
 assemble `QPeriaptPolicyRecoveryAuthorization` and call `recoverAuthority`.
