@@ -242,8 +242,9 @@ def verify_consumer_tests(stdout: bytes) -> None:
             "installed consumer did not execute all four public API tests")
 
 
-def verify_consumed_sources(consumer: Path, output: Path, records: dict) -> None:
-    for name in CONSUMER_CRATES:
+def verify_consumed_sources(consumer: Path, output: Path, records: dict,
+                            *, names: tuple[str, ...] = CONSUMER_CRATES) -> None:
+    for name in names:
         record = records[name]
         artifact = snapshot(output / "crates" / record["file"])
         require(artifact.sha256 == record["sha256"], "consumed crate archive digest changed")

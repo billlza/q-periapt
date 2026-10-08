@@ -28,7 +28,7 @@ from evidence_io import (
 SCHEMA_VERSION = 1
 KIND = "qperiapt.third_party_rust_licenses"
 ROOT_PACKAGE = "q-periapt-ffi"
-ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer")
+ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer", "q-periapt-cli")
 INVENTORY_RELATIVE = pathlib.PurePosixPath("THIRD_PARTY/rust/INVENTORY.json")
 MAX_METADATA_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_BYTES = 4 * 1024 * 1024

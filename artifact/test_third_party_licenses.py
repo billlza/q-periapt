@@ -128,6 +128,21 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             third_party_licenses.collect(self.root, other, "aarch64-apple-darwin",
                 root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
 
+    def test_maintenance_license_root_uses_the_supplied_build_resolution(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-cli"
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        with mock.patch.object(third_party_licenses, "_cargo_metadata", side_effect=AssertionError("global Cargo used")):
+            collected = third_party_licenses.collect(self.root, self.package_root, "aarch64-apple-darwin",
+                root_package="q-periapt-cli", resolved_metadata=metadata)
+        self.assertEqual(collected["root_package"], "q-periapt-cli")
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="aarch64-apple-darwin", root_package="q-periapt-cli"))
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "root package differs"):
+            third_party_licenses.verify(self.package_root, expected_target="aarch64-apple-darwin")
+
     def test_dev_only_dependency_is_not_treated_as_shipped(self) -> None:
         with self.assertRaisesRegex(
             third_party_licenses.ThirdPartyLicenseError,
