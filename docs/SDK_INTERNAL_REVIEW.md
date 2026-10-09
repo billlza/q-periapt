@@ -8,6 +8,13 @@ kept separate from completed observations.
 
 ## Latest retained CodeQL inventory
 
+The [b1006eb3 inventory](../research/sdk-alpha1/evidence/20261009-codeql-b1006eb3-inventory/README.md)
+retains successful Rust analysis/quality/upload and a hash-verified diagnostic
+download. The aggregate check fails with 1,617 reported new alerts; the PR has
+1,626 open alerts and the raw Rust SARIF has 819 results. This checkpoint adds no
+dispositions. The earlier nine-result review below is tied to its separate
+809-result analysis and is not automatically applied to this new inventory.
+
 The [67e1a5b0 inventory](../research/sdk-alpha1/evidence/20261008-codeql-67e1a5-inventory/README.md)
 records successful Rust analysis/quality/upload but a failed aggregate security
 check: 1,607 new PR alerts, 1,616 total open PR alerts and 809 raw Rust SARIF
