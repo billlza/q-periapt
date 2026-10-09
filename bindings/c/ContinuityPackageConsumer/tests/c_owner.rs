@@ -379,6 +379,15 @@ fn start_listening(
 
 #[test]
 fn c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery() -> Result<()> {
+    device_parent_workload(false)
+}
+
+#[test]
+fn c_configured_peers_reopen_and_reconcile_original_delivery() -> Result<()> {
+    device_parent_workload(true)
+}
+
+fn device_parent_workload(configured: bool) -> Result<()> {
     assert_eq!(
         installed_language()?,
         "C",
@@ -391,6 +400,9 @@ fn c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery() -> Res
         let peer = root.join("peer");
         fs::create_dir(&peer)?;
         fs::set_permissions(&peer, fs::Permissions::from_mode(0o700))?;
+        if configured {
+            fs::copy(root.join("family"), peer.join("family"))?;
+        }
         let mut names = vec![
             "bootstrap.bundle".to_owned(),
             "directory".into(),
@@ -494,6 +506,9 @@ fn c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery() -> Res
             root.as_os_str().into(),
             role.into(),
         ];
+        if configured {
+            result.insert(0, "--peer-configured".into());
+        }
         if let Some(session) = session {
             result.extend(["--session".into(), fixture::hex(&session).into()]);
         }

@@ -279,13 +279,17 @@ fn peer_bundle_at(
 
 #[test]
 fn c_registration_owns_original_identity_through_connection_and_roster_refresh() -> Result<()> {
-    registration_workload(false)
+    registration_workload(false, false)
 }
 #[test]
 fn c_registered_publication_recovers_exact_artifact_before_normal_connection() -> Result<()> {
-    registration_workload(true)
+    registration_workload(true, false)
 }
-fn registration_workload(publication: bool) -> Result<()> {
+#[test]
+fn c_registered_configured_peer_reopens_original_session_after_roster_refresh() -> Result<()> {
+    registration_workload(false, true)
+}
+fn registration_workload(publication: bool, configured: bool) -> Result<()> {
     let s = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = s.initiator.parent().ok_or("fixture root")?.join("enrolled");
     fs::DirBuilder::new().mode(0o700).create(&path)?;
@@ -387,6 +391,16 @@ fn registration_workload(publication: bool) -> Result<()> {
         accepted
     );
     let peer = peer_bundle(&s, &path, &root, &certificate, &roster)?;
+    if configured {
+        fs::copy(path.join("family"), peer.join("family"))?;
+    }
+    let run_peer = |path: &Path, label: &str, arguments: &[OsString]| {
+        let mut selected = arguments.to_vec();
+        if configured {
+            selected.insert(0, "--peer-configured".into());
+        }
+        run(path, label, &selected)
+    };
     let release = path.join("release-enrollment");
     let stdout = fs::OpenOptions::new()
         .write(true)
@@ -449,7 +463,7 @@ fn registration_workload(publication: bool) -> Result<()> {
         address.to_string().into(),
         fixture::hex(initiation.as_bytes()).into(),
     ];
-    let session = decode_id(run(&path, "connect", &args)?.trim_end())?;
+    let session = decode_id(run_peer(&path, "connect", &args)?.trim_end())?;
     assert!(fixture::wait(&mut server)?.success());
     assert_eq!(fixture::array::<32>(&s.responder, "session")?, session);
     let (mut server, address) = fixture::spawn(&s.responder, 72, "crash-after-application")?;
@@ -463,7 +477,7 @@ fn registration_workload(publication: bool) -> Result<()> {
         peer.as_os_str().into(),
         fixture::hex(&session).into(),
     ];
-    let message = decode_id(run(&path, "next", &args)?.trim_end())?;
+    let message = decode_id(run_peer(&path, "next", &args)?.trim_end())?;
     args = vec![
         "--enrollment-parent".into(),
         path.as_os_str().into(),
@@ -477,7 +491,7 @@ fn registration_workload(publication: bool) -> Result<()> {
         fixture::hex(&message).into(),
     ];
     assert_eq!(
-        run(&path, "uncertain", &args)?,
+        run_peer(&path, "uncertain", &args)?,
         "delivery-unknown-committed\n"
     );
     assert_eq!(fixture::wait(&mut server)?.code(), Some(77));
@@ -501,7 +515,7 @@ fn registration_workload(publication: bool) -> Result<()> {
         fixture::hex(&session).into(),
         fixture::hex(&message).into(),
     ];
-    assert_eq!(run(&path, "retry", &args)?, "consumed\n");
+    assert_eq!(run_peer(&path, "retry", &args)?, "consumed\n");
     assert!(fixture::wait(&mut server)?.success());
     fixture::effect(
         &s.responder,

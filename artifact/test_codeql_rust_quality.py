@@ -1421,6 +1421,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             tracked,
         )
         for sdk_source in (
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
@@ -1506,6 +1508,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install.rs",

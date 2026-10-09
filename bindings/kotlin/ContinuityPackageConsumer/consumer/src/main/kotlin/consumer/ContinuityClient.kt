@@ -41,6 +41,8 @@ internal fun waitMarker(name: String) {
 private fun run(arguments: List<String>): String {
     if (arguments.firstOrNull() == "retired") return retirementCommand(arguments)
     var args = arguments
+    val configuredPeer = args.firstOrNull() == "--peer-configured"
+    if (configuredPeer) args = args.drop(1)
     val inFlightGC = args.firstOrNull() == "--gc-in-flight"
     if (inFlightGC) args = args.drop(1)
     val interruptOpening = args.firstOrNull() == "--interrupt-opening-controller"
@@ -63,6 +65,7 @@ private fun run(arguments: List<String>): String {
         }
         (args[1] to role).also { args = args.drop(3) }
     } else null
+    require(!configuredPeer || enrolled != null) { "explicit peer requires an original enrolled parent" }
     val existing = if (args.firstOrNull() == "--session") {
         require(args.size >= 4) { "existing session arguments" }
         SessionID(decode(args[1])).also { args = args.drop(2) }
@@ -84,6 +87,10 @@ private fun run(arguments: List<String>): String {
     }
     require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
+    if (args[0] == "peer-configuration-lifetime") {
+        require(enrolled == null && existing == null && witness == WitnessCarrier.Local)
+        return peerConfigurationLifetime(args)
+    }
     if (args[0].startsWith("publication-")) {
         require(enrolled != null && !continued && !independent && existing == null) { "publication requires original registered owner" }
         return publicationCommand(args, enrolled.first, witness)
@@ -142,12 +149,16 @@ private fun run(arguments: List<String>): String {
         return account(args, witness)
     }
     return if (enrolled == null) ordinary(args, witness, existing)
-        else enrollmentParent(enrolled.first, witness, if (independent) EnrollmentPolicy.INDEPENDENT else if (continued) EnrollmentPolicy.JOINT else EnrollmentPolicy.ORIGINAL).use { ordinary(args, witness, existing, it, enrolled.second) }
+        else enrollmentParent(enrolled.first, witness, if (independent) EnrollmentPolicy.INDEPENDENT else if (continued) EnrollmentPolicy.JOINT else EnrollmentPolicy.ORIGINAL).use { ordinary(args, witness, existing, it, enrolled.second, configuredPeer) }
 }
 private fun ordinary(args: List<String>, witness: WitnessCarrier, existing: SessionID?,
-                     device: ContinuityDevice? = null, role: BootstrapRole = BootstrapRole.INITIATOR): String {
+                     device: ContinuityDevice? = null, role: BootstrapRole = BootstrapRole.INITIATOR, configured: Boolean = false): String {
     fun openConfigured(): ContinuityOwner = if (device != null) {
-        if (existing == null) device.openPeer(args[1], PrekeyQuality.ONE_TIME_BOTH, role)
+        if (configured) {
+            val input = peerConfiguration(args[1])
+            if (existing == null) device.openPeer(input, PrekeyQuality.ONE_TIME_BOTH, role)
+            else device.reopenPeer(input, PrekeyQuality.ONE_TIME_BOTH, role, existing)
+        } else if (existing == null) device.openPeer(args[1], PrekeyQuality.ONE_TIME_BOTH, role)
         else device.reopenPeer(args[1], PrekeyQuality.ONE_TIME_BOTH, role, existing)
     } else if (existing == null) {
         ContinuityOwner.open(args[1], PrekeyQuality.ONE_TIME_BOTH, witness)

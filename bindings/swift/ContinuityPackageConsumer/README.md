@@ -133,6 +133,27 @@ native work and final parent release run after unlocking. Busy and unknown close
 failures retain the link. Confirmed close clears it, while in-flight snapshots
 continue to pin the parent through return.
 
+Peer preparation also accepts an explicit `PeerConfiguration`, so the host need
+not construct a peer sidecar directory. Build `PeerDeviceExpectation` values from
+independently approved `AccountPin`, device ID and generation inputs, then supply
+them with the directory expectation, signed public bundle and TLS pin/name:
+
+```swift
+let input = try PeerConfiguration(initiator: expectedInitiator,
+    responder: expectedResponder, directory: expectedDirectory, bundle: signedBundle,
+    tlsPeerCertificate: pinnedPeerCertificate, tlsPeerName: peerName)
+let peer = try device.preparePeer(configuration: input, quality: .oneTimeBoth, role: .initiator)
+try peer.finishOpen()
+```
+
+The variables above represent separate host-approved trust and received public
+bytes; parsing a bundle does not establish account approval. The native boundary
+copies all inputs during preparation. `preparePeerReopen(configuration:...,
+session:)` restores only the exact original session. Descriptor construction does
+not authenticate the TLS peer, and connection errors do not prove no durable
+initiation. These overloads use the same parent ownership and cancellation rules
+as the path-based API.
+
 `nextAccountOperation` returns a journal-bound ID to retain before dispatch.
 `sendAccountMember` takes an `AccountID`, that original `AccountOperationID`, the
 complete `[AccountTarget]`, shared plaintext/AD and a selected member index.

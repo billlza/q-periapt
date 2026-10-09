@@ -6,7 +6,7 @@ import unittest
 import continuity_c_recovery as recovery
 
 STDOUT = (f"test {recovery.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -104,7 +104,7 @@ class ContinuityCRecoveryTests(unittest.TestCase):
     def test_unexecuted_cases_and_missing_failure_outcomes_are_not_success(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); report = evidence(root)
-            for output in (b"", STDOUT + STDOUT, STDOUT.replace(b"8 filtered out", b"5 filtered out")):
+            for output in (b"", STDOUT + STDOUT, STDOUT.replace(b"9 filtered out", b"5 filtered out")):
                 with self.subTest(output=output), self.assertRaises(ValueError):
                     recovery.verify_execution(output, root)
             report_file = root / "c-recovery-public-result.json"

@@ -115,8 +115,12 @@ func waitMarker(_ path: String) throws {
         var existing: SessionID?
         var enrollmentParent: EnrollmentParentSelection?
         var selectedWitness = false
+        var configuredPeer = false
         while let option = args.first, option.hasPrefix("--") {
             switch option {
+            case "--peer-configured":
+                try require(!configuredPeer, "duplicate peer configuration option")
+                configuredPeer = true; args.removeFirst()
             case "--witness", "--witness-tls":
                 try require(!selectedWitness && args.count >= 4, "witness arguments")
                 witness = option == "--witness" ? .signedTCP(address: args[1], timeoutMilliseconds: 3000) :
@@ -135,6 +139,7 @@ func waitMarker(_ path: String) throws {
             default: throw ProbeFailure.contract("unknown option")
             }
         }
+        try require(!configuredPeer || enrollmentParent != nil, "explicit peer requires an original enrolled parent")
         guard let command = args.first else { throw ProbeFailure.contract("missing command") }
         let enrolledAccount = ["account-next", "account-status", "account-send"].contains(command)
         if enrollmentParent?.continued == true && command != "peer-roster-admit" && !enrolledAccount {
@@ -156,6 +161,11 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command == "peer-configuration-lifetime" {
+            try require(enrollmentParent == nil && existing == nil, "lifetime probe owns original parent selection")
+            try peerConfigurationLifetime(args)
+            return
+        }
         if command.hasPrefix("publication-") {
             guard let enrollmentParent else { throw ProbeFailure.contract("publication needs original registered parent") }
             try require(existing == nil && !enrollmentParent.continued, "publication is original device work")
@@ -205,7 +215,7 @@ func waitMarker(_ path: String) throws {
         }
         func openConfigured() throws -> ConfiguredClientOwner {
             if let enrollmentParent {
-                return try enrollmentParent.openPeer(path: args[1], session: existing, witness: witness)
+                return try enrollmentParent.openPeer(path: args[1], session: existing, witness: witness, configured: configuredPeer)
             }
             if let existing {
                 return try ConfiguredClientOwner(peer: ContinuityOwner.reopen(path: args[1], quality: .oneTimeBoth,

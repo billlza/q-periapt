@@ -80,6 +80,14 @@ internal class NativeOwner private constructor(private val handle: Long, parent:
                 throw failure
             }
         }
+        @JvmSynthetic internal fun <T> preparePeer(parent: NativeOwner, configuration: PeerConfiguration, quality: PrekeyQuality,
+                                                 role: BootstrapRole, session: SessionID?, wrap: (NativeOwner) -> T): T = parent.call {
+            val handle = ContinuityNative.preparePeer(it, configuration, quality, role, session)
+            try { wrap(NativeOwner(handle, parent)) } catch (failure: Throwable) {
+                try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }
+                throw failure
+            }
+        }
         @JvmSynthetic internal fun <T> prepareRetired(path: String, intent: EnrollmentIntent,
             authority: RetiredEnrollmentAuthority, wrap: (NativeOwner) -> T): T {
             val handle = ContinuityNative.prepareRetired(path, intent, authority)
@@ -102,6 +110,9 @@ class ContinuityOwner private constructor(private val native: NativeOwner) : Aut
         @JvmSynthetic internal fun preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
                                               role: BootstrapRole, session: SessionID?): ContinuityOwner =
             NativeOwner.preparePeer(parent, path, quality, role, session, ::ContinuityOwner)
+        @JvmSynthetic internal fun preparePeer(parent: NativeOwner, configuration: PeerConfiguration, quality: PrekeyQuality,
+                                              role: BootstrapRole, session: SessionID?): ContinuityOwner =
+            NativeOwner.preparePeer(parent, configuration, quality, role, session, ::ContinuityOwner)
         fun prepare(path: String, quality: PrekeyQuality, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner =
             NativeOwner.prepare(path, 1, quality.code, witness, ::ContinuityOwner)
         fun open(path: String, quality: PrekeyQuality, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityOwner {

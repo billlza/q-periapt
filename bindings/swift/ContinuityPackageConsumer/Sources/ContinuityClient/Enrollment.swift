@@ -150,13 +150,21 @@ struct EnrollmentParentSelection {
     func openDevice(witness: WitnessCarrier) throws -> ContinuityDevice {
         try activatedEnrollment(path, witness: witness, policy: policy)
     }
-    func openPeer(path peerPath: String, session: SessionID?, witness: WitnessCarrier) throws -> ConfiguredClientOwner {
+    func openPeer(path peerPath: String, session: SessionID?, witness: WitnessCarrier, configured: Bool = false) throws -> ConfiguredClientOwner {
         try require(!continued || session != nil, "continued enrollment requires an original session")
         let device = try activatedEnrollment(path, witness: witness, policy: policy)
         do {
-            let peer = try session.map {
-                try device.preparePeerReopen(path: peerPath, quality: .oneTimeBoth, role: role, session: $0)
-            } ?? device.preparePeer(path: peerPath, quality: .oneTimeBoth, role: role)
+            let peer: ContinuityOwner
+            if configured {
+                let input = try peerConfiguration(peerPath)
+                peer = try session.map {
+                    try device.preparePeerReopen(configuration: input, quality: .oneTimeBoth, role: role, session: $0)
+                } ?? device.preparePeer(configuration: input, quality: .oneTimeBoth, role: role)
+            } else {
+                peer = try session.map {
+                    try device.preparePeerReopen(path: peerPath, quality: .oneTimeBoth, role: role, session: $0)
+                } ?? device.preparePeer(path: peerPath, quality: .oneTimeBoth, role: role)
+            }
             do { try peer.finishOpen() }
             catch {
                 let original = error

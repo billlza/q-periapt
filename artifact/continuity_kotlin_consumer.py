@@ -71,6 +71,7 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "PeerConfigurationTests": frozenset({"callerAndReturnedArraysCannotChangePeerTrust", "ffiLayoutsAndInputBoundsMatchNativeContract"}),
     "ConfigurationTests": frozenset({
         "ffiStructuresMatchC", "originalTrustAndPolicyInputsAreCopiedAndBounded",
         "tlsSnapshotsAreIsolatedClearedOnBothReturnsAndClosed", "closeDoesNotCorruptAnAdmittedTlsSnapshot",
@@ -145,7 +146,7 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
+        ("PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
          "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
@@ -514,6 +515,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             enrollment = {}
             retirement = {}
             configurations = {}
+            peer_configurations = {}
             for collector in ("Serial", "G1"):
                 enrollment_launcher = installed / ("client-enrollment-" + collector.lower())
                 command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", *argv[1:]]
@@ -527,6 +529,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                                                            language="Kotlin", collector=collector)
                 enrollment[collector] = qualify_enrollment(outside, output, profile, enrollment_runtime, row, run,
                                                            language="Kotlin", collector=collector, publication=True)
+                from continuity_peer_configuration import qualify_foreign as qualify_peers
+                peer_configurations[collector] = qualify_peers(outside, output, profile, enrollment_runtime, row, run,
+                    enrollment_launcher, language="Kotlin", collector=collector)
                 from continuity_first_configuration import qualify_foreign as qualify_configuration
                 configuration_launcher = installed / ("client-configuration-" + collector.lower())
                 configuration_command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC",
@@ -756,7 +761,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
-                "device_retirement": retirement, "first_configuration": configurations,
+                "device_retirement": retirement, "first_configuration": configurations, "peer_configuration": peer_configurations,
                 "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,

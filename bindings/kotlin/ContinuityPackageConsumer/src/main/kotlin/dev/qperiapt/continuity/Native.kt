@@ -73,6 +73,10 @@ internal object ContinuityNative {
     private val checkpointLayout = struct("version" to JAVA_LONG, "digest" to array(32))
     private val enrollmentPinLayout = struct("account" to array(32), "root" to ADDRESS, "root_length" to JAVA_LONG,
         "family" to array(32), "checkpoint" to checkpointLayout)
+    private val peerDeviceLayout = struct("account" to enrollmentPinLayout, "device" to array(16), "generation" to JAVA_LONG)
+    private val peerConfigurationLayout = struct("header" to configurationHeaderLayout, "quality" to JAVA_INT, "role" to JAVA_INT,
+        "initiator" to peerDeviceLayout, "responder" to peerDeviceLayout, "directory" to array(32),
+        "bundle" to configurationBlobLayout, "tls_peer" to configurationBlobLayout, "tls_name" to configurationBlobLayout)
     private val enrollmentStatusLayout = struct("phase" to JAVA_INT, "signing" to array(32), "journal" to array(32),
         "previous" to checkpointLayout, "next" to checkpointLayout)
     private val enrollmentRequestLayout = struct("length" to JAVA_INT, "bytes" to array(8192))
@@ -175,6 +179,8 @@ internal object ContinuityNative {
     private val prepareRetiredEnrollment = function("qpc_retired_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
+    private val preparePeerConfiguration = function("qpc_peer_v1_prepare_configured", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val preparePeerConfigurationReopen = function("qpc_peer_v1_prepare_configured_reopen", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
         "publication_size_bound" to function("qpc_device_v1_publication_size_bound", ADDRESS, ADDRESS, ADDRESS),
         "next_publication" to function("qpc_device_v1_next_publication", JAVA_LONG, ADDRESS, ADDRESS),
@@ -1066,6 +1072,32 @@ internal object ContinuityNative {
             checked(if (session == null) "prepare_peer" else "prepare_peer_reopen", code, error)?.let { throw it }
             output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native peer preparation returned a zero handle") }
         }
+    }
+    @JvmSynthetic internal fun peerConfigurationLayouts(): Map<String, Pair<Long, Long>> = mapOf(
+        "device" to (peerDeviceLayout.byteSize() to peerDeviceLayout.byteAlignment()),
+        "configuration" to (peerConfigurationLayout.byteSize() to peerConfigurationLayout.byteAlignment()))
+    private fun peerDevice(arena: Arena, output: MemorySegment, input: PeerDeviceExpectation) {
+        output.asSlice(offset(peerDeviceLayout, "account"), enrollmentPinLayout.byteSize()).copyFrom(encodeAccountPin(arena, input.account))
+        output.put(peerDeviceLayout, "device", input.device.encoded())
+        output.set(JAVA_LONG, offset(peerDeviceLayout, "generation"), input.generation.bits())
+    }
+    @JvmSynthetic internal fun preparePeer(parent: Long, configuration: PeerConfiguration, quality: PrekeyQuality,
+                                           role: BootstrapRole, session: SessionID?): Long = Arena.ofConfined().use { arena ->
+        val input = arena.allocate(peerConfigurationLayout)
+        configurationHeader(input, peerConfigurationLayout)
+        input.set(JAVA_INT, offset(peerConfigurationLayout, "quality"), quality.code)
+        input.set(JAVA_INT, offset(peerConfigurationLayout, "role"), role.code)
+        peerDevice(arena, input.asSlice(offset(peerConfigurationLayout, "initiator"), peerDeviceLayout.byteSize()), configuration.initiator)
+        peerDevice(arena, input.asSlice(offset(peerConfigurationLayout, "responder"), peerDeviceLayout.byteSize()), configuration.responder)
+        input.put(peerConfigurationLayout, "directory", configuration.directory.encoded())
+        configurationBlob(arena, input, peerConfigurationLayout, "bundle", configuration.bundle.encoded())
+        configurationBlob(arena, input, peerConfigurationLayout, "tls_peer", configuration.tlsPeerCertificate.encoded())
+        configurationBlob(arena, input, peerConfigurationLayout, "tls_name", text(configuration.tlsPeerName, 128))
+        val output = arena.allocate(JAVA_LONG); val error = arena.allocate(errorLayout)
+        val code = if (session == null) preparePeerConfiguration.invokeWithArguments(parent, input, output, error) as Int
+            else preparePeerConfigurationReopen.invokeWithArguments(parent, input, arena.bytes(session.encoded()), output, error) as Int
+        checked(if (session == null) "prepare_configured_peer" else "prepare_configured_peer_reopen", code, error)?.let { throw it }
+        output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native peer preparation returned a zero handle") }
     }
     private fun encodePublicationPlan(arena: Arena, plan: PublicationPlan): MemorySegment {
         val keys = arena.allocate(MemoryLayout.sequenceLayout(plan.keys.size.toLong(), publicationKeyLayout))

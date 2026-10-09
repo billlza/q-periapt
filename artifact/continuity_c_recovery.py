@@ -21,7 +21,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported recovery language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;",
                               text, re.MULTILINE), "installed C recovery trace did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-recovery-public-result.json").data,
                                     label="C recovery execution")

@@ -6,6 +6,7 @@ import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 TEST = "c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery"
+CONFIGURED_TEST = "c_configured_peers_reopen_and_reconcile_original_delivery"
 WITNESS_TEST = "c_device_parents_require_original_witness_and_preserve_child_lifetimes"
 SCOPE = "same-host C device parent and peer children; shared native engine; independent local identity and original delivery recovery"
 WITNESS_SCOPE = "same-host C device parent and peer lifetime admission under required signed TCP and mutual TLS witnesses"
@@ -41,8 +42,8 @@ def _readers(directory: Path):
     return public, logs, read, command
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
-    _passed(stdout, TEST, 8)
+def verify_execution(stdout: bytes, directory: Path, *, configured: bool = False) -> dict:
+    _passed(stdout, CONFIGURED_TEST if configured else TEST, 9)
     public, logs, read, command = _readers(directory)
     report = parse_strict_json_bytes(read("c-device-parent-public-result.json"), label="C device parent result")
     fields = {"schema_version", "completed", "session", "message", "local_roles", "owner_capacity",

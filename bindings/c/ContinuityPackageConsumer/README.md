@@ -1296,7 +1296,7 @@ publication, remote revocation or physical erasure.
 
 ## Explicit first-use configuration
 
-The unpublished `qpc-owner/1` candidate has 130 exports, including five
+The unpublished `qpc-owner/1` candidate has 132 exports, including five
 `qpc_configuration_v1_*` entry points. Product SDK ABI major 2 is unchanged.
 Fill the versioned input with `struct_size = sizeof(input)` and `version = 1`.
 Supply original SDK trust, exact signed initial policy (and original recovery
@@ -1327,3 +1327,30 @@ reopen original inputs/intent. The header documents admission, cancellation,
 ownership and unchanged-state requirements. `first_configuration_client.c` is a
 standalone public C consumer; installed qualification executes it with independently
 supplied inputs, never a copied private installation.
+
+
+## Explicit peer configuration under the original device
+
+`qpc_peer_v1_prepare_configured` and `qpc_peer_v1_prepare_configured_reopen`
+accept `qpc_peer_configuration_v1`, with `struct_size = sizeof(input)` and
+`version = 1`. Supply independent initiator/responder account pins and exact
+expected devices/generations, a directory expectation, the untrusted signed
+bootstrap bundle, and an independently pinned TLS peer certificate/name. Incoming
+bundle bytes cannot define those expectations. Quality and role remain explicit.
+Every bounded input is copied before preparation returns; no peer directory is
+read by this route. The existing file-based entry points remain available.
+
+Finish the returned pending child through `qpc_owner_v1_finish_open`. The same
+native bundle verifier, original device, current policy/roster and TLS engine
+perform admission. Reopen additionally names one original nonzero session and
+never falls back to fresh bootstrap. Continued-policy restrictions are unchanged.
+A prepared descriptor is not a remote TLS authentication result; name checking
+and actual peer authentication occur at the connection boundary. A failed
+connection may follow a durable initiation, so retain and recover the original ID.
+
+The child retains its original parent and shares the existing owner/call quotas.
+Cancel and close use the normal pending-owner contract. Explicit parent close
+invalidates retained children and releases the actual stores. Product ABI 2 is
+unchanged. The installed C/Swift/Kotlin gates require explicit-input traffic,
+original-session recovery and public readback; foreign probes additionally
+exercise public-wrapper release, explicit close and pending-child cancellation.

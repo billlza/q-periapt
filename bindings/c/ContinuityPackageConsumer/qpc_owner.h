@@ -1232,6 +1232,35 @@ int32_t qpc_device_v1_retire_publication(uint64_t parent, const uint8_t id[32],
     const uint8_t artifact[32], qpc_publication_status_v1 *status, qpc_error_v1 *error);
 int32_t qpc_device_v1_abandon_publication(uint64_t parent, const uint8_t id[32],
     const uint8_t intent[32], qpc_publication_status_v1 *status, qpc_error_v1 *error);
+/* Explicit independently approved peer scope. Incoming bundle bytes cannot select
+ * these roots, accounts, roster heads, devices, generations or directory expectation. */
+typedef struct {
+    qpc_account_pin_v1 account;
+    uint8_t device[16];
+    uint64_t generation;
+} qpc_peer_device_v1;
+typedef struct {
+    qpc_configuration_header_v1 header;
+    uint32_t quality, role; /* same explicit quality/role values as prepare */
+    qpc_peer_device_v1 initiator, responder;
+    uint8_t directory[32];
+    qpc_configuration_blob_v1 bundle; /* canonical public bundle, 1..65536 */
+    qpc_configuration_blob_v1 tls_peer; /* independently pinned DER, 1..8192 */
+    qpc_configuration_blob_v1 tls_name; /* nonempty UTF-8 peer name, 1..128 */
+} qpc_peer_configuration_v1;
+/* Reads size prefix before complete version 1 record; copies every bounded input
+ * synchronously. No peer-directory I/O. Pending child retains the live parent,
+ * shares owner quota and supports existing finish_open/cancel/close. Parent close
+ * invalidates the child; a bundle or this preparation is not account approval.
+ * finish_open performs the SAME native current-policy/identity/TLS admission as
+ * legacy file-based preparation. Failed admission consumes pending construction. */
+int32_t qpc_peer_v1_prepare_configured(uint64_t parent,
+    const qpc_peer_configuration_v1 *input, uint64_t *handle, qpc_error_v1 *error);
+/* Reopen only one original nonzero session under the same retained parent. The
+ * existing historical-bundle/current-authority checks apply; never fresh bootstrap. */
+int32_t qpc_peer_v1_prepare_configured_reopen(uint64_t parent,
+    const qpc_peer_configuration_v1 *input, const uint8_t session[32],
+    uint64_t *handle, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

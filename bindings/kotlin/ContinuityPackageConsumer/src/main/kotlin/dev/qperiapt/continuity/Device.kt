@@ -57,6 +57,15 @@ class ContinuityDevice private constructor(private val native: NativeOwner) : Au
         activate(preparePeer(path, quality, role))
     fun reopenPeer(path: String, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
         activate(preparePeerReopen(path, quality, role, session))
+    /** Copy explicit input without a peer directory. The returned child retains this original native owner. */
+    fun preparePeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole): ContinuityOwner =
+        ContinuityOwner.preparePeer(native, configuration, quality, role, null)
+    fun preparePeerReopen(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
+        ContinuityOwner.preparePeer(native, configuration, quality, role, session)
+    fun openPeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole): ContinuityOwner =
+        activate(preparePeer(configuration, quality, role))
+    fun reopenPeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole, session: SessionID): ContinuityOwner =
+        activate(preparePeerReopen(configuration, quality, role, session))
     /** Admit an independently pinned current roster for a known remote account.
      * This cannot update the local account, replace policy or create a session.
      * A checkpoint is current state, not a transaction receipt. After I/O,

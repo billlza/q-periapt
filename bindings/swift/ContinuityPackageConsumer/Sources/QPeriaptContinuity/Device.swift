@@ -126,6 +126,30 @@ public final class ContinuityDevice: Sendable {
         try peer.finishOpen()
         return peer
     }
+    /// Copies explicit peer inputs without a peer directory; finishOpen performs current admission.
+    public func preparePeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole) throws -> ContinuityOwner {
+        try withExtendedLifetime(self) {
+            try ContinuityOwner.preparePeer(parent: native, configuration: configuration, quality: quality, role: role, session: nil)
+        }
+    }
+    public func openPeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole) throws -> ContinuityOwner {
+        let peer = try preparePeer(configuration: configuration, quality: quality, role: role)
+        try peer.finishOpen()
+        return peer
+    }
+    /// Exact original-session restoration; never substitutes fresh bootstrap after failure.
+    public func preparePeerReopen(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole,
+                                  session: SessionID) throws -> ContinuityOwner {
+        try withExtendedLifetime(self) {
+            try ContinuityOwner.preparePeer(parent: native, configuration: configuration, quality: quality, role: role, session: session)
+        }
+    }
+    public func reopenPeer(configuration: PeerConfiguration, quality: PrekeyQuality, role: BootstrapRole,
+                           session: SessionID) throws -> ContinuityOwner {
+        let peer = try preparePeerReopen(configuration: configuration, quality: quality, role: role, session: session)
+        try peer.finishOpen()
+        return peer
+    }
     /// Read and retain before sending. This does not reserve or dispatch work.
     public func nextAccountOperation() throws -> AccountOperationID {
         try call { handle in

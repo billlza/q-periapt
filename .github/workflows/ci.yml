@@ -2096,6 +2096,7 @@ jobs:
             target/continuity-installed-rust/release-enrollment-reopen-public/**
             target/continuity-installed-rust/c-enrollment-public/**
             target/continuity-installed-rust/configuration-public/**
+            target/continuity-installed-rust/peer-configuration-public/**
             target/continuity-installed-rust/c-retirement-public/**
             target/continuity-installed-rust/c-enrollment-witness-public/**
             target/continuity-installed-rust/c-witnessed-renewal-public/**
@@ -2234,6 +2235,7 @@ jobs:
             target/continuity-installed-swift/release-enrollment-reopen-public/**
             target/continuity-installed-swift/c-enrollment-public/**
             target/continuity-installed-swift/configuration-public/**
+            target/continuity-installed-swift/peer-configuration-public/**
             target/continuity-installed-swift/c-retirement-public/**
             target/continuity-installed-swift/c-enrollment-witness-public/**
             target/continuity-installed-swift/c-witnessed-renewal-public/**

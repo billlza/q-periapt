@@ -14,6 +14,7 @@ mod native_fixture;
 mod native_owner;
 mod opening;
 mod owner;
+mod peer_configuration;
 mod publication;
 mod recovery;
 mod retirement;
@@ -233,7 +234,7 @@ impl From<p::connection_transport::Error> for Failure {
 }
 
 enum Owned {
-    Opening(Box<opening::Request>),
+    Opening(opening::Request),
     Configuration(Box<configuration::Owner>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),

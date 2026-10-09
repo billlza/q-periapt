@@ -228,6 +228,25 @@ final class NativeOwner: Sendable {
         return NativeOwner(handle: result, parent: parent)
     }
 
+    static func preparePeer(parent: NativeOwner, configuration: PeerConfiguration, quality: PrekeyQuality,
+                            role: BootstrapRole, session: SessionID?) throws -> NativeOwner {
+        var result: UInt64 = 0
+        var error = qpc_error_v1()
+        let code = try parent.call { parent in
+            try configuration.withNative(quality: quality, role: role) { input in
+                if let session {
+                    return session.bytes.withUnsafeBufferPointer {
+                        qpc_peer_v1_prepare_configured_reopen(parent, input, $0.baseAddress, &result, &error)
+                    }
+                }
+                return qpc_peer_v1_prepare_configured(parent, input, &result, &error)
+            }
+        }
+        try checked(code, &error)
+        guard result != 0 else { throw ContinuityBoundaryError.malformedOutput }
+        return NativeOwner(handle: result, parent: parent)
+    }
+
     func call<T>(_ body: (UInt64) throws -> T) rethrows -> T {
         let retainedParent = parent?.snapshot()
         return try withExtendedLifetime((self, retainedParent)) { try body(handle) }
@@ -282,6 +301,12 @@ public final class ContinuityOwner: Sendable {
     static func preparePeer(parent: NativeOwner, path: String, quality: PrekeyQuality,
                             role: BootstrapRole, session: SessionID?) throws -> ContinuityOwner {
         try ContinuityOwner(native: NativeOwner.preparePeer(parent: parent, path: path,
+            quality: quality, role: role, session: session))
+    }
+
+    static func preparePeer(parent: NativeOwner, configuration: PeerConfiguration, quality: PrekeyQuality,
+                            role: BootstrapRole, session: SessionID?) throws -> ContinuityOwner {
+        try ContinuityOwner(native: NativeOwner.preparePeer(parent: parent, configuration: configuration,
             quality: quality, role: role, session: session))
     }
 

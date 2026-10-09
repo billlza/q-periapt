@@ -81,7 +81,7 @@ pub struct Pin {
     pub checkpoint: Checkpoint,
 }
 impl Pin {
-    unsafe fn read(pointer: *const Self) -> Result<p::AccountPin> {
+    pub(crate) unsafe fn read(pointer: *const Self) -> Result<p::AccountPin> {
         if pointer.is_null() || !pointer.is_aligned() {
             return Err(Failure::argument());
         }

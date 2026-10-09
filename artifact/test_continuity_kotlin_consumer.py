@@ -35,7 +35,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 (root / f"TEST-dev.qperiapt.continuity.{name}.xml").write_bytes(self.report(name, names))
             labels = {"owner-tests", "credential-renewal-tests", "policy-continuation-tests",
                       "independent-policy-tests", "policy-renewal-tests", "roster-resolution-tests", "roster-refresh-tests",
-                      "retirement-tests", "publication-tests", "configuration-tests"}
+                      "retirement-tests", "publication-tests", "configuration-tests", "peer-configuration-tests"}
             emitted = []
             for profile in ("", "debug", "release"):
                 output = root / (profile or "build"); output.mkdir()
@@ -49,7 +49,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 for row in checked["suites"].values():
                     self.assertEqual(hashlib.sha256((output / row["report_file"]).read_bytes()).hexdigest(),
                                      row["report_sha256"])
-                self.assertEqual(checked["tests"], 62)
+                self.assertEqual(checked["tests"], 64)
                 emitted.extend(p.name for p in output.iterdir())
                 with self.assertRaises(FileExistsError): kotlin.retain_test_reports(root, output, profile=profile)
             with self.assertRaisesRegex(ValueError, "profile"):
@@ -76,7 +76,7 @@ class KotlinConsumerTests(unittest.TestCase):
                 kotlin.verify_test_reports(root)
             good = self.report("CredentialRenewalTests", kotlin.RENEWAL_TEST_NAMES)
             renewal.write_bytes(good)
-            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 62)
+            self.assertEqual(kotlin.verify_test_reports(root)["tests"], 64)
             for invalid in (good.replace(b'skipped="0"', b'skipped="1"'),
                             good.replace(b"CredentialRenewalTests", b"OwnerTests"),
                             good.replace(b"renewalIdentitiesAreDistinctImmutableAndNonzero", b"unrelated")):
@@ -97,7 +97,7 @@ class KotlinConsumerTests(unittest.TestCase):
             good = self.report("PolicyContinuationTests", kotlin.POLICY_TEST_NAMES)
             policy.write_bytes(good)
             checked = kotlin.verify_test_reports(root)
-            self.assertEqual(checked["tests"], 62)
+            self.assertEqual(checked["tests"], 64)
             self.assertEqual(set(checked["suites"]), {"OwnerTests", "CredentialRenewalTests", "PolicyContinuationTests", *kotlin.INDEPENDENT_TEST_SUITES})
             self.assertEqual(checked["suites"]["PolicyContinuationTests"], {
                 "tests": 5, "report_sha256": hashlib.sha256(good).hexdigest()})
@@ -173,7 +173,7 @@ class KotlinConsumerTests(unittest.TestCase):
 
     def test_inflight_receipts_bind_gc_and_returned_slots_to_original_delivery(self):
         stdout = (f"test {kotlin.c.SERVER_TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             report = c_tests.ContinuityCConsumerTests().server_evidence(root)

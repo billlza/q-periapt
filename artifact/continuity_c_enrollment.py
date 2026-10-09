@@ -13,7 +13,8 @@ from continuity_roster_renewal import envelope
 
 TEST = "c_registration_owns_original_identity_through_connection_and_roster_refresh"
 PUBLICATION_TEST = "c_registered_publication_recovers_exact_artifact_before_normal_connection"
-ENROLLMENT_TEST_COUNT = 29
+ENROLLMENT_TEST_COUNT = 30
+CONFIGURED_TEST = "c_registered_configured_peer_reopens_original_session_after_roster_refresh"
 PUBLICATION_MARKER = "C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true"
 SCOPE = ("actual installed C registration and original enrolled device parent to native Rust TLS peer; "
          "same host and shared protocol engine; original request/credential/journal/session survive roster refresh "
@@ -184,9 +185,11 @@ def registration_readback(read, prefix, signing, journal):
     return registration
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", publication: bool = False) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", publication: bool = False,
+                     configured: bool = False) -> dict:
+    sdk.require(not (publication and configured), "registration scenario selection differs")
     text = stdout.decode()
-    expected_test = PUBLICATION_TEST if publication else TEST
+    expected_test = CONFIGURED_TEST if configured else PUBLICATION_TEST if publication else TEST
     sdk.require(re.findall(r"^C_PUBLICATION.*$", text, re.MULTILINE) == ([PUBLICATION_MARKER] if publication else []),
                 "publication workload scope differs")
     _require_enrollment_execution(text, {expected_test}, "C registration workload was not executed completely")
@@ -266,13 +269,14 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", pub
                 independent_lease_processes={language + "_owner": child, "Rust_contender": parent}, public_readbacks=public)
 
 
-def export(stdout: bytes, directory: Path, destination: Path, *, language: str = "C", publication: bool = False) -> dict:
+def export(stdout: bytes, directory: Path, destination: Path, *, language: str = "C", publication: bool = False,
+           configured: bool = False) -> dict:
     """Copy the exact public closure; no wrapping, signer, TLS key or database files."""
-    checked = verify_execution(stdout, directory, language=language, publication=publication)
+    checked = verify_execution(stdout, directory, language=language, publication=publication, configured=configured)
     destination.mkdir(mode=0o700, parents=True)
     for name in checked["public_readbacks"]:
         sdk.copy(directory / name, destination / name)
-    sdk.require(verify_execution(stdout, destination, language=language, publication=publication) == checked, "C enrollment evidence changed during export")
+    sdk.require(verify_execution(stdout, destination, language=language, publication=publication, configured=configured) == checked, "C enrollment evidence changed during export")
     sdk.require({p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()}
                 == set(checked["public_readbacks"]), "C enrollment public inventory differs")
     return checked

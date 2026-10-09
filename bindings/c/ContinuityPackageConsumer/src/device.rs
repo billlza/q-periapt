@@ -430,92 +430,99 @@ impl Peer {
     ) -> Result<Self> {
         parent.with_device(deadline, cancel, |device| {
             let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-            let initiator =
-                owner::account(&directory, "initiator", device.environment.authority.family)?;
-            let responder =
-                owner::account(&directory, "responder", device.environment.authority.family)?;
-            let required = p::BootstrapRequirements {
-                initiator: p::ExpectedDevice::new(
-                    &initiator,
-                    array(&directory, "initiator-device")?,
-                    u64::from_be_bytes(array(&directory, "initiator-generation")?),
-                )?,
-                responder: p::ExpectedDevice::new(
-                    &responder,
-                    array(&directory, "responder-device")?,
-                    u64::from_be_bytes(array(&directory, "responder-generation")?),
-                )?,
-                quality: admission.quality(),
-                directory: p::DirectoryExpectation::from_trusted_state(array(
-                    &directory,
-                    "directory",
-                )?)?,
-            };
-            let bundle = p::BootstrapBundle::from_bytes(&read(
+            let material = crate::peer_configuration::Material::from_directory(
                 &directory,
-                "bootstrap.bundle",
-                p::MAX_BOOTSTRAP_BUNDLE_BYTES,
-            )?)?;
-            opening::check(cancel, deadline)?;
-            let time = now().map_err(Failure::configuration)?;
-            let context = match admission {
-                owner::Admission::Bootstrap(_) => {
-                    if device.environment.original_policy.is_some() {
-                        return Err(p::Error::PolicyDenied.into());
-                    }
-                    let context = Arc::new(bundle.verify(
+                device.environment.authority.family,
+            )?;
+            Self::admit(&parent, device, material, admission, role, cancel, deadline)
+        })
+    }
+
+    pub(crate) fn open_supplied(
+        parent: Arc<Shared>,
+        material: crate::peer_configuration::Material,
+        admission: owner::Admission,
+        role: p::BootstrapRole,
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<Self> {
+        parent.with_device(deadline, cancel, |device| {
+            Self::admit(&parent, device, material, admission, role, cancel, deadline)
+        })
+    }
+
+    fn admit(
+        parent: &Arc<Shared>,
+        device: &mut Device,
+        material: crate::peer_configuration::Material,
+        admission: owner::Admission,
+        role: p::BootstrapRole,
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<Self> {
+        if material.family != device.environment.authority.family {
+            return Err(p::Error::Scope.into());
+        }
+        let required = material.requirements(admission.quality())?;
+        let bundle = &material.bundle;
+        opening::check(cancel, deadline)?;
+        let time = now().map_err(Failure::configuration)?;
+        let context = match admission {
+            owner::Admission::Bootstrap(_) => {
+                if device.environment.original_policy.is_some() {
+                    return Err(p::Error::PolicyDenied.into());
+                }
+                let context = Arc::new(bundle.verify(
+                    Arc::clone(&device.environment.authority.policy),
+                    required,
+                    time,
+                )?);
+                Arc::clone(
+                    device
+                        .native
+                        .parts()?
+                        .0
+                        .admit_peer(context, role, time)?
+                        .context(),
+                )
+            }
+            owner::Admission::Existing { session, .. } => {
+                let peer = if let Some(original) = &device.environment.original_policy {
+                    let request = bundle.request_historical_reopen(
+                        Arc::new(original.clone()),
+                        required,
+                        role,
+                        session,
+                        time,
+                    )?;
+                    device.native.parts()?.0.reopen_continued_peer(
+                        request,
+                        Arc::clone(&device.environment.authority.policy),
+                        time,
+                    )?
+                } else {
+                    device.native.parts()?.0.reopen_peer_bundle(
+                        bundle,
                         Arc::clone(&device.environment.authority.policy),
                         required,
+                        role,
+                        session,
                         time,
-                    )?);
-                    Arc::clone(
-                        device
-                            .native
-                            .parts()?
-                            .0
-                            .admit_peer(context, role, time)?
-                            .context(),
-                    )
-                }
-                owner::Admission::Existing { session, .. } => {
-                    let peer = if let Some(original) = &device.environment.original_policy {
-                        let request = bundle.request_historical_reopen(
-                            Arc::new(original.clone()),
-                            required,
-                            role,
-                            session,
-                            time,
-                        )?;
-                        device.native.parts()?.0.reopen_continued_peer(
-                            request,
-                            Arc::clone(&device.environment.authority.policy),
-                            time,
-                        )?
-                    } else {
-                        device.native.parts()?.0.reopen_peer_bundle(
-                            &bundle,
-                            Arc::clone(&device.environment.authority.policy),
-                            required,
-                            role,
-                            session,
-                            time,
-                        )?
-                    };
-                    Arc::clone(peer.context())
-                }
-            };
-            let mut peer = Self {
-                parent: Arc::clone(&parent),
-                context,
-                listener: None,
-                certificate: read(&directory, "tls-peer", 8192)?,
-                name: String::from_utf8(read(&directory, "tls-peer-name", 128)?)
-                    .map_err(Failure::configuration)?,
-            };
-            // No child is published before exact TLS credentials and peer pin pass.
-            peer.operation(device)?.endpoint()?;
-            Ok(peer)
-        })
+                    )?
+                };
+                Arc::clone(peer.context())
+            }
+        };
+        let mut peer = Self {
+            parent: Arc::clone(parent),
+            context,
+            listener: None,
+            certificate: material.certificate,
+            name: material.name,
+        };
+        // No child is published before exact TLS credentials and peer pin pass.
+        peer.operation(device)?.endpoint()?;
+        Ok(peer)
     }
 
     fn operation<'a>(&'a mut self, device: &'a mut Device) -> Result<owner::Operation<'a>> {

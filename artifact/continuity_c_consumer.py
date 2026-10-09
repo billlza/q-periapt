@@ -35,7 +35,8 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
             "acknowledge", "retire", "restore_index")}
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
 EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
-EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen"}
+EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen",
+            "qpc_peer_v1_prepare_configured", "qpc_peer_v1_prepare_configured_reopen"}
 EXPORTS |= {"qpc_setup_v1_" + name for name in
             ("prepare_create", "prepare_resume", "status", "prepare_storage", "activate")}
 EXPORTS |= {"qpc_enrollment_v1_" + name for name in
@@ -135,7 +136,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(passed == [TEST] and re.search(
-        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;", text, re.MULTILINE),
         "installed C trace was not executed completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-public-result.json").data,
                                     label="C connection execution")
@@ -187,7 +188,7 @@ def verify_restore_execution(stdout: bytes, directory: Path, *, language: str = 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown restoration language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [RESTORE_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;",
                               text, re.MULTILINE), "installed restoration trace did not execute completely")
     report_file = sdk.snapshot(directory / "c-restore-public-result.json")
     report = parse_strict_json_bytes(report_file.data, label="foreign session restoration")
@@ -240,7 +241,7 @@ def verify_server_execution(stdout: bytes, directory: Path, *, language: str = "
     expected_scope = SERVER_SCOPE.replace("C server", language + " server")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [SERVER_TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;",
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;",
                               text, re.MULTILINE), "installed C server trace did not execute completely")
     report = parse_strict_json_bytes(sdk.snapshot(directory / "c-server-public-result.json").data,
                                     label="C server execution")
@@ -343,6 +344,10 @@ def verify_admission(stdout: bytes) -> None:
         "native_fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls",
         "native_fixture::service_peer_process",
         "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
+        "peer_configuration::tests::configured_peer_header_and_input_refusals_precede_parent_lookup",
+        "peer_configuration::tests::configured_peer_copies_inputs_without_peer_files_and_parent_close_releases_leases",
+        "peer_configuration::tests::configured_peer_scope_failures_cancel_and_quota_preserve_original_parent",
+
         "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
         "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
         "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
@@ -356,7 +361,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -507,6 +512,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
         result["execution"][profile]["enrollment"] = registration
+        from continuity_peer_configuration import qualify_native as qualify_peers
+        result["execution"][profile]["peer_configuration"] = qualify_peers(
+            outside, output, profile, runtime, enrollment_binary, trace, executable, run)
         from continuity_c_enrollment import PUBLICATION_TEST
         publication_evidence = outside / ("c-" + profile + "-publication-runtime")
         publication_stdout = run([str(enrollment_binary), "--exact", PUBLICATION_TEST, "--nocapture"],

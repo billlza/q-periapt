@@ -7,7 +7,7 @@ import unittest
 import continuity_c_account as account
 
 STDOUT = (f"test {account.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 def put(root, name, data):
@@ -73,7 +73,7 @@ class AccountEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture(root)
-            for bad in (b"", STDOUT + STDOUT, STDOUT.replace(b"8 filtered out", b"7 filtered out"),
+            for bad in (b"", STDOUT + STDOUT, STDOUT.replace(b"9 filtered out", b"7 filtered out"),
                         STDOUT.replace(b"1 passed", b"0 passed")):
                 with self.subTest(stdout=bad), self.assertRaises(ValueError):
                     account.verify_execution(bad, root)

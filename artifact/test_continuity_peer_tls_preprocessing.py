@@ -10,7 +10,7 @@ class PeerTlsPreprocessingTests(unittest.TestCase):
     @staticmethod
     def logs(language):
         stdout = ("test " + peer.TEST + " ... ok\n" +
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out;\n").encode()
         rows = list(peer.MARKERS)
         if language != "C":
             rows += peer.foreign_markers(language)
@@ -31,7 +31,7 @@ class PeerTlsPreprocessingTests(unittest.TestCase):
             for changed in (stderr.replace(b"no_store_handle=true", b"no_store_handle=false"),
                             stderr.replace(b"endpoint=OpenSSL", b"endpoint=native")):
                 with self.assertRaises(ValueError): peer.verify(stdout, changed, language=language)
-            for changed in (stdout.replace(b"28 filtered", b"26 filtered"), stdout + stdout,
+            for changed in (stdout.replace(b"29 filtered", b"26 filtered"), stdout + stdout,
                             stdout.replace(b"0 ignored", b"1 ignored")):
                 with self.assertRaises(ValueError): peer.verify(changed, stderr, language=language)
             with self.assertRaises(ValueError): peer.verify(stdout + stderr, b"", language=language)

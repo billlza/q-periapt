@@ -4,7 +4,7 @@ import Foundation
 
 // Every pointer remains inside the innermost synchronous call. Empty optional
 // fields use NULL/0, not an empty Array's implementation-dependent base address.
-private func configurationBlobs<T>(_ arrays: [[UInt8]],
+func configurationBlobs<T>(_ arrays: [[UInt8]],
     _ body: ([qpc_configuration_blob_v1]) throws -> T) throws -> T {
     func visit(_ index: Int, _ values: [qpc_configuration_blob_v1]) throws -> T {
         if index == arrays.count { return try body(values) }

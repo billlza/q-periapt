@@ -170,6 +170,28 @@ After the last child releases a hidden parent, its Cleaner still runs
 nondeterministically. Retain and explicitly close the device when deterministic
 store release is required.
 
+Use `PeerConfiguration` to supply peer material without constructing a sidecar
+directory. Its `PeerDeviceExpectation` values contain independently approved
+account pins, exact device IDs and unsigned generations. Bundle bytes remain
+untrusted input, separate from the directory expectation and TLS pin/name:
+
+```kotlin
+val input = PeerConfiguration(expectedInitiator, expectedResponder, expectedDirectory,
+    signedBundle, pinnedPeerCertificate, peerName)
+device.preparePeer(input, PrekeyQuality.ONE_TIME_BOTH, BootstrapRole.INITIATOR).use { peer ->
+    peer.finishOpen()
+    // Use this admitted peer through the existing connection API.
+}
+```
+
+Public arrays are copied and returned through immutable `PublicBytes` values;
+the FFM arena only borrows its owned buffers for native preparation. Use
+`preparePeerReopen(input, quality, role, originalSession)` for exact restoration,
+with no fresh-bootstrap fallback. Preparing a descriptor does not authenticate a
+remote TLS endpoint. Keep the original initiation/session/message ID after an
+uncertain connection result. Explicit parent close remains the deterministic
+store-release operation; Cleaner is an asynchronous backstop.
+
 Account APIs expose `nextAccountOperation`, typed aggregate status and
 `sendAccountMember` with the complete original target list. Every target wrapper
 remains reachable through native return. Native admission verifies distinct live

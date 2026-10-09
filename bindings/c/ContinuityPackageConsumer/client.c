@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
+#define _GNU_SOURCE 1
 #if defined(__APPLE__)
 #define _DARWIN_C_SOURCE 1 /* Darwin exposes its no-follow open flags here. */
 #endif
@@ -312,9 +313,16 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "publication_client.c"
 #include "credential_peer_client.c"
 #include "peer_roster_client.c"
+#include "peer_configuration_client.c"
 int main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     if (!strcmp(argv[1], "retired")) return retirement_command(argc, argv);
+    if (!strcmp(argv[1], "peer-configuration-guard")) return configured_peer_guard();
+    int configured_peer=0;
+    if (!strcmp(argv[1], "--peer-configured")) {
+        if (argc < 3) fail("configured peer requires a parent and command");
+        configured_peer=1; --argc; ++argv;
+    }
     qpc_witness_v1 options; const qpc_witness_v1 *witness=NULL; int witness_tls=0;
     if (!strcmp(argv[1],"--witness") || !strcmp(argv[1],"--witness-tls")) {
         if (argc<5) fail("witness arguments");
@@ -404,7 +412,8 @@ int main(int argc, char **argv) {
     }
     uint64_t parent = device_path ? (independent_parent ? independent_policy_parent(device_path,witness,witness_tls) : continued_parent ? continued_enrollment_parent(device_path,witness,witness_tls) :
         enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls)) : 0;
-    uint64_t handle = parent ? device_peer_open(parent,argv[2],device_role,existing) :
+    if (configured_peer && !parent) fail("configured peer requires its retained device parent");
+    uint64_t handle = parent ? (configured_peer ? configured_device_peer_open(parent,argv[2],device_role,existing) : device_peer_open(parent,argv[2],device_role,existing)) :
         open_owner(argv[2],witness,witness_tls,existing);
     qpc_error_v1 error;
     if (strcmp(argv[1], "serve") == 0) {
@@ -502,7 +511,7 @@ int main(int argc, char **argv) {
         if (status(handle, s.session, s.message) != expected) fail("exact message status differs");
         if (busy) {
             close_owner(handle);
-            uint64_t reopened = parent ? device_peer_open(parent,argv[2],device_role,s.session) :
+            uint64_t reopened = parent ? (configured_peer ? configured_device_peer_open(parent,argv[2],device_role,s.session) : device_peer_open(parent,argv[2],device_role,s.session)) :
                 open_owner(argv[2],witness,witness_tls,existing);
             if (reopened == handle || status(reopened, s.session, s.message) != QPC_MESSAGE_COMMITTED)
                 fail("reopen changed identity or durable result");

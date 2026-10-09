@@ -167,8 +167,10 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("RetirementTests", "testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust"),
                  ("RetirementTests", "testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity"),
                  ("RetirementTests", "testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"))
+        names += (("PeerConfigurationTests", "testCallerMutationCannotChangeStoredOrNativePeerInputs"),
+                  ("PeerConfigurationTests", "testWidthsAndBoundsPrecedeNativeAdmission"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 60 tests, with 0 failures").encode()
+                  + "\nExecuted 62 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

@@ -14,7 +14,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown account client language")
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE),
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;", text, re.MULTILINE),
                 "complete-account workload did not execute completely")
     public, logs = {}, {}
     def read(name, maximum=65536):

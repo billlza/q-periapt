@@ -49,7 +49,7 @@ pub struct Blob {
     pub length: usize,
 }
 impl Blob {
-    unsafe fn snapshot(&self, bound: usize) -> Result<Vec<u8>> {
+    pub(crate) unsafe fn snapshot(&self, bound: usize) -> Result<Vec<u8>> {
         // SAFETY: the caller provides this exact immutable readable region.
         unsafe { bytes(self.data, self.length, bound) }
     }
@@ -188,7 +188,7 @@ impl WitnessInput {
     }
 }
 
-unsafe fn header<T>(pointer: *const T) -> Result<()> {
+pub(crate) unsafe fn header<T>(pointer: *const T) -> Result<()> {
     if pointer.is_null() {
         return Err(Failure::argument());
     }
@@ -292,7 +292,7 @@ unsafe fn prepare_initial(
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, length, 4096) }?;
         let input = unsafe { CreateInput::read(input) }?;
-        let request = opening::Request {
+        let request = opening::PathRequest {
             path,
             witness: None,
             kind: opening::Kind::Configuration(Preparation::Initial {
@@ -300,7 +300,10 @@ unsafe fn prepare_initial(
                 create,
             }),
         };
-        let id = Reservation::new()?.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = Reservation::new()?.publish(
+            Owned::Opening(opening::Request::Path(Box::new(request))),
+            deadline,
+        )?;
         unsafe { put(handle, id) };
         Ok(())
     };
@@ -352,12 +355,15 @@ pub unsafe extern "C" fn qpc_configuration_v1_prepare_open(
         unsafe { put(handle, 0) };
         let path = unsafe { text(path, length, 4096) }?;
         let input = unsafe { OpenInput::read(input) }?;
-        let request = opening::Request {
+        let request = opening::PathRequest {
             path,
             witness: None,
             kind: opening::Kind::Configuration(Preparation::Current(Box::new(input))),
         };
-        let id = Reservation::new()?.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = Reservation::new()?.publish(
+            Owned::Opening(opening::Request::Path(Box::new(request))),
+            deadline,
+        )?;
         unsafe { put(handle, id) };
         Ok(())
     };

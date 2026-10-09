@@ -41,6 +41,10 @@ class AdmissionTests(unittest.TestCase):
             "native_fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls",
             "native_fixture::service_peer_process",
             "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
+        "peer_configuration::tests::configured_peer_header_and_input_refusals_precede_parent_lookup",
+        "peer_configuration::tests::configured_peer_copies_inputs_without_peer_files_and_parent_close_releases_leases",
+        "peer_configuration::tests::configured_peer_scope_failures_cancel_and_quota_preserve_original_parent",
+
             "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
             "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
             "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
@@ -52,7 +56,7 @@ class AdmissionTests(unittest.TestCase):
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,
@@ -66,7 +70,7 @@ from test_continuity_package import metadata
 
 
 STDOUT = (f"test {consumer.TEST} ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
 
 
 def evidence(root):
@@ -246,7 +250,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
             root = Path(folder)
             report = evidence(root)
             for stdout in (b"", STDOUT.replace(b"0 ignored", b"1 ignored"),
-                           STDOUT.replace(b"8 filtered out", b"5 filtered out"), STDOUT + STDOUT):
+                           STDOUT.replace(b"9 filtered out", b"5 filtered out"), STDOUT + STDOUT):
                 with self.subTest(stdout=stdout), self.assertRaisesRegex(ValueError, "completely"):
                     consumer.verify_execution(stdout, root)
             for field, value in (("network_rekeys", 0), ("network_rekeys", True),
@@ -327,7 +331,7 @@ class ContinuityCConsumerTests(unittest.TestCase):
 class RestorationTests(unittest.TestCase):
     def test_expired_advertisement_restore_requires_actual_outputs_and_current_foreign_clock(self):
         stdout = (f"test {consumer.RESTORE_TEST} ... ok\n"
-                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n").encode()
+                  "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out;\n").encode()
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for role in ("initiator", "responder"):
@@ -363,7 +367,7 @@ class RestorationTests(unittest.TestCase):
                 with self.subTest(file=leaf.name), self.assertRaises(ValueError):
                     consumer.verify_restore_execution(stdout, root)
                 leaf.write_bytes(original)
-            for invalid in (b"", stdout + stdout, stdout.replace(b"8 filtered out", b"5 filtered out")):
+            for invalid in (b"", stdout + stdout, stdout.replace(b"9 filtered out", b"5 filtered out")):
                 with self.subTest(stdout=invalid), self.assertRaises(ValueError):
                     consumer.verify_restore_execution(invalid, root)
             for language in ("Swift", "Kotlin"):

@@ -29,10 +29,46 @@ pub(crate) enum Kind {
         role: p::BootstrapRole,
     },
 }
-pub(crate) struct Request {
+pub(crate) struct PathRequest {
     pub(crate) path: String,
     pub(crate) kind: Kind,
     pub(crate) witness: Option<witness::Configuration>,
+}
+pub(crate) enum Request {
+    Path(Box<PathRequest>),
+    Peer(Box<PeerRequest>),
+}
+pub(crate) struct PeerRequest {
+    pub(crate) parent: Arc<device::Shared>,
+    pub(crate) material: Box<crate::peer_configuration::Material>,
+    pub(crate) admission: owner::Admission,
+    pub(crate) role: p::BootstrapRole,
+}
+impl Request {
+    fn open(self, entry: &Entry, deadline: Instant) -> Result<Owned> {
+        match self {
+            Self::Path(request) => request.open(entry, deadline),
+            Self::Peer(request) => {
+                let PeerRequest {
+                    parent,
+                    material,
+                    admission,
+                    role,
+                } = *request;
+                check(&entry.cancel, deadline)?;
+                let peer = device::Peer::open_supplied(
+                    parent,
+                    *material,
+                    admission,
+                    role,
+                    &entry.cancel,
+                    deadline,
+                )?;
+                check(&entry.cancel, deadline)?;
+                Ok(Owned::Peer(Box::new(peer)))
+            }
+        }
+    }
 }
 pub(crate) fn quality(value: u32) -> Result<p::PrekeyQuality> {
     match value {
@@ -49,7 +85,7 @@ pub(crate) fn check(cancel: &Cancellation, deadline: Instant) -> Result<()> {
     }
     invocation::check(deadline)
 }
-impl Request {
+impl PathRequest {
     unsafe fn read(path: *const u8, length: usize, options: *const Options) -> Result<Self> {
         if options.is_null() || !options.is_aligned() {
             return Err(Failure::argument());
@@ -188,13 +224,13 @@ pub unsafe extern "C" fn qpc_retired_v1_prepare_open(
         // SAFETY: bounded immutable inputs are copied during this invocation.
         let path = unsafe { text(path, length, 4096) }?;
         let admission = unsafe { retirement::Admission::read(intent, authority) }?;
-        let request = Request {
+        let request = PathRequest {
             path,
             kind: Kind::Retirement(Box::new(admission)),
             witness: None,
         };
         let reservation = Reservation::new()?;
-        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = reservation.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same validated exclusive output.
         unsafe { put(handle, id) };
         Ok(())
@@ -217,7 +253,7 @@ unsafe fn prepare_enrollment(
         // SAFETY: separate aligned writable output; every input is copied now.
         unsafe { put(handle, 0) };
         // SAFETY: forwarded immutable bounded path/options/approved intent contract.
-        let mut request = unsafe { Request::read(path, length, options) }?;
+        let mut request = unsafe { PathRequest::read(path, length, options) }?;
         if !matches!(request.kind, Kind::Device) {
             return Err(Failure::argument());
         }
@@ -228,7 +264,7 @@ unsafe fn prepare_enrollment(
             approved: Box::new(approved),
         };
         let reservation = Reservation::new()?;
-        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = reservation.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same exclusive validated handle output.
         unsafe { put(handle, id) };
         Ok(())
@@ -282,13 +318,13 @@ unsafe fn prepare_setup(
         // SAFETY: the caller provides the distinct aligned writable output.
         unsafe { put(handle, 0) };
         // SAFETY: the explicit setup entry has the same bounded input contract.
-        let mut request = unsafe { Request::read(path, length, options) }?;
+        let mut request = unsafe { PathRequest::read(path, length, options) }?;
         if !matches!(request.kind, Kind::Device) {
             return Err(Failure::argument());
         }
         request.kind = Kind::Setup { create };
         let reservation = Reservation::new()?;
-        let id = reservation.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = reservation.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same exclusive output region.
         unsafe { put(handle, id) };
         Ok(())
@@ -361,7 +397,7 @@ unsafe fn prepare_peer(
         let parent = device::parent(parent, deadline)?;
         // SAFETY: header requires a readable immutable length-byte configuration path.
         let path = unsafe { text(path, length, 4096) }?;
-        let request = Request {
+        let request = PathRequest {
             path,
             kind: Kind::Peer {
                 parent,
@@ -371,7 +407,7 @@ unsafe fn prepare_peer(
             witness: None,
         };
         let slot = Reservation::new()?;
-        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = slot.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same exclusive validated output region.
         unsafe { put(handle, id) };
         Ok(())
@@ -441,9 +477,9 @@ pub unsafe extern "C" fn qpc_owner_v1_prepare_open(
         output(handle)?;
         // SAFETY: validated output shape and forwarded input lifetime requirements.
         unsafe { put(handle, 0) };
-        let request = unsafe { Request::read(path, length, options) }?;
+        let request = unsafe { PathRequest::read(path, length, options) }?;
         let slot = Reservation::new()?;
-        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = slot.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same exclusive writable output region.
         unsafe { put(handle, id) };
         Ok(())
@@ -470,9 +506,9 @@ pub unsafe extern "C" fn qpc_owner_v1_prepare_reopen(
         output(handle)?;
         // SAFETY: validated aligned output and the caller's distinct-region contract.
         unsafe { put(handle, 0) };
-        let request = unsafe { Request::read_reopen(path, length, options, session) }?;
+        let request = unsafe { PathRequest::read_reopen(path, length, options, session) }?;
         let slot = Reservation::new()?;
-        let id = slot.publish(Owned::Opening(Box::new(request)), deadline)?;
+        let id = slot.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
         // SAFETY: same exclusive writable output.
         unsafe { put(handle, id) };
         Ok(())
@@ -636,11 +672,14 @@ mod tests {
             selected.fill(0);
             with_entry(handle, Instant::now() + invocation::TIMEOUT, |slot, _| {
                 match slot.as_ref() {
-                    Some(Owned::Opening(request)) => match &request.kind {
-                        Kind::Operational(owner::Admission::Existing { session, .. }) => {
-                            assert_eq!(*session, [73; 32])
-                        }
-                        _ => return Err(Failure::argument()),
+                    Some(Owned::Opening(request)) => match request {
+                        Request::Path(request) => match &request.kind {
+                            Kind::Operational(owner::Admission::Existing { session, .. }) => {
+                                assert_eq!(*session, [73; 32])
+                            }
+                            _ => return Err(Failure::argument()),
+                        },
+                        Request::Peer(_) => return Err(Failure::argument()),
                     },
                     _ => return Err(Failure::argument()),
                 }

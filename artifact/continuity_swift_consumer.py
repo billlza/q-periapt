@@ -45,7 +45,8 @@ def compiler_command(value: str) -> tuple[Path, dict]:
 
 def verify_tests(stdout: bytes, stderr: bytes) -> None:
     text = (stdout + stderr).decode()
-    tests = {"OwnerTests.testARCRetiresPendingSlotsAndClosedAliases", "OwnerTests.testDiagnosticRejectsInconsistentAndInvalidUTF8",
+    tests = {"PeerConfigurationTests.testCallerMutationCannotChangeStoredOrNativePeerInputs",
+             "PeerConfigurationTests.testWidthsAndBoundsPrecedeNativeAdmission", "OwnerTests.testARCRetiresPendingSlotsAndClosedAliases", "OwnerTests.testDiagnosticRejectsInconsistentAndInvalidUTF8",
              "OwnerTests.testIDsAndTextsRejectAmbiguousInput", "ServerTests.testCallbackCopiesBorrowedRegions",
              "ServerTests.testCallbackFailureAndForeignBoundsCannotBecomeConsumption",
              "ServerTests.testServedRecordRejectsUnknownKindsAndInconsistentBootstrap",
@@ -224,6 +225,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             verify_linkage(configuration_dependencies, configuration_loader, native_dir)
             configuration = qualify_configuration(outside, output, profile, runtime, row, run,
                 configuration_client, language="Swift")
+            from continuity_peer_configuration import qualify_foreign as qualify_peers
+            peer_configuration = qualify_peers(outside, output, profile, runtime, row, run, binary, language="Swift")
             from continuity_device_retirement import qualify_foreign as qualify_retirement
             retirement = qualify_retirement(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_enrollment import qualify_foreign as qualify_enrollment
@@ -338,7 +341,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files, "enrollment": enrollment,
-                "device_retirement": retirement, "first_configuration": configuration,
+                "device_retirement": retirement, "first_configuration": configuration, "peer_configuration": peer_configuration,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,
