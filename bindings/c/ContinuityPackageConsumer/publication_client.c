@@ -19,7 +19,8 @@ static int publication_command(int argc,char **argv,uint64_t parent) {
         if(argc!=3) fail("next publication arguments");
         require(qpc_device_v1_next_publication(parent,id,&error),&error);encode(id);
     } else {
-        if(argc!=4) fail("original publication ID missing");decode(argv[3],id);
+        if(argc!=4) fail("original publication ID missing");
+        decode(argv[3],id);
         if(!strcmp(argv[1],"publication-status")) {
             require(qpc_device_v1_publication_status(parent,id,&status,&error),&error);publication_status_print(&status);
         } else if(!strcmp(argv[1],"publication-retire")) {

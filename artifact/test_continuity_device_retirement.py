@@ -6,6 +6,7 @@ import unittest
 
 import continuity_device_retirement as retirement
 from continuity_c_witness import commit
+import test_continuity_c_enrollment as enrollment_tests
 
 
 def fixture(path: Path):
@@ -39,6 +40,23 @@ def fixture(path: Path):
     for index, stage in enumerate(retirement.STAGES, 100):
         values['retirement-process-' + stage] = index.to_bytes(8, 'big')
     values['retirement-host-report-verified'] = values['retirement-host-report']
+    publication, commands = enrollment_tests.PublicationReadbackTests().material()
+    for name in ('id', 'plan', 'artifact', 'retry'):
+        values['successor-publication-' + name] = publication['enrolled/publication-' + name]
+    values['successor-publication-status'] = b''.join(bytes.fromhex(value.decode())
+        for value in commands['publication-prepare'].splitlines()[1:])
+    values['successor-publication-trace'] = b'native\n'
+    wire = values['successor-publication-artifact']
+    size = int.from_bytes(wire[104:108], 'big')
+    manifest = wire[108:108+size]
+    position = 108 + size + 2 + 4 * 32
+    proofs = []
+    for _ in range(4):
+        size = int.from_bytes(wire[position:position+2], 'big'); position += 2
+        proofs.append(wire[position:position+size]); position += size
+    fields = [b'synthetic public identity'] * 4 + [manifest, proofs[0], proofs[2], proofs[1], proofs[3]]
+    bundle = b'QPBNDL01\x01' + b''.join(len(value).to_bytes(2, 'big') + value for value in fields)
+    values['successor-bootstrap-bundle'] = values['successor-bootstrap-bundle-peer'] = bundle
     for name, data in values.items():
         (path / name).write_bytes(data)
 
@@ -54,12 +72,16 @@ class RetirementEvidenceTests(unittest.TestCase):
             (root / 'source/successor-enrollment-trace').write_bytes(b''.join(
                 f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.SUCCESSOR_STAGES, 200)))
             (root / 'source/successor-traffic-trace').write_bytes(b'bootstrap 400\nmessage 401\n')
+            (root / 'source/successor-publication-trace').write_bytes(b''.join(
+                f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.PUBLICATION_STAGES, 300)))
             result = retirement.export_foreign(stdout, root / "source", root / "export", language="C")
             self.assertEqual(result["consumer_language"], "C")
             self.assertEqual(result["public_readbacks"], retirement.verify(root / "source")["public_readbacks"])
             self.assertIn("ten C successor processes", result["scope"])
             self.assertEqual(result["successor_process_ids"], list(range(200, 210)))
             self.assertEqual(result["traffic_process_ids"], [400, 401])
+            self.assertEqual(result["publication_process_ids"], [300, 301, 302])
+            self.assertTrue(result["owned_publication_used_for_traffic"])
             for bad in (b"", stdout.replace(b"1 passed", b"0 passed"), stdout + stdout,
                         stdout.replace(b" ... ok", b" ... ignored"),
                         stdout.replace(b"3 filtered", b"28 filtered"),
@@ -128,6 +150,40 @@ class RetirementEvidenceTests(unittest.TestCase):
                 with self.subTest(missing=p.name), self.assertRaises(ValueError):
                     retirement.verify(root)
                 p.write_bytes(original)
+
+    def test_owned_advertisement_must_match_both_connection_bundles_and_original_status(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            for name in ('successor-publication-id', 'successor-publication-plan',
+                         'successor-publication-status', 'successor-publication-retry'):
+                path = root / name; original = path.read_bytes()
+                path.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+                with self.subTest(record=name), self.assertRaises(ValueError): retirement.verify(root)
+                path.write_bytes(original)
+            first, second = root / 'successor-bootstrap-bundle', root / 'successor-bootstrap-bundle-peer'
+            original = first.read_bytes()
+            for changed in (original[:-1], original + b'\x00', original.replace(b'QPMANF01', b'QPMANF02'),
+                            original.replace(b'QPLEAF01', b'QPLEAF02')):
+                first.write_bytes(changed); second.write_bytes(changed)
+                with self.subTest(bundle=changed[:16]), self.assertRaises(ValueError): retirement.verify(root)
+            first.write_bytes(original); second.write_bytes(original[:-1])
+            with self.assertRaisesRegex(ValueError, 'connection bundle differs'): retirement.verify(root)
+
+    def test_foreign_publication_requires_distinct_original_operation_processes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / 'source'; fixture(root)
+            (root / 'successor-enrollment-trace').write_bytes(b''.join(
+                f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.SUCCESSOR_STAGES, 200)))
+            (root / 'successor-traffic-trace').write_bytes(b'bootstrap 400\nmessage 401\n')
+            trace = b''.join(f'{stage} {pid}\n'.encode() for pid, stage in enumerate(retirement.PUBLICATION_STAGES, 300))
+            path = root / 'successor-publication-trace'; path.write_bytes(trace)
+            self.assertEqual(retirement.verify(root)['publication_process_ids'], [300, 301, 302])
+            for bad in (b'native\n', b'', trace.replace(b'publication-retry 302\n', b''),
+                        trace.replace(b'302', b'301'), trace.replace(b'302', b'400'),
+                        trace.replace(b'302', b'200'), trace.replace(b'302', b'100')):
+                path.write_bytes(bad)
+                with self.subTest(trace=bad), self.assertRaisesRegex(ValueError, 'successor publication'):
+                    retirement.verify(root)
 
     def test_wrong_receipt_scope_effect_or_recovery_identity_fails(self):
         with tempfile.TemporaryDirectory() as folder:

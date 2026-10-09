@@ -656,6 +656,34 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
         b"native\n".to_vec()
     };
     store(&public, "successor-traffic-trace", &traffic_trace)?;
+    for name in [
+        "publication-id",
+        "publication-plan",
+        "publication-artifact",
+        "publication-retry",
+        "publication-status",
+    ] {
+        store(
+            &public,
+            &format!("successor-{name}"),
+            &read(&next.path, name, 2 * 1024 * 1024)?,
+        )?;
+    }
+    store(
+        &public,
+        "successor-publication-trace",
+        &read(&next.path, "successor-publication-trace", 8192)?,
+    )?;
+    store(
+        &public,
+        "successor-bootstrap-bundle",
+        &read(&next.path, "bootstrap.bundle", 65536)?,
+    )?;
+    store(
+        &public,
+        "successor-bootstrap-bundle-peer",
+        &read(&next.peer, "bootstrap.bundle", 65536)?,
+    )?;
     store(
         &public,
         "witness-request-count",

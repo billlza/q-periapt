@@ -574,6 +574,51 @@ def qualify_policy_witness(output: Path, profile: str, runtime: dict, binary: Pa
     return result
 
 
+def publication_artifact(wire: bytes, operation: bytes, plan: bytes, commitments: bytes) -> dict:
+    """Closed four-role public framing; signature/proof verification remains native."""
+    sdk.require(len(wire) <= 2 * 1024 * 1024 and len(operation) == 32
+                and 0 < int.from_bytes(operation[:8], "big") < 2**64 - 1
+                and len(plan) == 48 and any(plan[:32])
+                and int.from_bytes(plan[32:40], "big") < int.from_bytes(plan[40:], "big") < 2**64 - 1
+                and len(commitments) == 96, "publication input shape")
+    intent, manifest_digest, artifact = (commitments[i:i+32] for i in (0, 32, 64))
+    sdk.require(all(any(x) for x in (intent, manifest_digest, artifact)), "publication zero commitment")
+    cursor = 0
+    def take(size):
+        nonlocal cursor
+        sdk.require(size >= 0 and cursor + size <= len(wire), "truncated publication artifact")
+        value = wire[cursor:cursor+size]; cursor += size
+        return value
+    sdk.require(take(8) == b"QPPUBA01" and take(32) == operation and take(32) == intent and take(32) == artifact,
+                "publication artifact binding differs")
+    length = int.from_bytes(take(4), "big")
+    sdk.require(length <= 8192, "publication manifest bound")
+    manifest_wire = take(length)
+    body = envelope(manifest_wire, b"QPMANF01", 290)
+    sdk.require(commit(b"Q-PERIAPT-CONTINUITY-MANIFEST-CANDIDATE/v1", body) == manifest_digest,
+                "publication manifest digest differs")
+    sdk.require(body[136:144] == operation[:8] and body[208:256] == plan and body[256:258] == b"\x00\x04",
+                "publication signed epoch/plan differs")
+    count = int.from_bytes(take(2), "big"); sdk.require(count == 4, "publication fixture requires four roles")
+    requests = [take(32) for _ in range(count)]
+    sdk.require(all(any(x) for x in requests) and len(set(requests)) == count, "publication inventory identities differ")
+    roles = set()
+    proofs = {}
+    for index in range(count):
+        size = int.from_bytes(take(2), "big"); sdk.require(size <= 1600, "publication proof bound")
+        proof = take(size); sdk.require(len(proof) >= 30, "publication proof truncation")
+        leaf_size = int.from_bytes(proof[2:4], "big"); kind = proof[12]
+        sdk.require(kind in (1, 2, 3, 4) and kind not in roles, "publication proof roles differ")
+        roles.add(kind)
+        proofs[kind] = proof
+        sdk.require(proof[:2] == index.to_bytes(2, "big") and proof[4:12] == b"QPLEAF01"
+                    and proof[13:29] == plan[32:] and leaf_size == 25 + (32 if kind in (1,2) else 1184)
+                    and len(proof) == 5 + leaf_size + 64 and proof[4+leaf_size] == 2
+                    and any(proof[29:4+leaf_size]), "publication proof grammar differs")
+    sdk.require(cursor == len(wire), "publication artifact trailing bytes")
+    return {"manifest": manifest_wire, "proofs": proofs, "members": count}
+
+
 def _publication_readback(read, command):
     """Public framing and exact recovery; signature/proof verification ran natively."""
     def identifier(label):
@@ -594,41 +639,12 @@ def _publication_readback(read, command):
     command("publication-retry", status)
     wire = read("enrolled/publication-artifact", 2 * 1024 * 1024)
     sdk.require(wire == read("enrolled/publication-retry", 2 * 1024 * 1024), "publication changed after reopen")
-    cursor = 0
-    def take(size):
-        nonlocal cursor
-        sdk.require(size >= 0 and cursor + size <= len(wire), "truncated publication artifact")
-        value = wire[cursor:cursor+size]; cursor += size
-        return value
-    sdk.require(take(8) == b"QPPUBA01" and take(32) == operation and take(32) == intent and take(32) == artifact,
-                "publication artifact binding differs")
-    length = int.from_bytes(take(4), "big")
-    sdk.require(length <= 8192, "publication manifest bound")
-    body = envelope(take(length), b"QPMANF01", 290)
-    sdk.require(commit(b"Q-PERIAPT-CONTINUITY-MANIFEST-CANDIDATE/v1", body) == manifest_digest,
-                "publication manifest digest differs")
-    sdk.require(body[136:144] == operation[:8] and body[208:256] == plan and body[256:258] == b"\x00\x04",
-                "publication signed epoch/plan differs")
-    count = int.from_bytes(take(2), "big"); sdk.require(count == 4, "publication fixture requires four roles")
-    requests = [take(32) for _ in range(count)]
-    sdk.require(all(any(x) for x in requests) and len(set(requests)) == count, "publication inventory identities differ")
-    roles = set()
-    for index in range(count):
-        size = int.from_bytes(take(2), "big"); sdk.require(size <= 1600, "publication proof bound")
-        proof = take(size); sdk.require(len(proof) >= 30, "publication proof truncation")
-        leaf_size = int.from_bytes(proof[2:4], "big"); kind = proof[12]
-        sdk.require(kind in (1, 2, 3, 4) and kind not in roles, "publication proof roles differ")
-        roles.add(kind)
-        sdk.require(proof[:2] == index.to_bytes(2, "big") and proof[4:12] == b"QPLEAF01"
-                    and proof[13:29] == plan[32:] and leaf_size == 25 + (32 if kind in (1,2) else 1184)
-                    and len(proof) == 5 + leaf_size + 64 and proof[4+leaf_size] == 2
-                    and any(proof[29:4+leaf_size]), "publication proof grammar differs")
-    sdk.require(cursor == len(wire), "publication artifact trailing bytes")
+    parsed = publication_artifact(wire, operation, plan, intent + manifest_digest + artifact)
     next_id = identifier("publication-next-2")
     sdk.require(next_id != operation and identifier("publication-next-retained") == next_id, "publication ordinal did not survive retirement")
     command("publication-cancel", b"publication-cancelled\n")
     for label, state in (("publication-absent", 0), ("publication-retire", 3)):
         command(label, f"publication-state:{state}\n".encode() + (b"0" * 64 + b"\n") * 3)
     return dict(original_id=operation.hex(), next_id=next_id.hex(), intent=intent.hex(), manifest=manifest_digest.hex(),
-                artifact=artifact.hex(), members=count, exact_artifact_reopen=True, cancelled_next_absent=True,
+                artifact=artifact.hex(), members=parsed["members"], exact_artifact_reopen=True, cancelled_next_absent=True,
                 retired_history_not_absence=True, remote_publication=False)

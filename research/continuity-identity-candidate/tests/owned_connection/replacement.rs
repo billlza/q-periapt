@@ -519,54 +519,32 @@ pub(super) fn prepare_with_client(
         _ => return Err("replacement witness configuration changed".into()),
     };
     let mut active = enrollment.activate(&policy, at, anchor)?;
-    let (service, signer, admitted) = active.parts()?;
+    let (service, _, admitted) = active.parts()?;
     assert_eq!(admitted.credential_digest(), device.credential_digest());
     assert_eq!(service.stores()?.0.identity()?, journal);
     store(&path, "active-journal", journal.as_bytes())?;
-    let mut leaves = Vec::new();
-    for (index, kind) in [
-        p::LeafKind::SignedClassical,
-        p::LeafKind::OneTimeClassical,
-        p::LeafKind::LastResortPq,
-        p::LeafKind::OneTimePq,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        leaves.push(service.stores()?.0.generate_prekey(
-            &policy,
-            &device,
-            p::PrekeyId::from_trusted_state([u8::try_from(index + 1)?; 32])?,
-            kind,
-            validity,
-            at,
-        )?);
+    let mut plan = vec![99; 32];
+    plan.extend_from_slice(&validity.from().to_be_bytes());
+    plan.extend_from_slice(&validity.until().to_be_bytes());
+    store(&path, "publication-plan", &plan)?;
+    if let Some(client) = client {
+        active.close();
+        policy.close();
+        sdk.close();
+        publication::foreign(
+            client,
+            &path,
+            witness.ok_or("successor publication witness")?,
+        )?;
+    } else {
+        publication::native(&path, &mut active, &policy, validity)?;
     }
-    let manifest = signer.issue_manifest(
+    let advertisement = publication::decode(
+        &read(&path, "publication-artifact", 2 * 1024 * 1024)?,
+        array(&path, "publication-id")?,
         &device,
-        p::ManifestContext::new(
-            1,
-            sdk.runtime()?.trusted_state().digest(),
-            p::bootstrap_suite_digest(),
-            [99; 32],
-            validity,
-        )?,
-        &leaves,
+        now()?,
     )?;
-    let checked = device.verify_manifest(manifest.as_bytes(), at)?;
-    let mut proofs = BTreeMap::new();
-    for index in 0..manifest.leaf_count() {
-        let proof = manifest.proof(index)?;
-        proofs.insert(
-            checked.verify_leaf(&proof, at)?.kind() as u8,
-            proof.encode()?,
-        );
-    }
-    let proof = |kind: p::LeafKind| -> Result<&[u8]> {
-        Ok(proofs
-            .get(&(kind as u8))
-            .ok_or("replacement prekey proof")?)
-    };
     let bundle = p::BootstrapBundle::from_materials(
         p::PrekeyQuality::OneTimeBoth,
         p::BootstrapMaterials {
@@ -574,11 +552,11 @@ pub(super) fn prepare_with_client(
             initiator_roster: &read(&s.initiator, "local-roster", 8192)?,
             responder_credential: &certificate,
             responder_roster: issued.as_bytes(),
-            responder_manifest: manifest.as_bytes(),
-            signed_classical: proof(p::LeafKind::SignedClassical)?,
-            last_resort_pq: proof(p::LeafKind::LastResortPq)?,
-            one_time_classical: Some(proof(p::LeafKind::OneTimeClassical)?),
-            one_time_pq: Some(proof(p::LeafKind::OneTimePq)?),
+            responder_manifest: &advertisement.manifest,
+            signed_classical: advertisement.proof(p::LeafKind::SignedClassical)?,
+            last_resort_pq: advertisement.proof(p::LeafKind::LastResortPq)?,
+            one_time_classical: Some(advertisement.proof(p::LeafKind::OneTimeClassical)?),
+            one_time_pq: Some(advertisement.proof(p::LeafKind::OneTimePq)?),
         },
     )?;
     store(&path, "tls-peer", &read(&s.initiator, "tls-cert", 8192)?)?;

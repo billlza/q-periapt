@@ -4,8 +4,9 @@ The native journal now implements the local recoverable operation below through
 `next_prekey_publication_id`, `prepare_prekey_publication`, status, abandon and
 retire. The registered Rust owner and C device-parent entry points now compose
 that operation without exposing a signer. Swift and Kotlin supply typed device
-methods and check complete public result framing. The installed successor's use
-of publication remains open. This is neither a frozen storage/ABI contract
+methods and check complete public result framing. The successor workload now
+uses those registered-owner methods for its actual connection advertisement.
+Whole installed-archive qualification remains open. This is neither a frozen storage/ABI contract
 nor evidence of remote directory publication. Existing `generate_prekey` and
 `issue_manifest` remain lower-level operations with their documented responsibilities.
 
@@ -218,6 +219,13 @@ libraries under Serial and G1. The 58 named JVM tests run against each native
 profile, and the full installed producer now requires the publication workload
 for every collector. Evidence is recorded in
 [`20261009-kotlin-publication`](../../research/sdk-alpha1/evidence/20261009-kotlin-publication/README.md).
-These component runs still use the remote fixture advertisement for subsequent
-traffic; they do not complete successor-owned advertisement or distribution
-qualification.
+Those earlier component runs use a remote fixture advertisement for subsequent
+traffic. The successor workload now calls the public registered-owner publication
+operation, retains its original ID and plan before dispatch, and checks exact
+recovery in another process. Its actual responder and initiator bundles must
+contain that same manifest and all four proofs. Account issuance and witness
+replacement authorization remain independent controller operations. This change
+closes the manually prepared successor prekey step; current installed archives
+and independent endpoint implementations still require their own qualification.
+The [successor component record](../../research/sdk-alpha1/evidence/20261009-successor-owned-publication/README.md)
+retains all eight language/profile executions and their exact connection inputs.

@@ -1260,8 +1260,11 @@ completion after durable work. Two more C processes then reopen the enrolled
 successor: one serves the fresh TLS bootstrap, and another opens that exact session
 and durably consumes its application message. Returned session/message identities,
 callback counts and complete host effect bytes must match the native sender.
-Account issuance, witness replacement authorization and successor prekey
-preparation remain native Rust in this workload.
+Three additional C processes observe the next publication ID, prepare its
+complete advertisement, and recover the identical bytes after reopening the
+registered owner. Both actual connection bundles must contain exactly that
+manifest and its four membership proofs. Account issuance and witness replacement
+authorization remain with the native Rust controller.
 It also exercises snapshots, invalid receipt/length refusal, cancellation and
 consumed-owner behavior. Debug/Release installed execution is required by the
 package producer. Source execution alone does not qualify installed archives,

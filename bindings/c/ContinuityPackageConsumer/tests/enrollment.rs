@@ -596,7 +596,6 @@ fn publication_workload(
     roster: &p::IssuedRoster,
     validity: p::Validity,
 ) -> Result<()> {
-    use std::io::Read;
     let mut sdk = fixture::sdk(path)?;
     let policy = fixture::protocol_policy(path, &sdk)?;
     let from = fixture::now()?
@@ -644,28 +643,6 @@ fn publication_workload(
         fixture::read(path, "publication-retry", 2 * 1024 * 1024)?,
         wire
     );
-    let mut d = std::io::Cursor::new(wire.as_slice());
-    fn array<const N: usize>(d: &mut std::io::Cursor<&[u8]>) -> Result<[u8; N]> {
-        let mut out = [0; N];
-        d.read_exact(&mut out)?;
-        Ok(out)
-    }
-    assert_eq!(array::<8>(&mut d)?, *b"QPPUBA01");
-    assert_eq!(array::<32>(&mut d)?, id);
-    assert_ne!(array::<32>(&mut d)?, [0; 32]);
-    assert_ne!(array::<32>(&mut d)?, [0; 32]);
-    let length = usize::try_from(u32::from_be_bytes(array(&mut d)?))?;
-    assert!(length <= 8192);
-    let mut manifest = vec![0; length];
-    d.read_exact(&mut manifest)?;
-    let count = usize::from(u16::from_be_bytes(array(&mut d)?));
-    assert_eq!(count, 4);
-    let mut requests = std::collections::BTreeSet::new();
-    for _ in 0..count {
-        let id = array::<32>(&mut d)?;
-        assert_ne!(id, [0; 32]);
-        assert!(requests.insert(id));
-    }
     let family = fixture::array(path, "family")?;
     let pin = p::AccountPin::new(
         root.account_id()?,
@@ -674,18 +651,7 @@ fn publication_workload(
         family,
     )?;
     let device = pin.verify_device(certificate, roster.as_bytes(), fixture::now()?)?;
-    let verified = device.verify_manifest(&manifest, fixture::now()?)?;
-    let mut roles = std::collections::BTreeSet::new();
-    for _ in 0..count {
-        let length = usize::from(u16::from_be_bytes(array(&mut d)?));
-        assert!(length <= 1600);
-        let mut proof = vec![0; length];
-        d.read_exact(&mut proof)?;
-        let proof = p::LeafProof::decode(&proof)?;
-        roles.insert(verified.verify_leaf(&proof, fixture::now()?)?.kind() as u8);
-    }
-    assert_eq!(roles, std::collections::BTreeSet::from([1, 2, 3, 4]));
-    assert_eq!(usize::try_from(d.position())?, wire.len());
+    fixture::publication::decode(&wire, id, &device, fixture::now()?)?;
     let next = run(path, "publication-next-2", &args("publication-next", None))?;
     assert_ne!(next, id_text);
     assert_eq!(

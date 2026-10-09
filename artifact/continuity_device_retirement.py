@@ -9,25 +9,29 @@ import re
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 from continuity_c_witness import commit
+from continuity_c_enrollment import publication_artifact
 
 STAGES = ("inventory", "prepare-report", "report", "report-reopen", "prepare-ack",
           "erase-journal", "erase-signer", "verify")
 SUCCESSOR_STAGES = ("key", "create", "request", "request-retry", "accept", "accept-retry",
                     "storage", "activate-before-replacement", "activate", "activate-reopen")
 TRAFFIC_STAGES = ("bootstrap", "message")
+PUBLICATION_STAGES = ("publication-next", "publication-prepare", "publication-retry")
 FILES = frozenset({"witness-request-count", "witness-id", "witness-public", "witness-subject", "retirement-proposal",
                    "retirement-receipt", "retirement-inventory", "retirement-inventory-receipt",
                    "retirement-report-proposal", "retirement-report-receipt", "retirement-host-report", "retirement-host-report-verified",
                    "retirement-report-reopened", "retirement-ack", "retirement-verified", "old-effect",
                    "new-effect", "signer-terminal", "result.json", "successor-enrollment-trace", "successor-traffic-trace"}
-                  | {"retirement-process-" + stage for stage in STAGES})
+                  | {"retirement-process-" + stage for stage in STAGES}
+                  | {"successor-publication-" + name for name in ("id", "plan", "artifact", "retry", "status", "trace")}
+                  | {"successor-bootstrap-bundle", "successor-bootstrap-bundle-peer"})
 IDENTITIES = ("old_session", "old_message", "new_session", "new_message", "report_id")
 FLAGS = ("required_witness", "old_authority_refused", "original_report_reopened", "journal_erased", "signer_erased")
 COUNTS = {"report_sessions": 1, "unconsumed_deliveries": 1, "consumed_before": 0,
           "host_effects": 1, "recovery_processes": 8, "uncertain_process_exits": 3}
 SCOPE = ("Native Rust public enrollment and required-witness generation replacement; "
          "original complete report, durable host accounting, independent purpose21 ACK and logical "
-         "journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. "
+         "journal/signer erasure through eight recovery processes; original-owner publication and fresh-generation TLS traffic. "
          "Native APIs verify signatures/private MAC; this reader checks public framing and bindings. "
          "Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.")
 FOREIGN_TEST = "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes"
@@ -122,6 +126,34 @@ def verify(directory: Path) -> dict:
                     "successor traffic reused a previous process identity")
     else:
         sdk.require(traffic == b"native\n", "native successor traffic mode differs")
+    publication_trace = read("successor-publication-trace", 8192)
+    publication_pids = []
+    if successor_pids:
+        matched = re.fullmatch(b"".join(name.encode() + rb" ([1-9][0-9]*)\n" for name in PUBLICATION_STAGES), publication_trace)
+        sdk.require(matched is not None, "foreign successor publication was not executed")
+        publication_pids = [int(value) for value in matched.groups()]
+        sdk.require(len(set(publication_pids)) == len(PUBLICATION_STAGES)
+                    and not set(publication_pids).intersection(pids + successor_pids + traffic_pids),
+                    "successor publication reused a previous process identity")
+    else:
+        sdk.require(publication_trace == b"native\n", "native successor publication mode differs")
+    publication = read("successor-publication-artifact", 2 * 1024 * 1024)
+    sdk.require(read("successor-publication-retry", 2 * 1024 * 1024) == publication,
+                "successor publication changed after reopen")
+    parsed = publication_artifact(publication, fixed("successor-publication-id", 32),
+        fixed("successor-publication-plan", 48), fixed("successor-publication-status", 96))
+    bundle = read("successor-bootstrap-bundle", 65536)
+    sdk.require(bundle == read("successor-bootstrap-bundle-peer", 65536) and bundle.startswith(b"QPBNDL01\x01"),
+                "successor connection bundle differs")
+    position = 9
+    fields = []
+    for _ in range(9):
+        sdk.require(position + 2 <= len(bundle), "successor connection bundle truncated")
+        length = int.from_bytes(bundle[position:position+2], "big"); position += 2
+        sdk.require(0 < length <= 8192 and position + length <= len(bundle), "successor bundle field bound")
+        fields.append(bundle[position:position+length]); position += length
+    sdk.require(position == len(bundle) and fields[4:] == [parsed["manifest"], *(parsed["proofs"][kind] for kind in (1, 3, 2, 4))],
+                "successor connection did not use its owned advertisement")
     for role, payload in (("old", b"retiring device effect before unavailable receipt"),
                           ("new", b"persisted before process exit")):
         sdk.require(read(role + "-effect") == bytes.fromhex(result[role + "_session"] + result[role + "_message"]) + payload,
@@ -129,7 +161,9 @@ def verify(directory: Path) -> dict:
     sdk.require(fixed("signer-terminal", 8) == b"QPSRET01", "retirement signer terminal differs")
     sdk.require(set(public) == FILES, "retirement evidence left unread files")
     return {"completed": True, "scope": SCOPE, "outcomes": result, "recovery_process_ids": pids,
-            "successor_process_ids": successor_pids, "traffic_process_ids": traffic_pids, "witness_requests": request_count,
+            "successor_process_ids": successor_pids, "traffic_process_ids": traffic_pids,
+            "publication_process_ids": publication_pids, "owned_publication_used_for_traffic": True,
+            "witness_requests": request_count,
             "public_readbacks": public, "release_claim_eligible": False}
 
 
@@ -162,7 +196,8 @@ def export_foreign(stdout: bytes, directory: Path, destination: Path, *, languag
         f"ten {language} successor processes create generation 2, reopen its original request, accept the independent "
         "grant, preserve its genesis, refuse activation before replacement, and activate/reopen after authorization. "
         f"Two further {language} processes establish the fresh TLS session and durably consume its application message. "
-        "Account issuance, required-witness replacement commit and successor prekeys remain native Rust. "
+        f"Three {language} publication processes retain one original ID and exact advertisement after reopen; "
+        "the actual connection bundle uses those manifest/proof bytes. Account issuance and required-witness replacement commit remain native Rust. "
         "Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and "
         "logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; "
         "no physical erasure, independent protocol or complete foreign-device lifecycle claim."

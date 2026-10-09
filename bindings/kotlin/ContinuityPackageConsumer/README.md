@@ -718,10 +718,11 @@ After an activation failure, retained `Activating` state resumes that genesis;
 it cannot prepare another installation. Two more Kotlin processes serve the
 successor's fresh TLS bootstrap and reopen the same session for durable message
 consumption. Exact returned identities, callback counts and complete host effect
-bytes must match the native sender. Account issuance, witness replacement approval
-and successor prekey preparation still use the native Rust harness. This adds
-client lifecycle and traffic coverage without giving device clients account-root
-signing authority.
+bytes must match the native sender. Three additional Kotlin processes retain the
+next publication ID, prepare its complete advertisement and recover the exact
+bytes after reopening. Both actual connection bundles use that manifest and all
+four proofs. Account issuance and witness replacement approval remain with the
+native Rust controller; device clients receive no account-root signing authority.
 
 ## Local prekey publication
 

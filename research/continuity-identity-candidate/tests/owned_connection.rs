@@ -30,6 +30,8 @@ use zeroize::Zeroizing;
 
 #[path = "owned_connection/enrollment.rs"]
 pub(crate) mod enrollment;
+#[path = "owned_connection/publication.rs"]
+pub(crate) mod publication;
 #[path = "owned_connection/reopen.rs"]
 mod reopen;
 #[path = "owned_connection/replacement.rs"]

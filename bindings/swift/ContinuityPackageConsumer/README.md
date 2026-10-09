@@ -642,8 +642,11 @@ preparing another installation. Two more Swift processes serve the successor's
 fresh TLS bootstrap and then open that exact session to durably consume a message.
 Their session/message identities and complete host effect match the native sender;
 the existing callback reentrancy and application confirmation checks remain active.
-Account issuance, witness replacement approval and successor prekey preparation
-remain native Rust. Qualification of
+Three additional Swift processes allocate no replacement identity: they retain
+the next publication ID, prepare the complete advertisement and recover its exact
+bytes after reopening. Both actual connection bundles use this manifest and all
+four proofs. Account issuance and witness replacement approval remain with the
+native Rust controller. Qualification of
 each current archive is separate; this is not a complete foreign replacement
 flow or an independent protocol implementation.
 
