@@ -2095,6 +2095,7 @@ jobs:
             target/continuity-installed-rust/debug-enrollment-reopen-public/**
             target/continuity-installed-rust/release-enrollment-reopen-public/**
             target/continuity-installed-rust/c-enrollment-public/**
+            target/continuity-installed-rust/configuration-public/**
             target/continuity-installed-rust/c-retirement-public/**
             target/continuity-installed-rust/c-enrollment-witness-public/**
             target/continuity-installed-rust/c-witnessed-renewal-public/**

@@ -64,9 +64,12 @@ class FirstConfigurationTests(unittest.TestCase):
 
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()
-        upload = workflow.split("- name: Retain native packages and selected public execution evidence\n", 1)[1]
-        upload = upload.split("if-no-files-found:", 1)[0]
-        self.assertIn("target/continuity-installed-swift/configuration-public/**", upload)
+        for section, prefix in (
+            ("Retain native packages and selected public execution evidence", "target/continuity-installed-swift/"),
+            ("Retain package and public execution evidence without private test state", "target/continuity-installed-rust/"),
+        ):
+            upload = workflow.split("- name: " + section + "\n", 1)[1].split("if-no-files-found:", 1)[0]
+            self.assertIn(prefix + "configuration-public/**", upload)
 
     def test_each_scenario_requires_its_own_registration(self):
         with tempfile.TemporaryDirectory() as directory:
