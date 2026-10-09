@@ -1328,6 +1328,22 @@ ownership and unchanged-state requirements. `first_configuration_client.c` is a
 standalone public C consumer; installed qualification executes it with independently
 supplied inputs, never a copied private installation.
 
+The installed first-use workload also composes policy renewal with delivery
+recovery. After its original peer commits one application effect and exits before
+returning the ACK, the sender obtains independent account-root and policy-root
+approval for P0 -> P1. It rejects a tampered approval, replays the original renewal
+request/stage, commits or reconciles the original witness proposal, and retries
+the same session/message through the explicitly selected target configuration.
+The receiver observes one durable effect. Local, signed-TCP and mutual-TLS
+carriers run with fixed and recoverable SDK trust in C, Swift and Kotlin.
+
+This workload starts while P0 remains valid and keeps the SDK policy unchanged.
+Its mandatory public reader checks original identities and exact replay; the
+shared native engine verifies signatures. Expired-policy first-use recovery,
+SDK-policy replacement and independent protocol implementations need separate
+qualification. The [integrated checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json)
+records the actual execution and reader controls.
+
 
 ## Explicit peer configuration under the original device
 

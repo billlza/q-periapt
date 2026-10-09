@@ -32,7 +32,8 @@ TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_recon
 def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
-        "artifact/continuity_first_configuration.py", "artifact/continuity_peer_configuration.py",
+        "artifact/continuity_first_configuration.py", "artifact/continuity_configuration_policy.py",
+        "artifact/continuity_peer_configuration.py",
         "artifact/continuity_foreign_account_results.py", "artifact/continuity_foreign_policy.py",
         "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py", "artifact/continuity_device_retirement.py",
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import Foundation
 import QPeriaptContinuity
+import ContinuityConsumerFixtures
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -127,6 +128,69 @@ private func expect(_ code: Int32, _ body: () throws -> Void) throws {
     catch let failure as ContinuityFailure { guard failure.code == code else { throw failure } }
 }
 
+private func hostNumber<T: FixedWidthInteger>(_ value: T) -> [UInt8] {
+    var value=value; return withUnsafeBytes(of: &value) { Array($0) }
+}
+private func policyStatusBytes(_ value: PolicyRenewalStatus) throws -> [UInt8] {
+    func row(_ phase: UInt32,_ operation: PolicyRenewalID,_ statement: PolicyRenewalStatementID,_ target: PolicyCheckpoint,
+             _ reason: UInt32=0,_ roster: RosterCheckpoint?=nil,_ at: UInt64=0) -> [UInt8] {
+        var bytes=hostNumber(phase)+hostNumber(reason)+operation.bytes+statement.bytes
+        bytes += hostNumber(target.version)+target.digest
+        bytes += hostNumber(roster?.version ?? 0)+(roster?.digest ?? [UInt8](repeating:0,count:32))+hostNumber(at)
+        return bytes
+    }
+    switch value {
+    case .absent: return [UInt8](repeating:0,count:160)
+    case let .pending(operation,statement,target): return row(1,operation,statement,target)
+    case let .committed(operation,statement,target): return row(2,operation,statement,target)
+    case let .abandonedUncommitted(operation,statement,target,reason,roster,at): return row(3,operation,statement,target,reason.rawValue,roster,at)
+    }
+}
+private func selectPolicyTarget(_ owner: ContinuityEnrollment,source: URL,path: String,recoverable: Bool) throws {
+    let inputs=source.appendingPathComponent("policy-target",isDirectory:true)
+    let target=try ContinuityConfiguration.prepareOpen(path:path+".policy-target",trust:trust(inputs,recoverable),protocolPolicy:policy(inputs))
+    let result: Result<Void,Error>
+    do { try target.finishOpen(); try target.selectContinuationTarget(for:owner); result = .success(()) }
+    catch { result = .failure(error) }
+    do { try target.close() } catch {
+        switch result { case .success: throw error; case .failure(let original): throw ClientError("\(original); target close also failed: \(error)") }
+    }
+    try result.get()
+}
+private func policyOperation(_ owner: ContinuityEnrollment,source: URL,path: String,recoverable: Bool,carrier: String?,mode: String) throws -> [UInt8] {
+    if mode == "policy-request" {
+        let operation=try PolicyRenewalID(bytes:exact(source,"renewal-operation",32))
+        let request=carrier == nil ? try owner.policyRenewalRequest(operation:operation) : try owner.witnessedPolicyRenewalRequest(operation:operation)
+        return try IndependentRequestFixture.write(request)
+    }
+    if mode == "policy-witness-recover" {
+        guard let retained=try owner.recoverWitnessedPolicyRenewalPreparation() else { throw ClientError("expected retained proposal") }
+        return retained.bytes
+    }
+    if mode != "policy-witness-reconcile" { try selectPolicyTarget(owner,source:source,path:path,recoverable:recoverable) }
+    switch mode {
+    case "policy-witness-prepare": return try owner.prepareWitnessedPolicyRenewal(previous:policy(source)).bytes
+    case "policy-witness-commit", "policy-witness-reconcile":
+        let proposal=try IndependentPolicyProposal(retainedBytes:exact(source,"renewal-proposal",296))
+        let state=mode == "policy-witness-commit" ? try owner.commitWitnessedPolicyRenewal(proposal) : try owner.reconcileWitnessedPolicyRenewal(proposal)
+        return hostNumber(state.rawValue)
+    case "policy-stage", "policy-stage-refused":
+        let request=try IndependentRequestFixture.read(exact(source,"renewal-request",33176))
+        let pin=try AccountPin(account:AccountID(bytes:exact(source,"trusted-account",32)),root:exact(source,"enrollment-root",1985),family:exact(source,"family",32),
+                              checkpoint:RosterCheckpoint(version:counter(exact(source,"trusted-roster-version",8)[...]),digest:exact(source,"trusted-roster-digest",32)))
+        var approvals=try load(source,"renewal-approvals",8192)
+        if mode == "policy-stage-refused" {
+            approvals[approvals.count-1] ^= 1
+            try expect(102) { _ = try owner.stagePolicyRenewal(request:request,originalPin:pin,currentPin:pin,approvals:approvals,previous:policy(source)) }
+            try expect(2) { _ = try owner.status() }
+            return hostNumber(UInt32(102))
+        }
+        return try policyStatusBytes(owner.stagePolicyRenewal(request:request,originalPin:pin,currentPin:pin,approvals:approvals,previous:policy(source)))
+    case "policy-reconcile": return try policyStatusBytes(owner.reconcilePolicyRenewal())
+    default: throw ClientError("policy mode")
+    }
+}
+
 @main
 private struct Main {
     static func main() {
@@ -192,7 +256,7 @@ private struct Main {
         let args = CommandLine.arguments
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send"].contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -201,6 +265,14 @@ private struct Main {
             try checkArcCapacity(source, target, recoverable)
             print("QPC_CONFIGURATION_ARC_PASS")
             return
+        }
+        if mode == "policy-target-create" {
+            let configured=try ContinuityConfiguration.prepareCreate(path:target,input:initial(source,recoverable))
+            let outcome=Result { try configured.finishOpen() }
+            do { try configured.close() } catch {
+                switch outcome { case .success: throw error; case .failure(let original): throw ClientError("\(original); target creation close also failed: \(error)") }
+            }
+            try outcome.get(); print("QPC_CONFIGURATION_POLICY_TARGET"); return
         }
         // The temporary input value can disappear before finishOpen. No borrowed
         // Swift buffer may remain in the C configuration owner after preparation.
@@ -245,7 +317,10 @@ private struct Main {
                 try configuration.close()
                 var bytes = try owner.request()
                 var marker = "QPC_CONFIGURATION_REQUEST_PASS"
-                if mode == "select-target" || mode == "select-target-reject" {
+                if mode.hasPrefix("policy-") {
+                    bytes=try policyOperation(owner,source:source,path:target,recoverable:recoverable,carrier:carrier,mode:mode)
+                    marker="QPC_CONFIGURATION_POLICY_OPERATION"
+                } else if mode == "select-target" || mode == "select-target-reject" {
                     try checkTargetLease(owner, source: source, path: target, recoverable: recoverable, reject: mode == "select-target-reject")
                     registration = nil
                     marker = mode == "select-target" ? "QPC_CONFIGURATION_TARGET_LEASE_PASS" : "QPC_CONFIGURATION_TARGET_FAILURE_PASS"
@@ -267,8 +342,9 @@ private struct Main {
                 } else if mode == "activate-missing" || mode == "activate-bad-receipt" {
                     try expect(mode == "activate-missing" ? 216 : 218) { _ = try owner.activate() }
                     marker = mode == "activate-missing" ? "QPC_CONFIGURATION_WITNESS_REQUIRED" : "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
-                } else if ["connect", "uncertain-send", "retry-send"].contains(mode) {
-                    let active = try owner.activate(); device = active; try owner.close()
+                } else if ["connect", "uncertain-send", "retry-send", "retry-policy"].contains(mode) {
+                    if mode == "retry-policy" { try selectPolicyTarget(owner,source:source,path:target,recoverable:recoverable) }
+                    let active = mode == "retry-policy" ? try owner.activatePolicyRenewal() : try owner.activate(); device = active; try owner.close()
                     bytes = try traffic(active, source: source, mode: mode)
                     marker = mode == "connect" ? "QPC_CONFIGURATION_CONNECTION_PASS" : mode == "uncertain-send" ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED"
                 } else if mode == "activate" {

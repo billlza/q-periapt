@@ -157,13 +157,72 @@ private fun targetLease(enrollment: ContinuityEnrollment, source: Path, path: St
         Reference.reachabilityFence(target)
     }
 }
+private fun policyStatusBytes(value: PolicyRenewalStatus): ByteArray {
+    val b=ByteBuffer.allocate(160).order(java.nio.ByteOrder.nativeOrder())
+    fun checkpoint(version: Counter64,digest: PublicBytes) { b.putLong(java.lang.Long.parseUnsignedLong(version.toString())); b.put(digest.encoded()) }
+    fun record(phase:Int,operation:PolicyRenewalID,statement:PolicyRenewalStatementID,target:PolicyCheckpoint,
+               reason:Int=0,roster:RosterCheckpoint?=null,at:Counter64=Counter64.ZERO) {
+        b.putInt(phase); b.putInt(reason); b.put(operation.encoded()); b.put(statement.encoded()); checkpoint(target.version,target.digest)
+        if(roster==null) b.put(ByteArray(40)) else checkpoint(roster.version,roster.digest)
+        b.putLong(java.lang.Long.parseUnsignedLong(at.toString()))
+    }
+    when(value) {
+        PolicyRenewalStatus.Absent -> b.put(ByteArray(160))
+        is PolicyRenewalStatus.Pending -> record(1,value.operation,value.statement,value.target)
+        is PolicyRenewalStatus.Committed -> record(2,value.operation,value.statement,value.target)
+        is PolicyRenewalStatus.AbandonedUncommitted -> record(3,value.operation,value.statement,value.target,
+            when(value.reason){PolicyRenewalAbandonment.EXPIRED->1;PolicyRenewalAbandonment.ROSTER_ADVANCED->2},value.observedRoster,value.observedAt)
+    }
+    check(!b.hasRemaining()); return b.array()
+}
+private fun selectPolicyTarget(owner:ContinuityEnrollment,source:Path,target:String,recoverable:Boolean) {
+    val input=source.resolve("policy-target")
+    ContinuityConfiguration.prepareOpen("$target.policy-target",trust(input,recoverable),policy(input)).use {
+        it.finishOpen(); it.selectContinuationTarget(owner)
+    }
+}
+private fun policyOperation(owner:ContinuityEnrollment,source:Path,target:String,recoverable:Boolean,carrier:String?,mode:String):ByteArray {
+    if(mode=="policy-request") {
+        val operation=PolicyRenewalID(exact(source,"renewal-operation",32))
+        val request=if(carrier==null) owner.policyRenewalRequest(operation) else owner.witnessedPolicyRenewalRequest(operation)
+        return consumer.IndependentRequestFixture.write(request)
+    }
+    if(mode=="policy-witness-recover") return checkNotNull(owner.recoverWitnessedPolicyRenewalPreparation()).encoded()
+    if(mode!="policy-witness-reconcile") selectPolicyTarget(owner,source,target,recoverable)
+    return when(mode) {
+        "policy-witness-prepare" -> owner.prepareWitnessedPolicyRenewal(policy(source)).encoded()
+        "policy-witness-commit", "policy-witness-reconcile" -> {
+            val proposal=IndependentPolicyProposal.fromRetained(exact(source,"renewal-proposal",296))
+            val state=if(mode=="policy-witness-commit") owner.commitWitnessedPolicyRenewal(proposal) else owner.reconcileWitnessedPolicyRenewal(proposal)
+            ByteBuffer.allocate(4).order(java.nio.ByteOrder.nativeOrder()).putInt(state.code).array()
+        }
+        "policy-stage", "policy-stage-refused" -> {
+            val request=consumer.IndependentRequestFixture.read(exact(source,"renewal-request",33176))
+            val pin=AccountPin(AccountID(exact(source,"trusted-account",32)),exact(source,"enrollment-root",1985),exact(source,"family",32),
+                RosterCheckpoint(counter(exact(source,"trusted-roster-version",8)),exact(source,"trusted-roster-digest",32)))
+            val approvals=load(source,"renewal-approvals",8192)
+            if(mode=="policy-stage-refused") {
+                approvals[approvals.lastIndex]=(approvals.last().toInt() xor 1).toByte()
+                expect(102) { owner.stagePolicyRenewal(request,pin,pin,approvals,policy(source)) }
+                expect(2) { owner.status() }
+                ByteBuffer.allocate(4).order(java.nio.ByteOrder.nativeOrder()).putInt(102).array()
+            } else policyStatusBytes(owner.stagePolicyRenewal(request,pin,pin,approvals,policy(source)))
+        }
+        "policy-reconcile" -> policyStatusBytes(owner.reconcilePolicyRenewal())
+        else -> error("policy mode")
+    }
+}
+
 fun main(args: Array<String>) {
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send")) { "mode" }
+        "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
+    if (mode == "policy-target-create") {
+        prepareInitial(source,target,recoverable,false).use { it.finishOpen() }; println("QPC_CONFIGURATION_POLICY_TARGET"); return
+    }
     val configuration = when (mode) {
         "create", "cancel-create" -> prepareInitial(source, target, recoverable, false)
         "reconcile", "reconcile-refused" -> prepareInitial(source, target, recoverable, true)
@@ -200,6 +259,9 @@ fun main(args: Array<String>) {
                     var bytes = owner.request().encoded()
                     marker = "QPC_CONFIGURATION_REQUEST_PASS"
                     when (mode) {
+                        "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile" -> {
+                            bytes=policyOperation(owner,source,target,recoverable,carrier,mode); marker="QPC_CONFIGURATION_POLICY_OPERATION"
+                        }
                         "select-target", "select-target-reject" -> {
                             targetLease(owner, source, target, recoverable, mode == "select-target-reject"); registration = null
                             marker = if (mode == "select-target") "QPC_CONFIGURATION_TARGET_LEASE_PASS" else "QPC_CONFIGURATION_TARGET_FAILURE_PASS"
@@ -222,8 +284,9 @@ fun main(args: Array<String>) {
                             expect(if (mode == "activate-missing") 216 else 218) { owner.activate().use { it.cancel() } }
                             marker = if (mode == "activate-missing") "QPC_CONFIGURATION_WITNESS_REQUIRED" else "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
                         }
-                        "connect", "uncertain-send", "retry-send" -> {
-                            val active = owner.activate(); device = active; owner.close()
+                        "connect", "uncertain-send", "retry-send", "retry-policy" -> {
+                            if(mode=="retry-policy") selectPolicyTarget(owner,source,target,recoverable)
+                            val active = if(mode=="retry-policy") owner.activatePolicyRenewal() else owner.activate(); device = active; owner.close()
                             bytes = traffic(active, source, mode)
                             marker = when(mode) { "connect" -> "QPC_CONFIGURATION_CONNECTION_PASS"; "uncertain-send" -> "QPC_CONFIGURATION_UNKNOWN_COMMITTED"; else -> "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED" }
                         }

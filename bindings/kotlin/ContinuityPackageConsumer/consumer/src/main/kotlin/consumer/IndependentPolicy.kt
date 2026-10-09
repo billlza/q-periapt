@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 /** Same-host fixture exchange with the C/Rust harness, not a network format.
  * Only public wrapper values are serialized; no native handles/codecs are used. */
-private object IndependentRequestFixture {
+internal object IndependentRequestFixture {
     private fun ByteBuffer.bytes(n: Int) = ByteArray(n).also { get(it) }
     private fun ByteBuffer.counter() = Counter64.parse(java.lang.Long.toUnsignedString(long))
     private fun ByteBuffer.roster() = RosterCheckpoint(counter(), bytes(32))

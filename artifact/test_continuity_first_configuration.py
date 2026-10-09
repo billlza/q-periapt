@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 import continuity_first_configuration as configuration
+from test_continuity_configuration_policy import fixture_values
 
 
 def fixture(root, language="C"):
@@ -14,9 +15,10 @@ def fixture(root, language="C"):
         folder = root / f"{carrier}-{profile}"
         folder.mkdir()
         authority = bytes([index + 1]) * 1985
-        intent = bytes([2]) * 16 + (1).to_bytes(8, "big") + bytes([3]) * 32 + (10).to_bytes(8, "big") + (20).to_bytes(8, "big")
         domain = b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1"
         account = hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain + len(authority).to_bytes(8, "big") + authority).digest()
+        family, policy_values = fixture_values(index, account, carrier)
+        intent = bytes([2]) * 16 + (1).to_bytes(8, "big") + family + (10).to_bytes(8, "big") + (20).to_bytes(8, "big")
         body = b"QPENRQ01" + bytes([index+8])*32 + account + intent[:24] + intent[56:72] + intent[24:56] + bytes([index+16])*1985
         # Reader fixtures contain dummy signature bytes. The reader checks public
         # grammar and replay; only real native execution verifies signatures.
@@ -25,6 +27,7 @@ def fixture(root, language="C"):
                   "manifest.json": json.dumps(dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                                   release_claim_eligible=False)).encode()}
         if carrier != "local": values["genesis.bin"] = (2).to_bytes(4, "big") + bytes([5])*32 + bytes([5])*32 + bytes([6])*64 + bytes([7])*32
+        values.update(policy_values)
         session, message = bytes([index+20])*32, bytes([index+30])*32
         values.update({"session.bin": session, "unknown.bin": session + message,
                        "acknowledged.bin": session + message, "after-traffic.bin": request,
@@ -34,18 +37,33 @@ def fixture(root, language="C"):
             stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
         stdout += configuration.connection_marker(language, carrier, profile) + "\n"
+        stdout += configuration.policy.marker(language, carrier, profile) + "\n"
     return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
 
 
 class FirstConfigurationTests(unittest.TestCase):
+    def test_policy_composition_cannot_fall_back_to_connection_only_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); data = fixture(root)
+            marker = configuration.policy.marker("C", "local", "fixed").encode() + b"\n"
+            for changed in (data.replace(marker, b""), data + marker,
+                            data.replace(b"uncertain_before_update=true", b"uncertain_before_update=false")):
+                with self.assertRaisesRegex(ValueError, "omitted or duplicated"):
+                    configuration.verify_execution(changed, root, language="C")
+            (root / "local-fixed" / "policy-approvals.bin").unlink()
+            with self.assertRaisesRegex(ValueError, "public inventory"):
+                configuration.verify_execution(data, root, language="C")
+
     def test_complete_matrix_and_explicit_language_are_required(self):
         for language in ("C", "Swift", "Kotlin"):
             with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory); data = fixture(root, language)
                 result = configuration.verify_execution(data, root, language=language)
-                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 64)
+                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 166)
                 self.assertEqual(result["local_connection_recovery_profiles"], ["fixed", "recoverable"])
                 self.assertTrue(result["witnessed_connection_composition"])
+                self.assertTrue(result["policy_renewal_composition"])
+                self.assertFalse(result["sdk_policy_replacement_qualified"])
                 self.assertFalse(result["release_claim_eligible"])
                 for changed in (data.replace(b"2 passed", b"1 passed"), data.replace(b"0 ignored", b"1 ignored"),
                                 data.replace(b"carrier=tls", b"carrier=other"), data + data, data.replace(b"INDEPENDENT_", b"OMITTED_")):
@@ -152,6 +170,7 @@ class FirstConfigurationTests(unittest.TestCase):
     def test_each_scenario_requires_its_own_registration(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); data = fixture(root)
-            for name in ("request.bin", "replayed.bin", "root.bin", "intent.bin", "after-traffic.bin"):
-                (root/'local-recoverable'/name).write_bytes((root/'local-fixed'/name).read_bytes())
+            for path in (root/'local-fixed').iterdir():
+                if path.name != "manifest.json":
+                    (root/'local-recoverable'/path.name).write_bytes(path.read_bytes())
             with self.assertRaisesRegex(ValueError, "reused"): configuration.verify_execution(data, root, language="C")

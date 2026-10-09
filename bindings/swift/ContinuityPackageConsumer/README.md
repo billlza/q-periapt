@@ -34,6 +34,14 @@ existing two-root renewal/continuation transaction afterward. Closing the
 transferred source cannot close the registration or keep its lease alive. All
 interfaces remain synchronous, with explicit concurrent cancellation and close.
 
+The installed `FirstConfigurationClient` exercises that transition after an
+original message's application effect commits but its ACK is lost. It obtains
+independent two-root approval, adopts the original policy-renewal operation and
+recovers the same session/message with one receiver effect. Both trust modes and
+all three carriers are covered by the [first-use composition checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json).
+The SDK policy remains unchanged and P0 is still valid when renewal starts;
+expired-policy recovery and SDK-policy replacement are separate qualifications.
+
 The following legacy registration route assumes already provisioned native
 configuration and wrapping-key inputs:
 

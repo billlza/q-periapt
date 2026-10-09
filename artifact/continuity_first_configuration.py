@@ -9,6 +9,7 @@ import os
 import re
 
 import continuity_c_consumer as c
+import continuity_configuration_policy as policy
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
@@ -16,7 +17,7 @@ TESTS = frozenset({
     "independent_c_configuration_creates_and_resumes_original_identity",
     "independent_c_required_witness_registration_uses_original_host_trust",
 })
-SCOPE = "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
+SCOPE = "unpublished explicit configuration, original registration and message recovery across independent protocol-policy renewal; installed foreign process and shared native Rust engine; same host"
 
 
 def connection_marker(language: str, carrier: str, profile: str) -> str:
@@ -38,22 +39,26 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         for carrier in ("signed", "tls") for profile in ("fixed", "recoverable")}
     expected |= {connection_marker(language, carrier, profile)
                  for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
+    expected |= {policy.marker(language, carrier, profile)
+                 for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
     markers = re.findall(r"^INDEPENDENT_.*$", text, re.MULTILINE)
-    sdk.require(len(markers) == 12 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
+    sdk.require(len(markers) == 18 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
     directories = {f"{carrier}-{profile}" for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
     sdk.require(not evidence.is_symlink() and {p.name for p in evidence.iterdir()} == directories,
                 "configuration public scenario set differs")
     hashes = {}
     requests = set()
+    policy_operations = set()
     for name in sorted(directories):
         carrier, profile = name.split("-")
         folder = evidence / name
         names = {"manifest.json", "request.bin", "replayed.bin", "root.bin", "intent.bin"}
         if carrier != "local": names.add("genesis.bin")
         names |= {"session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"}
+        names |= policy.names(carrier)
         sdk.require(folder.is_dir() and not folder.is_symlink() and {p.name for p in folder.iterdir()} == names,
                     "configuration public inventory differs or includes private material")
-        data = {leaf: sdk.snapshot(folder / leaf, maximum=16384).data for leaf in names}
+        data = {leaf: sdk.snapshot(folder / leaf, maximum=policy.REQUEST_BYTES).data for leaf in names}
         manifest = parse_strict_json_bytes(data["manifest.json"], label="configuration public metadata")
         sdk.require(manifest == dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                      release_claim_eligible=False) and type(manifest["schema_version"]) is int
@@ -88,12 +93,15 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
                         and genesis[4:36] == genesis[36:68]
                         and all(any(genesis[i:i+32]) for i in (4, 36, 68, 100, 132)),
                         "configuration public genesis is truncated or misbound")
+        policy_operations.add(policy.verify(data, carrier=carrier, account=account, family=intent[24:56]))
         hashes.update({name + "/" + leaf: hashlib.sha256(value).hexdigest() for leaf, value in data.items()})
     sdk.require(len(requests) == 6, "configuration scenarios reused a device registration request")
+    sdk.require(len(policy_operations) == 6, "configuration scenarios reused a policy renewal operation")
     return dict(completed=True, scope=SCOPE, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes,
                 local_connection_recovery_profiles=["fixed", "recoverable"],
                 witnessed_connection_composition=True,
+                policy_renewal_composition=True, sdk_policy_replacement_qualified=False,
                 extra_owner_cases=language != "C", signature_verification="shared native execution only")
 
 

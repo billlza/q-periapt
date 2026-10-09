@@ -148,10 +148,14 @@ static int guard_pages(void) {
     puts("QPC_CONFIGURATION_HEADER_GUARD_PASS");
     return 0;
 }
+#include "configuration_policy_client.c"
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--guard") == 0) return guard_pages();
     if (argc != 6 && argc != 7) return 64;
-    int create = strcmp(argv[1], "create") == 0;
+    int target_create = strcmp(argv[1], "policy-target-create") == 0;
+    int policy = !strcmp(argv[1],"policy-stage-refused") || !strcmp(argv[1],"policy-request") || !strcmp(argv[1],"policy-stage") || !strcmp(argv[1],"policy-reconcile") || !strcmp(argv[1],"policy-witness-prepare") || !strcmp(argv[1],"policy-witness-recover") || !strcmp(argv[1],"policy-witness-commit") || !strcmp(argv[1],"policy-witness-reconcile");
+    int continued = !strcmp(argv[1],"retry-policy");
+    int create = strcmp(argv[1], "create") == 0 || target_create;
     int prepare = strcmp(argv[1], "prepare") == 0;
     int activate = strcmp(argv[1], "activate") == 0;
     int missing = strcmp(argv[1], "activate-missing") == 0;
@@ -159,8 +163,8 @@ int main(int argc, char **argv) {
     int bad_receipt = strcmp(argv[1], "activate-bad-receipt") == 0;
     int cancel = strcmp(argv[1], "cancel") == 0;
     int local = strcmp(argv[1], "enroll-local") == 0;
-    int connection = strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
-    if (!create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
+    int connection = continued || strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
+    if (!policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
     unsigned carrier = argc == 6 ? 0u : strcmp(argv[6], "signed") == 0 ? 1u : strcmp(argv[6], "tls") == 0 ? 2u : 3u;
     if (carrier == 3u || (missing && carrier != 0u) || (wrong && carrier == 0u)) return 64;
     int recoverable = strcmp(argv[2], "recoverable") == 0;
@@ -204,6 +208,7 @@ int main(int argc, char **argv) {
     /* Preparation copied all input bytes; no borrowed buffer remains live. */
     clear_allocations();
     if (checked(qpc_owner_v1_finish_open(handle, &error), &error)) goto done;
+    if (target_create) { result=0; goto done; }
     qpc_configuration_blob_v1 root = load(source, "enrollment-root", 1985);
     qpc_configuration_blob_v1 intent_bytes = load(source, "enrollment-intent", 72);
     if (!exact(root, 1985) || !exact(intent_bytes, 72)) goto done;
@@ -241,9 +246,13 @@ int main(int argc, char **argv) {
     qpc_enrollment_request_v1 request = {0};
     if (checked(qpc_enrollment_v1_request(handle, &request, &error), &error)) goto done;
     if (!request.length || request.length > sizeof(request.bytes)) goto done;
-    uint8_t genesis[164], delivered[64];
+    uint8_t genesis[164], delivered[64], policy_output[sizeof(qpc_policy_renewal_request_v1)];
     const uint8_t *written_bytes = request.bytes;
     size_t written_length = request.length;
+    if (policy) {
+        if(policy_operation(handle,source,target,recoverable,carrier,argv[1],policy_output,&written_length,&error)) goto done;
+        written_bytes=policy_output;
+    }
     if (prepare || local) {
         qpc_configuration_blob_v1 root_again = load(source, "enrollment-root", 1985);
         qpc_configuration_blob_v1 certificate = load(source, "grant-certificate", 8192);
@@ -268,7 +277,8 @@ int main(int argc, char **argv) {
         if (!local) { written_bytes = genesis; written_length = sizeof(genesis); }
     }
     if (activate || missing || bad_receipt || local || connection) {
-        int32_t activated = qpc_enrollment_v1_activate(handle, &error);
+        if(continued && select_policy_target(handle,source,target,recoverable,&error)) goto done;
+        int32_t activated = continued ? qpc_enrollment_v1_activate_policy_renewal(handle,&error) : qpc_enrollment_v1_activate(handle, &error);
         if (missing) {
             if (activated != QPC_ANCHOR_REQUIRED) { (void)checked(activated, &error); goto done; }
         } else if (bad_receipt) {
@@ -290,7 +300,7 @@ int main(int argc, char **argv) {
 done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
-    if (!result) puts(connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+    if (!result) puts(target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
         strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
         local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :

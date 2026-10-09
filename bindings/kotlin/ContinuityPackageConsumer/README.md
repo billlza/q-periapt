@@ -818,3 +818,12 @@ own snapshot; FFM key buffers are explicitly cleared before their confined arena
 is closed. This cannot erase caller arrays or historical copies retained by JVM
 implementation details. The legacy file configuration entry points remain for
 existing consumers; new integrations should use the explicit configuration path.
+
+The installed first-use workload combines that path with independently approved
+protocol-policy renewal after the original message has an uncertain delivery
+result. It then recovers the same session/message and observes one receiver
+effect. Fixed/recoverable trust and local/signed-TCP/mutual-TLS carriers run under
+both Serial and G1 GC with Debug and Release native libraries; see the
+[integrated checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json).
+P0 is valid when renewal starts and the SDK policy is unchanged. Expired-policy
+first-use recovery and SDK-policy replacement still need their own qualification.

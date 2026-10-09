@@ -589,3 +589,6 @@ fn publication_workload(
     println!("C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true");
     Ok(())
 }
+
+#[path = "common/policy_request.rs"]
+mod policy_request;

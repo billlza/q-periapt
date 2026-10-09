@@ -135,10 +135,11 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_device_replacement as replacement
         import continuity_device_retirement as retirement
         import continuity_first_configuration as configuration
+        import continuity_configuration_policy as configuration_policy
         import continuity_peer_configuration as peers
         sources = package.source_inputs()['files']
         for module in (signed, tls, loss, delivery, setup, renewal, enrollment, c_enrollment, witnessed_renewal, policy_expiry, cancellation, commit_error,
-                       foreign_account, foreign_policy, foreign_roster, peer_preprocessing, replacement, retirement, configuration, peers):
+                       foreign_account, foreign_policy, foreign_roster, peer_preprocessing, replacement, retirement, configuration, configuration_policy, peers):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):

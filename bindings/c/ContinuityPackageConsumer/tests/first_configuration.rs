@@ -13,10 +13,14 @@ use std::{
 use zeroize::Zeroizing;
 #[path = "common/first_connection.rs"]
 mod first_connection;
+#[path = "common/first_policy.rs"]
+mod first_policy;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "common/peer_bundle.rs"]
 mod peer_bundle;
+#[path = "common/policy_request.rs"]
+mod policy_request;
 #[path = "common/receiver_process.rs"]
 mod receiver_process;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -90,6 +94,16 @@ fn run_carrier(
         String::from_utf8_lossy(&stderr)
     );
     let expected = match mode {
+        "policy-request"
+        | "policy-stage-refused"
+        | "policy-stage"
+        | "policy-reconcile"
+        | "policy-witness-prepare"
+        | "policy-witness-recover"
+        | "policy-witness-commit"
+        | "policy-witness-reconcile" => "QPC_CONFIGURATION_POLICY_OPERATION\n",
+        "policy-target-create" => "QPC_CONFIGURATION_POLICY_TARGET\n",
+        "retry-policy" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
         "enroll-local" => "QPC_CONFIGURATION_LOCAL_ACTIVE\n",
         "connect" => "QPC_CONFIGURATION_CONNECTION_PASS\n",
         "uncertain-send" => "QPC_CONFIGURATION_UNKNOWN_COMMITTED\n",
@@ -159,6 +173,65 @@ fn export_public(
             &target.join("genesis.bin"),
             &fs::read(base.join("genesis"))?,
         )?;
+    }
+    for (name, path) in [
+        ("policy-request.bin", source.join("renewal-request")),
+        (
+            "policy-request-replayed.bin",
+            base.join("renewal-request-replayed"),
+        ),
+        ("policy-approvals.bin", source.join("renewal-approvals")),
+        ("policy-statement.bin", base.join("renewal-statement")),
+        ("policy-root.bin", source.join("policy-root")),
+        ("original-policy.bin", source.join("protocol-policy")),
+        (
+            "target-policy.bin",
+            source.join("policy-target/protocol-policy"),
+        ),
+        (
+            "target-version.bin",
+            source.join("policy-target/policy-version"),
+        ),
+        (
+            "target-digest.bin",
+            source.join("policy-target/policy-digest"),
+        ),
+        ("policy-refused.bin", base.join("policy-refused")),
+        (
+            "policy-after-refusal.bin",
+            base.join("policy-after-refusal"),
+        ),
+        ("policy-staged.bin", base.join("policy-staged")),
+        (
+            "policy-stage-replayed.bin",
+            base.join("policy-stage-replayed"),
+        ),
+    ] {
+        publish_private_bytes(&target.join(name), &fs::read(path)?)?;
+    }
+    if carrier == "local" {
+        for name in ["policy-committed", "policy-commit-replayed"] {
+            publish_private_bytes(
+                &target.join(format!("{name}.bin")),
+                &fs::read(base.join(name))?,
+            )?;
+        }
+    } else {
+        publish_private_bytes(
+            &target.join("policy-proposal.bin"),
+            &fs::read(source.join("renewal-proposal"))?,
+        )?;
+        for name in [
+            "proposal-replayed",
+            "proposal-recovered",
+            "witness-applied",
+            "witness-reconciled",
+        ] {
+            publish_private_bytes(
+                &target.join(format!("{name}.bin")),
+                &fs::read(base.join(name))?,
+            )?;
+        }
     }
     // All interpolated values are selected from the closed test enums above.
     let metadata = format!(
@@ -392,7 +465,17 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
             carrier: None,
         };
         connection.prepare(&authority, &certificate, &roster, None)?;
-        connection.run(&original)?;
+        connection.run_with_policy(&original, &mut || {
+            first_policy::Renewal {
+                account_root: &authority,
+                policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
+                certificate: &certificate,
+                roster: &roster,
+                reference: &reference.initiator,
+                witness: None,
+            }
+            .run(&connection)
+        })?;
         export_public(&source, &base, language, profile, "local")?;
         println!(
             "\nINDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
@@ -595,6 +678,10 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 .lock()
                 .map_err(|_| "witness store")?
                 .enroll(&genesis, &device, &policy, fixture::now()?)?;
+            // The control-plane enrollment has finished; release its exclusive
+            // reference SDK lease before the separate policy operator opens it.
+            policy.close();
+            sdk.close();
             let connection = first_connection::Case {
                 client: &client,
                 source: &source,
@@ -665,7 +752,17 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 Some(carrier),
             )?;
             assert_eq!(fs::read(base.join("active-reopened"))?, request);
-            connection.run(&request)?;
+            connection.run_with_policy(&request, &mut || {
+                first_policy::Renewal {
+                    account_root: &authority,
+                    policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
+                    certificate: &certificate,
+                    roster: &roster,
+                    reference: &reference.initiator,
+                    witness: Some(&witness.configured),
+                }
+                .run(&connection)
+            })?;
             if let Some(server) = &mut tls {
                 assert!(server.admitted.load(std::sync::atomic::Ordering::Acquire) >= 2);
                 assert_eq!(
@@ -685,8 +782,6 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 drop(records);
             }
             witness.join()?;
-            policy.close();
-            sdk.close();
             export_public(&source, &base, language, profile, carrier)?;
             println!("\nINDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true");
         }
