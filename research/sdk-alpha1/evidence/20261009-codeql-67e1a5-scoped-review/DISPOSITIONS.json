@@ -1,0 +1,79 @@
+{
+  "recorded_at": "2026-10-09T08:40:44.628248+00:00",
+  "analysis_source": "67e1a5b03bf263ab175bc2261e4b70413ce8d79f",
+  "sarif_results_total": 809,
+  "reviewed_results": 7,
+  "without_completed_disposition_in_this_record": 802,
+  "entries": [
+    {
+      "results": [
+        553,
+        554
+      ],
+      "rule": "rust/uncontrolled-allocation-size",
+      "disposition": "bounded-command-input",
+      "reason": "The only two calls to private paired() pass n from main after rejecting values outside 100..=5000. Two Vec<u128> element capacities are jointly bounded by 160000 bytes. CLI parse failure returns before allocation. No product or query change is justified by the reported unbounded-size claim.",
+      "source_locations": [
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:127",
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:132",
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:158",
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:159",
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:185",
+        "crates/q-periapt-ffi/examples/sdk_path_perf.rs:198"
+      ]
+    },
+    {
+      "results": [
+        720,
+        721
+      ],
+      "rule": "rust/hard-coded-cryptographic-value",
+      "disposition": "control-boolean-is-not-key-material",
+      "reason": "missing() returns Result<bool> used only in the branch condition of Enrollment::signer(). Both branches return a DeviceSigningKey opened/provisioned using the separately loaded JournalKey; the boolean is not serialized or converted to cryptographic bytes. The two named sinks both initialize journal AEAD from key.0.as_bytes(), an opaque JournalKey supplied to the journal. Production JournalKey construction fills all 32 bytes with getrandom or read_exact from the protected key file before returning. The reported taint jump from the branch condition to the returned owner and its journal key is not a concrete key-value flow. All two named sinks and all four supplied traces per result were checked.",
+      "source_locations": [
+        "research/continuity-identity-candidate/src/installation.rs:272",
+        "research/continuity-identity-candidate/src/enrollment.rs:481",
+        "research/continuity-identity-candidate/src/enrollment.rs:489",
+        "research/continuity-identity-candidate/src/enrollment/renewal.rs:478",
+        "research/continuity-identity-candidate/src/durable.rs:215",
+        "research/continuity-identity-candidate/src/durable.rs:266",
+        "research/continuity-identity-candidate/src/durable.rs:322",
+        "research/continuity-identity-candidate/src/durable.rs:982",
+        "research/continuity-identity-candidate/src/durable.rs:1017"
+      ]
+    },
+    {
+      "results": [
+        555
+      ],
+      "rule": "rust/cleartext-logging",
+      "disposition": "no-logging-operation",
+      "reason": "The sole reported operation is certificates.remove(0), where certificates has concrete Vec<Vec<u8>> type containing issued public certificates. It removes/drops the local member from an owned vector; it is not a logger, formatting call or output sink. The sole trace starts and ends on this expression.",
+      "source_locations": [
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:39",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:44",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:123"
+      ]
+    },
+    {
+      "results": [
+        587,
+        588
+      ],
+      "rule": "rust/cleartext-logging",
+      "disposition": "explicit-test-metadata-projection",
+      "reason": "Both reported send_account_message results reach logging only through Vec::len(). Neither formatted expression passes the result vector, member output or plaintext bytes. The other fields are process-cut labels, boolean fixture mode, fixed sample/size choices and elapsed time. In result588, plaintext length is selected from a fixed boundary-test table and plaintext bytes are synthetic 0x5a, not application input. This is not an endorsement of logging arbitrary production message metadata.",
+      "source_locations": [
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout/process.rs:236",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout/process.rs:257",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:321",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:499",
+        "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs:580"
+      ]
+    }
+  ],
+  "scope": "Internal source/data-flow review only. No new runtime test, no whole-program safety proof, no remote dismissal and no query suppression. Existing host-provided key-quality, entropy health, filesystem and physical erasure assumptions remain separate.",
+  "product_code_changed": false,
+  "remote_dismissal": false,
+  "query_changed": false
+}

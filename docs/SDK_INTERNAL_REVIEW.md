@@ -15,6 +15,17 @@ results. These counts have different scopes. The complete inventory and source
 identity are retained; this checkpoint completes no new dispositions. Earlier
 scoped conclusions below remain tied to their original analyses.
 
+The [2026-10-09 scoped follow-up](../research/sdk-alpha1/evidence/20261009-codeql-67e1a5-scoped-review/README.md)
+completes seven dispositions in that same 809-result analysis: two bounded
+benchmark allocations, two boolean branch conditions reported as journal keys,
+one public-certificate vector removal reported as logging, and two test-only
+metadata projections. The original results, every supplied flow, both named
+key sinks and the 13 inspected source files are retained. All 13 comparison-file
+hashes still match local `dc1e41f7`; the original analysis and comparison identities
+remain explicit. **802 results still lack a completed disposition in this
+record.** No runtime test, remote dismissal, query suppression or passing aggregate
+security review is claimed.
+
 ## 2026-10-08 scoped CodeQL follow-up
 
 The [source-bound SARIF review](../research/sdk-alpha1/evidence/20261008-codeql-scoped-triage/README.md)
