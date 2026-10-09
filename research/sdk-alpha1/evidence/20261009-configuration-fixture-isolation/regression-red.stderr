@@ -1,0 +1,19 @@
+test_configuration_workload_does_not_reuse_previous_private_fixture_directory (artifact.test_continuity_first_configuration.FirstConfigurationTests.test_configuration_workload_does_not_reuse_previous_private_fixture_directory) ... FAIL
+
+======================================================================
+FAIL: test_configuration_workload_does_not_reuse_previous_private_fixture_directory (artifact.test_continuity_first_configuration.FirstConfigurationTests.test_configuration_workload_does_not_reuse_previous_private_fixture_directory)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_continuity_first_configuration.py", line 78, in test_configuration_workload_does_not_reuse_previous_private_fixture_directory
+    checked = configuration._qualify(outside, output, "debug", original, helper, client, run, language="C")
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/continuity_first_configuration.py", line 92, in _qualify
+    stdout = run([str(helper), "independent_c_", "--nocapture", "--test-threads=1"], label, runtime=environment)
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_continuity_first_configuration.py", line 74, in run
+    self.assertNotIn("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", runtime)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'QPERIAPT_PUBLIC_SERVICE_EVIDENCE' unexpectedly found in {'QPERIAPT_PUBLIC_SERVICE_EVIDENCE': '/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/tmpvbaha0fe/previous', 'UNRELATED_SETTING': 'retained', 'QPC_CONFIGURATION_CLIENT': '/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/tmpvbaha0fe/client', 'QPC_CONFIGURATION_LANGUAGE': 'C', 'QPERIAPT_CONFIGURATION_EVIDENCE': '/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/tmpvbaha0fe/outside/configuration-c-debug'}
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+FAILED (failures=1)

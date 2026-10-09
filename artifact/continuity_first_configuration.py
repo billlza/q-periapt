@@ -89,6 +89,10 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
     identities = {name: sdk.snapshot(path, maximum=c.MAX_BINARY) for name, path in (("helper", helper), ("client", client))}
     environment = dict(runtime, QPC_CONFIGURATION_CLIENT=str(client), QPC_CONFIGURATION_LANGUAGE=language,
                        QPERIAPT_CONFIGURATION_EVIDENCE=str(evidence))
+    # The preceding connection workload may retain its private fixture directory.
+    # Each configuration scenario creates a fresh private fixture and exports only
+    # the selected public records through its own evidence selector above.
+    environment.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
     stdout = run([str(helper), "independent_c_", "--nocapture", "--test-threads=1"], label, runtime=environment)
     checked = verify_execution(stdout, evidence, language=language)
     exported = output / "configuration-public" / language.lower() / profile / (collector.lower() or "default")

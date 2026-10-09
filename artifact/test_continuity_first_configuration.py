@@ -62,6 +62,24 @@ class FirstConfigurationTests(unittest.TestCase):
                 root = Path(directory); data = fixture(root); (root/'local-fixed'/name).write_bytes(b"not public")
                 with self.assertRaises(ValueError): configuration.verify_execution(data, root, language="C")
 
+    def test_configuration_workload_does_not_reuse_previous_private_fixture_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve(); outside = root / "outside"; outside.mkdir()
+            output = root / "output"; output.mkdir()
+            previous = root / "previous"; previous.mkdir()
+            helper = root / "helper"; helper.write_bytes(b"helper identity")
+            client = root / "client"; client.write_bytes(b"client identity")
+            original = {"QPERIAPT_PUBLIC_SERVICE_EVIDENCE": str(previous), "UNRELATED_SETTING": "retained"}
+            def run(command, label, *, runtime):
+                self.assertNotIn("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", runtime)
+                self.assertEqual(runtime["UNRELATED_SETTING"], "retained")
+                self.assertEqual(runtime["QPC_CONFIGURATION_CLIENT"], str(client))
+                return fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]))
+            checked = configuration._qualify(outside, output, "debug", original, helper, client, run, language="C")
+            self.assertTrue(checked["completed"])
+            self.assertEqual(original["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"], str(previous))
+            self.assertEqual(list(previous.iterdir()), [])
+
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()
         for section, prefix in (
