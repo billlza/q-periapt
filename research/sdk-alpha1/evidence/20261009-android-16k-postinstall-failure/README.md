@@ -41,3 +41,10 @@ here. A full local replay of its runtime closure was not performed.
 No application, emulator, ADB, timeout, ownership check or retry behavior was
 changed. No new CI run was requested to obtain the successful comparison.
 The failure's cause and stable Android 16 KiB acceptance remain open.
+
+The subsequent [native Linux host-streaming experiment](../20261009-android-host-streaming/README.md)
+passes 13 controlled real-child cases with the same APK length and unchanged
+bounded reader. It does not reproduce the simple premature-reader-exit or
+fragment-loss hypotheses. Zero-exit early EOF still produces a short file,
+which the existing exact-size/hash requirement refuses. This experiment does
+not exercise ADB or establish the cause of the hosted transport disconnect.
