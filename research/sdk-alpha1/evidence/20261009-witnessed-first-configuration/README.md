@@ -59,3 +59,12 @@ The two shared Rust helpers are required members of the 444-file source census.
 This is component evidence. A fresh complete installed distribution, final-commit
 CI, continued-policy composition, independent protocol implementation, physical
 and minimum-OS acceptance and the broader 0.2.0 release gates remain separate.
+
+The subsequent whole-package review found that its source identity had omitted
+the newly required first-configuration and explicit-peer collectors. The existing
+closed reader-inventory test was extended and failed for both missing files.
+Adding both files to the producer's before/after identity fixed the omission;
+27 package/configuration/peer-reader tests passed. `SOURCE_BINDING.json` and the
+compressed red/green logs retain that result. This fixes provenance coverage;
+it does not change SDK runtime authorization or make a prior full-package run
+retroactively cover those inputs.
