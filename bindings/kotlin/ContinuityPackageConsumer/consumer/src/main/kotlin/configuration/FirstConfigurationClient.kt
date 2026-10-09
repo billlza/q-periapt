@@ -58,6 +58,29 @@ private fun <T> withWitness(source: Path, carrier: String?, wrong: Boolean, body
             load(source, "witness-tls-name", 128).decodeToString(throwOnInvalidSequence = true), local))
     }
 }
+private fun traffic(device: ContinuityDevice, source: Path, mode: String): ByteArray {
+    val input = consumer.peerConfiguration(source.resolve("peer").toString())
+    val address = load(source,"connection-address",128).decodeToString(throwOnInvalidSequence = true)
+    val session = if (mode == "connect") null else SessionID(exact(source,"connection-session",32))
+    val pending = if (session == null) device.preparePeer(input,PrekeyQuality.ONE_TIME_BOTH,BootstrapRole.INITIATOR)
+        else device.preparePeerReopen(input,PrekeyQuality.ONE_TIME_BOTH,BootstrapRole.INITIATOR,session)
+    return pending.use { peer ->
+        peer.finishOpen()
+        if (session == null) peer.establish(address,InitiationID(exact(source,"connection-initiation",32))).session.encoded()
+        else {
+            val uncertain = mode == "uncertain-send"
+            val message = if (uncertain) peer.nextMessage(session) else MessageID(exact(source,"connection-message",32))
+            try {
+                val sent = peer.send(address,session,message,"first configuration payload".encodeToByteArray(),"configuration-v1".encodeToByteArray())
+                check(!uncertain && sent.consumption == Consumption.CONFIRMED) { "incorrect delivery result" }
+            } catch (failure: ContinuityFailure) {
+                if (!uncertain || failure.code !in setOf(303,309,310,311)) throw failure
+            }
+            check(peer.messageStatus(session,message) == if (uncertain) MessageStatus.COMMITTED else MessageStatus.ACKNOWLEDGED) { "original message status differs" }
+            session.encoded() + message.encoded()
+        }
+    }
+}
 private fun expect(code: Int, body: () -> Unit) {
     try { body(); error("expected native refusal $code") } catch (failure: ContinuityFailure) {
         if (failure.code != code) throw failure
@@ -138,7 +161,7 @@ fun main(args: Array<String>) {
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel")) { "mode" }
+        "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send")) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
     val configuration = when (mode) {
@@ -181,18 +204,28 @@ fun main(args: Array<String>) {
                             targetLease(owner, source, target, recoverable, mode == "select-target-reject"); registration = null
                             marker = if (mode == "select-target") "QPC_CONFIGURATION_TARGET_LEASE_PASS" else "QPC_CONFIGURATION_TARGET_FAILURE_PASS"
                         }
-                        "prepare" -> {
+                        "prepare", "enroll-local" -> {
                             val pin = AccountPin(AccountID(exact(source, "trusted-account", 32)), exact(source, "enrollment-root", 1985), intent.family.encoded(),
                                 RosterCheckpoint(counter(exact(source, "trusted-roster-version", 8)), exact(source, "trusted-roster-digest", 32)))
                             val journal = owner.accept(load(source, "grant-certificate", 8192), load(source, "grant-roster", 65536), pin)
                             val prepared = owner.prepareStorage()
-                            check(prepared is InstallationPreparation.RequiresEnrollment && prepared.genesis.journal == journal)
-                            bytes = byteArrayOf(0, 0, 0, 2) + journal.encoded() + prepared.genesis.subject.encoded() + prepared.genesis.imageDigest.encoded()
-                            marker = "QPC_CONFIGURATION_GENESIS_PASS"
+                            if (mode == "enroll-local") {
+                                check(prepared is InstallationPreparation.Local && prepared.journal == journal)
+                                device = owner.activate(); owner.close(); marker = "QPC_CONFIGURATION_LOCAL_ACTIVE"
+                            } else {
+                                check(prepared is InstallationPreparation.RequiresEnrollment && prepared.genesis.journal == journal)
+                                bytes = byteArrayOf(0, 0, 0, 2) + journal.encoded() + prepared.genesis.subject.encoded() + prepared.genesis.imageDigest.encoded()
+                                marker = "QPC_CONFIGURATION_GENESIS_PASS"
+                            }
                         }
                         "activate-missing", "activate-bad-receipt" -> {
                             expect(if (mode == "activate-missing") 216 else 218) { owner.activate().use { it.cancel() } }
                             marker = if (mode == "activate-missing") "QPC_CONFIGURATION_WITNESS_REQUIRED" else "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
+                        }
+                        "connect", "uncertain-send", "retry-send" -> {
+                            val active = owner.activate(); device = active; owner.close()
+                            bytes = traffic(active, source, mode)
+                            marker = when(mode) { "connect" -> "QPC_CONFIGURATION_CONNECTION_PASS"; "uncertain-send" -> "QPC_CONFIGURATION_UNKNOWN_COMMITTED"; else -> "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED" }
                         }
                         "activate" -> { device = owner.activate(); owner.close(); marker = "QPC_CONFIGURATION_ACTIVATION_PASS" }
                     }

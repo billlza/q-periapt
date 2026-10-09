@@ -80,6 +80,48 @@ private func witness(_ source: URL, _ carrier: String?, wrong: Bool) throws -> C
         peerCertificate: load(source, "witness-tls-peer", 8192), serverName: name,
         localIdentity: LocalTlsIdentity(certificate: load(source, "witness-tls-cert", 8192), privateKey: load(source, "witness-tls-key", 8192)))
 }
+private func peerInput(_ source: URL) throws -> PeerConfiguration {
+    let path = source.appendingPathComponent("peer", isDirectory: true)
+    func device(_ prefix: String) throws -> PeerDeviceExpectation {
+        let pin = try AccountPin(account: AccountID(bytes: exact(path, prefix + "-account", 32)),
+            root: exact(path, prefix + "-root", 1985), family: exact(path, "family", 32),
+            checkpoint: RosterCheckpoint(version: counter(exact(path, prefix + "-roster-version", 8)[...]), digest: exact(path, prefix + "-roster-digest", 32)))
+        return try PeerDeviceExpectation(account: pin, device: exact(path, prefix + "-device", 16), generation: counter(exact(path, prefix + "-generation", 8)[...]))
+    }
+    guard let name = String(bytes: try load(path, "tls-peer-name", 128), encoding: .utf8) else { throw ClientError("peer name UTF-8") }
+    return try PeerConfiguration(initiator: device("initiator"), responder: device("responder"), directory: exact(path, "directory", 32),
+        bundle: load(path, "bootstrap.bundle", 65536), tlsPeerCertificate: load(path, "tls-peer", 8192), tlsPeerName: name)
+}
+private func traffic(_ device: ContinuityDevice, source: URL, mode: String) throws -> [UInt8] {
+    let input = try peerInput(source)
+    guard let address = String(bytes: try load(source, "connection-address", 128), encoding: .utf8) else { throw ClientError("address UTF-8") }
+    let original: SessionID? = mode == "connect" ? nil : try SessionID(bytes: exact(source, "connection-session", 32))
+    let peer: ContinuityOwner
+    if let original { peer = try device.preparePeerReopen(configuration: input, quality: .oneTimeBoth, role: .initiator, session: original) }
+    else { peer = try device.preparePeer(configuration: input, quality: .oneTimeBoth, role: .initiator) }
+    var result: Result<[UInt8], Error>
+    do {
+        try peer.finishOpen()
+        if let session = original {
+            let uncertain = mode == "uncertain-send"
+            let message = uncertain ? try peer.nextMessage(session: session) : try MessageID(bytes: exact(source, "connection-message", 32))
+            do {
+                let sent = try peer.send(peer: address, session: session, message: message, plaintext: Array("first configuration payload".utf8), associatedData: Array("configuration-v1".utf8))
+                guard !uncertain, sent.consumption == .confirmed else { throw ClientError("incorrect delivery result") }
+            } catch let failure as ContinuityFailure {
+                guard uncertain, [303, 309, 310, 311].contains(failure.code) else { throw failure }
+            }
+            guard try peer.status(session: session, message: message) == (uncertain ? .committed : .acknowledged) else { throw ClientError("original message status differs") }
+            result = .success(session.bytes + message.bytes)
+        } else {
+            result = .success(try peer.establish(peer: address, request: InitiationID(bytes: exact(source, "connection-initiation", 32))).session.bytes)
+        }
+    } catch { result = .failure(error) }
+    do { try peer.close() } catch {
+        switch result { case .success: throw error; case .failure(let original): throw ClientError("\(original); peer close also failed: \(error)") }
+    }
+    return try result.get()
+}
 private func expect(_ code: Int32, _ body: () throws -> Void) throws {
     do { try body(); throw ClientError("expected native refusal \(code)") }
     catch let failure as ContinuityFailure { guard failure.code == code else { throw failure } }
@@ -150,7 +192,7 @@ private struct Main {
         let args = CommandLine.arguments
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel"].contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send"].contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -207,18 +249,28 @@ private struct Main {
                     try checkTargetLease(owner, source: source, path: target, recoverable: recoverable, reject: mode == "select-target-reject")
                     registration = nil
                     marker = mode == "select-target" ? "QPC_CONFIGURATION_TARGET_LEASE_PASS" : "QPC_CONFIGURATION_TARGET_FAILURE_PASS"
-                } else if mode == "prepare" {
+                } else if mode == "prepare" || mode == "enroll-local" {
                     let pin = try AccountPin(account: AccountID(bytes: exact(source, "trusted-account", 32)),
                         root: exact(source, "enrollment-root", 1985), family: intent.family,
                         checkpoint: RosterCheckpoint(version: counter(exact(source, "trusted-roster-version", 8)[...]),
                                                      digest: exact(source, "trusted-roster-digest", 32)))
                     let journal = try owner.accept(certificate: load(source, "grant-certificate", 8192), roster: load(source, "grant-roster", 65536), pin: pin)
-                    guard case .requiresEnrollment(let genesis) = try owner.prepareStorage(), genesis.journal == journal else { throw ClientError("required genesis differs") }
-                    bytes = [0, 0, 0, 2] + journal.bytes + genesis.subject + genesis.imageDigest
-                    marker = "QPC_CONFIGURATION_GENESIS_PASS"
+                    let prepared = try owner.prepareStorage()
+                    if mode == "enroll-local" {
+                        guard case .local(let actual) = prepared, actual == journal else { throw ClientError("local installation differs") }
+                        device = try owner.activate(); try owner.close(); marker = "QPC_CONFIGURATION_LOCAL_ACTIVE"
+                    } else {
+                        guard case .requiresEnrollment(let genesis) = prepared, genesis.journal == journal else { throw ClientError("required genesis differs") }
+                        bytes = [0, 0, 0, 2] + journal.bytes + genesis.subject + genesis.imageDigest
+                        marker = "QPC_CONFIGURATION_GENESIS_PASS"
+                    }
                 } else if mode == "activate-missing" || mode == "activate-bad-receipt" {
                     try expect(mode == "activate-missing" ? 216 : 218) { _ = try owner.activate() }
                     marker = mode == "activate-missing" ? "QPC_CONFIGURATION_WITNESS_REQUIRED" : "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
+                } else if ["connect", "uncertain-send", "retry-send"].contains(mode) {
+                    let active = try owner.activate(); device = active; try owner.close()
+                    bytes = try traffic(active, source: source, mode: mode)
+                    marker = mode == "connect" ? "QPC_CONFIGURATION_CONNECTION_PASS" : mode == "uncertain-send" ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED"
                 } else if mode == "activate" {
                     device = try owner.activate()
                     try owner.close()

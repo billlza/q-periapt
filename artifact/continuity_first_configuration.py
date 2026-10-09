@@ -19,6 +19,12 @@ TESTS = frozenset({
 SCOPE = "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
 
 
+def connection_marker(language: str, profile: str) -> str:
+    return (f"INDEPENDENT_CONFIGURATION_CONNECTION_PASS language={language} profile={profile} "
+            "fresh_installation=true original_registration=true explicit_peer=true original_session=true "
+            "original_message=true receiver_exit_after_effect=true acknowledged=true effects=1")
+
+
 def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown configuration language")
     text = stdout.decode("utf-8")
@@ -30,8 +36,9 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
                 for profile in ("fixed", "recoverable")} | {
         f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true"
         for carrier in ("signed", "tls") for profile in ("fixed", "recoverable")}
+    expected |= {connection_marker(language, profile) for profile in ("fixed", "recoverable")}
     markers = re.findall(r"^INDEPENDENT_.*$", text, re.MULTILINE)
-    sdk.require(len(markers) == 6 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
+    sdk.require(len(markers) == 8 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
     directories = {f"{carrier}-{profile}" for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
     sdk.require(not evidence.is_symlink() and {p.name for p in evidence.iterdir()} == directories,
                 "configuration public scenario set differs")
@@ -42,6 +49,7 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         folder = evidence / name
         names = {"manifest.json", "request.bin", "replayed.bin", "root.bin", "intent.bin"}
         if carrier != "local": names.add("genesis.bin")
+        else: names |= {"session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"}
         sdk.require(folder.is_dir() and not folder.is_symlink() and {p.name for p in folder.iterdir()} == names,
                     "configuration public inventory differs or includes private material")
         data = {leaf: sdk.snapshot(folder / leaf, maximum=16384).data for leaf in names}
@@ -66,6 +74,14 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
                     and body[112:144] == intent[24:56] and body[144:] != root,
                     "configuration public request grammar or original intent differs")
         requests.add(hashlib.sha256(request).hexdigest())
+        if carrier == "local":
+            session, unknown = data["session.bin"], data["unknown.bin"]
+            sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
+                        and unknown[:32] == session and any(unknown[32:])
+                        and data["acknowledged.bin"] == unknown
+                        and data["after-traffic.bin"] == request
+                        and data["effect.bin"] == unknown + b"first configuration payload",
+                        "configuration connection lost the original registration/session/message or application effect")
         if carrier != "local":
             genesis = data["genesis.bin"]
             sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
@@ -76,6 +92,8 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     sdk.require(len(requests) == 6, "configuration scenarios reused a device registration request")
     return dict(completed=True, scope=SCOPE, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes,
+                local_connection_recovery_profiles=["fixed", "recoverable"],
+                witnessed_connection_composition=False,
                 extra_owner_cases=language != "C", signature_verification="shared native execution only")
 
 

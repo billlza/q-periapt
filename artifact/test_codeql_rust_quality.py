@@ -1423,6 +1423,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         for sdk_source in (
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
@@ -1510,6 +1511,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         required = (
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install.rs",

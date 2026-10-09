@@ -48,6 +48,80 @@ static int checked(int32_t code, const qpc_error_v1 *error) {
     fprintf(stderr, "configuration status %d: %.*s\n", code, (int)n, (const char *)error->message);
     return 1;
 }
+/* Public qualification inputs are copied into the SDK before their buffers are cleared. */
+static int peer_device(const char *source, const char *prefix, const uint8_t family[32], qpc_peer_device_v1 *out) {
+    char name[128];
+    const char *fields[] = {"root", "account", "roster-version", "roster-digest", "device", "generation"};
+    const size_t sizes[] = {1985, 32, 8, 32, 16, 8};
+    qpc_configuration_blob_v1 data[6];
+    for (size_t i=0; i<6; ++i) {
+        int n=snprintf(name,sizeof(name),"peer/%s-%s",prefix,fields[i]);
+        if(n<0 || (size_t)n>=sizeof(name)) return 1;
+        data[i]=load(source,name,sizes[i]); if(!exact(data[i],sizes[i])) return 1;
+    }
+    out->account.root=data[0].data; out->account.root_length=data[0].length;
+    memcpy(out->account.account,data[1].data,32); memcpy(out->account.family,family,32);
+    out->account.checkpoint.version=be64(data[2].data); memcpy(out->account.checkpoint.digest,data[3].data,32);
+    memcpy(out->device,data[4].data,16); out->generation=be64(data[5].data);
+    return 0;
+}
+static int peer_open(uint64_t parent, const char *source, const uint8_t family[32], const uint8_t *session,
+                     uint64_t *peer, qpc_error_v1 *error) {
+    qpc_peer_configuration_v1 input={0};
+    input.header=(qpc_configuration_header_v1){sizeof(input),1}; input.quality=1; input.role=1;
+    if(peer_device(source,"initiator",family,&input.initiator) || peer_device(source,"responder",family,&input.responder)) return 1;
+    qpc_configuration_blob_v1 directory=load(source,"peer/directory",32);
+    if(!exact(directory,32)) return 1;
+    memcpy(input.directory,directory.data,32);
+    input.bundle=load(source,"peer/bootstrap.bundle",65536);
+    input.tls_peer=load(source,"peer/tls-peer",8192);
+    input.tls_name=load(source,"peer/tls-peer-name",128);
+    int32_t code=session ? qpc_peer_v1_prepare_configured_reopen(parent,&input,session,peer,error) :
+        qpc_peer_v1_prepare_configured(parent,&input,peer,error);
+    clear_allocations();
+    return checked(code,error) || checked(qpc_owner_v1_finish_open(*peer,error),error);
+}
+static int traffic(uint64_t parent, const char *source, const uint8_t family[32], const char *mode,
+                   uint8_t result[64], size_t *length, qpc_error_v1 *error) {
+    uint64_t peer=0; int failed=1; uint8_t session[32]={0},message[32]={0},request[32]={0};
+    int fresh=strcmp(mode,"connect")==0, uncertain=strcmp(mode,"uncertain-send")==0;
+    qpc_configuration_blob_v1 id=load(source,fresh ? "connection-initiation" : "connection-session",32);
+    if(!exact(id,32)) goto done;
+    memcpy(fresh ? request : session,id.data,32);
+    clear_allocations();
+    if(peer_open(parent,source,family,fresh ? NULL : session,&peer,error)) goto done;
+    qpc_configuration_blob_v1 address=load(source,"connection-address",128);
+    if(!address.data) goto done;
+    uint16_t exchanges=0;
+    if(fresh) {
+        if(checked(qpc_owner_v1_establish(peer,address.data,address.length,request,session,&exchanges,error),error)) goto done;
+        if(!exchanges || exchanges>8) goto done;
+        memcpy(result,session,32); *length=32;
+    } else {
+        if(uncertain) {
+            if(checked(qpc_owner_v1_next_message(peer,session,message,error),error)) goto done;
+        } else {
+            qpc_configuration_blob_v1 original=load(source,"connection-message",32);
+            if(!exact(original,32)) goto done;
+            memcpy(message,original.data,32);
+        }
+        const uint8_t plaintext[]="first configuration payload", ad[]="configuration-v1";
+        uint8_t consumption=0,status=0;
+        int32_t sent=qpc_owner_v1_send(peer,address.data,address.length,session,message,
+            plaintext,sizeof(plaintext)-1,ad,sizeof(ad)-1,&consumption,&exchanges,error);
+        if(uncertain) {
+            if((sent!=QPC_NETWORK && sent!=QPC_RETRY_EXHAUSTED && sent!=QPC_DEADLINE && sent!=QPC_TLS) || consumption) goto done;
+        } else if(checked(sent,error) || consumption!=QPC_CONSUMPTION_CONFIRMED || !exchanges || exchanges>8) goto done;
+        if(checked(qpc_owner_v1_message_status(peer,session,message,&status,error),error) ||
+            status!=(uncertain ? QPC_MESSAGE_COMMITTED : QPC_MESSAGE_ACKNOWLEDGED)) goto done;
+        memcpy(result,session,32);memcpy(result+32,message,32);*length=64;
+    }
+    failed=0;
+done:
+    clear_allocations();
+    if(peer && checked(qpc_owner_v1_close(peer,error),error)) failed=1;
+    return failed;
+}
 static int guard_pages(void) {
     long page = sysconf(_SC_PAGESIZE);
     if (page <= 0) return 1;
@@ -84,7 +158,9 @@ int main(int argc, char **argv) {
     int wrong = strcmp(argv[1], "wrong-witness") == 0;
     int bad_receipt = strcmp(argv[1], "activate-bad-receipt") == 0;
     int cancel = strcmp(argv[1], "cancel") == 0;
-    if (!create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && strcmp(argv[1], "resume") != 0) return 64;
+    int local = strcmp(argv[1], "enroll-local") == 0;
+    int connection = strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
+    if (!create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
     unsigned carrier = argc == 6 ? 0u : strcmp(argv[6], "signed") == 0 ? 1u : strcmp(argv[6], "tls") == 0 ? 2u : 3u;
     if (carrier == 3u || (missing && carrier != 0u) || (wrong && carrier == 0u)) return 64;
     int recoverable = strcmp(argv[2], "recoverable") == 0;
@@ -165,10 +241,10 @@ int main(int argc, char **argv) {
     qpc_enrollment_request_v1 request = {0};
     if (checked(qpc_enrollment_v1_request(handle, &request, &error), &error)) goto done;
     if (!request.length || request.length > sizeof(request.bytes)) goto done;
-    uint8_t genesis[164];
+    uint8_t genesis[164], delivered[64];
     const uint8_t *written_bytes = request.bytes;
     size_t written_length = request.length;
-    if (prepare) {
+    if (prepare || local) {
         qpc_configuration_blob_v1 root_again = load(source, "enrollment-root", 1985);
         qpc_configuration_blob_v1 certificate = load(source, "grant-certificate", 8192);
         qpc_configuration_blob_v1 roster = load(source, "grant-roster", 65536);
@@ -185,19 +261,23 @@ int main(int argc, char **argv) {
         clear_allocations();
         qpc_setup_preparation_v1 prepared = {0};
         if (checked(qpc_enrollment_v1_prepare_storage(handle, &prepared, &error), &error)) goto done;
-        if (prepared.protection != 2 || memcmp(journal, prepared.journal, 32)) goto done;
+        if (prepared.protection != (local ? 1u : 2u) || memcmp(journal, prepared.journal, 32)) goto done;
         genesis[0] = 0; genesis[1] = 0; genesis[2] = 0; genesis[3] = 2;
         memcpy(genesis + 4, prepared.journal, 32); memcpy(genesis + 36, prepared.subject, 96);
         memcpy(genesis + 132, prepared.image_digest, 32);
-        written_bytes = genesis; written_length = sizeof(genesis);
+        if (!local) { written_bytes = genesis; written_length = sizeof(genesis); }
     }
-    if (activate || missing || bad_receipt) {
+    if (activate || missing || bad_receipt || local || connection) {
         int32_t activated = qpc_enrollment_v1_activate(handle, &error);
         if (missing) {
             if (activated != QPC_ANCHOR_REQUIRED) { (void)checked(activated, &error); goto done; }
         } else if (bad_receipt) {
             if (activated != QPC_ANCHOR) { (void)checked(activated, &error); goto done; }
         } else if (checked(activated, &error)) goto done;
+    }
+    if (connection) {
+        if (traffic(handle, source, intent.family, argv[1], delivered, &written_length, &error)) goto done;
+        written_bytes = delivered;
     }
     int descriptor = open(argv[5], O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (descriptor < 0) goto done;
@@ -210,7 +290,9 @@ int main(int argc, char **argv) {
 done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
-    if (!result) puts(cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
+    if (!result) puts(connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+        strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
+        local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :
         bad_receipt ? "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED" :
         prepare ? "QPC_CONFIGURATION_GENESIS_PASS" :

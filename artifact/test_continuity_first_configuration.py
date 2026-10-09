@@ -25,8 +25,15 @@ def fixture(root, language="C"):
                   "manifest.json": json.dumps(dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                                   release_claim_eligible=False)).encode()}
         if carrier != "local": values["genesis.bin"] = (2).to_bytes(4, "big") + bytes([5])*32 + bytes([5])*32 + bytes([6])*64 + bytes([7])*32
+        else:
+            session, message = bytes([index+20])*32, bytes([index+30])*32
+            values.update({"session.bin": session, "unknown.bin": session + message,
+                           "acknowledged.bin": session + message, "after-traffic.bin": request,
+                           "effect.bin": session + message + b"first configuration payload"})
         for name, data in values.items(): (folder/name).write_bytes(data)
-        if carrier == "local": stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
+        if carrier == "local":
+            stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
+            stdout += configuration.connection_marker(language, profile) + "\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
     return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
 
@@ -37,12 +44,30 @@ class FirstConfigurationTests(unittest.TestCase):
             with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory); data = fixture(root, language)
                 result = configuration.verify_execution(data, root, language=language)
-                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 34)
+                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 44)
+                self.assertEqual(result["local_connection_recovery_profiles"], ["fixed", "recoverable"])
+                self.assertFalse(result["witnessed_connection_composition"])
                 self.assertFalse(result["release_claim_eligible"])
                 for changed in (data.replace(b"2 passed", b"1 passed"), data.replace(b"0 ignored", b"1 ignored"),
                                 data.replace(b"carrier=tls", b"carrier=other"), data + data, data.replace(b"INDEPENDENT_", b"OMITTED_")):
                     with self.assertRaises(ValueError): configuration.verify_execution(changed, root, language=language)
                 with self.assertRaises(ValueError): configuration.verify_execution(data, root, language="unknown")
+
+    def test_connection_requires_original_identity_and_uncertain_message_readback(self):
+        for leaf in ("session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"):
+            for mutation in (lambda b: b[:-1], lambda b: bytes([b[0] ^ 1]) + b[1:]):
+                with self.subTest(leaf=leaf), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory); data = fixture(root); path = root / "local-fixed" / leaf
+                    path.write_bytes(mutation(path.read_bytes()))
+                    with self.assertRaisesRegex(ValueError, "configuration connection"):
+                        configuration.verify_execution(data, root, language="C")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); data = fixture(root)
+            marker = configuration.connection_marker("C", "fixed").encode() + b"\n"
+            for changed in (data.replace(marker, b""), data + marker,
+                            data.replace(b"effects=1", b"effects=2"),
+                            data.replace(b"original_message=true", b"original_message=false")):
+                with self.assertRaises(ValueError): configuration.verify_execution(changed, root, language="C")
 
     def test_public_inputs_replay_and_genesis_must_remain_bound(self):
         mutations = {
@@ -92,6 +117,6 @@ class FirstConfigurationTests(unittest.TestCase):
     def test_each_scenario_requires_its_own_registration(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); data = fixture(root)
-            for name in ("request.bin", "replayed.bin", "root.bin", "intent.bin"):
+            for name in ("request.bin", "replayed.bin", "root.bin", "intent.bin", "after-traffic.bin"):
                 (root/'local-recoverable'/name).write_bytes((root/'local-fixed'/name).read_bytes())
             with self.assertRaisesRegex(ValueError, "reused"): configuration.verify_execution(data, root, language="C")

@@ -13,6 +13,8 @@ use std::{
 use zeroize::Zeroizing;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
+#[path = "common/peer_bundle.rs"]
+mod peer_bundle;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn client_language() -> Result<&'static str> {
@@ -84,6 +86,10 @@ fn run_carrier(
         String::from_utf8_lossy(&stderr)
     );
     let expected = match mode {
+        "enroll-local" => "QPC_CONFIGURATION_LOCAL_ACTIVE\n",
+        "connect" => "QPC_CONFIGURATION_CONNECTION_PASS\n",
+        "uncertain-send" => "QPC_CONFIGURATION_UNKNOWN_COMMITTED\n",
+        "retry-send" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
         "prepare" => "QPC_CONFIGURATION_GENESIS_PASS\n",
         "activate" => "QPC_CONFIGURATION_ACTIVATION_PASS\n",
         "activate-missing" => "QPC_CONFIGURATION_WITNESS_REQUIRED\n",
@@ -133,6 +139,17 @@ fn export_public(
     ] {
         publish_private_bytes(&target.join(name), &fs::read(path)?)?;
     }
+    if carrier == "local" {
+        for (name, original) in [
+            ("session.bin", "connected"),
+            ("unknown.bin", "uncertain"),
+            ("acknowledged.bin", "acknowledged"),
+            ("after-traffic.bin", "after-traffic.request"),
+            ("effect.bin", "effect-public"),
+        ] {
+            publish_private_bytes(&target.join(name), &fs::read(base.join(original))?)?;
+        }
+    }
     if carrier != "local" {
         publish_private_bytes(
             &target.join("genesis.bin"),
@@ -174,8 +191,8 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
         std::env::var_os("QPC_CONFIGURATION_CLIENT").ok_or("explicit C client path is required")?,
     );
     assert!(client.is_absolute() && client.is_file());
-    let reference = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     for recoverable in [false, true] {
+        let reference = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
         let dir = tempfile::Builder::new()
             .permissions(fs::Permissions::from_mode(0o700))
             .tempdir()?;
@@ -330,6 +347,125 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
         assert_eq!(repeated, original);
         let reopened = p::VerifiedEnrollmentRequest::verify(&repeated, &intent, fixture::now()?)?;
         assert_eq!(reopened.identity(), verified.identity());
+        // Continue the independently created identity through actual TLS. No SDK,
+        // wrapping key, signer, enrollment, installation or journal is copied in.
+        let certificate = authority.issue_enrollment(&reopened, fixture::now()?)?;
+        let roster =
+            authority.issue_roster(1, validity, &[authority.roster_entry(&certificate)?])?;
+        for (name, bytes) in [
+            ("grant-certificate", certificate.clone()),
+            ("grant-roster", roster.as_bytes().to_vec()),
+            ("trusted-account", authority.account_id()?.to_vec()),
+            (
+                "trusted-roster-version",
+                roster.checkpoint().version().to_be_bytes().to_vec(),
+            ),
+            (
+                "trusted-roster-digest",
+                roster.checkpoint().digest().to_vec(),
+            ),
+        ] {
+            publish_private_bytes(&source.join(name), &bytes)?;
+        }
+        run(
+            &client,
+            "enroll-local",
+            profile,
+            &source,
+            &target,
+            &base.join("active-local"),
+        )?;
+        assert_eq!(fs::read(base.join("active-local"))?, original);
+        assert!(target.join("installation.redb").is_file());
+        peer_bundle::peer_bundle_at(
+            &reference.responder,
+            &source.join("peer"),
+            &authority,
+            &certificate,
+            &roster,
+            None,
+        )?;
+        let initiation = p::InitiationId::generate()?;
+        publish_private_bytes(&source.join("connection-initiation"), initiation.as_bytes())?;
+        let (mut server, address) = fixture::spawn(&reference.responder, 81, "bootstrap")?;
+        publish_private_bytes(
+            &source.join("connection-address"),
+            address.to_string().as_bytes(),
+        )?;
+        run(
+            &client,
+            "connect",
+            profile,
+            &source,
+            &target,
+            &base.join("connected"),
+        )?;
+        assert!(fixture::wait(&mut server)?.success());
+        let session: [u8; 32] = fs::read(base.join("connected"))?
+            .try_into()
+            .map_err(|_| "session size")?;
+        assert_eq!(
+            fixture::array::<32>(&reference.responder, "session")?,
+            session
+        );
+        publish_private_bytes(&source.join("connection-session"), &session)?;
+        let (mut server, address) =
+            fixture::spawn(&reference.responder, 82, "crash-after-application")?;
+        fs::write(source.join("connection-address"), address.to_string())?;
+        run(
+            &client,
+            "uncertain-send",
+            profile,
+            &source,
+            &target,
+            &base.join("uncertain"),
+        )?;
+        assert_eq!(fixture::wait(&mut server)?.code(), Some(77));
+        let uncertain = fs::read(base.join("uncertain"))?;
+        assert_eq!(uncertain.len(), 64);
+        assert_eq!(uncertain.get(..32).ok_or("session prefix")?, &session);
+        let message: [u8; 32] = uncertain.get(32..).ok_or("message suffix")?.try_into()?;
+        publish_private_bytes(&source.join("connection-message"), &message)?;
+        let effect_path = reference
+            .responder
+            .join(format!("application-{}", fixture::hex(&message)));
+        let committed_effect = fs::read(&effect_path)?;
+        publish_private_bytes(&base.join("effect-public"), &committed_effect)?;
+        let (mut server, address) = fixture::spawn(&reference.responder, 83, "application")?;
+        fs::write(source.join("connection-address"), address.to_string())?;
+        run(
+            &client,
+            "retry-send",
+            profile,
+            &source,
+            &target,
+            &base.join("acknowledged"),
+        )?;
+        assert!(fixture::wait(&mut server)?.success());
+        assert_eq!(fs::read(base.join("acknowledged"))?, uncertain);
+        assert_eq!(fs::read(&effect_path)?, committed_effect);
+        fixture::effect(
+            &reference.responder,
+            session,
+            p::MessageId::from_trusted_state(message)?,
+            b"first configuration payload",
+        )?;
+        let effects = fs::read_dir(&reference.responder)?
+            .collect::<std::io::Result<Vec<_>>>()?
+            .into_iter()
+            .filter(|e| e.file_name().to_string_lossy().starts_with("application-"))
+            .count();
+        assert_eq!(effects, 1);
+        run(
+            &client,
+            "resume",
+            profile,
+            &source,
+            &target,
+            &base.join("after-traffic.request"),
+        )?;
+        assert_eq!(fs::read(base.join("after-traffic.request"))?, original);
+        println!("\nINDEPENDENT_CONFIGURATION_CONNECTION_PASS language={language} profile={profile} fresh_installation=true original_registration=true explicit_peer=true original_session=true original_message=true receiver_exit_after_effect=true acknowledged=true effects=1");
         export_public(&source, &base, language, profile, "local")?;
         println!(
             "\nINDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
