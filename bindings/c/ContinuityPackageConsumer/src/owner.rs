@@ -230,6 +230,70 @@ enum VerifiedAdmission {
     Existing(p::SessionReopenRequest),
 }
 
+// Each admission route builds its final heap-owned native service in its own
+// frame. Otherwise Debug builds retain value-sized service/result temporaries
+// for both routes while reopening and verifying on a foreign worker stack.
+struct Activation<'a> {
+    paths: p::InstallationPaths,
+    key: p::JournalKey,
+    signer: p::DeviceSigningKey,
+    cancel: &'a Cancellation,
+    deadline: Instant,
+}
+impl Activation<'_> {
+    #[inline(never)]
+    fn bootstrap(
+        self,
+        context: Arc<p::BootstrapContext>,
+        role: p::BootstrapRole,
+        make_anchor: impl FnOnce() -> Result<Option<p::AnchorClient>>,
+    ) -> Result<(crate::native_owner::NativeOwner, Arc<p::BootstrapContext>)> {
+        let device = context.device(role);
+        let installation = p::DeviceInstallation::open(
+            self.paths,
+            &self.key,
+            device,
+            context.current_policy()?,
+            now().map_err(Failure::configuration)?,
+        )?;
+        let anchor = make_anchor()?;
+        crate::opening::check(self.cancel, self.deadline)?;
+        let service = installation.activate(
+            self.key,
+            device,
+            context.current_policy()?,
+            now().map_err(Failure::configuration)?,
+            anchor,
+        )?;
+        Ok((
+            crate::native_owner::NativeOwner::installed(service, self.signer),
+            context,
+        ))
+    }
+
+    #[inline(never)]
+    fn reopen(
+        self,
+        request: p::SessionReopenRequest,
+        make_anchor: impl FnOnce() -> Result<Option<p::AnchorClient>>,
+    ) -> Result<(crate::native_owner::NativeOwner, Arc<p::BootstrapContext>)> {
+        let anchor = make_anchor()?;
+        crate::opening::check(self.cancel, self.deadline)?;
+        let (service, context) = p::DeviceInstallation::reopen_session(
+            self.paths,
+            self.key,
+            request,
+            now().map_err(Failure::configuration)?,
+            anchor,
+        )?
+        .into_parts();
+        Ok((
+            crate::native_owner::NativeOwner::installed(service, self.signer),
+            context,
+        ))
+    }
+}
+
 /// One original local installation, never a reconstructed policy permission.
 pub(crate) struct Owner {
     listener: Option<TcpListener>,
@@ -289,44 +353,23 @@ impl Owner {
                 .map(|configured| configured.client(path, cancel.clone(), invocation))
                 .transpose()
         };
-        let (service, context) = match verified {
+        let activation = Activation {
+            paths,
+            key,
+            signer,
+            cancel: &cancel,
+            deadline,
+        };
+        let (native, context) = match verified {
             VerifiedAdmission::Bootstrap { context, role } => {
-                let device = context.device(role);
-                let installation = p::DeviceInstallation::open(
-                    paths,
-                    &key,
-                    device,
-                    context.current_policy()?,
-                    now().map_err(Failure::configuration)?,
-                )?;
-                let anchor = make_anchor()?;
-                crate::opening::check(&cancel, deadline)?;
-                let service = installation.activate(
-                    key,
-                    device,
-                    context.current_policy()?,
-                    now().map_err(Failure::configuration)?,
-                    anchor,
-                )?;
-                (service, context)
+                activation.bootstrap(context, role, make_anchor)?
             }
-            VerifiedAdmission::Existing(request) => {
-                let anchor = make_anchor()?;
-                crate::opening::check(&cancel, deadline)?;
-                p::DeviceInstallation::reopen_session(
-                    paths,
-                    key,
-                    request,
-                    now().map_err(Failure::configuration)?,
-                    anchor,
-                )?
-                .into_parts()
-            }
+            VerifiedAdmission::Existing(request) => activation.reopen(request, make_anchor)?,
         };
         crate::opening::check(&cancel, deadline)?;
         let mut owner = Box::new(Self {
             listener: None,
-            native: crate::native_owner::NativeOwner::installed(service, signer),
+            native,
             context,
             policy_store,
             policy,

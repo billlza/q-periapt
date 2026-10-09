@@ -58,9 +58,18 @@ pub(crate) fn start_selected(
             }
             return Ok((server, SocketAddr::from(([127, 0, 0, 1], port))));
         }
-        if server.child.0.try_wait()?.is_some() || Instant::now() >= until {
+        if let Some(status) = server.child.0.try_wait()? {
             return Err(format!(
-                "C traffic readiness: {text}; {}",
+                "{} traffic receiver {label} exited before readiness ({status}): {text}; {}",
+                language.unwrap_or("C"),
+                fs::read_to_string(&server.stderr)?
+            )
+            .into());
+        }
+        if Instant::now() >= until {
+            return Err(format!(
+                "{} traffic receiver {label} timed out before readiness: {text}; {}",
+                language.unwrap_or("C"),
                 fs::read_to_string(&server.stderr)?
             )
             .into());
