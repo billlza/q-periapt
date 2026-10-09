@@ -28,6 +28,15 @@ The HKDF info is the following ordered concatenation, streamed as components:
 | Context | `u32_be(byte_length) || context` |
 | Output length | `u16_be(32)` |
 
+The salt is a public, fixed domain label, not a password salt or a source of
+session freshness. [RFC 5869 sections 2.2 and 3.1](https://datatracker.ietf.org/doc/html/rfc5869#section-3.1)
+permit operation without random salt, while explaining the stronger extraction
+properties available from a suitable random salt. This schedule relies on the
+combined KEM secret's pseudorandomness; it is not a general extractor for weak
+or password-derived input. A fixed label alone establishes neither entropy nor
+peer authentication. Changing this salt changes the version-1 key schedule and
+would require an explicit protocol-version transition.
+
 Labels contain 1..255 bytes of ASCII 0x21..0x7e. Choose a stable label identifying
 your application protocol, version, algorithm and exporter use. Whitespace,
 NUL and non-ASCII bytes are rejected; no normalization is performed. Context is

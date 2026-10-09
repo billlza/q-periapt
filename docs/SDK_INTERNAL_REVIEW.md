@@ -26,6 +26,16 @@ remain explicit. **802 results still lack a completed disposition in this
 record.** No runtime test, remote dismissal, query suppression or passing aggregate
 security review is claimed.
 
+The [derivation follow-up](../research/sdk-alpha1/evidence/20261009-codeql-derivation-review/README.md)
+adds two distinct dispositions from that same SARIF. Result 709 traces a buffer
+capacity accumulator to three nonce sinks; the inspected value is never assigned
+to those independently generated/restored nonce fields. Result 710 identifies
+the intentionally fixed public HKDF domain salt, whose contract assumes
+pseudorandom combined-KEM input. Its two existing RFC/framing tests pass on the
+current source. These records cover **9 of 809 results; 800 remain without a
+completed disposition**. The fixed salt supplies no fresh entropy or peer
+authentication, and these local results do not close the aggregate security gate.
+
 ## 2026-10-08 scoped CodeQL follow-up
 
 The [source-bound SARIF review](../research/sdk-alpha1/evidence/20261008-codeql-scoped-triage/README.md)
