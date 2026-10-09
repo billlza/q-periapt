@@ -598,6 +598,52 @@ fn io_errors_across_both_providers_remain_typed_and_never_report_success() -> Te
     Ok(())
 }
 
+// An extra descriptor models the same open description surviving the Rust
+// backend. Final release must not depend on another descriptor being dropped.
+#[cfg(target_os = "macos")]
+#[test]
+fn early_io_failure_releases_lease_with_retained_open_description() -> TestResult {
+    let dir = directory()?;
+    let path = dir.path().canonicalize()?.join("policy.redb");
+    let fixture = Fixture::new(12, true);
+    fixture.write(&path)?;
+    let file = open_private_file(&path, false)?;
+    let retained = file.try_clone()?;
+    let control = Arc::new(Control {
+        next: AtomicUsize::new(0),
+        target: 1,
+        after: false,
+        cut: false,
+        partial: false,
+        peer_path: None,
+        hit: AtomicBool::new(false),
+        events: Mutex::new(Vec::new()),
+    });
+    let owner = Arc::new(Attempt {
+        backend: Box::new(Instrumented {
+            inner: MigrationBackend {
+                current: LockedFileBackend::new(file)?,
+            },
+            control: Arc::clone(&control),
+        }),
+        failure: Mutex::new(None),
+    });
+    let lifetime = Arc::downgrade(&owner);
+    let error =
+        convert(owner, &fixture.root, fixture.state).expect_err("injected first read failure");
+    assert!(contains_injected(&error));
+    assert!(
+        lifetime.upgrade().is_none(),
+        "provider still holds a Rust backend owner"
+    );
+    // Keep the duplicated description alive while the next real owner opens.
+    let backend = admit(&path)?;
+    backend.close()?;
+    drop(retained);
+    eprintln!("MIGRATION_ERROR_LEASE_RELEASE_PASS retained_description=true");
+    Ok(())
+}
+
 #[test]
 fn process_cut_worker() -> TestResult {
     let Some(path) = std::env::var_os("QPERIAPT_MIGRATION_CUT_PATH") else {

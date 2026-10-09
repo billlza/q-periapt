@@ -258,11 +258,10 @@ impl StorageBackend for Current {
         self.0.backend.try_lock_range(start, end)
     }
     fn close(&self) -> io::Result<()> {
-        // Close still releases the lease when sync fails. Preserve that first
-        // error; never turn successful unlock into successful migration.
-        let synced = self.0.sync();
-        let closed = self.0.record(self.0.backend.close());
-        synced.and(closed)
+        // Finish this provider's I/O while the original migration owner retains
+        // the lease. convert() releases it exactly once after all providers have
+        // dropped, including when no current provider was constructed.
+        self.0.sync()
     }
 }
 
@@ -440,6 +439,19 @@ fn convert(
     state: TrustedPolicyState,
 ) -> Result<serde_json::Value> {
     let result = convert_inner(&attempt, root, state);
+    // Early failures can precede construction (and therefore close) of the
+    // current provider. Releasing only the final Rust File is insufficient when
+    // another descriptor shares its open description, for example during spawn.
+    // Explicitly close the original lease after every provider has relinquished
+    // it. A retained provider must never be unlocked underneath ongoing work.
+    let result = if Arc::strong_count(&attempt) == 1 {
+        let closed = attempt
+            .record(attempt.backend.close())
+            .map_err(|e| at("original file lease close", e));
+        result.and_then(|report| closed.map(|()| report))
+    } else {
+        result.and_then(|_| Err(refuse("provider retained the original file lease")))
+    };
     // Some provider errors flatten their source chain; some destructors discard
     // errors entirely. Retain the original backend error across both paths,
     // without losing the independently reported operation context.
