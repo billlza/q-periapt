@@ -19,8 +19,8 @@ TESTS = frozenset({
 SCOPE = "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
 
 
-def connection_marker(language: str, profile: str) -> str:
-    return (f"INDEPENDENT_CONFIGURATION_CONNECTION_PASS language={language} profile={profile} "
+def connection_marker(language: str, carrier: str, profile: str) -> str:
+    return (f"INDEPENDENT_CONFIGURATION_CONNECTION_PASS language={language} carrier={carrier} profile={profile} "
             "fresh_installation=true original_registration=true explicit_peer=true original_session=true "
             "original_message=true receiver_exit_after_effect=true acknowledged=true effects=1")
 
@@ -36,9 +36,10 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
                 for profile in ("fixed", "recoverable")} | {
         f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true"
         for carrier in ("signed", "tls") for profile in ("fixed", "recoverable")}
-    expected |= {connection_marker(language, profile) for profile in ("fixed", "recoverable")}
+    expected |= {connection_marker(language, carrier, profile)
+                 for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
     markers = re.findall(r"^INDEPENDENT_.*$", text, re.MULTILINE)
-    sdk.require(len(markers) == 8 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
+    sdk.require(len(markers) == 12 and set(markers) == expected, "configuration execution omitted or duplicated a trust/carrier scenario")
     directories = {f"{carrier}-{profile}" for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")}
     sdk.require(not evidence.is_symlink() and {p.name for p in evidence.iterdir()} == directories,
                 "configuration public scenario set differs")
@@ -49,7 +50,7 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         folder = evidence / name
         names = {"manifest.json", "request.bin", "replayed.bin", "root.bin", "intent.bin"}
         if carrier != "local": names.add("genesis.bin")
-        else: names |= {"session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"}
+        names |= {"session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"}
         sdk.require(folder.is_dir() and not folder.is_symlink() and {p.name for p in folder.iterdir()} == names,
                     "configuration public inventory differs or includes private material")
         data = {leaf: sdk.snapshot(folder / leaf, maximum=16384).data for leaf in names}
@@ -74,14 +75,13 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
                     and body[112:144] == intent[24:56] and body[144:] != root,
                     "configuration public request grammar or original intent differs")
         requests.add(hashlib.sha256(request).hexdigest())
-        if carrier == "local":
-            session, unknown = data["session.bin"], data["unknown.bin"]
-            sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
-                        and unknown[:32] == session and any(unknown[32:])
-                        and data["acknowledged.bin"] == unknown
-                        and data["after-traffic.bin"] == request
-                        and data["effect.bin"] == unknown + b"first configuration payload",
-                        "configuration connection lost the original registration/session/message or application effect")
+        session, unknown = data["session.bin"], data["unknown.bin"]
+        sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
+                    and unknown[:32] == session and any(unknown[32:])
+                    and data["acknowledged.bin"] == unknown
+                    and data["after-traffic.bin"] == request
+                    and data["effect.bin"] == unknown + b"persisted before process exit",
+                    "configuration connection lost the original registration/session/message or application effect")
         if carrier != "local":
             genesis = data["genesis.bin"]
             sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
@@ -93,19 +93,21 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     return dict(completed=True, scope=SCOPE, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes,
                 local_connection_recovery_profiles=["fixed", "recoverable"],
-                witnessed_connection_composition=False,
+                witnessed_connection_composition=True,
                 extra_owner_cases=language != "C", signature_verification="shared native execution only")
 
 
 def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: Path, client: Path,
-             run, *, language: str, collector: str = "") -> dict:
+             run, *, receiver: Path, language: str, collector: str = "") -> dict:
     sdk.require(profile in {"debug", "release"} and ((language == "Kotlin" and collector in {"Serial", "G1"})
                 or (language in {"C", "Swift"} and not collector)), "configuration qualification profile differs")
     label = "configuration-" + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
     evidence = outside / label
     evidence.mkdir(mode=0o700)
-    identities = {name: sdk.snapshot(path, maximum=c.MAX_BINARY) for name, path in (("helper", helper), ("client", client))}
+    executables = (("helper", helper), ("client", client), ("receiver", receiver))
+    identities = {name: sdk.snapshot(path, maximum=c.MAX_BINARY) for name, path in executables}
     environment = dict(runtime, QPC_CONFIGURATION_CLIENT=str(client), QPC_CONFIGURATION_LANGUAGE=language,
+                       QPC_CONFIGURATION_RECEIVER=str(receiver),
                        QPERIAPT_CONFIGURATION_EVIDENCE=str(evidence))
     # The preceding connection workload may retain its private fixture directory.
     # Each configuration scenario creates a fresh private fixture and exports only
@@ -119,7 +121,7 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
         sdk.copy(evidence / name, exported / name)
     sdk.require(verify_execution(stdout, exported, language=language) == checked, "configuration exported readback differs")
     checked["binaries"] = {}
-    for name, path in (("helper", helper), ("client", client)):
+    for name, path in executables:
         identity = identities[name]
         sdk.require(sdk.snapshot(path, maximum=c.MAX_BINARY).sha256 == identity.sha256,
                     "configuration executable changed during execution")
@@ -129,7 +131,7 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
 
 
 def qualify_native(outside, output, consumer, build, cargo, runtime, cc, platform_flags,
-                   installed, filename, profile, run) -> dict:
+                   installed, filename, profile, run, *, receiver) -> dict:
     extra = ["--release"] if profile == "release" else []
     built = run([*cargo, "test", "--locked", "--offline", "--test", "first_configuration", "--no-run",
                  "--message-format=json", "-j", "2", *extra], "configuration-build-" + profile)
@@ -149,7 +151,7 @@ def qualify_native(outside, output, consumer, build, cargo, runtime, cc, platfor
     c.verify_linkage(dependencies, loader, filename, darwin=darwin)
     sdk.require(run([str(client), "--guard"], "configuration-guard-" + profile, runtime=runtime)
                 == b"QPC_CONFIGURATION_HEADER_GUARD_PASS\n", "configuration short-header guard did not execute")
-    checked = _qualify(outside, output, profile, runtime, helper, client, run, language="C")
+    checked = _qualify(outside, output, profile, runtime, helper, client, run, receiver=receiver, language="C")
     checked["short_header_guard"] = True
     return checked
 
@@ -162,5 +164,9 @@ def qualify_foreign(outside, output, profile, runtime, native, run, client, *, l
     helper = row["binaries"]["helper"]
     sdk.require(sdk.snapshot(Path(helper["path"]), maximum=c.MAX_BINARY).sha256 == helper["sha256"],
                 "configuration native helper changed before foreign execution")
+    receiver = row["binaries"]["receiver"]
+    sdk.require(receiver == native["binaries"]["C_client"]
+                and sdk.snapshot(Path(receiver["path"]), maximum=c.MAX_BINARY).sha256 == receiver["sha256"],
+                "configuration native receiver differs from the qualified C client")
     return _qualify(outside, output, profile, runtime, Path(helper["path"]), client, run,
-                    language=language, collector=collector)
+                    receiver=Path(receiver["path"]), language=language, collector=collector)

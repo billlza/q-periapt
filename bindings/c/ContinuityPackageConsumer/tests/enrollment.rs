@@ -6,6 +6,8 @@ mod fixture;
 mod openssl_host;
 #[path = "common/peer_bundle.rs"]
 mod peer_bundle;
+#[path = "common/receiver_process.rs"]
+mod receiver_process;
 #[path = "common/witness.rs"]
 mod witness;
 #[path = "common/witness_tls.rs"]

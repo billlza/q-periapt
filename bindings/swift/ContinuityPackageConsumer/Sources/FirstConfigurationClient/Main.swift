@@ -106,7 +106,7 @@ private func traffic(_ device: ContinuityDevice, source: URL, mode: String) thro
             let uncertain = mode == "uncertain-send"
             let message = uncertain ? try peer.nextMessage(session: session) : try MessageID(bytes: exact(source, "connection-message", 32))
             do {
-                let sent = try peer.send(peer: address, session: session, message: message, plaintext: Array("first configuration payload".utf8), associatedData: Array("configuration-v1".utf8))
+                let sent = try peer.send(peer: address, session: session, message: message, plaintext: Array("persisted before process exit".utf8), associatedData: Array("configuration-v1".utf8))
                 guard !uncertain, sent.consumption == .confirmed else { throw ClientError("incorrect delivery result") }
             } catch let failure as ContinuityFailure {
                 guard uncertain, [303, 309, 310, 311].contains(failure.code) else { throw failure }

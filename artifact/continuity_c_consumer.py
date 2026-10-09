@@ -495,7 +495,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_first_configuration import qualify_native as qualify_configuration
         result["execution"][profile]["first_configuration"] = qualify_configuration(
             outside, output, consumer, build, cargo, runtime, cc, platform_flags,
-            installed, filename, profile, run)
+            installed, filename, profile, run, receiver=executable)
         from continuity_c_enrollment import TEST as enrollment_test, export as export_enrollment
         enrollment_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment", "--no-run",
                                 "--message-format=json", "-j", "2", *extra], "enrollment-build-" + profile)

@@ -11,10 +11,14 @@ use std::{
     time::{Duration, Instant},
 };
 use zeroize::Zeroizing;
+#[path = "common/first_connection.rs"]
+mod first_connection;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "common/peer_bundle.rs"]
 mod peer_bundle;
+#[path = "common/receiver_process.rs"]
+mod receiver_process;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn client_language() -> Result<&'static str> {
@@ -139,7 +143,7 @@ fn export_public(
     ] {
         publish_private_bytes(&target.join(name), &fs::read(path)?)?;
     }
-    if carrier == "local" {
+    {
         for (name, original) in [
             ("session.bin", "connected"),
             ("unknown.bin", "uncertain"),
@@ -377,95 +381,18 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
         )?;
         assert_eq!(fs::read(base.join("active-local"))?, original);
         assert!(target.join("installation.redb").is_file());
-        peer_bundle::peer_bundle_at(
-            &reference.responder,
-            &source.join("peer"),
-            &authority,
-            &certificate,
-            &roster,
-            None,
-        )?;
-        let initiation = p::InitiationId::generate()?;
-        publish_private_bytes(&source.join("connection-initiation"), initiation.as_bytes())?;
-        let (mut server, address) = fixture::spawn(&reference.responder, 81, "bootstrap")?;
-        publish_private_bytes(
-            &source.join("connection-address"),
-            address.to_string().as_bytes(),
-        )?;
-        run(
-            &client,
-            "connect",
+        let connection = first_connection::Case {
+            client: &client,
+            source: &source,
+            target: &target,
+            base: &base,
+            receiver: &reference.responder,
+            language,
             profile,
-            &source,
-            &target,
-            &base.join("connected"),
-        )?;
-        assert!(fixture::wait(&mut server)?.success());
-        let session: [u8; 32] = fs::read(base.join("connected"))?
-            .try_into()
-            .map_err(|_| "session size")?;
-        assert_eq!(
-            fixture::array::<32>(&reference.responder, "session")?,
-            session
-        );
-        publish_private_bytes(&source.join("connection-session"), &session)?;
-        let (mut server, address) =
-            fixture::spawn(&reference.responder, 82, "crash-after-application")?;
-        fs::write(source.join("connection-address"), address.to_string())?;
-        run(
-            &client,
-            "uncertain-send",
-            profile,
-            &source,
-            &target,
-            &base.join("uncertain"),
-        )?;
-        assert_eq!(fixture::wait(&mut server)?.code(), Some(77));
-        let uncertain = fs::read(base.join("uncertain"))?;
-        assert_eq!(uncertain.len(), 64);
-        assert_eq!(uncertain.get(..32).ok_or("session prefix")?, &session);
-        let message: [u8; 32] = uncertain.get(32..).ok_or("message suffix")?.try_into()?;
-        publish_private_bytes(&source.join("connection-message"), &message)?;
-        let effect_path = reference
-            .responder
-            .join(format!("application-{}", fixture::hex(&message)));
-        let committed_effect = fs::read(&effect_path)?;
-        publish_private_bytes(&base.join("effect-public"), &committed_effect)?;
-        let (mut server, address) = fixture::spawn(&reference.responder, 83, "application")?;
-        fs::write(source.join("connection-address"), address.to_string())?;
-        run(
-            &client,
-            "retry-send",
-            profile,
-            &source,
-            &target,
-            &base.join("acknowledged"),
-        )?;
-        assert!(fixture::wait(&mut server)?.success());
-        assert_eq!(fs::read(base.join("acknowledged"))?, uncertain);
-        assert_eq!(fs::read(&effect_path)?, committed_effect);
-        fixture::effect(
-            &reference.responder,
-            session,
-            p::MessageId::from_trusted_state(message)?,
-            b"first configuration payload",
-        )?;
-        let effects = fs::read_dir(&reference.responder)?
-            .collect::<std::io::Result<Vec<_>>>()?
-            .into_iter()
-            .filter(|e| e.file_name().to_string_lossy().starts_with("application-"))
-            .count();
-        assert_eq!(effects, 1);
-        run(
-            &client,
-            "resume",
-            profile,
-            &source,
-            &target,
-            &base.join("after-traffic.request"),
-        )?;
-        assert_eq!(fs::read(base.join("after-traffic.request"))?, original);
-        println!("\nINDEPENDENT_CONFIGURATION_CONNECTION_PASS language={language} profile={profile} fresh_installation=true original_registration=true explicit_peer=true original_session=true original_message=true receiver_exit_after_effect=true acknowledged=true effects=1");
+            carrier: None,
+        };
+        connection.prepare(&authority, &certificate, &roster, None)?;
+        connection.run(&original)?;
         export_public(&source, &base, language, profile, "local")?;
         println!(
             "\nINDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
@@ -668,11 +595,24 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 .lock()
                 .map_err(|_| "witness store")?
                 .enroll(&genesis, &device, &policy, fixture::now()?)?;
+            let connection = first_connection::Case {
+                client: &client,
+                source: &source,
+                target: &target,
+                base: &base,
+                receiver: &reference.responder,
+                language,
+                profile,
+                carrier: Some(carrier),
+            };
+            // Prepare responder prekeys before measuring TLS traffic. Its original
+            // setup witness uses signed TCP; runtime traffic must use selected TLS.
+            connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
             let mut tls = if carrier == "tls" {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls::TlsWitness::start(
                     std::sync::Arc::clone(&witness.configured.store),
-                    [source.as_path()],
+                    [source.as_path(), reference.responder.as_path()],
                 )?;
                 fs::write(source.join("witness-address"), server.address.to_string())?;
                 Some(server)
@@ -725,6 +665,7 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 Some(carrier),
             )?;
             assert_eq!(fs::read(base.join("active-reopened"))?, request);
+            connection.run(&request)?;
             if let Some(server) = &mut tls {
                 assert!(server.admitted.load(std::sync::atomic::Ordering::Acquire) >= 2);
                 assert_eq!(

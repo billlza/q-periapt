@@ -71,7 +71,7 @@ private fun traffic(device: ContinuityDevice, source: Path, mode: String): ByteA
             val uncertain = mode == "uncertain-send"
             val message = if (uncertain) peer.nextMessage(session) else MessageID(exact(source,"connection-message",32))
             try {
-                val sent = peer.send(address,session,message,"first configuration payload".encodeToByteArray(),"configuration-v1".encodeToByteArray())
+                val sent = peer.send(address,session,message,"persisted before process exit".encodeToByteArray(),"configuration-v1".encodeToByteArray())
                 check(!uncertain && sent.consumption == Consumption.CONFIRMED) { "incorrect delivery result" }
             } catch (failure: ContinuityFailure) {
                 if (!uncertain || failure.code !in setOf(303,309,310,311)) throw failure

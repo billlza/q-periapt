@@ -25,16 +25,15 @@ def fixture(root, language="C"):
                   "manifest.json": json.dumps(dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                                   release_claim_eligible=False)).encode()}
         if carrier != "local": values["genesis.bin"] = (2).to_bytes(4, "big") + bytes([5])*32 + bytes([5])*32 + bytes([6])*64 + bytes([7])*32
-        else:
-            session, message = bytes([index+20])*32, bytes([index+30])*32
-            values.update({"session.bin": session, "unknown.bin": session + message,
-                           "acknowledged.bin": session + message, "after-traffic.bin": request,
-                           "effect.bin": session + message + b"first configuration payload"})
+        session, message = bytes([index+20])*32, bytes([index+30])*32
+        values.update({"session.bin": session, "unknown.bin": session + message,
+                       "acknowledged.bin": session + message, "after-traffic.bin": request,
+                       "effect.bin": session + message + b"persisted before process exit"})
         for name, data in values.items(): (folder/name).write_bytes(data)
         if carrier == "local":
             stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
-            stdout += configuration.connection_marker(language, profile) + "\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
+        stdout += configuration.connection_marker(language, carrier, profile) + "\n"
     return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
 
 
@@ -44,9 +43,9 @@ class FirstConfigurationTests(unittest.TestCase):
             with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory); data = fixture(root, language)
                 result = configuration.verify_execution(data, root, language=language)
-                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 44)
+                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 64)
                 self.assertEqual(result["local_connection_recovery_profiles"], ["fixed", "recoverable"])
-                self.assertFalse(result["witnessed_connection_composition"])
+                self.assertTrue(result["witnessed_connection_composition"])
                 self.assertFalse(result["release_claim_eligible"])
                 for changed in (data.replace(b"2 passed", b"1 passed"), data.replace(b"0 ignored", b"1 ignored"),
                                 data.replace(b"carrier=tls", b"carrier=other"), data + data, data.replace(b"INDEPENDENT_", b"OMITTED_")):
@@ -54,16 +53,17 @@ class FirstConfigurationTests(unittest.TestCase):
                 with self.assertRaises(ValueError): configuration.verify_execution(data, root, language="unknown")
 
     def test_connection_requires_original_identity_and_uncertain_message_readback(self):
-        for leaf in ("session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"):
-            for mutation in (lambda b: b[:-1], lambda b: bytes([b[0] ^ 1]) + b[1:]):
-                with self.subTest(leaf=leaf), tempfile.TemporaryDirectory() as directory:
-                    root = Path(directory); data = fixture(root); path = root / "local-fixed" / leaf
-                    path.write_bytes(mutation(path.read_bytes()))
-                    with self.assertRaisesRegex(ValueError, "configuration connection"):
-                        configuration.verify_execution(data, root, language="C")
+        for carrier in ("local", "signed", "tls"):
+            for leaf in ("session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin"):
+                for mutation in (lambda b: b[:-1], lambda b: bytes([b[0] ^ 1]) + b[1:]):
+                    with self.subTest(carrier=carrier, leaf=leaf), tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory); data = fixture(root); path = root / (carrier + "-fixed") / leaf
+                        path.write_bytes(mutation(path.read_bytes()))
+                        with self.assertRaisesRegex(ValueError, "configuration connection"):
+                            configuration.verify_execution(data, root, language="C")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); data = fixture(root)
-            marker = configuration.connection_marker("C", "fixed").encode() + b"\n"
+            marker = configuration.connection_marker("C", "local", "fixed").encode() + b"\n"
             for changed in (data.replace(marker, b""), data + marker,
                             data.replace(b"effects=1", b"effects=2"),
                             data.replace(b"original_message=true", b"original_message=false")):
@@ -94,16 +94,51 @@ class FirstConfigurationTests(unittest.TestCase):
             previous = root / "previous"; previous.mkdir()
             helper = root / "helper"; helper.write_bytes(b"helper identity")
             client = root / "client"; client.write_bytes(b"client identity")
-            original = {"QPERIAPT_PUBLIC_SERVICE_EVIDENCE": str(previous), "UNRELATED_SETTING": "retained"}
+            receiver = root / "receiver"; receiver.write_bytes(b"receiver identity")
+            original = {"QPERIAPT_PUBLIC_SERVICE_EVIDENCE": str(previous), "UNRELATED_SETTING": "retained",
+                        "QPC_CONFIGURATION_RECEIVER": "must-be-overridden"}
             def run(command, label, *, runtime):
                 self.assertNotIn("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", runtime)
                 self.assertEqual(runtime["UNRELATED_SETTING"], "retained")
                 self.assertEqual(runtime["QPC_CONFIGURATION_CLIENT"], str(client))
+                self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
                 return fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]))
-            checked = configuration._qualify(outside, output, "debug", original, helper, client, run, language="C")
+            checked = configuration._qualify(outside, output, "debug", original, helper, client, run, receiver=receiver, language="C")
             self.assertTrue(checked["completed"])
             self.assertEqual(original["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"], str(previous))
             self.assertEqual(list(previous.iterdir()), [])
+
+    def test_foreign_receiver_must_match_native_baseline_and_remain_unchanged(self):
+        for mutation in ("none", "baseline", "before", "during"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve(); outside = root / "outside"; outside.mkdir()
+                output = root / "output"; output.mkdir()
+                helper, client, receiver = (root / name for name in ("helper", "client", "receiver"))
+                for path in (helper, client, receiver): path.write_bytes(path.name.encode())
+                def identity(path):
+                    return dict(path=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(), bytes=path.stat().st_size)
+                native = {"first_configuration": dict(completed=True, short_header_guard=True, language="C",
+                           binaries={"helper": identity(helper), "receiver": identity(receiver)}),
+                          "binaries": {"C_client": identity(receiver)}}
+                if mutation == "baseline": native["binaries"]["C_client"]["sha256"] = "0" * 64
+                if mutation == "before": receiver.write_bytes(b"replaced before dispatch")
+                calls = []
+                def run(command, label, *, runtime):
+                    calls.append(command)
+                    self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
+                    data = fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]), "Swift")
+                    if mutation == "during": receiver.write_bytes(b"replaced during execution")
+                    return data
+                def execute():
+                    return configuration.qualify_foreign(outside, output, "debug",
+                        {"QPC_CONFIGURATION_RECEIVER": "untrusted-inherited-selection"}, native, run, client, language="Swift")
+                if mutation == "none":
+                    result = execute()
+                    self.assertEqual(result["binaries"]["receiver"], identity(receiver))
+                else:
+                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation == "during" else "native receiver differs"):
+                        execute()
+                self.assertEqual(len(calls), 0 if mutation in ("baseline", "before") else 1)
 
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()

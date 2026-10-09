@@ -105,7 +105,7 @@ static int traffic(uint64_t parent, const char *source, const uint8_t family[32]
             if(!exact(original,32)) goto done;
             memcpy(message,original.data,32);
         }
-        const uint8_t plaintext[]="first configuration payload", ad[]="configuration-v1";
+        const uint8_t plaintext[]="persisted before process exit", ad[]="configuration-v1";
         uint8_t consumption=0,status=0;
         int32_t sent=qpc_owner_v1_send(peer,address.data,address.length,session,message,
             plaintext,sizeof(plaintext)-1,ad,sizeof(ad)-1,&consumption,&exchanges,error);

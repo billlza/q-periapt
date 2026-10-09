@@ -6,84 +6,12 @@ mod fanout;
 use std::net::SocketAddr;
 use std::os::unix::fs::MetadataExt;
 
-struct Server {
-    child: fixture::OwnedChild,
-    stdout: PathBuf,
-    stderr: PathBuf,
-    foreign: Option<(&'static str, String)>,
-}
+use crate::receiver_process::{finish, start_selected, Server};
+
 fn start(path: &Path, label: &str, args: &[OsString]) -> Result<(Server, SocketAddr)> {
     start_selected(&executable()?, None, path, label, args)
 }
-fn start_selected(
-    client: &Path,
-    language: Option<&'static str>,
-    path: &Path,
-    label: &str,
-    args: &[OsString],
-) -> Result<(Server, SocketAddr)> {
-    let stdout = path.join(format!("traffic-{label}.stdout"));
-    let stderr = path.join(format!("traffic-{label}.stderr"));
-    let output = |path: &Path| {
-        fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-    };
-    let mut server = Server {
-        child: fixture::OwnedChild(
-            Command::new(client)
-                .args(args)
-                .stdout(Stdio::from(output(&stdout)?))
-                .stderr(Stdio::from(output(&stderr)?))
-                .spawn()?,
-        ),
-        stdout,
-        stderr,
-        foreign: language.map(|language| (language, label.to_owned())),
-    };
-    let until = Instant::now() + Duration::from_secs(25);
-    loop {
-        let text = fs::read_to_string(&server.stdout)?;
-        if let Some((line, _)) = text.split_once('\n') {
-            let port: u16 = line
-                .strip_prefix("listening:")
-                .ok_or("C readiness prefix")?
-                .parse()?;
-            if port == 0 {
-                return Err("C zero listener port".into());
-            }
-            return Ok((server, SocketAddr::from(([127, 0, 0, 1], port))));
-        }
-        if server.child.0.try_wait()?.is_some() || Instant::now() >= until {
-            return Err(format!(
-                "C traffic readiness: {text}; {}",
-                fs::read_to_string(&server.stderr)?
-            )
-            .into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
-}
-fn finish(mut server: Server, expected: i32) -> Result<String> {
-    let status = fixture::wait(&mut server.child)?;
-    let stdout = fs::read_to_string(&server.stdout)?;
-    let stderr = fs::read_to_string(&server.stderr)?;
-    if status.code() != Some(expected) || !stderr.is_empty() {
-        return Err(
-            format!("C traffic server {status}, expected {expected}: {stdout}; {stderr}").into(),
-        );
-    }
-    if let Some((language, label)) = &server.foreign {
-        eprintln!("FOREIGN_ACCOUNT_RECEIVER language={language} label={label} exit={expected}");
-    }
-    Ok(stdout
-        .split_once('\n')
-        .ok_or("server readiness")?
-        .1
-        .to_owned())
-}
+
 fn event(session: [u8; 32], message: [u8; 32], calls: u8, created: u8) -> String {
     format!(
         "served:{}:0:{calls}:{created}\n{}\n{}\n",
