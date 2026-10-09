@@ -1,0 +1,20 @@
+{
+  "id": 11629747168,
+  "node_id": "MDg6QXJ0aWZhY3QxMTYyOTc0NzE2OA==",
+  "name": "continuity-installed-swift",
+  "size_in_bytes": 27638391,
+  "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11629747168",
+  "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11629747168/zip",
+  "expired": false,
+  "digest": "sha256:f55f2570cf04e91b6d35dcf02597fdc7c0928443fd632e6a160be3c83c12901c",
+  "created_at": "2026-10-09T16:28:22Z",
+  "updated_at": "2026-10-09T16:28:22Z",
+  "expires_at": "2027-01-07T14:00:05Z",
+  "workflow_run": {
+    "id": 37940916744,
+    "repository_id": 1279236693,
+    "head_repository_id": 1279236693,
+    "head_branch": "lza/sdk-020-alpha1",
+    "head_sha": "f4b35dcb237fa44ef92f7700f1f1fd9e6575e1f7"
+  }
+}

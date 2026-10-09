@@ -302,9 +302,6 @@ mod tests {
     }
     #[test]
     fn publication_layouts_and_short_version_prefix_are_checked_before_the_body() {
-        // Even rejected FFI input borrows the shared call budget. Coordinate with
-        // registry tests that require every other invocation to have drained.
-        let _serial = TEST_REGISTRY.lock().expect("test registry");
         assert_eq!(std::mem::size_of::<Key>(), 56);
         assert_eq!(std::mem::size_of::<Plan>(), 72);
         assert_eq!(std::mem::size_of::<Status>(), 104);
@@ -332,9 +329,6 @@ mod tests {
     }
     #[test]
     fn publication_invalid_plan_and_short_output_fail_before_owner_lookup() {
-        // Even rejected FFI input borrows the shared call budget. Coordinate with
-        // registry tests that require every other invocation to have drained.
-        let _serial = TEST_REGISTRY.lock().expect("test registry");
         let keys = keys();
         let mut plan = input(&keys);
         let mut cap = 0;
@@ -390,5 +384,37 @@ mod tests {
         assert_eq!(pending.state, 1);
         assert_eq!(pending.manifest, [0; 32]);
         assert_eq!(pending.artifact, [0; 32]);
+    }
+
+    #[test]
+    fn publication_test_registry_isolation_probe() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        for (name, operation) in [
+            ("header", publication_layouts_and_short_version_prefix_are_checked_before_the_body as fn()),
+            ("bounds", publication_invalid_plan_and_short_output_fail_before_owner_lookup as fn()),
+        ] {
+            let guard = TEST_REGISTRY.lock().expect("test registry");
+            let (started_tx, started_rx) = mpsc::channel();
+            let (done_tx, done_rx) = mpsc::channel();
+            let worker = std::thread::spawn(move || {
+                started_tx.send(()).expect("started receiver");
+                operation();
+                done_tx.send(()).expect("completion receiver");
+            });
+            started_rx.recv_timeout(Duration::from_secs(10)).expect("worker started");
+            let completed_while_another_test_owned_registry = match done_rx.recv_timeout(Duration::from_secs(1)) {
+                Ok(()) => true,
+                Err(mpsc::RecvTimeoutError::Timeout) => false,
+                Err(mpsc::RecvTimeoutError::Disconnected) => panic!("publication worker disconnected"),
+            };
+            drop(guard);
+            worker.join().expect("publication worker");
+            if !completed_while_another_test_owned_registry {
+                done_rx.recv_timeout(Duration::from_secs(10)).expect("worker completed after release");
+            }
+            println!("PUBLICATION_TEST_SCOPE name={name} completed_while_registry_owned={completed_while_another_test_owned_registry}");
+            assert!(!completed_while_another_test_owned_registry, "publication FFI test crossed another test's registry scope");
+        }
     }
 }
