@@ -1,6 +1,9 @@
 # q-periapt-hybrid (Kotlin)
 
-The 0.2.0 product entry point is now `QPeriaptRuntime.fromSignedPolicy`.
+For durable policy state on macOS arm64 or Linux, start with
+`QPeriaptPersistentRuntime.provision` for explicit first installation and `open`
+for an existing store. `QPeriaptRuntime.fromSignedPolicy` remains the entry point
+when the host implements trusted-state persistence itself.
 Use `runtime.generateKey().use { key -> ... }`, `runtime.encapsulate(...)` and
 `key.decapsulate(...)`; private keys remain in native owners unless transferred
 through `QPeriaptExpert`. Public-key and
@@ -19,10 +22,12 @@ the owner entry point. No 0.2.0 package has been published yet.
 Kotlin face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI, via the Foreign
 Function & Memory API (Project Panama, **JDK 25+**).
 
-This binding exposes a stateless ABI2 KEM/policy operation surface and no prekey, ratchet, session-store,
-multi-device, or recovery behavior. Its product tests cover signed policy/digest,
-OS-random round trips, context separation, fail-closed state transitions, and secret
-wipes rather than deterministic byte replay; none is session-protocol evidence. Future Continuity work is specified in
+This binding exposes owned ABI2 KEM operations, durable policy updates and
+independently authorized policy-root recovery. These policy operations do not
+provide prekeys, a ratchet, a session store or multi-device recovery.
+Its product tests cover signed policy/digest, OS-random round trips, context
+separation, fail-closed state transitions, storage reopen, recovery replay,
+cancellation and secret wipes; none is session-protocol evidence. Continuity work is specified in
 [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
 
 This is a host JVM binding, not the Android binding. Android apps should consume
@@ -66,8 +71,9 @@ from the inspected C candidate, not an unrelated package with the same name.
 The producer rebuilds and tests the JAR against that native package, stages its
 Maven version directory, checks bytecode/source/metadata/licenses, and installs
 the resulting archive in a temporary project outside the checkout. That project
-resolves the Maven coordinate and runs real owner/KDF/policy, cancellation and
-concurrency calls. A Java module-path probe grants native access only to the SDK
+resolves the Maven coordinate and runs real owner/KDF/policy, durable update,
+root recovery, existing-store enrollment, cancellation and concurrency calls.
+A Java module-path probe grants native access only to the SDK
 module; six process-level negative controls cover configuration, permission and
 missing-symbol failures. Logs and the final `INSTALLED_CONSUMER.json` retain the
 actual resolved files and hashes. This is local diagnostic evidence; CI/platform

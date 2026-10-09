@@ -40,17 +40,25 @@ both dependencies in its module descriptor. `--illegal-native-access=deny`
 enforces rejection of ungranted FFM access. JDK 25's default warning mode alone
 does not enforce that rejection.
 
-New integrations start with `QPeriaptRuntime.fromSignedPolicy(...)` and use
-`use`/`close` for runtime, key, secret, derived key and pending update owners.
+On macOS arm64 and Linux, use `QPeriaptPersistentRuntime.provision(...)` for
+explicit first installation and `open(...)` for an existing policy store.
+The path must be absolute, on supported local storage, in a private directory.
+Creation never overwrites an existing file; opening never treats missing or
+corrupt state as first installation. Its `.runtime` supplies normal key operations.
+Use `persistent.update(policy, signature)` to persist and activate a successor;
+success revokes the old runtime and children. Direct manual policy preparation
+on a persistent runtime returns `ERR_STORAGE_REQUIRED (-24)`.
+
+Use `QPeriaptRuntime.fromSignedPolicy(...)` when the application supplies its own
+durable trusted-state transaction. Use `use`/`close` for runtime, key, secret,
+derived key and pending update owners.
 Java calls the Kotlin factory as `QPeriaptRuntime.Companion.fromSignedPolicy`.
 Owner constructors and raw handle accessors are not Java source API. This is
 misuse resistance, not isolation from reflection or hostile code in the same JVM.
 The legacy `QPeriaptHybrid` byte-array API remains available.
 
-Pin the policy root. Persist trusted state atomically before using a new runtime
-or activating an update. Missing or corrupt storage must not become first
-enrollment. JVM policy tests use an in-memory persistence fixture; this binding
-does not supply a durable store. Private transfer through `QPeriaptExpert` and
+Pin the policy root. For the manual runtime, persist trusted state atomically
+before using a new runtime or activating an update. Private transfer through `QPeriaptExpert` and
 secret export are explicit; erase every exported array after use. Closing an
 owner cannot revoke a byte copy already exported to the application.
 
@@ -59,6 +67,30 @@ skips native work; a running native operation keeps its lease and disposes an
 undelivered result. A cancelled future can finish before native work ends.
 Runtime close revokes child owners. Cleaner disposal is a nondeterministic
 backstop, not a replacement for explicit close.
+
+For independently authorized policy-root recovery, retain the original
+`QPeriaptPolicyRecoveryTrust` outside the store. `provisionRecoverable` requires
+the recovery authority's enrollment signature. Existing fixed-authority stores
+require explicit `enrollRecovery` with their original policy and approval;
+`openRecoverable` does not enroll them implicitly. Sign the separate approval
+and incoming-root possession messages from `prepareAuthorityRecovery`, then
+retain the resulting `QPeriaptPolicyRecoveryAuthorization` for exact retries.
+`recoverAuthority` returns `Applied` with a new persistent owner, or the ownerless
+replay outcomes `AlreadyApplied` / `AppliedThenAdvanced`; replays preserve the
+current runtime. This recovers policy authority, not Continuity device identity.
+
+All synchronous storage calls, including `close`, may block on disk I/O. Async
+variants snapshot inputs before dispatch to the caller's bounded executor.
+Cancellation does not undo an admitted storage commit. `ERR_COMMIT_UNCERTAIN
+(-21)` and `ERR_STORE_COMMITTED (-22)` also require reconciliation: close old
+owners, then reopen with the latest requested policy. For authority recovery use
+`openRecovering` with the original authorization, its exact originally requested
+policy/signature, and retained trust. Even if the policy later advanced, do not
+substitute that newer policy into the recovery request. The returned runtime
+uses the persisted current policy and reports the historical disposition.
+`openRecoverable` instead admits an ordinary current signed policy.
+Do not reinitialize the database
+or create a different recovery request to conceal an unknown outcome.
 
 The binary and sources JARs contain the project's Apache-2.0 and MIT license
 texts. The native archive includes its own third-party notices and SBOM/CBOM.

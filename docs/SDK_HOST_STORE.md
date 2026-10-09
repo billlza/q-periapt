@@ -1,7 +1,7 @@
 # Host policy persistence (0.2.0 development)
 
 `q-periapt-host-store::PolicyStore` supplies the SDK's persist-before-activate
-sequence on macOS/Linux. Rust, three additive C functions and Swift's
+sequence on macOS/Linux. Rust, the C functions and Swift/Kotlin's
 `QPeriaptPersistentRuntime` share that implementation. Both peers in the local
 connection diagnostic recover persisted state before use. Installed packages
 and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
@@ -83,7 +83,7 @@ invalid or disabling configuration never opens a listener.
 ## Independent online-root recovery
 
 The opt-in v2 image adds a fixed independent ML-DSA-65 recovery root. This is a
-SDK policy-authority recovery profile exposed through Rust, C and Swift. It does
+SDK policy-authority recovery profile exposed through Rust, C, Swift and Kotlin/JVM. It does
 not implement threshold governance, a remotely authenticated issuer service, or
 Continuity identity-root replacement. The original C/Swift constructors retain
 v1 behavior and cannot open v2 without its required recovery configuration.
@@ -180,7 +180,7 @@ binding. That migration, installed product qualification and
 independent security review remain release work; they must not be replaced with
 weaker comparisons or an implicit new installation.
 
-## C and Swift ownership
+## C, Swift and Kotlin ownership
 
 ### Explicit enrollment of an existing v1 policy image
 
@@ -233,6 +233,10 @@ because it acquires a new store lease, including when the receipt was already
 applied. A post-commit publication failure reports `ERR_STORE_COMMITTED`; reopen
 using the original authorization instead of assuming rollback. A v1 store reports
 `ERR_RECOVERY_REQUIRED` and is never automatically enrolled.
+Recovery reopen also requires the exact candidate signed policy bound by that
+original authorization, even after later policy updates. Substituting a newer
+policy is rejected. A successful reopen returns the persisted current runtime,
+not the old candidate policy; ordinary `openRecoverable` takes the current policy.
 
 Swift exposes `QPeriaptPolicyRecoveryTrust`, `QPeriaptPolicyRecoveryRequest`,
 `QPeriaptPolicyRecoveryAuthorization`, and the corresponding persistent runtime
@@ -242,6 +246,16 @@ newly returned owner; cancelling a successful replay leaves the current owner
 usable. Parsing or assembling these public containers is not signature verification.
 The original trust, signed request and exact requested policy must be available
 after process restart. Public test vectors are examples, never deployment roots.
+
+Kotlin/JVM exposes the same immutable trust/request/authorization containers and
+`QPeriaptPersistentRuntime` operations. `recoverAuthority` returns the sealed
+`Applied(runtime)`, `AlreadyApplied`, or `AppliedThenAdvanced` result. Only
+`Applied` owns a new runtime; `openRecovering` always owns a newly opened runtime
+and reports its historical disposition separately. Public helper construction
+checks grammar, while the native store verifies signatures and current authority.
+Async methods clone inputs before executor dispatch. A cancelled JVM future can
+finish before the admitted worker; that worker disposes only an undelivered new
+owner. Synchronous calls and explicit close may block on filesystem sync.
 
 Recovery storage is currently implemented on macOS/Linux. Other platforms expose
 the C symbols but return `ERR_UNSUPPORTED_PLATFORM` for storage operations.

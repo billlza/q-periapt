@@ -14,6 +14,7 @@ import java.lang.ref.Reference
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -105,7 +106,7 @@ class QPeriaptKey private constructor(@get:JvmSynthetic internal val owned: SdkH
     }
     fun publicKey(): QPeriaptPublicKey = owned.withHandle { QPeriaptPublicKey(NativeSdk.publicKey(it)) }
     fun decapsulate(ciphertext: QPeriaptCiphertext, applicationContext: ByteArray): QPeriaptSecret =
-        owned.withHandle { NativeSdk.decapsulate(it, owned.parent, ciphertext.encoded(), applicationContext) }
+        owned.withParentHandle { handle, parent -> NativeSdk.decapsulate(handle, parent, ciphertext.encoded(), applicationContext) }
     override fun close() = owned.close()
 
     fun decapsulateAsync(
@@ -177,7 +178,7 @@ class QPeriaptSecret private constructor(private val owned: SdkHandle) : AutoClo
         internal fun adopt(owned: SdkHandle) = QPeriaptSecret(owned)
     }
     fun deriveKey(purpose: QPeriaptKeyPurpose, protocolLabel: ByteArray, context: ByteArray): QPeriaptDerivedKey =
-        owned.withHandle { NativeSdk.derive(it, owned.parent, purpose.code, protocolLabel, context) }
+        owned.withParentHandle { handle, parent -> NativeSdk.derive(handle, parent, purpose.code, protocolLabel, context) }
     /** Caller must erase the returned array. Closing this owner cannot revoke that copy. */
     fun exportForProtocol(): ByteArray = owned.withHandle { NativeSdk.export(it) }
     override fun close() = owned.close()
@@ -203,6 +204,12 @@ private val ownerLogger: Logger = Logger.getLogger("dev.qperiapt.sdk")
  */
 internal fun <T : AutoCloseable> submitOwned(
     executor: Executor, cleanupInput: () -> Unit = {}, operation: () -> T,
+): Future<T> = submitSdkOperation(executor, cleanupInput, { it.close() }, operation)
+
+/** Shared completion ownership: cancellation discards only an operation's new result. */
+@JvmSynthetic
+internal fun <T> submitSdkOperation(
+    executor: Executor, cleanupInput: () -> Unit = {}, discardResult: (T) -> Unit, operation: () -> T,
 ): Future<T> {
     val completion = CompletableFuture<T>()
     try {
@@ -210,7 +217,7 @@ internal fun <T : AutoCloseable> submitOwned(
             try {
                 if (!completion.isCancelled) {
                     val result = operation()
-                    if (!completion.complete(result)) result.close()
+                    if (!completion.complete(result)) discardResult(result)
                 }
             } catch (failure: Throwable) {
                 if (!completion.completeExceptionally(failure)) {
@@ -230,7 +237,8 @@ internal fun <T : AutoCloseable> submitOwned(
 }
 
 /** Cleaner state contains only an ID, never a reference to the registered owner. */
-internal class SdkHandle private constructor(private val value: Long, @get:JvmSynthetic val parent: SdkHandle?) : AutoCloseable {
+internal class SdkHandle private constructor(private val value: Long, parent: SdkHandle?) : AutoCloseable {
+    private val retainedParent = AtomicReference(parent)
     private class Release(private val value: Long) : Runnable {
         override fun run() {
             try {
@@ -244,15 +252,27 @@ internal class SdkHandle private constructor(private val value: Long, @get:JvmSy
     private val cleanable = cleaner.register(this, Release(value))
 
     @JvmSynthetic
-    fun <T> withHandle(operation: (Long) -> T): T = try {
-        operation(value)
-    } finally {
-        Reference.reachabilityFence(this)
+    fun <T> withHandle(operation: (Long) -> T): T = withParentHandle { handle, _ -> operation(handle) }
+
+    @JvmSynthetic
+    fun <T> withParentHandle(operation: (Long, SdkHandle?) -> T): T {
+        // The same snapshot must survive both native admission and output adoption.
+        // A concurrent successful close may detach this owner from its parent.
+        val parent = retainedParent.get()
+        return try {
+            operation(value, parent)
+        } finally {
+            Reference.reachabilityFence(parent)
+            Reference.reachabilityFence(this)
+        }
     }
 
     override fun close() {
         withHandle { NativeSdk.close(it) }
         cleanable.clean() // unregister; the second native close is idempotent
+        // A retained, closed alias no longer owns its runtime or storage lease.
+        // Failed closes leave the reference intact; active calls have snapshots.
+        retainedParent.set(null)
     }
 
     companion object {

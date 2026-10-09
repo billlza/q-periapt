@@ -40,6 +40,10 @@ works with the existing keys and connections, while policy changes must use
 the persistent owner's `update`. Direct manual preparation is rejected, so it
 cannot bypass the store. Use `await persistent.close()` to run potentially
 blocking disposal off the caller's actor; destruction remains a fallback.
+Kotlin/JVM exposes the same persistent runtime on macOS/Linux through JDK 25 FFM.
+Its synchronous methods, including `close`, may block; async creation, update
+and policy-recovery methods use the application's bounded executor. Recovery
+replays return no new owner and must not close the current runtime on cancellation.
 
 ## Ownership and concurrency
 
@@ -81,8 +85,12 @@ authenticate the selected components and perform its own atomic state transition
 | Drop a Swift/JVM wrapper | Swift destruction or JVM Cleaner disposes the native owner; JVM collection has no timing guarantee |
 | Abandon an Android wrapper | Explicit close is required; runtime close still drains abandoned child registrations. Android API 23 does not depend on Cleaner/finalizers |
 
-Swift/JVM children retain their runtime wrapper to prevent collection from
-revoking a still-referenced child. Android has no automatic runtime disposal.
+Live Swift/JVM children retain their runtime owner to prevent collection from
+revoking a still-referenced child. JVM successful explicit child close releases
+that parent reference; retaining a closed alias does not retain a storage lease.
+An in-flight JVM operation snapshots and fences its parent through native work
+and output adoption, including when child close races that work.
+Android has no automatic runtime disposal.
 Async JVM/Android APIs take an application executor, whose queue and worker
 bounds are the application's responsibility. A cancelled Future can report done
 before native work finishes. Cancellation is not a native-operation interrupt.

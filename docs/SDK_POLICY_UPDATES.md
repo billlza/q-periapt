@@ -53,7 +53,7 @@ standalone `Runtime::from_signed_policy` keeps the manual sequence above;
 applications using `PolicyStore` call `replace_policy` instead.
 
 For a persistent native runtime, call `q_periapt_sdk_runtime_update_store` or
-Swift's `QPeriaptPersistentRuntime.update` instead of the four manual steps.
+Swift/Kotlin's `QPeriaptPersistentRuntime.update` instead of the four manual steps.
 It verifies, commits and activates, returning a new runtime identity and
 revoking the old owner/children. Manual preparation on such a runtime returns
 `ERR_STORAGE_REQUIRED`. This operation admits a normal native call before any
@@ -67,6 +67,12 @@ latest requested signed policy. Swift cancellation waits for the worker and
 closes an undelivered successor; it does not undo persistence. Use
 `open(at:policy:signature:trustRoot:)` to reconcile the configured policy against
 the durable floor before obtaining another runtime.
+Kotlin's `updateAsync` has the same durable outcome rules, but a cancelled
+`Future` may complete before its worker. An undelivered new owner is closed by
+the worker. After policy-authority recovery, reconcile through `openRecovering`
+with the original authorization and its exact requested signed policy, even if
+the stored policy subsequently advanced; the returned runtime uses the current
+stored policy. Ordinary replay outcomes retain the current owner.
 
 If persistence fails before committing, discard the preparation. If persistence
 committed but activation fails or the process crashes, stop old-runtime use and

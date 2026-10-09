@@ -19,7 +19,9 @@ class JvmSDKPackageTests(unittest.TestCase):
         self.directory = self.repository / jvm.MAVEN_PATH
         self.directory.mkdir(parents=True)
         self.binary = {f"dev/qperiapt/{name}.class": b"\xca\xfe\xba\xbe\x00\x00\x00\x45fixture-header-only"
-            for name in ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid")}
+            for name in ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid",
+                         "QPeriaptPersistentRuntime", "QPeriaptPolicyRecoveryTrust", "QPeriaptPolicyRecoveryRequest",
+                         "QPeriaptPolicyRecoveryAuthorization", "QPeriaptPolicyRecoveryResult", "QPeriaptPolicyRecoveryReopen")}
         self.binary["META-INF/dev.qperiapt_q-periapt-hybrid.kotlin_module"] = b"fixture"
         self.binary["META-INF/MANIFEST.MF"] = ("Manifest-Version: 1.0\r\nAutomatic-Module-Name: dev.qperiapt.hybrid\r\n"
             "Implementation-Title: Q-Periapt Kotlin/JVM SDK\r\nImplementation-Version: 0.2.0\r\n"
@@ -67,6 +69,12 @@ class JvmSDKPackageTests(unittest.TestCase):
         self.assertEqual(jvm.verify_maven(self.repository)["coordinate"], jvm.COORDINATE)
         (self.directory / f"{jvm.PREFIX}.jar.sha256").write_text("0" * 64)
         with self.assertRaisesRegex(ValueError, "checksum differs"):
+            jvm.verify_maven(self.repository)
+
+    def test_rehashed_missing_persistent_api_is_rejected(self):
+        del self.binary["dev/qperiapt/QPeriaptPersistentRuntime.class"]
+        self.write_repository()
+        with self.assertRaisesRegex(ValueError, "required.*class|owner.*class|class.*missing"):
             jvm.verify_maven(self.repository)
 
     def test_rehashed_duplicate_gradle_component_is_rejected(self):

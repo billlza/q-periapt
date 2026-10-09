@@ -46,6 +46,15 @@ class QPeriaptJavaBoundaryTest {
                 return QPeriaptRuntime.Companion.fromSignedPolicy(p, s, r, new byte[0], 32, 4);
               }
               static QPeriaptKey key(QPeriaptRuntime r) { return r.generateKey(); }
+              static QPeriaptPersistentRuntime persistent(String path, byte[] p, byte[] s, byte[] r) {
+                return QPeriaptPersistentRuntime.Companion.provision(path, p, s, r, 32, 4);
+              }
+              static QPeriaptPolicyRecoveryTrust trust(byte[] scope, byte[] initial, byte[] recovery) {
+                return new QPeriaptPolicyRecoveryTrust(scope, initial, recovery);
+              }
+              static QPeriaptPolicyRecoveryRequest request(byte[] encoded) {
+                return new QPeriaptPolicyRecoveryRequest(encoded);
+              }
             }
         """.trimIndent())
         assertTrue(allowed.first, allowed.second.toString())
@@ -56,6 +65,11 @@ class QPeriaptJavaBoundaryTest {
               static Object alias(QPeriaptRuntime r) { return new QPeriaptRuntime(r.getOwned${'$'}q_periapt_hybrid()); }
               static Object key() { return new QPeriaptKey(null); }
               static Object secret() { return new QPeriaptSecret(null); }
+              static Object persistent(QPeriaptRuntime r) { return new QPeriaptPersistentRuntime(r); }
+              static Object recovered(QPeriaptPersistentRuntime r) { return new QPeriaptPolicyRecoveryResult.Applied(r); }
+              static Object reopened(QPeriaptPersistentRuntime r) {
+                return new QPeriaptPolicyRecoveryReopen(r, QPeriaptPolicyRecoveryDisposition.APPLIED);
+              }
             }
         """.trimIndent())
         assertFalse(forbidden.first)
@@ -66,14 +80,20 @@ class QPeriaptJavaBoundaryTest {
 
     @Test
     fun ownerConstructorsArePrivateAndInternalAccessorsAreSynthetic() {
-        val owners = listOf(QPeriaptRuntime::class.java, QPeriaptKey::class.java, QPeriaptSecret::class.java,
+        val owners = listOf(QPeriaptRuntime::class.java, QPeriaptPersistentRuntime::class.java, QPeriaptKey::class.java, QPeriaptSecret::class.java,
             QPeriaptDerivedKey::class.java, QPeriaptPolicyUpdate::class.java, QPeriaptPolicyStates::class.java,
-            QPeriaptSDKEncapsulation::class.java, SdkHandle::class.java)
+            QPeriaptSDKEncapsulation::class.java, SdkHandle::class.java,
+            QPeriaptPolicyRecoveryResult.Applied::class.java, QPeriaptPolicyRecoveryReopen::class.java)
         for (owner in owners) {
             assertTrue(owner.declaredConstructors.filterNot { it.isSynthetic }.all { Modifier.isPrivate(it.modifiers) }, owner.name)
         }
         for (owner in listOf(QPeriaptRuntime::class.java, QPeriaptKey::class.java)) {
             assertTrue(owner.declaredMethods.filter { it.name.startsWith("getOwned") }.all { it.isSynthetic })
+        }
+        val shared = Class.forName("dev.qperiapt.QPeriaptSDKKt").declaredMethods.single { it.name == "submitSdkOperation" }
+        assertTrue(shared.isSynthetic)
+        for (name in listOf("withHandle", "withParentHandle")) {
+            assertTrue(SdkHandle::class.java.declaredMethods.single { it.name == name }.isSynthetic)
         }
     }
 }

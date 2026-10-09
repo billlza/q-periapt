@@ -40,6 +40,11 @@ MTIME = 946684800
 SHA = re.compile(r"[0-9a-f]{64}")
 POLICIES = {"enabled": "signed-policy-vectors.json", "disabled": "sdk-policy-revocation-vectors.json",
             "reenabled": "sdk-policy-update-vectors.json"}
+RECOVERY_FIXTURE = "sdk-policy-recovery-vectors.json"
+RECOVERY_FIELDS = ("scope", "operation", "initial_root", "recovery_root", "incoming_root",
+    "initial_policy", "initial_signature", "next_policy", "next_signature", "current_policy", "current_signature",
+    "enrollment_message", "enrollment_signature", "request", "approval_message", "possession_message",
+    "approval_signature", "possession_signature", "authorization")
 NOTICE_PATHS = {f"META-INF/licenses/{name}": ROOT / "LICENSES" / name for name in ("Apache-2.0.txt", "MIT.txt")}
 
 
@@ -72,7 +77,9 @@ class MavenContract:
 def product_maven_contract() -> MavenContract:
     return MavenContract(GROUP, NAME, VERSION, MODULE, "Q-Periapt Kotlin/JVM SDK",
         (("QPeriapt-ABI", "2"), ("QPeriapt-SDK-Extension", "1")), "dev/qperiapt/",
-        ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid"), BINDING)
+        ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid",
+         "QPeriaptPersistentRuntime", "QPeriaptPolicyRecoveryTrust", "QPeriaptPolicyRecoveryRequest",
+         "QPeriaptPolicyRecoveryAuthorization", "QPeriaptPolicyRecoveryResult", "QPeriaptPolicyRecoveryReopen"), BINDING)
 
 
 def require(condition: bool, message: str) -> None:
@@ -115,6 +122,7 @@ def sources() -> dict:
     for area in ("src", "consumer"):
         paths.extend(path for path in (BINDING / area).rglob("*") if path.is_file())
     paths.extend(ROOT / "bindings" / name for name in POLICIES.values())
+    paths.append(ROOT / "bindings" / RECOVERY_FIXTURE)
     paths.extend(NOTICE_PATHS.values())
     paths.extend(ROOT / "artifact" / name for name in ("jvm_sdk_package.py", "bounded_process.py",
         "evidence_io.py", "deterministic_archive.py"))
@@ -332,6 +340,10 @@ def consumer_fixtures(consumer: Path) -> None:
             (directory / "future-state").write_bytes((value["policy_version"] + 1).to_bytes(4, "little")
                                                        + bytes.fromhex(value["policy_digest"]))
     (directory / "root").write_bytes(root)
+    recovery = parse_strict_json_bytes(snapshot(ROOT / "bindings" / RECOVERY_FIXTURE).data,
+                                      label="policy recovery fixture")
+    for name in RECOVERY_FIELDS:
+        (directory / f"recovery.{name}").write_bytes(bytes.fromhex(recovery[name]))
 
 
 def build(args: argparse.Namespace) -> dict:
@@ -378,9 +390,12 @@ def build(args: argparse.Namespace) -> dict:
          f"-Pqperiapt.stagingRepository={staged}", f"-Pqperiapt.lib={native_root / 'lib' / library_name}"],
         output / "gradle-package", ROOT, env)
     results = [ET.fromstring(snapshot(path).data) for path in (BINDING / "build/test-results/test").glob("TEST-*.xml")]
-    require(results and sum(int(row.attrib["tests"]) for row in results) >= 17
+    require(results and sum(int(row.attrib["tests"]) for row in results) >= 29
             and all(all(int(row.attrib[key]) == 0 for key in ("failures", "errors", "skipped")) for row in results),
             "JVM source tests are incomplete or failed")
+    require({"dev.qperiapt.QPeriaptPersistentRuntimeTest", "dev.qperiapt.QPeriaptPolicyRecoveryTest"}
+            <= {row.attrib["name"] for row in results if int(row.attrib["tests"]) >= 6},
+            "JVM persistence or recovery source tests did not execute")
     for path in (BINDING / "build/test-results/test").glob("TEST-*.xml"):
         copy(path, output / "source-test-results" / path.name)
     package_name = f"q-periapt-jvm-{VERSION}-{host}"
@@ -422,7 +437,8 @@ def build(args: argparse.Namespace) -> dict:
     kotlin_output = run([*command, "--project-dir", str(consumer), "verifyInstalled",
         f"-PsdkRepository={installed / 'maven'}", f"-PsdkLibrary={installed_lib}", f"-PsdkJar={installed_jar}"],
         output / "installed-kotlin", consumer, env)
-    for marker in ("OWNER_POLICY_KDF", "CANCELLATION_CONCURRENCY", "TAMPER_ROLLBACK"):
+    for marker in ("OWNER_POLICY_KDF", "CANCELLATION_CONCURRENCY", "TAMPER_ROLLBACK",
+                   "PERSISTENT_POLICY", "AUTHORITY_RECOVERY", "LEGACY_RECOVERY_ENROLLMENT"):
         require(f"INSTALLED_KOTLIN_{marker}_PASS".encode() in kotlin_output, "installed Kotlin result is missing")
     resolutions = []
     for line in snapshot(consumer / "build/runtime.tsv").data.decode().splitlines():

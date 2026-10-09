@@ -1,0 +1,93 @@
+{
+  "source_base": "a671719eec6d48139075e1a9ff2e309cf2b19f9e",
+  "native_source": "a671719eec6d48139075e1a9ff2e309cf2b19f9e",
+  "scope": "Kotlin/JVM persistent policy owner and independent policy authority recovery over existing native ABI 2/extension 1",
+  "native_exports": 51,
+  "source_tests": 29,
+  "prototype_profiles": [
+    "debug-G1",
+    "release-G1",
+    "debug-Serial",
+    "release-Serial"
+  ],
+  "artifact_tests": 20,
+  "installed_consumer": {
+    "archive": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin-persistence-product-package-04/package/q-periapt-jvm-0.2.0-aarch64-apple-darwin.tar.gz",
+    "coordinate": "dev.qperiapt:q-periapt-hybrid:0.2.0",
+    "host": "aarch64-apple-darwin",
+    "installed": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-jvm-install-awsu0o18/sdk/q-periapt-jvm-0.2.0-aarch64-apple-darwin",
+    "installed_kotlin": "passed",
+    "java_module_path": "passed",
+    "manifest_sha256": "e85e61c5255b22b737597b9a2b7d09a402b9020046de9d3fbfe4675ae4e7176d",
+    "maven": {
+      "classes": 58,
+      "coordinate": "dev.qperiapt:q-periapt-hybrid:0.2.0",
+      "jar_sha256": "e2db75e43bbf9bf1544c8543f3804ebb95c86082727a24d849f55efe1d803925",
+      "jvm_version": 25
+    },
+    "native": {
+      "archive": "q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz",
+      "diagnostic_only": false,
+      "host": "aarch64-apple-darwin",
+      "library": "libq_periapt_ffi.2.dylib",
+      "library_sha256": "c6087a3ad8d5609e658e4fbc069087b220ab7a5da4eb9bcb0bdbb5d2003a45a2",
+      "manifest_sha256": "61b92e1e557f810b4b900ff4bbdcfaad84be9b28c27fe52995b4cdc80a8c048c",
+      "mtime": 1791545561,
+      "sha256": "944fc98e749349fdc07e6ce886b49861b83fd58dd16bcfed11b3abfdbef8556d"
+    },
+    "negative_controls": [
+      "denied-native-access",
+      "directory-library",
+      "missing-library",
+      "missing-property",
+      "missing-symbol",
+      "relative-path"
+    ],
+    "release_claim_eligible": false,
+    "resolved_runtime": [
+      {
+        "coordinate": "dev.qperiapt:q-periapt-hybrid:0.2.0",
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-jvm-install-awsu0o18/sdk/q-periapt-jvm-0.2.0-aarch64-apple-darwin/maven/dev/qperiapt/q-periapt-hybrid/0.2.0/q-periapt-hybrid-0.2.0.jar",
+        "sha256": "e2db75e43bbf9bf1544c8543f3804ebb95c86082727a24d849f55efe1d803925"
+      },
+      {
+        "coordinate": "org.jetbrains.kotlin:kotlin-stdlib:2.4.20",
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-persistent-jvm-cache-v4pi43ql/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.20/94c1451890d164aed65d43b3db0b7ecef7c183e7/kotlin-stdlib-2.4.20.jar",
+        "sha256": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f"
+      },
+      {
+        "coordinate": "org.jetbrains:annotations:13.0",
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-persistent-jvm-cache-v4pi43ql/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+        "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+      }
+    ],
+    "sha256": "5c8ef017e10e00e70577c2d750d79400be4136fabee5690766a92447fcb5f9db",
+    "source_tests": 29,
+    "sources_unchanged": true
+  },
+  "capture_sha256": "5e2cc384ccc70a231e255b2f3a0880a912b395e9ecf9fd6f0e8fbbd7bdd368d7",
+  "capture_bytes": 224158,
+  "capture_members": 222,
+  "current_files": {
+    "bindings/kotlin/src/main/kotlin/dev/qperiapt/QPeriaptHybrid.kt": "b9217db615507bfa61898ebec0214aaefb9a8f6ceb70cff0421e749db6e7b23c",
+    "bindings/kotlin/src/main/kotlin/dev/qperiapt/QPeriaptNative.kt": "62f8ada2e5ff63954842b55b34fd60ad12c6d5241c650fc4dbf46595970dd4bc",
+    "bindings/kotlin/src/main/kotlin/dev/qperiapt/QPeriaptPersistentRuntime.kt": "6864f1c329937931e0678b7169d0eb37c95bdeff95916d0b9195fe740db78858",
+    "bindings/kotlin/src/main/kotlin/dev/qperiapt/QPeriaptSDK.kt": "38613e115ebbd35a58857a2f56c4224f21c741ed0df08bde31c63ad2c5f52507",
+    "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptPersistentRuntimeTest.kt": "7141b7ff892d02c53ab933b1c7b6852570f2567a9531cc12a4e626512ce273bd",
+    "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptPolicyRecoveryTest.kt": "73999b571b78c0d41adabcada541d81803913ca8ec92b5ac516ef3b07c11d677",
+    "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptJavaBoundaryTest.kt": "e8a312885c4d1371d9971c6166c4126130ba61a289131aac59c3a084ffb23b89",
+    "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptHybridTest.kt": "df96c68d7dbe829276975c956dcb9fadb02eb40fefb1e24add4326bcfc3ef08d",
+    "bindings/kotlin/src/test/kotlin/dev/qperiapt/QPeriaptSDKTest.kt": "2a1f1f4fa58ba55594655584b5b285c540ffff8e16dc08d89b4e57a9c8080830",
+    "bindings/kotlin/consumer/src/main/kotlin/consumer/Consumer.kt": "2ba4fb358c06442631c18978dc9a7ca5a99a3b97f9296014592f2a8731139c01",
+    "bindings/kotlin/consumer/src/main/kotlin/consumer/PersistentConsumer.kt": "337898bec71479af80e9b58f2f3309a8302356d251e2685e2b9498b2aaab832a",
+    "bindings/kotlin/consumer/src/main/java/consumer/LoaderProbe.java": "0dc0ff8a1257e99b06368f19e4b0827e3dd9ef72569f2e66ed208e2b0a2cb8c6",
+    "bindings/kotlin/README.md": "3e3dfc04b199d5adbd3a7f8d077b3f23bb97c94d3c935470e31d45dfbf085e8c",
+    "bindings/kotlin/PackageREADME.md": "e0c05b654986ce7595b3402d07d6d331ff0e5a838cbfb00c427cbc17881cb84b",
+    "artifact/jvm_sdk_package.py": "39c666c8a78b2c62d820f5bc526a4200de3f5a8fc28f0d9ee720731b26c4359c",
+    "artifact/test_jvm_sdk_package.py": "b01833597d51eb90bd79bbd5e4cf8d21871ab1c2361e8a8aaa65e57ef4d9153d",
+    "docs/SDK_HOST_STORE.md": "59a1735d9ce75d6972d05b93732e12e335515b7080888a826fe1ac8cfd305f7b",
+    "docs/SDK_OWNERSHIP.md": "8f27a00849d894c2886e766d67ce707ef02bcb0eb4ec1ea3a2a0147d7f37b09d",
+    "docs/SDK_POLICY_UPDATES.md": "525fa672ef1e2b5f07b04a20bfc0bb35529c4f354e938dd1c08bceebc4a6c557"
+  },
+  "release_claim_eligible": false
+}

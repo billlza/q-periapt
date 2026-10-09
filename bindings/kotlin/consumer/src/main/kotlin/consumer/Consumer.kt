@@ -158,4 +158,10 @@ fun main() {
     status(-3) { QPeriaptRuntime.fromSignedPolicy(bytes("enabled.policy"), badSignature, bytes("root")) }
     status(-3) { runtime(bytes("future-state")) }
     println("INSTALLED_KOTLIN_TAMPER_ROLLBACK_PASS")
+    persistentPolicy()
+    println("INSTALLED_KOTLIN_PERSISTENT_POLICY_PASS")
+    authorityRecovery()
+    println("INSTALLED_KOTLIN_AUTHORITY_RECOVERY_PASS")
+    legacyRecoveryEnrollment()
+    println("INSTALLED_KOTLIN_LEGACY_RECOVERY_ENROLLMENT_PASS")
 }
