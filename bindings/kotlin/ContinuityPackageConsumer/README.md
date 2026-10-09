@@ -749,3 +749,50 @@ history without revoking inventory. `abandonPublication(id, intent)` applies onl
 to the original reserved intent and retires fresh unshared members. Neither
 operation asserts remote directory publication or physical erasure. Cancellation,
 owner closure and uncertain-result recovery use the existing native owner rules.
+
+## First-use configuration (unpublished candidate)
+
+Start with `ContinuityConfiguration.prepareCreate(path, input)`. Provide the original
+SDK `SdkPolicyTrust`, exact `InitialSdkPolicy`, independently pinned protocol
+`PolicyDocument`, and a `LocalTlsIdentity` containing your own DER certificate and
+private key. `prepareCreate` copies the inputs synchronously and does no filesystem
+work. Close the Kotlin TLS input after preparation, then call `finishOpen()`.
+The native owner validates signatures and TLS key matching before publishing the
+configuration, initial SDK store and generated wrapping key together. This does
+not yet create or approve a registered device.
+
+After an unknown creation result, retain the exact initial inputs and use
+`prepareReconcile`; it compares the original committed configuration without
+updating it. A mismatch, missing key, or corrupt store is an error, never permission
+to reset state. To open known committed configuration, use `prepareOpen` with
+original host SDK trust and pinned protocol metadata. Mutable root sidecar files
+are not sources of authority for this route.
+
+After `finishOpen`, use `createEnrollment(intent, witness)` or
+`resumeEnrollment(originalIntent, witness)`. Both move the SAME native owner into
+`ContinuityEnrollment`; closing or retaining the transferred configuration object
+cannot dispose or pin the successor. The host still authenticates the account,
+approves registration, supplies the independent account pin, obtains the signed
+grant, and explicitly enrolls required witness genesis before activation. Supply
+`ConfigurationWitness.signedTCP` or `mutualTLS` with the original witness identity,
+key and endpoint. Mutual TLS also needs the independently provisioned exact peer
+certificate and local TLS identity. Close that Kotlin TLS input after the
+create/resume call returns. Omitting the witness never permits activation when the
+signed policy requires one.
+
+A current continuation target may be opened with its own explicit inputs and
+moved into the original registration using `selectContinuationTarget(enrollment)`.
+This only selects the target and transfers its SDK lease; the existing signed
+policy renewal and activation transaction is still required. An admitted failure
+may consume both volatile owners: close both and reopen their original inputs and
+intent. Busy/admission errors do not imply adoption or grant permission to retry a
+new operation.
+
+Use `close`/`use` deterministically. Cleaner is a bounded-test-observed backstop,
+not an application scheduling mechanism. Calls are synchronous; no coroutine
+cancellation behavior is promised. `LocalTlsIdentity.close` clears its owned key
+array and refuses later snapshots. An already admitted call completes with its
+own snapshot; FFM key buffers are explicitly cleared before their confined arena
+is closed. This cannot erase caller arrays or historical copies retained by JVM
+implementation details. The legacy file configuration entry points remain for
+existing consumers; new integrations should use the explicit configuration path.

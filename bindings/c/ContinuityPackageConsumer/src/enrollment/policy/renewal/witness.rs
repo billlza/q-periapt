@@ -73,7 +73,10 @@ impl Owner {
         original: &p::HistoricalSessionPolicy,
         entry: &Entry,
     ) -> Result<p::AnchorClient> {
-        let configured = self.witness.ok_or(p::DurableError::AnchorRequired)?;
+        let configured = self
+            .witness
+            .as_ref()
+            .ok_or(p::DurableError::AnchorRequired)?;
         let parameters =
             configured.parameters(&self.path, entry.cancel.clone(), entry.invocation.clone())?;
         Ok(self.enrollment.policy_renewal_anchor_client(

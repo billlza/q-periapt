@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 mod publication;
 pub use publication::{publish_private_bytes, PrivatePublicationError};
+mod directory_publication;
+pub use directory_publication::publish_private_directory;
 
 /// A file backend whose exclusive whole-file lock precedes all content checks.
 ///

@@ -9,6 +9,13 @@ pub struct PrivatePublicationError {
     staging_name: Option<std::ffi::OsString>,
 }
 impl PrivatePublicationError {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    pub(super) fn staged(operation: io::Error, name: std::ffi::OsString) -> Self {
+        Self {
+            operation,
+            staging_name: Some(name),
+        }
+    }
     /// Original admission, write, sync, or non-replacing rename error.
     pub fn operation(&self) -> &io::Error {
         &self.operation

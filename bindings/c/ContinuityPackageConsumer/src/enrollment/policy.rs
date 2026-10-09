@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Explicit pinned policy inputs and the existing enrolled G/T transaction.
 use super::*;
-pub(super) mod renewal;
+pub(crate) mod renewal;
 
 #[derive(Clone, Copy)]
 enum ContinuationKind {
@@ -77,6 +77,29 @@ pub struct CancellationBytes {
     pub bytes: [u8; 281],
 }
 impl Owner {
+    pub(crate) fn select_supplied_policy(
+        &mut self,
+        mut source: crate::first_install::SuppliedPolicy,
+        source_cancel: &Cancellation,
+        entry: &Entry,
+        deadline: Instant,
+    ) -> Result<()> {
+        if self.target_authority.is_some() {
+            return Err(p::DurableError::Conflict.into());
+        }
+        let original = self.historical_policy(entry, deadline)?;
+        let target = source.historical()?;
+        if target.family() != self.family || target.checkpoint() == original.checkpoint() {
+            return Err(p::Error::Scope.into());
+        }
+        opening::check(source_cancel, deadline)?;
+        let authority =
+            device::PolicyAuthority::from_supplied(&mut source, &entry.cancel, deadline)?;
+        opening::check(source_cancel, deadline)?;
+        self.target_authority = Some(authority);
+        Ok(())
+    }
+
     pub(in crate::enrollment) fn current_target(&self) -> Result<Arc<p::VerifiedSessionPolicy>> {
         self.target_authority.as_ref().map(|a| Arc::clone(&a.policy)).ok_or_else(|| Failure {
             code: 1, message: "select an independently pinned current continuation policy for this enrollment owner".into(),

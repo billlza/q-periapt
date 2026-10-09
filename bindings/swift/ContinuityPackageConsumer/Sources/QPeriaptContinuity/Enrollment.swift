@@ -157,6 +157,17 @@ public final class ContinuityEnrollment: Sendable {
     private let reference: OwnerTransferReference
     private init(_ native: NativeOwner) { reference = OwnerTransferReference(native, label: "enrollment") }
 
+    // Adopt the same native reference after configuration-to-registration transfer.
+    static func configured(_ native: NativeOwner) -> ContinuityEnrollment { ContinuityEnrollment(native) }
+    func selectConfiguration(_ configuration: NativeOwner) throws {
+        try reference.call { enrolled in
+            try configuration.call { source in try enrolled.call { target in
+                var error = qpc_error_v1()
+                try checked(qpc_configuration_v1_select_continued_policy(source, target, &error), &error)
+            } }
+        }
+    }
+
     /// Explicit first-use key creation. An unknown result may have published the
     /// original key; never delete/recreate it or use this to repair a missing active key.
     public static func provisionWrappingKey(path: String) throws {

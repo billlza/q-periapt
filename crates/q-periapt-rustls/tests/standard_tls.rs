@@ -2,7 +2,9 @@
 //! Actual standard TLS handshakes, authentication failures and no-fallback checks.
 #![cfg(feature = "standard-tls")]
 
-use q_periapt_rustls::standard::{ConfigurationError, MutualTlsClient, MutualTlsServer};
+use q_periapt_rustls::standard::{
+    validate_local_identity, ConfigurationError, MutualTlsClient, MutualTlsServer,
+};
 use rustls::crypto::CryptoProvider;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{
@@ -45,6 +47,25 @@ fn configs(server: &Identity, client: &Identity) -> (MutualTlsClient, MutualTlsS
         )
         .expect("server"),
     )
+}
+
+#[test]
+fn local_identity_validation_requires_matching_key_and_certificate_without_peer_roots() {
+    let local = Identity::new("local.test");
+    let other = Identity::new("other.test");
+    validate_local_identity(vec![local.cert.clone()], local.key.clone_key())
+        .expect("valid local pair requires no peer roots");
+    assert!(validate_local_identity(vec![local.cert.clone()], other.key).is_err());
+    assert!(validate_local_identity(Vec::new(), local.key.clone_key()).is_err());
+    assert!(validate_local_identity(
+        vec![CertificateDer::from(vec![0; 32])],
+        local.key.clone_key()
+    )
+    .is_err());
+    assert!(
+        validate_local_identity(vec![local.cert], PrivateKeyDer::Pkcs8(vec![0; 32].into()))
+            .is_err()
+    );
 }
 fn name(value: &'static str) -> ServerName<'static> {
     ServerName::try_from(value).expect("test DNS name")

@@ -10,7 +10,8 @@ pub struct Options {
     pub carrier: u32,
     pub witness: *const witness::Options,
 }
-enum Kind {
+pub(crate) enum Kind {
+    Configuration(crate::configuration::Preparation),
     Operational(owner::Admission),
     Recovery,
     Device,
@@ -29,9 +30,9 @@ enum Kind {
     },
 }
 pub(crate) struct Request {
-    path: String,
-    kind: Kind,
-    witness: Option<witness::Configuration>,
+    pub(crate) path: String,
+    pub(crate) kind: Kind,
+    pub(crate) witness: Option<witness::Configuration>,
 }
 pub(crate) fn quality(value: u32) -> Result<p::PrekeyQuality> {
     match value {
@@ -111,6 +112,9 @@ impl Request {
         // boxes here reserves value-sized temporaries for unrelated match arms
         // even while an operational owner is signing on a foreign worker stack.
         let owner = match self.kind {
+            Kind::Configuration(preparation) => Owned::Configuration(
+                crate::configuration::Owner::open(path, preparation, &cancel, deadline)?,
+            ),
             Kind::Retirement(admission) => Owned::Retirement(retirement::Owner::open(
                 path, *admission, &cancel, deadline,
             )?),
@@ -121,6 +125,7 @@ impl Request {
                 self.witness,
                 &cancel,
                 deadline,
+                None,
             )?),
             Kind::Setup { create } => Owned::Setup(setup::Owner::open(
                 path,

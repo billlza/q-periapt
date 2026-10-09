@@ -109,6 +109,18 @@ impl Environment {
     }
 }
 impl PolicyAuthority {
+    pub(crate) fn from_supplied(
+        source: &mut crate::first_install::SuppliedPolicy,
+        cancel: &Cancellation,
+        deadline: Instant,
+    ) -> Result<Self> {
+        let (policy_store, policy) = source.take_current(cancel, deadline)?;
+        Ok(Self {
+            family: policy.family(),
+            policy_store,
+            policy,
+        })
+    }
     pub(crate) fn from_pinned_input(
         path: &Path,
         pin: &p::PolicyPin,

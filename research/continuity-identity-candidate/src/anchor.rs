@@ -112,24 +112,39 @@ impl AnchorSubject {
     }
 }
 
-/// Public enrollment input obtained from an authenticated empty journal at revision 1.
+/// Public enrollment input obtained from an authenticated empty journal at revision 1,
+/// or independently authenticated and approved by the witness control-plane operator.
 /// It is not an anchor receipt or permission to use that journal without a live witness.
 pub struct AnchorGenesis {
     subject: AnchorSubject,
     digest: [u8; 32],
 }
 impl AnchorGenesis {
+    /// Restore an independently approved remote genesis for trusted control-plane use.
+    ///
+    /// This checks shape only. The operator must authenticate the exporting device
+    /// and independently approve this exact initial image, account/roster and policy
+    /// pins. Untrusted request bytes must not select these inputs. `AnchorStore::enroll`
+    /// still checks current authority and rejects attempts to reset an existing lineage.
+    /// This value is neither a witness receipt nor journal/session permission.
+    pub fn from_trusted_state(
+        subject: AnchorSubject,
+        image_digest: [u8; 32],
+    ) -> Result<Self, Error> {
+        nonzero(&image_digest)?;
+        Ok(Self {
+            subject,
+            digest: image_digest,
+        })
+    }
+
     pub(crate) fn from_journal(
         journal: JournalIdentity,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         digest: [u8; 32],
     ) -> Result<Self, Error> {
-        nonzero(&digest)?;
-        Ok(Self {
-            subject: AnchorSubject::for_device(journal, device, policy)?,
-            digest,
-        })
+        Self::from_trusted_state(AnchorSubject::for_device(journal, device, policy)?, digest)
     }
     /// Exact journal/device/policy subject derived from the authenticated image.
     pub fn subject(&self) -> AnchorSubject {

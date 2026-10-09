@@ -7,6 +7,36 @@ or an addition to ABI 2. The manifest declares a macOS 13 source floor; executio
 qualifies only the actual host. Minimum OS, iOS and Linux runtime coverage need
 their own results.
 
+For a new installation, use `ContinuityConfiguration.prepareCreate(path:input:)`
+with `InstallationConfiguration`: an explicit `SdkPolicyTrust`, exact
+`InitialSdkPolicy`, independently pinned `PolicyDocument`, and `LocalTlsIdentity`.
+Call `finishOpen()` on the host's chosen worker, then transfer the same owner with
+`createEnrollment(intent:witness:)`. The SDK creates its own wrapping key and
+registration identity; do not prebuild a fixture directory or copy a database.
+
+After an uncertain initial publication, close the failed owner and use
+`prepareReconcile` with the exact original inputs. For an existing current
+installation, use `prepareOpen` under the original SDK trust and an independently
+pinned protocol policy, then `resumeEnrollment`. Missing state never authorizes
+creation. Recoverable trust retains the original scope and roots on every open;
+mutable root files are not trust inputs.
+
+`ConfigurationWitness.signedTCP` and `.mutualTLS` take independent witness pins
+and explicit carrier material. TLS uses its own local identity and exact peer
+certificate/server name. `nil` permits original-state preparation only when
+appropriate; a required profile still refuses activation without its witness.
+The returned genesis requires separate authenticated control-plane approval and
+enrollment. No endpoint failure selects a weaker carrier or local profile.
+
+A configuration's `selectContinuationTarget(for:)` transfers its SDK lease into
+an existing enrollment. It does not approve or commit a policy change; use the
+existing two-root renewal/continuation transaction afterward. Closing the
+transferred source cannot close the registration or keep its lease alive. All
+interfaces remain synchronous, with explicit concurrent cancellation and close.
+
+The following legacy registration route assumes already provisioned native
+configuration and wrapping-key inputs:
+
 `ContinuityEnrollment` exposes the native original registration transaction.
 First provision the wrapping key explicitly, then call `prepareCreate` with an
 independently approved `EnrollmentIntent`, followed by `finishOpen` and `request`.

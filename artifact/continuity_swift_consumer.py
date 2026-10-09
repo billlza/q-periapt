@@ -215,6 +215,15 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_c_witness import export_selected
             public_files = export_selected(checked, evidence, exported, SCOPE,
                                            replay=lambda path: verify_execution(stdout, path))
+            from continuity_first_configuration import qualify_foreign as qualify_configuration
+            configuration_client = binary.with_name("FirstConfigurationClient")
+            configuration_dependencies = run(["/usr/bin/otool", "-L", str(configuration_client)],
+                                             "configuration-dependencies-" + profile).decode()
+            configuration_loader = run(["/usr/bin/otool", "-l", str(configuration_client)],
+                                       "configuration-loader-" + profile).decode()
+            verify_linkage(configuration_dependencies, configuration_loader, native_dir)
+            configuration = qualify_configuration(outside, output, profile, runtime, row, run,
+                configuration_client, language="Swift")
             from continuity_device_retirement import qualify_foreign as qualify_retirement
             retirement = qualify_retirement(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_enrollment import qualify_foreign as qualify_enrollment
@@ -329,7 +338,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
                 "execution": checked, "public_files": public_files, "enrollment": enrollment,
-                "device_retirement": retirement,
+                "device_retirement": retirement, "first_configuration": configuration,
                 "account_owner": {"execution": account_checked, "public_files": account_files},
                 "account_cleanup": cleaned, "setup": configured, "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,

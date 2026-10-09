@@ -3,9 +3,14 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod account;
+mod configuration;
 mod device;
 mod enrollment;
+pub mod first_install;
 mod invocation;
+#[cfg(test)]
+#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+mod native_fixture;
 mod native_owner;
 mod opening;
 mod owner;
@@ -145,6 +150,9 @@ impl From<q_periapt_host_store::StoreError> for Failure {
                 E::Storage(_) => 9,
                 E::CommitUncertain(_) => 10,
                 E::ActivationAfterCommit(_) => 11,
+                E::RecoveryRequired => 13,
+                E::RecoveryDenied => 14,
+                E::RecoveryLimit => 15,
                 // Non-exhaustive upstream error: retain diagnostics and fail;
                 // an unfamiliar failure is never absence or permission to retry.
                 _ => 12,
@@ -226,6 +234,7 @@ impl From<p::connection_transport::Error> for Failure {
 
 enum Owned {
     Opening(Box<opening::Request>),
+    Configuration(Box<configuration::Owner>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),
     Device(Arc<device::Shared>),

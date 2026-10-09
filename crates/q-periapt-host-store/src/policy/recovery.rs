@@ -109,6 +109,13 @@ impl PolicyRecoveryTrust {
     pub fn enrollment_message(&self) -> Vec<u8> {
         message(b"Q-PERIAPT-SDK-RECOVERY-ENROLL/v1", &self.encode())
     }
+
+    /// Validate possession of the independently configured recovery key before
+    /// provisioning other installation resources. This creates no store, does
+    /// not enroll an existing store, and grants no online-root replacement.
+    pub fn verify_enrollment(&self, signature: &[u8]) -> Result<(), StoreError> {
+        verify(&self.recovery, &self.enrollment_message(), signature)
+    }
 }
 
 /// Exact, bounded statement to retain before requesting either signature.
@@ -303,7 +310,7 @@ pub(super) struct RecoveryImage {
 }
 impl RecoveryImage {
     fn initial(trust: &PolicyRecoveryTrust, enrollment: &[u8]) -> Result<Self, StoreError> {
-        verify(&trust.recovery, &trust.enrollment_message(), enrollment)?;
+        trust.verify_enrollment(enrollment)?;
         Ok(Self {
             trust: trust.clone(),
             enrollment: enrollment.to_vec(),
@@ -600,6 +607,28 @@ impl PolicyStore {
         limits: Limits,
     ) -> Result<Self, StoreError> {
         Self::open_inner(path, &trust.initial, RecoveryOpen::Required(trust), limits)
+    }
+
+    /// Compare this already-open store's authenticated initial recovery image
+    /// with the exact independently retained enrollment proof. This is read-only
+    /// under the existing database lease: it never enrolls a fixed store or
+    /// removes later recovery history. The caller must separately compare its
+    /// expected online root and signed policy state.
+    pub fn verify_initial_recovery(
+        &self,
+        trust: &PolicyRecoveryTrust,
+        enrollment_signature: &[u8],
+    ) -> Result<(), StoreError> {
+        let active = self.active.as_ref().ok_or(StoreError::Closed)?;
+        let actual = active
+            .recovery
+            .as_deref()
+            .ok_or(StoreError::RecoveryRequired)?;
+        let expected = RecoveryImage::initial(trust, enrollment_signature)?;
+        if actual != &expected {
+            return Err(StoreError::RecoveryDenied);
+        }
+        Ok(())
     }
 
     /// Explicitly enroll an EXISTING v1 store in independent root recovery.

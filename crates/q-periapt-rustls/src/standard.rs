@@ -159,6 +159,16 @@ fn identity(
     Ok(Arc::new(SingleCertAndKey::from(certified)))
 }
 
+/// Validate a local certificate/key pair without configuring peer trust or I/O.
+/// This checks key parsing and correspondence, not certificate trust or validity.
+/// The owned private-key DER is consumed by the same zeroizing loader as TLS.
+pub fn validate_local_identity(
+    certificates: Vec<CertificateDer<'static>>,
+    private_key: PrivateKeyDer<'static>,
+) -> Result<(), ConfigurationError> {
+    identity(&provider(), certificates, private_key).map(drop)
+}
+
 /// Reusable immutable client configuration. Clones share the upstream owner.
 #[derive(Clone, Debug)]
 pub struct MutualTlsClient {

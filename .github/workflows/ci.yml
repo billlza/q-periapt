@@ -2232,6 +2232,7 @@ jobs:
             target/continuity-installed-swift/debug-enrollment-reopen-public/**
             target/continuity-installed-swift/release-enrollment-reopen-public/**
             target/continuity-installed-swift/c-enrollment-public/**
+            target/continuity-installed-swift/configuration-public/**
             target/continuity-installed-swift/c-retirement-public/**
             target/continuity-installed-swift/c-enrollment-witness-public/**
             target/continuity-installed-swift/c-witnessed-renewal-public/**

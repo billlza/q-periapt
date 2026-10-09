@@ -41,6 +41,22 @@ internal object ContinuityNative {
     private val errorLayout = struct("code" to JAVA_INT, "length" to JAVA_INT,
         "truncated" to JAVA_INT, "message" to array(512))
     private val witnessLayout = struct("address" to ADDRESS, "length" to JAVA_LONG, "timeout" to JAVA_INT)
+    private val configurationHeaderLayout = struct("struct_size" to JAVA_INT, "version" to JAVA_INT)
+    private val configurationBlobLayout = struct("data" to ADDRESS, "length" to JAVA_LONG)
+    private val configurationTrustLayout = struct("mode" to JAVA_INT, "scope" to array(32),
+        "initial_root" to configurationBlobLayout, "recovery_root" to configurationBlobLayout)
+    private val configurationProtocolLayout = struct("family" to array(32), "root" to configurationBlobLayout,
+        "version" to JAVA_LONG, "digest" to array(32), "policy" to configurationBlobLayout)
+    private val configurationCreateLayout = struct("header" to configurationHeaderLayout, "sdk" to configurationTrustLayout,
+        "sdk_policy" to configurationBlobLayout, "sdk_signature" to configurationBlobLayout,
+        "recovery_enrollment" to configurationBlobLayout, "protocol" to configurationProtocolLayout,
+        "tls_certificate" to configurationBlobLayout, "tls_key" to configurationBlobLayout)
+    private val configurationOpenLayout = struct("header" to configurationHeaderLayout, "sdk" to configurationTrustLayout,
+        "protocol" to configurationProtocolLayout)
+    private val configurationWitnessLayout = struct("header" to configurationHeaderLayout, "carrier" to JAVA_INT,
+        "options" to witnessLayout, "identity" to array(32), "public_key" to configurationBlobLayout,
+        "tls_peer" to configurationBlobLayout, "tls_certificate" to configurationBlobLayout,
+        "tls_key" to configurationBlobLayout, "tls_name" to configurationBlobLayout)
     private val optionsLayout = struct("kind" to JAVA_INT, "quality" to JAVA_INT,
         "carrier" to JAVA_INT, "witness" to ADDRESS)
     private val setupStatusLayout = struct("phase" to JAVA_INT, "journal" to array(32))
@@ -145,6 +161,11 @@ internal object ContinuityNative {
     }
     private fun function(name: String, vararg parameters: MemoryLayout) =
         linker.downcallHandle(lookup.findOrThrow(name), FunctionDescriptor.of(JAVA_INT, *parameters))
+    private val configurationCreate = function("qpc_configuration_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val configurationReconcile = function("qpc_configuration_v1_prepare_reconcile", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val configurationOpen = function("qpc_configuration_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
+    private val configuredEnrollment = function("qpc_configuration_v1_begin_enrollment", JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS)
+    private val configuredPolicy = function("qpc_configuration_v1_select_continued_policy", JAVA_LONG, JAVA_LONG, ADDRESS)
     private val prepare = function("qpc_owner_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val prepareReopen = function("qpc_owner_v1_prepare_reopen", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val prepareCreateSetup = function("qpc_setup_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
@@ -384,6 +405,108 @@ internal object ContinuityNative {
             output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native preparation returned a zero handle") }
         }
     }
+    private fun configurationHeader(output: MemorySegment, layout: MemoryLayout) {
+        val header = output.asSlice(offset(layout, "header"), configurationHeaderLayout.byteSize())
+        header.set(JAVA_INT, offset(configurationHeaderLayout, "struct_size"), Math.toIntExact(layout.byteSize()))
+        header.set(JAVA_INT, offset(configurationHeaderLayout, "version"), 1)
+    }
+    private fun configurationBlob(output: MemorySegment, layout: MemoryLayout, field: String,
+                                  data: MemorySegment, length: Long) {
+        val blob = output.asSlice(offset(layout, field), configurationBlobLayout.byteSize())
+        blob.set(ADDRESS, offset(configurationBlobLayout, "data"), if (length == 0L) MemorySegment.NULL else data)
+        blob.set(JAVA_LONG, offset(configurationBlobLayout, "length"), length)
+    }
+    private fun configurationBlob(arena: Arena, output: MemorySegment, layout: MemoryLayout, field: String, value: ByteArray) =
+        configurationBlob(output, layout, field, if (value.isEmpty()) MemorySegment.NULL else arena.bytes(value), value.size.toLong())
+    private fun configurationTrust(arena: Arena, output: MemorySegment, trust: SdkPolicyTrust) {
+        output.set(JAVA_INT, offset(configurationTrustLayout, "mode"), trust.mode)
+        output.put(configurationTrustLayout, "scope", trust.scope.encoded())
+        configurationBlob(arena, output, configurationTrustLayout, "initial_root", trust.root.encoded())
+        configurationBlob(arena, output, configurationTrustLayout, "recovery_root", trust.recoveryRoot.encoded())
+    }
+    private fun configurationProtocol(arena: Arena, output: MemorySegment, policy: PolicyDocument) {
+        output.put(configurationProtocolLayout, "family", policy.family.encoded())
+        output.set(JAVA_LONG, offset(configurationProtocolLayout, "version"), policy.checkpoint.version.bits())
+        output.put(configurationProtocolLayout, "digest", policy.checkpoint.digest.encoded())
+        configurationBlob(arena, output, configurationProtocolLayout, "root", policy.root.encoded())
+        configurationBlob(arena, output, configurationProtocolLayout, "policy", policy.wire.encoded())
+    }
+    private fun <T> configurationKey(arena: Arena, tls: LocalTlsIdentity, body: (MemorySegment, Long) -> T): T =
+        tls.withKey { key ->
+            val snapshot = arena.bytes(key)
+            try { body(snapshot, key.size.toLong()) } finally { snapshot.fill(0) }
+        }
+    @JvmSynthetic internal fun prepareConfiguration(path: String, input: InstallationConfiguration, reconcile: Boolean): Long =
+        Arena.ofConfined().use { arena ->
+            val pathBytes = text(path, 4096)
+            val value = arena.allocate(configurationCreateLayout)
+            configurationHeader(value, configurationCreateLayout)
+            configurationTrust(arena, value.asSlice(offset(configurationCreateLayout, "sdk"), configurationTrustLayout.byteSize()), input.sdk.trust)
+            configurationProtocol(arena, value.asSlice(offset(configurationCreateLayout, "protocol"), configurationProtocolLayout.byteSize()), input.protocolPolicy)
+            configurationBlob(arena, value, configurationCreateLayout, "sdk_policy", input.sdk.policy.encoded())
+            configurationBlob(arena, value, configurationCreateLayout, "sdk_signature", input.sdk.signature.encoded())
+            configurationBlob(arena, value, configurationCreateLayout, "recovery_enrollment", input.sdk.enrollment.encoded())
+            configurationBlob(arena, value, configurationCreateLayout, "tls_certificate", input.tls.certificate.encoded())
+            val result = arena.allocate(JAVA_LONG); val error = arena.allocate(errorLayout)
+            val selected = if (reconcile) configurationReconcile else configurationCreate
+            configurationKey(arena, input.tls) { key, length ->
+                configurationBlob(value, configurationCreateLayout, "tls_key", key, length)
+                val code = selected.invokeWithArguments(arena.bytes(pathBytes), pathBytes.size.toLong(), value, result, error) as Int
+                checked(if (reconcile) "configuration_reconcile" else "configuration_create", code, error)?.let { throw it }
+                result.get(JAVA_LONG, 0).also { if (it == 0L) malformed("configuration returned a zero handle") }
+            }
+        }
+    @JvmSynthetic internal fun prepareConfigurationOpen(path: String, trust: SdkPolicyTrust, policy: PolicyDocument): Long =
+        Arena.ofConfined().use { arena ->
+            val pathBytes = text(path, 4096); val value = arena.allocate(configurationOpenLayout)
+            configurationHeader(value, configurationOpenLayout)
+            configurationTrust(arena, value.asSlice(offset(configurationOpenLayout, "sdk"), configurationTrustLayout.byteSize()), trust)
+            configurationProtocol(arena, value.asSlice(offset(configurationOpenLayout, "protocol"), configurationProtocolLayout.byteSize()), policy)
+            val result = arena.allocate(JAVA_LONG); val error = arena.allocate(errorLayout)
+            val code = configurationOpen.invokeWithArguments(arena.bytes(pathBytes), pathBytes.size.toLong(), value, result, error) as Int
+            checked("configuration_open", code, error)?.let { throw it }
+            result.get(JAVA_LONG, 0).also { if (it == 0L) malformed("configuration returned a zero handle") }
+        }
+    private fun <T> configurationWitness(arena: Arena, witness: ConfigurationWitness?, body: (MemorySegment) -> T): T {
+        if (witness == null) return body(MemorySegment.NULL)
+        val value = arena.allocate(configurationWitnessLayout)
+        configurationHeader(value, configurationWitnessLayout)
+        value.set(JAVA_INT, offset(configurationWitnessLayout, "carrier"), witness.carrier)
+        value.put(configurationWitnessLayout, "identity", witness.identity.encoded())
+        val options = value.asSlice(offset(configurationWitnessLayout, "options"), witnessLayout.byteSize())
+        val address = text(witness.address, 128)
+        options.set(ADDRESS, offset(witnessLayout, "address"), arena.bytes(address))
+        options.set(JAVA_LONG, offset(witnessLayout, "length"), address.size.toLong())
+        options.set(JAVA_INT, offset(witnessLayout, "timeout"), witness.timeoutMilliseconds)
+        configurationBlob(arena, value, configurationWitnessLayout, "public_key", witness.publicKey.encoded())
+        configurationBlob(arena, value, configurationWitnessLayout, "tls_peer", witness.peer.encoded())
+        val tls = witness.tls ?: return body(value) // Zero-initialized NULL/0 TLS fields for signed TCP.
+        configurationBlob(arena, value, configurationWitnessLayout, "tls_certificate", tls.certificate.encoded())
+        configurationBlob(arena, value, configurationWitnessLayout, "tls_name", text(checkNotNull(witness.name), 128))
+        return configurationKey(arena, tls) { key, length ->
+            configurationBlob(value, configurationWitnessLayout, "tls_key", key, length)
+            body(value)
+        }
+    }
+    @JvmSynthetic internal fun beginConfiguredEnrollment(handle: Long, intent: EnrollmentIntent, mode: Int, witness: ConfigurationWitness?) =
+        Arena.ofConfined().use { arena ->
+            val error = arena.allocate(errorLayout)
+            val input = encodeEnrollmentIntent(arena, intent)
+            configurationWitness(arena, witness) { pin ->
+                val code = configuredEnrollment.invokeWithArguments(handle, input, mode, pin, error) as Int
+                checked("configuration_begin_enrollment", code, error)?.let { throw it }
+            }
+        }
+    @JvmSynthetic internal fun selectConfiguredPolicy(configuration: Long, enrollment: Long) = Arena.ofConfined().use { arena ->
+        val error = arena.allocate(errorLayout)
+        val code = configuredPolicy.invokeWithArguments(configuration, enrollment, error) as Int
+        checked("configuration_select_policy", code, error)?.let { throw it }
+    }
+    @JvmSynthetic internal fun configurationLayouts(): Map<String, Pair<Long, Long>> = mapOf(
+        "header" to configurationHeaderLayout, "blob" to configurationBlobLayout, "trust" to configurationTrustLayout,
+        "protocol" to configurationProtocolLayout, "create" to configurationCreateLayout,
+        "open" to configurationOpenLayout, "witness" to configurationWitnessLayout,
+    ).mapValues { (_, layout) -> layout.byteSize() to layout.byteAlignment() }
     @JvmSynthetic internal fun simple(handle: Long, operation: String) = Arena.ofConfined().use { invoke(it, operation, handle) }
     @JvmSynthetic internal fun prepareRetired(path: String, intent: EnrollmentIntent, authority: RetiredEnrollmentAuthority): Long =
         Arena.ofConfined().use { arena ->

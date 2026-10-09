@@ -11,6 +11,7 @@ let package = Package(
         .target(name: "QPeriaptContinuity", dependencies: ["CQPCOwner"],
                 linkerSettings: [.linkedLibrary("q_periapt_continuity_c_consumer")]),
         .executableTarget(name: "ContinuityClient", dependencies: ["QPeriaptContinuity"]),
+        .executableTarget(name: "FirstConfigurationClient", dependencies: ["QPeriaptContinuity"]),
         .testTarget(name: "QPeriaptContinuityTests", dependencies: ["QPeriaptContinuity", "CQPCOwner"]),
     ]
 )

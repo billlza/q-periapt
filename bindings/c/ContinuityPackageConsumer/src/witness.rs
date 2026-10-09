@@ -16,10 +16,12 @@ struct ScopedTransport {
     endpoint: Endpoint,
     invocation: invocation::Scope,
 }
+#[derive(Clone)]
 enum Endpoint {
     SignedTcp(SocketAddr),
     Tls(Box<TlsEndpoint>),
 }
+#[derive(Clone)]
 struct TlsEndpoint {
     address: SocketAddr,
     name: ServerName<'static>,
@@ -73,11 +75,17 @@ pub(crate) enum Carrier {
     SignedTcp,
     Tls,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct Configuration {
     address: SocketAddr,
     timeout: Duration,
     carrier: Carrier,
+    trusted: Option<Trusted>,
+}
+#[derive(Clone)]
+struct Trusted {
+    pin: p::AnchorPin,
+    endpoint: Endpoint,
 }
 pub(crate) struct Parameters {
     pub(crate) pin: p::AnchorPin,
@@ -103,7 +111,34 @@ impl Configuration {
             address,
             timeout: Duration::from_millis(u64::from(options.timeout_ms)),
             carrier,
+            trusted: None,
         })
+    }
+    /// The configuration API supplies original witness trust directly. Neither
+    /// activation nor historical cleanup rereads it from installation files.
+    pub(crate) fn trusted(
+        mut self,
+        pin: p::AnchorPin,
+        peer: Vec<u8>,
+        certificate: Vec<u8>,
+        key: &[u8],
+        name: String,
+    ) -> Result<Self> {
+        let endpoint = match self.carrier {
+            Carrier::SignedTcp => Endpoint::SignedTcp(self.address),
+            Carrier::Tls => Endpoint::Tls(Box::new(TlsEndpoint::new(
+                self.address,
+                peer,
+                certificate,
+                key,
+                name,
+            )?)),
+        };
+        self.trusted = Some(Trusted { pin, endpoint });
+        Ok(self)
+    }
+    pub(crate) fn trusted_binding(&self) -> Option<[u8; 32]> {
+        self.trusted.as_ref().map(|value| value.pin.binding())
     }
     pub(crate) fn client(
         self,
@@ -127,19 +162,28 @@ impl Configuration {
             .map_err(|error| p::DurableError::from(error).into())
     }
     pub(crate) fn parameters(
-        self,
+        &self,
         path: &Path,
         cancel: Cancellation,
         invocation: invocation::Scope,
     ) -> Result<Parameters> {
-        let directory = OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-        let pin = p::AnchorPin::new(
-            p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
-            p::PublicKey::decode(&owner::read(&directory, "witness-public", 8192)?)?,
-        );
-        let endpoint = match self.carrier {
-            Carrier::SignedTcp => Endpoint::SignedTcp(self.address),
-            Carrier::Tls => Endpoint::Tls(Box::new(self.tls(&directory)?)),
+        let (pin, endpoint) = match &self.trusted {
+            Some(trusted) => (trusted.pin.clone(), trusted.endpoint.clone()),
+            None => {
+                // Legacy entrypoints retain their independently provisioned file
+                // contract. Explicit configuration inputs never take this branch.
+                let directory =
+                    OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
+                let pin = p::AnchorPin::new(
+                    p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
+                    p::PublicKey::decode(&owner::read(&directory, "witness-public", 8192)?)?,
+                );
+                let endpoint = match self.carrier {
+                    Carrier::SignedTcp => Endpoint::SignedTcp(self.address),
+                    Carrier::Tls => Endpoint::Tls(Box::new(self.tls(&directory)?)),
+                };
+                (pin, endpoint)
+            }
         };
         // Preserve constructor-time endpoint/certificate/configuration refusal.
         // This creates no connection and exposes no replacement witness state.
@@ -156,28 +200,39 @@ impl Configuration {
             timeout: self.timeout,
         })
     }
-    fn tls(self, directory: &OwnedPrivateDirectory) -> Result<TlsEndpoint> {
+    fn tls(&self, directory: &OwnedPrivateDirectory) -> Result<TlsEndpoint> {
         // Original protected witness credentials are independent of application
         // TLS and SDK operational authority, including during revoked cleanup.
         let peer = owner::read(directory, "witness-tls-peer", 8192)?;
         let certificate = owner::read(directory, "witness-tls-cert", 8192)?;
         let name = String::from_utf8(owner::read(directory, "witness-tls-name", 128)?)
             .map_err(Failure::configuration)?;
+        let secret = owner::private_bytes(directory, "witness-tls-key", 8192)?;
+        TlsEndpoint::new(self.address, peer, certificate, &secret, name)
+    }
+}
+impl TlsEndpoint {
+    fn new(
+        address: SocketAddr,
+        peer: Vec<u8>,
+        certificate: Vec<u8>,
+        secret: &[u8],
+        name: String,
+    ) -> Result<Self> {
         let name = ServerName::try_from(name).map_err(Failure::configuration)?;
         let mut roots = RootCertStore::empty();
         roots
             .add(CertificateDer::from(peer.as_slice()))
             .map_err(Failure::configuration)?;
-        let secret = owner::private_bytes(directory, "witness-tls-key", 8192)?;
         // Borrow for parsing; immediately consume the sole owned DER copy in
         // the standard factory's zeroizing key loader on success AND failure.
-        let key = PrivateKeyDer::try_from(secret.as_slice())
+        let key = PrivateKeyDer::try_from(secret)
             .map_err(|_| Failure::argument())?
             .clone_key();
         let config = MutualTlsClient::new(roots, vec![CertificateDer::from(certificate)], key)
             .map_err(Failure::configuration)?;
         Ok(TlsEndpoint {
-            address: self.address,
+            address,
             name,
             peer,
             config,

@@ -1293,3 +1293,37 @@ retiring keys. `abandon_publication` applies only to the original reserved inten
 and retires fresh unshared members; it preserves reused keys and consumption
 history. Retired ordinals are never allocated again. No call reports remote
 publication, remote revocation or physical erasure.
+
+## Explicit first-use configuration
+
+The unpublished `qpc-owner/1` candidate has 130 exports, including five
+`qpc_configuration_v1_*` entry points. Product SDK ABI major 2 is unchanged.
+Fill the versioned input with `struct_size = sizeof(input)` and `version = 1`.
+Supply original SDK trust, exact signed initial policy (and original recovery
+proof for recoverable trust), independently pinned protocol policy and your own
+local TLS DER identity. `prepare_create` copies those inputs synchronously;
+`qpc_owner_v1_finish_open` validates and atomically publishes configuration, SDK
+storage and the generated wrapping key. Caller buffers may be cleared after the
+prepare call returns. No registration or traffic authority is created yet.
+
+If first publication returned an unknown result, use `prepare_reconcile` with
+those exact original inputs. A mismatch or missing key is an error, not permission
+to reset state. For known committed state, `prepare_open` requires original host
+SDK trust and pinned protocol metadata; mutable root files are not trusted.
+
+`begin_enrollment` converts that same handle into original registration with an
+explicit approved intent and optional independently trusted witness input. Mode 1
+creates an original registration; mode 2 resumes it. Required-witness policy still
+requires explicit witness enrollment and an authenticated reply before activation.
+The optional TLS witness input includes independent peer/local certificates, key,
+name and endpoint. Follow the existing accept, prepare-storage and activation
+transaction after the application authenticates and approves the account/device.
+
+`select_continued_policy` moves a finished target configuration's SDK lease into
+an existing enrollment handle. Close the now-empty configuration handle. Selection
+is not durable approval/adoption: the signed renewal transaction is still required.
+An admitted failure may consume both volatile owners; close both and explicitly
+reopen original inputs/intent. The header documents admission, cancellation,
+ownership and unchanged-state requirements. `first_configuration_client.c` is a
+standalone public C consumer; installed qualification executes it with independently
+supplied inputs, never a copied private installation.

@@ -255,6 +255,11 @@ fn fresh_attempts_exact_advances_and_writer_fences_preserve_full_binding() {
 #[test]
 fn enrollment_is_explicit_idempotent_and_cannot_reset_a_device_lineage() {
     let mut c = case();
+    let remote_subject = AnchorSubject::from_trusted_state(&c.genesis.subject().to_bytes())
+        .expect("independently approved subject");
+    assert!(AnchorGenesis::from_trusted_state(remote_subject, [0; 32]).is_err());
+    let restored = AnchorGenesis::from_trusted_state(remote_subject, c.genesis.image_digest())
+        .expect("independently approved original remote image");
     let operation = request(
         &c,
         AnchorOperation::advance(initial(&c), [41; 32]).expect("advance"),
@@ -268,8 +273,25 @@ fn enrollment_is_explicit_idempotent_and_cannot_reset_a_device_lineage() {
         .inventory_inputs()
         .expect("fixture inventory owner");
     c.store
-        .enroll(&c.genesis, device, policy, 150)
+        .enroll(&restored, device, policy, 150)
         .expect("exact enrollment retry");
+    for changed in [
+        AnchorSubject {
+            owner: [42; 32],
+            ..remote_subject
+        },
+        AnchorSubject {
+            policy: [42; 32],
+            ..remote_subject
+        },
+    ] {
+        let foreign = AnchorGenesis::from_trusted_state(changed, c.genesis.image_digest())
+            .expect("shape is not authority");
+        assert!(matches!(
+            c.store.enroll(&foreign, device, policy, 150),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+    }
     let changed = AnchorGenesis {
         subject: c.genesis.subject,
         digest: [43; 32],

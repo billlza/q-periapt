@@ -65,7 +65,9 @@ enum {
     QPC_HOST_CLOSED = 701, QPC_HOST_PRIVATE_FILE = 702, QPC_HOST_BUSY = 703,
     QPC_HOST_CORRUPT = 704, QPC_HOST_ROOT = 705, QPC_HOST_STALE = 706,
     QPC_HOST_IO = 708, QPC_HOST_STORAGE = 709, QPC_HOST_COMMIT_UNCERTAIN = 710,
-    QPC_HOST_ACTIVATION_AFTER_COMMIT = 711, QPC_HOST_UNSUPPORTED_ERROR = 712
+    QPC_HOST_ACTIVATION_AFTER_COMMIT = 711, QPC_HOST_UNSUPPORTED_ERROR = 712,
+    QPC_HOST_RECOVERY_REQUIRED = 713, QPC_HOST_RECOVERY_DENIED = 714,
+    QPC_HOST_RECOVERY_LIMIT = 715
 };
 /* Archive errors add 1000 to their underlying status. Diagnostic text retains
  * nested local error causes. A code is a reason, never an automatic-retry policy. */
@@ -308,6 +310,107 @@ typedef struct {
     uint64_t valid_from;
     uint64_t valid_until;
 } qpc_enrollment_intent_v1;
+
+/* Initial configuration and registration ownership (candidate, not product ABI 2).
+ * All configuration input headers require version=1 and struct_size=sizeof(the complete input).
+ * At least the first uint32_t must be readable. A mismatched size is rejected
+ * before any version or payload read; a matching size promises a readable full
+ * input. All pointed-to regions obey the header's immutable/nonoverlap contract.
+ * prepare_* copies all inputs and performs no path I/O. Use finish_open once.
+ *
+ * create requires an absent final directory. It publishes bounded SDK/protocol/
+ * local TLS inputs, the SDK database and a generated wrapping key atomically.
+ * reconcile requires the exact original inputs, current SDK root/policy binding,
+ * and (when recoverable) authenticated initial recovery image. It cannot repair
+ * missing children, overwrite an existing directory, or roll back later work.
+ * An error may follow publication: close the consumed handle and reconcile the
+ * same original inputs. Unselected private staging directories are never adopted.
+ *
+ * open is for existing current SDK state under ORIGINAL host-supplied trust,
+ * with independently pinned protocol metadata. It never applies an initial
+ * policy or uses on-disk root files as trust. Historical metadata may support
+ * original-state inspection; time, SDK binding and permissions are checked by
+ * operations requiring live authority. No configuration handle grants traffic.
+ *
+ * begin_enrollment mode 1 creates an explicit original intent; mode 2 resumes
+ * only that intent. The same handle becomes the existing enrollment owner while
+ * retaining its one SDK lease. Shape/kind/family failures preserve configuration;
+ * an admitted failure leaves only cancel/close. Reopen the same configuration and
+ * original intent after failure. All original enrollment/activation rules apply.
+ * Witness input is NULL for no configured carrier, or an independently supplied
+ * original pin and endpoint. A supplied pin must match the signed required
+ * binding; it is never loaded from installation files. NULL does not weaken a
+ * required policy: original inspection/request preparation may proceed, but
+ * activation still requires an authenticated witness and explicit enrollment.
+ * All bytes are copied/validated before enrollment I/O. No grant is issued.
+ */
+typedef struct { uint32_t struct_size; uint32_t version; } qpc_configuration_header_v1;
+typedef struct { const uint8_t *data; size_t length; } qpc_configuration_blob_v1;
+typedef struct {
+    uint32_t mode; /* 1=fixed; 2=independently recoverable */
+    uint8_t scope[32]; /* fixed: all zero; recoverable: nonzero deployment scope */
+    qpc_configuration_blob_v1 initial_root; /* exactly 1952 bytes */
+    qpc_configuration_blob_v1 recovery_root; /* fixed: NULL/0; recoverable: 1952 */
+} qpc_configuration_sdk_trust_v1;
+typedef struct {
+    uint8_t family[32];
+    qpc_configuration_blob_v1 root; /* independently obtained 1985-byte root */
+    uint64_t version;
+    uint8_t digest[32]; /* independently obtained exact checkpoint */
+    qpc_configuration_blob_v1 policy; /* 1..8192 signed bytes */
+} qpc_configuration_protocol_v1;
+typedef struct {
+    qpc_configuration_header_v1 header;
+    qpc_configuration_sdk_trust_v1 sdk;
+    qpc_configuration_blob_v1 sdk_policy; /* 1..65536 bytes */
+    qpc_configuration_blob_v1 sdk_signature; /* exactly 3309 bytes */
+    qpc_configuration_blob_v1 recovery_enrollment; /* fixed: NULL/0; recoverable: 3309 */
+    qpc_configuration_protocol_v1 protocol;
+    qpc_configuration_blob_v1 tls_certificate; /* one local DER certificate, 1..8192 */
+    qpc_configuration_blob_v1 tls_key; /* local DER private key, 1..8192; owned copy cleared */
+} qpc_configuration_create_v1;
+typedef struct {
+    qpc_configuration_header_v1 header;
+    qpc_configuration_sdk_trust_v1 sdk;
+    qpc_configuration_protocol_v1 protocol;
+} qpc_configuration_open_v1;
+int32_t qpc_configuration_v1_prepare_create(const uint8_t *path, size_t length,
+    const qpc_configuration_create_v1 *input, uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_configuration_v1_prepare_reconcile(const uint8_t *path, size_t length,
+    const qpc_configuration_create_v1 *input, uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_configuration_v1_prepare_open(const uint8_t *path, size_t length,
+    const qpc_configuration_open_v1 *input, uint64_t *handle, qpc_error_v1 *error);
+/* Select a current continuation target using a finished configuration owner.
+ * Its independently trusted SDK store (fixed or recoverable) is moved into the
+ * original enrollment; no target trust is reread from files. This does not
+ * approve or commit a policy change. Existing stage/reconcile/activate APIs
+ * still enforce account/policy approvals, time, scope and original state.
+ * Handles must differ. Busy/kind/handle admission leaves configuration intact.
+ * After both owners are admitted, failure consumes both volatile owners; close
+ * both handles and explicitly reopen their original inputs/intent. Success
+ * consumes configuration (close its handle) and retains enrollment plus the
+ * target lease, including if the now-empty configuration handle is closed. */
+int32_t qpc_configuration_v1_select_continued_policy(uint64_t configuration,
+    uint64_t enrollment, qpc_error_v1 *error);
+/* Explicit witness input is retained by the owner, not written to sidecar files.
+ * carrier 1=signed TCP, 2=mutual TLS. Signed TCP requires all TLS blobs NULL/0.
+ * TLS peer/certificate/key are bounded DER; name is nonempty UTF-8 DNS name.
+ * Private key copies are cleared by the native key-loading path. This factory
+ * creates no network connection, witness enrollment or activation receipt. */
+typedef struct {
+    qpc_configuration_header_v1 header;
+    uint32_t carrier;
+    qpc_witness_v1 options;
+    uint8_t identity[32];
+    qpc_configuration_blob_v1 public_key; /* exactly 1985 bytes */
+    qpc_configuration_blob_v1 tls_peer; /* exact trusted peer DER, 1..8192 */
+    qpc_configuration_blob_v1 tls_certificate; /* independent local DER, 1..8192 */
+    qpc_configuration_blob_v1 tls_key; /* independent local DER private key, 1..8192 */
+    qpc_configuration_blob_v1 tls_name; /* 1..128 UTF-8 bytes */
+} qpc_configuration_witness_v1;
+int32_t qpc_configuration_v1_begin_enrollment(uint64_t handle,
+    const qpc_enrollment_intent_v1 *intent, uint32_t mode,
+    const qpc_configuration_witness_v1 *witness, qpc_error_v1 *error);
 typedef struct {
     uint64_t version;
     uint8_t digest[32];

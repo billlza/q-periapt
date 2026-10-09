@@ -3,7 +3,7 @@
 use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
-mod policy;
+pub(crate) mod policy;
 mod roster_refresh;
 mod roster_resolution;
 
@@ -19,7 +19,7 @@ pub struct Intent {
 }
 pub(crate) struct Approved {
     native: p::EnrollmentIntent,
-    family: [u8; 32],
+    pub(crate) family: [u8; 32],
 }
 impl Approved {
     pub(crate) fn into_native(self) -> p::EnrollmentIntent {
@@ -199,6 +199,7 @@ pub(crate) struct Owner {
     authority: Option<device::PolicyAuthority>,
     target_authority: Option<device::PolicyAuthority>,
     historical: Option<p::HistoricalSessionPolicy>,
+    supplied: Option<crate::first_install::SuppliedPolicy>,
     witness: Option<witness::Configuration>,
 }
 pub(crate) fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
@@ -217,6 +218,7 @@ impl Owner {
         witness: Option<witness::Configuration>,
         cancel: &Cancellation,
         deadline: Instant,
+        supplied: Option<crate::first_install::SuppliedPolicy>,
     ) -> Result<Box<Self>> {
         opening::check(cancel, deadline)?;
         let paths = paths(path)?;
@@ -232,6 +234,7 @@ impl Owner {
             authority: None,
             target_authority: None,
             historical: None,
+            supplied,
             witness,
         });
         opening::check(cancel, deadline)?;
@@ -239,7 +242,10 @@ impl Owner {
     }
     fn ensure_policy(&mut self, cancel: &Cancellation, deadline: Instant) -> Result<()> {
         if self.authority.is_none() {
-            let authority = device::PolicyAuthority::load(&self.path, cancel, deadline)?;
+            let authority = match self.supplied.as_mut() {
+                Some(source) => device::PolicyAuthority::from_supplied(source, cancel, deadline)?,
+                None => device::PolicyAuthority::load(&self.path, cancel, deadline)?,
+            };
             if authority.family != self.family {
                 return Err(p::Error::Scope.into());
             }
@@ -253,7 +259,13 @@ impl Owner {
         deadline: Instant,
     ) -> Result<p::HistoricalSessionPolicy> {
         if self.historical.is_none() {
-            let policy = owner::configured_historical_policy(&self.path, &entry.cancel, deadline)?;
+            let policy = match &self.supplied {
+                Some(source) => {
+                    opening::check(&entry.cancel, deadline)?;
+                    source.historical()?
+                }
+                None => owner::configured_historical_policy(&self.path, &entry.cancel, deadline)?,
+            };
             if policy.family() != self.family {
                 return Err(p::Error::Scope.into());
             }
@@ -266,7 +278,10 @@ impl Owner {
         policy: &p::HistoricalSessionPolicy,
         entry: &Entry,
     ) -> Result<p::AnchorClient> {
-        let configured = self.witness.ok_or(p::DurableError::AnchorRequired)?;
+        let configured = self
+            .witness
+            .as_ref()
+            .ok_or(p::DurableError::AnchorRequired)?;
         let parameters =
             configured.parameters(&self.path, entry.cancel.clone(), entry.invocation.clone())?;
         Ok(self.enrollment.credential_renewal_anchor_client(
@@ -376,7 +391,7 @@ fn take_owner(slot: &mut Option<Owned>, entry: &Entry, deadline: Instant) -> Res
     }
 }
 
-fn with_owner<T>(
+pub(crate) fn with_owner<T>(
     handle: u64,
     deadline: Instant,
     action: impl FnOnce(&mut Owner, &Entry) -> Result<T>,

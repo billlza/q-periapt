@@ -71,6 +71,10 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "ConfigurationTests": frozenset({
+        "ffiStructuresMatchC", "originalTrustAndPolicyInputsAreCopiedAndBounded",
+        "tlsSnapshotsAreIsolatedClearedOnBothReturnsAndClosed", "closeDoesNotCorruptAnAdmittedTlsSnapshot",
+    }),
     "PublicationTests": frozenset({
         "publicationLayoutsAndCompletePlanRetainUnsignedInputs",
         "publicationStatesRefuseDirtyAbsenceAndUnknownCompletion",
@@ -141,7 +145,8 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
+        ("SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
+         "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
          "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
@@ -508,6 +513,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             from continuity_device_retirement import qualify_foreign as qualify_retirement
             enrollment = {}
             retirement = {}
+            configurations = {}
             for collector in ("Serial", "G1"):
                 enrollment_launcher = installed / ("client-enrollment-" + collector.lower())
                 command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", *argv[1:]]
@@ -521,6 +527,15 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                                                            language="Kotlin", collector=collector)
                 enrollment[collector] = qualify_enrollment(outside, output, profile, enrollment_runtime, row, run,
                                                            language="Kotlin", collector=collector, publication=True)
+                from continuity_first_configuration import qualify_foreign as qualify_configuration
+                configuration_launcher = installed / ("client-configuration-" + collector.lower())
+                configuration_command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC",
+                                         *argv[1:-1], "configuration.FirstConfigurationClientKt"]
+                with configuration_launcher.open("x") as stream:
+                    stream.write("#!/bin/sh\nexec " + shlex.join(configuration_command) + ' "$@"\n')
+                configuration_launcher.chmod(0o700)
+                configurations[collector] = qualify_configuration(outside, output, profile, env, row, run,
+                    configuration_launcher, language="Kotlin", collector=collector)
                 sdk.require(sdk.snapshot(enrollment_launcher).sha256 == enrollment_digest,
                             "Kotlin enrollment launcher changed during execution")
             accounts = {}
@@ -661,6 +676,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             granted = java_args + ["--enable-native-access=dev.qperiapt.continuity"]
             stdout = run([*granted, "-Dqperiapt.continuity.lib=" + str(library_path), "consumer.LoaderProbe"], "java-module-" + profile)
             sdk.require(stdout == b"INSTALLED_CONTINUITY_JAVA_MODULE_PASS\n", "installed Java module did not execute its native owner")
+            configuration_java = run([*granted, "consumer.ConfigurationPublicProbe"], "java-configuration-" + profile)
+            sdk.require(configuration_java == b"QPC_CONFIGURATION_JAVA_PUBLIC_PASS\n",
+                        "configuration Java public interface did not execute")
             negatives = {"missing-property": (granted, "qperiapt.continuity.lib must select"),
                          "relative-path": ([*granted, "-Dqperiapt.continuity.lib=relative"], "absolute regular file"),
                          "missing-library": ([*granted, "-Dqperiapt.continuity.lib=" + str(installed / "missing")], "absolute regular file"),
@@ -711,6 +729,16 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.ContinuityRetiredEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityRetiredEnrollment")
             sdk.require(not list((installed / "negative-retired-classes").glob("**/*.class")),
                         "raw-retired negative control produced an executable class")
+            for probe, rejection in (
+                ("RawConfigurationProbe", "compiler.err.report.access: dev.qperiapt.continuity.ContinuityConfiguration(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityConfiguration"),
+                ("RawConfigurationKeyProbe", "compiler.err.cant.resolve.location.args: kindname.method, withKey$q_periapt_continuity_kotlin"),
+            ):
+                raw = installed / (probe + ".java")
+                sdk.copy(consumer / "negative" / (probe + ".java.txt"), raw)
+                destination = installed / ("negative-" + probe)
+                run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
+                     "-d", str(destination), str(raw)], "negative-" + probe + "-" + profile, rejection=rejection)
+                sdk.require(not list(destination.glob("**/*.class")), "raw configuration negative control produced a class")
             raw_native = installed / "RawNativeOwnerProbe.java"
             sdk.copy(consumer / "negative/RawNativeOwnerProbe.java.txt", raw_native)
             run([str(javac), "-XDrawDiagnostics", "--release", "25", "-cp", classpath,
@@ -728,7 +756,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
             result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
-                "device_retirement": retirement,
+                "device_retirement": retirement, "first_configuration": configurations,
                 "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,
                 "account_witness": witnessed_account, "account_tls": tls_account, "account_tls_loss": tls_loss_account, "account_delivery": delivered_account,

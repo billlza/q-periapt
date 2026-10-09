@@ -97,9 +97,14 @@ EXPORTS |= {
 }
 
 
+EXPORTS |= {"qpc_configuration_v1_" + name for name in (
+    "prepare_create", "prepare_reconcile", "prepare_open", "begin_enrollment", "select_continued_policy",
+)}
+
+
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -308,24 +313,50 @@ def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, st
 
 def verify_admission(stdout: bytes) -> None:
     tests = {
-        "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
-        "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
+        "configuration::tests::configuration_cancel_before_finish_has_no_filesystem_effect",
+        "configuration::tests::configuration_headers_reject_short_structures_before_payload_reads",
+        "configuration::tests::configuration_historical_snapshot_does_not_authorize_credential_acceptance",
+        "configuration::tests::configuration_owned_store_reaches_real_enrollment_activation_and_reopen",
+        "configuration::tests::configured_witness_snapshots_trust_without_files_and_checks_tls_identity",
+        "configuration::tests::failed_continuation_handoff_releases_both_original_leases",
+        "first_install::tests::configuration_changed_file_is_not_repaired_by_reconciliation",
+        "first_install::tests::configuration_disabled_signed_profile_never_grants_bootstrap_permission",
+        "first_install::tests::configuration_full_sdk_policy_bound_survives_operational_loader",
+        "first_install::tests::configuration_inputs_are_bounded_and_snapshot_caller_buffers",
+        "first_install::tests::configuration_invalid_recovery_proof_leaves_no_staging_directory",
+        "first_install::tests::configuration_invalid_signature_or_tls_key_publishes_nothing",
+        "first_install::tests::configuration_preparation_does_not_authorize_expired_or_future_policy",
+        "first_install::tests::configuration_publishes_exact_inputs_and_owned_sdk_without_signing_identity",
+        "first_install::tests::configuration_reconciliation_matches_enrollment_inside_database_not_only_sidecar",
+        "first_install::tests::configuration_reconciliation_never_recreates_missing_database_or_changes_files",
+        "first_install::tests::configuration_reconciliation_never_regenerates_a_missing_wrapping_key",
+        "first_install::tests::configuration_reconciliation_preserves_genuine_advanced_policy",
+        "first_install::tests::configuration_reconciliation_rejects_changed_root_with_identical_policy_floor",
+        "first_install::tests::configuration_reconciliation_requires_exact_original_enrollment_proof",
+        "first_install::tests::configuration_recoverable_first_use_requires_independent_trust_on_reopen",
+        "first_install::tests::configuration_recoverable_reconciliation_does_not_enroll_a_fixed_store",
+        "first_install::tests::configuration_rejects_substituted_pins_key_and_sdk_binding_before_publication",
         "invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered",
         "invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope",
         "invocation::tests::sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority",
+        "native_fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+        "native_fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls",
+        "native_fixture::service_peer_process",
+        "opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded",
+        "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
+        "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
+        "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
         "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
         "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
         "retirement::tests::retirement_output_layout_has_no_implicit_padding",
-        "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
-        "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
-        "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
+        "tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
         "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
         "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
     }
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -456,6 +487,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        from continuity_first_configuration import qualify_native as qualify_configuration
+        result["execution"][profile]["first_configuration"] = qualify_configuration(
+            outside, output, consumer, build, cargo, runtime, cc, platform_flags,
+            installed, filename, profile, run)
         from continuity_c_enrollment import TEST as enrollment_test, export as export_enrollment
         enrollment_build = run([*cargo, "test", "--locked", "--offline", "--test", "enrollment", "--no-run",
                                 "--message-format=json", "-j", "2", *extra], "enrollment-build-" + profile)

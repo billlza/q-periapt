@@ -113,7 +113,11 @@ pub(crate) fn configured_sdk_store(
 ) -> Result<PolicyStore> {
     let store = PolicyStore::open_configured(
         &path.join("sdk.redb"),
-        &read(directory, "sdk-policy", 4096)?,
+        &read(
+            directory,
+            "sdk-policy",
+            q_periapt_policy::MAX_SIGNED_POLICY_BYTES,
+        )?,
         &read(directory, "sdk-signature", 8192)?,
         &read(directory, "sdk-root", 8192)?,
         q_periapt_sdk::Limits::default(),

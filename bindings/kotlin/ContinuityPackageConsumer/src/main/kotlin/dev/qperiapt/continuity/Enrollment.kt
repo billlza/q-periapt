@@ -54,6 +54,7 @@ internal data class EnrollmentPreparation(val intent: EnrollmentIntent, val acti
 class ContinuityEnrollment private constructor(native: NativeOwner) : AutoCloseable {
     private val reference = OwnerTransfer(native, "enrollment")
     companion object {
+        @JvmSynthetic internal fun configured(native: NativeOwner): ContinuityEnrollment = ContinuityEnrollment(native)
         fun provisionWrappingKey(path: String) = ContinuityNative.enrollmentKey(path)
         private fun prepare(path: String, intent: EnrollmentIntent, witness: WitnessCarrier, action: SetupIntent): ContinuityEnrollment =
             NativeOwner.prepare(path, 3, 0, witness, ::ContinuityEnrollment, enrollment = EnrollmentPreparation(intent, action))
@@ -71,6 +72,9 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
             opened(prepareCreate(path, intent, witness))
         fun resume(path: String, intent: EnrollmentIntent, witness: WitnessCarrier = WitnessCarrier.Local): ContinuityEnrollment =
             opened(prepareResume(path, intent, witness))
+    }
+    @JvmSynthetic internal fun selectConfiguration(configuration: NativeOwner) = reference.call { owner ->
+        configuration.call { source -> owner.call { target -> ContinuityNative.selectConfiguredPolicy(source, target) } }
     }
     fun finishOpen() = reference.call { owner -> owner.call { ContinuityNative.simple(it, "finish_open") } }
     /** May race activation; join cancellation before using a returned successor. */
