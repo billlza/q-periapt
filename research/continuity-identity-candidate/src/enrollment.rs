@@ -924,6 +924,68 @@ impl EnrolledDevice {
             .ok_or(DurableError::Closed)?;
         Ok((&mut active.service, &active.signer, &active.device))
     }
+    /// Observe the next original publication ID through this registered owner.
+    pub fn next_prekey_publication_id(
+        &mut self,
+    ) -> Result<crate::PrekeyPublicationId, DurableError> {
+        self.parts()?.0.stores()?.0.next_prekey_publication_id()
+    }
+    /// Read original publication metadata; this does not release public keys.
+    pub fn prekey_publication_status(
+        &mut self,
+        id: crate::PrekeyPublicationId,
+    ) -> Result<crate::PrekeyPublicationStatus, DurableError> {
+        self.parts()?.0.stores()?.0.prekey_publication_status(id)
+    }
+    /// Prepare/recover one advertisement without borrowing the controlled signer
+    /// or composing inventory steps. The verified policy and current trusted
+    /// clock are still required; the journal rechecks all durable authority.
+    pub fn prepare_prekey_publication(
+        &mut self,
+        id: crate::PrekeyPublicationId,
+        plan: &crate::PrekeyPublicationPlan,
+        policy: &VerifiedSessionPolicy,
+        run: crate::PrekeyPublicationRun<'_>,
+        clock: impl FnMut() -> std::io::Result<u64>,
+    ) -> Result<crate::PreparedPrekeyPublication, crate::PrekeyPublicationError> {
+        let (service, signer, device) = self.parts()?;
+        service.stores()?.0.prepare_prekey_publication(
+            crate::PrekeyPublicationRequest {
+                id,
+                plan,
+                policy,
+                device,
+                signer,
+            },
+            run,
+            clock,
+        )
+    }
+    /// Acknowledge local public-artifact retirement, without revoking inventory.
+    pub fn retire_prekey_publication(
+        &mut self,
+        id: crate::PrekeyPublicationId,
+        artifact: [u8; 32],
+    ) -> Result<crate::PrekeyPublicationStatus, DurableError> {
+        self.parts()?
+            .0
+            .stores()?
+            .0
+            .retire_prekey_publication(id, artifact)
+    }
+    /// Abandon a still-reserved original intent without retiring reused members.
+    pub fn abandon_prekey_publication(
+        &mut self,
+        id: crate::PrekeyPublicationId,
+        intent: [u8; 32],
+        policy: &VerifiedSessionPolicy,
+    ) -> Result<crate::PrekeyPublicationStatus, DurableError> {
+        self.parts()?
+            .0
+            .stores()?
+            .0
+            .abandon_prekey_publication(id, intent, policy)
+    }
     /// Close service, signing key and enrollment lease. Repeated close is valid.
     pub fn close(&mut self) {
         self.active = None;

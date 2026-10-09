@@ -1211,3 +1211,64 @@ fn authenticated_enrollment_rejects_wrong_scope_key_and_modified_state_without_r
     );
     assert_eq!(recovered.request(150).expect("same request"), request);
 }
+
+#[test]
+fn registered_publication_owns_signer_and_reopens_exact_public_artifact() {
+    use crate::{
+        Cancellation, PrekeyPublicationKey as K, PrekeyPublicationPlan, PrekeyPublicationRun,
+        PrekeyPublicationStatus,
+    };
+    let c = case();
+    let (mut enrollment, _, _) = accepted(&c);
+    enrollment.prepare(&c.policy, 150).expect("installation");
+    let mut device = enrollment
+        .activate(&c.policy, 150, None)
+        .expect("registered owner");
+    let plan = PrekeyPublicationPlan::new(
+        [99; 32],
+        interval(),
+        &[
+            K::generate(LeafKind::SignedClassical, interval()),
+            K::generate(LeafKind::OneTimeClassical, interval()),
+            K::generate(LeafKind::LastResortPq, interval()),
+            K::generate(LeafKind::OneTimePq, interval()),
+        ],
+    )
+    .expect("plan");
+    let id = device.next_prekey_publication_id().expect("original next");
+    let cancel = Cancellation::default();
+    let run = || PrekeyPublicationRun {
+        cancel: &cancel,
+        deadline: std::time::Instant::now() + Duration::from_secs(30),
+    };
+    let first = device
+        .prepare_prekey_publication(id, &plan, &c.policy, run(), || Ok(150))
+        .expect("owned publication");
+    assert!(
+        DeviceEnrollment::open(c.paths.clone(), c.intent.clone()).is_err(),
+        "registration lease retained during publication"
+    );
+    device.close();
+    assert!(device.next_prekey_publication_id().is_err());
+    let mut device = open(&c)
+        .activate(&c.policy, 150, None)
+        .expect("same registration");
+    let second = device
+        .prepare_prekey_publication(id, &plan, &c.policy, run(), || Ok(150))
+        .expect("exact retry");
+    assert_eq!(first.as_bytes(), second.as_bytes());
+    assert!(matches!(
+        device.prekey_publication_status(id).expect("prepared"),
+        PrekeyPublicationStatus::Prepared { .. }
+    ));
+    assert_eq!(
+        device
+            .retire_prekey_publication(id, first.artifact_digest())
+            .expect("local retirement"),
+        PrekeyPublicationStatus::Retired
+    );
+    assert_eq!(
+        device.prekey_publication_status(id).expect("floor"),
+        PrekeyPublicationStatus::Retired
+    );
+}

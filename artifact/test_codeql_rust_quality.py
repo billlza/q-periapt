@@ -1432,6 +1432,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_commit_error.rs",
             "bindings/c/ContinuityPackageConsumer/src/enrollment/policy.rs",
             "bindings/c/ContinuityPackageConsumer/src/retirement.rs",
+            "bindings/c/ContinuityPackageConsumer/src/publication.rs",
             "bindings/c/ContinuityPackageConsumer/tests/retirement.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_continuation.rs",
             "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_traffic.rs",
@@ -1498,6 +1499,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
             "bindings/c/ContinuityPackageConsumer/src/retirement.rs",
+            "bindings/c/ContinuityPackageConsumer/src/publication.rs",
             "bindings/c/ContinuityPackageConsumer/tests/retirement.rs",
             "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs",
             "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",

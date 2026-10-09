@@ -279,6 +279,13 @@ fn peer_bundle_at(
 
 #[test]
 fn c_registration_owns_original_identity_through_connection_and_roster_refresh() -> Result<()> {
+    registration_workload(false)
+}
+#[test]
+fn c_registered_publication_recovers_exact_artifact_before_normal_connection() -> Result<()> {
+    registration_workload(true)
+}
+fn registration_workload(publication: bool) -> Result<()> {
     let s = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
     let path = s.initiator.parent().ok_or("fixture root")?.join("enrolled");
     fs::DirBuilder::new().mode(0o700).create(&path)?;
@@ -422,6 +429,10 @@ fn c_registration_owns_original_identity_through_connection_and_roster_refresh()
     lease(&path, false)?;
     let active = state(&run(&path, "active", &command(&path, "status"))?)?;
     assert_eq!((active.0, active.1, active.2), (5, accepted.1, accepted.2));
+    if publication {
+        publication_workload(&path, &root, &certificate, &roster, validity)?;
+    }
+
     assert_eq!(
         run(&path, "cancel", &command(&path, "cancel"))?,
         "enrollment-cancelled\n"
@@ -577,3 +588,134 @@ fn c_registration_owns_original_identity_through_connection_and_roster_refresh()
 
 #[path = "enrollment/credential_renewal.rs"]
 mod credential_renewal;
+
+fn publication_workload(
+    path: &Path,
+    root: &p::RootSigningKey,
+    certificate: &[u8],
+    roster: &p::IssuedRoster,
+    validity: p::Validity,
+) -> Result<()> {
+    use std::io::Read;
+    let mut sdk = fixture::sdk(path)?;
+    let policy = fixture::protocol_policy(path, &sdk)?;
+    let from = fixture::now()?
+        .max(policy.validity().from())
+        .max(validity.from());
+    let until = policy.validity().until().min(validity.until());
+    sdk.close();
+    drop(policy);
+    let mut plan = vec![99; 32];
+    plan.extend_from_slice(&from.to_be_bytes());
+    plan.extend_from_slice(&until.to_be_bytes());
+    fixture::store(path, "publication-plan", &plan)?;
+    let args = |command: &str, id: Option<&str>| {
+        let mut out: Vec<OsString> = vec![
+            "--enrollment-parent".into(),
+            path.as_os_str().into(),
+            "1".into(),
+            command.into(),
+            path.as_os_str().into(),
+        ];
+        if let Some(id) = id {
+            out.push(id.into());
+        }
+        out
+    };
+    let id_text = run(path, "publication-next", &args("publication-next", None))?;
+    let id = decode_id(id_text.trim_end())?;
+    fixture::store(path, "publication-id", &id)?;
+    let prepared = run(
+        path,
+        "publication-prepare",
+        &args("publication-prepare", Some(id_text.trim_end())),
+    )?;
+    assert!(prepared.starts_with("publication-state:2\n"));
+    assert_eq!(
+        run(
+            path,
+            "publication-retry",
+            &args("publication-retry", Some(id_text.trim_end()))
+        )?,
+        prepared
+    );
+    let wire = fixture::read(path, "publication-artifact", 2 * 1024 * 1024)?;
+    assert_eq!(
+        fixture::read(path, "publication-retry", 2 * 1024 * 1024)?,
+        wire
+    );
+    let mut d = std::io::Cursor::new(wire.as_slice());
+    fn array<const N: usize>(d: &mut std::io::Cursor<&[u8]>) -> Result<[u8; N]> {
+        let mut out = [0; N];
+        d.read_exact(&mut out)?;
+        Ok(out)
+    }
+    assert_eq!(array::<8>(&mut d)?, *b"QPPUBA01");
+    assert_eq!(array::<32>(&mut d)?, id);
+    assert_ne!(array::<32>(&mut d)?, [0; 32]);
+    assert_ne!(array::<32>(&mut d)?, [0; 32]);
+    let length = usize::try_from(u32::from_be_bytes(array(&mut d)?))?;
+    assert!(length <= 8192);
+    let mut manifest = vec![0; length];
+    d.read_exact(&mut manifest)?;
+    let count = usize::from(u16::from_be_bytes(array(&mut d)?));
+    assert_eq!(count, 4);
+    let mut requests = std::collections::BTreeSet::new();
+    for _ in 0..count {
+        let id = array::<32>(&mut d)?;
+        assert_ne!(id, [0; 32]);
+        assert!(requests.insert(id));
+    }
+    let family = fixture::array(path, "family")?;
+    let pin = p::AccountPin::new(
+        root.account_id()?,
+        root.public_key()?,
+        roster.checkpoint(),
+        family,
+    )?;
+    let device = pin.verify_device(certificate, roster.as_bytes(), fixture::now()?)?;
+    let verified = device.verify_manifest(&manifest, fixture::now()?)?;
+    let mut roles = std::collections::BTreeSet::new();
+    for _ in 0..count {
+        let length = usize::from(u16::from_be_bytes(array(&mut d)?));
+        assert!(length <= 1600);
+        let mut proof = vec![0; length];
+        d.read_exact(&mut proof)?;
+        let proof = p::LeafProof::decode(&proof)?;
+        roles.insert(verified.verify_leaf(&proof, fixture::now()?)?.kind() as u8);
+    }
+    assert_eq!(roles, std::collections::BTreeSet::from([1, 2, 3, 4]));
+    assert_eq!(usize::try_from(d.position())?, wire.len());
+    let next = run(path, "publication-next-2", &args("publication-next", None))?;
+    assert_ne!(next, id_text);
+    assert_eq!(
+        run(
+            path,
+            "publication-cancel",
+            &args("publication-cancel", Some(next.trim_end()))
+        )?,
+        "publication-cancelled\n"
+    );
+    assert!(run(
+        path,
+        "publication-absent",
+        &args("publication-status", Some(next.trim_end()))
+    )?
+    .starts_with("publication-state:0\n"));
+    assert!(run(
+        path,
+        "publication-retire",
+        &args("publication-retire", Some(id_text.trim_end()))
+    )?
+    .starts_with("publication-state:3\n"));
+    assert_eq!(
+        run(
+            path,
+            "publication-next-retained",
+            &args("publication-next", None)
+        )?,
+        next
+    );
+    println!("C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true");
+    Ok(())
+}

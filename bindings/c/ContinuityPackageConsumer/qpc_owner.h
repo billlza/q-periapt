@@ -1079,6 +1079,56 @@ int32_t qpc_retired_v1_signer_state(uint64_t handle, uint32_t *state, qpc_error_
  * Logical erasure does not erase prior disk pages, backups, wrapping keys or
  * historical enrollment/configuration/report files. */
 int32_t qpc_retired_v1_erase_signer(uint64_t handle, qpc_error_v1 *error);
+/* Local recoverable prekey publication. Plans must be retained unchanged by the
+ * host before dispatch. directory is independently trusted input, never a proof
+ * that a remote directory is fresh. kind: 1 signed X25519, 2 one-time X25519,
+ * 3 last-resort ML-KEM-768, 4 one-time ML-KEM-768. reuse=0 requires zero request;
+ * reuse=1 names an existing available original inventory request. */
+typedef struct {
+    uint32_t kind, reuse;
+    uint64_t valid_from, valid_until;
+    uint8_t request[32];
+} qpc_publication_key_v1;
+typedef struct {
+    uint32_t struct_size, reserved_zero;
+    uint8_t directory[32];
+    uint64_t valid_from, valid_until;
+    const qpc_publication_key_v1 *keys;
+    size_t count;
+} qpc_publication_plan_v1;
+/* state: 0 Absent (exact next ID), 1 Reserved, 2 Prepared, 3 Retired.
+ * Reserved has only intent. Prepared has all three commitments. Absent/Retired
+ * have all-zero commitments; Retired cannot be reserved again. Prepared is local
+ * history, not a current release grant or a remote publication receipt. */
+typedef struct {
+    uint32_t state, reserved_zero;
+    uint8_t intent[32], manifest[32], artifact[32];
+} qpc_publication_status_v1;
+/* The readable u32 struct_size prefix is checked before the complete plan is
+ * read. It must equal sizeof(qpc_publication_plan_v1); reserved_zero must be zero.
+ * Plan and count bounded aligned key records must be immutable during a call. */
+int32_t qpc_device_v1_publication_size_bound(const qpc_publication_plan_v1 *plan,
+    size_t *capacity, qpc_error_v1 *error);
+int32_t qpc_device_v1_next_publication(uint64_t parent, uint8_t id[32], qpc_error_v1 *error);
+int32_t qpc_device_v1_publication_status(uint64_t parent, const uint8_t id[32],
+    qpc_publication_status_v1 *status, qpc_error_v1 *error);
+/* The output region must hold at least size_bound(plan) bytes. A shorter region
+ * fails before reservation. length is zero on error; no partial output is copied.
+ * Any failure/cancellation after reservation requires reconciliation of this same
+ * ID and original plan, possibly after reopening the original enrollment.
+ * QPPUBA01 encoding uses big-endian integers: 8-byte tag; ID, intent and artifact
+ * commitments (32 each); u32 manifest length + signed manifest; u16 member count;
+ * count inventory IDs in ORIGINAL PLAN order; then count u16-length-prefixed
+ * membership proofs in CANONICAL LEAF order. No trailing bytes. IDs and proof
+ * positions are separate sequences. Native signatures/proofs remain the authority;
+ * parsing this wrapper alone does not verify identity, policy or freshness. */
+int32_t qpc_device_v1_prepare_publication(uint64_t parent, const uint8_t id[32],
+    const qpc_publication_plan_v1 *plan, uint8_t *bytes, size_t capacity,
+    size_t *length, qpc_error_v1 *error);
+int32_t qpc_device_v1_retire_publication(uint64_t parent, const uint8_t id[32],
+    const uint8_t artifact[32], qpc_publication_status_v1 *status, qpc_error_v1 *error);
+int32_t qpc_device_v1_abandon_publication(uint64_t parent, const uint8_t id[32],
+    const uint8_t intent[32], qpc_publication_status_v1 *status, qpc_error_v1 *error);
 #ifdef __cplusplus
 }
 #endif

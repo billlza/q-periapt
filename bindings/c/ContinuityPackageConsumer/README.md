@@ -1266,3 +1266,27 @@ It also exercises snapshots, invalid receipt/length refusal, cancellation and
 consumed-owner behavior. Debug/Release installed execution is required by the
 package producer. Source execution alone does not qualify installed archives,
 Swift/Kotlin, physical devices or the complete device-replacement lifecycle.
+
+
+## Recoverable prekey publication
+
+An activated device parent can own publication without a peer child or a signing
+handle. Supply a `qpc_publication_plan_v1` with its exact `struct_size`, zero reserved
+field, independently trusted directory expectation, finite validity and bounded
+ordered key plan. A generated member has `reuse=0` and zero request bytes; explicit
+reuse names an existing available inventory member with unchanged role/validity.
+
+Read `qpc_device_v1_next_publication` and durably retain that ID and complete plan
+before dispatch. Call `qpc_device_v1_publication_size_bound`, allocate that capacity,
+and invoke `qpc_device_v1_prepare_publication`. Reopen after uncertain failure and
+retry the same ID/plan. Only complete currently admitted `QPPUBA01` bytes are copied;
+its inventory IDs use plan order and its proofs use canonical leaf order. The full
+binary grammar and pointer/overlap requirements are documented in `qpc_owner.h`.
+
+`publication_status` reports local history only. A prepared artifact can cease to
+be releasable after expiry, revocation or inventory consumption. Acknowledge its
+exact artifact digest with `retire_publication` to reclaim public history without
+retiring keys. `abandon_publication` applies only to the original reserved intent
+and retires fresh unshared members; it preserves reused keys and consumption
+history. Retired ordinals are never allocated again. No call reports remote
+publication, remote revocation or physical erasure.

@@ -31,6 +31,7 @@ impl Drop for PolicyAuthority {
 struct Device {
     native: native_owner::NativeOwner,
     environment: Environment,
+    identity: p::VerifiedDevice,
 }
 impl Drop for Device {
     fn drop(&mut self) {
@@ -197,28 +198,32 @@ impl Shared {
         Self::from_native(
             native_owner::NativeOwner::installed(service, authority.signer),
             authority.environment,
+            authority.identity,
             cancel,
             invocation,
         )
     }
 
     pub(crate) fn from_enrolled(
-        owner: p::EnrolledDevice,
+        mut owner: p::EnrolledDevice,
         environment: Environment,
         cancel: Cancellation,
         invocation: invocation::Scope,
-    ) -> Arc<Self> {
-        Self::from_native(
+    ) -> Result<Arc<Self>> {
+        let identity = owner.parts()?.2.clone();
+        Ok(Self::from_native(
             native_owner::NativeOwner::enrolled(owner),
             environment,
+            identity,
             cancel,
             invocation,
-        )
+        ))
     }
 
     fn from_native(
         native: native_owner::NativeOwner,
         environment: Environment,
+        identity: p::VerifiedDevice,
         cancel: Cancellation,
         invocation: invocation::Scope,
     ) -> Arc<Self> {
@@ -226,6 +231,7 @@ impl Shared {
             device: Mutex::new(Some(Device {
                 native,
                 environment,
+                identity,
             })),
             cancel,
             invocation,
@@ -320,6 +326,43 @@ impl Shared {
                 &policy,
                 now().map_err(Failure::configuration)?,
             )?)
+        })
+    }
+
+    pub(crate) fn prepare_publication(
+        &self,
+        deadline: Instant,
+        id: p::PrekeyPublicationId,
+        plan: &p::PrekeyPublicationPlan,
+    ) -> Result<p::PreparedPrekeyPublication> {
+        self.with_device(deadline, &self.cancel, |device| {
+            device.native.prepare_publication(
+                id,
+                plan,
+                &device.environment.authority.policy,
+                &device.identity,
+                p::PrekeyPublicationRun {
+                    cancel: &self.cancel,
+                    deadline,
+                },
+            )
+        })
+    }
+
+    pub(crate) fn abandon_publication(
+        &self,
+        deadline: Instant,
+        id: p::PrekeyPublicationId,
+        intent: [u8; 32],
+    ) -> Result<p::PrekeyPublicationStatus> {
+        self.with_device(deadline, &self.cancel, |device| {
+            Ok(device
+                .native
+                .parts()?
+                .0
+                .stores()?
+                .0
+                .abandon_prekey_publication(id, intent, &device.environment.authority.policy)?)
         })
     }
 

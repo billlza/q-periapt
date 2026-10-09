@@ -62,6 +62,12 @@ EXPORTS |= {"qpc_retired_v1_" + name for name in (
     "prepare_signer_erasure", "signer_state", "erase_signer",
 )}
 
+# Complete local publication through the existing registered/installed device owner.
+EXPORTS |= {"qpc_device_v1_" + name for name in (
+    "publication_size_bound", "next_publication", "publication_status",
+    "prepare_publication", "retire_publication", "abandon_publication",
+)}
+
 # Independent P/R lifecycle, current peer roster and complete original-member recovery.
 EXPORTS |= {
     'qpc_device_v1_admit_peer_roster',
@@ -310,13 +316,16 @@ def verify_admission(stdout: bytes) -> None:
         "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
         "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
         "retirement::tests::retirement_output_layout_has_no_implicit_padding",
+        "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
+        "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
+        "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
         "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
         "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
     }
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -463,6 +472,19 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         registration["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
         sdk.write_json(output / ("C_ENROLLMENT_" + profile.upper() + ".json"), registration)
         result["execution"][profile]["enrollment"] = registration
+        from continuity_c_enrollment import PUBLICATION_TEST
+        publication_evidence = outside / ("c-" + profile + "-publication-runtime")
+        publication_stdout = run([str(enrollment_binary), "--exact", PUBLICATION_TEST, "--nocapture"],
+            "publication-trace-" + profile,
+            runtime=dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(publication_evidence)))
+        publication = export_enrollment(publication_stdout, publication_evidence,
+            output / "c-publication-public" / profile, publication=True)
+        sdk.require(sdk.snapshot(enrollment_binary, maximum=MAX_BINARY).sha256 == enrollment_identity.sha256,
+                    "C publication test binary changed")
+        publication["binary"] = dict(sha256=enrollment_identity.sha256, bytes=enrollment_identity.size)
+        sdk.write_json(output / ("C_PUBLICATION_" + profile.upper() + ".json"), publication)
+        result["execution"][profile]["publication"] = publication
+
         from continuity_device_retirement import FOREIGN_TEST, export_foreign as export_retirement
         retirement_build = run([*cargo, "test", "--locked", "--offline", "--test", "retirement", "--no-run",
                                 "--message-format=json", "-j", "2", *extra], "retirement-build-" + profile)

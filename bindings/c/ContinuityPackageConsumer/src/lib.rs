@@ -9,6 +9,7 @@ mod invocation;
 mod native_owner;
 mod opening;
 mod owner;
+mod publication;
 mod recovery;
 mod retirement;
 mod server;
@@ -178,6 +179,19 @@ impl From<p::DurableError> for Failure {
                 p::DurableError::Protocol(error) => return error.into(),
             };
         Self { code, message }
+    }
+}
+impl From<p::PrekeyPublicationError> for Failure {
+    fn from(error: p::PrekeyPublicationError) -> Self {
+        let code = match error {
+            p::PrekeyPublicationError::Cancelled => 302,
+            p::PrekeyPublicationError::Deadline => 303,
+            p::PrekeyPublicationError::Durable(error) => return error.into(),
+        };
+        Self {
+            code,
+            message: describe(&error),
+        }
     }
 }
 impl From<p::connection_transport::Error> for Failure {

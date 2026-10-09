@@ -187,12 +187,12 @@ impl ContinuedActivation {
             )?
         };
         opening::check(&entry.cancel, deadline)?;
-        Ok(device::Shared::from_enrolled(
+        device::Shared::from_enrolled(
             enrolled,
             self.environment,
             entry.cancel.clone(),
             entry.invocation.clone(),
-        ))
+        )
     }
 }
 

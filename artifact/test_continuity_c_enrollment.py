@@ -10,7 +10,7 @@ from test_continuity_enrollment import fixture as native_fixture, wire, u64
 
 STDOUT = ("C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true\n"
           "test " + enrollment.TEST + " ... ok\n"
-          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out;\n").encode()
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out;\n").encode()
 
 
 def fixture(root):
@@ -236,7 +236,7 @@ class RenewalExecutionTests(unittest.TestCase):
                             for carrier, committed, expired, recovered in (("local", "199", "203", "204"), ("tcp", "299", "303", "304"), ("tls", "299", "303", "304")))
                   + "".join("C_BOTH_EXPIRED_REKEY carrier=" + carrier + " original_session=true network_epoch=1 both_direction_messages=true epoch_sequence_checked=true peer_effects=true acknowledged_after_reopen=true original_acknowledgements_retained=true\n" for carrier in ("local", "tcp", "tls"))
                   + "".join("test " + name + " ... ok\n" for name in sorted(enrollment.RENEWAL_TESTS))
-                  + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out;\n").encode()
+                  + "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out;\n").encode()
         self.assertTrue(enrollment.verify_renewal_execution(output)["completed"])
         first = sorted(enrollment.RENEWAL_TESTS)[0].encode()
         for invalid in (output.replace(first, b"other_case"),
@@ -448,3 +448,63 @@ class ForeignEnrollmentEvidenceTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+class PublicationReadbackTests(unittest.TestCase):
+    def material(self):
+        values = {}
+        operation, intent, artifact = u64(1) + b'o' * 24, b'i' * 32, b'a' * 32
+        next_id = u64(2) + b'n' * 24
+        plan = b'd' * 32 + u64(100) + u64(200)
+        body = bytearray(b'QPMANF01' + bytes(282))
+        body[136:144] = operation[:8]; body[208:256] = plan; body[256:258] = b'\x00\x04'
+        manifest = wire(bytes(body)); digest = commit(b'Q-PERIAPT-CONTINUITY-MANIFEST-CANDIDATE/v1', bytes(body))
+        encoded = b'QPPUBA01' + operation + intent + artifact + len(manifest).to_bytes(4, 'big') + manifest + b'\x00\x04'
+        encoded += b''.join(bytes([n]) * 32 for n in range(1, 5))
+        for index in range(4):
+            kind = index + 1; public = bytes([kind]) * (32 if kind in (1, 2) else 1184)
+            leaf = b'QPLEAF01' + bytes([kind]) + plan[32:] + public
+            proof = index.to_bytes(2, 'big') + len(leaf).to_bytes(2, 'big') + leaf + b'\x02' + bytes(64)
+            encoded += len(proof).to_bytes(2, 'big') + proof
+        values.update({'enrolled/publication-id': operation, 'enrolled/publication-plan': plan,
+                       'enrolled/publication-artifact': encoded, 'enrolled/publication-retry': encoded})
+        prepared = b'publication-state:2\n' + b''.join(value.hex().encode() + b'\n' for value in (intent, digest, artifact))
+        commands = {'publication-next': operation.hex().encode() + b'\n', 'publication-prepare': prepared,
+                    'publication-retry': prepared, 'publication-next-2': next_id.hex().encode() + b'\n',
+                    'publication-next-retained': next_id.hex().encode() + b'\n', 'publication-cancel': b'publication-cancelled\n'}
+        for label, state in (('publication-absent', 0), ('publication-retire', 3)):
+            commands[label] = f'publication-state:{state}\n'.encode() + (b'0' * 64 + b'\n') * 3
+        return values, commands
+
+    def verify(self, values, commands):
+        def read(name, maximum):
+            self.assertLessEqual(len(values[name]), maximum)
+            return values[name]
+        def command(label, expected=None):
+            value = commands[label]
+            if expected is not None and value != expected:
+                raise ValueError('command readback differs')
+            return value
+        return enrollment._publication_readback(read, command)
+
+    def test_publication_retains_exact_identity_plan_and_complete_artifact(self):
+        values, commands = self.material()
+        result = self.verify(values, commands)
+        self.assertEqual(result['members'], 4)
+        self.assertTrue(result['exact_artifact_reopen'])
+        self.assertFalse(result['remote_publication'])
+
+    def test_publication_substitution_truncation_and_counter_loss_are_refused(self):
+        values, commands = self.material()
+        original = values['enrolled/publication-artifact']
+        for changed in (original[:-1], original + b'x', b'QPPUBA02' + original[8:],
+                        original[:8] + b'x' * 32 + original[40:],
+                        original[:104] + (8193).to_bytes(4, 'big') + original[108:]):
+            data = dict(values, **{'enrolled/publication-artifact': changed, 'enrolled/publication-retry': changed})
+            with self.subTest(bytes=len(changed)), self.assertRaises(ValueError): self.verify(data, commands)
+        for name, changed in [('publication-next-retained', commands['publication-next']),
+                              ('publication-prepare', commands['publication-retire']),
+                              ('publication-absent', commands['publication-prepare']),
+                              ('publication-retire', commands['publication-absent'])]:
+            with self.subTest(command=name), self.assertRaises(ValueError): self.verify(values, dict(commands, **{name: changed}))
+        data = dict(values, **{'enrolled/publication-retry': original[:-1]})
+        with self.assertRaises(ValueError): self.verify(data, commands)

@@ -349,12 +349,12 @@ impl Owner {
             anchor,
         )?;
         opening::check(&entry.cancel, deadline)?;
-        Ok(device::Shared::from_enrolled(
+        device::Shared::from_enrolled(
             enrolled,
             environment,
             entry.cancel.clone(),
             entry.invocation.clone(),
-        ))
+        )
     }
 }
 

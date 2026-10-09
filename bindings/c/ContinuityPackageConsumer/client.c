@@ -309,6 +309,7 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "setup_client.c"
 #include "enrollment_client.c"
 #include "retirement_client.c"
+#include "publication_client.c"
 #include "credential_peer_client.c"
 #include "peer_roster_client.c"
 int main(int argc, char **argv) {
@@ -358,6 +359,11 @@ int main(int argc, char **argv) {
     if (!strncmp(argv[1],"setup-",6)) {
         if (device_path || existing) fail("setup command owns its explicit installation");
         return setup_command(argc,argv,witness,witness_tls);
+    }
+    if (!strncmp(argv[1],"publication-",12)) {
+        if(!device_path || existing || continued_parent || independent_parent || strcmp(device_path,argv[2])) fail("publication requires original device parent");
+        uint64_t parent=enrolled_parent ? enrollment_parent(device_path,witness,witness_tls) : device_open(device_path,witness,witness_tls);
+        return publication_command(argc,argv,parent);
     }
     if (!strncmp(argv[1],"peer-roster-",12)) {
         if(!device_path || existing || continued_parent || strcmp(device_path,argv[2])) fail("peer roster requires exact original device parent");

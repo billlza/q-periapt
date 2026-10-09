@@ -58,6 +58,44 @@ fn publication_exact_artifact_survives_reopen_and_retirement_fences_the_epoch() 
     );
     let first = prepare(&mut f, id, &plan);
     let bytes = first.manifest().as_bytes().to_vec();
+    let public = first.as_bytes().to_vec();
+    assert!(public.len() <= plan.artifact_size_bound().expect("bounded output"));
+    let mut decoder = Decoder::new(&public);
+    assert_eq!(decoder.array::<8>().expect("tag"), *b"QPPUBA01");
+    assert_eq!(decoder.array::<32>().expect("id"), *id.as_bytes());
+    assert_eq!(
+        decoder.array::<32>().expect("intent"),
+        first.intent_digest()
+    );
+    assert_eq!(
+        decoder.array::<32>().expect("artifact"),
+        first.artifact_digest()
+    );
+    let wire_len =
+        usize::try_from(u32::from_be_bytes(decoder.array().expect("length"))).expect("width");
+    assert_eq!(decoder.take(wire_len).expect("manifest"), bytes);
+    let count = usize::from(decoder.u16().expect("count"));
+    assert_eq!(count, first.inventory_requests().len());
+    for id in first.inventory_requests() {
+        assert_eq!(
+            decoder.array::<32>().expect("original inventory ID"),
+            *id.as_bytes()
+        );
+    }
+    for index in 0..count {
+        let length = usize::from(decoder.u16().expect("proof length"));
+        let proof = decoder.take(length).expect("proof");
+        assert_eq!(
+            proof,
+            first
+                .manifest()
+                .proof(index)
+                .expect("canonical proof")
+                .encode()
+                .expect("proof bytes")
+        );
+    }
+    decoder.finish().expect("no trailing bytes");
     let proofs: Vec<_> = (0..first.manifest().leaf_count())
         .map(|i| {
             first
@@ -92,6 +130,7 @@ fn publication_exact_artifact_survives_reopen_and_retirement_fences_the_epoch() 
     f.store = reopen(&f.path, device);
     let second = prepare(&mut f, id, &plan);
     assert_eq!(second.manifest().as_bytes(), bytes);
+    assert_eq!(second.as_bytes(), public);
     assert_eq!(second.artifact_digest(), artifact);
     for (i, proof) in proofs.iter().enumerate() {
         assert_eq!(
@@ -835,4 +874,51 @@ fn publication_process_cuts_reopen_original_epoch_members_and_committed_artifact
         );
     }
     eprintln!("publication process cuts: {calls}");
+}
+
+#[test]
+fn publication_short_lived_member_expiring_at_final_release_is_withheld() {
+    let short = crate::Validity::new(100, 151).expect("short member interval");
+    let mut keys = plan().keys().to_vec();
+    *keys.first_mut().expect("classical member") =
+        PrekeyPublicationKey::generate(LeafKind::SignedClassical, short);
+    let plan =
+        PrekeyPublicationPlan::new([99; 32], interval(), &keys).expect("mixed member intervals");
+    let mut baseline = inventory(crate::PrekeyQuality::OneTimeBoth);
+    let id = baseline.store.next_prekey_publication_id().expect("next");
+    let mut checks = 0;
+    invoke(
+        &mut baseline.store,
+        &baseline.peer,
+        id,
+        &plan,
+        &Cancellation::default(),
+        || {
+            checks += 1;
+            Ok(150)
+        },
+    )
+    .expect("within every interval");
+    let mut f = inventory(crate::PrekeyQuality::OneTimeBoth);
+    let id = f.store.next_prekey_publication_id().expect("next");
+    let mut calls = 0;
+    let result = invoke(
+        &mut f.store,
+        &f.peer,
+        id,
+        &plan,
+        &Cancellation::default(),
+        || {
+            calls += 1;
+            Ok(if calls == checks { 152 } else { 150 })
+        },
+    );
+    assert_eq!(calls, checks);
+    assert!(matches!(result, Err(PrekeyPublicationError::Durable(DurableError::Protocol(Error::Validity)))), "an expired member must prevent final public release even while the manifest and policy remain valid");
+    assert!(matches!(
+        f.store
+            .prekey_publication_status(id)
+            .expect("historical committed artifact"),
+        PrekeyPublicationStatus::Prepared { .. }
+    ));
 }

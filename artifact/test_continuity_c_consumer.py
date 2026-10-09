@@ -19,11 +19,14 @@ class AdmissionTests(unittest.TestCase):
             "recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle",
             "recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation",
             "retirement::tests::retirement_output_layout_has_no_implicit_padding",
+            "publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body",
+            "publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup",
+            "publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion",
             "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,

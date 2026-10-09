@@ -152,6 +152,17 @@ impl PrekeyPublicationPlan {
     pub fn validity(&self) -> Validity {
         self.validity
     }
+    /// Sufficient capacity for the complete QPPUBA01 public artifact. This is a
+    /// shape calculation, not reservation, authority or a remote publication receipt.
+    pub fn artifact_size_bound(&self) -> Result<usize, Error> {
+        self.keys.iter().try_fold(
+            8 + 32 * 3 + 4 + crate::manifest::MANIFEST_WIRE_BYTES + 2,
+            |size: usize, key| {
+                size.checked_add(32 + 2 + 5 + 25 + key.kind.key_bytes() + 10 * 32)
+                    .ok_or(Error::Capacity)
+            },
+        )
+    }
     /// Full ordered member plan; order is bound before any generation.
     pub fn keys(&self) -> &[PrekeyPublicationKey] {
         &self.keys
@@ -209,8 +220,18 @@ pub struct PreparedPrekeyPublication {
     artifact: [u8; 32],
     manifest: IssuedManifest,
     requests: Vec<PrekeyId>,
+    public: Vec<u8>,
 }
 impl PreparedPrekeyPublication {
+    /// Complete QPPUBA01 public artifact, encoded before the final current
+    /// authority/time/witness checks. It contains no secret or signing capability.
+    /// Fields are big-endian: tag, ID/intent/artifact (32 bytes each), manifest
+    /// length (u32), manifest, count (u16), inventory IDs in plan order, then
+    /// count u16-length-prefixed membership proofs in canonical leaf order.
+    /// Parsing these public bytes alone never verifies a signature or freshness.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.public
+    }
     /// Original journal-bound operation.
     pub fn id(&self) -> PrekeyPublicationId {
         self.id
@@ -428,6 +449,9 @@ impl DeviceJournal {
             .entries
             .remove(&ordinal)
             .ok_or(DurableError::Corrupt)?;
+        let manifest = saved.manifest()?;
+        let requests = request.plan.requests(request.id)?;
+        let public = public_artifact(request.id, &saved, &manifest, &requests)?;
         for id in request.plan.requests(request.id)? {
             run.check()?;
             self.prekey_leaf(request.policy, request.device, id, clock()?)?;
@@ -435,7 +459,6 @@ impl DeviceJournal {
         self.check_release(&image)?;
         run.check()?;
         self.publication_admit(&image, &request, clock()?)?;
-        let manifest = saved.manifest()?;
         request
             .device
             .verify_manifest(manifest.as_bytes(), clock()?)?;
@@ -446,7 +469,8 @@ impl DeviceJournal {
             intent: saved.intent()?,
             artifact: saved.artifact_digest()?,
             manifest,
-            requests: request.plan.requests(request.id)?,
+            requests,
+            public,
         })
     }
     fn publication_admit(
@@ -496,6 +520,7 @@ impl DeviceJournal {
         .ok_or(Error::PolicyDenied)?;
         request.policy.check_mode(mode, now)?;
         for key in &request.plan.keys {
+            key.validity.check(now)?;
             prekeys::admission(request.policy, request.device, key.kind, now)?;
         }
         Ok(())
@@ -584,4 +609,47 @@ pub(super) fn historical_metadata(
         next_epoch: registry.next,
         public_history: registry.encode()?,
     })
+}
+
+fn public_artifact(
+    id: PrekeyPublicationId,
+    entry: &Entry,
+    manifest: &IssuedManifest,
+    requests: &[PrekeyId],
+) -> Result<Vec<u8>, Error> {
+    if requests.len() != manifest.leaf_count() {
+        return Err(Error::Encoding);
+    }
+    let mut out = Vec::with_capacity(entry.plan.artifact_size_bound()?);
+    out.extend_from_slice(b"QPPUBA01");
+    out.extend_from_slice(id.as_bytes());
+    out.extend_from_slice(&entry.intent()?);
+    out.extend_from_slice(&entry.artifact_digest()?);
+    out.extend_from_slice(
+        &u32::try_from(manifest.as_bytes().len())
+            .map_err(|_| Error::Capacity)?
+            .to_be_bytes(),
+    );
+    out.extend_from_slice(manifest.as_bytes());
+    out.extend_from_slice(
+        &u16::try_from(requests.len())
+            .map_err(|_| Error::Capacity)?
+            .to_be_bytes(),
+    );
+    for request in requests {
+        out.extend_from_slice(request.as_bytes());
+    }
+    for index in 0..manifest.leaf_count() {
+        let proof = manifest.proof(index)?.encode()?;
+        out.extend_from_slice(
+            &u16::try_from(proof.len())
+                .map_err(|_| Error::Capacity)?
+                .to_be_bytes(),
+        );
+        out.extend_from_slice(&proof);
+    }
+    if out.len() > entry.plan.artifact_size_bound()? {
+        return Err(Error::Capacity);
+    }
+    Ok(out)
 }

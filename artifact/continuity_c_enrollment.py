@@ -12,6 +12,8 @@ from continuity_enrollment import PUBLIC_KEY_BYTES, _registration
 from continuity_roster_renewal import envelope
 
 TEST = "c_registration_owns_original_identity_through_connection_and_roster_refresh"
+PUBLICATION_TEST = "c_registered_publication_recovers_exact_artifact_before_normal_connection"
+PUBLICATION_MARKER = "C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true"
 SCOPE = ("actual installed C registration and original enrolled device parent to native Rust TLS peer; "
          "same host and shared protocol engine; original request/credential/journal/session survive roster refresh "
          "and receiver exit after application commit; public structural readback, not an independent signature engine")
@@ -48,7 +50,7 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     """Validate shared harness output; caller must bind the selected client binary."""
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported credential renewal language")
     text = stdout.decode()
-    _require_execution(text, RENEWAL_TESTS, 19, "C credential renewal workloads were not executed completely")
+    _require_execution(text, RENEWAL_TESTS, 20, "C credential renewal workloads were not executed completely")
     sdk.require(re.findall(r"^C_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
         "C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true"],
         "C committed credential renewal scope differs")
@@ -176,10 +178,13 @@ def registration_readback(read, prefix, signing, journal):
     return registration
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", publication: bool = False) -> dict:
     text = stdout.decode()
-    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out;", text, re.MULTILINE),
+    expected_test = PUBLICATION_TEST if publication else TEST
+    sdk.require(re.findall(r"^C_PUBLICATION.*$", text, re.MULTILINE) == ([PUBLICATION_MARKER] if publication else []),
+                "publication workload scope differs")
+    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [expected_test]
+                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out;", text, re.MULTILINE),
                 "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],
@@ -250,19 +255,20 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(read(effect, 65536) == session + message + PAYLOAD, "C enrollment application readback differs")
     sdk.require(len(list((directory / "responder").glob("application-*"))) == 1, "C enrollment repeated application effect")
     transfer = owner_transfer(read, "enrolled", language)
+    extra = {"publication": _publication_readback(read, command)} if publication else {}
     return dict(scope=SCOPE.replace("C registration", language + " registration"), completed=True,
-                release_claim_eligible=False, registration=registration, **transfer,
+                release_claim_eligible=False, registration=registration, **transfer, **extra,
                 refreshed_roster_version=2, session=session.hex(), message=message.hex(),
                 independent_lease_processes={language + "_owner": child, "Rust_contender": parent}, public_readbacks=public)
 
 
-def export(stdout: bytes, directory: Path, destination: Path, *, language: str = "C") -> dict:
+def export(stdout: bytes, directory: Path, destination: Path, *, language: str = "C", publication: bool = False) -> dict:
     """Copy the exact public closure; no wrapping, signer, TLS key or database files."""
-    checked = verify_execution(stdout, directory, language=language)
+    checked = verify_execution(stdout, directory, language=language, publication=publication)
     destination.mkdir(mode=0o700, parents=True)
     for name in checked["public_readbacks"]:
         sdk.copy(directory / name, destination / name)
-    sdk.require(verify_execution(stdout, destination, language=language) == checked, "C enrollment evidence changed during export")
+    sdk.require(verify_execution(stdout, destination, language=language, publication=publication) == checked, "C enrollment evidence changed during export")
     sdk.require({p.relative_to(destination).as_posix() for p in destination.rglob("*") if p.is_file()}
                 == set(checked["public_readbacks"]), "C enrollment public inventory differs")
     return checked
@@ -553,3 +559,63 @@ def qualify_policy_witness(output: Path, profile: str, runtime: dict, binary: Pa
     sdk.write_json(output / (language.upper() + "_WITNESSED_POLICY_" + scenario.upper() + "_"
         + (profile + variant).replace("-", "_").upper() + ".json"), result)
     return result
+
+
+def _publication_readback(read, command):
+    """Public framing and exact recovery; signature/proof verification ran natively."""
+    def identifier(label):
+        value = command(label)
+        sdk.require(re.fullmatch(rb"[0-9a-f]{64}\n", value) is not None, "publication ID encoding")
+        result = bytes.fromhex(value[:-1].decode())
+        sdk.require(any(result), "zero publication ID")
+        return result
+    operation = identifier("publication-next")
+    sdk.require(read("enrolled/publication-id", 32) == operation, "publication original ID differs")
+    plan = read("enrolled/publication-plan", 48)
+    sdk.require(len(plan) == 48 and any(plan[:32]) and int.from_bytes(plan[32:40], "big") < int.from_bytes(plan[40:], "big"), "publication plan shape")
+    status = command("publication-prepare")
+    match = re.fullmatch(rb"publication-state:2\n([0-9a-f]{64})\n([0-9a-f]{64})\n([0-9a-f]{64})\n", status)
+    sdk.require(match is not None, "publication prepared state missing")
+    intent, manifest_digest, artifact = (bytes.fromhex(match[i].decode()) for i in (1, 2, 3))
+    sdk.require(all(any(x) for x in (intent, manifest_digest, artifact)), "publication zero commitment")
+    command("publication-retry", status)
+    wire = read("enrolled/publication-artifact", 2 * 1024 * 1024)
+    sdk.require(wire == read("enrolled/publication-retry", 2 * 1024 * 1024), "publication changed after reopen")
+    cursor = 0
+    def take(size):
+        nonlocal cursor
+        sdk.require(size >= 0 and cursor + size <= len(wire), "truncated publication artifact")
+        value = wire[cursor:cursor+size]; cursor += size
+        return value
+    sdk.require(take(8) == b"QPPUBA01" and take(32) == operation and take(32) == intent and take(32) == artifact,
+                "publication artifact binding differs")
+    length = int.from_bytes(take(4), "big")
+    sdk.require(length <= 8192, "publication manifest bound")
+    body = envelope(take(length), b"QPMANF01", 290)
+    sdk.require(commit(b"Q-PERIAPT-CONTINUITY-MANIFEST-CANDIDATE/v1", body) == manifest_digest,
+                "publication manifest digest differs")
+    sdk.require(body[136:144] == operation[:8] and body[208:256] == plan and body[256:258] == b"\x00\x04",
+                "publication signed epoch/plan differs")
+    count = int.from_bytes(take(2), "big"); sdk.require(count == 4, "publication fixture requires four roles")
+    requests = [take(32) for _ in range(count)]
+    sdk.require(all(any(x) for x in requests) and len(set(requests)) == count, "publication inventory identities differ")
+    roles = set()
+    for index in range(count):
+        size = int.from_bytes(take(2), "big"); sdk.require(size <= 1600, "publication proof bound")
+        proof = take(size); sdk.require(len(proof) >= 30, "publication proof truncation")
+        leaf_size = int.from_bytes(proof[2:4], "big"); kind = proof[12]
+        sdk.require(kind in (1, 2, 3, 4) and kind not in roles, "publication proof roles differ")
+        roles.add(kind)
+        sdk.require(proof[:2] == index.to_bytes(2, "big") and proof[4:12] == b"QPLEAF01"
+                    and proof[13:29] == plan[32:] and leaf_size == 25 + (32 if kind in (1,2) else 1184)
+                    and len(proof) == 5 + leaf_size + 64 and proof[4+leaf_size] == 2
+                    and any(proof[29:4+leaf_size]), "publication proof grammar differs")
+    sdk.require(cursor == len(wire), "publication artifact trailing bytes")
+    next_id = identifier("publication-next-2")
+    sdk.require(next_id != operation and identifier("publication-next-retained") == next_id, "publication ordinal did not survive retirement")
+    command("publication-cancel", b"publication-cancelled\n")
+    for label, state in (("publication-absent", 0), ("publication-retire", 3)):
+        command(label, f"publication-state:{state}\n".encode() + (b"0" * 64 + b"\n") * 3)
+    return dict(original_id=operation.hex(), next_id=next_id.hex(), intent=intent.hex(), manifest=manifest_digest.hex(),
+                artifact=artifact.hex(), members=count, exact_artifact_reopen=True, cancelled_next_absent=True,
+                retired_history_not_absence=True, remote_publication=False)

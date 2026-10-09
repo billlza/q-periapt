@@ -42,7 +42,7 @@ MARKERS = (
 
 def verify(stdout: bytes, stderr: bytes) -> dict:
     text = stdout.decode()
-    _require_execution(text, TESTS, 14, "independent C lifecycle workloads were not executed completely")
+    _require_execution(text, TESTS, 15, "independent C lifecycle workloads were not executed completely")
     # libtest writes result rows to stdout; the harness emits scope evidence
     # with eprintln! on stderr. Require each in its actual captured stream.
     scope = stderr.decode()

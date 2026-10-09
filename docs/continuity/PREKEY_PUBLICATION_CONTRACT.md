@@ -2,8 +2,9 @@
 
 The native journal now implements the local recoverable operation below through
 `next_prekey_publication_id`, `prepare_prekey_publication`, status, abandon and
-retire. Enrolled-device C/Swift/Kotlin publication entry points and the installed
-successor's use of them remain open. This is neither a frozen storage/ABI contract
+retire. The registered Rust owner and C device-parent entry points now compose
+that operation without exposing a signer. Swift/Kotlin publication entry points
+and the installed successor's use of them remain open. This is neither a frozen storage/ABI contract
 nor evidence of remote directory publication. Existing `generate_prekey` and
 `issue_manifest` remain lower-level operations with their documented responsibilities.
 
@@ -169,3 +170,31 @@ inventory bindings, and actual witness-retired reporting of prepared plus unfini
 publications. These are implementation regressions on the macOS arm64 host; they
 do not establish independent implementation, cross-platform storage behavior,
 current/minimum physical-device support or post-compromise recovery security.
+
+## Registered owner and C boundary
+
+`EnrolledDevice` exposes next/status/prepare/retire/abandon while retaining its
+original enrollment, signer and installation leases. The C device parent uses
+those owned methods for registered devices and the same journal contract for
+legacy installed devices; it retains the verified local identity and its current
+policy. Parent close, cancellation, nonblocking exclusivity and witness deadlines
+use the existing parent invocation machinery.
+
+`QPPUBA01` is a bounded public-artifact wrapper, not another authenticated network
+protocol. It contains the original ID/intent/artifact commitments, signed manifest,
+original inventory IDs in plan order and proofs in canonical leaf order. Native
+encoding finishes before final release checks, including **each member's own
+validity interval**, which may end before the manifest/policy interval. A regression
+first reproduced an expired member escaping the last check, then passed after the
+member intervals were added to final admission. A committed historical artifact
+may remain Prepared while current public release is refused.
+
+C callers provide the complete plan, retain the next ID before dispatch, calculate
+the size bound, then prepare into a sufficiently sized output region. A short
+buffer fails before owner lookup/reservation and copies no partial bytes. The
+u32 struct-size prefix is read before the full options structure. Status distinguishes
+Absent, Reserved, Prepared and Retired; neither parsing the wrapper nor seeing
+Prepared proves remote publication. Current C qualification exercises independent
+process retries followed by normal application connection/consumption. It remains
+a component/native-ABI workload; whole installed-package and other-language
+publication qualification are separate gates.

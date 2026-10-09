@@ -26,7 +26,7 @@ def foreign_markers(language: str) -> list[str]:
 
 def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unqualified TLS pre-processing language")
-    _require_execution(stdout.decode(), {TEST}, 27, "TLS pre-processing workload did not execute")
+    _require_execution(stdout.decode(), {TEST}, 28, "TLS pre-processing workload did not execute")
     text = stderr.decode()
     expected = list(MARKERS)
     if language != "C":
