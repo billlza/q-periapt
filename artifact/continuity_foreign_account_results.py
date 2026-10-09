@@ -10,7 +10,7 @@ from collections import Counter
 import re
 
 import rust_sdk_profile as sdk
-from continuity_c_enrollment import _require_execution
+from continuity_c_enrollment import _require_enrollment_execution
 from continuity_c_independent_policy import MARKERS
 
 PREFIX = "credential_renewal::independent_policy::witnessed::roster::traffic::fanout::"
@@ -124,7 +124,7 @@ def verify_transition_calls(text: str, *, language: str, cases: int) -> None:
 
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
-    _require_execution(stdout.decode(), TESTS, 25,
+    _require_enrollment_execution(stdout.decode(), TESTS,
                        "foreign complete-account result workloads were not executed completely")
     text = stderr.decode()
     observed = re.findall(r"^FOREIGN_ACCOUNT_RECONCILIATION .*?$", text, re.MULTILINE)

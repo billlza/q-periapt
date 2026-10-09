@@ -1,0 +1,67 @@
+{
+  "source_of_actual_runtime": "f9ae04b992ae1e80dba4d1278f50a02ea86367a2",
+  "whole_package_complete": false,
+  "failure": "foreign complete-account result workloads were not executed completely",
+  "c_consumer_complete": true,
+  "swift_account_cases_executed": 3,
+  "swift_account_runtime_exit": 0,
+  "native_enrollment_count": 29,
+  "reader_counts": {
+    "registration": {
+      "selected": 1,
+      "filtered": 28
+    },
+    "publication": {
+      "selected": 1,
+      "filtered": 28
+    },
+    "renewal": {
+      "selected": 9,
+      "filtered": 20
+    },
+    "independent_c": {
+      "selected": 14,
+      "filtered": 15
+    },
+    "foreign_account": {
+      "selected": 3,
+      "filtered": 26
+    },
+    "foreign_policy": {
+      "selected": 5,
+      "filtered": 24
+    },
+    "foreign_roster": {
+      "selected": 3,
+      "filtered": 26
+    },
+    "tls_preprocessing": {
+      "selected": 1,
+      "filtered": 28
+    }
+  },
+  "related_tests": 23,
+  "retained_transcript_red_green": {
+    "binary": "/private/tmp/qperiapt-continuity-package-b8dnxiyv/build/debug/deps/enrollment-08272a4f99a4259d",
+    "enrollment_tests": 29,
+    "results": {
+      "red": {
+        "returncode": 1,
+        "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/publication-source"
+      },
+      "green": {
+        "returncode": 0,
+        "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006"
+      }
+    },
+    "scope": "Same actual successful Swift3-case105.98s transcript, not re-executed; old reader refuses and repaired reader validates every retained marker."
+  },
+  "repair_scope": "One shared closed enrollment census replaces divergent filtered-count constants. Exact required test names, zero failed/ignored tests, one summary and all protocol/dispatch markers remain required. Registration parsing also uses the strict common single-summary reader.",
+  "whole_package_rerun": "required",
+  "kotlin_consumer_in_failed_package": "not reached",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "aeeeb7af113280f231507c93fc65e570fad94da2a2b1ad70a982825641e40720",
+    "bytes": 852448
+  }
+}

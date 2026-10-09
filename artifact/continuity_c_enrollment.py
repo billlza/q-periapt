@@ -13,6 +13,7 @@ from continuity_roster_renewal import envelope
 
 TEST = "c_registration_owns_original_identity_through_connection_and_roster_refresh"
 PUBLICATION_TEST = "c_registered_publication_recovers_exact_artifact_before_normal_connection"
+ENROLLMENT_TEST_COUNT = 29
 PUBLICATION_MARKER = "C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true"
 SCOPE = ("actual installed C registration and original enrolled device parent to native Rust TLS peer; "
          "same host and shared protocol engine; original request/credential/journal/session survive roster refresh "
@@ -46,11 +47,16 @@ def _require_execution(text: str, names: set[str], filtered: int, message: str) 
                 and len(summaries) == 1 and re.fullmatch(expected_summary, summaries[0]), message)
 
 
+def _require_enrollment_execution(text: str, names: set[str], message: str) -> None:
+    """All selections from the same enrollment binary share one closed census."""
+    _require_execution(text, names, ENROLLMENT_TEST_COUNT - len(names), message)
+
+
 def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
     """Validate shared harness output; caller must bind the selected client binary."""
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unsupported credential renewal language")
     text = stdout.decode()
-    _require_execution(text, RENEWAL_TESTS, 20, "C credential renewal workloads were not executed completely")
+    _require_enrollment_execution(text, RENEWAL_TESTS, "C credential renewal workloads were not executed completely")
     sdk.require(re.findall(r"^C_CREDENTIAL_RENEWAL.*$", text, re.MULTILINE) == [
         "C_CREDENTIAL_RENEWAL original_registration=true same_signer=true same_journal=true pending_readback=true committed_readback=true expired_committed_preserved=true expired_owner_refused=true admitted_signature_failure_closed_owner=true"],
         "C committed credential renewal scope differs")
@@ -183,9 +189,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", pub
     expected_test = PUBLICATION_TEST if publication else TEST
     sdk.require(re.findall(r"^C_PUBLICATION.*$", text, re.MULTILINE) == ([PUBLICATION_MARKER] if publication else []),
                 "publication workload scope differs")
-    sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [expected_test]
-                and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out;", text, re.MULTILINE),
-                "C registration workload was not executed completely")
+    _require_enrollment_execution(text, {expected_test}, "C registration workload was not executed completely")
     sdk.require(re.findall(r"^C_ENROLLMENT_COMPLETE.*$", text, re.MULTILINE) == [
         "C_ENROLLMENT_COMPLETE original_identity=true lease_retained=true original_session=true roster_refresh=true delivery_exact=true"],
         "C registration completion scope differs")

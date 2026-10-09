@@ -3,7 +3,7 @@ from pathlib import Path
 from collections import Counter
 import re
 import rust_sdk_profile as sdk
-from continuity_c_enrollment import _require_execution
+from continuity_c_enrollment import _require_enrollment_execution
 from continuity_foreign_account_results import verify_member_calls, verify_traffic_calls, verify_connection_calls, verify_transition_calls, verify_registration_calls, TRANSITION_COUNTS
 
 TEST = ("credential_renewal::independent_policy::witnessed::roster::traffic::fanout::"
@@ -26,7 +26,7 @@ def foreign_markers(language: str) -> list[str]:
 
 def verify(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unqualified TLS pre-processing language")
-    _require_execution(stdout.decode(), {TEST}, 28, "TLS pre-processing workload did not execute")
+    _require_enrollment_execution(stdout.decode(), {TEST}, "TLS pre-processing workload did not execute")
     text = stderr.decode()
     expected = list(MARKERS)
     if language != "C":

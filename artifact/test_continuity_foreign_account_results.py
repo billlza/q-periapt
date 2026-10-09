@@ -58,7 +58,7 @@ class ForeignAccountResultsTests(unittest.TestCase):
                     if mutate:
                         foreign.write_bytes(b"substituted")
                     return ("".join("test " + name + " ... ok\n" for name in sorted(results.TESTS)) +
-                            "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
+                            "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out;\n").encode()
                 checked = results.qualify(root, "debug", runtime, native, binary, run, language=language, variant=variant)
                 self.assertEqual(checked["execution"]["cases"], 9)
                 mutate = True
@@ -67,7 +67,7 @@ class ForeignAccountResultsTests(unittest.TestCase):
 
     def test_exact_cases_are_required_for_each_foreign_language(self):
         stdout = ("".join("test " + name + " ... ok\n" for name in sorted(results.TESTS)) +
-                  "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
+                  "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out;\n").encode()
         for language in ("Swift", "Kotlin"):
             markers = [row for row in self.scope(language) if row.startswith(("FOREIGN_", "C_REQUIRED_PEER_REVOCATION", "C_PEER_ROSTER_INTERRUPTION", "C_PEER_ROSTER_TLS_INTERRUPTION"))]
             stderr = ("\n".join(markers) + "\n").encode()
@@ -79,7 +79,8 @@ class ForeignAccountResultsTests(unittest.TestCase):
                     with self.subTest(language=language, marker=marker), self.assertRaises(ValueError):
                         results.verify_execution(stdout, changed, language=language)
             for changed in (stdout.replace(b"0 ignored", b"1 ignored"),
-                            stdout.replace(b"25 filtered out", b"26 filtered out"),
+                            stdout.replace(b"26 filtered out", b"25 filtered out"),
+                            stdout.replace(b"26 filtered out", b"27 filtered out"),
                             stdout.replace(next(iter(results.TESTS)).encode(), b"another_case")):
                 with self.assertRaises(ValueError):
                     results.verify_execution(changed, stderr, language=language)

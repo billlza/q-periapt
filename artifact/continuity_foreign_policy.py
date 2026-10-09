@@ -4,7 +4,7 @@ from collections import Counter
 import re
 
 import rust_sdk_profile as sdk
-from continuity_c_enrollment import _require_execution
+from continuity_c_enrollment import _require_enrollment_execution
 from continuity_c_independent_policy import MARKERS
 
 PREFIX = "credential_renewal::independent_policy::"
@@ -39,7 +39,7 @@ def markers(language: str) -> list[str]:
 
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
-    _require_execution(stdout.decode(), TESTS, 23, "foreign independent policy workloads did not all execute")
+    _require_enrollment_execution(stdout.decode(), TESTS, "foreign independent policy workloads did not all execute")
     scope = stderr.decode()
     observed = re.findall(r"^FOREIGN_POLICY_LIFECYCLE .*?$", scope, re.MULTILINE)
     expected = markers(language)

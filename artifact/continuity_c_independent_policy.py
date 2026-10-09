@@ -5,7 +5,7 @@ harness. This is not a second protocol or signature implementation.
 """
 import re
 import rust_sdk_profile as sdk
-from continuity_c_enrollment import _require_execution
+from continuity_c_enrollment import _require_enrollment_execution
 
 TESTS = {
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_tls_committed_reply_loss_cancel_and_kill_recover_original_target',
@@ -42,7 +42,7 @@ MARKERS = (
 
 def verify(stdout: bytes, stderr: bytes) -> dict:
     text = stdout.decode()
-    _require_execution(text, TESTS, 15, "independent C lifecycle workloads were not executed completely")
+    _require_enrollment_execution(text, TESTS, "independent C lifecycle workloads were not executed completely")
     # libtest writes result rows to stdout; the harness emits scope evidence
     # with eprintln! on stderr. Require each in its actual captured stream.
     scope = stderr.decode()
