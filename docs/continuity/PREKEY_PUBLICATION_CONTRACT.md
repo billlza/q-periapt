@@ -3,8 +3,9 @@
 The native journal now implements the local recoverable operation below through
 `next_prekey_publication_id`, `prepare_prekey_publication`, status, abandon and
 retire. The registered Rust owner and C device-parent entry points now compose
-that operation without exposing a signer. Swift/Kotlin publication entry points
-and the installed successor's use of them remain open. This is neither a frozen storage/ABI contract
+that operation without exposing a signer. Swift supplies typed device methods and
+checks its complete public result framing. Kotlin publication entry points and
+the installed successor's use of publication remain open. This is neither a frozen storage/ABI contract
 nor evidence of remote directory publication. Existing `generate_prekey` and
 `issue_manifest` remain lower-level operations with their documented responsibilities.
 
@@ -198,3 +199,14 @@ Prepared proves remote publication. Current C qualification exercises independen
 process retries followed by normal application connection/consumption. It remains
 a component/native-ABI workload; whole installed-package and other-language
 publication qualification are separate gates.
+
+
+The Swift wrapper retains immutable plan inputs and checks complete native output
+framing, unique inventory IDs, explicit reuse identities, canonical proof order,
+and no trailing bytes. It does not implement a parallel signature verifier. The
+selected library's actual loader path is checked by the qualification client;
+a local development library with an absolute Cargo install name was refused until
+its isolated copy was given an `@rpath` name and the client relinked. Debug/Release
+component runs retain exact artifact retries and original registration identity.
+The complete installed Swift producer is wired to require this publication
+workload; a component run is not a completed distribution-package qualification.

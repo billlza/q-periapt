@@ -382,7 +382,7 @@ def export_witness(stdout: bytes, directory: Path, destination: Path, carrier: s
 
 
 def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
-                    native: dict, run, *, language: str, collector: str = "") -> dict:
+                    native: dict, run, *, language: str, collector: str = "", publication: bool = False) -> dict:
     """Execute the selected installed foreign client against the exact C cohort's
     archive-derived authority harness. The native build log and binary receipt
     must agree; a matching test name cannot substitute for that provenance.
@@ -427,6 +427,19 @@ def qualify_foreign(outside: Path, output: Path, profile: str, runtime: dict,
                     "foreign registration native harness changed during execution")
         result[carrier] = dict(execution=checked, native_harness_sha256=identity)
     binary, identity = binaries["enrollment"]
+    if publication:
+        sdk.require(language in {"Swift", "Kotlin"} and native["publication"]["binary"] == native["enrollment"]["binary"],
+                    "foreign publication requires the exact C-qualified registration harness")
+        evidence = outside / (language.lower() + "-publication-" + profile + variant + "-runtime")
+        selected = dict(runtime, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
+        stdout = run([str(binary), "--exact", PUBLICATION_TEST, "--nocapture"],
+                     "publication-" + profile + variant, runtime=selected)
+        checked = export(stdout, evidence, output / (language.lower() + "-publication-public") / (profile + variant),
+                         language=language, publication=True)
+        sdk.require(sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256 == identity,
+                    "foreign publication native harness changed during execution")
+        result["publication"] = dict(execution=checked, native_harness_sha256=identity,
+            scope="Foreign registered-owner publication/reopen and normal TLS/application flow; shared native engine. The C-specific short-buffer probe is covered by separate native/C qualification.")
     sdk.require(native["credential_renewal"]["binary"] == native["enrollment"]["binary"],
                 "foreign renewal must use the C-qualified original enrollment harness")
     sdk.require(runtime.get("QPERIAPT_INSTALLED_CLIENT_LANGUAGE") == language,

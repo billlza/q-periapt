@@ -95,6 +95,10 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "IndependentPolicyTests.testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
              "IndependentPolicyTests.testProgressKeepsEveryTerminalAndRetirementStateDistinct",
              "IndependentPolicyTests.testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries",
+             "PublicationTests.testPublicationLayoutsAndPlanOwnCompleteOriginalInputs",
+             "PublicationTests.testPublicationStatesRejectDirtyAbsenceAndUnknownCompletion",
+             "PublicationTests.testPublicationArtifactOwnsCompleteBytesAndRejectsTruncationSubstitutionAndTail",
+             "PublicationTests.testPreparedDeviceCannotPublishOrAcquireAuthorityAndClosedOwnerStaysClosed",
              "RetirementTests.testRetirementLayoutsMatchTheNativeContract",
              "RetirementTests.testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust",
              "RetirementTests.testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity",
@@ -214,7 +218,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             from continuity_device_retirement import qualify_foreign as qualify_retirement
             retirement = qualify_retirement(outside, output, profile, runtime, row, run, language="Swift")
             from continuity_c_enrollment import qualify_foreign as qualify_enrollment
-            enrollment = qualify_enrollment(outside, output, profile, runtime, row, run, language="Swift")
+            enrollment = qualify_enrollment(outside, output, profile, runtime, row, run, language="Swift", publication=True)
             from continuity_c_account import TEST as ACCOUNT_TEST, SCOPE as ACCOUNT_SCOPE, verify_execution as verify_account
             account_evidence = outside / ("swift-" + profile + "-account-runtime")
             runtime["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"] = str(account_evidence)

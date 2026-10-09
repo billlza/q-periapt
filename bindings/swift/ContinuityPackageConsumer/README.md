@@ -646,3 +646,28 @@ Account issuance, witness replacement approval and successor prekey preparation
 remain native Rust. Qualification of
 each current archive is separate; this is not a complete foreign replacement
 flow or an independent protocol implementation.
+
+## Local prekey publication
+
+An activated `ContinuityDevice` (including one returned by `ContinuityEnrollment`)
+can prepare a publication without exposing its signing key. Build a complete
+immutable `PublicationPlan` with an independently trusted directory expectation,
+finite validity and ordered `PublicationKey` members. Explicit reuse names a
+`PrekeyInventoryID`; availability and policy remain native checks.
+
+Read `nextPublication()` and retain that ID and full plan before calling
+`preparePublication(_:plan:)`. On an uncertain failure, reopen the same enrollment
+and retry the same inputs. `PreparedPublication.canonicalBytes` is the complete
+`QPPUBA01` result. Its inventory IDs follow original plan order; membership proofs
+follow canonical manifest order. Swift checks framing and copying; the shared
+native engine performs signature, policy, inventory and current-time admission.
+Parsing a retained public blob does not grant current permission or independent
+signature verification.
+
+`status(publication:)` distinguishes absent, reserved, prepared and retired local
+history. A prepared record may no longer be releasable after expiry/revocation or
+key consumption. Retire its acknowledged artifact digest with `retirePublication`
+to reclaim public history without revoking inventory. `abandonPublication` applies
+to the original reserved intent and retires fresh unshared members only. Neither
+API asserts remote publication or physical erasure. Existing parent cancellation,
+close and original-operation reconciliation rules apply unchanged.

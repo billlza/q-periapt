@@ -144,7 +144,8 @@ func waitMarker(_ path: String) throws {
         }
         try require(enrollmentParent == nil || ["serve", "connect", "next", "status", "rekey", "send", "uncertain-send",
             "cancel-send", "busy-cancel", "cancel-witness-send", "witness-failed-send", "reject-open", "peer-roster-admit",
-            "account-next", "account-status", "account-send"].contains(command),
+            "account-next", "account-status", "account-send", "publication-next", "publication-status",
+            "publication-prepare", "publication-retry", "publication-retire", "publication-cancel"].contains(command),
             "enrollment parent requires an operational command")
         try require(existing == nil || (!command.hasPrefix("recover-") && command != "self-check"),
                     "existing session requires an operational command")
@@ -155,6 +156,12 @@ func waitMarker(_ path: String) throws {
             return
         }
         guard args.count >= 2 else { throw ProbeFailure.contract("missing original configuration") }
+        if command.hasPrefix("publication-") {
+            guard let enrollmentParent else { throw ProbeFailure.contract("publication needs original registered parent") }
+            try require(existing == nil && !enrollmentParent.continued, "publication is original device work")
+            try publicationCommand(args, parent: enrollmentParent, witness: witness)
+            return
+        }
         if command == "peer-roster-admit" {
             guard let enrollmentParent else { throw ProbeFailure.contract("peer roster needs the original enrollment parent") }
             try require(existing == nil && enrollmentParent.role == .initiator, "peer roster owns original parent/session selection")

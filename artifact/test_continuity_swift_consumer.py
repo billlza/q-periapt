@@ -159,12 +159,16 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("IndependentPolicyTests", "testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags"),
                  ("IndependentPolicyTests", "testProgressKeepsEveryTerminalAndRetirementStateDistinct"),
                  ("IndependentPolicyTests", "testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries"),
+                 ("PublicationTests", "testPublicationLayoutsAndPlanOwnCompleteOriginalInputs"),
+                 ("PublicationTests", "testPublicationStatesRejectDirtyAbsenceAndUnknownCompletion"),
+                 ("PublicationTests", "testPublicationArtifactOwnsCompleteBytesAndRejectsTruncationSubstitutionAndTail"),
+                 ("PublicationTests", "testPreparedDeviceCannotPublishOrAcquireAuthorityAndClosedOwnerStaysClosed"),
                  ("RetirementTests", "testRetirementLayoutsMatchTheNativeContract"),
                  ("RetirementTests", "testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust"),
                  ("RetirementTests", "testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity"),
                  ("RetirementTests", "testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 56 tests, with 0 failures").encode()
+                  + "\nExecuted 60 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")
