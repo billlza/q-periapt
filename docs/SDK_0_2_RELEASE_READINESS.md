@@ -127,6 +127,15 @@ IDs and signing material. This establishes observed intermittency under those
 recorded inputs, not its cause or stability. No retry, RAM/image change, or
 acceptance relaxation was used to obtain the comparison.
 
+At `b1006eb3`, a [second Android 16 KiB failure](../research/sdk-alpha1/evidence/20261009-android-16k-postinstall-failure/README.md)
+occurs earlier: the full consumer passes three tests, but minimal-consumer
+post-install admission reads two truncated APK copies and loses ADB transport
+before Instrumentation. Cleanup is unresolved. The parallel push job passes
+both profiles with the same Git tree and recorded AAR/ADB hashes; both downloaded
+artifact digests are verified. The source of the disconnect remains unknown,
+and the successful comparison does not establish stable acceptance. Existing
+ownership, timeout and recovery requirements remain unchanged.
+
 The [restricted C device-retirement checkpoint](../research/sdk-alpha1/evidence/20261008-c-device-retirement/README.md)
 adds eight actual cleanup processes in both Debug and Release, preserving the
 complete original report, independent host acknowledgement and logical
