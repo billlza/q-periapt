@@ -76,13 +76,18 @@ private fun run(arguments: List<String>): String {
     require(enrolled == null || (!inFlightGC && !interruptOpening && args[0] in setOf(
         "connect", "next", "send", "uncertain-send", "status", "rekey", "serve", "serve-rekey",
         "busy-cancel", "cancel-send", "reject-open", "witness-failed-send", "peer-roster-admit",
-        "account-next", "account-status", "account-send"))) { "registered parent requires an ordinary peer operation" }
+        "account-next", "account-status", "account-send", "publication-next", "publication-status",
+        "publication-prepare", "publication-retry", "publication-retire", "publication-cancel"))) { "registered parent requires an ordinary peer operation" }
 
     require(existing == null || (!inFlightGC && !args[0].startsWith("recover-") && args[0] !in setOf("self-check", "gc-owner-capacity"))) {
         "existing session requires an ordinary operational command"
     }
     require(!inFlightGC || args[0] == "serve") { "in-flight GC requires a server fixture" }
     require(!interruptOpening || args[0].startsWith("opening-")) { "control interruption requires an opening fixture" }
+    if (args[0].startsWith("publication-")) {
+        require(enrolled != null && !continued && !independent && existing == null) { "publication requires original registered owner" }
+        return publicationCommand(args, enrolled.first, witness)
+    }
     if (args[0] == "peer-roster-admit") {
         require(enrolled != null && enrolled.second == BootstrapRole.INITIATOR && existing == null)
         return peerRosterCommand(args, enrolled.first, witness,

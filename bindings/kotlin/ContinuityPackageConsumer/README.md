@@ -722,3 +722,29 @@ bytes must match the native sender. Account issuance, witness replacement approv
 and successor prekey preparation still use the native Rust harness. This adds
 client lifecycle and traffic coverage without giving device clients account-root
 signing authority.
+
+## Local prekey publication
+
+An activated `ContinuityDevice`, including one returned by
+`ContinuityEnrollment`, prepares a complete local publication without exposing its
+signer. Construct an immutable `PublicationPlan` with an independently trusted
+directory expectation, finite `Counter64` validity and ordered `PublicationKey`
+members. Explicit reuse names a `PrekeyInventoryID`; native admission checks its
+role, availability, policy and interval.
+
+Read `nextPublication()` and durably retain the ID and full plan before calling
+`preparePublication(id, plan)`. After an uncertain result, reopen the original
+enrollment and retry the same inputs. `PreparedPublication.canonicalBytes` holds
+the entire `QPPUBA01` result. Inventory IDs follow original plan order; membership
+proofs follow canonical manifest order. The wrapper checks bounds, unique IDs,
+reuse identities, proof order and trailing bytes; the shared native engine
+performs cryptographic verification and current authorization. Parsing retained
+bytes alone establishes neither signature validity nor current permission.
+
+`publicationStatus(id)` distinguishes absent, reserved, prepared and retired
+local history. Prepared may no longer be releasable after expiry, revocation or
+key consumption. `retirePublication(id, artifact)` reclaims acknowledged public
+history without revoking inventory. `abandonPublication(id, intent)` applies only
+to the original reserved intent and retires fresh unshared members. Neither
+operation asserts remote directory publication or physical erasure. Cancellation,
+owner closure and uncertain-result recovery use the existing native owner rules.

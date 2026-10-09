@@ -48,6 +48,12 @@ internal object ContinuityNative {
         "subject" to array(96), "image_digest" to array(32))
     private val enrollmentIntentLayout = struct("root" to ADDRESS, "root_length" to JAVA_LONG,
         "device" to array(16), "generation" to JAVA_LONG, "family" to array(32), "valid_from" to JAVA_LONG, "valid_until" to JAVA_LONG)
+    private val publicationKeyLayout = struct("kind" to JAVA_INT, "reuse" to JAVA_INT,
+        "valid_from" to JAVA_LONG, "valid_until" to JAVA_LONG, "request" to array(32))
+    private val publicationPlanLayout = struct("struct_size" to JAVA_INT, "reserved_zero" to JAVA_INT,
+        "directory" to array(32), "valid_from" to JAVA_LONG, "valid_until" to JAVA_LONG, "keys" to ADDRESS, "count" to JAVA_LONG)
+    private val publicationStatusLayout = struct("state" to JAVA_INT, "reserved_zero" to JAVA_INT,
+        "intent" to array(32), "manifest" to array(32), "artifact" to array(32))
     private val checkpointLayout = struct("version" to JAVA_LONG, "digest" to array(32))
     private val enrollmentPinLayout = struct("account" to array(32), "root" to ADDRESS, "root_length" to JAVA_LONG,
         "family" to array(32), "checkpoint" to checkpointLayout)
@@ -149,6 +155,12 @@ internal object ContinuityNative {
     private val preparePeer = function("qpc_peer_v1_prepare", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS)
     private val preparePeerReopen = function("qpc_peer_v1_prepare_reopen", JAVA_LONG, ADDRESS, JAVA_LONG, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "publication_size_bound" to function("qpc_device_v1_publication_size_bound", ADDRESS, ADDRESS, ADDRESS),
+        "next_publication" to function("qpc_device_v1_next_publication", JAVA_LONG, ADDRESS, ADDRESS),
+        "publication_status" to function("qpc_device_v1_publication_status", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "prepare_publication" to function("qpc_device_v1_prepare_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "retire_publication" to function("qpc_device_v1_retire_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "abandon_publication" to function("qpc_device_v1_abandon_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "witnessed_policy_renewal_request" to function("qpc_enrollment_v1_witnessed_policy_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "prepare_witnessed_roster_refresh" to function("qpc_enrollment_v1_prepare_witnessed_roster_refresh", JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
         "recover_witnessed_roster_refresh_preparation" to function("qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation", JAVA_LONG, ADDRESS, ADDRESS),
@@ -932,6 +944,88 @@ internal object ContinuityNative {
             output.get(JAVA_LONG, 0).also { if (it == 0L) malformed("native peer preparation returned a zero handle") }
         }
     }
+    private fun encodePublicationPlan(arena: Arena, plan: PublicationPlan): MemorySegment {
+        val keys = arena.allocate(MemoryLayout.sequenceLayout(plan.keys.size.toLong(), publicationKeyLayout))
+        plan.keys.forEachIndexed { index, key ->
+            val row = keys.asSlice(index.toLong() * publicationKeyLayout.byteSize(), publicationKeyLayout.byteSize())
+            row.set(JAVA_INT, offset(publicationKeyLayout, "kind"), key.kind.code)
+            row.set(JAVA_INT, offset(publicationKeyLayout, "reuse"), if (key.reusedRequest == null) 0 else 1)
+            row.set(JAVA_LONG, offset(publicationKeyLayout, "valid_from"), key.validFrom.bits())
+            row.set(JAVA_LONG, offset(publicationKeyLayout, "valid_until"), key.validUntil.bits())
+            key.reusedRequest?.let { row.put(publicationKeyLayout, "request", it.encoded()) }
+        }
+        return arena.allocate(publicationPlanLayout).also {
+            it.set(JAVA_INT, offset(publicationPlanLayout, "struct_size"), publicationPlanLayout.byteSize().toInt())
+            it.put(publicationPlanLayout, "directory", plan.directory.encoded())
+            it.set(JAVA_LONG, offset(publicationPlanLayout, "valid_from"), plan.validFrom.bits())
+            it.set(JAVA_LONG, offset(publicationPlanLayout, "valid_until"), plan.validUntil.bits())
+            it.set(ADDRESS, offset(publicationPlanLayout, "keys"), keys)
+            it.set(JAVA_LONG, offset(publicationPlanLayout, "count"), plan.keys.size.toLong())
+        }
+    }
+    @JvmSynthetic internal fun nextPublication(handle: Long): PrekeyPublicationID = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(32)
+        invoke(arena, "next_publication", handle, output)
+        val bytes = output.toArray(JAVA_BYTE)
+        if (bytes.all { it == 0.toByte() }) malformed("zero native publication ID")
+        PrekeyPublicationID(bytes)
+    }
+    @JvmSynthetic internal fun decodePublicationStatus(state: Int, reserved: Int, intent: ByteArray,
+        manifest: ByteArray, artifact: ByteArray): PublicationStatus {
+        if (reserved != 0 || listOf(intent, manifest, artifact).any { it.size != 32 }) malformed("publication status shape")
+        fun present(bytes: ByteArray) = bytes.any { it != 0.toByte() }
+        return when (state) {
+            0, 3 -> {
+                if (listOf(intent, manifest, artifact).any(::present)) malformed("dirty publication absence/retirement")
+                if (state == 0) PublicationStatus.Absent else PublicationStatus.Retired
+            }
+            1 -> {
+                if (!present(intent) || present(manifest) || present(artifact)) malformed("publication reserved commitments")
+                PublicationStatus.Reserved(PublicBytes(intent))
+            }
+            2 -> {
+                if (!listOf(intent, manifest, artifact).all(::present)) malformed("publication prepared commitments")
+                PublicationStatus.Prepared(PublicBytes(intent), PublicBytes(manifest), PublicBytes(artifact))
+            }
+            else -> malformed("unknown publication status")
+        }
+    }
+    private fun publicationStatus(output: MemorySegment): PublicationStatus {
+        val fields = Fields(output, publicationStatusLayout)
+        return decodePublicationStatus(fields.integer("state"), fields.integer("reserved_zero"),
+            fields.bytes("intent",32), fields.bytes("manifest",32), fields.bytes("artifact",32))
+    }
+    @JvmSynthetic internal fun publicationStatus(handle: Long, id: PrekeyPublicationID): PublicationStatus = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(publicationStatusLayout)
+        invoke(arena, "publication_status", handle, arena.bytes(id.encoded()), output)
+        publicationStatus(output)
+    }
+    @JvmSynthetic internal fun publicationSizeBound(plan: PublicationPlan): Long = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(JAVA_LONG)
+        invoke(arena, "publication_size_bound", encodePublicationPlan(arena, plan), output)
+        output.get(JAVA_LONG,0).also { if (it !in 1L..2L*1024*1024) malformed("publication capacity") }
+    }
+    @JvmSynthetic internal fun preparePublication(handle: Long, id: PrekeyPublicationID, plan: PublicationPlan): PreparedPublication = Arena.ofConfined().use { arena ->
+        val input = encodePublicationPlan(arena, plan)
+        val capacity = arena.allocate(JAVA_LONG)
+        invoke(arena, "publication_size_bound", input, capacity)
+        val bound = capacity.get(JAVA_LONG,0)
+        if (bound !in 1L..2L*1024*1024) malformed("publication capacity")
+        val bytes = arena.allocate(bound); val length = arena.allocate(JAVA_LONG)
+        invoke(arena, "prepare_publication", handle, arena.bytes(id.encoded()), input, bytes, bound, length)
+        val size = length.get(JAVA_LONG,0)
+        if (size !in 1..bound) malformed("publication output length")
+        PreparedPublication.decode(bytes.asSlice(0,size).toArray(JAVA_BYTE), id, plan)
+    }
+    @JvmSynthetic internal fun publicationMutation(handle: Long, id: PrekeyPublicationID, digest: ByteArray, abandon: Boolean): PublicationStatus {
+        require(digest.size == 32 && digest.any { it != 0.toByte() }) { "publication requires exact nonzero commitment" }
+        return Arena.ofConfined().use { arena ->
+            val output = arena.allocate(publicationStatusLayout)
+            invoke(arena, if (abandon) "abandon_publication" else "retire_publication", handle, arena.bytes(id.encoded()), arena.bytes(digest), output)
+            publicationStatus(output).also { if (it != PublicationStatus.Retired) malformed("publication retirement did not return terminal state") }
+        }
+    }
+
     @JvmSynthetic internal fun nextAccount(handle: Long): AccountOperationID = Arena.ofConfined().use { arena ->
         val output = arena.allocate(32)
         invoke(arena, "next_account", handle, output)
@@ -1325,6 +1419,8 @@ internal object ContinuityNative {
             Counter64.fromBits(output.get(JAVA_LONG, 0))
         }
     @JvmSynthetic internal fun layouts(): Map<String, Pair<Long, Long>> = mapOf(
+        "publication_key" to publicationKeyLayout, "publication_plan" to publicationPlanLayout,
+        "publication_status" to publicationStatusLayout,
         "error" to errorLayout, "witness" to witnessLayout, "options" to optionsLayout,
         "enrollment_intent" to enrollmentIntentLayout, "checkpoint" to checkpointLayout, "enrollment_pin" to enrollmentPinLayout,
         "enrollment_status" to enrollmentStatusLayout, "enrollment_request" to enrollmentRequestLayout,

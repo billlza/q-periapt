@@ -79,6 +79,17 @@ class ContinuityDevice private constructor(private val native: NativeOwner) : Au
             throw failure
         }
     }
+    /** Observe and retain with the complete plan before dispatch; no allocation yet. */
+    fun nextPublication(): PrekeyPublicationID = native.call { ContinuityNative.nextPublication(it) }
+    fun publicationStatus(id: PrekeyPublicationID): PublicationStatus = native.call { ContinuityNative.publicationStatus(it, id) }
+    /** Recover the exact original operation after uncertainty; never replace its ID automatically. */
+    fun preparePublication(id: PrekeyPublicationID, plan: PublicationPlan): PreparedPublication =
+        native.call { ContinuityNative.preparePublication(it, id, plan) }
+    fun retirePublication(id: PrekeyPublicationID, artifact: ByteArray): PublicationStatus =
+        native.call { ContinuityNative.publicationMutation(it, id, artifact, false) }
+    fun abandonPublication(id: PrekeyPublicationID, intent: ByteArray): PublicationStatus =
+        native.call { ContinuityNative.publicationMutation(it, id, intent, true) }
+
     /** Read and retain before sending; this does not reserve or dispatch work. */
     fun nextAccountOperation(): AccountOperationID = native.call { ContinuityNative.nextAccount(it) }
     fun accountStatus(operation: AccountOperationID): AccountStatus = native.call { ContinuityNative.accountStatus(it, operation) }

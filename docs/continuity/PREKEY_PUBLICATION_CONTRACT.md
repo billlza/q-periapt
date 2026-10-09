@@ -3,9 +3,9 @@
 The native journal now implements the local recoverable operation below through
 `next_prekey_publication_id`, `prepare_prekey_publication`, status, abandon and
 retire. The registered Rust owner and C device-parent entry points now compose
-that operation without exposing a signer. Swift supplies typed device methods and
-checks its complete public result framing. Kotlin publication entry points and
-the installed successor's use of publication remain open. This is neither a frozen storage/ABI contract
+that operation without exposing a signer. Swift and Kotlin supply typed device
+methods and check complete public result framing. The installed successor's use
+of publication remains open. This is neither a frozen storage/ABI contract
 nor evidence of remote directory publication. Existing `generate_prekey` and
 `issue_manifest` remain lower-level operations with their documented responsibilities.
 
@@ -210,3 +210,14 @@ its isolated copy was given an `@rpath` name and the client relinked. Debug/Rele
 component runs retain exact artifact retries and original registration identity.
 The complete installed Swift producer is wired to require this publication
 workload; a component run is not a completed distribution-package qualification.
+
+The Kotlin wrapper uses the same native operation and immutable plan/result
+contract with full-width unsigned counters and bounded FFM buffers. Its private
+Maven consumer passes the registered-publication workload with Debug/Release
+libraries under Serial and G1. The 58 named JVM tests run against each native
+profile, and the full installed producer now requires the publication workload
+for every collector. Evidence is recorded in
+[`20261009-kotlin-publication`](../../research/sdk-alpha1/evidence/20261009-kotlin-publication/README.md).
+These component runs still use the remote fixture advertisement for subsequent
+traffic; they do not complete successor-owned advertisement or distribution
+qualification.

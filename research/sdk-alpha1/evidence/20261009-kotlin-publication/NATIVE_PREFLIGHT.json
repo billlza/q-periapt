@@ -1,0 +1,53 @@
+{
+  "head": "6a1f1f0b6cba3b92a86b8ff3a92547ab0b40cf5f",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/publication-source",
+  "runs": [
+    {
+      "label": "source-gate",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/source_results_assembler.py",
+        "ci-source-gate",
+        "--profile",
+        "sdk-020",
+        "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+        "6a1f1f0b6cba3b92a86b8ff3a92547ab0b40cf5f"
+      ],
+      "returncode": 0,
+      "seconds": 5.499915082938969
+    },
+    {
+      "label": "codeql-quality-tests",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_codeql_rust_quality\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 1.9263521670363843
+    },
+    {
+      "label": "artifact-tests",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"discover\",\"-s\",\"artifact\",\"-p\",\"test_*.py\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 1600.3405925419647
+    }
+  ],
+  "source_clean": true,
+  "head_unchanged": true,
+  "capture": {
+    "file": "NATIVE_PREFLIGHT.zip",
+    "sha256": "720d7bf0b72f4418e80ec79100a6c6eaef38efa67ad68e25770b146c4aa9fd63",
+    "bytes": 71337
+  },
+  "artifact_tests": 2665,
+  "codeql_quality_tests": 44,
+  "scope": "Earlier registered Rust/C publication source, before Swift/Kotlin publication wrappers. Does not qualify the current Kotlin source head."
+}

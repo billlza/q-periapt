@@ -71,6 +71,12 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "PublicationTests": frozenset({
+        "publicationLayoutsAndCompletePlanRetainUnsignedInputs",
+        "publicationStatesRefuseDirtyAbsenceAndUnknownCompletion",
+        "completePublicationCopiesBytesAndRefusesTruncationSubstitutionAndTail",
+        "pendingDeviceCannotPublishAndClosurePreservesNoAuthority",
+    }),
     "RetirementTests": frozenset({
         "retirementLayoutsMatchTheNativeContract",
         "retirementAuthorityOwnsInputsAndRejectsBadWidths",
@@ -514,7 +520,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 retirement[collector] = qualify_retirement(outside, output, profile, enrollment_runtime, row, run,
                                                            language="Kotlin", collector=collector)
                 enrollment[collector] = qualify_enrollment(outside, output, profile, enrollment_runtime, row, run,
-                                                           language="Kotlin", collector=collector)
+                                                           language="Kotlin", collector=collector, publication=True)
                 sdk.require(sdk.snapshot(enrollment_launcher).sha256 == enrollment_digest,
                             "Kotlin enrollment launcher changed during execution")
             accounts = {}
