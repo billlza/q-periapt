@@ -41,3 +41,8 @@ selected public records/logs only. Full local prototype captures are referenced 
 hash, not treated as whole-release approval. First-configuration composition,
 required witnesses/continued-policy coverage on the explicit route, the complete
 installed lifecycle pipeline, new-code CI and the larger 0.2.0 gates remain open.
+
+The retained `run-gate.py` is the historical runner used from
+`target/peer-configuration-current/integration/`. Its relative paths depend on
+that original layout and the qualified component installations named in
+`CHECKS.json`; it is not a standalone reproduction script from this directory.
