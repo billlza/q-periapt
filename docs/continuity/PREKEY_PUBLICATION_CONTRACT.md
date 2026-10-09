@@ -110,7 +110,12 @@ atomic reservation writes `QPVLT022`/`QPVIMG22`; the registry survives even afte
 all artifacts retire, preserving the next ordinal. The v21 decoder cannot admit
 the new record, and v22 requires exactly one validated registry. The database
 container/table is unchanged. New code reads both image formats; the older v21
-parser rejects the new outer tag. Actual old-binary rejection qualification remains
+parser rejects the new outer tag. The [actual old-reader study](../../research/sdk-alpha1/evidence/20261009-v22-old-reader/README.md)
+pins the prior `ce70bf83` Debug/Release binaries: they admit v21, then refuse both
+prepared and retired-registry v22 images with `QPC_CORRUPT`. User-table records,
+keys and namespace remain unchanged, and current-client recovery still succeeds.
+Physical redb file bytes can change because close persists allocator metadata.
+Crash/power-loss and broader platform/schema qualification remain
 a separate gate, rather than being inferred from a new-code round trip. Whole-device retired
 reports must include publication metadata, including unfinished original intent
 and retained-artifact identity, before cleanup can acknowledge the complete

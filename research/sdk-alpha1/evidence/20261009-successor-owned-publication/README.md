@@ -48,5 +48,13 @@ This closes the manually prepared successor prekey step in this workload. It is
 source-component/private-Maven evidence, not complete current-archive,
 independent-implementation, physical-device or release qualification. Local
 publication preparation does not establish remote directory publication or
-consistency. Old-binary v22 refusal, platform storage, external security review
-and recovery-security requirements remain separate release gates.
+consistency. The [subsequent actual-old-reader study](../20261009-v22-old-reader/README.md)
+qualifies the pinned prior Debug/Release build's v22 refusal on macOS arm64.
+Broader platform storage, external security review and recovery-security
+requirements remain separate release gates.
+
+`PREFLIGHT.json` and `PREFLIGHT.zip` retain the clean standalone `f9ae04b9` source
+gate, all 44 CodeQL-quality tests and all 2,667 artifact tests. The ZIP has 71,383
+bytes and SHA-256 `45037d02d5c7db0edafb2df1e58d35f8016052c4aa290b8c3e51122e0a1d7854`.
+Current-source installed Rust/C/Swift/Kotlin archive qualification was started
+separately and is not claimed complete by this preflight receipt.
