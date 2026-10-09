@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-09T22:26:45.606421+00:00",
+  "base_head": "8218da58560b4485d162ebcd6c836ec7757c015f",
+  "scope": "Fresh first-configuration protocol-policy renewal with original unknown-delivery recovery; same-host installed native components and shared Rust engine",
+  "product_integrated": false,
+  "release_claim_eligible": false,
+  "new_native_exports": 0,
+  "profiles": [
+    {
+      "language": "C",
+      "profile": "debug",
+      "collector": null,
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "be4bb5890a77f18780ee79b91fe1d463cda3f6a2fbc643208a980b4382eafd72",
+      "public_files": 166,
+      "result": "public-c-debug-01/RESULT.json"
+    },
+    {
+      "language": "C",
+      "profile": "release",
+      "collector": null,
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "90e5ea5fe7aae6f5c0b728f382eddb9c8db1e6ebf81c27ef54968f6daa0018a6",
+      "public_files": 166,
+      "result": "public-c-release-01/RESULT.json"
+    },
+    {
+      "language": "Swift",
+      "profile": "debug",
+      "collector": null,
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "91e93c5dc30cd0782c65e7489ed55872c026abdb43050a08d529ba2cdc923801",
+      "public_files": 166,
+      "result": "public-swift-debug-01/RESULT.json"
+    },
+    {
+      "language": "Swift",
+      "profile": "release",
+      "collector": null,
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "c945a07a66c39f2a5a5072ac4598f2c4b6818016bf86a75b90e2e180b3b1145c",
+      "public_files": 166,
+      "result": "public-swift-release-01/RESULT.json"
+    },
+    {
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "G1",
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "e5dd58b9f239ab83d49918702b77f123c35ab0fa6c11528855b32af4267da81e",
+      "public_files": 166,
+      "result": "public-kotlin-debug-g1-01/RESULT.json"
+    },
+    {
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "Serial",
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "f964c6b07aae8adfa39a9c1f286ba4468581b4ae11632642c5e1915572bba6ef",
+      "public_files": 166,
+      "result": "public-kotlin-debug-serial-01/RESULT.json"
+    },
+    {
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "G1",
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "e739fb568cf11cd96ba007d8c30a4b8a5febdd321d4734fde30829e040c34cc1",
+      "public_files": 166,
+      "result": "public-kotlin-release-g1-01/RESULT.json"
+    },
+    {
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "Serial",
+      "flows": 6,
+      "source_unchanged": true,
+      "record_sha256": "8237208ae2297a3a99ab383f090b66aca3352516e2678fc05f535aaae91fb4a4",
+      "public_files": 166,
+      "result": "public-kotlin-release-serial-01/RESULT.json"
+    }
+  ],
+  "flows": 48,
+  "native_signature_refusals": 48,
+  "public_record_files": 1328,
+  "public_reader_mutation_controls": 106,
+  "shared_parser_existing_regressions": 2,
+  "clippy": "all targets -D warnings passed",
+  "msrv": "Rust 1.90 all targets -D warnings passed",
+  "archive": {
+    "name": "PUBLIC_CAPTURE.zip",
+    "sha256": "c97884db746ae802755c015063ebb4cc7f1a035906d20cd82e733848faa2f94a",
+    "bytes": 4215211,
+    "members": 1419
+  },
+  "patch_sha256": "bdf4283622d256ccf931e8757523f39f59f4c05073ac2814c85a6ed969042798",
+  "remaining": [
+    "Integrate the consumer example and mandatory package collector/source gates",
+    "Expired original protocol policy through this explicit first-use path",
+    "Complete current-head installed-package/CI matrix",
+    "Independent protocol implementation and broader release gates"
+  ],
+  "compressed_patch": {
+    "name": "FIRST_CONFIGURATION_POLICY.patch.gz",
+    "sha256": "39bc105c27a220f1d358afee9b8561abfc9ec6639456e8156dfddc600ee99de8",
+    "bytes": 14408,
+    "decompressed_sha256": "bdf4283622d256ccf931e8757523f39f59f4c05073ac2814c85a6ed969042798"
+  }
+}
