@@ -62,9 +62,10 @@ states, directions, labels or contexts produce different keys.
 
 Rust `SharedSecret::derive_key` returns a non-cloneable `DerivedKey`. C adds
 `q_periapt_sdk_secret_derive` and `q_periapt_sdk_derived_key_export` to ABI **2**;
-the unpublished current export table is exactly 20 names, including the original
-nine unchanged declarations. Existing library filenames/identities and statuses
-remain unchanged. `ERR_PURPOSE=-12` is additive.
+the complete current table is defined by the
+[0.2.0 C ABI contract](../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json),
+including the original nine unchanged declarations. Existing library filenames/
+identities and statuses remain unchanged. `ERR_PURPOSE=-12` is additive.
 
 Swift, Kotlin/JVM, Android and WASM expose corresponding `deriveKey`/`derive_key`
 operations, named purposes and a separate derived-key owner. A derived-key handle
