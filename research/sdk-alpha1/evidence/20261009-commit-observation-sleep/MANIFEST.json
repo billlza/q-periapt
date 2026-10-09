@@ -1,0 +1,21 @@
+{
+  "failed_full_source": "a671719eec6d48139075e1a9ff2e309cf2b19f9e",
+  "current_preflight_source": "edc673bd31079283431ec359f4dfcaf58a5a3b5b",
+  "preflight_source_gate": "passed",
+  "codeql_quality_tests": 44,
+  "artifact_tests": 2668,
+  "failure_case": "tls-expired",
+  "policy_until": 1791550033,
+  "observed_at": 1791550065,
+  "power_event": "2026-10-09 13:45:24 +0100 Maintenance Sleep141s;13:47:45 DarkWake matches observed_at",
+  "repeat_native_returncode": 0,
+  "repeat_seconds": 125.34707024996169,
+  "repeat_max_wall_monotonic_delta": 1.6179867088794708e-05,
+  "repeat_public_verifier": "all4cases passed unchanged",
+  "full_distribution_qualified": false,
+  "new_full_attempt": "edc673bd process-scoped caffeinate -i started; pending",
+  "capture_sha256": "2fcfea900bf1c0c92cc71b78b9531c432e2caeeab3218bd4d6d6e80b8c90cbd4",
+  "capture_bytes": 2619008,
+  "capture_members": 283,
+  "release_claim_eligible": false
+}
