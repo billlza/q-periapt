@@ -1421,6 +1421,13 @@ class CodeQLRustQualityTests(unittest.TestCase):
             tracked,
         )
         for sdk_source in (
+            "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication/tests.rs",
             "crates/q-periapt-sdk/src/lib.rs",
             "crates/q-periapt-sdk-wasm/src/lib.rs",
             "crates/q-periapt-host-store/src/lib.rs",
@@ -1499,6 +1506,13 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication/tests.rs",
             "bindings/c/ContinuityPackageConsumer/src/retirement.rs",
             "bindings/c/ContinuityPackageConsumer/src/publication.rs",
             "bindings/c/ContinuityPackageConsumer/tests/retirement.rs",
