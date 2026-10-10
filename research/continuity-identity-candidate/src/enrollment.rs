@@ -23,6 +23,8 @@ const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_enr
 const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
+mod account_root;
+pub use account_root::{AccountRootEnrollmentRecovery, AccountRootEnrollmentState};
 mod policy_renewal;
 mod renewal;
 mod retirement;
@@ -1176,6 +1178,23 @@ fn load_snapshot(
     key: &JournalKey,
     binding: [u8; 32],
 ) -> Result<(Image, Option<retirement::State>), DurableError> {
+    let snapshot = read_snapshot(database, key, binding)?;
+    if snapshot.root_replacement.is_some() {
+        return Err(DurableError::Suspended);
+    }
+    Ok((snapshot.image, snapshot.retirement))
+}
+struct EnrollmentSnapshot {
+    image: Image,
+    retirement: Option<retirement::State>,
+    // Ordinary activation must not carry the full two-root proposal by value.
+    root_replacement: Option<Box<account_root::State>>,
+}
+fn read_snapshot(
+    database: &Database,
+    key: &JournalKey,
+    binding: [u8; 32],
+) -> Result<EnrollmentSnapshot, DurableError> {
     let tx = database.begin_read().map_err(storage)?;
     let tables: Vec<_> = tx.list_tables().map_err(storage)?.collect();
     if tables.len() != 1
@@ -1190,7 +1209,15 @@ fn load_snapshot(
         .map_err(storage)?
         .map(|row| retirement::State::decode(row.value(), key, binding))
         .transpose()?;
-    if table.len().map_err(storage)? != if retirement.is_some() { 2 } else { 1 } {
+    let root_replacement = table
+        .get(account_root::ROW)
+        .map_err(storage)?
+        .map(|row| account_root::State::decode(row.value(), key, binding))
+        .transpose()?;
+    if (retirement.is_some() && root_replacement.is_some())
+        || table.len().map_err(storage)?
+            != 1 + u64::from(retirement.is_some()) + u64::from(root_replacement.is_some())
+    {
         return Err(DurableError::Corrupt);
     }
     let saved = table
@@ -1198,6 +1225,20 @@ fn load_snapshot(
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
     let wire = saved.value();
+    let image = decode_image(wire, key, binding)?;
+    if let Some(state) = &retirement {
+        state.check_image(&image, wire)?;
+    }
+    if let Some(state) = &root_replacement {
+        state.check_image(&image, wire)?;
+    }
+    Ok(EnrollmentSnapshot {
+        image,
+        retirement,
+        root_replacement,
+    })
+}
+fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Image, DurableError> {
     if wire.len() < 105 || wire.len() > MAX_RENEWAL_IMAGE {
         return Err(DurableError::Corrupt);
     }
@@ -1403,10 +1444,7 @@ fn load_snapshot(
         roster_witness,
     };
     image.validate_policy_phase()?;
-    if let Some(state) = &retirement {
-        state.check_image(&image, wire)?;
-    }
-    Ok((image, retirement))
+    Ok(image)
 }
 fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
     let tx = transaction(database)?;

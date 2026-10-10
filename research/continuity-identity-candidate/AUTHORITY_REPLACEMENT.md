@@ -1,7 +1,7 @@
 # Account-root and witness authority replacement
 
-Status: the native witness account-root transaction and a separate original-journal
-fence are implemented; the complete managed account cutover and witness-key handoff
+Status: the native witness account-root transaction, original-journal fence and
+original-enrollment parent fence are implemented; the complete managed account cutover and witness-key handoff
 are **not implemented**. Both
 remain part of the required 0.2.0 lifecycle. Existing registration, credential
 renewal, policy continuation and device replacement do not complete that lifecycle.
@@ -194,8 +194,8 @@ arm64 component results, not full managed-cutover or cross-platform qualificatio
 This is one **required-witness journal** component, not the independent current
 account-authority store. In particular, restoring the whole journal from before
 the local fence can remove that row before the witness commits retirement. The
-parent intent and authority revision still need durable retention outside old
-journal backups and must govern configuration imports/reopen. Peer-account
+parent intent is retained by the enrollment integration below. A stable current
+authority revision must still govern all configuration imports/reopen. Peer-account
 admission, successor installation/activation and the account-specific historical
 cleanup workflow also remain to be integrated. A per-journal marker must not be
 described as an executed managed account cutover or whole-host rollback protection.
@@ -208,6 +208,46 @@ witness retirement, the same restored bytes cannot reopen a traffic journal. The
 fixture transport reports the witness's refusal as unavailability; a separate
 purpose-22 receipt supplies authenticated historical retirement. This does not
 test whole-host or witness rollback.
+
+### Original enrollment parent transaction
+
+`EnrolledDevice::begin_account_root_replacement` consumes the old service and
+signer, retains the exact independently approved proposal in its original
+enrollment database, then fences the original journal. The existing enrollment
+lease and wrapping-key/path binding remain authoritative. Its separate
+`root-replacement` row uses `QPERPL01` and authenticates the unchanged enrollment
+image, signing identity, journal identity and complete proposal. It does not
+rewrite the original enrollment, key, credential, policy or roster history.
+
+`AccountRootEnrollmentRecovery::resume_original` opens only those existing paths
+and the independently retained original intent. A failed first parent commit can
+be reconciled with the same proposal. Once the marker exists, a competing proposal
+is refused, and ordinary enrollment opening, activation and credential/policy
+recovery cannot use the parent for traffic. Restoring only the old journal does
+not remove this enrollment fence. Recovery re-establishes the exact child fence;
+missing children or signer files never trigger replacement or key generation.
+
+`IntentRetained` reports no witness outcome. Receipt retention first verifies the
+exact purpose-22 statement and durably retains it in the child, then in the parent.
+Only the latter boundary acknowledges `WitnessCommitted`. Loss between commits
+requires the original operation/receipt; it cannot infer no-commit. A retained
+parent receipt also survives a later child-backup restoration. Historical recovery
+does not reopen signing material or require a live traffic runtime.
+
+The native focused checks exercise restored child backups, two competing intents,
+bad signatures/MACs, authenticated wrong-image markers, extra schema and missing
+children. They measure three parent sync barriers for intent and three for receipt,
+inject all twelve pre/post-sync faults, and terminate owned processes at both sides
+of both commits. Target enrollment activation remains a separate current-authority
+check; the same prepared target refuses before witness admission and succeeds after
+the actual witness commit. These component checks do not qualify installed foreign
+calls or replace the full regression and platform gates.
+
+This parent is one original local enrollment. It does not implement a stable
+application-account authority registry, govern arbitrary low-level journal imports,
+fence cached remote-account owners, select/activate a successor on the user's behalf,
+or transfer the witness key. Restoring the parent or whole host is outside this
+local backup boundary. These remaining obligations still block managed cutover.
 
 ### Remaining product acceptance
 

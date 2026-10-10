@@ -35,12 +35,13 @@ pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use durable::retired_report as retired_device;
 pub use enrollment::{
-    CredentialRenewalRequest, CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice,
-    EnrollmentIntent, EnrollmentPaths, EnrollmentStatus, PolicyRenewalAbandonment,
-    PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment, RosterRefreshOutcome,
-    RosterRefreshResolution, SigningFileErasureState, VerifiedEnrollmentRequest,
-    WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
-    WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress,
+    AccountRootEnrollmentRecovery, AccountRootEnrollmentState, CredentialRenewalRequest,
+    CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths,
+    EnrollmentStatus, PolicyRenewalAbandonment, PolicyRenewalRequest, PolicyRenewalStatus,
+    RetiredDeviceEnrollment, RosterRefreshOutcome, RosterRefreshResolution,
+    SigningFileErasureState, VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition,
+    WitnessedPolicyRenewalProgress, WitnessedRosterRefreshDisposition,
+    WitnessedRosterRefreshProgress,
 };
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
