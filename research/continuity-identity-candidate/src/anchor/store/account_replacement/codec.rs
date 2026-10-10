@@ -10,9 +10,11 @@ impl AnchorAccountReplacementProposal {
             return Err(Error::Capacity);
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPARPL01" {
-            return Err(Error::Encoding);
-        }
+        let preparation = match &d.array::<8>()? {
+            b"QPARPL01" => None,
+            b"QPARPL02" => Some(d.array()?),
+            _ => return Err(Error::Encoding),
+        };
         let witness = d.array()?;
         let operation = AnchorAccountReplacementId::from_trusted_state(d.array()?)?;
         let previous_root = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
@@ -59,6 +61,7 @@ impl AnchorAccountReplacementProposal {
             policy,
             policy_validity,
             frozen,
+            preparation,
         };
         result.check_shape()?;
         Ok(result)
@@ -67,7 +70,12 @@ impl AnchorAccountReplacementProposal {
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.check_shape()?;
         let mut out = Vec::with_capacity(4600 + 209 * self.frozen.len());
-        out.extend_from_slice(b"QPARPL01");
+        if let Some(binding) = self.preparation {
+            out.extend_from_slice(b"QPARPL02");
+            out.extend_from_slice(&binding);
+        } else {
+            out.extend_from_slice(b"QPARPL01");
+        }
         out.extend_from_slice(&self.witness);
         out.extend_from_slice(&self.operation.0);
         out.extend_from_slice(&self.previous_root.encode());
@@ -124,9 +132,10 @@ pub(in crate::anchor::store) fn encode_records(
 }
 pub(in crate::anchor::store) fn decode_records(
     d: &mut Decoder<'_>,
+    allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], AnchorAccountReplacementProposal>, DurableError> {
     let count = usize::from(d.u16()?);
-    if count == 0 || count > MAX_ENTRIES {
+    if (!allow_empty && count == 0) || count > MAX_ENTRIES {
         return Err(DurableError::Corrupt);
     }
     let mut result = BTreeMap::new();

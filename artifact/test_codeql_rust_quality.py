@@ -1521,6 +1521,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/account_authority.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/process.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/refresh.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1599,6 +1607,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/account_authority.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/process.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/refresh.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

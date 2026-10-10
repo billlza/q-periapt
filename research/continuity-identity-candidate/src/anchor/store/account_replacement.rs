@@ -5,8 +5,10 @@ use crate::{PolicyCheckpoint, RosterCheckpoint};
 use std::collections::BTreeSet;
 
 mod codec;
+pub(super) mod freeze;
 mod receipt;
 pub(super) use codec::{decode_records, encode_records};
+pub use freeze::{AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorFrozenAccount};
 
 const MAX_PROPOSAL_BYTES: usize = 65_536;
 
@@ -31,7 +33,7 @@ impl AnchorAccountReplacementId {
     }
 }
 
-/// Frozen public metadata within an authenticated account retirement.
+/// Frozen public metadata within an authenticated account freeze or retirement.
 /// This observation alone is not a signed receipt or an operating capability.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AnchorRetiredAccountSubject {
@@ -77,6 +79,7 @@ pub struct AnchorAccountReplacementProposal {
     policy: PolicyCheckpoint,
     policy_validity: Validity,
     frozen: Vec<AnchorRetiredAccountSubject>,
+    preparation: Option<[u8; 32]>,
 }
 impl AnchorAccountReplacementProposal {
     /// Original host-approved operation identity.
@@ -131,6 +134,9 @@ impl AnchorAccountReplacementProposal {
     }
     fn check_shape(&self) -> Result<(), Error> {
         nonzero(&self.witness)?;
+        if let Some(binding) = self.preparation {
+            nonzero(&binding)?;
+        }
         nonzero(&self.genesis)?;
         nonzero(&self.key)?;
         nonzero(&self.target.journal)?;
@@ -227,7 +233,9 @@ impl AnchorRetiredAccount {
 
 impl Image {
     pub(super) fn require_account_live(&self, account: [u8; 32]) -> Result<(), DurableError> {
-        if self.account_replacements.contains_key(&account) {
+        if self.account_replacements.contains_key(&account)
+            || self.account_freezes.contains_key(&account)
+        {
             return Err(Error::Scope.into());
         }
         Ok(())
@@ -266,7 +274,13 @@ impl Image {
         p: &AnchorAccountReplacementProposal,
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
-        self.require_account_live(p.previous_account())?;
+        if self
+            .account_replacements
+            .contains_key(&p.previous_account())
+        {
+            return Err(Error::Scope.into());
+        }
+        self.check_preparation(p)?;
         self.require_account_live(p.successor_account())?;
         if self
             .account_replacements
@@ -292,6 +306,7 @@ impl Image {
         let mut operations = BTreeSet::new();
         for (account, p) in &self.account_replacements {
             p.check_shape()?;
+            self.check_preparation(p)?;
             let target = self
                 .entries
                 .get(&p.target.id(&pin.binding))
@@ -340,6 +355,18 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        self.proposal_for_account(operation, (previous_root, None), genesis, next, policy, now)
+    }
+    fn proposal_for_account(
+        &mut self,
+        operation: AnchorAccountReplacementId,
+        previous: (&PublicKey, Option<[u8; 32]>),
+        genesis: &AnchorGenesis,
+        next: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        let (previous_root, preparation) = previous;
         let validity = self.admit_enrollment(genesis.subject, next, policy, now)?;
         let pin = self.pin()?;
         let image = self.image()?;
@@ -358,6 +385,7 @@ impl AnchorStore {
             policy: policy.checkpoint(),
             policy_validity: policy.validity(),
             frozen: image.account_snapshot(crate::identity::account_id(previous_root), &pin)?,
+            preparation,
         };
         p.check_target(previous_root, genesis, next, policy, &pin)?;
         image.check_new_account_replacement(&p, &pin)?;

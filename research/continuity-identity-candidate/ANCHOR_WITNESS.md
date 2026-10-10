@@ -48,7 +48,8 @@ now fences the entire old cryptographic account, including future unseen device
 IDs, while admitting one independently approved fresh target journal in the same
 store commit. This is separate from per-device retirement. It preserves exact
 historical status and purpose-22 retirement receipts, and introduces witness
-layout `QPANC015`; existing layouts remain readable. The witness image contains
+layout `QPANC015`, or `QPANC016` when an independently approved account preparation
+freeze is retained; existing layouts remain readable. The witness image contains
 public state protected by HMAC, not encrypted state. Device journals and protected
 signing-owner files have their separate encryption contracts. Local account-owner
 cutover, deployment authorization and witness-key transfer remain separate work.

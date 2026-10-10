@@ -142,7 +142,7 @@ trust, not freshness, successor permission, physical erasure or witness migratio
 The canonical unsigned proposal is `QPARPL01`, with a 4452-byte fixed portion and
 209 bytes per frozen subject. At most 256 subjects and 65536 input bytes are
 accepted. Its binding uses domain `Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-REPLACEMENT/v1`.
-The store emits `QPANC015` only when account replacements exist. It retains all old
+The store emits `QPANC015` when account replacements exist without preparation freezes. It retains all old
 entry layouts, device retirement, cleanup, reports and acknowledgement records.
 Earlier layouts keep their canonical nonempty-table requirements; empty older
 sections are permitted only inside this new aggregate format. Unknown versions,
@@ -361,3 +361,55 @@ durably terminal decision that the original proposal can never commit. An absent
 observation, local reset or silent proposal regeneration is insufficient.
 Observing a committed historical operation never authorizes its successor if a
 later operation has already retired that root.
+
+
+### Durable preparation freeze component
+
+`AnchorAccountFreezeRequest` binds an original independent approval to the witness,
+old cryptographic root and a separate freeze operation ID. Retain that request
+before submitting it through the independently authenticated control plane.
+`freeze_account` captures all then-current old-account subjects and freezes the
+whole namespace in the same witness transaction. An old device can advance before
+this transaction and its new head is then included; it cannot change the snapshot
+after it commits. Known subjects and future unseen devices are refused through the
+ordinary request, trusted enrollment, replacement and renewal admission paths.
+Unrelated accounts remain usable. Unclassified legacy entries prevent the freeze.
+A root signature alone remains insufficient control-plane authority.
+
+Freeze is a historical preparation fact, distinct from permanent replacement,
+delivery, erasure or permission for a successor. No target is enrolled by freezing.
+After an uncertain commit, reopen the same witness and retry the original request;
+a matching retry returns the retained original snapshot without advancing revision.
+A changed request or reused operation under another root conflicts. Absence does
+not mean terminal non-commit, and no unfreeze/reset operation is provided. Delayed
+pre-freeze operating replies remain possible; local account-authority admission
+must still fence release.
+
+The `QPANC016` authenticated witness image retains canonical `QPAFRZ01` snapshots,
+including for an empty namespace. Prior layouts and unfrozen `QPARPL01` descriptor
+bytes stay unchanged. A frozen replacement uses `QPARPL02`, adding 32 bytes for the
+original freeze binding. `frozen_account_replacement_proposal` accepts only the
+exact retained freeze; both fresh commit and image validation enforce this binding.
+An equal old head is insufficient to reuse an unbound legacy proposal. Actual
+replacement still requires independently approved, currently valid target inputs.
+
+`account_freeze_receipt` carries the bounded complete snapshot followed by a
+3449-byte signed envelope. Signature purpose **23** authenticates a 72-byte
+`QPAFRS01` statement containing the witness and a domain-separated digest of the
+complete snapshot. This preserves the existing 16 KiB signed-body ceiling while
+supporting all 256 subjects. `verify_account_freeze` requires the independently
+retained original request and pin, bounds and parses the complete snapshot, then
+checks both signature components and the exact commitment. Neither this receipt
+nor its type can substitute for a retirement receipt or a fresh operating reply.
+
+This native component resolves snapshot capture races only when the caller uses
+this preparation path. The existing registry counterexample remains a valid
+observation for its old read-only proposal path. Managed orchestration must still
+persist an original local draft before freezing, reconcile the exact returned
+snapshot, obtain independent target approval, and coordinate original enrollment
+and child journal fences. Target expiry and competing approvals need an explicit
+terminal reconciliation contract; freezing alone does not supply one. A full
+witness can still lack room for the successor, and retained freeze/replacement
+history requires a bounded lifetime-capacity migration design. Foreign owners,
+installed consumer qualification, witness-key handoff and whole-host rollback
+protection remain separate work.
