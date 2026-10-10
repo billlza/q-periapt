@@ -6,7 +6,20 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
-## Latest retained CodeQL inventory
+## Retained CodeQL inventories and scoped reviews
+
+The [policy-receipt review](../research/sdk-alpha1/evidence/20261010-policy-receipt-codeql/DISPOSITIONS.json)
+disposes three specific hard-coded-value reports (indices 741, 742 and 746) from
+the 832-result Rust analysis at `e0e1dee0`. Their sources are completion booleans
+and a derived receipt-phase comparison. The twelve supplied flows pass through
+service/context owners, but neither named cipher-key sink uses those values:
+both borrow the original `JournalKey`. The completion result gates continuation;
+it never constructs or replaces key bytes. All thirteen flow source files are
+byte-identical at the analyzed commit and `69d6d4bb`. The capture retains the raw
+selected results, every supplied flow and the complete inspected source files.
+This is a static disposition of these three reports, without a new runtime test,
+remote dismissal, query suppression or passing aggregate security claim. Other
+results and earlier review batches retain their separate identities and status.
 
 The [b1006eb3 inventory](../research/sdk-alpha1/evidence/20261009-codeql-b1006eb3-inventory/README.md)
 retains successful Rust analysis/quality/upload and a hash-verified diagnostic
