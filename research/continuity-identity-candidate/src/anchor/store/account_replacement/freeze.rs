@@ -2,8 +2,10 @@
 //! Independently authorized preparation fence, distinct from account retirement.
 use super::*;
 mod codec;
+mod plan;
 mod receipt;
 pub(in crate::anchor::store) use codec::{decode_records, encode_records};
+pub use plan::AnchorAccountReplacementPlan;
 
 /// Original independently approved freeze operation; public correlation, not authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

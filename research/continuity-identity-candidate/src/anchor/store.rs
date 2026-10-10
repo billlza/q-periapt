@@ -25,8 +25,8 @@ use image_version::ImageVersion;
 mod account_replacement;
 pub use account_replacement::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
-    AnchorAccountReplacementProposal, AnchorAccountReplacementState, AnchorFrozenAccount,
-    AnchorRetiredAccount, AnchorRetiredAccountSubject,
+    AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorFrozenAccount, AnchorRetiredAccount, AnchorRetiredAccountSubject,
 };
 mod replacement;
 pub use replacement::{

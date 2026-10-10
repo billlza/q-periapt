@@ -129,3 +129,72 @@ fn account_authority_registry_rejects_extra_multimap_tables() {
         Err(DurableError::Corrupt)
     ));
 }
+
+/// Reject impossible preparation phases and bindings even with a valid local MAC.
+pub(crate) fn rejects_preparation_images(store: &AccountAuthorityStore) {
+    let active = store.active.as_ref().expect("original active registry");
+    let read = |image: &Image| {
+        let wire =
+            codec::encode(image, &active.key, store.binding).expect("authenticated fixture image");
+        assert_eq!(
+            wire.get(..8).expect("complete registry header"),
+            b"QPAAST02"
+        );
+        codec::decode(&wire, &active.key, store.binding)
+            .expect("authenticated canonical framing")
+            .current(store.family, &store.pin)
+    };
+    read(&active.image).expect("original preparation graph");
+    let mut image = active.image.clone();
+    let record = image
+        .replacements
+        .first_mut()
+        .expect("original preparation");
+    assert!(record.preparation.is_some());
+    if record.state() == AccountAuthorityReplacementState::Preparing {
+        record.committed = true;
+        assert!(
+            matches!(read(&image), Err(DurableError::Corrupt)),
+            "unbound target template cannot be a committed mapping"
+        );
+    } else {
+        let mut bytes = record.proposal.to_bytes().expect("exact frozen proposal");
+        assert_eq!(bytes.get(..8).expect("complete header"), b"QPARPL02");
+        *bytes.get_mut(8).expect("freeze binding byte") ^= 1;
+        record.proposal = Proposal::from_trusted_state(&bytes)
+            .expect("valid framing, wrong original freeze binding");
+        assert!(matches!(
+            read(&image),
+            Err(DurableError::Protocol(Error::Scope))
+        ));
+    }
+}
+
+/// Hold only an explicitly selected owned child after the real database commit.
+pub(super) fn after_preparation_commit(image: &Image) {
+    let Some(path) = std::env::var_os("QPERIAPT_AUTHORITY_PREPARATION_DIR") else {
+        return;
+    };
+    let Ok(selected) = std::env::var("QPERIAPT_AUTHORITY_PREPARATION_PHASE") else {
+        return;
+    };
+    let Some(record) = image.replacements.last() else {
+        return;
+    };
+    if record.preparation.is_none() {
+        return;
+    }
+    let phase = match record.state() {
+        AccountAuthorityReplacementState::Preparing => "prepare",
+        AccountAuthorityReplacementState::Pending => "bind",
+        AccountAuthorityReplacementState::Committed => "commit",
+    };
+    if selected != phase {
+        return;
+    }
+    std::fs::write(Path::new(&path).join("registry-committed"), phase)
+        .expect("owned child commit marker");
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}

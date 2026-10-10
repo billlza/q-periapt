@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Bounded canonical preparation state; decoding alone grants no authority.
 use super::*;
-const REQUEST_BYTES: usize = 8 + 32 + 32 + PUBLIC_KEY_BYTES;
+pub(super) const REQUEST_BYTES: usize = 8 + 32 + 32 + PUBLIC_KEY_BYTES;
 const MAX_FREEZE_BYTES: usize = 8 + REQUEST_BYTES + 2 + 209 * MAX_ENTRIES;
 
 impl AnchorAccountFreezeRequest {

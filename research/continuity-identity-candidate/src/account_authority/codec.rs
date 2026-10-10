@@ -6,8 +6,10 @@ use redb::{ReadableDatabase, ReadableTableMetadata, TableHandle};
 use sha2::Sha256;
 
 const TAG: &[u8; 8] = b"QPAAST01";
-const MAX_BYTES: usize =
-    76 + MAX_ACCOUNTS * (32 + PUBLIC_KEY_BYTES + 40) + MAX_REPLACEMENTS * (32 + 8 + 1 + 4 + 65_536);
+const PREPARATION_TAG: &[u8; 8] = b"QPAAST02";
+const MAX_BYTES: usize = 76
+    + MAX_ACCOUNTS * (32 + PUBLIC_KEY_BYTES + 40)
+    + MAX_REPLACEMENTS * (32 + 8 + 1 + 4 + 65_536 + 4 + AnchorAccountReplacementPlan::MAX_BYTES);
 
 fn mac(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {
     let derived = key.account_authority_key()?;
@@ -43,7 +45,8 @@ pub(super) fn encode(
     if image.initial.len() > MAX_ACCOUNTS || image.replacements.len() > MAX_REPLACEMENTS {
         return Err(DurableError::Capacity);
     }
-    let mut wire = TAG.to_vec();
+    let preparations = image.replacements.iter().any(|r| r.preparation.is_some());
+    let mut wire = if preparations { PREPARATION_TAG } else { TAG }.to_vec();
     wire.extend_from_slice(&binding);
     wire.extend_from_slice(
         &u16::try_from(image.initial.len())
@@ -72,6 +75,20 @@ pub(super) fn encode(
                 .to_be_bytes(),
         );
         wire.extend_from_slice(&proposal);
+        if preparations {
+            let plan = record
+                .preparation
+                .as_ref()
+                .map(AnchorAccountReplacementPlan::to_bytes)
+                .transpose()?;
+            let bytes = plan.as_deref().unwrap_or(&[]);
+            wire.extend_from_slice(
+                &u32::try_from(bytes.len())
+                    .map_err(|_| DurableError::Capacity)?
+                    .to_be_bytes(),
+            );
+            wire.extend_from_slice(bytes);
+        }
     }
     let mut tag = mac(key)?;
     tag.update(b"Q-PERIAPT-CONTINUITY-ACCOUNT-AUTHORITY-IMAGE/v1");
@@ -98,7 +115,13 @@ pub(super) fn decode(
         .verify_slice(tag)
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
-    if d.array::<8>()? != *TAG || d.array::<32>()? != binding {
+    let version = d.array::<8>()?;
+    let preparations = match &version {
+        tag if tag == TAG => false,
+        tag if tag == PREPARATION_TAG => true,
+        _ => return Err(DurableError::Conflict),
+    };
+    if d.array::<32>()? != binding {
         return Err(DurableError::Conflict);
     }
     let count = usize::from(d.u16()?);
@@ -136,14 +159,34 @@ pub(super) fn decode(
             return Err(DurableError::Corrupt);
         }
         let proposal = Proposal::from_trusted_state(d.take(length)?)?;
+        let preparation = if preparations {
+            let length = usize::try_from(u32::from_be_bytes(d.array()?))
+                .map_err(|_| DurableError::Capacity)?;
+            if length > AnchorAccountReplacementPlan::MAX_BYTES {
+                return Err(DurableError::Corrupt);
+            }
+            if length == 0 {
+                None
+            } else {
+                Some(AnchorAccountReplacementPlan::from_trusted_state(
+                    d.take(length)?,
+                )?)
+            }
+        } else {
+            None
+        };
         replacements.push(Replacement {
             application,
             revision,
             proposal,
+            preparation,
             committed,
         });
     }
     d.finish()?;
+    if preparations && replacements.iter().all(|r| r.preparation.is_none()) {
+        return Err(DurableError::Corrupt);
+    }
     Ok(Image {
         initial,
         replacements,

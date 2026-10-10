@@ -413,3 +413,47 @@ witness can still lack room for the successor, and retained freeze/replacement
 history requires a bounded lifetime-capacity migration design. Foreign owners,
 installed consumer qualification, witness-key handoff and whole-host rollback
 protection remain separate work.
+
+
+### Original local preparation intent
+
+`AnchorAccountReplacementPlan` (`QPAFPL01`, bounded to 8192 bytes) is an independent
+approval of a fixed target and one exact future freeze request. Its dedicated
+constructor validates the target through existing witness enrollment checks but
+does not claim that a transient old-head observation is the approved snapshot.
+A retained exact legacy proposal is never implicitly converted into this plan.
+
+`AccountAuthorityStore::begin_preparation` records that plan under the original
+application checkpoint before witness freezing. The new `Preparing` state revokes
+old leases and denies both old and target authority through the existing journal
+admission checks. The `QPAAST02` registry image preserves the plan alongside the
+operation for its entire history; images without plans still use the exact prior
+`QPAAST01` layout. Older readers reject the new layout. The existing 64-account and
+256-operation limits remain; each record can additionally hold one bounded plan.
+These are explicit candidate-format transitions, not a released ABI promise.
+
+After reopen, `preparation` returns the same original plan. `replacement` returns
+`Suspended` while only the target template exists, so it cannot be mistaken for an
+exact witness proposal. `bind_preparation` accepts only an authenticated freeze
+whose full original request matches that plan, then fixes the exact snapshot and
+enters `Pending`. The immutable plan survives binding and root commitment. No
+request, target or bound snapshot is silently regenerated. MAC-authenticated image
+validation rejects a committed unbound template or a binding inconsistent with its
+original plan. It records a locally verified decision, not a separately retained
+transferable freeze signature; witness continuity and whole-host rollback remain
+independent assumptions.
+
+The native combination now retains a local plan before freezing, fences real
+cached message release, tolerates actual old-device progress after plan creation,
+reopens the original registry, binds the exact witness snapshot, resumes the
+original restricted journal and selects the successor exactly once. Each of the
+three registry mutations has typed pre/post-sync recovery tests. Three actual
+owned child processes are also killed after the corresponding database commits
+and before API return; each reopens the same registry/key/identity, retains its
+original plan and retries without selecting the root twice. The original witness
+remains independently retained by the parent in this experiment. This is still a
+native composition, not the owning installed workflow, network qualification or
+simultaneous witness-loss test. Original successor enrollment orchestration,
+authenticated terminal reconciliation for unfinishable targets, lifetime-capacity
+migration and foreign owners remain required. `Preparing` or `Pending` must never
+be reset to regain old traffic when an outcome is unknown.

@@ -3,15 +3,16 @@
 use crate::{
     codec::nonzero,
     durable::{storage, transaction},
-    AccountPin, AnchorAccountReplacementId, AnchorAccountReplacementProposal as Proposal,
-    AnchorPin, AnchorRetiredAccount, DurableError, Error, JournalKey, PublicKey, RosterCheckpoint,
-    VerifiedDevice,
+    AccountPin, AnchorAccountReplacementId, AnchorAccountReplacementPlan,
+    AnchorAccountReplacementProposal as Proposal, AnchorPin, AnchorRetiredAccount, DurableError,
+    Error, JournalKey, PublicKey, RosterCheckpoint, VerifiedDevice,
 };
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{Database, TableDefinition};
 use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 mod codec;
+mod preparation;
 mod runtime;
 #[cfg(all(test, unix))]
 pub(crate) mod tests;
@@ -99,6 +100,8 @@ impl AccountAuthorityCheckpoint {
 /// Original root replacement state, not successor device or message authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountAuthorityReplacementState {
+    /// Original target and freeze request are durable; old and new authority are fenced.
+    Preparing,
     /// Exact approved descriptor is durable; both roots are fenced at this application entry.
     Pending,
     /// A verified historical retirement selected the target root; current device admission is separate.
@@ -115,6 +118,7 @@ struct Replacement {
     application: ApplicationAccountId,
     revision: u64,
     proposal: Proposal,
+    preparation: Option<AnchorAccountReplacementPlan>,
     committed: bool,
 }
 #[derive(Clone, Default)]
@@ -173,6 +177,12 @@ impl Image {
         let mut operations = BTreeSet::new();
         for replacement in &self.replacements {
             let p = &replacement.proposal;
+            if let Some(plan) = &replacement.preparation {
+                let bound = plan.check_retained(p)?;
+                if replacement.committed && !bound {
+                    return Err(DurableError::Corrupt);
+                }
+            }
             let (previous, successor, proposed_family, roster) = p.authority_transition();
             let selected = current
                 .get_mut(&replacement.application)
@@ -351,55 +361,7 @@ impl AccountAuthorityStore {
         expected: AccountAuthorityCheckpoint,
         proposal: Proposal,
     ) -> Result<AccountAuthorityReplacementState, DurableError> {
-        let mut image = self
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?
-            .image
-            .clone();
-        if let Some(old) = image
-            .replacements
-            .iter()
-            .find(|r| r.proposal.operation() == proposal.operation())
-        {
-            if old.application != expected.application
-                || old.revision != expected.revision
-                || old.proposal != proposal
-                || proposal.previous_account() != expected.account
-            {
-                return Err(DurableError::Conflict);
-            }
-            return Ok(if old.committed {
-                AccountAuthorityReplacementState::Committed
-            } else {
-                AccountAuthorityReplacementState::Pending
-            });
-        }
-        if self.access()?.current(expected.application)? != expected
-            || proposal.previous_account() != expected.account
-        {
-            return Err(DurableError::Conflict);
-        }
-        let (_, successor, family, _) = proposal.authority_transition();
-        if family != self.family
-            || proposal.witness_binding() != self.pin.binding()
-            || successor.shares_component(self.pin.public_key())
-            || image.root_seen(proposal.successor_account())
-        {
-            return Err(DurableError::Conflict);
-        }
-        if image.replacements.len() == MAX_REPLACEMENTS {
-            return Err(DurableError::Capacity);
-        }
-        image.replacements.push(Replacement {
-            application: expected.application,
-            revision: expected.revision,
-            proposal,
-            committed: false,
-        });
-        image.current(self.family, &self.pin)?;
-        self.save(image, expected.application)?;
-        Ok(AccountAuthorityReplacementState::Pending)
+        self.begin_operation(expected, proposal, None)
     }
     /// Adopt the exact verified historical retirement. This selects the target root,
     /// but current policy, target enrollment and actual witness admission remain mandatory.
@@ -418,6 +380,9 @@ impl AccountAuthorityStore {
             .iter_mut()
             .find(|r| r.proposal.operation() == retired.proposal().operation())
             .ok_or(DurableError::Absent)?;
+        if original.state() == AccountAuthorityReplacementState::Preparing {
+            return Err(DurableError::Suspended);
+        }
         if &original.proposal != retired.proposal() {
             return Err(DurableError::Conflict);
         }
@@ -429,7 +394,9 @@ impl AccountAuthorityStore {
         self.save(image, application)?;
         Ok(AccountAuthorityReplacementState::Committed)
     }
-    /// Read the retained original operation. Committed is history, not a claim that its target is still current.
+    /// Read the retained exact proposal. Preparing returns Suspended; recover its
+    /// original target and freeze request through `preparation` instead. Committed
+    /// is history, not a claim that its target is still current.
     pub fn replacement(
         &self,
         operation: AnchorAccountReplacementId,
@@ -448,15 +415,10 @@ impl AccountAuthorityStore {
             .iter()
             .find(|r| r.proposal.operation() == operation)
             .ok_or(DurableError::Absent)?;
-        Ok((
-            record.application,
-            if record.committed {
-                AccountAuthorityReplacementState::Committed
-            } else {
-                AccountAuthorityReplacementState::Pending
-            },
-            &record.proposal,
-        ))
+        if record.state() == AccountAuthorityReplacementState::Preparing {
+            return Err(DurableError::Suspended);
+        }
+        Ok((record.application, record.state(), &record.proposal))
     }
     fn save(
         &mut self,
@@ -469,6 +431,8 @@ impl AccountAuthorityStore {
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
             let wire = codec::encode(&image, &active.key, self.binding)?;
             codec::write(&active.db, &wire)?;
+            #[cfg(all(test, unix))]
+            tests::after_preparation_commit(&image);
             active.image = image;
             self.runtime.publish(&current)?;
             Ok(())

@@ -18,7 +18,7 @@ pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
 pub use store::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
-    AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorFrozenAccount,
     AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
     AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,

@@ -1529,6 +1529,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
+            "research/continuity-identity-candidate/src/account_authority/preparation.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/plan.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1615,6 +1620,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
             "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
+            "research/continuity-identity-candidate/src/account_authority/preparation.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/plan.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)
