@@ -11,6 +11,7 @@ import continuity_c_opening as opening
 import continuity_c_device as device
 import continuity_c_account as account
 import continuity_c_authority as authority
+import continuity_c_managed as managed
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
@@ -109,7 +110,7 @@ EXPORTS |= {"qpc_configuration_v1_" + name for name in (
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration", "managed"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -505,6 +506,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile] = verify_execution(tested, evidence)
         result["execution"][profile]["account_authority"] = authority.qualify(
             outside, consumer, installed, authority_fixture, cc, platform_flags, profile, run,
+            darwin=darwin, runtime=runtime, filename=filename)
+        result["execution"][profile]["managed_traffic"] = managed.qualify(
+            outside, output, consumer, installed, build, cc, platform_flags, profile, cargo, run,
             darwin=darwin, runtime=runtime, filename=filename)
         from continuity_first_configuration import qualify_native as qualify_configuration
         result["execution"][profile]["first_configuration"] = qualify_configuration(

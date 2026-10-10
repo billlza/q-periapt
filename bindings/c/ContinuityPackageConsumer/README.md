@@ -1414,6 +1414,24 @@ their declared size before reading their full structure.
 caller-buffer copying, short options, deferred parent closure, exact registry
 reopen and managed enrollment construction. The canonical C package qualifier
 runs it against the installed Debug and Release libraries and checks their loader
-binding. Its receipt explicitly keeps managed traffic unqualified. Full managed
-traffic/rekey/retirement, Swift/Kotlin registry ownership and the complete account
-replacement controller still require their own qualification.
+binding. That lifecycle receipt alone does not qualify managed traffic.
+
+The separate `managed_client.c` workload opens an independently seeded registry
+and drives an actual installed managed C initiator against an installed C receiver
+using application TLS and a signed-TCP witness. It establishes the original
+session, retains an unknown-delivery message across process exit, refuses another
+registry, retries the same message/input, completes epoch 1 and delivers another
+message. The receiver exits after persisting the host effect but before SDK
+consumption commits. On retry, its callback runs again and the host records no
+second effect; this is not a claim of automatic exactly-once application execution.
+
+Closing the registry makes a direct message-ID query fail with `202`. Sending
+checks the retained archive first and preserves its documented nested `1202`
+status. Reopening the registry does not revive an old service owner. A listener
+probe verifies that both refused sends create no connection, and a newly admitted
+owner retains the original committed message. The package qualifier separately
+checks the public witness transitions, exact command results and host effects in
+Debug and Release. These are same-host endpoints sharing the native engine, not
+an independent protocol implementation. Managed first-use enrollment, retirement,
+Swift/Kotlin registry ownership and the complete account replacement controller
+still require their own qualification.
