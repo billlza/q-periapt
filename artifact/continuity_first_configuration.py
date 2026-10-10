@@ -26,12 +26,45 @@ def connection_marker(language: str, carrier: str, profile: str) -> str:
             "original_message=true receiver_exit_after_effect=true acknowledged=true effects=1")
 
 
+def verify_original(data: dict) -> tuple:
+    request, intent, root = data["request.bin"], data["intent.bin"], data["root.bin"]
+    sdk.require(len(root) == 1985 and len(intent) == 72 and any(root) and any(intent[:16]) and any(intent[24:56]),
+                "configuration original public inputs differ")
+    generation = int.from_bytes(intent[16:24], "big")
+    valid_from, valid_until = int.from_bytes(intent[56:64], "big"), int.from_bytes(intent[64:72], "big")
+    sdk.require(0 < generation < 2**64 - 1 and valid_from < valid_until < 2**64 - 1,
+                "configuration original scope is empty or unbounded")
+    sdk.require(len(request) == 4 + 2129 + 3373 and request == data["replayed.bin"]
+                and request[:4] == (2129).to_bytes(4, "big"), "configuration original request did not replay exactly")
+    body = request[4:4 + 2129]
+    domain = b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1"
+    account = hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain + len(root).to_bytes(8, "big") + root).digest()
+    sdk.require(body[:8] == b"QPENRQ01" and any(body[8:40]) and body[40:72] == account
+                and body[72:96] == intent[:24] and body[96:112] == intent[56:72]
+                and body[112:144] == intent[24:56] and body[144:] != root,
+                "configuration public request grammar or original intent differs")
+    session, unknown = data["session.bin"], data["unknown.bin"]
+    sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
+                and unknown[:32] == session and any(unknown[32:])
+                and data["acknowledged.bin"] == unknown
+                and data["after-traffic.bin"] == request
+                and data["effect.bin"] == unknown + b"persisted before process exit",
+                "configuration connection lost the original registration/session/message or application effect")
+    if "genesis.bin" in data:
+        genesis = data["genesis.bin"]
+        sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
+                    and genesis[4:36] == genesis[36:68]
+                    and all(any(genesis[i:i+32]) for i in (4, 36, 68, 100, 132)),
+                    "configuration public genesis is truncated or misbound")
+    return account, intent[24:56], valid_until, hashlib.sha256(request).hexdigest()
+
+
 def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown configuration language")
     text = stdout.decode("utf-8")
     tests = re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE)
     sdk.require(len(tests) == 2 and set(tests) == TESTS and len(re.findall(
-        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;", text, re.MULTILINE)) == 1,
+        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE)) == 1,
         "configuration execution did not run both complete scenarios")
     expected = {f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
                 for profile in ("fixed", "recoverable")} | {
@@ -72,38 +105,11 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         sdk.require(manifest == dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                      release_claim_eligible=False) and type(manifest["schema_version"]) is int
                     and manifest["release_claim_eligible"] is False, "configuration public metadata differs")
-        request, intent, root = data["request.bin"], data["intent.bin"], data["root.bin"]
-        sdk.require(len(root) == 1985 and len(intent) == 72 and any(root) and any(intent[:16]) and any(intent[24:56]),
-                    "configuration original public inputs differ")
-        generation = int.from_bytes(intent[16:24], "big")
-        valid_from, valid_until = int.from_bytes(intent[56:64], "big"), int.from_bytes(intent[64:72], "big")
-        sdk.require(0 < generation < 2**64 - 1 and valid_from < valid_until < 2**64 - 1,
-                    "configuration original scope is empty or unbounded")
-        sdk.require(len(request) == 4 + 2129 + 3373 and request == data["replayed.bin"]
-                    and request[:4] == (2129).to_bytes(4, "big"), "configuration original request did not replay exactly")
-        body = request[4:4 + 2129]
-        domain = b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1"
-        account = hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain + len(root).to_bytes(8, "big") + root).digest()
-        sdk.require(body[:8] == b"QPENRQ01" and any(body[8:40]) and body[40:72] == account
-                    and body[72:96] == intent[:24] and body[96:112] == intent[56:72]
-                    and body[112:144] == intent[24:56] and body[144:] != root,
-                    "configuration public request grammar or original intent differs")
-        requests.add(hashlib.sha256(request).hexdigest())
-        session, unknown = data["session.bin"], data["unknown.bin"]
-        sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
-                    and unknown[:32] == session and any(unknown[32:])
-                    and data["acknowledged.bin"] == unknown
-                    and data["after-traffic.bin"] == request
-                    and data["effect.bin"] == unknown + b"persisted before process exit",
-                    "configuration connection lost the original registration/session/message or application effect")
-        if carrier != "local":
-            genesis = data["genesis.bin"]
-            sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
-                        and genesis[4:36] == genesis[36:68]
-                        and all(any(genesis[i:i+32]) for i in (4, 36, 68, 100, 132)),
-                        "configuration public genesis is truncated or misbound")
-        policy_operations.add(policy.verify(data, carrier=carrier, account=account, family=intent[24:56]))
-        expiry_observations[name] = policy.verify_expiry(data, family=intent[24:56],
+        account, family, valid_until, request_digest = verify_original(data)
+        request = data["request.bin"]
+        requests.add(request_digest)
+        policy_operations.add(policy.verify(data, carrier=carrier, account=account, family=family))
+        expiry_observations[name] = policy.verify_expiry(data, family=family,
                                                        original_request=request, identity_until=valid_until)
         hashes.update({name + "/" + leaf: hashlib.sha256(value).hexdigest() for leaf, value in data.items()})
     sdk.require(len(requests) == 6, "configuration scenarios reused a device registration request")
@@ -118,10 +124,11 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
 
 
 def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: Path, client: Path,
-             run, *, receiver: Path, language: str, collector: str = "") -> dict:
+             run, *, receiver: Path, language: str, collector: str = "", managed: bool = False) -> dict:
     sdk.require(profile in {"debug", "release"} and ((language == "Kotlin" and collector in {"Serial", "G1"})
                 or (language in {"C", "Swift"} and not collector)), "configuration qualification profile differs")
-    label = "configuration-" + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
+    sdk.require(not managed or language == "C", "managed configuration requires the C adapter")
+    label = ("managed-configuration-" if managed else "configuration-") + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
     evidence = outside / label
     evidence.mkdir(mode=0o700)
     executables = (("helper", helper), ("client", client), ("receiver", receiver))
@@ -133,13 +140,22 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
     # Each configuration scenario creates a fresh private fixture and exports only
     # the selected public records through its own evidence selector above.
     environment.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
-    stdout = run([str(helper), "independent_c_", "--nocapture", "--test-threads=1"], label, runtime=environment)
-    checked = verify_execution(stdout, evidence, language=language)
-    exported = output / "configuration-public" / language.lower() / profile / (collector.lower() or "default")
+    if managed:
+        import continuity_first_account as account
+        environment.pop("QPERIAPT_CONFIGURATION_EVIDENCE")
+        environment["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"] = str(evidence)
+        selector = ["--exact", account.TEST]
+        verify = account.verify_execution
+    else:
+        selector = ["independent_c_"]
+        verify = verify_execution
+    stdout = run([str(helper), *selector, "--nocapture", "--test-threads=1"], label, runtime=environment)
+    checked = verify(stdout, evidence, language=language)
+    exported = output / ("managed-configuration-public" if managed else "configuration-public") / language.lower() / profile / (collector.lower() or "default")
     for name, digest in checked["public_readbacks"].items():
         sdk.require(sdk.snapshot(evidence / name).sha256 == digest, "configuration public record changed before export")
         sdk.copy(evidence / name, exported / name)
-    sdk.require(verify_execution(stdout, exported, language=language) == checked, "configuration exported readback differs")
+    sdk.require(verify(stdout, exported, language=language) == checked, "configuration exported readback differs")
     checked["binaries"] = {}
     for name, path in executables:
         identity = identities[name]
@@ -172,6 +188,8 @@ def qualify_native(outside, output, consumer, build, cargo, runtime, cc, platfor
     sdk.require(run([str(client), "--guard"], "configuration-guard-" + profile, runtime=runtime)
                 == b"QPC_CONFIGURATION_HEADER_GUARD_PASS\n", "configuration short-header guard did not execute")
     checked = _qualify(outside, output, profile, runtime, helper, client, run, receiver=receiver, language="C")
+    checked["managed_first_registration"] = _qualify(outside, output, profile, runtime, helper, client, run,
+                                                      receiver=receiver, language="C", managed=True)
     checked["short_header_guard"] = True
     return checked
 

@@ -674,5 +674,12 @@ device handle. Current C-boundary regressions use the first real request to issu
 and associate a new account, retain it across a failed witness admission, require
 the original registry on subsequent activation, and refuse a known wrong root
 before record creation while allowing the correct original intent afterward.
-The complete installed first-use workflow and other language adapters require
-separate qualification; these regressions do not stand in for them.
+An additional installed C executable workload now carries that first request
+through real issuance, subsequent registry selection, witness activation,
+reopening and recovery of an original uncertain-delivery message. It covers fixed
+and recoverable SDK roots with signed TCP and mutual TLS witnesses, and checks
+that omitting the selected registry on activation returns `211`. Its control
+plane independently associates the issued account; it does not copy a device
+identity or installation store into the new installation. These same-host
+processes share the native engine. Other language adapters, managed policy
+renewal and the full account replacement controller require separate qualification.

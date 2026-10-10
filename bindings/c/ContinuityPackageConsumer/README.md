@@ -1445,6 +1445,20 @@ probe verifies that both refused sends create no connection, and a newly admitte
 owner retains the original committed message. The package qualifier separately
 checks the public witness transitions, exact command results and host effects in
 Debug and Release. These are same-host endpoints sharing the native engine, not
-an independent protocol implementation. The complete installed first-use flow, retirement,
-Swift/Kotlin registry ownership and the complete account replacement controller
-still require their own qualification.
+an independent protocol implementation.
+
+The separately compiled `first_configuration_client.c` accepts an explicit
+`--registry PATH` before its ordinary arguments. The first request is created
+without a prior account association; after the issuer verifies it and approves
+the real credential/roster, subsequent phases select the original host registry.
+The installed first-use workload exercises fixed/recoverable SDK roots with both
+signed TCP and mutual TLS witnesses. It starts from an absent installation
+directory, prepares storage, activates and reopens the original registration,
+refuses activation without its registry (`211`), and recovers the same message
+after the receiver exits after persisting its host effect. The registry owner
+stays alive until the registration/device owner closes.
+
+These first-use cases reuse the existing enrollment/connection workload and
+public record verifier. They do not qualify managed policy renewal, account
+retirement, Swift/Kotlin registry ownership or the complete account replacement
+controller; those compositions still require their own qualification.

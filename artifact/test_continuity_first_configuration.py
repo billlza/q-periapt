@@ -44,7 +44,7 @@ def fixture(root, language="C"):
         if carrier == "local":
             stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
-    return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
+    return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
 
 
 class FirstConfigurationTests(unittest.TestCase):

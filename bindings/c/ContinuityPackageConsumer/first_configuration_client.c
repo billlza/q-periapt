@@ -149,8 +149,13 @@ static int guard_pages(void) {
     return 0;
 }
 #include "configuration_policy_client.c"
+#include "configuration_registry_client.c"
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--guard") == 0) return guard_pages();
+    const char *registry_path = NULL;
+    if (argc >= 3 && strcmp(argv[1], "--registry") == 0) {
+        registry_path = argv[2]; argv += 2; argc -= 2;
+    }
     if (argc != 6 && argc != 7) return 64;
     int target_create = strcmp(argv[1], "policy-target-create") == 0;
     int policy = !strcmp(argv[1],"policy-stage-refused") || !strcmp(argv[1],"policy-request") || !strcmp(argv[1],"policy-stage") || !strcmp(argv[1],"policy-reconcile") || !strcmp(argv[1],"policy-witness-prepare") || !strcmp(argv[1],"policy-witness-recover") || !strcmp(argv[1],"policy-witness-commit") || !strcmp(argv[1],"policy-witness-reconcile");
@@ -158,6 +163,8 @@ int main(int argc, char **argv) {
     int create = strcmp(argv[1], "create") == 0 || target_create;
     int prepare = strcmp(argv[1], "prepare") == 0;
     int activate = strcmp(argv[1], "activate") == 0;
+    int unmanaged = strcmp(argv[1], "activate-unmanaged") == 0;
+    if (unmanaged && registry_path) return 64;
     int expired = strcmp(argv[1], "activate-expired") == 0;
     int missing = strcmp(argv[1], "activate-missing") == 0;
     int wrong = strcmp(argv[1], "wrong-witness") == 0;
@@ -165,7 +172,7 @@ int main(int argc, char **argv) {
     int cancel = strcmp(argv[1], "cancel") == 0;
     int local = strcmp(argv[1], "enroll-local") == 0;
     int connection = continued || strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
-    if (!expired && !policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
+    if (!unmanaged && !expired && !policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
     unsigned carrier = argc == 6 ? 0u : strcmp(argv[6], "signed") == 0 ? 1u : strcmp(argv[6], "tls") == 0 ? 2u : 3u;
     if (carrier == 3u || (missing && carrier != 0u) || (wrong && carrier == 0u)) return 64;
     int recoverable = strcmp(argv[2], "recoverable") == 0;
@@ -175,7 +182,7 @@ int main(int argc, char **argv) {
     qpc_configuration_open_v1 current = {0};
     qpc_configuration_sdk_trust_v1 sdk = {0};
     qpc_configuration_protocol_v1 protocol = {0};
-    uint64_t handle = 0; qpc_error_v1 error = {0}; int result = 1;
+    uint64_t handle = 0, registry = 0; qpc_error_v1 error = {0}; int result = 1;
     sdk.mode = recoverable ? 2u : 1u;
     sdk.initial_root = load(source, "sdk-root", 1952);
     if (recoverable) {
@@ -244,6 +251,7 @@ int main(int argc, char **argv) {
     }
     if (checked(begun, &error)) goto done;
     clear_allocations();
+    if (registry_path && select_registry(registry_path, handle, &registry, &error)) goto done;
     qpc_enrollment_request_v1 request = {0};
     if (checked(qpc_enrollment_v1_request(handle, &request, &error), &error)) goto done;
     if (!request.length || request.length > sizeof(request.bytes)) goto done;
@@ -277,10 +285,12 @@ int main(int argc, char **argv) {
         memcpy(genesis + 132, prepared.image_digest, 32);
         if (!local) { written_bytes = genesis; written_length = sizeof(genesis); }
     }
-    if (expired || activate || missing || bad_receipt || local || connection) {
+    if (unmanaged || expired || activate || missing || bad_receipt || local || connection) {
         if(continued && select_policy_target(handle,source,target,recoverable,&error)) goto done;
         int32_t activated = continued ? qpc_enrollment_v1_activate_policy_renewal(handle,&error) : qpc_enrollment_v1_activate(handle, &error);
-        if (expired) {
+        if (unmanaged) {
+            if (activated != QPC_SCOPE_CONFLICT || error.code != QPC_SCOPE_CONFLICT) { (void)checked(activated, &error); goto done; }
+        } else if (expired) {
             if (activated != 104 || error.code != 104) { (void)checked(activated, &error); goto done; }
             qpc_enrollment_status_v1 unusable = {0};
             int32_t inactive = qpc_enrollment_v1_status(handle, &unusable, &error);
@@ -308,7 +318,8 @@ int main(int argc, char **argv) {
 done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
-    if (!result) puts(expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+    if (registry && checked(qpc_owner_v1_close(registry, &error), &error)) result = 1;
+    if (!result) puts(unmanaged ? "QPC_CONFIGURATION_REGISTRY_REQUIRED" : expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
         strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
         local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :

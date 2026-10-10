@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! One original registration/session/message through first-use configuration.
-use crate::{fixture, p, peer_bundle, receiver_process, run_carrier, Result};
+use crate::{fixture, p, peer_bundle, receiver_process, ConfigurationProcess, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{
     ffi::OsString,
@@ -19,6 +19,7 @@ pub(crate) struct Case<'a> {
     pub(crate) profile: &'static str,
     pub(crate) carrier: Option<&'static str>,
     pub(crate) enrolled_receiver: bool,
+    pub(crate) registry: Option<&'a Path>,
 }
 enum Receiver {
     Native(fixture::OwnedChild),
@@ -43,15 +44,14 @@ impl Case<'_> {
         Ok(())
     }
     fn sender(&self, mode: &str, output: &str) -> Result<()> {
-        run_carrier(
-            self.client,
-            mode,
-            self.profile,
-            self.source,
-            self.target,
-            &self.base.join(output),
-            self.carrier,
-        )
+        ConfigurationProcess {
+            client: self.client,
+            profile: self.profile,
+            source: self.source,
+            target: self.target,
+            registry: self.registry,
+        }
+        .run(mode, &self.base.join(output), self.carrier)
     }
     fn start(
         &self,
@@ -156,6 +156,16 @@ impl Case<'_> {
         original: &[u8],
         renew: &mut dyn FnMut() -> Result<()>,
     ) -> Result<()> {
+        self.run_lifecycle(original, Some(renew))
+    }
+    pub(crate) fn run(&self, original: &[u8]) -> Result<()> {
+        self.run_lifecycle(original, None)
+    }
+    fn run_lifecycle(
+        &self,
+        original: &[u8],
+        renewal: Option<&mut dyn FnMut() -> Result<()>>,
+    ) -> Result<()> {
         let initiation = p::InitiationId::generate()?;
         publish_private_bytes(
             &self.source.join("connection-initiation"),
@@ -186,10 +196,20 @@ impl Case<'_> {
             .join(format!("application-{}", fixture::hex(&message)));
         let effect = fs::read(&effect_path)?;
         publish_private_bytes(&self.base.join("effect-public"), &effect)?;
-        renew()?;
+        let policy_renewed = renewal.is_some();
+        if let Some(renew) = renewal {
+            renew()?;
+        }
         let (server, address) = self.start(83, "application", Some(session))?;
         fs::write(self.source.join("connection-address"), address.to_string())?;
-        self.sender("retry-policy", "acknowledged")?;
+        self.sender(
+            if policy_renewed {
+                "retry-policy"
+            } else {
+                "retry-send"
+            },
+            "acknowledged",
+        )?;
         self.finish(server, 0, Some((session, message)))?;
         assert_eq!(fs::read(self.base.join("acknowledged"))?, uncertain);
         assert_eq!(fs::read(&effect_path)?, effect);
@@ -212,7 +232,9 @@ impl Case<'_> {
         assert_eq!(effects, 1);
         self.sender("resume", "after-traffic.request")?;
         assert_eq!(fs::read(self.base.join("after-traffic.request"))?, original);
-        println!("\nINDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
+        if policy_renewed {
+            println!("\nINDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
+        }
         println!("\nINDEPENDENT_CONFIGURATION_CONNECTION_PASS language={} carrier={} profile={} fresh_installation=true original_registration=true explicit_peer=true original_session=true original_message=true receiver_exit_after_effect=true acknowledged=true effects=1",self.language,self.carrier.unwrap_or("local"),self.profile);
         Ok(())
     }

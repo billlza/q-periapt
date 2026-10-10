@@ -11,6 +11,8 @@ use std::{
     time::{Duration, Instant},
 };
 use zeroize::Zeroizing;
+#[path = "common/first_account.rs"]
+mod first_account;
 #[path = "common/first_connection.rs"]
 mod first_connection;
 #[path = "common/first_expiry.rs"]
@@ -56,77 +58,108 @@ fn run_carrier(
     output: &Path,
     carrier: Option<&str>,
 ) -> Result<()> {
-    let log = output.with_extension("stdout");
-    let error = output.with_extension("stderr");
-    let mut command = Command::new(client);
-    command
-        .arg(mode)
-        .arg(profile)
-        .arg(source)
-        .arg(target)
-        .arg(output);
-    if let Some(carrier) = carrier {
-        command.arg(carrier);
+    ConfigurationProcess {
+        client,
+        profile,
+        source,
+        target,
+        registry: None,
     }
-    let mut child = fixture::OwnedChild(
+    .run(mode, output, carrier)
+}
+
+struct ConfigurationProcess<'a> {
+    client: &'a Path,
+    profile: &'a str,
+    source: &'a Path,
+    target: &'a Path,
+    registry: Option<&'a Path>,
+}
+impl ConfigurationProcess<'_> {
+    fn run(&self, mode: &str, output: &Path, carrier: Option<&str>) -> Result<()> {
+        let Self {
+            client,
+            profile,
+            source,
+            target,
+            ..
+        } = self;
+        let log = output.with_extension("stdout");
+        let error = output.with_extension("stderr");
+        let mut command = Command::new(client);
+        if let Some(registry) = self.registry {
+            command.arg("--registry").arg(registry);
+        }
         command
-            .stdout(Stdio::from(fs::File::create(&log)?))
-            .stderr(Stdio::from(fs::File::create(&error)?))
-            .spawn()?,
-    );
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.0.try_wait()? {
-            break status;
+            .arg(mode)
+            .arg(profile)
+            .arg(source)
+            .arg(target)
+            .arg(output);
+        if let Some(carrier) = carrier {
+            command.arg(carrier);
         }
-        if Instant::now() >= deadline {
-            return Err("foreign configuration child deadline".into());
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    };
-    let stderr = fs::read(&error)?;
-    assert!(
-        status.success(),
-        "foreign configuration failed: {status}; {}",
-        String::from_utf8_lossy(&stderr)
-    );
-    assert!(
-        stderr.is_empty(),
-        "foreign configuration stderr: {}",
-        String::from_utf8_lossy(&stderr)
-    );
-    let expected = match mode {
-        "policy-request"
-        | "policy-stage-refused"
-        | "policy-stage"
-        | "policy-reconcile"
-        | "policy-witness-prepare"
-        | "policy-witness-recover"
-        | "policy-witness-commit"
-        | "policy-witness-reconcile" => "QPC_CONFIGURATION_POLICY_OPERATION\n",
-        "policy-target-create" => "QPC_CONFIGURATION_POLICY_TARGET\n",
-        "retry-policy" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
-        "enroll-local" => "QPC_CONFIGURATION_LOCAL_ACTIVE\n",
-        "connect" => "QPC_CONFIGURATION_CONNECTION_PASS\n",
-        "uncertain-send" => "QPC_CONFIGURATION_UNKNOWN_COMMITTED\n",
-        "retry-send" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
-        "prepare" => "QPC_CONFIGURATION_GENESIS_PASS\n",
-        "activate" => "QPC_CONFIGURATION_ACTIVATION_PASS\n",
-        "activate-expired" => "QPC_CONFIGURATION_POLICY_EXPIRED\n",
-        "activate-missing" => "QPC_CONFIGURATION_WITNESS_REQUIRED\n",
-        "activate-bad-receipt" => "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED\n",
-        "wrong-witness" => "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED\n",
-        "cancel" => "QPC_CONFIGURATION_CANCELLED\n",
-        "cancel-create" => "QPC_CONFIGURATION_CREATE_CANCELLED\n",
-        "gc-capacity" => "QPC_CONFIGURATION_GC_PASS\n",
-        "arc-capacity" => "QPC_CONFIGURATION_ARC_PASS\n",
-        "select-target" => "QPC_CONFIGURATION_TARGET_LEASE_PASS\n",
-        "select-target-reject" => "QPC_CONFIGURATION_TARGET_FAILURE_PASS\n",
-        "reconcile-refused" => "QPC_CONFIGURATION_RECONCILE_REFUSED\n",
-        _ => "QPC_CONFIGURATION_REQUEST_PASS\n",
-    };
-    assert_eq!(fs::read_to_string(log)?, expected);
-    Ok(())
+        let mut child = fixture::OwnedChild(
+            command
+                .stdout(Stdio::from(fs::File::create(&log)?))
+                .stderr(Stdio::from(fs::File::create(&error)?))
+                .spawn()?,
+        );
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let status = loop {
+            if let Some(status) = child.0.try_wait()? {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                return Err("foreign configuration child deadline".into());
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let stderr = fs::read(&error)?;
+        assert!(
+            status.success(),
+            "foreign configuration failed: {status}; {}",
+            String::from_utf8_lossy(&stderr)
+        );
+        assert!(
+            stderr.is_empty(),
+            "foreign configuration stderr: {}",
+            String::from_utf8_lossy(&stderr)
+        );
+        let expected = match mode {
+            "policy-request"
+            | "policy-stage-refused"
+            | "policy-stage"
+            | "policy-reconcile"
+            | "policy-witness-prepare"
+            | "policy-witness-recover"
+            | "policy-witness-commit"
+            | "policy-witness-reconcile" => "QPC_CONFIGURATION_POLICY_OPERATION\n",
+            "policy-target-create" => "QPC_CONFIGURATION_POLICY_TARGET\n",
+            "retry-policy" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
+            "enroll-local" => "QPC_CONFIGURATION_LOCAL_ACTIVE\n",
+            "connect" => "QPC_CONFIGURATION_CONNECTION_PASS\n",
+            "uncertain-send" => "QPC_CONFIGURATION_UNKNOWN_COMMITTED\n",
+            "retry-send" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
+            "prepare" => "QPC_CONFIGURATION_GENESIS_PASS\n",
+            "activate" => "QPC_CONFIGURATION_ACTIVATION_PASS\n",
+            "activate-unmanaged" => "QPC_CONFIGURATION_REGISTRY_REQUIRED\n",
+            "activate-expired" => "QPC_CONFIGURATION_POLICY_EXPIRED\n",
+            "activate-missing" => "QPC_CONFIGURATION_WITNESS_REQUIRED\n",
+            "activate-bad-receipt" => "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED\n",
+            "wrong-witness" => "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED\n",
+            "cancel" => "QPC_CONFIGURATION_CANCELLED\n",
+            "cancel-create" => "QPC_CONFIGURATION_CREATE_CANCELLED\n",
+            "gc-capacity" => "QPC_CONFIGURATION_GC_PASS\n",
+            "arc-capacity" => "QPC_CONFIGURATION_ARC_PASS\n",
+            "select-target" => "QPC_CONFIGURATION_TARGET_LEASE_PASS\n",
+            "select-target-reject" => "QPC_CONFIGURATION_TARGET_FAILURE_PASS\n",
+            "reconcile-refused" => "QPC_CONFIGURATION_RECONCILE_REFUSED\n",
+            _ => "QPC_CONFIGURATION_REQUEST_PASS\n",
+        };
+        assert_eq!(fs::read_to_string(log)?, expected);
+        Ok(())
+    }
 }
 
 // Export only public registration material. Private configuration and identity
@@ -474,6 +507,7 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
             profile,
             carrier: None,
             enrolled_receiver: true,
+            registry: None,
         };
         first_expiry::prepare_receiver_metadata(&reference)?;
         connection.prepare(&authority, &certificate, &roster, None)?;
@@ -505,7 +539,19 @@ mod witness_tls;
 
 #[test]
 fn independent_c_required_witness_registration_uses_original_host_trust() -> Result<()> {
+    witnessed_registration(false)
+}
+
+#[test]
+fn managed_c_first_registration_preserves_identity_and_delivery() -> Result<()> {
+    witnessed_registration(true)
+}
+
+fn witnessed_registration(managed: bool) -> Result<()> {
     let language = client_language()?;
+    if managed && language != "C" {
+        return Err("managed first-use requires the C executable".into());
+    }
     let client = PathBuf::from(
         std::env::var_os("QPC_CONFIGURATION_CLIENT").ok_or("explicit C client path")?,
     );
@@ -514,7 +560,11 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
         for recoverable in [false, true] {
             let profile = if recoverable { "recoverable" } else { "fixed" };
             let mut witness = witness::Witness::start()?;
-            let reference = fixture::setup_expiring_policy(Some(&witness.configured))?;
+            let reference = if managed {
+                fixture::setup_with_witness(Some(&witness.configured))?
+            } else {
+                fixture::setup_expiring_policy(Some(&witness.configured))?
+            };
             let witness_pin = witness
                 .configured
                 .store
@@ -635,25 +685,24 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
             ] {
                 publish_private_bytes(&source.join(name), &bytes)?;
             }
-            run_carrier(
-                &client,
-                "prepare",
+            // The first real request is verified and issued before any account association exists.
+            let registry = base.join("account-registry");
+            let selected_registry = if managed {
+                first_account::associate(&registry, &source, &reference.responder)?;
+                Some(registry.as_path())
+            } else {
+                None
+            };
+            let process = ConfigurationProcess {
+                client: &client,
                 profile,
-                &source,
-                &target,
-                &base.join("genesis"),
-                Some("signed"),
-            )?;
+                source: &source,
+                target: &target,
+                registry: selected_registry,
+            };
+            process.run("prepare", &base.join("genesis"), Some("signed"))?;
             let before = witness.captured.lock().map_err(|_| "capture")?.len();
-            run_carrier(
-                &client,
-                "activate-missing",
-                profile,
-                &source,
-                &target,
-                &base.join("missing"),
-                None,
-            )?;
+            process.run("activate-missing", &base.join("missing"), None)?;
             assert_eq!(
                 before,
                 witness.captured.lock().map_err(|_| "capture")?.len()
@@ -705,11 +754,14 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 language,
                 profile,
                 carrier: Some(carrier),
-                enrolled_receiver: true,
+                enrolled_receiver: !managed,
+                registry: selected_registry,
             };
             // Prepare responder prekeys before measuring TLS traffic. Its original
             // setup witness uses signed TCP; runtime traffic must use selected TLS.
-            first_expiry::prepare_receiver_metadata(&reference)?;
+            if !managed {
+                first_expiry::prepare_receiver_metadata(&reference)?;
+            }
             connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
             let mut tls = if carrier == "tls" {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
@@ -724,27 +776,15 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
             };
             if carrier == "signed" {
                 witness.arm(2)?;
-                run_carrier(
-                    &client,
+                process.run(
                     "activate-bad-receipt",
-                    profile,
-                    &source,
-                    &target,
                     &base.join("bad-receipt"),
                     Some("signed"),
                 )?;
                 assert_eq!(fs::read(base.join("bad-receipt"))?, request);
             }
             let measured_start = witness.captured.lock().map_err(|_| "capture")?.len();
-            run_carrier(
-                &client,
-                "activate",
-                profile,
-                &source,
-                &target,
-                &base.join("active"),
-                Some(carrier),
-            )?;
+            process.run("activate", &base.join("active"), Some(carrier))?;
             assert_eq!(fs::read(base.join("active"))?, request);
             for child in fs::read_dir(&target)? {
                 assert!(!child?.file_name().to_string_lossy().starts_with("witness-"));
@@ -758,33 +798,39 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
             ] {
                 publish_private_bytes(&target.join(name), &[0; 32])?;
             }
-            run_carrier(
-                &client,
-                "activate",
-                profile,
-                &source,
-                &target,
-                &base.join("active-reopened"),
-                Some(carrier),
-            )?;
+            process.run("activate", &base.join("active-reopened"), Some(carrier))?;
             assert_eq!(fs::read(base.join("active-reopened"))?, request);
-            connection.run_with_policy(&request, &mut || {
-                first_expiry::renew_receiver_before_expiry(
-                    &connection,
-                    &reference,
-                    Some(&witness.configured),
+            if managed {
+                run_carrier(
+                    &client,
+                    "activate-unmanaged",
+                    profile,
+                    &source,
+                    &target,
+                    &base.join("registry-required"),
+                    Some(carrier),
                 )?;
-                first_expiry::wait_and_refuse_expired(&connection, &request)?;
-                first_policy::Renewal {
-                    account_root: &authority,
-                    policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
-                    certificate: &certificate,
-                    roster: &roster,
-                    reference: &reference.initiator,
-                    witness: Some(&witness.configured),
-                }
-                .run(&connection)
-            })?;
+                assert_eq!(fs::read(base.join("registry-required"))?, request);
+                connection.run(&request)?;
+            } else {
+                connection.run_with_policy(&request, &mut || {
+                    first_expiry::renew_receiver_before_expiry(
+                        &connection,
+                        &reference,
+                        Some(&witness.configured),
+                    )?;
+                    first_expiry::wait_and_refuse_expired(&connection, &request)?;
+                    first_policy::Renewal {
+                        account_root: &authority,
+                        policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
+                        certificate: &certificate,
+                        roster: &roster,
+                        reference: &reference.initiator,
+                        witness: Some(&witness.configured),
+                    }
+                    .run(&connection)
+                })?;
+            }
             if let Some(server) = &mut tls {
                 assert!(server.admitted.load(std::sync::atomic::Ordering::Acquire) >= 2);
                 assert_eq!(
@@ -804,8 +850,13 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 drop(records);
             }
             witness.join()?;
-            export_public(&source, &base, language, profile, carrier)?;
-            println!("\nINDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true");
+            if managed {
+                first_account::export_public(&source, &base, &registry, profile, carrier)?;
+                println!("\nMANAGED_CONFIGURATION_PASS carrier={carrier} profile={profile} request_before_association=true original_registry=true missing_registry=211 release_qualified=false");
+            } else {
+                export_public(&source, &base, language, profile, carrier)?;
+                println!("\nINDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true");
+            }
         }
     }
     Ok(())
