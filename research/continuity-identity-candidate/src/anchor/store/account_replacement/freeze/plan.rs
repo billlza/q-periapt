@@ -35,6 +35,28 @@ impl AnchorAccountReplacementPlan {
         }
         Ok(())
     }
+    /// Stable commitment to the complete independently retained original plan.
+    pub fn binding(&self) -> Result<[u8; 32], Error> {
+        Ok(digest(
+            b"Q-PERIAPT-CONTINUITY-ACCOUNT-PREPARATION/v1",
+            &self.to_bytes()?,
+        ))
+    }
+    pub(in crate::anchor::store::account_replacement) fn matches_closed_target(
+        p: &AnchorAccountReplacementProposal,
+        freeze: [u8; 32],
+        binding: [u8; 32],
+    ) -> Result<bool, Error> {
+        let request = AnchorAccountFreezeRequest {
+            witness: p.witness,
+            operation: AnchorAccountFreezeId::from_trusted_state(freeze)?,
+            root: p.previous_root.clone(),
+        };
+        let mut target = p.clone();
+        target.frozen.clear();
+        target.preparation = None;
+        Ok(Self { request, target }.binding()? == binding)
+    }
     /// Canonical original approval. Serialization grants no control-plane authority.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.check()?;
@@ -107,6 +129,29 @@ impl AnchorAccountReplacementPlan {
     }
 }
 impl AnchorStore {
+    /// Prepare a fresh independently approved target against an existing exact
+    /// freeze. Local controllers must first terminally close any earlier attempt.
+    pub fn frozen_account_replacement_plan(
+        &mut self,
+        operation: AnchorAccountReplacementId,
+        frozen: &AnchorFrozenAccount,
+        genesis: &AnchorGenesis,
+        next: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<AnchorAccountReplacementPlan, DurableError> {
+        let mut target = self
+            .frozen_account_replacement_proposal(operation, frozen, genesis, next, policy, now)?;
+        target.frozen.clear();
+        target.preparation = None;
+        let result = AnchorAccountReplacementPlan {
+            request: frozen.request.clone(),
+            target,
+        };
+        result.check()?;
+        Ok(result)
+    }
+
     /// Prepare independently approved freeze and exact target inputs before any
     /// witness mutation. The target is fixed; the future snapshot is authenticated
     /// by the exact freeze request. This read-only plan grants no traffic authority.

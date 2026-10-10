@@ -220,6 +220,9 @@ impl Case {
     }
 }
 pub(super) fn case() -> Case {
+    case_with_target_until(None)
+}
+pub(super) fn case_with_target_until(until: Option<u64>) -> Case {
     let directory = crate::durable::tests::directory();
     let base = directory.path().canonicalize().expect("fixture root");
     let path = base.join("old");
@@ -274,7 +277,9 @@ pub(super) fn case() -> Case {
         old.device_id(),
         old.generation(),
         old.description.family,
-        old.description.validity,
+        until.map_or(old.description.validity, |until| {
+            crate::Validity::new(old.description.validity.from(), until).expect("target interval")
+        }),
     )
     .expect("new device description");
     let certificate = root

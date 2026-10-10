@@ -926,3 +926,6 @@ fn account_root_process_loss_after_commit_preserves_exact_decision_and_frozen_he
 
 #[path = "account_freeze_tests.rs"]
 mod preparation_freeze;
+
+#[path = "account_closure_tests.rs"]
+mod closure;

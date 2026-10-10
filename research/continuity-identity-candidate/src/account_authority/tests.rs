@@ -152,7 +152,7 @@ pub(crate) fn rejects_preparation_images(store: &AccountAuthorityStore) {
         .expect("original preparation");
     assert!(record.preparation.is_some());
     if record.state() == AccountAuthorityReplacementState::Preparing {
-        record.committed = true;
+        record.decision = Decision::Committed;
         assert!(
             matches!(read(&image), Err(DurableError::Corrupt)),
             "unbound target template cannot be a committed mapping"
@@ -188,6 +188,7 @@ pub(super) fn after_preparation_commit(image: &Image) {
         AccountAuthorityReplacementState::Preparing => "prepare",
         AccountAuthorityReplacementState::Pending => "bind",
         AccountAuthorityReplacementState::Committed => "commit",
+        AccountAuthorityReplacementState::Closed => "close",
     };
     if selected != phase {
         return;
@@ -197,4 +198,36 @@ pub(super) fn after_preparation_commit(image: &Image) {
     loop {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
+}
+
+/// An adopted winner cannot erase or bypass the original terminal decision.
+pub(crate) fn rejects_terminal_images(store: &AccountAuthorityStore) {
+    let active = store.active.as_ref().expect("active original registry");
+    let read = |image: &Image| {
+        let wire = codec::encode(image, &active.key, store.binding).expect("authenticated image");
+        assert_eq!(wire.get(..8).expect("header"), b"QPAAST03");
+        codec::decode(&wire, &active.key, store.binding)
+            .expect("authenticated framing")
+            .current(store.family, &store.pin)
+    };
+    assert_eq!(active.image.replacements.len(), 2);
+    read(&active.image).expect("actual closed then adopted history");
+    let mut missing = active.image.clone();
+    missing.replacements.remove(0);
+    assert!(
+        matches!(read(&missing), Err(DurableError::Corrupt)),
+        "adoption requires an explicit previous terminal operation"
+    );
+    let mut pending = active.image.clone();
+    pending.replacements.first_mut().expect("original").decision = Decision::Pending;
+    assert!(
+        matches!(read(&pending), Err(DurableError::Corrupt)),
+        "unresolved original cannot be bypassed by an adoption flag"
+    );
+    let mut wrong = active.image.clone();
+    wrong.replacements.last_mut().expect("winner").decision = Decision::Committed;
+    assert!(
+        matches!(read(&wrong), Err(DurableError::Corrupt)),
+        "reusing a closed-only target requires the explicit adopted decision"
+    );
 }

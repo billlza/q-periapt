@@ -7,6 +7,7 @@ use sha2::Sha256;
 
 const TAG: &[u8; 8] = b"QPAAST01";
 const PREPARATION_TAG: &[u8; 8] = b"QPAAST02";
+const TERMINAL_TAG: &[u8; 8] = b"QPAAST03";
 const MAX_BYTES: usize = 76
     + MAX_ACCOUNTS * (32 + PUBLIC_KEY_BYTES + 40)
     + MAX_REPLACEMENTS * (32 + 8 + 1 + 4 + 65_536 + 4 + AnchorAccountReplacementPlan::MAX_BYTES);
@@ -45,8 +46,16 @@ pub(super) fn encode(
     if image.initial.len() > MAX_ACCOUNTS || image.replacements.len() > MAX_REPLACEMENTS {
         return Err(DurableError::Capacity);
     }
-    let preparations = image.replacements.iter().any(|r| r.preparation.is_some());
-    let mut wire = if preparations { PREPARATION_TAG } else { TAG }.to_vec();
+    let terminal = image.replacements.iter().any(|r| r.decision.extended());
+    let preparations = terminal || image.replacements.iter().any(|r| r.preparation.is_some());
+    let mut wire = if terminal {
+        TERMINAL_TAG
+    } else if preparations {
+        PREPARATION_TAG
+    } else {
+        TAG
+    }
+    .to_vec();
     wire.extend_from_slice(&binding);
     wire.extend_from_slice(
         &u16::try_from(image.initial.len())
@@ -68,7 +77,13 @@ pub(super) fn encode(
         let proposal = record.proposal.to_bytes()?;
         wire.extend_from_slice(record.application.as_bytes());
         wire.extend_from_slice(&record.revision.to_be_bytes());
-        wire.push(u8::from(record.committed));
+        wire.push(match record.decision {
+            Decision::Pending => 0,
+            Decision::Committed => 1,
+            Decision::ClosedExact => 2,
+            Decision::ClosedPlan => 3,
+            Decision::Adopted => 4,
+        });
         wire.extend_from_slice(
             &u32::try_from(proposal.len())
                 .map_err(|_| DurableError::Capacity)?
@@ -116,9 +131,10 @@ pub(super) fn decode(
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let version = d.array::<8>()?;
-    let preparations = match &version {
-        tag if tag == TAG => false,
-        tag if tag == PREPARATION_TAG => true,
+    let (preparations, terminal) = match &version {
+        tag if tag == TAG => (false, false),
+        tag if tag == PREPARATION_TAG => (true, false),
+        tag if tag == TERMINAL_TAG => (true, true),
         _ => return Err(DurableError::Conflict),
     };
     if d.array::<32>()? != binding {
@@ -148,9 +164,12 @@ pub(super) fn decode(
     for _ in 0..count {
         let application = ApplicationAccountId::from_trusted_state(d.array()?)?;
         let revision = d.u64()?;
-        let committed = match d.array::<1>()? {
-            [0] => false,
-            [1] => true,
+        let decision = match d.array::<1>()? {
+            [0] => Decision::Pending,
+            [1] => Decision::Committed,
+            [2] if terminal => Decision::ClosedExact,
+            [3] if terminal => Decision::ClosedPlan,
+            [4] if terminal => Decision::Adopted,
             _ => return Err(DurableError::Corrupt),
         };
         let length =
@@ -180,11 +199,13 @@ pub(super) fn decode(
             revision,
             proposal,
             preparation,
-            committed,
+            decision,
         });
     }
     d.finish()?;
-    if preparations && replacements.iter().all(|r| r.preparation.is_none()) {
+    if (terminal && replacements.iter().all(|r| !r.decision.extended()))
+        || (preparations && !terminal && replacements.iter().all(|r| r.preparation.is_none()))
+    {
         return Err(DurableError::Corrupt);
     }
     Ok(Image {

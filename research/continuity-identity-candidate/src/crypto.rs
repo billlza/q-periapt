@@ -53,6 +53,8 @@ pub(crate) enum Purpose {
     AnchorRetiredReportAcknowledgement = 21,
     AnchorAccountRetirement = 22,
     AnchorAccountFreeze = 23,
+    AnchorAccountReplacementClosure = 24,
+    AnchorAccountPreparationClosure = 25,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

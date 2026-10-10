@@ -11,8 +11,10 @@ use q_periapt_host_store::filesystem::{open_private_database, provision_private_
 use redb::{Database, TableDefinition};
 use std::{collections::BTreeMap, path::Path, sync::Arc};
 
+mod closure;
 mod codec;
 mod preparation;
+use closure::{Decision, RetryScope};
 mod runtime;
 #[cfg(all(test, unix))]
 pub(crate) mod tests;
@@ -100,6 +102,8 @@ impl AccountAuthorityCheckpoint {
 /// Original root replacement state, not successor device or message authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountAuthorityReplacementState {
+    /// This original target operation can never commit; old authority stays disabled.
+    Closed,
     /// Original target and freeze request are durable; old and new authority are fenced.
     Preparing,
     /// Exact approved descriptor is durable; both roots are fenced at this application entry.
@@ -119,7 +123,7 @@ struct Replacement {
     revision: u64,
     proposal: Proposal,
     preparation: Option<AnchorAccountReplacementPlan>,
-    committed: bool,
+    decision: Decision,
 }
 #[derive(Clone, Default)]
 struct Image {
@@ -132,6 +136,7 @@ struct Current {
     root: PublicKey,
     roster: RosterCheckpoint,
     pending: bool,
+    retry: Option<RetryScope>,
 }
 
 impl Image {
@@ -171,46 +176,60 @@ impl Image {
                     root: initial.root.clone(),
                     roster: initial.roster,
                     pending: false,
+                    retry: None,
                 },
             );
         }
         let mut operations = BTreeSet::new();
+        let mut closed_roots = BTreeMap::new();
         for replacement in &self.replacements {
             let p = &replacement.proposal;
             if let Some(plan) = &replacement.preparation {
                 let bound = plan.check_retained(p)?;
-                if replacement.committed && !bound {
+                if (replacement.decision.committed()
+                    || replacement.decision == Decision::ClosedExact)
+                    && !bound
+                {
                     return Err(DurableError::Corrupt);
                 }
             }
-            let (previous, successor, proposed_family, roster) = p.authority_transition();
+            if (replacement.decision == Decision::ClosedPlan && replacement.preparation.is_none())
+                || (replacement.decision == Decision::Adopted && replacement.preparation.is_some())
+            {
+                return Err(DurableError::Corrupt);
+            }
+            let (previous, successor, proposed_family, _) = p.authority_transition();
             let selected = current
                 .get_mut(&replacement.application)
                 .ok_or(DurableError::Corrupt)?;
-            if selected.pending
-                || replacement.revision != selected.checkpoint.revision
+            selected
+                .admit_next(
+                    p,
+                    replacement.preparation.as_ref(),
+                    replacement.decision == Decision::Adopted,
+                )
+                .map_err(|_| DurableError::Corrupt)?;
+            if replacement.revision != selected.checkpoint.revision
                 || previous != &selected.root
                 || proposed_family != family
                 || p.witness_binding() != witness.binding()
                 || successor.shares_component(witness.public_key())
                 || !operations.insert(*p.operation().as_bytes())
-                || !roots.insert(p.successor_account())
             {
                 return Err(DurableError::Corrupt);
             }
-            if replacement.committed {
-                selected.checkpoint.revision = selected
-                    .checkpoint
-                    .revision
-                    .checked_add(1)
-                    .filter(|r| *r != u64::MAX)
-                    .ok_or(DurableError::Capacity)?;
-                selected.checkpoint.account = p.successor_account();
-                selected.root = successor.clone();
-                selected.roster = roster;
-            } else {
-                selected.pending = true;
+            if !roots.insert(p.successor_account())
+                && !(replacement.decision == Decision::Adopted
+                    && closed_roots.get(&p.successor_account()) == Some(&replacement.application))
+            {
+                return Err(DurableError::Corrupt);
             }
+            if replacement.decision.closed() {
+                closed_roots.insert(p.successor_account(), replacement.application);
+            } else {
+                closed_roots.remove(&p.successor_account());
+            }
+            selected.apply(replacement)?;
         }
         Ok(current)
     }
@@ -380,16 +399,23 @@ impl AccountAuthorityStore {
             .iter_mut()
             .find(|r| r.proposal.operation() == retired.proposal().operation())
             .ok_or(DurableError::Absent)?;
+        if original.decision.closed() {
+            return Err(Error::Retired.into());
+        }
         if original.state() == AccountAuthorityReplacementState::Preparing {
-            return Err(DurableError::Suspended);
+            let plan = original.preparation.as_ref().ok_or(DurableError::Corrupt)?;
+            if !plan.check_retained(retired.proposal())? {
+                return Err(DurableError::Conflict);
+            }
+            original.proposal = retired.proposal().clone();
         }
         if &original.proposal != retired.proposal() {
             return Err(DurableError::Conflict);
         }
-        if original.committed {
+        if original.decision.committed() {
             return Ok(AccountAuthorityReplacementState::Committed);
         }
-        original.committed = true;
+        original.decision = Decision::Committed;
         let application = original.application;
         self.save(image, application)?;
         Ok(AccountAuthorityReplacementState::Committed)
@@ -415,7 +441,11 @@ impl AccountAuthorityStore {
             .iter()
             .find(|r| r.proposal.operation() == operation)
             .ok_or(DurableError::Absent)?;
-        if record.state() == AccountAuthorityReplacementState::Preparing {
+        if record
+            .preparation
+            .as_ref()
+            .is_some_and(|p| p.target() == &record.proposal)
+        {
             return Err(DurableError::Suspended);
         }
         Ok((record.application, record.state(), &record.proposal))

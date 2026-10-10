@@ -4,7 +4,9 @@ use super::*;
 use crate::AnchorFrozenAccount;
 impl Replacement {
     pub(super) fn state(&self) -> AccountAuthorityReplacementState {
-        if self.committed {
+        if self.decision.closed() {
+            AccountAuthorityReplacementState::Closed
+        } else if self.decision.committed() {
             AccountAuthorityReplacementState::Committed
         } else if self
             .preparation
@@ -47,11 +49,14 @@ impl AccountAuthorityStore {
             }
             return Ok(old.state());
         }
-        if self.access()?.current(expected.application)? != expected
-            || proposal.previous_account() != expected.account
-        {
+        let current = image.current(self.family, &self.pin)?;
+        let selected = current
+            .get(&expected.application)
+            .ok_or(DurableError::Absent)?;
+        if selected.checkpoint != expected || proposal.previous_account() != expected.account {
             return Err(DurableError::Conflict);
         }
+        selected.admit_next(&proposal, preparation.as_ref(), false)?;
         let (_, successor, family, _) = proposal.authority_transition();
         if family != self.family
             || proposal.witness_binding() != self.pin.binding()
@@ -68,7 +73,7 @@ impl AccountAuthorityStore {
             revision: expected.revision,
             proposal,
             preparation,
-            committed: false,
+            decision: Decision::Pending,
         };
         let state = record.state();
         image.replacements.push(record);

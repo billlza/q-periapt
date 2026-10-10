@@ -79,7 +79,9 @@ pub use publication::{
     PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
     PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
 };
-pub use write_intent::account_root::{AccountRootJournalRecovery, AccountRootJournalState};
+pub use write_intent::account_root::{
+    AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
+};
 pub(crate) use write_intent::CredentialCancellationTarget;
 pub(crate) use write_intent::WitnessedCredentialIntent;
 

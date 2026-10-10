@@ -407,8 +407,8 @@ this preparation path. The existing registry counterexample remains a valid
 observation for its old read-only proposal path. Managed orchestration must still
 persist an original local draft before freezing, reconcile the exact returned
 snapshot, obtain independent target approval, and coordinate original enrollment
-and child journal fences. Target expiry and competing approvals need an explicit
-terminal reconciliation contract; freezing alone does not supply one. A full
+and child journal fences. The terminal reconciliation below handles target expiry
+and competing approvals at the native component boundary; freezing alone does not supply it. A full
 witness can still lack room for the successor, and retained freeze/replacement
 history requires a bounded lifetime-capacity migration design. Foreign owners,
 installed consumer qualification, witness-key handoff and whole-host rollback
@@ -454,6 +454,73 @@ original plan and retries without selecting the root twice. The original witness
 remains independently retained by the parent in this experiment. This is still a
 native composition, not the owning installed workflow, network qualification or
 simultaneous witness-loss test. Original successor enrollment orchestration,
-authenticated terminal reconciliation for unfinishable targets, lifetime-capacity
-migration and foreign owners remain required. `Preparing` or `Pending` must never
+integration of terminal reconciliation, lifetime-capacity migration and foreign owners
+remain required. `Preparing` or `Pending` must never
 be reset to regain old traffic when an outcome is unknown.
+
+### Permanent non-commit and approved successor reconciliation
+
+`close_account_replacement` permanently closes one exact original proposal.
+`close_account_preparation` instead closes the original plan, including when a
+competing freeze prevented that plan from obtaining a snapshot. Both are trusted
+control-plane actions requiring independently retained approval. They do not
+depend on current target validity or an unchanged old head. An already committed
+operation remains `Committed`; a different statement reusing its operation ID
+conflicts. `Unavailable`, silence and transport errors never mean non-commit.
+
+The witness retains at most 256 closure records in `QPANC017`, under the existing
+one-MiB image bound: an exact proposal uses 65 bytes, and a plan uses 97 bytes.
+The latter binds the original plan and freeze request, denying every snapshot
+variant of that same approved target. Conflicting reuse of the operation ID is
+rejected. Closure and commitment of one operation cannot coexist in a valid image.
+This is permanent bounded history; eviction and capacity migration remain open.
+Images without closures retain their prior layout. Older readers reject V17.
+
+`closed_account_replacement_receipt` signs purpose 24 over
+`QPARNM01[8] || witness_binding[32] || proposal_binding[32]`.
+`closed_account_preparation_receipt` signs purpose 25 over
+`QPAPCL01[8] || witness_binding[32] || plan_binding[32]`.
+Each is a 3449-byte hybrid-signature envelope. The corresponding pinned verifier
+returns a private typed fact for the independently retained original expectation.
+A plan non-commit **does not prove or cancel a freeze**: an already dispatched
+original freeze may still arrive. Neither receipt unfreezes the old account,
+enrolls a target, authorizes traffic or proves delivery or erasure.
+
+The local registry retains typed exact/plan closure or explicit committed-winner
+adoption in `QPAAST03`. `Closed` keeps the old application authority suspended.
+A separately approved new plan may follow it, retaining any known original
+freeze binding. `adopt_committed_replacement` requires both an independently
+approved exact winner and its authenticated retirement. A target seen only in
+closed attempts of the same application may be adopted; cross-application and
+formerly active root reuse remain forbidden. An actual retirement matching an
+original preparation can also recover a lost local binding acknowledgement.
+`operation_checkpoint` recovers an original expectation, never current permission.
+
+For an already fenced journal, `AccountRootJournalTransition` pairs authenticated
+original non-commit with an independently approved next proposal.
+`transition_after_noncommit` commits only its fence descriptor and a bounded
+history entry. `resume_transition` reconciles that same transition after a lost
+return, with the original path, key, identity, device and witness. It preserves
+the encrypted image, pending intent and original message identities byte for byte;
+it returns a restricted recovery owner. It cannot overwrite a retained retirement,
+reset to an earlier proposal, or use missing storage to create a new journal.
+
+The `QPARJF02` fence appends at most 256 entries of 129 bytes: original operation,
+previous and next proposal commitments, closure kind, and closure commitment.
+Its MAC protects local history, which is not a transferable witness proof. Retain
+full original expectations and recreate the authenticated closure under the same
+witness on recovery. Entries must form a contiguous chain with unique operations
+and the final commitment must match the current proposal. Unchanged fences keep
+the original `QPARJF01` encoding. Registry and witness remain independent owners;
+this API does not make all their databases one atomic transaction.
+
+Native regression covers a target expiring at time 160, refusal at time 170, and
+an independently approved valid successor committed at 170 under the same freeze.
+Real unacknowledged ciphertext and a pending encrypted write remain unchanged.
+The new witness closure and local terminal/journal transitions exercise every
+measured pre/post-sync fault boundary; journal handoff also has actual process
+loss before and after commit without API return. Proof tests reject changed
+expectations, witness pins, signature components and purpose substitution.
+Authenticated history tests reject broken links, repeated operations and a changed
+retry. These establish the native composition, not a fully integrated installed
+root-replacement workflow, independent implementation, or cross-platform result.

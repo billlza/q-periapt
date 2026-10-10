@@ -4,7 +4,11 @@ use super::*;
 use crate::{PolicyCheckpoint, RosterCheckpoint};
 use std::collections::BTreeSet;
 
+pub(super) mod closure;
 mod codec;
+pub use closure::AnchorClosedAccountReplacement;
+mod preparation_closure;
+pub use preparation_closure::AnchorClosedAccountPreparation;
 pub(super) mod freeze;
 mod receipt;
 pub(super) use codec::{decode_records, encode_records};
@@ -104,6 +108,9 @@ impl AnchorAccountReplacementProposal {
     /// All original-account subjects, including previously retired generations.
     pub fn predecessors(&self) -> impl Iterator<Item = AnchorSubject> + '_ {
         self.frozen.iter().map(|entry| entry.subject)
+    }
+    pub(crate) fn preparation_binding(&self) -> Option<[u8; 32]> {
+        self.preparation
     }
     pub(crate) fn witness_binding(&self) -> [u8; 32] {
         self.witness
@@ -208,6 +215,8 @@ impl AnchorAccountReplacementProposal {
 /// Historical local decision, never permission to release an operational owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnchorAccountReplacementState {
+    /// Exact original operation can never commit at this witness; no traffic permission.
+    Closed,
     /// No exact decision; this does not authorize fallback to the previous root.
     Unavailable,
     /// The original complete transition is permanently retained.
@@ -282,6 +291,9 @@ impl Image {
             .contains_key(&p.previous_account())
         {
             return Err(Error::Scope.into());
+        }
+        if self.account_closures.contains_key(p.operation.as_bytes()) {
+            return Err(Error::Retired.into());
         }
         self.check_preparation(p)?;
         self.require_account_live(p.successor_account())?;
@@ -414,6 +426,9 @@ impl AnchorStore {
         let pin = self.pin()?;
         p.check_target(previous_root, genesis, next, policy, &pin)?;
         let mut image = self.image()?;
+        if let Some(closed) = image.closed_account_operation(p)? {
+            return Ok(closed);
+        }
         if let Some(saved) = image.account_replacements.get(&p.previous_account()) {
             return if saved == p {
                 Ok(AnchorAccountReplacementState::Committed)
@@ -447,6 +462,9 @@ impl AnchorStore {
             return Err(Error::Scope.into());
         }
         let image = self.image()?;
+        if let Some(closed) = image.closed_account_operation(p)? {
+            return Ok(closed);
+        }
         match image.account_replacements.get(&p.previous_account()) {
             Some(saved) if saved == p => Ok(AnchorAccountReplacementState::Committed),
             Some(_) => Err(DurableError::Conflict),

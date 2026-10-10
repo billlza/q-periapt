@@ -111,9 +111,10 @@ pub(in crate::anchor::store) fn encode_records(
 }
 pub(in crate::anchor::store) fn decode_records(
     d: &mut Decoder<'_>,
+    allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], AnchorFrozenAccount>, DurableError> {
     let count = usize::from(d.u16()?);
-    if count == 0 || count > MAX_ENTRIES {
+    if (!allow_empty && count == 0) || count > MAX_ENTRIES {
         return Err(DurableError::Corrupt);
     }
     let mut result = BTreeMap::new();

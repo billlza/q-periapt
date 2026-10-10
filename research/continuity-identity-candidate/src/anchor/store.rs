@@ -26,7 +26,8 @@ mod account_replacement;
 pub use account_replacement::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
-    AnchorFrozenAccount, AnchorRetiredAccount, AnchorRetiredAccountSubject,
+    AnchorClosedAccountPreparation, AnchorClosedAccountReplacement, AnchorFrozenAccount,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject,
 };
 mod replacement;
 pub use replacement::{
@@ -76,6 +77,7 @@ struct Image {
     retired_reports: BTreeMap<[u8; 32], retired_report::ReportRecord>,
     account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
     account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
+    account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
 }
 struct Active {
     db: Database,
@@ -109,6 +111,7 @@ impl AnchorStore {
             retired_reports: BTreeMap::new(),
             account_replacements: BTreeMap::new(),
             account_freezes: BTreeMap::new(),
+            account_closures: BTreeMap::new(),
         };
         let bytes = encode(&wrapping, &pin, &image)?;
         let db = provision_private_database(path, |db| {
@@ -732,7 +735,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     image.check_retired_reports(pin)?;
     image.check_account_replacements(pin)?;
     image.check_account_freezes(pin)?;
-    let freeze_format = !image.account_freezes.is_empty();
+    image.check_account_closures()?;
+    let closure_format = !image.account_closures.is_empty();
+    let freeze_format = closure_format || !image.account_freezes.is_empty();
     let account_format = freeze_format || !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
     let report_format = account_format || !image.retired_reports.is_empty();
@@ -777,7 +782,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if freeze_format {
+    let mut bytes = if closure_format {
+        b"QPANC017".to_vec()
+    } else if freeze_format {
         b"QPANC016".to_vec()
     } else if account_format {
         b"QPANC015".to_vec()
@@ -852,6 +859,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     }
     if freeze_format {
         account_replacement::freeze::encode_records(&image.account_freezes, &mut bytes)?;
+    }
+    if closure_format {
+        account_replacement::closure::encode_records(&image.account_closures, &mut bytes)?;
     }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -1033,7 +1043,12 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             BTreeMap::new()
         };
         let account_freezes = if version >= ImageVersion::V16 {
-            account_replacement::freeze::decode_records(&mut d)?
+            account_replacement::freeze::decode_records(&mut d, version >= ImageVersion::V17)?
+        } else {
+            BTreeMap::new()
+        };
+        let account_closures = if version >= ImageVersion::V17 {
+            account_replacement::closure::decode_records(&mut d)?
         } else {
             BTreeMap::new()
         };
@@ -1055,12 +1070,14 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             retired_reports,
             account_replacements,
             account_freezes,
+            account_closures,
         };
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
         image.check_retired_reports(pin)?;
         image.check_account_replacements(pin)?;
         image.check_account_freezes(pin)?;
+        image.check_account_closures()?;
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }

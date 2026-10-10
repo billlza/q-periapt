@@ -6,10 +6,14 @@ use crate::{
     AnchorAccountFreezeRequest, AnchorAccountReplacementId, AnchorAccountReplacementPlan,
     ApplicationAccountId, JournalAccountAuthority,
 };
+#[path = "account_preparation/closure.rs"]
+mod closure;
 #[path = "account_preparation/process.rs"]
 mod process;
 #[path = "account_preparation/recovery.rs"]
 mod recovery;
+#[path = "account_preparation/transition.rs"]
+mod transition;
 
 struct Prepared {
     c: Case,
@@ -23,7 +27,10 @@ struct Prepared {
 }
 impl Prepared {
     fn new() -> Self {
-        let mut c = case();
+        Self::with_target_until(None)
+    }
+    fn with_target_until(until: Option<u64>) -> Self {
+        let mut c = case_with_target_until(until);
         let base = c.path.parent().expect("owned fixture root");
         let identity = AccountAuthorityIdentity::generate().expect("original registry identity");
         let mut registry = AccountAuthorityStore::provision(

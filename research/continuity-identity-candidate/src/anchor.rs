@@ -19,6 +19,7 @@ mod store;
 pub use store::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorClosedAccountPreparation, AnchorClosedAccountReplacement,
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorFrozenAccount,
     AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
     AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
