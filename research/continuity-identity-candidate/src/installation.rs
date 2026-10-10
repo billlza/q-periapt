@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Durable service initialization above the existing journal and archive owners.
+use crate::durable::AccountAuthorityOpen;
 use crate::{
     bootstrap,
     crypto::digest,
@@ -7,12 +8,6 @@ use crate::{
     AnchorClient, AnchorGenesis, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey,
     PrekeyQuality, SessionArchiveStore, VerifiedDevice, VerifiedSessionPolicy,
 };
-use crate::{durable::AccountAuthorityOpen, JournalAccountAuthority};
-
-pub(crate) struct InstallationAdmission {
-    pub(crate) anchor: Option<AnchorClient>,
-    pub(crate) account: Option<JournalAccountAuthority>,
-}
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
 use std::{
@@ -23,9 +18,11 @@ use std::{
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_installation_v1");
 const TAG: &[u8; 8] = b"QPCINS01";
 
+mod admission;
 mod recovery;
 mod reopen;
 mod retired;
+pub use admission::InstallationAdmission;
 pub use recovery::{InstallationRecovery, InstalledAccountRecovery, InstalledSessionRecovery};
 pub use reopen::{BootstrapPeer, ReopenedPeer, ReopenedSession};
 pub use retired::RetiredInstallationRecovery;
@@ -510,24 +507,17 @@ impl DeviceInstallation {
     /// witness, then durably record Active before releasing any operational owner.
     /// None is permitted only for an originally local-only policy. Unknown commits
     /// return no service; reopen the original configuration to reconcile its phase.
+    /// Managed journals require their original [`InstallationAdmission`], which
+    /// also permits explicit initial binding after genesis validation.
     pub fn activate(
         self,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         now: u64,
-        anchor: Option<AnchorClient>,
+        admission: impl Into<InstallationAdmission>,
     ) -> Result<DeviceService, DurableError> {
-        self.activate_admitted(
-            key,
-            device,
-            policy,
-            now,
-            InstallationAdmission {
-                anchor,
-                account: None,
-            },
-        )
+        self.activate_admitted(key, device, policy, now, admission.into())
     }
     pub(crate) fn activate_admitted(
         mut self,
@@ -590,26 +580,9 @@ impl DeviceInstallation {
         key: JournalKey,
         original: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
-        anchor: Option<AnchorClient>,
+        admission: impl Into<InstallationAdmission>,
     ) -> Result<DeviceService, DurableError> {
-        Self::reconcile_original_enrollment_admitted(
-            paths,
-            key,
-            original,
-            policy,
-            InstallationAdmission {
-                anchor,
-                account: None,
-            },
-        )
-    }
-    pub(crate) fn reconcile_original_enrollment_admitted(
-        paths: InstallationPaths,
-        key: JournalKey,
-        original: &VerifiedDevice,
-        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
-        admission: InstallationAdmission,
-    ) -> Result<DeviceService, DurableError> {
+        let admission = admission.into();
         let anchor = admission.anchor;
         let policy = policy.as_ref();
         if policy.anchor_requirement().binding().is_some() && anchor.is_none() {

@@ -50,9 +50,9 @@ pub use enrollment::{
     WitnessedRosterRefreshProgress,
 };
 pub use installation::{
-    BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationRecovery, InstallationStatus, InstalledAccountRecovery, InstalledSessionRecovery,
-    ReopenedPeer, ReopenedSession, RetiredInstallationRecovery,
+    BootstrapPeer, DeviceInstallation, DeviceService, InstallationAdmission, InstallationPaths,
+    InstallationPreparation, InstallationRecovery, InstallationStatus, InstalledAccountRecovery,
+    InstalledSessionRecovery, ReopenedPeer, ReopenedSession, RetiredInstallationRecovery,
 };
 pub use session_archives::SessionArchiveStore;
 

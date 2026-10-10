@@ -326,20 +326,21 @@ impl DeviceInstallation {
     /// local role and current membership. No expired P0 runtime is reconstructed.
     /// Required protection additionally needs the original witness carrier and
     /// fresh exact G/T admission. This never falls back to local protection.
+    /// A managed journal also requires its original [`InstallationAdmission`].
     pub fn reopen_continued_session(
         paths: InstallationPaths,
         key: JournalKey,
         request: SessionReopenRequest,
         policy: Arc<crate::VerifiedSessionPolicy>,
         now: u64,
-        anchor: Option<AnchorClient>,
+        admission: impl Into<InstallationAdmission>,
     ) -> Result<ReopenedSession, DurableError> {
         let mut service = Self::reconcile_original_enrollment(
             paths,
             key,
             request.context.device(request.role),
             request.context.original_policy(),
-            anchor,
+            admission,
         )?;
         let peer = service.reopen_continued_peer(request, policy, now)?;
         Ok(ReopenedSession {
@@ -353,13 +354,16 @@ impl DeviceInstallation {
     /// Missing children, unfinished bootstrap, closure, wrong bindings, revoked
     /// membership or unavailable required witness return no operational owner.
     /// This entry never provisions, activates Creating state or replaces an archive.
+    /// A managed journal also requires its original [`InstallationAdmission`];
+    /// this route cannot bind an otherwise unmanaged journal.
     pub fn reopen_session(
         paths: InstallationPaths,
         key: JournalKey,
         request: SessionReopenRequest,
         now: u64,
-        anchor: Option<AnchorClient>,
+        admission: impl Into<InstallationAdmission>,
     ) -> Result<ReopenedSession, DurableError> {
+        let admission = admission.into();
         let SessionReopenRequest {
             context,
             role,
@@ -376,8 +380,8 @@ impl DeviceInstallation {
             key,
             device,
             policy,
-            anchor,
-            AccountAuthorityOpen::Existing(None),
+            admission.anchor,
+            AccountAuthorityOpen::Existing(admission.account),
         )?;
         let mut service = DeviceService {
             active: Some(ServiceOwners {

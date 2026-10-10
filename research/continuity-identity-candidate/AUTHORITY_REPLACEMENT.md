@@ -617,3 +617,26 @@ These are native owner-integration results, not installed foreign-language,
 physical-device, independent-endpoint or final product-ABI qualification. The
 application still owns the original registry lifetime; package adapters and the
 complete root-replacement controller remain required.
+
+
+### Registry admission through standalone installation entry points
+
+`InstallationAdmission::managed` carries the original required witness and
+`JournalAccountAuthority` together into `DeviceInstallation::activate`,
+`reopen_session` and `reopen_continued_session`. Existing unmanaged callers may
+continue passing `Option<AnchorClient>`; bound journals still reject that form.
+The private admission fields prevent callers from substituting an unanchored
+managed mode. Activation alone may explicitly adopt an unbound witnessed journal,
+using the same genesis-before-binding ordering as enrollment. Session reopening
+requires an existing exact registry binding and never performs adoption.
+
+These entry points keep the original registry checks through current-policy and
+completed-continuation admission. The continued-session regression uses real
+independent witness G/T approval, expiry of P0, both enrolled endpoints and an
+actual rekey before standalone reopening at time 170. The original archived
+session and cached ciphertext survive; registry closure denies further release.
+Other regressions cover initial activation, refusal to adopt during reopening,
+missing/wrong/closed registry admission before dispatch and closure immediately
+after a signed witness reply. This is native entry-point coverage. Foreign
+registry ownership, installed package use of the new managed admission and the
+full root-replacement controller remain separate unqualified boundaries.

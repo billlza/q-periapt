@@ -63,7 +63,7 @@ impl DeviceEnrollment {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
     ) -> Result<DeviceService, DurableError> {
-        DeviceInstallation::reconcile_original_enrollment_admitted(
+        DeviceInstallation::reconcile_original_enrollment(
             self.paths.installation.clone(),
             self.key()?,
             original,

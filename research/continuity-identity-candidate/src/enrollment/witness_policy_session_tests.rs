@@ -7,6 +7,8 @@ use crate::{
 };
 #[path = "witness_policy_fanout_tests.rs"]
 pub(in crate::enrollment::tests::witness_renewal) mod fanout;
+#[path = "witness_policy_session_managed_tests.rs"]
+mod managed;
 
 pub(in crate::enrollment::tests::witness_renewal) struct Endpoint {
     pub(in crate::enrollment::tests::witness_renewal) f: Fixture,
@@ -162,6 +164,15 @@ fn send(
 
 #[test]
 fn real_witnessed_session_reopens_after_p0_expiry_and_fences_cached_message_and_fanout() {
+    witnessed_session(false);
+}
+
+#[test]
+fn managed_installation_continued_session_keeps_registry_after_real_witnessed_rekey() {
+    witnessed_session(true);
+}
+
+fn witnessed_session(managed_reopen: bool) {
     let first = fixture_with_policy_expiry(Some(160));
     let second = fixture_on_witness(
         Arc::clone(&first._witness_dir),
@@ -429,6 +440,10 @@ fn real_witnessed_session_reopens_after_p0_expiry_and_fences_cached_message_and_
             .resume_message(&context, session, cached_id, 170,)
             .is_ok());
         service.close();
+    }
+    if managed_reopen {
+        managed::reopen(&mut a, &b, &bundle, Arc::clone(&pa), session, cached_id);
+        return;
     }
     for fanout in [false, true] {
         a.f.carrier.clock.store(170, Ordering::SeqCst);
