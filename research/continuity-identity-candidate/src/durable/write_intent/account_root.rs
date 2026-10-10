@@ -5,10 +5,15 @@ use crate::{
     AnchorAccountReplacementProposal as Proposal, AnchorPin, AnchorRetiredAccount, AnchorSubject,
 };
 
+pub(crate) mod transfer;
+pub use transfer::AccountRootJournalTransition;
+
 const ROW: &str = "account-root-fence";
 const TAG: &[u8; 8] = b"QPARJF01";
+const TRANSFER_TAG: &[u8; 8] = b"QPARJF02";
 const RECEIPT_BYTES: usize = 3449;
-const MAX_FENCE_BYTES: usize = 207 + 65_536 + RECEIPT_BYTES;
+const MAX_FENCE_BYTES: usize =
+    207 + 65_536 + RECEIPT_BYTES + 2 + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 struct Fence {
@@ -17,6 +22,7 @@ struct Fence {
     pending: Option<[u8; 32]>,
     proposal: Proposal,
     receipt: Option<Vec<u8>>,
+    history: Vec<transfer::Transfer>,
 }
 fn pending_digest(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-LOCAL-INTENT/v1", bytes)
@@ -70,6 +76,7 @@ impl Fence {
             pending: pending.map(|p| pending_digest(p.wire())),
             proposal,
             receipt: None,
+            history: Vec::new(),
         })
     }
     fn check(
@@ -78,6 +85,7 @@ impl Fence {
         image: &Image,
         pending: Option<&PendingIntent>,
     ) -> Result<(), DurableError> {
+        transfer::check_history(&self.history, &self.proposal)?;
         if self.subject != subject(key, image, pending, &self.proposal)?
             || self.image != image.digest
             || self.pending != pending.map(|p| pending_digest(p.wire()))
@@ -87,12 +95,14 @@ impl Fence {
         Ok(())
     }
     fn encode(&self, key: &JournalKey) -> Result<Vec<u8>, DurableError> {
+        transfer::check_history(&self.history, &self.proposal)?;
         let proposal = self.proposal.to_bytes()?;
         let receipt = self.receipt.as_deref().unwrap_or(&[]);
         if !receipt.is_empty() && receipt.len() != RECEIPT_BYTES {
             return Err(DurableError::Corrupt);
         }
-        let mut bytes = TAG.to_vec();
+        let extended = !self.history.is_empty();
+        let mut bytes = if extended { TRANSFER_TAG } else { TAG }.to_vec();
         bytes.extend_from_slice(&self.subject.to_bytes());
         bytes.extend_from_slice(&self.image);
         bytes.push(u8::from(self.pending.is_some()));
@@ -109,6 +119,9 @@ impl Fence {
                 .to_be_bytes(),
         );
         bytes.extend_from_slice(receipt);
+        if extended {
+            transfer::encode_history(&self.history, &mut bytes)?;
+        }
         let mut auth = mac(key)?;
         auth.update(&bytes);
         bytes.extend_from_slice(&auth.finalize().into_bytes());
@@ -127,9 +140,11 @@ impl Fence {
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *TAG {
-            return Err(DurableError::Corrupt);
-        }
+        let extended = match &d.array::<8>()? {
+            tag if tag == TAG => false,
+            tag if tag == TRANSFER_TAG => true,
+            _ => return Err(DurableError::Corrupt),
+        };
         let subject = AnchorSubject::from_trusted_state(d.take(96)?)?;
         let image = d.array()?;
         crate::codec::nonzero(&image)?;
@@ -155,13 +170,20 @@ impl Fence {
             RECEIPT_BYTES => Some(d.take(size)?.to_vec()),
             _ => return Err(DurableError::Corrupt),
         };
+        let history = if extended {
+            transfer::decode_history(&mut d)?
+        } else {
+            Vec::new()
+        };
         d.finish()?;
+        transfer::check_history(&history, &proposal)?;
         Ok(Self {
             subject,
             image,
             pending,
             proposal,
             receipt,
+            history,
         })
     }
 }
@@ -193,6 +215,13 @@ struct Owners {
 }
 impl Owners {
     fn read(&self) -> Result<Fence, DurableError> {
+        let fence = self.read_snapshot()?;
+        if fence.proposal != self.proposal {
+            return Err(DurableError::Conflict);
+        }
+        Ok(fence)
+    }
+    fn read_snapshot(&self) -> Result<Fence, DurableError> {
         let (image, pending) = load_pending_snapshot(
             &self.db,
             &self.key,
@@ -210,12 +239,11 @@ impl Owners {
             .ok_or(DurableError::Absent)?;
         let fence = Fence::decode(&self.key, saved.value())?;
         fence.check(&self.key, &image, pending.as_ref())?;
-        if fence.proposal != self.proposal || self.pin.binding() != self.proposal.witness_binding()
-        {
+        if self.pin.binding() != fence.proposal.witness_binding() {
             return Err(DurableError::Conflict);
         }
         if let Some(receipt) = &fence.receipt {
-            self.pin.verify_retired_account(&self.proposal, receipt)?;
+            self.pin.verify_retired_account(&fence.proposal, receipt)?;
         }
         Ok(fence)
     }

@@ -9,6 +9,8 @@ use std::{
     sync::{atomic::AtomicU64, Mutex},
     time::Instant,
 };
+#[path = "managed_renewal_tests.rs"]
+mod managed;
 #[path = "witness_policy_transaction_tests.rs"]
 mod policy_transaction;
 const JOURNAL: TableDefinition<&str, &[u8]> =

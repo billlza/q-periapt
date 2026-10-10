@@ -7,6 +7,7 @@
 //! Account enrollment must independently pin the intended account and roster head.
 //! No production crate, C ABI, or language binding depends on this candidate.
 
+mod account_authority;
 mod anchor;
 mod bootstrap;
 mod bootstrap_bundle;
@@ -19,6 +20,11 @@ pub mod contract;
 #[cfg(feature = "control-tls")]
 pub mod control_transport;
 mod crypto;
+pub use account_authority::{
+    AccountAuthorityAccess, AccountAuthorityCheckpoint, AccountAuthorityIdentity,
+    AccountAuthorityLease, AccountAuthorityReplacementState, AccountAuthorityStore,
+    ApplicationAccountId,
+};
 mod durable;
 mod enrollment;
 mod identity;
@@ -44,9 +50,9 @@ pub use enrollment::{
     WitnessedRosterRefreshProgress,
 };
 pub use installation::{
-    BootstrapPeer, DeviceInstallation, DeviceService, InstallationPaths, InstallationPreparation,
-    InstallationRecovery, InstallationStatus, InstalledAccountRecovery, InstalledSessionRecovery,
-    ReopenedPeer, ReopenedSession, RetiredInstallationRecovery,
+    BootstrapPeer, DeviceInstallation, DeviceService, InstallationAdmission, InstallationPaths,
+    InstallationPreparation, InstallationRecovery, InstallationStatus, InstalledAccountRecovery,
+    InstalledSessionRecovery, ReopenedPeer, ReopenedSession, RetiredInstallationRecovery,
 };
 pub use session_archives::SessionArchiveStore;
 
@@ -92,13 +98,15 @@ impl RetainedInstallationAuthority {
 mod tests;
 
 pub use anchor::{
-    AnchorAccountReplacementId, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
-    AnchorClient, AnchorClientError, AnchorCredentialCancellationState,
+    AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
+    AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorClient, AnchorClientError, AnchorClosedAccountPreparation,
+    AnchorClosedAccountReplacement, AnchorCredentialCancellationState,
     AnchorCredentialRenewalCancellation, AnchorCredentialRenewalProposal,
     AnchorCredentialRenewalState, AnchorDeviceReplacementProposal, AnchorDeviceReplacementState,
-    AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
-    AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply, AnchorRequest,
-    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
+    AnchorError, AnchorFrozenAccount, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation,
+    AnchorOutcome, AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply,
+    AnchorRequest, AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
     AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
     AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject,
@@ -119,20 +127,20 @@ pub use crypto::{
 };
 pub use durable::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, AccountRootJournalRecovery,
-    AccountRootJournalState, BootstrapCancellation, BootstrapCancellationJournal, BootstrapEntry,
-    BootstrapOperationId, BootstrapPrekeyDisposition, BootstrapPrekeyUse, ClosedEpochResolution,
-    CommittedInitiation, CommittedPlaintext, DeviceJournal, DurableError, DurableStatus,
-    EpochResolutionId, EpochResolutionStatus, FanoutAbandonment, FanoutAbandonmentId,
-    FanoutAbandonmentJournal, FanoutId, FanoutInput, FanoutMember, FanoutMemberState,
-    FanoutMemberStatus, FanoutOutput, FanoutReconciliation, FanoutStatus, FanoutTarget,
-    InitiationId, JournalIdentity, JournalKey, MessageId, MessageStatus, PrekeyId,
-    PrekeyPublicationError, PrekeyPublicationId, PrekeyPublicationKey, PrekeyPublicationPlan,
-    PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus, PrekeyStatus,
-    PreparedPrekeyPublication, RekeyControlMessage, RekeyControlStep, RekeyFlight,
-    RekeyOfferStatus, RekeyProgress, RekeyRequestStatus, RekeyResponseStatus, ReservedAbandonment,
-    RosterRefreshMaterials, SendProgress, SessionClosure, SessionClosureArchive, SessionClosureId,
-    SessionClosureJournal, SessionClosureStatus, UnconfirmedMessage, UnconsumedDelivery,
-    MAX_PREKEY_PUBLICATIONS,
+    AccountRootJournalState, AccountRootJournalTransition, BootstrapCancellation,
+    BootstrapCancellationJournal, BootstrapEntry, BootstrapOperationId, BootstrapPrekeyDisposition,
+    BootstrapPrekeyUse, ClosedEpochResolution, CommittedInitiation, CommittedPlaintext,
+    DeviceJournal, DurableError, DurableStatus, EpochResolutionId, EpochResolutionStatus,
+    FanoutAbandonment, FanoutAbandonmentId, FanoutAbandonmentJournal, FanoutId, FanoutInput,
+    FanoutMember, FanoutMemberState, FanoutMemberStatus, FanoutOutput, FanoutReconciliation,
+    FanoutStatus, FanoutTarget, InitiationId, JournalAccountAuthority, JournalIdentity, JournalKey,
+    MessageId, MessageStatus, PrekeyId, PrekeyPublicationError, PrekeyPublicationId,
+    PrekeyPublicationKey, PrekeyPublicationPlan, PrekeyPublicationRequest, PrekeyPublicationRun,
+    PrekeyPublicationStatus, PrekeyStatus, PreparedPrekeyPublication, RekeyControlMessage,
+    RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyRequestStatus,
+    RekeyResponseStatus, ReservedAbandonment, RosterRefreshMaterials, SendProgress, SessionClosure,
+    SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
+    UnconfirmedMessage, UnconsumedDelivery, MAX_PREKEY_PUBLICATIONS,
 };
 pub use identity::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,

@@ -293,6 +293,7 @@ impl DeviceJournal {
         for selected in selected {
             rosters::authorize_session_context(image, selected.context, now)?;
         }
+        image.check_account_authorities(&[account])?;
         Ok(roster.checkpoint())
     }
     /// Atomically reserve every required input, then atomically commit every
@@ -535,6 +536,7 @@ impl DeviceJournal {
                 rosters::authorize_context(image, target.context, now)?;
             }
         }
+        image.check_account_authorities(&[batch.account])?;
         Ok(result)
     }
     /// Retire aggregate metadata only when every member has separate authenticated

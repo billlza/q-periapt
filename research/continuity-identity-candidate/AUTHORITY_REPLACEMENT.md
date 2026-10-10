@@ -142,7 +142,7 @@ trust, not freshness, successor permission, physical erasure or witness migratio
 The canonical unsigned proposal is `QPARPL01`, with a 4452-byte fixed portion and
 209 bytes per frozen subject. At most 256 subjects and 65536 input bytes are
 accepted. Its binding uses domain `Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-REPLACEMENT/v1`.
-The store emits `QPANC015` only when account replacements exist. It retains all old
+The store emits `QPANC015` when account replacements exist without preparation freezes. It retains all old
 entry layouts, device retirement, cleanup, reports and acknowledgement records.
 Earlier layouts keep their canonical nonempty-table requirements; empty older
 sections are permitted only inside this new aggregate format. Unknown versions,
@@ -307,3 +307,336 @@ business effects under a new identity.
 Keep signature/namespace experiments, authenticated-store transitions, witness
 transactions, installed foreign calls and platform persistence as separate evidence.
 A pin decoder or a successful new registration is not an executed root cutover.
+
+### Application authority registry component
+
+`AccountAuthorityStore` is a native foundation for an independently authenticated
+application account ID and its current cryptographic root. It retains the exact
+approved replacement proposal, advances its own revision by one on verified
+witness retirement, and preserves original-operation history. A pending entry
+suspends both roots at this registry. Its old read leases stay revoked after a
+replacement or owner close; an unrelated application's successful update does
+not revoke other entries. An uncertain database mutation closes the owner and
+all its leases, and recovery must reopen the same path/key/identity and retry
+the original proposal or verified retirement.
+
+The public state is MAC authenticated under a separately retained key, with
+path, registry identity, policy family and witness binding. The committed bit
+records the locally verified decision; the registry does not retain a separately
+transferable witness signature. This is neither encryption nor protection from
+rollback of the entire registry or host. The bounded format currently retains
+64 associations and 256 replacement operations globally, with explicit capacity
+errors. Resetting history to regain capacity is not a supported recovery path.
+
+`DeviceJournal::adopt_account_authority` now explicitly binds an existing
+required-witness journal to the original registry and local application revision
+through its ordinary image/write-intent/witness transaction. The new authenticated
+image variants `QPVLT023`/`QPVLT024` add a 104-byte registry/checkpoint binding;
+unbound `QPVLT021`/`QPVLT022` encodings remain unchanged. This is an explicit format
+transition: older readers cannot open the new image. The original witnessed head
+refuses a restored pre-binding backup. Neither format conversion nor missing
+storage is silently recreated during reopen.
+
+`open_anchored_with_account_authority` requires the same registry scope before
+replaying any saved adoption intent and rechecks it after witness I/O. Ordinary
+open refuses a bound image or pending bound target. Each live local and peer
+admission reads the registry's current mapping; post-witness message, ACK and
+fanout release checks repeat that admission. A shared registry read lock checks
+the selected accounts at one point before returning, while replacement invalidation
+takes the write lock before persistence. This does not recall bytes already returned
+before a fence. A parent intent that precedes the journal fence resumes through
+the existing restricted `AccountRootJournalRecovery`, without reopening old traffic.
+Historical peer-delivery accounting preserves its original account and unknown
+outbox even when current peer traffic is refused.
+
+This is still a native journal component. Owning installation/enrollment binding,
+original successor enrollment coordination, lifetime-capacity migration, foreign
+owners and witness-key handoff remain required for managed cutover.
+An executed counterexample also remains open: an ordinary old-device message
+committed after proposal capture makes that original witness snapshot stale.
+The registry correctly retains its original pending intent and refuses to replace
+it with a fresh proposal, but currently has no terminal reconciliation path for
+this race. Managed orchestration needs a preparation freeze or an authenticated,
+durably terminal decision that the original proposal can never commit. An absent
+observation, local reset or silent proposal regeneration is insufficient.
+Observing a committed historical operation never authorizes its successor if a
+later operation has already retired that root.
+
+
+### Durable preparation freeze component
+
+`AnchorAccountFreezeRequest` binds an original independent approval to the witness,
+old cryptographic root and a separate freeze operation ID. Retain that request
+before submitting it through the independently authenticated control plane.
+`freeze_account` captures all then-current old-account subjects and freezes the
+whole namespace in the same witness transaction. An old device can advance before
+this transaction and its new head is then included; it cannot change the snapshot
+after it commits. Known subjects and future unseen devices are refused through the
+ordinary request, trusted enrollment, replacement and renewal admission paths.
+Unrelated accounts remain usable. Unclassified legacy entries prevent the freeze.
+A root signature alone remains insufficient control-plane authority.
+
+Freeze is a historical preparation fact, distinct from permanent replacement,
+delivery, erasure or permission for a successor. No target is enrolled by freezing.
+After an uncertain commit, reopen the same witness and retry the original request;
+a matching retry returns the retained original snapshot without advancing revision.
+A changed request or reused operation under another root conflicts. Absence does
+not mean terminal non-commit, and no unfreeze/reset operation is provided. Delayed
+pre-freeze operating replies remain possible; local account-authority admission
+must still fence release.
+
+The `QPANC016` authenticated witness image retains canonical `QPAFRZ01` snapshots,
+including for an empty namespace. Prior layouts and unfrozen `QPARPL01` descriptor
+bytes stay unchanged. A frozen replacement uses `QPARPL02`, adding 32 bytes for the
+original freeze binding. `frozen_account_replacement_proposal` accepts only the
+exact retained freeze; both fresh commit and image validation enforce this binding.
+An equal old head is insufficient to reuse an unbound legacy proposal. Actual
+replacement still requires independently approved, currently valid target inputs.
+
+`account_freeze_receipt` carries the bounded complete snapshot followed by a
+3449-byte signed envelope. Signature purpose **23** authenticates a 72-byte
+`QPAFRS01` statement containing the witness and a domain-separated digest of the
+complete snapshot. This preserves the existing 16 KiB signed-body ceiling while
+supporting all 256 subjects. `verify_account_freeze` requires the independently
+retained original request and pin, bounds and parses the complete snapshot, then
+checks both signature components and the exact commitment. Neither this receipt
+nor its type can substitute for a retirement receipt or a fresh operating reply.
+
+This native component resolves snapshot capture races only when the caller uses
+this preparation path. The existing registry counterexample remains a valid
+observation for its old read-only proposal path. Managed orchestration must still
+persist an original local draft before freezing, reconcile the exact returned
+snapshot, obtain independent target approval, and coordinate original enrollment
+and child journal fences. The terminal reconciliation below handles target expiry
+and competing approvals at the native component boundary; freezing alone does not supply it. A full
+witness can still lack room for the successor, and retained freeze/replacement
+history requires a bounded lifetime-capacity migration design. Foreign owners,
+installed consumer qualification, witness-key handoff and whole-host rollback
+protection remain separate work.
+
+
+### Original local preparation intent
+
+`AnchorAccountReplacementPlan` (`QPAFPL01`, bounded to 8192 bytes) is an independent
+approval of a fixed target and one exact future freeze request. Its dedicated
+constructor validates the target through existing witness enrollment checks but
+does not claim that a transient old-head observation is the approved snapshot.
+A retained exact legacy proposal is never implicitly converted into this plan.
+
+`AccountAuthorityStore::begin_preparation` records that plan under the original
+application checkpoint before witness freezing. The new `Preparing` state revokes
+old leases and denies both old and target authority through the existing journal
+admission checks. The `QPAAST02` registry image preserves the plan alongside the
+operation for its entire history; images without plans still use the exact prior
+`QPAAST01` layout. Older readers reject the new layout. The existing 64-account and
+256-operation limits remain; each record can additionally hold one bounded plan.
+These are explicit candidate-format transitions, not a released ABI promise.
+
+After reopen, `preparation` returns the same original plan. `replacement` returns
+`Suspended` while only the target template exists, so it cannot be mistaken for an
+exact witness proposal. `bind_preparation` accepts only an authenticated freeze
+whose full original request matches that plan, then fixes the exact snapshot and
+enters `Pending`. The immutable plan survives binding and root commitment. No
+request, target or bound snapshot is silently regenerated. MAC-authenticated image
+validation rejects a committed unbound template or a binding inconsistent with its
+original plan. It records a locally verified decision, not a separately retained
+transferable freeze signature; witness continuity and whole-host rollback remain
+independent assumptions.
+
+The native combination now retains a local plan before freezing, fences real
+cached message release, tolerates actual old-device progress after plan creation,
+reopens the original registry, binds the exact witness snapshot, resumes the
+original restricted journal and selects the successor exactly once. Each of the
+three registry mutations has typed pre/post-sync recovery tests. Three actual
+owned child processes are also killed after the corresponding database commits
+and before API return; each reopens the same registry/key/identity, retains its
+original plan and retries without selecting the root twice. The original witness
+remains independently retained by the parent in this experiment. This is still a
+native composition, not the owning installed workflow, network qualification or
+simultaneous witness-loss test. Original successor enrollment orchestration,
+integration of terminal reconciliation, lifetime-capacity migration and foreign owners
+remain required. `Preparing` or `Pending` must never
+be reset to regain old traffic when an outcome is unknown.
+
+### Permanent non-commit and approved successor reconciliation
+
+`close_account_replacement` permanently closes one exact original proposal.
+`close_account_preparation` instead closes the original plan, including when a
+competing freeze prevented that plan from obtaining a snapshot. Both are trusted
+control-plane actions requiring independently retained approval. They do not
+depend on current target validity or an unchanged old head. An already committed
+operation remains `Committed`; a different statement reusing its operation ID
+conflicts. `Unavailable`, silence and transport errors never mean non-commit.
+
+The witness retains at most 256 closure records in `QPANC017`, under the existing
+one-MiB image bound: an exact proposal uses 65 bytes, and a plan uses 97 bytes.
+The latter binds the original plan and freeze request, denying every snapshot
+variant of that same approved target. Conflicting reuse of the operation ID is
+rejected. Closure and commitment of one operation cannot coexist in a valid image.
+This is permanent bounded history; eviction and capacity migration remain open.
+Images without closures retain their prior layout. Older readers reject V17.
+
+`closed_account_replacement_receipt` signs purpose 24 over
+`QPARNM01[8] || witness_binding[32] || proposal_binding[32]`.
+`closed_account_preparation_receipt` signs purpose 25 over
+`QPAPCL01[8] || witness_binding[32] || plan_binding[32]`.
+Each is a 3449-byte hybrid-signature envelope. The corresponding pinned verifier
+returns a private typed fact for the independently retained original expectation.
+A plan non-commit **does not prove or cancel a freeze**: an already dispatched
+original freeze may still arrive. Neither receipt unfreezes the old account,
+enrolls a target, authorizes traffic or proves delivery or erasure.
+
+The local registry retains typed exact/plan closure or explicit committed-winner
+adoption in `QPAAST03`. `Closed` keeps the old application authority suspended.
+A separately approved new plan may follow it, retaining any known original
+freeze binding. `adopt_committed_replacement` requires both an independently
+approved exact winner and its authenticated retirement. A target seen only in
+closed attempts of the same application may be adopted; cross-application and
+formerly active root reuse remain forbidden. An actual retirement matching an
+original preparation can also recover a lost local binding acknowledgement.
+`operation_checkpoint` recovers an original expectation, never current permission.
+
+For an already fenced journal, `AccountRootJournalTransition` pairs authenticated
+original non-commit with an independently approved next proposal.
+`transition_after_noncommit` commits only its fence descriptor and a bounded
+history entry. `resume_transition` reconciles that same transition after a lost
+return, with the original path, key, identity, device and witness. It preserves
+the encrypted image, pending intent and original message identities byte for byte;
+it returns a restricted recovery owner. It cannot overwrite a retained retirement,
+reset to an earlier proposal, or use missing storage to create a new journal.
+
+The `QPARJF02` fence appends at most 256 entries of 129 bytes: original operation,
+previous and next proposal commitments, closure kind, and closure commitment.
+Its MAC protects local history, which is not a transferable witness proof. Retain
+full original expectations and recreate the authenticated closure under the same
+witness on recovery. Entries must form a contiguous chain with unique operations
+and the final commitment must match the current proposal. Unchanged fences keep
+the original `QPARJF01` encoding. Registry and witness remain independent owners;
+this API does not make all their databases one atomic transaction.
+
+Native regression covers a target expiring at time 160, refusal at time 170, and
+an independently approved valid successor committed at 170 under the same freeze.
+Real unacknowledged ciphertext and a pending encrypted write remain unchanged.
+The new witness closure and local terminal/journal transitions exercise every
+measured pre/post-sync fault boundary; journal handoff also has actual process
+loss before and after commit without API return. Proof tests reject changed
+expectations, witness pins, signature components and purpose substitution.
+Authenticated history tests reject broken links, repeated operations and a changed
+retry. These establish the native composition, not a fully integrated installed
+root-replacement workflow, independent implementation, or cross-platform result.
+
+### Enrollment-owned terminal transition
+
+`AccountRootEnrollmentRecovery::transition_after_noncommit` now coordinates the
+original parent and child. It first authenticates the original parent, verifies
+the closure against its retained proposal and validates the approved next proposal
+against the actual child image and pending intent while holding the child lease.
+An incompatible local head fails before replacing the parent intent. A missing
+child can never be supplied by creating another journal.
+
+Only after that validation does the enrollment commit the next proposal and
+transition history. It then reconciles its child journal and returns the restricted
+owner. A failure consumes all local owners and can follow either database commit;
+`resume_transition` uses the same original closure and independent approval to
+reconcile either side of those commits. Original enrollment bytes, signing
+identity, journal identity and encrypted image/pending bytes remain unchanged.
+This coordinates two commits; it does not claim a cross-database atomic commit.
+
+The parent uses `QPERPL02` only when it has transition history; ordinary root
+fences retain the exact `QPERPL01` layout. It reuses the journal's bounded history
+codec and validation, including its 256-entry limit. The parent MAC and original
+enrollment binding authenticate that locally retained authorization. It is not a
+transferable witness receipt and does not protect a rollback of the whole host.
+Older readers explicitly reject the extended parent layout.
+
+After the new parent intent commits, `resume_original` with that exact next
+proposal can restore a compatible older child backup using the parent's retained
+history. The child must be unfenced or retain an exact prefix of that history;
+its original encrypted state must still satisfy the approved witnessed head.
+A conflicting child proposal, unrelated history, missing file or incompatible
+state fails explicitly. The crate-internal parent checkpoint is not an external
+journal API for supplying arbitrary history. A retained parent retirement is
+reapplied to the child before returning the restricted owner.
+
+Native regression now covers an original target expiring at 160 and activation
+of a separately enrolled successor through the actual `EnrolledDevice` API at
+170, under fresh witness admission. It also covers multiple abandoned targets,
+restoration of child backups taken before a fence and after an intermediate
+transition, six typed parent sync faults and four actual process-loss cuts around
+the parent-first/child-second commits. A red/green regression records the new
+implementation's initial validation-order defect and its correction. These tests
+compose the registry with enrollment recovery; they do not yet make the registry,
+target enrollment and foreign service lifetimes one managed product owner.
+Installed language adapters, that owning orchestration and the remaining release
+and platform qualifications remain required.
+
+### Registry admission through enrollment activation
+
+`DeviceEnrollment::with_account_authority` takes the independently retained
+`JournalAccountAuthority` for the original application checkpoint and registry.
+It checks the original account and family against that live owner; it does not
+associate a new root, infer approval from a network message or create a registry.
+Supply it again when reopening the same enrollment. Registry closure invalidates
+its access descriptors; reopening the original registry requires fresh access from
+that owner, not revival of an old descriptor.
+
+Activation opens an already bound journal only with the matching descriptor. For
+an explicitly selected initial binding, it checks original registry permission,
+reconciles the original witnessed journal and validates installation genesis before
+committing the installation. It then persists the registry binding through the
+existing witnessed journal transaction before returning `EnrolledDevice`. A sync
+or witness error may follow commit and returns no owner: retry with the original
+paths, keys, identity and descriptor. Do not switch to the unmanaged entry point.
+An already pending binding must match the original descriptor; authentication,
+scope or storage failure never triggers automatic adoption or a new registry.
+
+The descriptor stays with the enrollment owner through installation reconciliation,
+credential renewal, policy continuation and roster preparation. These paths reuse
+the existing journal engine and storage formats. The ordinary unmanaged activation
+entry remains available for unbound journals and explicitly refuses a bound journal
+when its required descriptor is missing. The optional runtime field is not a
+replacement for independently retained registry configuration.
+
+New credential, independent-policy and roster commit commands additionally check
+the authenticated journal and pending target's original registry scope before
+dispatch. Missing, different, closed or suspended authority cannot authorize a new
+commit. Exact historical observation, installation of an already witnessed target,
+terminal retention and acknowledgement remain recovery operations; they do not
+grant traffic authority or remove the stored registry binding. Already admitted
+commands can still be in flight during concurrent closure; historical outcomes
+must be reconciled rather than rewritten as no-commit.
+
+Native tests exercise first Creating activation, exact managed reopen, another
+registry refusal, real prekey generation/signing and replay, cached publication
+refusal after registry closure, closure after an actual witness reply, and every
+measured parent activation sync fault. Credential renewal crosses original expiry
+at 160 and activates its successor at 170 with the original signer. Fresh commit
+tests cover credential, policy and roster paths; a lost credential commit reply is
+historically recovered after registry closure without dispatching another commit.
+These are native owner-integration results, not installed foreign-language,
+physical-device, independent-endpoint or final product-ABI qualification. The
+application still owns the original registry lifetime; package adapters and the
+complete root-replacement controller remain required.
+
+
+### Registry admission through standalone installation entry points
+
+`InstallationAdmission::managed` carries the original required witness and
+`JournalAccountAuthority` together into `DeviceInstallation::activate`,
+`reopen_session` and `reopen_continued_session`. Existing unmanaged callers may
+continue passing `Option<AnchorClient>`; bound journals still reject that form.
+The private admission fields prevent callers from substituting an unanchored
+managed mode. Activation alone may explicitly adopt an unbound witnessed journal,
+using the same genesis-before-binding ordering as enrollment. Session reopening
+requires an existing exact registry binding and never performs adoption.
+
+These entry points keep the original registry checks through current-policy and
+completed-continuation admission. The continued-session regression uses real
+independent witness G/T approval, expiry of P0, both enrolled endpoints and an
+actual rekey before standalone reopening at time 170. The original archived
+session and cached ciphertext survive; registry closure denies further release.
+Other regressions cover initial activation, refusal to adopt during reopening,
+missing/wrong/closed registry admission before dispatch and closure immediately
+after a signed witness reply. This is native entry-point coverage. Foreign
+registry ownership, installed package use of the new managed admission and the
+full root-replacement controller remain separate unqualified boundaries.

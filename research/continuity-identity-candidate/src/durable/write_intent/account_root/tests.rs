@@ -8,6 +8,12 @@ use std::{
 #[path = "tests/support.rs"]
 mod support;
 use support::*;
+#[path = "tests/account_authority.rs"]
+mod account_authority;
+#[path = "tests/account_preparation.rs"]
+mod account_preparation;
+#[path = "tests/journal_authority.rs"]
+mod journal_authority;
 #[path = "tests/peer_retirement.rs"]
 mod peer_retirement;
 
@@ -487,18 +493,35 @@ fn account_root_local_process_child() {
         JournalKey::open(&path.join("key")).expect("original key"),
         f.local_device(),
         journal,
-        pin,
+        pin.clone(),
         p,
     )
     .expect("original child recovery");
-    if std::env::var("QPERIAPT_ROOT_FENCE_CUT")
-        .expect("selected cut")
-        .starts_with("receipt-")
-    {
+    let cut = std::env::var("QPERIAPT_ROOT_FENCE_CUT").expect("selected cut");
+    if cut.starts_with("receipt-") {
         r.retain_witness_retirement(
             &fs::read(path.join("receipt")).expect("original signed reply"),
         )
         .expect("child receipt retention");
+    } else if cut.starts_with("handoff-") {
+        let plan = crate::AnchorAccountReplacementPlan::from_trusted_state(
+            &fs::read(path.join("original-plan")).expect("original independent intent"),
+        )
+        .expect("exact original plan");
+        let closed = pin
+            .verify_closed_account_preparation(
+                &plan,
+                &fs::read(path.join("original-noncommit")).expect("original proof"),
+            )
+            .expect("authenticated original non-commit");
+        let next = Proposal::from_trusted_state(
+            &fs::read(path.join("approved-next")).expect("separate target approval"),
+        )
+        .expect("approved exact next proposal");
+        let transition = AccountRootJournalTransition::from_closed_preparation(closed, next)
+            .expect("independently approved transition");
+        r.transition_after_noncommit(&transition)
+            .expect("child durable handoff");
     }
     fs::write(path.join("returned"), b"returned").expect("child API return marker");
 }

@@ -335,7 +335,7 @@ impl Image {
             .find(|(_, p)| p.predecessors.iter().any(|e| e.subject == subject))
     }
     pub(super) fn require_live(&self, subject: AnchorSubject) -> Result<(), DurableError> {
-        if self.subject_retired(subject) {
+        if self.subject_retired(subject) || self.subject_frozen(subject) {
             return Err(Error::Scope.into());
         }
         Ok(())

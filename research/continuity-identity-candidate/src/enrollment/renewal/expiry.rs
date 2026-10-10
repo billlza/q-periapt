@@ -183,13 +183,7 @@ impl DeviceEnrollment {
         grant.resolve_established(&original, admission.policy)?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, policy.original());
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            policy.original(),
-            None,
-        )?;
+        let mut service = self.reconcile_installation(&original, policy.original(), None)?;
         let journal = service.stores()?.0;
         if journal.identity()? != journal_id {
             return Err(DurableError::Conflict);

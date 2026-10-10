@@ -642,6 +642,7 @@ pub(super) fn authorize_device(
     device: &VerifiedDevice,
     now: u64,
 ) -> Result<(), DurableError> {
+    image.check_account_authorities(&[device.account_id()])?;
     require_original_operational_policy(image)?;
     let saved = get(image, &device.account_id()).map_err(|error| {
         if matches!(error, DurableError::Absent) {
@@ -979,6 +980,7 @@ pub(super) fn authorize_retained_context_authority(
     context: &BootstrapContext,
     now: u64,
 ) -> Result<(), DurableError> {
+    image.check_context_authorities(context)?;
     if context.retained_binding().is_none() {
         return Err(DurableError::Conflict);
     }
@@ -1012,6 +1014,7 @@ fn authorize_bootstrap_peer(
     device: &VerifiedDevice,
     now: u64,
 ) -> Result<(), DurableError> {
+    image.check_account_authorities(&[device.account_id()])?;
     match get(image, &device.account_id()) {
         Ok(current) => {
             current.require_live_account()?;
@@ -1108,6 +1111,7 @@ impl DeviceJournal {
         authorize_peer_installation(&image, scope, policy, now)?;
         self.check_operational_release(&image, policy, now)?;
         let successor = renewal.successor_device();
+        image.check_account_authorities(&[successor.account_id()])?;
         let saved = get(&image, &successor.account_id())?;
         saved.require_live_account()?;
         let target = successor.roster().checkpoint();
@@ -1126,6 +1130,7 @@ impl DeviceJournal {
             saved.roster.authorize_device(successor, now)?;
             authorize_peer_installation(&image, scope, policy, now)?;
             self.check_operational_release(&image, policy, now)?;
+            image.check_account_authorities(&[successor.account_id()])?;
             return Ok(target);
         }
         let updated = saved.advance_with_renewal(successor.roster(), Some(renewal))?;
@@ -1139,6 +1144,7 @@ impl DeviceJournal {
         authorize_peer_installation(&image, scope, policy, now)?;
         crate::installation::admit(successor, policy, now)?;
         self.check_operational_release(&image, policy, now)?;
+        image.check_account_authorities(&[successor.account_id()])?;
         Ok(target)
     }
     pub(crate) fn prepare_bootstrap_context(
@@ -1165,6 +1171,7 @@ impl DeviceJournal {
         };
         authorize_bootstrap_peer(&image, context.device(remote), now)?;
         self.check_release(&image)?;
+        image.check_context_authorities(&context)?;
         context.check(now)?;
         Ok(context)
     }
@@ -1179,6 +1186,7 @@ impl DeviceJournal {
     ) -> Result<RosterCheckpoint, DurableError> {
         roster.check_time(now)?;
         let mut image = self.image()?;
+        image.check_account_authorities(&[roster.account_id()])?;
         let key = id(&roster.account_id());
         let updated = if let Some(saved) = image.records.get(&key) {
             let saved = decode(&key, saved)?;
@@ -1195,6 +1203,7 @@ impl DeviceJournal {
             }
             if new == old {
                 self.check_release(&image)?;
+                image.check_account_authorities(&[roster.account_id()])?;
                 return Ok(old);
             }
             saved.advance(roster)?
@@ -1213,6 +1222,7 @@ impl DeviceJournal {
         image.records.insert(key, updated.record()?);
         self.persist(&mut image)?;
         self.check_release(&image)?;
+        image.check_account_authorities(&[roster.account_id()])?;
         Ok(roster.checkpoint())
     }
     /// Read-only head reconciliation. This grants no message or dispatch authority.
@@ -1246,7 +1256,8 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<(), DurableError> {
         authorize_context(image, context, now)?;
-        self.check_release(image)
+        self.check_release(image)?;
+        image.check_context_authorities(context)
     }
     pub(super) fn check_session_context_release(
         &mut self,
@@ -1256,7 +1267,8 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         self.check_policy(context.original_policy())?;
         authorize_session_context(image, context, now)?;
-        self.check_operational_release(image, context.current_policy()?, now)
+        self.check_operational_release(image, context.current_policy()?, now)?;
+        image.check_context_authorities(context)
     }
 }
 

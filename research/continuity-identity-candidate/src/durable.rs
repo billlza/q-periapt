@@ -38,7 +38,10 @@ const HEADER: usize = 8 + 32 + 32 + 8 + 24;
 const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
+mod account_authority;
 mod anchoring;
+pub(crate) use account_authority::AccountAuthorityOpen;
+pub use account_authority::JournalAccountAuthority;
 mod cancellation;
 pub use cancellation::{
     BootstrapCancellation, BootstrapCancellationJournal, BootstrapEntry, BootstrapOperationId,
@@ -77,7 +80,10 @@ pub use publication::{
     PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
     PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
 };
-pub use write_intent::account_root::{AccountRootJournalRecovery, AccountRootJournalState};
+pub(crate) use write_intent::account_root::transfer as account_root_transfer;
+pub use write_intent::account_root::{
+    AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
+};
 pub(crate) use write_intent::CredentialCancellationTarget;
 pub(crate) use write_intent::WitnessedCredentialIntent;
 
@@ -273,6 +279,16 @@ impl JournalKey {
         hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
             .expand(
                 b"Q-PERIAPT-CONTINUITY-ENROLLMENT-STATE-KEY/v1",
+                key.as_mut_bytes(),
+            )
+            .map_err(|_| Error::Provider)?;
+        Ok(key)
+    }
+    pub(crate) fn account_authority_key(&self) -> Result<ZeroizingBytes<32>, Error> {
+        let mut key = ZeroizingBytes::zeroed();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
+            .expand(
+                b"Q-PERIAPT-CONTINUITY-ACCOUNT-AUTHORITY-KEY/v1",
                 key.as_mut_bytes(),
             )
             .map_err(|_| Error::Provider)?;
@@ -540,6 +556,8 @@ struct Image {
     digest: [u8; 32],
     protection: Protection,
     records: BTreeMap<[u8; 32], Record>,
+    account_authority: Option<account_authority::Scope>,
+    authority_access: Option<crate::AccountAuthorityAccess>,
     // Evidence held by the original enrollment owner; absent from encoded journal bytes.
     enrollment_completion: Option<std::sync::Arc<crate::enrollment::EnrollmentPolicyCompletion>>,
 }
@@ -569,6 +587,7 @@ struct Active {
     id: [u8; 32],
     protection: Protection,
     anchor: Option<AttachedAnchor>,
+    account_authority: Option<JournalAccountAuthority>,
     enrollment_completion: Option<std::sync::Arc<crate::enrollment::EnrollmentPolicyCompletion>>,
 }
 
@@ -627,6 +646,8 @@ impl DeviceJournal {
             digest: [0; 32],
             protection,
             records: rosters::genesis(device)?,
+            account_authority: None,
+            authority_access: None,
             enrollment_completion: None,
         };
         let sealed = seal(&key, &image)?;
@@ -658,6 +679,7 @@ impl DeviceJournal {
                 id,
                 protection,
                 anchor: None,
+                account_authority: None,
                 enrollment_completion: None,
             }),
         })
@@ -676,6 +698,7 @@ impl DeviceJournal {
         if image.local_account != device.account_id() {
             return Err(DurableError::Conflict);
         }
+        account_authority::admit_reopen(&image, None, &key, None)?;
         Ok(Self {
             active: Some(Active {
                 db,
@@ -684,6 +707,7 @@ impl DeviceJournal {
                 id: image.id,
                 protection: image.protection,
                 anchor: None,
+                account_authority: None,
                 enrollment_completion: None,
             }),
         })
@@ -730,7 +754,9 @@ impl DeviceJournal {
         let active = self.active.as_mut().ok_or(DurableError::Closed)?;
         let result = load(&active.db, &active.key, active.owner).and_then(|mut image| {
             if image.id == active.id && image.protection == active.protection {
+                active.attach_account_authority(&mut image)?;
                 active.check_current(&image)?;
+                active.check_account_authority(&image)?;
                 if let Some(completion) = &active.enrollment_completion {
                     rosters::check_enrollment_policy_completion(&image, completion)?;
                     image.enrollment_completion = Some(std::sync::Arc::clone(completion));
@@ -749,9 +775,11 @@ impl DeviceJournal {
         let result = (|| {
             let sealed = self.seal_next_image(image)?;
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+            active.check_account_authority(image)?;
             write_intent::commit(active, image, &sealed)?;
             image.digest = image_hash(&sealed);
             active.check_current(image)?;
+            active.check_account_authority(image)?;
             #[cfg(all(test, unix))]
             tests::after_commit(image);
             Ok(())
@@ -964,15 +992,12 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
         .records
         .values()
         .any(|r| r.kind == RecordKind::Publication);
-    let mut plaintext = Zeroizing::new(
-        if publication {
-            b"QPVIMG22"
-        } else {
-            b"QPVIMG21"
-        }
-        .to_vec(),
-    );
+    let (outer_tag, inner_tag) = image_tags(publication, image.account_authority.is_some());
+    let mut plaintext = Zeroizing::new(inner_tag.to_vec());
     image.protection.encode(&mut plaintext);
+    if let Some(scope) = image.account_authority {
+        scope.encode(&mut plaintext);
+    }
     plaintext.extend_from_slice(&image.local_account);
     plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
     plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
@@ -1009,12 +1034,7 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
     {
         return Err(DurableError::Capacity);
     }
-    let mut wire = if publication {
-        b"QPVLT022"
-    } else {
-        b"QPVLT021"
-    }
-    .to_vec();
+    let mut wire = outer_tag.to_vec();
     wire.extend_from_slice(&image.id);
     wire.extend_from_slice(&image.owner);
     wire.extend_from_slice(&image.revision.to_be_bytes());
@@ -1036,14 +1056,24 @@ fn unseal(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, Durab
         result => result,
     }
 }
+fn image_tags(publication: bool, managed: bool) -> (&'static [u8; 8], &'static [u8; 8]) {
+    match (publication, managed) {
+        (false, false) => (b"QPVLT021", b"QPVIMG21"),
+        (true, false) => (b"QPVLT022", b"QPVIMG22"),
+        (false, true) => (b"QPVLT023", b"QPVIMG23"),
+        (true, true) => (b"QPVLT024", b"QPVIMG24"),
+    }
+}
 fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image, DurableError> {
     if !(HEADER + 16 + 115..=HEADER + 16 + MAX_IMAGE).contains(&wire.len()) {
         return Err(DurableError::Corrupt);
     }
     let mut outer = Decoder::new(wire);
-    let publication = match outer.array::<8>()? {
-        tag if tag == *b"QPVLT021" => false,
-        tag if tag == *b"QPVLT022" => true,
+    let (publication, managed) = match outer.array::<8>()? {
+        tag if tag == *b"QPVLT021" => (false, false),
+        tag if tag == *b"QPVLT022" => (true, false),
+        tag if tag == *b"QPVLT023" => (false, true),
+        tag if tag == *b"QPVLT024" => (true, true),
         _ => return Err(DurableError::Corrupt),
     };
     let id = outer.array::<32>()?;
@@ -1069,16 +1099,15 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         )
         .map_err(|_| DurableError::Authentication)?;
     let mut inner = Decoder::new(&bytes);
-    if inner.array::<8>()?
-        != *(if publication {
-            b"QPVIMG22"
-        } else {
-            b"QPVIMG21"
-        })
-    {
+    if inner.array::<8>()? != *image_tags(publication, managed).1 {
         return Err(DurableError::Corrupt);
     }
     let protection = Protection::decode(&mut inner)?;
+    let account_authority = if managed {
+        Some(account_authority::Scope::decode(&mut inner)?)
+    } else {
+        None
+    };
     let local_account = inner.array::<32>()?;
     let next_fanout = inner.u64()?;
     let count = usize::from(inner.u16()?);
@@ -1183,8 +1212,13 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         digest: image_hash(wire),
         protection,
         records,
+        account_authority,
+        authority_access: None,
         enrollment_completion: None,
     };
+    if let Some(scope) = image.account_authority {
+        scope.check_shape(&image)?;
+    }
     cancellation::validate_image(&image)?;
     prekeys::validate_image(&image).map_err(|_| DurableError::Corrupt)?;
     if publication

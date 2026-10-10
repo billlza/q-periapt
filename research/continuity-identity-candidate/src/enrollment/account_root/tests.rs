@@ -13,6 +13,10 @@ use std::{
 
 #[path = "process.rs"]
 mod process;
+#[path = "registry_activation_tests.rs"]
+mod registry_activation;
+#[path = "transition_tests.rs"]
+mod transition;
 
 pub(super) fn at_boundary(stage: &str, after: bool) {
     let Some(path) = std::env::var_os("QPERIAPT_ROOT_PARENT_DIR") else {
@@ -73,6 +77,9 @@ fn paths(path: &Path) -> EnrollmentPaths {
     .expect("enrollment paths")
 }
 fn account(path: &Path, policy: &VerifiedSessionPolicy) -> Account {
+    account_at(path, policy, 200, 150)
+}
+fn account_at(path: &Path, policy: &VerifiedSessionPolicy, until: u64, now: u64) -> Account {
     fs::DirBuilder::new()
         .mode(0o700)
         .create(path)
@@ -86,15 +93,15 @@ fn account(path: &Path, policy: &VerifiedSessionPolicy) -> Account {
             [7; 16],
             1,
             policy.family(),
-            Validity::new(100, 200).expect("validity"),
+            Validity::new(100, until).expect("validity"),
         )
         .expect("intent"),
     );
     let mut owner =
         DeviceEnrollment::provision(paths.clone(), intent.clone()).expect("original enrollment");
-    let wire = owner.request(150).expect("original request");
-    let request = VerifiedEnrollmentRequest::verify(&wire, &intent, 150).expect("proof");
-    let cert = root.issue_enrollment(&request, 150).expect("grant");
+    let wire = owner.request(now).expect("original request");
+    let request = VerifiedEnrollmentRequest::verify(&wire, &intent, now).expect("proof");
+    let cert = root.issue_enrollment(&request, now).expect("grant");
     let roster = root
         .issue_roster(
             1,
@@ -110,12 +117,12 @@ fn account(path: &Path, policy: &VerifiedSessionPolicy) -> Account {
     )
     .expect("pin");
     let device = pin
-        .verify_device(&cert, roster.as_bytes(), 150)
+        .verify_device(&cert, roster.as_bytes(), now)
         .expect("device");
     owner
-        .accept(&cert, roster.as_bytes(), &pin, policy, 150)
+        .accept(&cert, roster.as_bytes(), &pin, policy, now)
         .expect("accept");
-    let genesis = match owner.prepare(policy, 150).expect("prepare target") {
+    let genesis = match owner.prepare(policy, now).expect("prepare target") {
         InstallationPreparation::RequiresEnrollment(g) => Ok(g),
         _ => Err("local-only preparation"),
     }
@@ -130,6 +137,9 @@ fn account(path: &Path, policy: &VerifiedSessionPolicy) -> Account {
     }
 }
 fn fixture() -> Fixture {
+    fixture_with_target_until(200)
+}
+fn fixture_with_target_until(until: u64) -> Fixture {
     let dir = crate::durable::tests::directory();
     let path = dir.path().canonicalize().expect("canonical parent");
     let mut store = AnchorStore::provision(
@@ -148,7 +158,7 @@ fn fixture() -> Fixture {
         .verify(issued.as_bytes(), runtime, 150)
         .expect("policy");
     let original = account(&path.join("original"), &policy);
-    let target = account(&path.join("target"), &policy);
+    let target = account_at(&path.join("target"), &policy, until, 150);
     store
         .enroll(&original.genesis, &original.device, &policy, 150)
         .expect("old witness admission");

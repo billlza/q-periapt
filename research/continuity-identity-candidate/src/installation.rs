@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Durable service initialization above the existing journal and archive owners.
+use crate::durable::AccountAuthorityOpen;
 use crate::{
     bootstrap,
     crypto::digest,
@@ -17,9 +18,11 @@ use std::{
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_installation_v1");
 const TAG: &[u8; 8] = b"QPCINS01";
 
+mod admission;
 mod recovery;
 mod reopen;
 mod retired;
+pub use admission::InstallationAdmission;
 pub use recovery::{InstallationRecovery, InstalledAccountRecovery, InstalledSessionRecovery};
 pub use reopen::{BootstrapPeer, ReopenedPeer, ReopenedSession};
 pub use retired::RetiredInstallationRecovery;
@@ -504,17 +507,34 @@ impl DeviceInstallation {
     /// witness, then durably record Active before releasing any operational owner.
     /// None is permitted only for an originally local-only policy. Unknown commits
     /// return no service; reopen the original configuration to reconcile its phase.
+    /// Managed journals require their original [`InstallationAdmission`], which
+    /// also permits explicit initial binding after genesis validation.
     pub fn activate(
+        self,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        admission: impl Into<InstallationAdmission>,
+    ) -> Result<DeviceService, DurableError> {
+        self.activate_admitted(key, device, policy, now, admission.into())
+    }
+    pub(crate) fn activate_admitted(
         mut self,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         now: u64,
-        anchor: Option<AnchorClient>,
+        admission: InstallationAdmission,
     ) -> Result<DeviceService, DurableError> {
         self.check(&key, device, policy, now)?;
         let phase = self.status()?;
-        let (mut journal, mut archives) = self.open_children(key, device, policy, anchor)?;
+        let mode = match &admission.account {
+            Some(authority) => AccountAuthorityOpen::Bind(authority.clone()),
+            None => AccountAuthorityOpen::Existing(None),
+        };
+        let (mut journal, mut archives) =
+            self.open_children(key, device, policy, admission.anchor, mode)?;
         if phase == InstallationStatus::Creating {
             journal.check_installation_state(device, policy, true)?;
             if !archives.session_ids()?.is_empty() {
@@ -535,6 +555,9 @@ impl DeviceInstallation {
             if self.status()? != InstallationStatus::Active {
                 return Err(DurableError::Conflict);
             }
+        }
+        if let Some(authority) = admission.account {
+            journal.adopt_account_authority(authority)?;
         }
         admit(device, policy, now)?;
         journal.check_installation_state(device, policy, false)?;
@@ -557,8 +580,10 @@ impl DeviceInstallation {
         key: JournalKey,
         original: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
-        anchor: Option<AnchorClient>,
+        admission: impl Into<InstallationAdmission>,
     ) -> Result<DeviceService, DurableError> {
+        let admission = admission.into();
+        let anchor = admission.anchor;
         let policy = policy.as_ref();
         if policy.anchor_requirement().binding().is_some() && anchor.is_none() {
             return Err(DurableError::AnchorRequired);
@@ -570,7 +595,13 @@ impl DeviceInstallation {
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        let (mut journal, archives) = installation.open_children(key, original, policy, anchor)?;
+        let (mut journal, archives) = installation.open_children(
+            key,
+            original,
+            policy,
+            anchor,
+            AccountAuthorityOpen::Existing(admission.account),
+        )?;
         journal.check_installation_state(original, policy, false)?;
         Ok(DeviceService {
             active: Some(ServiceOwners {
@@ -591,20 +622,24 @@ impl DeviceInstallation {
         device: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
+        account: AccountAuthorityOpen,
     ) -> Result<(DeviceJournal, SessionArchiveStore), DurableError> {
         let policy = policy.as_ref();
-        let journal = match (policy.anchor_requirement().binding(), anchor) {
-            (None, None) => DeviceJournal::open(&self.paths.journal, key, device, self.identity)?,
-            (Some(_), Some(client)) => DeviceJournal::open_anchored_retained(
+        let journal = match (policy.anchor_requirement().binding(), anchor, account) {
+            (None, None, AccountAuthorityOpen::Existing(None)) => {
+                DeviceJournal::open(&self.paths.journal, key, device, self.identity)?
+            }
+            (Some(_), Some(client), account) => DeviceJournal::open_anchored_admitted(
                 &self.paths.journal,
                 key,
                 device,
                 policy,
                 self.identity,
                 client,
+                account,
             )?,
-            (Some(_), None) => return Err(DurableError::AnchorRequired),
-            (None, Some(_)) => return Err(DurableError::Conflict),
+            (_, None, _) => return Err(DurableError::AnchorRequired),
+            (None, Some(_), _) => return Err(DurableError::Conflict),
         };
         let archives = SessionArchiveStore::open(&self.paths.archives, self.identity)?;
         archives.check_journal(&journal)?;

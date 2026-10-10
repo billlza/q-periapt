@@ -38,22 +38,37 @@ fn account_root_enrollment_process_child() {
     let p =
         Proposal::from_trusted_state(&fs::read(path.join("proposal")).expect("original proposal"))
             .expect("proposal");
-    let mut recovery = AccountRootEnrollmentRecovery::resume_original(
-        paths(&path),
-        intent,
-        AnchorPin::new(identity, public),
-        p,
-    )
-    .expect("original recovery");
-    if std::env::var("QPERIAPT_ROOT_PARENT_CUT")
-        .expect("cut")
-        .starts_with("receipt-")
-    {
+    let pin = AnchorPin::new(identity, public);
+    let mut recovery =
+        AccountRootEnrollmentRecovery::resume_original(paths(&path), intent, pin.clone(), p)
+            .expect("original recovery");
+    let cut = std::env::var("QPERIAPT_ROOT_PARENT_CUT").expect("cut");
+    if cut.starts_with("receipt-") {
         recovery
             .retain_witness_retirement(
                 &fs::read(path.join("receipt")).expect("signed original receipt"),
             )
             .expect("retain decision");
+    } else if cut.starts_with("handoff-") || cut.starts_with("child-handoff-") {
+        let plan = crate::AnchorAccountReplacementPlan::from_trusted_state(
+            &fs::read(path.join("original-plan")).expect("original approved plan"),
+        )
+        .expect("exact original plan");
+        let closed = pin
+            .verify_closed_account_preparation(
+                &plan,
+                &fs::read(path.join("noncommit")).expect("original witness proof"),
+            )
+            .expect("authenticated original non-commit");
+        let next = Proposal::from_trusted_state(
+            &fs::read(path.join("approved-next")).expect("independent next approval"),
+        )
+        .expect("exact next proposal");
+        let transition = crate::AccountRootJournalTransition::from_closed_preparation(closed, next)
+            .expect("scoped original transition");
+        recovery
+            .transition_after_noncommit(&transition)
+            .expect("parent then child transition");
     }
     fs::write(path.join("returned"), b"returned").expect("API return marker");
 }

@@ -415,6 +415,7 @@ fn faulty(c: &Case, after: bool) -> (DeviceEnrollment, Arc<AtomicUsize>, Arc<Ato
             paths: c.paths.clone(),
             intent: c.intent.clone(),
             binding,
+            account_authority: None,
         },
         remaining,
         count,

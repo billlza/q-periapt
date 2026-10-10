@@ -201,6 +201,10 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<(), DurableError> {
         let result = (|| {
+            self.active
+                .as_ref()
+                .ok_or(DurableError::Closed)?
+                .check_account_authority(image)?;
             let Some((operation, current)) =
                 rosters::continued_witness_admission(image, policy, now)?
             else {
@@ -222,6 +226,10 @@ impl DeviceJournal {
             }
             policy.check_device(&current, now)?;
             crate::installation::admit_policy(policy, now)?;
+            self.active
+                .as_ref()
+                .ok_or(DurableError::Closed)?
+                .check_account_authority(image)?;
             Ok(())
         })();
         if result.is_err() {
@@ -230,11 +238,12 @@ impl DeviceJournal {
         result
     }
     pub(super) fn check_release(&mut self, image: &Image) -> Result<(), DurableError> {
-        let result = self
-            .active
-            .as_mut()
-            .ok_or(DurableError::Closed)?
-            .check_current(image);
+        let result = (|| {
+            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+            active.check_account_authority(image)?;
+            active.check_current(image)?;
+            active.check_account_authority(image)
+        })();
         if result.is_err() {
             self.close();
         }
@@ -401,6 +410,10 @@ impl DeviceJournal {
                 }
             }
             policy.check_device(device, now)?;
+            self.active
+                .as_ref()
+                .ok_or(DurableError::Closed)?
+                .check_account_authority(&image)?;
             Ok(())
         })();
         if result.is_err() {
@@ -428,12 +441,32 @@ impl DeviceJournal {
         expected_id: JournalIdentity,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
+        Self::open_anchored_admitted(
+            path,
+            key,
+            device,
+            policy,
+            expected_id,
+            client,
+            AccountAuthorityOpen::Existing(None),
+        )
+    }
+    pub(crate) fn open_anchored_admitted(
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        expected_id: JournalIdentity,
+        client: AnchorClient,
+        admission: AccountAuthorityOpen,
+    ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(device);
         let (image, pending) = write_intent::load_snapshot(&db, &key, owner)?;
         if image.id != expected_id.0 || image.local_account != device.account_id() {
             return Err(DurableError::Conflict);
         }
+        let account_authority = admission.admit(&image, pending.as_ref(), &key)?;
         let mut active = Active {
             db,
             key,
@@ -441,6 +474,7 @@ impl DeviceJournal {
             id: image.id,
             protection: image.protection,
             anchor: None,
+            account_authority,
             enrollment_completion: None,
         };
         active.attach(device, policy, client)?;
@@ -449,6 +483,7 @@ impl DeviceJournal {
         }
         let current = load(&active.db, &active.key, owner)?;
         active.check_current(&current)?;
+        active.check_account_authority(&current)?;
         Ok(Self {
             active: Some(active),
         })

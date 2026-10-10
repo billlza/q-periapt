@@ -4,9 +4,18 @@ use super::*;
 use crate::{PolicyCheckpoint, RosterCheckpoint};
 use std::collections::BTreeSet;
 
+pub(super) mod closure;
 mod codec;
+pub use closure::AnchorClosedAccountReplacement;
+mod preparation_closure;
+pub use preparation_closure::AnchorClosedAccountPreparation;
+pub(super) mod freeze;
 mod receipt;
 pub(super) use codec::{decode_records, encode_records};
+pub use freeze::{
+    AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementPlan,
+    AnchorFrozenAccount,
+};
 
 const MAX_PROPOSAL_BYTES: usize = 65_536;
 
@@ -31,7 +40,7 @@ impl AnchorAccountReplacementId {
     }
 }
 
-/// Frozen public metadata within an authenticated account retirement.
+/// Frozen public metadata within an authenticated account freeze or retirement.
 /// This observation alone is not a signed receipt or an operating capability.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AnchorRetiredAccountSubject {
@@ -77,6 +86,7 @@ pub struct AnchorAccountReplacementProposal {
     policy: PolicyCheckpoint,
     policy_validity: Validity,
     frozen: Vec<AnchorRetiredAccountSubject>,
+    preparation: Option<[u8; 32]>,
 }
 impl AnchorAccountReplacementProposal {
     /// Original host-approved operation identity.
@@ -99,8 +109,21 @@ impl AnchorAccountReplacementProposal {
     pub fn predecessors(&self) -> impl Iterator<Item = AnchorSubject> + '_ {
         self.frozen.iter().map(|entry| entry.subject)
     }
+    pub(crate) fn preparation_binding(&self) -> Option<[u8; 32]> {
+        self.preparation
+    }
     pub(crate) fn witness_binding(&self) -> [u8; 32] {
         self.witness
+    }
+    pub(crate) fn authority_transition(
+        &self,
+    ) -> (&PublicKey, &PublicKey, [u8; 32], RosterCheckpoint) {
+        (
+            &self.previous_root,
+            &self.successor_root,
+            self.identity.description.family,
+            self.roster,
+        )
     }
     pub(crate) fn predecessor_observation(
         &self,
@@ -121,6 +144,9 @@ impl AnchorAccountReplacementProposal {
     }
     fn check_shape(&self) -> Result<(), Error> {
         nonzero(&self.witness)?;
+        if let Some(binding) = self.preparation {
+            nonzero(&binding)?;
+        }
         nonzero(&self.genesis)?;
         nonzero(&self.key)?;
         nonzero(&self.target.journal)?;
@@ -189,6 +215,8 @@ impl AnchorAccountReplacementProposal {
 /// Historical local decision, never permission to release an operational owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnchorAccountReplacementState {
+    /// Exact original operation can never commit at this witness; no traffic permission.
+    Closed,
     /// No exact decision; this does not authorize fallback to the previous root.
     Unavailable,
     /// The original complete transition is permanently retained.
@@ -217,7 +245,9 @@ impl AnchorRetiredAccount {
 
 impl Image {
     pub(super) fn require_account_live(&self, account: [u8; 32]) -> Result<(), DurableError> {
-        if self.account_replacements.contains_key(&account) {
+        if self.account_replacements.contains_key(&account)
+            || self.account_freezes.contains_key(&account)
+        {
             return Err(Error::Scope.into());
         }
         Ok(())
@@ -256,7 +286,16 @@ impl Image {
         p: &AnchorAccountReplacementProposal,
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
-        self.require_account_live(p.previous_account())?;
+        if self
+            .account_replacements
+            .contains_key(&p.previous_account())
+        {
+            return Err(Error::Scope.into());
+        }
+        if self.account_closures.contains_key(p.operation.as_bytes()) {
+            return Err(Error::Retired.into());
+        }
+        self.check_preparation(p)?;
         self.require_account_live(p.successor_account())?;
         if self
             .account_replacements
@@ -282,6 +321,7 @@ impl Image {
         let mut operations = BTreeSet::new();
         for (account, p) in &self.account_replacements {
             p.check_shape()?;
+            self.check_preparation(p)?;
             let target = self
                 .entries
                 .get(&p.target.id(&pin.binding))
@@ -330,6 +370,18 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        self.proposal_for_account(operation, (previous_root, None), genesis, next, policy, now)
+    }
+    fn proposal_for_account(
+        &mut self,
+        operation: AnchorAccountReplacementId,
+        previous: (&PublicKey, Option<[u8; 32]>),
+        genesis: &AnchorGenesis,
+        next: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        let (previous_root, preparation) = previous;
         let validity = self.admit_enrollment(genesis.subject, next, policy, now)?;
         let pin = self.pin()?;
         let image = self.image()?;
@@ -348,6 +400,7 @@ impl AnchorStore {
             policy: policy.checkpoint(),
             policy_validity: policy.validity(),
             frozen: image.account_snapshot(crate::identity::account_id(previous_root), &pin)?,
+            preparation,
         };
         p.check_target(previous_root, genesis, next, policy, &pin)?;
         image.check_new_account_replacement(&p, &pin)?;
@@ -373,6 +426,9 @@ impl AnchorStore {
         let pin = self.pin()?;
         p.check_target(previous_root, genesis, next, policy, &pin)?;
         let mut image = self.image()?;
+        if let Some(closed) = image.closed_account_operation(p)? {
+            return Ok(closed);
+        }
         if let Some(saved) = image.account_replacements.get(&p.previous_account()) {
             return if saved == p {
                 Ok(AnchorAccountReplacementState::Committed)
@@ -406,6 +462,9 @@ impl AnchorStore {
             return Err(Error::Scope.into());
         }
         let image = self.image()?;
+        if let Some(closed) = image.closed_account_operation(p)? {
+            return Ok(closed);
+        }
         match image.account_replacements.get(&p.previous_account()) {
             Some(saved) if saved == p => Ok(AnchorAccountReplacementState::Committed),
             Some(_) => Err(DurableError::Conflict),

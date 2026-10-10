@@ -82,13 +82,7 @@ impl DeviceEnrollment {
         completed
             .approval
             .check_context_policy(original_policy, policy)?;
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            original_policy,
-            Some(client),
-        )?;
+        let mut service = self.reconcile_installation(&original, original_policy, Some(client))?;
         let journal = service.stores()?.0;
         if journal.identity()? != id {
             return Err(DurableError::Conflict);

@@ -645,14 +645,8 @@ impl DeviceEnrollment {
                     {
                         return Err(DurableError::Conflict);
                     }
-                    let mut journal = DeviceJournal::open_anchored_retained(
-                        path,
-                        self.key()?,
-                        &original,
-                        original_policy,
-                        id,
-                        client,
-                    )?;
+                    let mut journal =
+                        self.open_original_journal(&original, original_policy, id, client)?;
                     let authority = RetainedInstallationAuthority::active_installation(
                         &original,
                         original_policy,
@@ -1003,6 +997,7 @@ impl DeviceEnrollment {
             let command = match action {
                 RenewalAction::Observe => None,
                 RenewalAction::Commit(current) => {
+                    self.authorize_journal_commit(&original, id)?;
                     let adopted = renewal
                         .adopted_policy
                         .as_deref()
@@ -1138,13 +1133,7 @@ impl DeviceEnrollment {
                 .ok_or(DurableError::Conflict)?,
         )?;
         adopted.check_context_policy(original_policy, policy)?;
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            original_policy,
-            Some(anchor),
-        )?;
+        let mut service = self.reconcile_installation(&original, original_policy, Some(anchor))?;
         let journal = service.stores()?.0;
         if journal.identity()? != id {
             return Err(DurableError::Conflict);
@@ -1164,13 +1153,7 @@ impl DeviceEnrollment {
         let original = self.original_device(&image, now)?;
         let current = self.admitted_renewed(&image, policy, now)?;
         let authority = RetainedInstallationAuthority::active_installation(&original, policy);
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            policy,
-            anchor,
-        )?;
+        let mut service = self.reconcile_installation(&original, policy, anchor)?;
         let journal = service.stores()?.0;
         let Phase::Accepted {
             admission, stage, ..

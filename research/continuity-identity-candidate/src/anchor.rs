@@ -17,12 +17,14 @@ mod policy_renewal;
 pub use policy_renewal::{AnchorPolicyRenewalProposal, AnchorPolicyRenewalState};
 mod store;
 pub use store::{
-    AnchorAccountReplacementId, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
-    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredAccount,
-    AnchorRetiredAccountSubject, AnchorRetiredCleanup, AnchorRetiredCleanupProposal,
-    AnchorRetiredCleanupState, AnchorRetiredReport, AnchorRetiredReportAcknowledgement,
-    AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
-    AnchorRetiredSubject, AnchorStore,
+    AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
+    AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorClosedAccountPreparation, AnchorClosedAccountReplacement,
+    AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorFrozenAccount,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
+    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
+    AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
+    AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};

@@ -47,6 +47,7 @@ impl DeviceJournal {
         }
         roster.check_time(now)?;
         let mut image = self.image()?;
+        image.check_account_authorities(&[roster.account_id()])?;
         authorize(&image, scope, policy, now)?;
         // Initial peer trust is admitted only by the original bootstrap. An
         // update cannot introduce a new account or replace an existing root.
@@ -73,6 +74,7 @@ impl DeviceJournal {
         // cached success after losing the exact local/current-policy authority.
         authorize(&image, scope, policy, now)?;
         if let Some(updated) = updated {
+            image.check_account_authorities(&[roster.account_id()])?;
             image
                 .records
                 .insert(id(&roster.account_id()), updated.record()?);
@@ -80,6 +82,7 @@ impl DeviceJournal {
             self.check_operational_release(&image, policy, now)?;
             authorize(&image, scope, policy, now)?;
         }
+        image.check_account_authorities(&[roster.account_id()])?;
         Ok(target)
     }
 }

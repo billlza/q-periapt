@@ -923,3 +923,9 @@ fn account_root_process_loss_after_commit_preserves_exact_decision_and_frozen_he
     assert_eq!(query(&mut c, &next).outcome(), AnchorOutcome::Current);
     eprintln!("ANCHOR_ACCOUNT_REPLACEMENT_PROCESS commit_before_return=true original_genesis_recovered=true exact_retry=true frozen_head_preserved=true old_scope_denied=true new_current=true");
 }
+
+#[path = "account_freeze_tests.rs"]
+mod preparation_freeze;
+
+#[path = "account_closure_tests.rs"]
+mod closure;

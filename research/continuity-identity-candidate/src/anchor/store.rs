@@ -24,7 +24,9 @@ mod image_version;
 use image_version::ImageVersion;
 mod account_replacement;
 pub use account_replacement::{
-    AnchorAccountReplacementId, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
+    AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorClosedAccountPreparation, AnchorClosedAccountReplacement, AnchorFrozenAccount,
     AnchorRetiredAccount, AnchorRetiredAccountSubject,
 };
 mod replacement;
@@ -74,6 +76,8 @@ struct Image {
     retired_cleanup: BTreeMap<[u8; 32], AnchorRetiredCleanupProposal>,
     retired_reports: BTreeMap<[u8; 32], retired_report::ReportRecord>,
     account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
+    account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
+    account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
 }
 struct Active {
     db: Database,
@@ -106,6 +110,8 @@ impl AnchorStore {
             retired_cleanup: BTreeMap::new(),
             retired_reports: BTreeMap::new(),
             account_replacements: BTreeMap::new(),
+            account_freezes: BTreeMap::new(),
+            account_closures: BTreeMap::new(),
         };
         let bytes = encode(&wrapping, &pin, &image)?;
         let db = provision_private_database(path, |db| {
@@ -409,7 +415,7 @@ impl AnchorStore {
         let pin = self.pin()?;
         let request = incoming(&pin, wire)?;
         let mut image = self.image()?;
-        if image.subject_retired(request.subject) {
+        if image.subject_retired(request.subject) || image.subject_frozen(request.subject) {
             return Err(Error::Scope.into());
         }
         let entry = image
@@ -728,7 +734,11 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     image.check_retired_cleanup(pin)?;
     image.check_retired_reports(pin)?;
     image.check_account_replacements(pin)?;
-    let account_format = !image.account_replacements.is_empty();
+    image.check_account_freezes(pin)?;
+    image.check_account_closures()?;
+    let closure_format = !image.account_closures.is_empty();
+    let freeze_format = closure_format || !image.account_freezes.is_empty();
+    let account_format = freeze_format || !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
     let report_format = account_format || !image.retired_reports.is_empty();
     let cleanup_format = report_format || !image.retired_cleanup.is_empty();
@@ -772,7 +782,11 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if account_format {
+    let mut bytes = if closure_format {
+        b"QPANC017".to_vec()
+    } else if freeze_format {
+        b"QPANC016".to_vec()
+    } else if account_format {
         b"QPANC015".to_vec()
     } else if acknowledged_report_format {
         b"QPANC014".to_vec()
@@ -842,6 +856,12 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     }
     if account_format {
         account_replacement::encode_records(&image.account_replacements, &mut bytes)?;
+    }
+    if freeze_format {
+        account_replacement::freeze::encode_records(&image.account_freezes, &mut bytes)?;
+    }
+    if closure_format {
+        account_replacement::closure::encode_records(&image.account_closures, &mut bytes)?;
     }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -1018,12 +1038,23 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             BTreeMap::new()
         };
         let account_replacements = if version >= ImageVersion::V15 {
-            account_replacement::decode_records(&mut d)?
+            account_replacement::decode_records(&mut d, version >= ImageVersion::V16)?
+        } else {
+            BTreeMap::new()
+        };
+        let account_freezes = if version >= ImageVersion::V16 {
+            account_replacement::freeze::decode_records(&mut d, version >= ImageVersion::V17)?
+        } else {
+            BTreeMap::new()
+        };
+        let account_closures = if version >= ImageVersion::V17 {
+            account_replacement::closure::decode_records(&mut d)?
         } else {
             BTreeMap::new()
         };
         d.finish()?;
         if version >= ImageVersion::V10
+            && version < ImageVersion::V16
             && !entries
                 .values()
                 .any(|entry| entry.original_identity.is_some())
@@ -1038,11 +1069,15 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             retired_cleanup,
             retired_reports,
             account_replacements,
+            account_freezes,
+            account_closures,
         };
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
         image.check_retired_reports(pin)?;
         image.check_account_replacements(pin)?;
+        image.check_account_freezes(pin)?;
+        image.check_account_closures()?;
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }
