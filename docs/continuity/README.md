@@ -6,10 +6,20 @@ checkpoint below does not mark the required product protocol complete.
 
 > **Current boundary: G0 complete; G1 remains open.** The isolated candidate now
 > executes authenticated bootstrap, persistent messages, hybrid rekey, witness
-> reconciliation and cleanup through actual installed Rust packages. Candidate
-> wire, state, storage and metadata contracts describe that implementation;
-> product protocol freeze, construction analysis, complete device lifecycle and
-> installed foreign interfaces remain required.
+> reconciliation and cleanup, with scoped installed Rust, C, Swift and Kotlin/JVM
+> checkpoints. Candidate wire, state, storage and metadata contracts describe
+> that implementation. Product protocol freeze, construction analysis, complete
+> authority lifecycle and current-source platform qualification remain required.
+
+New native integrations start with the explicit configuration and registration
+entry points: [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
+[Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), or
+[Kotlin/JVM](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration-unpublished-candidate).
+These entries generate their own installation wrapping key and device signing
+identity after independently supplied inputs are admitted. Account approval,
+credential issuance and required-witness enrollment remain host-authorized steps.
+The [product admission record](PRODUCT_ADMISSION.md) separates these implemented
+paths from the remaining platform, protocol and release requirements.
 
 This directory separates candidate specification text from the high-level research
 plan in [`../CONTINUITY_RESEARCH.md`](../CONTINUITY_RESEARCH.md). A file appearing

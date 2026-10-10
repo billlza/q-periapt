@@ -3,12 +3,31 @@
 Status: unpublished product integration. The initial adapter review used
 `7997282c00342325c79d3c3d2b9d086e718df1e7`; subsequent native account-member
 carrier work is noted below.
-This records implementation work still required for 0.2.0. It is not a frozen
-foreign ABI, a completed provisioning interface or permission to publish the
-candidate packages. Product ABI major 2 and the existing KEM/KAT contracts remain
-unchanged. The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
+This records implemented boundaries and work still required for 0.2.0. The
+candidate interface and protocol are not frozen or admitted for publication.
+Product ABI major 2 and the existing KEM/KAT contracts remain unchanged.
+The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
 
 ## What the installed consumers currently establish
+
+New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
+[C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
+[Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), and
+[Kotlin/JVM](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration-unpublished-candidate).
+Preparation copies the host's SDK trust/policy, independently pinned protocol
+policy and local TLS inputs. Finishing validates them and publishes the original
+configuration, SDK store and generated wrapping key. Creating enrollment then
+owns a generated device signer and original public request. The host independently
+authenticates the account, approves the intent, obtains the signed grant and
+enrolls any required witness. Unknown creation results reconcile the same inputs;
+opening committed configuration never chooses a new lineage after an error.
+
+The [first-use expiry checkpoint](../../research/sdk-alpha1/evidence/20261010-first-configuration-expiry-integration/CHECKS.json)
+records C/Swift/Kotlin flows that refuse activation after actual protocol-policy
+expiry, obtain independent renewal and recover the original session/message with
+one receiver effect. Those same-host, shared-engine checks do not qualify SDK
+policy replacement, independent protocol implementations or every supported
+platform. Complete current-source installed cohorts retain their own gates.
 
 The C adapter's legacy [`Owner`](../../bindings/c/ContinuityPackageConsumer/src/owner.rs)
 contains one `DeviceService`, one device signer, one verified `BootstrapContext`,
@@ -30,7 +49,7 @@ the legacy installation constructor. Same-credential roster refresh and original
 session restoration preserve the original request, signer and journal. Required
 witness activation checks current signed authority; local Active alone cannot
 release an owner after denial or an unavailable reply. The C interface now has
-125 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
+132 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
 authority transport and final provisioning remain independently supplied inputs;
 see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
 
@@ -80,8 +99,8 @@ exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
 binds each result to its source and carrier. Current-source registration package
-qualification, Android/WASM Continuity adapters, replacement/renewal beyond the same credential
-and the broader failure matrix remain required. These finite
+qualification, Android/WASM Continuity adapters, remaining root/witness-key
+replacement and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
 The restricted C retirement owner now delegates to native `RetiredDeviceEnrollment`.
@@ -102,16 +121,19 @@ Cleaner/call lifetime protection. Private Maven consumers run all eight cleanup
 processes under Serial/G1 with both qualified C engine profiles; 54 JVM tests per
 native profile and original registration regressions pass. Complete Kotlin
 distribution and platform qualification remain open.
-Enrollment, replacement authorization and fresh-generation TLS in this scenario
-still use Rust. It does not establish a complete foreign device-replacement flow,
-physical erasure, an independent protocol implementation or physical-device coverage.
+The subsequent [foreign successor checkpoint](../../research/sdk-alpha1/evidence/20261008-foreign-successor-traffic/README.md)
+also exercises original generation-2 creation, resume, activation and fresh TLS
+through C/Swift/Kotlin owners. Replacement authorization and witness decisions
+still use the native authority controller. Complete current-source distributions,
+physical erasure, independent implementations and physical-device coverage remain
+separate requirements.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | Native `DeviceEnrollment`, C registration and typed Swift/Kotlin owners commit the original signer/request, accept independent trust inputs and retain the enrollment lease; legacy setup owners delegate Creating/Active transitions with original configured inputs | Current-source archive/device qualification, Android/WASM persistence, authority transport, broader creation faults and final product provisioning |
+| Explicit new lineage and exact restart | C/Swift/Kotlin configuration owners admit explicit first-use inputs and generate the wrapping key; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Current-source archive/device qualification, Android/WASM persistence, deployed authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
-| Authority lifecycle | Signed roster checks, original installation/policy/witness bindings, native/C same-credential enrolled roster continuation and explicit witness authority refresh | Complete product enrollment, credential/policy/witness-key replacement, deployed operator refresh, device replacement and independently authorized root replacement |
+| Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; required witnesses retain their explicit authority checks | Complete deployed authority lifecycle, remaining root/witness-key replacement, Android/WASM integration and current-source qualification on every supported platform |
 | Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority | Complete current foreign distribution qualification, foreign replacement authorization, Android/WASM persistence and physical-device evidence |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
@@ -253,16 +275,19 @@ an unknown cross-record activation result resumable without choosing a new linea
 A final live-policy check follows the enrollment commit before releasing owners.
 The ordinary archive-shipped native TLS connection now retains this enrollment
 owner through activation, original-state restart, traffic and rekey, with mandatory
-public identity/readback checks in the package gate. The foreign setup loaders below
-still use their existing protected configuration and have not been switched to this
-enrollment transaction. The signed-TCP roster recovery profile remains a preconfigured installation.
+public identity/readback checks in the package gate. The older setup loaders below
+still use their existing protected configuration; new integrations enter through
+the configuration and enrollment route above. The signed-TCP roster recovery
+profile remains a preconfigured installation.
 The registered session-restoration profile now continues the original enrollment
 through an explicit same-credential roster update and reopens its original session
 without releasing the enrollment lease. Credential/root/policy replacement remains
 outside those traces.
-Wrapping-key creation, trusted account authorization/transport and current response
-checkpoint acquisition remain explicit host inputs. Partial initial files are
-retained/refused; this does not close the complete enrollment/replacement lifecycle.
+The older preconfigured route takes an independently provisioned wrapping key;
+the first-use configuration route above generates it. Trusted account
+authorization/transport and current response checkpoint acquisition remain host
+inputs in both routes. Partial initial files are retained or explicitly reconciled
+against their original creation intent; an error never authorizes replacement.
 
 The native [initialization contract](../../research/continuity-identity-candidate/INSTALLATION.md)
 already distinguishes Creating from Active. A foreign setup owner must expose
@@ -277,9 +302,9 @@ device-parent handle. It reuses the original device authority loader and native
 installation transactions. Local and required-witness traces exercise actual C
 processes, cancellation while a signed reply is held, error cleanup and original
 TCP/TLS activation. Its public subject/genesis outputs authorize no witness
-enrollment by themselves. Current inputs are still the independently prepared
-protected configuration described above; this is not yet a public key enrollment
-or credential-issuance interface.
+enrollment by themselves. This setup route takes the independently prepared
+protected configuration described above; it is separate from the public enrollment
+route and does not issue credentials.
 
 Swift/Kotlin now expose the same explicit setup operations and typed original
 journal/phase/genesis values. Successful activation moves the existing native
@@ -333,19 +358,21 @@ Secret inputs must remain controlled owners or explicitly reviewed transfer APIs
 The test directory's raw TLS-key file and externally prepared signing/prekey files
 are not by themselves a complete public enrollment contract. Account-root issuance,
 device credential issuance and local device operation remain different authorities.
-The product must define renewal/replacement, including retained sessions and loss
-accounting, before accepting a new credential or policy into an Active lineage.
+Renewal/replacement must preserve retained-session and loss-accounting contracts
+before a new credential or policy can authorize operations in an Active lineage.
 
 In particular, extending a device credential's validity changes its signed body
 and credential digest even when its account, device ID, generation and public
 keys are unchanged. `bootstrap::storage_owner` includes that digest. Both
 `DeviceInstallation::open_bound` and the sealed journal header require the
 original owner, so accepting the new credential at the installation layer alone
-cannot implement renewal. Restricted installation recovery only permits accounting
-and closure; successful cleanup is not renewed operational authority. These are
-source-derived constraints, not an executed credential-renewal qualification.
-Installing a newer roster for unchanged credentials is a separate operation;
-existing roster-renewal tests do not qualify replacement credentials.
+cannot implement renewal. The implemented
+[same-key credential-renewal transaction](../../research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md)
+retains that binding and verifies an independent root grant for the exact original,
+predecessor and successor identities. Restricted installation recovery still only
+permits accounting and closure; successful cleanup is not renewed operational
+authority. Installing a newer roster for unchanged credentials is a separate
+operation; roster-only tests do not qualify replacement credentials.
 The native witness now has an explicit
 [`update_roster_authority`](../../research/continuity-identity-candidate/ANCHOR_WITNESS.md#explicit-refresh-under-a-newer-roster)
 for that unchanged-credential case. It takes the retained subject and predecessor
@@ -357,8 +384,9 @@ The archive-shipped Rust consumer makes same-credential refresh and original
 installation recovery a mandatory stage. Its public evidence reader checks exact
 request/commit identities and original bootstrap outbox readback across separate
 device processes. Signed TCP, injected protocol time and a parent-process witness
-are explicit limits; these checks do not qualify the foreign adapters or
-credential replacement.
+are explicit limits of that roster-only profile. Separate
+[installed C/Swift/Kotlin credential-renewal evidence](../../research/sdk-alpha1/evidence/20261004-foreign-credential-renewal-4a9f8c46/)
+is source-bound and does not turn roster-only recovery into credential replacement.
 
 A renewal transaction therefore needs independently authorized old/new bindings,
 the original journal/session/message identities and explicit treatment of retained
@@ -366,8 +394,10 @@ operations, archive ownership and required witnesses. Configuration and journal
 updates must reconcile the same renewal after every interrupted or unknown commit;
 stale or conflicting credentials must not regain send authority. Removing the
 credential digest from the owner or accepting a mismatched header would change the
-existing security contract. Public enrollment, this transaction and its failure
-matrix remain release requirements.
+existing security contract. The implemented public enrollment and renewal paths
+must continue to meet these requirements in current-source package and platform
+qualification. Their finite failure traces do not complete deployed authority
+lifecycle, root/witness-key replacement or the broader failure matrix.
 
 ## Platform and release admission
 

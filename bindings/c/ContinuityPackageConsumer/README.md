@@ -1,6 +1,14 @@
 # Installed Continuity C owner candidate
 
-The current source adds same-key credential renewal on the original registration.
+For a new integration, start with [explicit first-use configuration](#explicit-first-use-configuration).
+That entry validates your independently supplied trust, policy and TLS inputs,
+publishes the initial configuration and wrapping key, then creates the original
+enrollment owner. The host obtains account approval and signed grants from its
+chosen authority. Use the explicit reconcile/open paths for uncertain or existing
+state; an open failure never authorizes creating a replacement identity.
+This is an unpublished `qpc-owner/1` candidate, separate from product SDK ABI 2.
+
+For an existing registration, same-key credential renewal preserves its original identity.
 Resume the original enrollment intent, call `qpc_enrollment_v1_stage_credential_renewal`
 with the exact grant, independent target pin and retained operation, then use the
 existing consuming activation. `qpc_enrollment_v1_credential_renewal_status` reports
@@ -82,13 +90,16 @@ directory pins remain separate from untrusted public bundle bytes.
 
 ## Registering an original device
 
-The registration and policy-continuation route has 34 `qpc_enrollment_v1_*` exports. Together with
-peer-grant admission on the existing Device parent, this unpublished candidate
-interface now declares 90 exports. The new renewal route still requires its own
-installed-package qualification. It retains the whole native
+The registration and policy-continuation route retains the whole native
 `EnrolledDevice`, including its exclusive enrollment lease, inside the existing
 device parent. It does not reopen a preconfigured installation to bypass that
 owner. Product ABI 2 and the legacy constructors remain separate.
+The current export census is described under [first-use configuration](#explicit-first-use-configuration)
+and checked against the [native header](qpc_owner.h).
+
+The configuration entry's `begin_enrollment` reaches step 3 below with its own
+generated wrapping key and original registration. Steps 1 and 2 describe the
+lower-level route for a host that independently prepares the private inputs.
 
 1. Create an admitted private configuration directory and explicitly call
    `provision_wrapping_key` once. Existing registration, signer or installation

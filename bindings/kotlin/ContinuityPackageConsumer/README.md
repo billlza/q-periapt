@@ -2,9 +2,16 @@
 
 This separate, unpublished `dev.qperiapt:q-periapt-continuity-kotlin:0.0.0`
 module calls the existing `qpc-owner/1` C/Rust engine. It is not product ABI 2,
-an Android JNI implementation, or an admitted 0.2.0 release artifact. The current
-ordinary configuration opens the original private qualification installation.
-Explicit setup below reuses independently prepared original trust inputs.
+an Android JNI implementation, or an admitted 0.2.0 release artifact.
+
+For a new installation, start with [first-use configuration](#first-use-configuration-unpublished-candidate):
+`ContinuityConfiguration.prepareCreate(path, input)`, `finishOpen()`, then
+`createEnrollment(intent, witness)`. The SDK publishes its wrapping key and owns
+the original registration identity; the host supplies independent trust inputs,
+authenticates the account and obtains its signed approval. Uncertain publication
+uses `prepareReconcile` with the original inputs; known committed configuration
+uses `prepareOpen`. The older file-configuration and `ContinuitySetup` routes
+below serve independently preconfigured installations.
 
 The source targets Kotlin 2.4.20 and non-preview, 64-bit JDK 25. Select the exact
 installed native library with `-Dqperiapt.continuity.lib=/absolute/library/path`.
