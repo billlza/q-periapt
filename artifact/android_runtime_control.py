@@ -183,14 +183,15 @@ class Control:
         for port in (5554, 5555, 5586):
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", port))
-        # Keep the guest kernel console on the owned host log. A later ADB
-        # disconnect must not also remove our only channel for crash evidence.
+        # Keep both guest consoles independent of ADB. With VirtconsoleLogcat,
+        # logcat and the kernel cannot both own QEMU's stdio character device.
         self.result["guest_kernel_console"] = "emulator.log"
-        self.result["guest_logcat_console"] = "emulator.log"
+        self.result["guest_logcat_console"] = "guest-logcat.log"
         self.spawn("emulator", [str(self.emulator), "-avd", AVD, "-port", "5554",
                    "-no-snapshot", "-read-only", "-no-window", "-no-audio",
                    "-no-boot-anim", "-show-kernel", "-no-direct-adb", "-adb-path", str(self.adb),
                    "-logcat", "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
+                   "-logcat-output", str(self.output / "guest-logcat.log"),
                    "-gpu", "swiftshader"],
                    {**self.environment, "ANDROID_ADB_SERVER_PORT": "5586"})
         deadline = time.monotonic() + 90
