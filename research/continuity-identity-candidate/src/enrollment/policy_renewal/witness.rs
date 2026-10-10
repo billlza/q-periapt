@@ -421,14 +421,7 @@ impl DeviceEnrollment {
                 return Err(DurableError::Suspended);
             }
             let lease = self.witness_lease(&original, original_policy, id)?;
-            let mut journal = DeviceJournal::open_anchored_retained(
-                self.paths.installation.files()[1],
-                self.key()?,
-                &original,
-                original_policy,
-                id,
-                client,
-            )?;
+            let mut journal = self.open_original_journal(&original, original_policy, id, client)?;
             if let Some(completed) = self.policy_enrollment_completion(&image, original_policy)? {
                 journal.retain_enrollment_policy_completion(completed)?;
             }
@@ -605,14 +598,8 @@ impl DeviceEnrollment {
                     {
                         return Err(DurableError::Conflict);
                     }
-                    let mut journal = DeviceJournal::open_anchored_retained(
-                        path,
-                        self.key()?,
-                        &original,
-                        original_policy,
-                        id,
-                        client,
-                    )?;
+                    let mut journal =
+                        self.open_original_journal(&original, original_policy, id, client)?;
                     if let Some(completed) =
                         self.policy_enrollment_completion(&image, original_policy)?
                     {
@@ -815,6 +802,7 @@ impl DeviceEnrollment {
                 match action {
                     Action::Status => {}
                     Action::Commit { target, now, .. } => {
+                        self.authorize_journal_commit(&original, id)?;
                         image.check_time_floor(now)?;
                         admit(&original, target, now)?;
                         let reply = client.exchange(

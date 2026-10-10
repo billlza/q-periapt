@@ -23,6 +23,7 @@ const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_enr
 const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
+mod account_authority;
 mod account_root;
 pub use account_root::{AccountRootEnrollmentRecovery, AccountRootEnrollmentState};
 mod policy_renewal;
@@ -344,6 +345,7 @@ pub struct DeviceEnrollment {
     paths: EnrollmentPaths,
     intent: EnrollmentIntent,
     binding: [u8; 32],
+    account_authority: Option<crate::JournalAccountAuthority>,
 }
 impl DeviceEnrollment {
     /// Commit original intent before dependent signer creation or request release.
@@ -385,6 +387,7 @@ impl DeviceEnrollment {
             paths,
             intent,
             binding,
+            account_authority: None,
         };
         owner.image()?;
         Ok(owner)
@@ -400,6 +403,7 @@ impl DeviceEnrollment {
             paths,
             intent,
             binding,
+            account_authority: None,
         };
         owner.image()?;
         Ok(owner)
@@ -851,7 +855,16 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        let mut service = installation.activate(self.key()?, &device, policy, now, anchor)?;
+        let mut service = installation.activate_admitted(
+            self.key()?,
+            &device,
+            policy,
+            now,
+            crate::installation::InstallationAdmission {
+                anchor,
+                account: self.account_authority.clone(),
+            },
+        )?;
         let Phase::Accepted {
             stage, admission, ..
         } = &mut image.phase

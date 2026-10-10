@@ -372,7 +372,13 @@ impl DeviceInstallation {
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        let (journal, archives) = installation.open_children(key, device, policy, anchor)?;
+        let (journal, archives) = installation.open_children(
+            key,
+            device,
+            policy,
+            anchor,
+            AccountAuthorityOpen::Existing(None),
+        )?;
         let mut service = DeviceService {
             active: Some(ServiceOwners {
                 original_device: device.clone(),

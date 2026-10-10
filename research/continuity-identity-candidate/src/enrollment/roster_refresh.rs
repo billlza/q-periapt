@@ -340,14 +340,8 @@ impl DeviceEnrollment {
                     {
                         return Err(DurableError::Conflict);
                     }
-                    let mut journal = DeviceJournal::open_anchored_retained(
-                        path,
-                        self.key()?,
-                        &original,
-                        original_policy,
-                        id,
-                        client,
-                    )?;
+                    let mut journal =
+                        self.open_original_journal(&original, original_policy, id, client)?;
                     if let Some(completion) = completion {
                         journal.retain_enrollment_policy_completion(completion)?;
                     }
@@ -624,6 +618,7 @@ impl DeviceEnrollment {
                         policy: current,
                         now,
                     } => {
+                        self.authorize_journal_commit(&original, id)?;
                         image.check_time_floor(now)?;
                         let Phase::Accepted { admission, .. } = &image.phase else {
                             return Err(DurableError::Corrupt);

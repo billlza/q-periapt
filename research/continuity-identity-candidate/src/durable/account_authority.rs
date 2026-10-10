@@ -39,6 +39,19 @@ pub struct JournalAccountAuthority {
     access: AccountAuthorityAccess,
 }
 impl JournalAccountAuthority {
+    pub(crate) fn check_enrollment(
+        &self,
+        account: [u8; 32],
+        family: [u8; 32],
+    ) -> Result<(), DurableError> {
+        if self.scope.local.account() != account || self.access.scope().0 != family {
+            return Err(DurableError::Conflict);
+        }
+        self.access.check_accounts(self.scope.local, &[])
+    }
+    pub(crate) fn same_scope(&self, other: &Self) -> bool {
+        self.scope == other.scope
+    }
     /// Bind an independently retained checkpoint to its live original registry.
     pub fn new(
         access: AccountAuthorityAccess,
@@ -118,12 +131,11 @@ impl Active {
     }
 }
 
-pub(super) fn admit_reopen(
+fn retained_scope(
     image: &Image,
     pending: Option<&write_intent::PendingWrite>,
     key: &JournalKey,
-    authority: Option<&JournalAccountAuthority>,
-) -> Result<(), DurableError> {
+) -> Result<Option<Scope>, DurableError> {
     let target = pending
         .map(|p| p.authenticated_target(key, image.owner))
         .transpose()?;
@@ -133,13 +145,52 @@ pub(super) fn admit_reopen(
             return Err(DurableError::Conflict);
         }
     }
-    let required = target_scope.flatten().or(image.account_authority);
+    Ok(target_scope.flatten().or(image.account_authority))
+}
+pub(super) fn admit_reopen(
+    image: &Image,
+    pending: Option<&write_intent::PendingWrite>,
+    key: &JournalKey,
+    authority: Option<&JournalAccountAuthority>,
+) -> Result<(), DurableError> {
+    let required = retained_scope(image, pending, key)?;
     match (required, authority) {
         (None, None) => Ok(()),
         (Some(scope), Some(authority)) if scope == authority.scope => {
             authority.check_original_scope(image)
         }
         _ => Err(DurableError::Conflict),
+    }
+}
+
+// A pending initial binding is allowed only inside the owning installation
+// activation. The caller must commit adopt_account_authority before release.
+pub(crate) enum AccountAuthorityOpen {
+    Existing(Option<JournalAccountAuthority>),
+    Bind(JournalAccountAuthority),
+}
+impl AccountAuthorityOpen {
+    pub(super) fn admit(
+        self,
+        image: &Image,
+        pending: Option<&write_intent::PendingWrite>,
+        key: &JournalKey,
+    ) -> Result<Option<JournalAccountAuthority>, DurableError> {
+        match self {
+            Self::Existing(authority) => {
+                admit_reopen(image, pending, key, authority.as_ref())?;
+                Ok(authority)
+            }
+            Self::Bind(authority) => {
+                if retained_scope(image, pending, key)?.is_some() {
+                    admit_reopen(image, pending, key, Some(&authority))?;
+                    Ok(Some(authority))
+                } else {
+                    authority.check_original_scope(image)?;
+                    Ok(None)
+                }
+            }
+        }
     }
 }
 
@@ -194,7 +245,7 @@ impl DeviceJournal {
             policy.historical(),
             expected_id,
             client,
-            Some(authority),
+            AccountAuthorityOpen::Existing(Some(authority)),
         )
     }
 }

@@ -569,3 +569,51 @@ compose the registry with enrollment recovery; they do not yet make the registry
 target enrollment and foreign service lifetimes one managed product owner.
 Installed language adapters, that owning orchestration and the remaining release
 and platform qualifications remain required.
+
+### Registry admission through enrollment activation
+
+`DeviceEnrollment::with_account_authority` takes the independently retained
+`JournalAccountAuthority` for the original application checkpoint and registry.
+It checks the original account and family against that live owner; it does not
+associate a new root, infer approval from a network message or create a registry.
+Supply it again when reopening the same enrollment. Registry closure invalidates
+its access descriptors; reopening the original registry requires fresh access from
+that owner, not revival of an old descriptor.
+
+Activation opens an already bound journal only with the matching descriptor. For
+an explicitly selected initial binding, it checks original registry permission,
+reconciles the original witnessed journal and validates installation genesis before
+committing the installation. It then persists the registry binding through the
+existing witnessed journal transaction before returning `EnrolledDevice`. A sync
+or witness error may follow commit and returns no owner: retry with the original
+paths, keys, identity and descriptor. Do not switch to the unmanaged entry point.
+An already pending binding must match the original descriptor; authentication,
+scope or storage failure never triggers automatic adoption or a new registry.
+
+The descriptor stays with the enrollment owner through installation reconciliation,
+credential renewal, policy continuation and roster preparation. These paths reuse
+the existing journal engine and storage formats. The ordinary unmanaged activation
+entry remains available for unbound journals and explicitly refuses a bound journal
+when its required descriptor is missing. The optional runtime field is not a
+replacement for independently retained registry configuration.
+
+New credential, independent-policy and roster commit commands additionally check
+the authenticated journal and pending target's original registry scope before
+dispatch. Missing, different, closed or suspended authority cannot authorize a new
+commit. Exact historical observation, installation of an already witnessed target,
+terminal retention and acknowledgement remain recovery operations; they do not
+grant traffic authority or remove the stored registry binding. Already admitted
+commands can still be in flight during concurrent closure; historical outcomes
+must be reconciled rather than rewritten as no-commit.
+
+Native tests exercise first Creating activation, exact managed reopen, another
+registry refusal, real prekey generation/signing and replay, cached publication
+refusal after registry closure, closure after an actual witness reply, and every
+measured parent activation sync fault. Credential renewal crosses original expiry
+at 160 and activates its successor at 170 with the original signer. Fresh commit
+tests cover credential, policy and roster paths; a lost credential commit reply is
+historically recovered after registry closure without dispatching another commit.
+These are native owner-integration results, not installed foreign-language,
+physical-device, independent-endpoint or final product-ABI qualification. The
+application still owns the original registry lifetime; package adapters and the
+complete root-replacement controller remain required.

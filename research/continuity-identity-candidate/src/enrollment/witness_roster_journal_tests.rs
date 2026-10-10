@@ -633,3 +633,6 @@ fn a_fresh_root_roster_can_be_prepared_from_the_actual_expired_predecessor() {
 
 #[path = "witness_roster_enrollment_tests.rs"]
 mod enrollment;
+
+#[path = "managed_roster_tests.rs"]
+mod managed;

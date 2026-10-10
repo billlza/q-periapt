@@ -313,6 +313,7 @@ impl AccountRootEnrollmentRecovery {
                 paths,
                 intent,
                 binding,
+                account_authority: None,
             },
             pin,
             proposal,

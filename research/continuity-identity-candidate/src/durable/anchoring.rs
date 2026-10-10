@@ -441,16 +441,24 @@ impl DeviceJournal {
         expected_id: JournalIdentity,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_anchored_admitted(path, key, device, policy, expected_id, client, None)
+        Self::open_anchored_admitted(
+            path,
+            key,
+            device,
+            policy,
+            expected_id,
+            client,
+            AccountAuthorityOpen::Existing(None),
+        )
     }
-    pub(super) fn open_anchored_admitted(
+    pub(crate) fn open_anchored_admitted(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &crate::HistoricalSessionPolicy,
         expected_id: JournalIdentity,
         client: AnchorClient,
-        account_authority: Option<JournalAccountAuthority>,
+        admission: AccountAuthorityOpen,
     ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
         let owner = bootstrap::storage_owner(device);
@@ -458,12 +466,7 @@ impl DeviceJournal {
         if image.id != expected_id.0 || image.local_account != device.account_id() {
             return Err(DurableError::Conflict);
         }
-        account_authority::admit_reopen(
-            &image,
-            pending.as_ref(),
-            &key,
-            account_authority.as_ref(),
-        )?;
+        let account_authority = admission.admit(&image, pending.as_ref(), &key)?;
         let mut active = Active {
             db,
             key,

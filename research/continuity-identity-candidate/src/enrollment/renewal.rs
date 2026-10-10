@@ -1023,13 +1023,7 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let journal_id = admission.journal;
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            original_policy,
-            anchor,
-        )?;
+        let mut service = self.reconcile_installation(&original, original_policy, anchor)?;
         let journal = service.stores()?.0;
         if journal.identity()? != journal_id {
             return Err(DurableError::Conflict);

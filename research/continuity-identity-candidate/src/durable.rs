@@ -40,6 +40,7 @@ const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
 mod account_authority;
 mod anchoring;
+pub(crate) use account_authority::AccountAuthorityOpen;
 pub use account_authority::JournalAccountAuthority;
 mod cancellation;
 pub use cancellation::{

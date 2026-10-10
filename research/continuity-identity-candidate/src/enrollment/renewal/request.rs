@@ -205,13 +205,7 @@ impl DeviceEnrollment {
             .transpose()?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
-        let mut service = DeviceInstallation::reconcile_original_enrollment(
-            self.paths.installation.clone(),
-            self.key()?,
-            &original,
-            original_policy,
-            None,
-        )?;
+        let mut service = self.reconcile_installation(&original, original_policy, None)?;
         if service.stores()?.0.identity()? != admission.journal {
             return Err(DurableError::Conflict);
         }

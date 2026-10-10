@@ -22,7 +22,10 @@ fn policy_client(f: &Fixture, owner: &mut DeviceEnrollment) -> AnchorClient {
 }
 fn approval(f: &Fixture) -> Approval {
     let mut owner = open(&f.c);
-    let client = policy_client(f, &mut owner);
+    approval_with_owner(f, &mut owner)
+}
+fn approval_with_owner(f: &Fixture, owner: &mut DeviceEnrollment) -> Approval {
+    let client = policy_client(f, owner);
     let request = owner
         .witnessed_policy_renewal_request(
             PolicyRenewalId::generate().expect("P operation"),
@@ -699,3 +702,6 @@ fn pending_cleanup_sync_failures_retry_only_with_the_original_persisted_terminal
 
 #[path = "witness_independent_policy_operational_tests.rs"]
 mod operational;
+
+#[path = "managed_policy_tests.rs"]
+mod managed;

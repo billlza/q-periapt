@@ -270,6 +270,7 @@ impl RetiredDeviceEnrollment {
             paths,
             intent,
             binding,
+            account_authority: None,
         };
         Self::from_enrollment(enrollment, pin, retired)
     }
@@ -289,6 +290,7 @@ impl RetiredDeviceEnrollment {
                 paths,
                 intent,
                 binding,
+                account_authority: None,
             },
             pin,
             retired,

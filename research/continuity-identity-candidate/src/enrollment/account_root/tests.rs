@@ -13,6 +13,8 @@ use std::{
 
 #[path = "process.rs"]
 mod process;
+#[path = "registry_activation_tests.rs"]
+mod registry_activation;
 #[path = "transition_tests.rs"]
 mod transition;
 

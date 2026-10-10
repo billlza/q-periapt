@@ -89,6 +89,7 @@ impl AccountRootEnrollmentRecovery {
             paths,
             intent,
             binding,
+            account_authority: None,
         };
         let mut owners = Owners {
             enrollment,
