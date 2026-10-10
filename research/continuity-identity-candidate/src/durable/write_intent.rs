@@ -50,6 +50,7 @@ enum BoundTransaction {
     Policy(PolicyRenewalBinding),
     Roster(crate::RosterRefreshScope),
 }
+pub(super) mod account_root;
 mod retired_cleanup;
 mod roster_refresh;
 pub(super) use roster_refresh::reserve_roster_refresh;
@@ -351,6 +352,7 @@ enum SnapshotAdmission {
     PolicyRecovery,
     RosterRecovery,
     RetiredCleanup,
+    AccountRootReplacement,
 }
 
 fn load_snapshot_as(
@@ -381,7 +383,9 @@ fn load_pending_snapshot(
         .ok_or(DurableError::Corrupt)?;
     let image = unseal(key, owner, value.value())?;
     let pending = table.get("pending").map_err(storage)?;
-    if table.len().map_err(storage)? != if pending.is_some() { 2 } else { 1 } {
+    let root_fence = table.get("account-root-fence").map_err(storage)?;
+    let expected_rows = 1 + u64::from(pending.is_some()) + u64::from(root_fence.is_some());
+    if table.len().map_err(storage)? != expected_rows {
         return Err(DurableError::Corrupt);
     }
     let pending = pending
@@ -408,12 +412,21 @@ fn load_pending_snapshot(
             ) | (
                 SnapshotAdmission::RosterRecovery,
                 Some(BoundTransaction::Roster(_))
-            ) | (SnapshotAdmission::RetiredCleanup, Some(_))
+            ) | (
+                SnapshotAdmission::RetiredCleanup | SnapshotAdmission::AccountRootReplacement,
+                Some(_)
+            )
         ) && value.value() == intent.target
         {
             intent.check_transaction_image(&image)?;
         } else {
             intent.check_current(&image)?;
+        }
+    }
+    if let Some(fence) = root_fence {
+        account_root::validate_fence_snapshot(key, &image, pending.as_ref(), fence.value())?;
+        if !matches!(admission, SnapshotAdmission::AccountRootReplacement) {
+            return Err(DurableError::Suspended);
         }
     }
     Ok((image, pending))

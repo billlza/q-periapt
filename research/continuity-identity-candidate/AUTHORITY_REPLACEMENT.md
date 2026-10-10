@@ -1,7 +1,8 @@
 # Account-root and witness authority replacement
 
-Status: the native witness account-root transaction is implemented; the complete
-managed account cutover and witness-key handoff are **not implemented**. Both
+Status: the native witness account-root transaction and a separate original-journal
+fence are implemented; the complete managed account cutover and witness-key handoff
+are **not implemented**. Both
 remain part of the required 0.2.0 lifecycle. Existing registration, credential
 renewal, policy continuation and device replacement do not complete that lifecycle.
 
@@ -160,6 +161,44 @@ Rust 1.90 check. The focused paths exercise four real pre/post-sync failures and
 process termination after durable commit but before return. These fresh macOS
 arm64 fixtures qualify this native component; they do not complete the managed
 local/foreign cutover or the platform requirements below.
+
+### Local original-journal transaction
+
+`DeviceJournal::begin_account_root_replacement` consumes that journal's operational
+ownership and retains the exact independently approved witness proposal. Its
+`AccountRootJournalRecovery` result cannot return a traffic owner. The original
+encrypted image and pending write/cancellation bytes remain unchanged, including
+unresolved outcomes. This local transaction does not advance the witness head and
+therefore does not itself invalidate the original root-replacement snapshot.
+
+The separate `account-root-fence` row uses `QPARJF01`, a dedicated HKDF-derived MAC
+key, the original subject/image and the exact pending-intent commitment. Ordinary
+opening and existing lifecycle recovery reject it. `resume_original` only
+reconciles the independently retained original inputs against existing storage;
+missing or conflicting files never create a new journal or an old traffic owner.
+I/O errors close ownership and may follow commit.
+
+`LocalFenced` reports no witness outcome. `retain_witness_retirement` authenticates
+purpose 22 and durably retains its original statement before reporting
+`WitnessCommitted`. Re-signing the same statement does not replace the first
+retained receipt. Historical observation remains possible after runtime closure;
+neither state admits the successor or turns an unknown old delivery into success.
+
+The [local-fence qualification](../sdk-alpha1/evidence/20261010-account-root-local-fence/CHECKS.json)
+retains 838 passing Release library tests, ten focused entries (one subprocess
+helper), 16 compile-fail doctests, strict Clippy and the Rust 1.90 check. Four
+fence-sync faults, six receipt-sync faults and four real process-termination cuts
+preserve the original image, pending intent and operation. These are native macOS
+arm64 component results, not full managed-cutover or cross-platform qualification.
+
+This is one **required-witness journal** component, not the independent current
+account-authority store. In particular, restoring the whole journal from before
+the local fence can remove that row before the witness commits retirement. The
+parent intent and authority revision still need durable retention outside old
+journal backups and must govern configuration imports/reopen. Peer-account
+admission, successor installation/activation and the account-specific historical
+cleanup workflow also remain to be integrated. A per-journal marker must not be
+described as an executed managed account cutover or whole-host rollback protection.
 
 ### Remaining product acceptance
 

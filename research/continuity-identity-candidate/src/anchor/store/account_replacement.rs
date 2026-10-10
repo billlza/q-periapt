@@ -99,6 +99,19 @@ impl AnchorAccountReplacementProposal {
     pub fn predecessors(&self) -> impl Iterator<Item = AnchorSubject> + '_ {
         self.frozen.iter().map(|entry| entry.subject)
     }
+    pub(crate) fn witness_binding(&self) -> [u8; 32] {
+        self.witness
+    }
+    pub(crate) fn predecessor_observation(
+        &self,
+        subject: AnchorSubject,
+    ) -> Result<AnchorRetiredAccountSubject, Error> {
+        self.frozen
+            .iter()
+            .find(|entry| entry.subject == subject)
+            .copied()
+            .ok_or(Error::Scope)
+    }
     /// Canonical statement commitment, independent of receipt signature randomness.
     pub fn binding(&self) -> Result<[u8; 32], Error> {
         Ok(digest(
@@ -198,12 +211,7 @@ impl AnchorRetiredAccount {
         &self,
         subject: AnchorSubject,
     ) -> Result<AnchorRetiredAccountSubject, Error> {
-        self.proposal
-            .frozen
-            .iter()
-            .find(|entry| entry.subject == subject)
-            .copied()
-            .ok_or(Error::Scope)
+        self.proposal.predecessor_observation(subject)
     }
 }
 

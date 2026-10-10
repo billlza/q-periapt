@@ -77,6 +77,7 @@ pub use publication::{
     PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
     PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
 };
+pub use write_intent::account_root::{AccountRootJournalRecovery, AccountRootJournalState};
 pub(crate) use write_intent::CredentialCancellationTarget;
 pub(crate) use write_intent::WitnessedCredentialIntent;
 
@@ -242,6 +243,16 @@ impl JournalKey {
         hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
             .expand(
                 b"Q-PERIAPT-CONTINUITY-WRITE-INTENT-KEY/v1",
+                key.as_mut_bytes(),
+            )
+            .map_err(|_| Error::Provider)?;
+        Ok(key)
+    }
+    fn account_root_fence_key(&self) -> Result<ZeroizingBytes<32>, Error> {
+        let mut key = ZeroizingBytes::zeroed();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
+            .expand(
+                b"Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-FENCE-KEY/v1",
                 key.as_mut_bytes(),
             )
             .map_err(|_| Error::Provider)?;
