@@ -423,10 +423,10 @@ impl DeviceJournal {
             }
             // No per-member persistence or release. Only the aggregate below
             // installs any ciphertext or advances a durable chain.
-            let wire = traffic.send_reserved(member.message)?;
             #[cfg(all(test, unix))]
-            tests::after_fanout_computation(&wire);
-            drop(wire);
+            tests::after_fanout_computation(traffic.send_reserved(member.message)?);
+            #[cfg(not(all(test, unix)))]
+            traffic.send_reserved(member.message)?;
         }
         for item in &selected {
             image

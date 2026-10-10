@@ -275,7 +275,8 @@ impl Header {
         })
     }
     fn encode(&self) -> Vec<u8> {
-        let mut wire = MESSAGE_TAG.to_vec();
+        let mut wire = Vec::with_capacity(MESSAGE_HEADER);
+        wire.extend_from_slice(MESSAGE_TAG);
         wire.extend_from_slice(&self.session);
         wire.push(self.role);
         wire.extend_from_slice(&self.epoch.to_be_bytes());

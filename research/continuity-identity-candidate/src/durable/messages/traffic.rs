@@ -367,14 +367,15 @@ impl Traffic {
         ad: &[u8],
     ) -> Result<Vec<u8>, Error> {
         self.send_input(id, SendInput::Submitted(plaintext, ad))
+            .map(<[u8]>::to_vec)
     }
     // The aggregate caller has checked this reservation against its original
     // member and intent. Borrow its retained bytes through the same send path;
     // no temporary plaintext/AD copies or alternate encryption implementation.
-    pub(super) fn send_reserved(&mut self, id: MessageId) -> Result<Vec<u8>, Error> {
+    pub(super) fn send_reserved(&mut self, id: MessageId) -> Result<&[u8], Error> {
         self.send_input(id, SendInput::Reserved)
     }
-    fn send_input(&mut self, id: MessageId, input: SendInput<'_>) -> Result<Vec<u8>, Error> {
+    fn send_input(&mut self, id: MessageId, input: SendInput<'_>) -> Result<&[u8], Error> {
         self.require_unresolved()?;
         let (plaintext, ad) = match input {
             SendInput::Submitted(plaintext, ad) => (plaintext, ad),
@@ -394,20 +395,25 @@ impl Traffic {
             return Err(Error::Retired);
         }
         let intent = intent(b"send-intent", plaintext, ad);
-        if let Some(saved) = self.outgoing.get(&id) {
-            return if saved.intent == intent {
-                Ok(saved.wire.clone())
-            } else {
-                Err(Error::Conflict)
-            };
-        }
+        let at_capacity = self.outgoing.len() >= MAX_RECEIPTS;
+        let entry = match self.outgoing.entry(id) {
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                let saved = entry.into_mut();
+                return if saved.intent == intent {
+                    Ok(saved.wire.as_slice())
+                } else {
+                    Err(Error::Conflict)
+                };
+            }
+            std::collections::btree_map::Entry::Vacant(entry) => entry,
+        };
         if self.send_closed {
             return Err(Error::Retired);
         }
         if index != self.sent {
             return Err(Error::Conflict);
         }
-        if self.outgoing.len() >= MAX_RECEIPTS {
+        if at_capacity {
             return Err(Error::Capacity);
         }
         let plan = self.pending.as_ref().ok_or(Error::State)?;
@@ -424,6 +430,9 @@ impl Traffic {
             length: plaintext.len(),
         }
         .encode();
+        // Reserve ciphertext and tag together so retaining the original buffer
+        // does not retain spare capacity from a second growth for the tag.
+        wire.reserve_exact(plaintext.len() + 16);
         let mut ciphertext = Zeroizing::new(plaintext.to_vec());
         let cipher =
             ChaCha20Poly1305::new_from_slice(message.as_bytes()).map_err(|_| Error::Provider)?;
@@ -439,14 +448,7 @@ impl Traffic {
         self.pending = None;
         self.send = next;
         self.sent += 1;
-        self.outgoing.insert(
-            id,
-            Outgoing {
-                intent,
-                wire: wire.clone(),
-            },
-        );
-        Ok(wire)
+        Ok(entry.insert(Outgoing { intent, wire }).wire.as_slice())
     }
     pub(super) fn receive(&mut self, wire: &[u8], ad: &[u8]) -> Result<CommittedPlaintext, Error> {
         self.require_unresolved()?;
