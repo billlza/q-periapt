@@ -1,0 +1,73 @@
+name: Android runtime control
+
+on:
+  push:
+    branches: [lza/sdk-020-alpha1]
+    paths:
+      - .github/workflows/android-runtime-control.yml
+      - artifact/android_runtime_control.py
+      - artifact/test_android_runtime_control.py
+      - artifact/android_instrumentation_control.py
+      - artifact/test_android_instrumentation_control.py
+      - artifact/bounded_process.py
+      - artifact/test_bounded_process.py
+
+permissions:
+  contents: read
+
+jobs:
+  cold-image-control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - experiment: file-copy
+            script: android_runtime_control.py
+            artifact: android-runtime-no-sdk-control
+            output: target/android-runtime-control/
+          - experiment: framework-instrumentation
+            script: android_instrumentation_control.py
+            artifact: android-framework-instrumentation-control
+            output: target/android-instrumentation-control/
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Verify checkout provenance
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
+      - name: Test diagnostic capture and owned-child cleanup
+        run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_android*control.py'
+      - name: Install the system image used by the failed runtime job
+        run: |
+          test -c /dev/kvm
+          sdkmanager "emulator" "system-images;android-35;google_apis_ps16k;x86_64" "platforms;android-35" "build-tools;36.0.0"
+      - name: Prepare the same runner-only KVM access as the SDK runtime lane
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          runner_user=$(id -un)
+          test -c /dev/kvm && test ! -L /dev/kvm
+          stat -c 'device=%t:%T inode=%i mode=%a owner=%u:%g' /dev/kvm
+          getfacl --absolute-names --omit-header /dev/kvm
+          sudo setfacl -m "u:$runner_user:rw" /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          getfacl --absolute-names --omit-header /dev/kvm
+          timeout 15s "$ANDROID_HOME/emulator/emulator" -no-window -accel-check
+      - name: Observe the selected workload on a fresh image without the SDK
+        run: sh artifact/python-run.sh artifact/${{ matrix.script }}
+      - name: Retain public control observations including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.output }}
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// This test source must fail compilation against the installed SDK JAR.
+import dev.qperiapt.continuity.ContinuityOwner;
+final class RawOwnerProbe {
+    ContinuityOwner forge() { return new ContinuityOwner(null); }
+}

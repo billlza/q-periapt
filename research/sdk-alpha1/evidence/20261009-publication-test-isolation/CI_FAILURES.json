@@ -1,0 +1,56 @@
+{
+  "swift": {
+    "job": 113860182035,
+    "artifact": {
+      "id": 11629747168,
+      "node_id": "MDg6QXJ0aWZhY3QxMTYyOTc0NzE2OA==",
+      "name": "continuity-installed-swift",
+      "size_in_bytes": 27638391,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11629747168",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11629747168/zip",
+      "expired": false,
+      "digest": "sha256:f55f2570cf04e91b6d35dcf02597fdc7c0928443fd632e6a160be3c83c12901c",
+      "created_at": "2026-10-09T16:28:22Z",
+      "updated_at": "2026-10-09T16:28:22Z",
+      "expires_at": "2027-01-07T14:00:05Z",
+      "workflow_run": {
+        "id": 37940916744,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/sdk-020-alpha1",
+        "head_sha": "f4b35dcb237fa44ef92f7700f1f1fd9e6575e1f7"
+      }
+    },
+    "archive_retained": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/ci-f4-pr-installed-failures-01/continuity-installed-swift/ARTIFACT.zip",
+    "source_commit": "6c1e01a6e6a5f9251d4b15558c98965ada234a53",
+    "c_source_files_equal_f4": true,
+    "c_source_file_count": 82
+  },
+  "kotlin": {
+    "job": 113860181877,
+    "artifact": {
+      "id": 11627044056,
+      "node_id": "MDg6QXJ0aWZhY3QxMTYyNzA0NDA1Ng==",
+      "name": "continuity-installed-kotlin",
+      "size_in_bytes": 27638163,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11627044056",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11627044056/zip",
+      "expired": false,
+      "digest": "sha256:734da70cd84670e7ae40c53ffe0575fbf8ac74ffcfd89038001ccda2734dcb27",
+      "created_at": "2026-10-09T15:56:54Z",
+      "updated_at": "2026-10-09T15:56:54Z",
+      "expires_at": "2027-01-07T14:00:05Z",
+      "workflow_run": {
+        "id": 37940916744,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "lza/sdk-020-alpha1",
+        "head_sha": "f4b35dcb237fa44ef92f7700f1f1fd9e6575e1f7"
+      }
+    },
+    "archive_retained": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/ci-f4-pr-installed-failures-01/continuity-installed-kotlin/ARTIFACT.zip",
+    "source_commit": "6c1e01a6e6a5f9251d4b15558c98965ada234a53",
+    "c_source_files_equal_f4": true,
+    "c_source_file_count": 82
+  }
+}

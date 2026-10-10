@@ -1,0 +1,24 @@
+{
+  "source_commit": "6076fde1a468ab9b087da410562e2508007e29b5",
+  "production_connect_sha256": "ca3d2c82ae757e5c899a3933046fa3468a97e7b6fb3e5a494ce76a60f9cd8ed5",
+  "production_connect_unchanged": true,
+  "original_full_regression": "history-tls-record-regression-02.json",
+  "original_full_result": {
+    "passed": 470,
+    "failed": 1
+  },
+  "diagnostic": "CONNECT_FIXTURE_PROBE_02.json",
+  "diagnostic_observation": "Real accepted Darwin socket inherited nonblocking; read timeout alone returned Os35 in2us; clearing flag waited for delayed peer close and returnedEOF in104ms",
+  "scope_limit": "Original full-run FIN timing was not independently replayed with step instrumentation; other rare early fixture syscall failures are not strictly excluded by its original bare error. No production TimedOut assertion panic was observed.",
+  "fix": "Only accepted test socket explicitly blocking before unchanged1s timeout and strict zero-byte EOF assertion",
+  "checks": [
+    "history-connect-fixture-tests-01",
+    "history-connect-fixture-min-clippy-01",
+    "history-connect-fixture-clippy-01",
+    "history-connect-fixture-format-01"
+  ],
+  "focused_tests": 9,
+  "full_rerun": "history-connect-fixture-regression-03",
+  "full_rerun_complete": false,
+  "release_claim_eligible": false
+}

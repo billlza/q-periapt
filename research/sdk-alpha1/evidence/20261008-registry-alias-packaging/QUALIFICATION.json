@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+  "prior_ci_commit": "9d110e6e38e1aa7952dc20cb7cdcab05d96f288a",
+  "recorded_at": "2026-10-08T11:25:29.790090+00:00",
+  "artifact_regression": {
+    "tests": 2653,
+    "failures": 0,
+    "skipped": 0,
+    "source_clean_and_unchanged": true
+  },
+  "rust_package_contract": {
+    "crates": 12,
+    "consumer_tests": 4,
+    "consumer_clippy": "pass",
+    "dependency_audits": "pass",
+    "source_clean_and_unchanged": true
+  },
+  "maintenance_archive_consumer": {
+    "result": "pass",
+    "cases": 7,
+    "archive_resolution_packages": 10,
+    "resolved_local_packages": 9,
+    "binary_sha256": "cd9b17a84635ffa06d9144d35a870f547ec0e0db6fe9a0cf6e8d363dc2327f6f",
+    "sources_unchanged": true,
+    "public_registry_installation": false
+  },
+  "cargo_alias_capture": {
+    "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+    "request_destination": "loopback alternate registry",
+    "public_registry_contact": false,
+    "response": "intentional HTTP 403",
+    "destination_projection": "test asserts and removes the crates.io registry field; raw captured JSON unchanged"
+  },
+  "linux_migration_ci": {
+    "canonical_rust": "1.98.1",
+    "minimum_rust": "1.90.0",
+    "tests_each": 29,
+    "typed_io_faults_each": 232,
+    "process_cuts_each": 126,
+    "partial_writes_each": 37,
+    "lock_peer_refusals_each": 48,
+    "installed_cases_canonical": 7,
+    "check_job_later_failed": "artifact installation selector, dependency count and topology guards; fixed by source_commit"
+  },
+  "remote_codeql": {
+    "run": 37765763456,
+    "rust_job": 113272915154,
+    "state_at_recording": "Analyze in progress; next push intentionally deferred"
+  },
+  "capture_archive": {
+    "file": "CAPTURES.zip",
+    "bytes": 250274,
+    "sha256": "54b5c2bf0a085e4418ddfe0e1c2a2ce0925ab2ed6416c4b45ef3cea231c6c197",
+    "members": 54
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "remaining": [
+    "New-head remote CI and CodeQL completion",
+    "Prebuilt maintenance-command distribution",
+    "Current and minimum physical-device and OS qualification",
+    "Protocol and persistent PQ recovery release gates"
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "baseline_head": "5e24c2820ef4c3c8481aabd1fe7881375e9e1cd2",
+  "integration_parent": "0074f6e88a7735b87a03a4e29cf042bf986cb4aa",
+  "production_source_sha256": {
+    "research/continuity-identity-candidate/src/durable/messages.rs": "c747acfb762171077d0b29f36ea82e8c4b4c0a02432ebfe8b63fbeedd0201b7b",
+    "research/continuity-identity-candidate/src/durable/messages/traffic.rs": "cd69e9b7b0649730b7b73311e4556c8836d1e26970599c374ab1626525adc30f",
+    "research/continuity-identity-candidate/src/durable/messages/fanout.rs": "081985312ea47bcec9ca673e6ef5d229e597ea1b241434aa4f9e236f1933867e"
+  },
+  "source_matches_executed_candidate": true,
+  "modified_production_files": 3,
+  "change": [
+    "The shared private send path retains one outgoing wire buffer and returns a borrow; individual message sends explicitly copy into their owned public return value.",
+    "Reserved fanout computation uses the retained buffer instead of creating a returned ciphertext copy that the aggregate caller immediately discards.",
+    "The fixed header reserves its exact size, and the send path reserves ciphertext plus tag together to avoid retaining geometric growth for the final tag."
+  ],
+  "retained_contracts": [
+    "Same traffic cryptography, header bytes, message IDs, input/epoch/intent/capacity checks and persisted outbox representation.",
+    "Same whole-batch reservation and whole-batch commit before public release; original per-member crash observation remains in the test-only boundary.",
+    "Same private plaintext/AD ownership and zeroization; this change does not deduplicate retained per-recipient inputs or change storage format."
+  ],
+  "observations": {
+    "observations": {
+      "baseline": [
+        {
+          "plaintext": 0,
+          "wire_bytes": 109,
+          "retained_capacity": 109,
+          "same_storage": false
+        },
+        {
+          "plaintext": 0,
+          "wire_bytes": 109,
+          "retained_capacity": 109,
+          "same_storage": false
+        },
+        {
+          "plaintext": 1024,
+          "wire_bytes": 1133,
+          "retained_capacity": 1133,
+          "same_storage": false
+        },
+        {
+          "plaintext": 1024,
+          "wire_bytes": 1133,
+          "retained_capacity": 1133,
+          "same_storage": false
+        },
+        {
+          "plaintext": 16384,
+          "wire_bytes": 16493,
+          "retained_capacity": 16493,
+          "same_storage": false
+        },
+        {
+          "plaintext": 16384,
+          "wire_bytes": 16493,
+          "retained_capacity": 16493,
+          "same_storage": false
+        }
+      ],
+      "candidate": [
+        {
+          "plaintext": 0,
+          "wire_bytes": 109,
+          "retained_capacity": 109,
+          "same_storage": true
+        },
+        {
+          "plaintext": 0,
+          "wire_bytes": 109,
+          "retained_capacity": 109,
+          "same_storage": true
+        },
+        {
+          "plaintext": 1024,
+          "wire_bytes": 1133,
+          "retained_capacity": 1133,
+          "same_storage": true
+        },
+        {
+          "plaintext": 1024,
+          "wire_bytes": 1133,
+          "retained_capacity": 1133,
+          "same_storage": true
+        },
+        {
+          "plaintext": 16384,
+          "wire_bytes": 16493,
+          "retained_capacity": 16493,
+          "same_storage": true
+        },
+        {
+          "plaintext": 16384,
+          "wire_bytes": 16493,
+          "retained_capacity": 16493,
+          "same_storage": true
+        }
+      ]
+    },
+    "wire_lengths_and_retained_capacities_match": true,
+    "one_return_buffer_copy_removed_per_new_recipient": true,
+    "maximum_observed_copy_bytes_per_recipient": 16493,
+    "evidence_type": "Executed pointer-identity observation plus inspected ownership path; no allocator sampling, total-memory or controlled-latency claim",
+    "durable_boundary_checks": "Each arm separately passes the existing actual crypto, same-input individual/fanout comparison, reopen and wrong-AD rejection scenarios. This is not an old/new shared-secret-vector comparison.",
+    "speedup_claim": false
+  },
+  "validation": {
+    "native_Release_tests": 817,
+    "existing_native_tests": 816,
+    "isolated_observation_test": 1,
+    "ignored": 0,
+    "failed": 0,
+    "native_Release_seconds": 2329.6404372910038,
+    "Debug_tests": 2,
+    "each_arm_existing_payload_boundary_workload": true,
+    "strict_Clippy_all_targets_all_features": true,
+    "changed_production_rustfmt": true,
+    "Rust_1_90_all_targets_all_features_check": true,
+    "experimental_test_integrated_into_product": false,
+    "installed_foreign_new_source_qualification": "pending CI"
+  },
+  "raw_local_logs": {
+    "baseline-01/RESULT.json": {
+      "sha256": "0e2f4ea115fd8a74017bd22d79508fe5f770cea41d3cd240a0ab25ff58f85bb0",
+      "bytes": 2563
+    },
+    "baseline-01/START.json": {
+      "sha256": "246017eaefe9eda1dc861330224065fcea330399b5c29feed8d68ee6eaf035c7",
+      "bytes": 1005
+    },
+    "baseline-01/durable-boundaries.stdout": {
+      "sha256": "d2f9f6ca3d246d167add7c1cb643b4b123b0fcade26c33200730fabab7de490d",
+      "bytes": 231
+    },
+    "baseline-01/buffer-observation.stderr": {
+      "sha256": "ed4cd788887d9176db6a32b6853db00bd3f4d19550754b4a14e59a230224fd1d",
+      "bytes": 5920
+    },
+    "baseline-01/buffer-observation.stdout": {
+      "sha256": "62b7226b2ce7e9a36334b8d8b51973e149491045da10f07b7836d0095f92b2cd",
+      "bytes": 203
+    },
+    "baseline-01/durable-boundaries.stderr": {
+      "sha256": "98830310931efa102b7dc329b91960bbd3801c3861fed670ae84b455d58bf2d7",
+      "bytes": 1475
+    },
+    "candidate-01/RESULT.json": {
+      "sha256": "0c4385a5e21aa4425ec929478c347560eaa712d63477e39a5044ed38f450e14f",
+      "bytes": 2567
+    },
+    "candidate-01/START.json": {
+      "sha256": "672128c42789b8fa9c5fedfee3fae0145ac207b0a17b3ef8226d45273c6ded4a",
+      "bytes": 1007
+    },
+    "candidate-01/durable-boundaries.stdout": {
+      "sha256": "fed23dd2dc98c35706bac08e86f23c4025d336839e7218a525726f159d52212c",
+      "bytes": 231
+    },
+    "candidate-01/buffer-observation.stderr": {
+      "sha256": "ea82f96d9a6ff0521e667da9f613a88d57b329ff3f1e4dad4fa009b9ee7b06c7",
+      "bytes": 5925
+    },
+    "candidate-01/buffer-observation.stdout": {
+      "sha256": "8f9502bb048b375674033e48b5c315d45e896420f7e5e408e89a7285b64eb3bf",
+      "bytes": 203
+    },
+    "candidate-01/durable-boundaries.stderr": {
+      "sha256": "7f83b2ea41ace3b4fd9a21a3efc62c1a4b223355e5e274057f67334f5f968bb0",
+      "bytes": 1476
+    },
+    "candidate-debug-01/RESULT.json": {
+      "sha256": "1f24700f41b00c468db97708e4f1c697c65ce7b35ef3bb2179ad0424091bea95",
+      "bytes": 1567
+    },
+    "candidate-debug-01/stdout": {
+      "sha256": "8ab14c1562f4c3c924f2b82c87b07a9b72ea37c3865f6c539c6e90687b53ff24",
+      "bytes": 322
+    },
+    "candidate-debug-01/stderr": {
+      "sha256": "caef13bceb81f64ee3809c31afa5e3bc873c1700d386a6ffba7077a6c4389241",
+      "bytes": 7154
+    },
+    "candidate-debug-01/START.json": {
+      "sha256": "8c2190dfbe9334246d093d6084266e607db6bc78b1d8b24a104dd6ee6f2c7689",
+      "bytes": 1467
+    },
+    "candidate-checks-01/native-all-features-release.stderr": {
+      "sha256": "d19ffc062d407623e29b75c7e643349cb862643bfd5947ad69c340a8ad2b2831",
+      "bytes": 30541
+    },
+    "candidate-checks-01/changed-production-format.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-checks-01/RESULT.json": {
+      "sha256": "8e3478fef83416d6817f935cfd346d9e05f42176599b0184e647cb80a3d1b4bf",
+      "bytes": 3793
+    },
+    "candidate-checks-01/strict-clippy.stderr": {
+      "sha256": "13a9164ee1c4dc4640728bdebdc335d8d345d2ee5321179e71f14e2188fef5a3",
+      "bytes": 4582
+    },
+    "candidate-checks-01/strict-clippy.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-checks-01/changed-production-format.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "candidate-checks-01/native-all-features-release.stdout": {
+      "sha256": "8840be645a59897a61c243aaa3388814733b40864616e0c056cf6763e98aeb7b",
+      "bytes": 102758
+    },
+    "candidate-checks-01/START.json": {
+      "sha256": "ce86fbd986fcaaa236b99b7bae91030f8e5e922885175e4cf7e11dc821476754",
+      "bytes": 1089
+    },
+    "candidate-checks-01/minimum-compiler.stderr": {
+      "sha256": "a7213ffb155695fe88a165174ef3d95ff2568cab529dd6eca23c4b5a75fec47c",
+      "bytes": 5163
+    },
+    "candidate-checks-01/minimum-compiler.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "5decb97f7596c3d809b9e4f23da120d21b7716a8844a72de217875c384dc3b81",
+    "bytes": 77904,
+    "members": 33
+  },
+  "limits": [
+    "The storage-identity observation uses test-only native calls on Apple Silicon macOS. Source-level removal of the return copy does not establish allocator call counts in every optimized production binary.",
+    "The existing differential test compares individual and aggregate paths within each arm; it is not an old/new shared-secret vector experiment.",
+    "Observed two-recipient cases cover payloads of 0, 1024 and 16384 bytes. No 32-recipient runtime or full installed-language performance claim is made.",
+    "Wall-clock samples overlapped other producers and are retained only as observations, not a controlled speedup, tail-latency, peak-memory or energy comparison.",
+    "No public ABI, storage-schema, protocol version or security-check relaxation is introduced. Complete release qualification remains open."
+  ],
+  "release_claim_eligible": false
+}

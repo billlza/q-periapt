@@ -1,0 +1,739 @@
+# Installed Continuity Swift owner
+
+This unpublished Swift package uses the existing `qpc-owner/1` owner and shared
+Rust Continuity engine. It adds no ratchet, KDF, credential parser or private-key
+export. It is a language-admission step toward 0.2.0, not a frozen product package
+or an addition to ABI 2. The manifest declares a macOS 13 source floor; execution
+qualifies only the actual host. Minimum OS, iOS and Linux runtime coverage need
+their own results.
+
+For a new installation, use `ContinuityConfiguration.prepareCreate(path:input:)`
+with `InstallationConfiguration`: an explicit `SdkPolicyTrust`, exact
+`InitialSdkPolicy`, independently pinned `PolicyDocument`, and `LocalTlsIdentity`.
+Call `finishOpen()` on the host's chosen worker, then transfer the same owner with
+`createEnrollment(intent:witness:)`. The SDK creates its own wrapping key and
+registration identity; do not prebuild a fixture directory or copy a database.
+
+After an uncertain initial publication, close the failed owner and use
+`prepareReconcile` with the exact original inputs. For an existing current
+installation, use `prepareOpen` under the original SDK trust and an independently
+pinned protocol policy, then `resumeEnrollment`. Missing state never authorizes
+creation. Recoverable trust retains the original scope and roots on every open;
+mutable root files are not trust inputs.
+
+`ConfigurationWitness.signedTCP` and `.mutualTLS` take independent witness pins
+and explicit carrier material. TLS uses its own local identity and exact peer
+certificate/server name. `nil` permits original-state preparation only when
+appropriate; a required profile still refuses activation without its witness.
+The returned genesis requires separate authenticated control-plane approval and
+enrollment. No endpoint failure selects a weaker carrier or local profile.
+
+A configuration's `selectContinuationTarget(for:)` transfers its SDK lease into
+an existing enrollment. It does not approve or commit a policy change; use the
+existing two-root renewal/continuation transaction afterward. Closing the
+transferred source cannot close the registration or keep its lease alive. All
+interfaces remain synchronous, with explicit concurrent cancellation and close.
+
+The installed `FirstConfigurationClient` exercises that transition after an
+original message's application effect commits but its ACK is lost. It obtains
+independent two-root approval, adopts the original policy-renewal operation and
+recovers the same session/message with one receiver effect. Both trust modes and
+all three carriers are covered by the [first-use composition checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json).
+That checkpoint covers renewal while P0 remained valid. The current workload
+additionally waits for actual P0 expiry, requires old activation to return 104,
+and retains the original request before renewal. Its native reference receiver
+adopts the same P1 before expiry. Public readbacks bind these observations to the
+original policy and message. Credentials, rosters and SDK policy stay unchanged;
+SDK-policy replacement remains a separate qualification.
+
+The following legacy registration route assumes already provisioned native
+configuration and wrapping-key inputs:
+
+`ContinuityEnrollment` exposes the native original registration transaction.
+First provision the wrapping key explicitly, then call `prepareCreate` with an
+independently approved `EnrollmentIntent`, followed by `finishOpen` and `request`.
+The request is owned public proof-of-possession bytes; the application must
+separately authenticate enrollment with its authority. Pass the signed credential
+and roster to `accept(certificate:roster:pin:)` with a separately trusted current
+`AccountPin`. `prepareStorage` returns the original witness genesis when required;
+the operator must enroll or refresh that witness independently.
+
+`status` preserves all six phases and the original `SigningKeyID`. Its journal is
+absent only in Preparing/Requested; previous/next roster checkpoints exist only
+in Refreshing. Active is a durable observation, not a live authorization receipt.
+`refreshRoster` retains one same-credential target and requires `activate` to finish
+its journal and witness checks. It cannot replace credentials, keys, roots or
+policies, or renew an expired credential. Status/request require no SDK policy or
+TLS files; acceptance needs policy and activation additionally needs TLS inputs.
+
+Successful enrollment activation transfers the same `NativeOwner` to
+`ContinuityDevice`. Closing or releasing the old registration cannot close its
+successor. Keep using that device's peer creation/reopen methods; opening a legacy
+installation is not registration recovery. An admitted failure can leave committed
+state but returns no device: close the retained registration reference and use
+`prepareResume` with the exact original intent. Never regenerate keys or IDs after
+an unknown result. Input-shape and admission Busy/Capacity refusals preserve the
+handle. Pre-admission cancellation may retain its lease until close. Cancellation
+during transfer stays concurrent and may affect a successful successor; join it
+before use. The shared transfer cell performs no native call while holding its lock.
+
+The registration bridge's local tests cover C layouts, strict phase/request
+decoding, owned input bytes, shared capacity, real protected request persistence,
+and disposal/reopen after failed activation. Installed Swift connection, successful
+ARC transfer, witness cancellation and full registration qualification require
+their separate execution evidence; these tests do not establish those gates.
+
+`ContinuityOwner.prepare` snapshots bounded original-installation configuration
+without opening storage. `finishOpen` activates that same owner synchronously.
+Another thread can cancel while it is opening. Failed activation leaves only
+cancel/close available. An open never provisions, repairs, replaces trust pins or
+downgrades a required witness. Carrier choice is explicit and never falls back.
+The directory still follows the native candidate qualification layout; production
+provisioning and migration remain separate unfinished interfaces.
+
+`ContinuitySetup.prepareCreate/prepareResume` explicitly selects new creation or
+original-intent restart. `finishOpen` opens the setup authority; `status` preserves
+Creating/Active and the original `JournalID`. `prepareStorage` returns either local
+protection or original public witness genesis that must be enrolled independently.
+These methods reuse configured controlled keys, credentials, policy and trust;
+they do not issue new credentials or grant witness enrollment permission.
+`activate` returns a `ContinuityDevice` by moving the same native owning reference.
+Closing or releasing the old setup after successful transfer cannot close its
+successor; other calls on that old setup return Closed. During transfer, ordinary
+setup calls, close and another activation return Busy, while cancel remains
+available. Native calls and disposal run outside the reference lock. Cancellation
+admitted before or during transfer may affect the returned device: join that work
+before using a racing result. Activation failure can follow durable commit;
+close the setup and resume the original configuration to reconcile. There is no
+automatic new installation or retry. Wrapper lifetime refusals use Closed/Busy
+with wrapper diagnostics; native failures retain their original error record.
+
+The setup CLI checks that closed setup aliases grant no authority, their wrapper
+is released, and the transferred device remains usable. Both local and required
+witness workloads retain original IDs through restart; the witness workload also
+checks bad signatures, held-reply cancellation and explicit TCP/mutual TLS.
+The separate installation sync-interruption matrix runs the installed activation
+and close path. It distinguishes a visible completed reply from an unknown result,
+requires unknown Creating and Active outcomes, and checks original-ID/native-phase
+readback before reconciliation. Creating cannot open an ordinary device; neither
+phase permits replacement provisioning. This finite local process-cut workload
+does not qualify power loss, returned I/O errors or required-witness commit cuts.
+
+Returned EIO is exercised separately by `setup_io` through the actual installed
+wrapper. Phase receipts distinguish opening (204), activation commit (207) and
+post-commit close syncs. Native failure must leave setup Closed to work and release
+no successor; explicit disposal still succeeds. A 207 result may already be Active,
+so only original-state resume determines its outcome. Close releases the owner;
+it is not an additional durability receipt for recoverable redb shutdown metadata.
+The workload preserves original journal/account identity and Creating/Active
+admission. Required-witness commits and physical power loss remain separate.
+
+`ContinuityDevice.prepare/open` opens one already Active original device. Its
+`preparePeer/openPeer` and `preparePeerReopen/reopenPeer` methods return the same
+operational `ContinuityOwner` interface for a separately configured peer, with an
+explicit `BootstrapRole`. The peer retains the original native parent even when
+the public device wrapper leaves scope. Prepared and active peers keep that
+ownership until successful close or disposal; each in-flight call separately
+retains a snapshot. A closed peer's aliases no longer keep a hidden parent alive.
+Peer close preserves a device still owned by its caller or other live peers;
+successful explicit device close releases storage and invalidates all children.
+Busy preserves the device; cancel, join and explicitly close again after active
+work drains. Retained closed aliases do not prevent that
+explicit teardown. Ownership points from peers to parents, with no reverse link.
+The small parent-reference cell uses a lock only to snapshot or clear a reference;
+native work and final parent release run after unlocking. Busy and unknown close
+failures retain the link. Confirmed close clears it, while in-flight snapshots
+continue to pin the parent through return.
+
+Peer preparation also accepts an explicit `PeerConfiguration`, so the host need
+not construct a peer sidecar directory. Build `PeerDeviceExpectation` values from
+independently approved `AccountPin`, device ID and generation inputs, then supply
+them with the directory expectation, signed public bundle and TLS pin/name:
+
+```swift
+let input = try PeerConfiguration(initiator: expectedInitiator,
+    responder: expectedResponder, directory: expectedDirectory, bundle: signedBundle,
+    tlsPeerCertificate: pinnedPeerCertificate, tlsPeerName: peerName)
+let peer = try device.preparePeer(configuration: input, quality: .oneTimeBoth, role: .initiator)
+try peer.finishOpen()
+```
+
+The variables above represent separate host-approved trust and received public
+bytes; parsing a bundle does not establish account approval. The native boundary
+copies all inputs during preparation. `preparePeerReopen(configuration:...,
+session:)` restores only the exact original session. Descriptor construction does
+not authenticate the TLS peer, and connection errors do not prove no durable
+initiation. These overloads use the same parent ownership and cancellation rules
+as the path-based API.
+
+`nextAccountOperation` returns a journal-bound ID to retain before dispatch.
+`sendAccountMember` takes an `AccountID`, that original `AccountOperationID`, the
+complete `[AccountTarget]`, shared plaintext/AD and a selected member index.
+Every target retains its peer, and the wrapper explicitly keeps all targets and
+the selected device alive through native return. The native owner checks the exact
+parent, current complete roster, session archives and original input; passing a
+legacy pairwise owner or a child of another parent grants no account authority.
+Each call delivers one member. Remote account delivery is not atomic, and any
+failure/cancellation may follow local or remote commit. Reconcile the original ID
+and input; do not omit a failed target or replace the operation.
+
+`AccountStatus` distinguishes local reservation/commit, retained abandonment
+reports and retired history. `AccountDeliveryOutcome` separately represents
+confirmed or prefix-pending consumption, resolution pending, delivery unknown,
+history retired and abandoned reservation. A retained result with zero exchanges
+does not necessarily mean consumed. Malformed output, a changed selected session,
+unknown states or an inconsistent report fail explicitly.
+
+The account qualification CLI uses three original installations and two distinct
+recipient devices. Its bootstrap helper observes release of the public device
+wrapper while prepared peers remain, races two closes of one peer with exactly
+one winner, then verifies in-process lease reopening while closed peer aliases
+remain alive and again after they leave scope. It uses actual Swift operations for complete-set refusal, original
+message retry after receiver process exit, unary bypass refusal, target reordering
+and cancellation of an unselected target during TLS. The common Rust harness
+records the client language and uses independently owned receiver processes;
+the native protocol engine remains shared. A separate
+[required-TLS-witness account delivery trace](../../c/ContinuityPackageConsumer/README.md#complete-account-delivery-with-a-required-tls-witness)
+now verifies original-ID retry after receiver exit, idempotent application readback
+and both member confirmations in own-account and peer-account layouts. The
+[own-account trace](../../c/ContinuityPackageConsumer/README.md#own-account-delivery-and-cleanup)
+also requires complete-recipient refusal and original-roster public readback,
+and reconciles four committed TLS witness reply losses during cleanup. Broader
+delivery faults, credential lifecycle and platform-specific execution remain
+separate qualifications.
+
+`ContinuityOwner.prepareReopen(path:quality:session:witness:)` copies an explicit
+existing `SessionID` into the same pending native owner. `finishOpen` restores
+only original Active state with current authority; `reopen` is the synchronous
+convenience form. Expired advertisements and old roster snapshots may authenticate
+the original identity, but expired credentials/policy, revoked membership,
+missing archives/state and closure cannot obtain operational authority. Ordinary
+`open` keeps fresh-bootstrap admission. Neither path implicitly switches to the
+other, changes its witness profile or creates missing storage.
+The owner-test ARC workload covers fresh and restoration preparations. The foreign
+restore trace uses the public Swift method, its actual loaded library and current
+clock, independently owned Rust TLS receiver processes and application readbacks.
+This trace qualifies a local profile. A separate development trace restores the
+responder's original session with required signed TCP and mutual-TLS witnesses,
+rejects missing/wrong witness pins and bad signatures, cancels partial replies and
+stalled TLS handshakes, then reopens the same session. The collector checks original
+public records independently. Fresh archive qualification remains required; the
+expiry and witnessed-constructor workloads retain their separate scopes.
+
+Swift references alias one immutable native handle. Native synchronization and
+monotonic handle identities govern races. Every call retains the wrapper until
+return. `close` throws on Busy and preserves the handle; `cancel` is one-way.
+Cancel, join the active call, close, then reopen the **same original installation**
+to reconcile unknown work. ARC releases an idle owner; unexpected destructor
+failure is logged by status without private paths. Applications use explicit
+throwing close when they need its result. There is no automatic background task
+or implicit retry in the library.
+
+Initiation, session and message IDs have distinct Swift types. The caller retains
+the original initiation/message ID across retries. `committed`, `acknowledged`,
+`resolutionPending`, `deliveryUnknown` and `reservationAbandoned` remain distinct;
+successful transport with a pending consumption prefix is not consumption.
+Native errors preserve code, UTF-8 diagnostic and truncation. Malformed diagnostics
+or outputs fail explicitly. Caller-provided plaintext remains in caller-owned
+Swift memory; this wrapper promises no erasure of those copies.
+
+The current surface covers operational client establishment, exact-message status
+and sending, rekey, listener/receive callbacks, restricted cleanup, and lifecycle
+cancellation/close. The collector also executes explicitly witnessed constructor,
+client/server and cleanup traces. Other platforms and integration
+into the published Swift SDK remain unfinished. These are required for the full
+0.2.0 goal, not silently excluded from it.
+
+Run the existing package collector with `--with-c-consumer --with-swift-consumer`
+on macOS. It first qualifies the actual installed native engine, then creates
+profile-specific ZIP packages containing this Swift source, the exact C header,
+library and licenses. Fresh installations outside the checkout build and run
+Swift Debug/Release with warnings treated as errors. The shared protocol harness
+executes both Swift client and Swift server against separate native Rust peer processes, retaining
+actual receiver bytes, committed-reply loss, original-ID reconciliation, rekey,
+pre-cancel refusal, concurrent Busy/close/cancel, reopen and durable SDK revocation.
+The report explicitly identifies Swift; historical C command/test labels simply
+identify the reused ABI contract harness. No C CLI implements Swift operations.
+
+Each Swift client checks the actually loaded library path before opening an owner.
+The collector verifies its installed bytes and executable hash before and after
+execution, preserves raw build/linker output, and exports selected public data for
+independent replay. Private fixture stores and keys are never included in a ZIP
+or public evidence closure. Correctness timings are not performance guarantees.
+
+The receive callback receives owned Swift copies only after authentication and
+native durable inbox commit. It returns normally only after the host transaction
+has persisted the application effect and session/message deduplication together.
+An arbitrary thrown Swift error returns nonzero across the C boundary and is
+retained alongside the native failure. `ApplicationCommitRefusal` can preserve an
+explicit nonzero application status; zero is rejected. Unknown outcomes remain
+unconsumed and require original-ID reconciliation. A duplicate of already consumed
+traffic does not invoke the callback. A successful callback followed by a transport
+failure is still an unknown peer-delivery outcome, not permission for a new send.
+The listener shares the owner's cancellation and deadline; callbacks are
+synchronous and cooperative. Reentrant close returns Busy and retains the owner.
+
+The Swift test application persists effect+deduplication bytes atomically under
+the exact message ID with file and directory sync, checks existing bytes on replay,
+and refuses conflicts, symlinks and nonregular effects. The server trace includes
+failure before effect, unknown result after effect, actual process exit after
+effect, exact retries, consumed duplicates, rekey and cancelled listener release.
+Its intervening recovery consumption still uses the native public API and is not
+represented as a Swift restricted-recovery interface. A separate installed Swift
+cleanup trace exercises the recovery surface described below.
+
+`ContinuityRecoveryOwner` shares the native owner registry, cancellation and ARC
+lifetime implementation but has no operational methods, raw handle or conversion
+to `ContinuityOwner`. Opening it never needs live SDK permission. Session IDs from
+discovery are hints; selecting one or its retained archive authenticates original
+durable state. Native selection failure closes discovery; close and reopen the
+same installation to reconcile. The explicit witness choice cannot fall back.
+
+`select(account:)` instead selects the exact original `AccountOperationID` and
+consumes discovery. Native admission authenticates all original members before
+recovery writes, retaining the installation, key-vault and journal owners. It
+accepts no recipient subset. Session and account selection are mutually exclusive;
+an account loss cannot be discharged by closing its sessions independently.
+`beginAccountCleanup()` freezes the complete account and returns the operation ID,
+report ID and member count. `accountMember`, `accountReservation`, `accountEpoch`,
+`accountUnconfirmed`, `accountDelivery` and `accountSkippedPosition` expose all
+fields of the immutable snapshot, including original device/context/session
+identities, generations and full-width counters. Every read may fail; a partial
+traversal is never a complete report.
+
+Persist the complete report and original IDs in a deduplicated host transaction
+before `acknowledgeAccount(report:)`. Use `accountCleanupStatus()` to reconcile an
+unknown result against the original operation and report. `retireAccount()` is
+admitted only after exact acknowledgement; it retires batch metadata while
+retaining session/bootstrap tombstones and consumed capacity. It cannot reactivate
+keys. Cancellation blocks mutation but leaves a retained immutable snapshot
+readable until close; a required-witness status read still needs that witness.
+
+The installed collector includes a separate Swift whole-account trace. It observes
+actual calibrated pre-sync process interruptions until a Reserved batch exists,
+revokes operational SDK permission, and freezes, traverses, acknowledges and
+retires via Swift. The host durably retains the full report before acknowledgement.
+Independent native and Python readbacks check both original members, reservations,
+older unknown ciphertext commitments, unconsumed deliveries and skipped positions.
+It also checks absent/committed dispositions, invalid indices, wrong-report and
+cancellation refusals, same-ID reopen and terminal tombstones. Reports explicitly
+identify Swift and retain the original shared harness file format. This is a
+same-host local-profile process-interruption test, not power-loss, required-witness
+or own-account aggregate-cleanup qualification. A separate required-witness path
+uses the same C/Swift/Kotlin report contract, as described below. Product SDK
+integration, Android and durable WASM aggregate cleanup remain separate work.
+
+The required-witness account trace withholds real committed witness responses at
+reservation, freeze, acknowledgement and retirement. Swift preserves each unknown
+outcome, reopens the original operation, and reconciles the original report before
+continuing. The first reopen after an unknown retirement may return a selected
+owner with `.retired` status after resolving its pending write; the following reopen
+refuses with Retired. That successful selected owner grants no operational authority.
+Missing/wrong pins, a corrupted response signature and an unavailable witness after
+retirement are refused. Native and independent public readbacks preserve the whole
+report and all four original witness command IDs with fresh challenges. The explicit
+signed-TCP profile has 67 public files per configuration; metadata confidentiality,
+own-account cleanup and physical power loss require separate qualification.
+
+`begin` permanently freezes the session and returns every scalar/count of its
+immutable loss snapshot. Read every reservation, epoch, unconfirmed ciphertext
+commitment, unconsumed delivery and skipped position using the typed getters.
+Any failed read leaves an incomplete report, not an empty list. Persist the full
+report and its original ID in one host transaction before `acknowledge`. Native
+status distinguishes open, pending and closed; unknown commit requires original-ID
+status reconciliation. Retain the authenticated archive before retiring the index
+row. Restoring that index restores metadata only, never operational keys.
+
+The cleanup trace revokes SDK operations, reads a two-epoch history (including
+unconfirmed outgoing ciphertext, old/new unconsumed deliveries, a skipped position
+and pending rekey/resolution), exits after freezing and after acknowledgement,
+reopens and checks the unchanged durable report, then retires/restores metadata.
+It also checks cancellation, missing IDs, malformed/tampered archives and wrong
+report acknowledgement. A raw-ABI negative control inside the test executable
+checks native owner-kind denial in both directions; all actual cleanup operations
+use the Swift wrapper. That history contains zero uncommitted reservations; its
+report retains that explicit limitation.
+
+The separate installed Swift sync-interruption matrix uses the same native
+fixture and separately hashed probe as C. It calibrates real journal syncs in the
+actual Swift process, interrupts every before/after boundary, and requires Absent,
+Reserved and Committed outcomes after reopening. A real post-sync reservation
+must retain its original message ID and 29-byte plaintext/13-byte associated-data
+lengths after SDK revocation. Positive reservations also precede every calibrated
+cleanup-begin and acknowledgement cut. Open/Pending and Pending/Closed outcomes
+must reconcile the same complete host report, with exact acknowledgement and
+metadata-only restoration. Send, status and recovery completion markers follow
+a successful owner close; an interrupted close cannot publish those markers.
+
+The collector records Swift as the executing language, binds each native helper,
+probe, client and installed-library hash, and keeps the loaded-library check in
+every Swift process. It exports selected public loss/closure records and replays
+them without private journals. Raw command logs and real sync receipts remain
+separate retained evidence. The probe is injected only into the selected test
+processes and is never linked into the SDK. This covers process interruption in
+the local profile, not power loss, injected EIO, witnessed cleanup faults or
+concurrent updates. Historical sync reports use their original pinned verifier.
+
+The installed witness traces select `.signedTCP` or `.mutualTLS` explicitly for
+both operational and cleanup owners. They retain the same native signing pins,
+subject bindings and exact operation IDs, including after SDK revocation. There
+is no local-profile fallback. Missing/wrong pins, credentials, TLS names or witness
+subjects must fail. TCP authenticates public metadata but does not encrypt it;
+the explicit TLS carrier retains the native mutual TLS 1.3 and hybrid group
+contract. The witness engine is still shared with the C qualification, not an
+independent deployed witness implementation.
+
+The constructor trace exercises all three carrier choices, both owner kinds,
+pre-cancelled activation, configuration copied at preparation, Busy-preserving
+close during activation, a cancelled partial signed reply and a stalled TLS
+handshake. The Swift executable joins its own workers even when a test barrier
+fails. Native witness failure remains status 218 when its outcome is unavailable;
+it is never relabeled as successful activation or known absence. The signed TCP
+trace also cancels after witness commitment, then reopens and reconciles the
+original ID, and repeats this discipline for an unknown cleanup freeze. The TLS
+trace repeats real messaging and revoked cleanup using the original authority.
+Observed cancellation timing is a fixture gate, not an OS-preemption guarantee.
+
+Constructor and native-witness public reports use schema version 2 with an
+explicit C/Swift language field. Their verifiers require the selected language,
+complete raw command/data readbacks and original signed-transcript accounting.
+Earlier reports retain their original source/verifier version; a historical C
+success cannot be relabeled as Swift evidence.
+
+
+The separate complete-account TLS workload bootstraps two original peer sessions
+and freezes, acknowledges and retires the reserved account after SDK revocation.
+It uses the existing native mutual TLS witness with three exact certificate/subject
+bindings. Wrong witness pins, TLS names and certificate subjects refuse selection;
+missing or unreachable original authority remains a failure after retirement.
+Every measured foreign TLS phase must leave the plaintext witness's request count
+unchanged. The complete loss report retains two reservations, two older unknown
+sends, five unconsumed deliveries and two skipped positions across fresh processes.
+
+The reserved state is deliberately prepared by losing one committed response over
+signed TCP; native fixture preparation and report readback also use that original
+witness. This workload therefore qualifies encrypted account bootstrap and cleanup,
+not loss of TLS commit responses or a complete witnessed account-delivery/fault
+matrix. The collector retains this carrier distinction and all eleven phase ranges
+in its separate account-TLS public export. The original signed-TCP four-loss trace
+remains mandatory. No raw owner handle, new native export or alternate TLS engine
+is added. Current/native-minimum development runs remain separate from a complete
+archive-produced cohort and final distribution admission.
+
+## Original-identity credential renewal
+
+Resume the original `ContinuityEnrollment` and call `stageCredentialRenewal` with
+an independently obtained `AccountPin`, the bounded signed grant and its retained
+`CredentialRenewalID`. Activation transfers the same native registration owner to
+`ContinuityDevice`; an error may follow a durable commit, so close and resume the
+original state. Do not create replacement keys, configuration or operation IDs.
+
+`credentialRenewalStatus` is passive history and needs no live policy/TLS inputs.
+Its explicit cases are Absent, Pending, Committed, ExpiredUncommitted and Closed. Committed
+remains a historical fact after expiry or revocation. For an expired pending target,
+`reconcileExpiredCredentialRenewal` uses the original operation and statement and
+returns no device. Only a separately authorized new grant can resume current use.
+
+`ContinuityDevice.admitPeerCredentialRenewal` installs a peer grant under the
+original service. Reopen the exact existing peer/session afterward; cached children
+are not silently upgraded to new authority. Fresh bootstrap still requires current
+public inputs. Policy/root/key replacement remains a separate unsupported transition.
+
+The renewal workload covers host-clock expiry, complete status-field readback,
+original registration identity, failed-owner disposal, historical peer reopening
+and rejection of a cached child after another grant. A native readback checks the
+unchanged original ciphertext. This does not establish post-renewal TLS delivery,
+physical-device qualification, independent protocol implementation or a stable ABI.
+
+For required-witness renewal, call `prepareWitnessedCredentialRenewal` and retain
+the exact public proposal for independent witness approval. Then use
+`commitWitnessedCredentialRenewal`, `closeWitnessedCredentialRenewal` or
+`reconcileWitnessedCredentialRenewal` with the original operation and statement.
+These borrow the enrollment owner and return no Device. New Commit requires current
+authority; terminal history can be recovered without an SDK runtime through the
+original pinned signed policy. `Closed` rejects only the exact target and may leave
+the preceding credential live. The source TCP/TLS Applied/Closed workload is
+separate from installed archives, expiry/fault coverage and physical platforms.
+
+For a staged grant without a proposal, `prepareWitnessedCredentialCancellation()`
+returns an immutable 248-byte descriptor for independent cancellation approval.
+It reserves the original journal without a target image, SDK database or witness
+request; the original pinned historical policy is sufficient after expiry. Resume
+the same enrollment and reconcile the original operation/statement after the
+witness approves `Closed`. `Unavailable` keeps the reservation pending. Durable
+local `Closed` precedes ACK and exact reservation removal; an interrupted ACK is
+retried on reopen. The descriptor does not grant current device authority.
+The package collector requires the eight real-process cancellation cases described
+in the [C consumer](../../c/ContinuityPackageConsumer/README.md), using this Swift
+client and the shared native engine. macOS scope is Apple Silicon; independent
+protocol-implementation and physical-device qualification remain separate.
+
+### Explicit policy continuation
+
+Keep the original P0 registration files. Supply P1 as an independently pinned
+`PolicyDocument` (root, family, `PolicyCheckpoint` and signed wire), then call
+`selectContinuedPolicy(path:target:)` on each resumed enrollment. The native owner
+retains that SDK store/runtime until close or transfers it on successful activation.
+Selecting a document alone grants no session authority.
+
+`stagePolicyContinuation` takes the account grant, both policy approvals and the
+independent previous document; `previousAuthorization` is absent only for original
+P0. `stageContinuedCredentialRenewal` advances G while carrying the adopted T.
+Use `reconcilePolicyContinuation` for local coordination or prepare an exact
+`PolicyRenewalProposal`, obtain independent witness approval, and call
+`commitWitnessedPolicyContinuation` with the original operation and transaction
+statement. The proposal keeps G and T separate; `statement` selects T for adoption
+and G for carry. Old fixed-width credential metadata APIs retain their contract.
+
+`recoverHistoricalPolicyContinuation` takes pinned history without selecting P1
+and completes only an already committed local transaction. It never creates a
+device or a new target; an uncommitted operation remains pending. Operational
+activation separately uses `activatePolicyContinuation`, transfers the same owner
+and requires current authority. Continued devices restore existing sessions; this
+does not grant fresh bootstrap permission. After a failed admitted call, close
+the wrapper and resume the original enrollment, retaining its operation identity.
+
+The consumer exposes the shared `enrollment-policy-*` local/history commands and
+`enrollment-policy-witness-prepare` / `enrollment-policy-witness-commit` TCP/TLS
+commands. See the [C consumer](../../c/ContinuityPackageConsumer/README.md) for the
+public input layout and remaining candidate qualification boundaries.
+
+After selecting an original account operation with `select(account:)`, call
+`reconcileAccount()` to obtain its complete original member set in canonical
+device order. Each `AccountReconciledMember` retains the original device, session
+and message IDs. `AccountMemberState` distinguishes committed, acknowledged,
+resolution-pending, delivery-unknown, history-retired and reservation-abandoned.
+Only acknowledged proves authenticated consumption. History-retired cannot
+recover the distinction between earlier acknowledgement and accounted unknown
+delivery. A native failure throws; it never becomes an empty successful result.
+
+Retain the needed complete result durably, and settle every original member,
+before `retireAccount()`. The native owner rechecks retirement eligibility;
+reading metadata grants no new traffic or ability to bypass an unsettled member.
+The consumer's `recover-account-results` and `recover-account-settled-retire`
+commands exercise this path after actual peer revocation and interruption over
+signed TCP and mutual TLS. The same Swift client now admits the peer roster and
+performs the interruption path described below. That client also performs
+registration, witnessed local P/R updates, and durable acknowledgement of each
+original member loss report. The combined workload does not qualify P/R
+interruption, physical platforms or the final release. The separate optional
+OpenSSL workload below covers pre-processing loss over mutual TLS.
+
+
+### Independent policy updates
+
+`PolicyRenewalID`, `PolicyRenewalScope` and `PolicyRenewalRequest` describe a
+policy-only operation, separately from credential renewal and joint G/T.
+Persist the original operation, complete request and exact approval bytes.
+`policyRenewalRequest` reads the local-profile request;
+`witnessedPolicyRenewalRequest` uses the explicitly configured original witness.
+The request includes signed identity material and independent expected scope;
+its public fields are not proof of user approval or current permission.
+
+On each resumed enrollment, select the independently pinned current target with
+`selectContinuedPolicy`, then call `stagePolicyRenewal` with the retained request,
+original/current account pins, both policy-root approvals and the previous policy
+document. Native staging re-verifies the actual predecessor, signatures and scope.
+For the local profile, `reconcilePolicyRenewal` completes the original pending
+transaction. `pendingPolicyRenewalApproval` returns its first saved signatures;
+retrying never replaces the original operation or approvals.
+
+For required witnesses, `prepareWitnessedPolicyRenewal` returns the complete
+296-byte `IndependentPolicyProposal` in the separate `QPPWNP01` domain. Retain it
+before requesting independent witness approval. Use that exact proposal with
+`commitWitnessedPolicyRenewal`, `reconcileWitnessedPolicyRenewal` or
+`closeWitnessedPolicyRenewal`. Commit requires current target authorization.
+Historical reconciliation still uses the original witness configuration and can
+operate without the current SDK store or application TLS inputs. It persists the
+original terminal before ACK and exact pending cleanup.
+
+`recoverWitnessedPolicyRenewalPreparation` reports only local presence or absence.
+`witnessedPolicyRenewalProgress` preserves Reserved, Applied, Closed and terminal
+retirement without acquiring a current runtime or private signing owner.
+Unavailable witness history never proves no commit. `resolvePolicyRenewal`
+returns the original local transaction's historical result. None of these result
+queries grants a device. `activatePolicyRenewal` transfers the same original
+owner only after native current-authority checks; after an admitted failure,
+close and explicitly resume the original enrollment with the retained identities.
+
+The installed-package collector requires ten real scenarios for each selected
+language/profile: local restart/retry, typed refusals, original TLS message
+recovery, TCP/TLS Applied and Closed, and three signed-TCP commit/ACK reply losses.
+Every successful run must include 117 policy dispatches and seven foreign
+transport calls. Registration and unrepresentable invalid raw-buffer controls
+remain C operations and are reported as such. This uses one shared native engine;
+TLS policy reply-loss, post-dispatch policy cancellation, physical process cuts,
+platform persistence and independent implementation/security review remain
+separate qualification gates. The roster-resolution types additionally decode
+historical outcomes, including SupersededUnknown. The separate required-witness
+roster and peer-roster surfaces are described below.
+
+
+### Witnessed roster updates
+
+`RosterRefreshID` and the complete 417-byte `RosterRefreshProposal` identify one
+same-credential roster/head update under the separate `QPRWNP01` domain.
+`prepareWitnessedRosterRefresh` takes the independently pinned current root roster
+and certificate. `RosterPolicySource` explicitly chooses original P0 or the
+already selected current P; admission failure never selects another authority.
+The native owner derives the actual predecessor and policy authorization.
+Retain the returned proposal before obtaining independent witness approval, then
+use exactly that proposal with `commitWitnessedRosterRefresh`,
+`reconcileWitnessedRosterRefresh` or `closeWitnessedRosterRefresh`.
+
+`recoverWitnessedRosterRefreshPreparation` and `witnessedRosterRefreshProgress`
+read original historical metadata without current SDK or private signing input.
+Local absence and Unavailable witness history do not prove no commit. Progress
+keeps Staged, Reserved, Applied, Closed and AbandonedBeforePreparation separate;
+terminal retirement is durable cleanup, not a new operational lease. Scope fields
+must agree with the full retained proposal. `abandonUnpreparedRosterRefresh` is
+allowed only before any proposal was released and when the original local
+pending state is absent. It never manufactures a witness Closed outcome.
+After an admitted failure, close and resume the original enrollment with the
+same operation and proposal; commit and activation still require current authority.
+
+The installed collector requires twelve scenarios and 141 foreign R dispatches:
+eight TCP/mTLS P0/current-P Applied/Closed combinations, three processed TCP
+commit/ACK reply losses, and an initial head-query failure followed by explicit
+local abandonment without current runtime or network. C still performs enrollment,
+P adoption, invalid native grammar controls, activation and successor P requests.
+This is one shared protocol engine. The foreign R qualification does not cover
+TLS commit reply loss, post-dispatch cancellation, process cuts, peer-roster
+admission, platform persistence or independent security review.
+
+
+### Current peer rosters and original account recovery
+
+`ContinuityDevice.admitPeerRoster` accepts authentic public roster bytes
+(1..65536 bytes) and an independently selected account/root/family/checkpoint.
+It updates a known remote account through the original device service. It cannot
+update the local account, replace policy or create a session. The returned
+checkpoint describes installed current state; it is not a transaction receipt.
+Rollback and same-version forks remain native errors. Exact retries still need
+current local authorization and the configured original witness.
+
+After I/O, witness or cancellation failure, close the original parent and reopen
+it under current authority, then retry the same target. Unknown commit must not
+be converted to absence or a new identity. Previously opened peers remain fenced
+by native current-roster checks. Complete-account recovery preserves every
+original member, including authenticated consumption versus unknown delivery,
+before durable host accounting permits final metadata retirement.
+
+The installed collector selects this same language for registration, local P/R
+updates, account traffic, peer admission and full account recovery. It obtains the original account operation,
+sends to both original sessions, observes a lost application receipt, and reads
+status before and after local P/R updates. Exact retained retries preserve the
+original effects; changed membership/input, unary release and cancelled peers
+remain refusals. This adds 99 foreign traffic calls across the nine scenarios,
+plus 11 in the optional OpenSSL scenario. The selected language also establishes
+both original sessions and executes the receivers: 18 sender establishments and
+36 receiver processes across the nine scenarios, including nine actual exits
+after the application effect is durable but before its receipt is sent. The
+OpenSSL scenario adds two establishments and four receivers with one such exit.
+The original sessions, message IDs and independently read application files must
+remain unchanged through recovery. Each scenario also requires seven registration
+calls, seven witnessed policy calls and five roster calls from the same selected
+client. Registration verifies the original signer and signed request before
+activation; P/R adoption preserves the original enrollment and established sessions.
+The native host supplies independent root/policy authorities, SDK setup and
+witness approvals. The combined path covers normal P/R adoption; separate
+policy/roster workloads retain their interruption coverage.
+Selecting an enrollment parent cannot bootstrap a new session through the
+account commands; initial establishment uses the original enrollment's explicit
+connect path. It requires nine scenarios: ordinary revocation over signed
+TCP and mTLS; unprocessed TCP loss; processed reply loss, in-flight cancellation
+and an observed process kill over each carrier. Every language run includes
+25 completed foreign peer-control dispatches and two actual killed clients.
+The same foreign client performs 36 member-closure calls: it writes and syncs
+each original loss report, reopens that exact report, then acknowledges the
+original report twice and checks its closed identity. C retains 27 raw
+input/output-buffer controls. Foreign post-dispatch failures are checked as typed
+errors; the separate C baseline checks untouched raw success outputs. This is
+one shared native protocol engine, not an independent implementation.
+
+When `--witness-openssl-prefix` is selected, a separate tenth scenario uses the
+pinned independent OpenSSL endpoint. It authenticates the complete mutual-TLS
+request and drops it before the native witness store handles it. The witness
+image must remain unchanged. Recovery retains the original sealed target, uses
+a fresh challenge for the same command, and preserves all original account
+member results through retirement. This adds three foreign peer calls, four foreign member-closure calls and
+three C raw-input controls. The collector requires the C baseline first and
+pins the endpoint executable and its OpenSSL dependencies. This qualifies the
+independent TLS endpoint; native TLS server pre-processing interruption,
+physical platforms and platform persistence remain separate gates.
+
+## Permanently retired enrolled devices
+
+`ContinuityRetiredEnrollment` is a separate cleanup-only owner. Supply the original
+`EnrollmentIntent` and `RetiredEnrollmentAuthority` containing the independently
+retained witness pin, original replacement proposal, exact old subject and signed
+permanent retirement proof. `prepareOpen` snapshots these inputs; `finishOpen`
+opens the existing restricted native enrollment. It exposes no operational device,
+signer, runtime or raw handle. Close active device/peer owners before opening it.
+
+Read `inventory()`, obtain independent inventory retention, then call
+`prepareReport(inventoryReceipt:)`. Retain the original proposal and obtain its
+independent report receipt. `loadReport` authenticates and copies the complete
+immutable `RetiredDeviceReport.canonicalBytes`; its keyed `report` ID is separate
+from those bytes. The returned `viewCount` is descriptive, not a substitute for
+retaining the complete private host metadata. Local proposal absence does not
+prove that the witness failed to commit.
+
+Durably retain the full report and original proposal, accounting by its report ID,
+before `prepareAcknowledgement` with the actual saved bytes. Only the independent
+purpose-21 ACK authorizes `eraseJournal`. Inspect `journalState` after an unknown
+outcome, prepare the exact signer erasure, inspect `signerState`, and call
+`eraseSigner`. Successful signer erasure also consumes the resource; close the
+registry handle. Reopen the exact original intent/proof for reconciliation.
+Never reset the installation or substitute a backup to recover from an error.
+
+The wrapper reuses the existing pinned native owner for close, cancellation and
+concurrent-call admission. Static input-width rejection leaves the resource
+unchanged; admitted native failures and late cancellation consume it. A valid
+report-retention signature cannot substitute for a host-accounted erasure ACK.
+Logical erasure says nothing about old pages, backups, wrapping keys or physical
+power-loss durability.
+
+The installed-package producer requires all 56 named tests and eight actual Swift
+cleanup processes, including three exits without completion and exact complete
+report readback. The replacement fixture also drives ten Swift processes through
+the existing enrollment API: generation-2 creation, original-request reopen,
+grant acceptance/retry, exact genesis preparation, refusal before witness
+replacement, and activation/reopen after its independently authorized commit.
+An interrupted `Activating` enrollment resumes its original genesis without
+preparing another installation. Two more Swift processes serve the successor's
+fresh TLS bootstrap and then open that exact session to durably consume a message.
+Their session/message identities and complete host effect match the native sender;
+the existing callback reentrancy and application confirmation checks remain active.
+Three additional Swift processes allocate no replacement identity: they retain
+the next publication ID, prepare the complete advertisement and recover its exact
+bytes after reopening. Both actual connection bundles use this manifest and all
+four proofs. Account issuance and witness replacement approval remain with the
+native Rust controller. Qualification of
+each current archive is separate; this is not a complete foreign replacement
+flow or an independent protocol implementation.
+
+## Local prekey publication
+
+An activated `ContinuityDevice` (including one returned by `ContinuityEnrollment`)
+can prepare a publication without exposing its signing key. Build a complete
+immutable `PublicationPlan` with an independently trusted directory expectation,
+finite validity and ordered `PublicationKey` members. Explicit reuse names a
+`PrekeyInventoryID`; availability and policy remain native checks.
+
+Read `nextPublication()` and retain that ID and full plan before calling
+`preparePublication(_:plan:)`. On an uncertain failure, reopen the same enrollment
+and retry the same inputs. `PreparedPublication.canonicalBytes` is the complete
+`QPPUBA01` result. Its inventory IDs follow original plan order; membership proofs
+follow canonical manifest order. Swift checks framing and copying; the shared
+native engine performs signature, policy, inventory and current-time admission.
+Parsing a retained public blob does not grant current permission or independent
+signature verification.
+
+`status(publication:)` distinguishes absent, reserved, prepared and retired local
+history. A prepared record may no longer be releasable after expiry/revocation or
+key consumption. Retire its acknowledged artifact digest with `retirePublication`
+to reclaim public history without revoking inventory. `abandonPublication` applies
+to the original reserved intent and retires fresh unshared members only. Neither
+API asserts remote publication or physical erasure. Existing parent cancellation,
+close and original-operation reconciliation rules apply unchanged.

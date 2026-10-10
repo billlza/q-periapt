@@ -1,0 +1,310 @@
+{
+  "source_commit": "f19a39613117340fed87af050635cc1030b1050c",
+  "ci_run": 38025513433,
+  "ci_url": "https://github.com/billlza/q-periapt/actions/runs/38025513433",
+  "original_artifact_digests_verified": true,
+  "original_result_files": {
+    "android-runtime-no-sdk-control": {
+      "sha256": "4d8aef293c36f5f2b501a0c58cc5d890700c9f12fe9d763ea0fc565324105afc",
+      "bytes": 128834,
+      "artifact_id": 11660250078
+    },
+    "android-framework-instrumentation-control": {
+      "sha256": "757a42c379e170feea21ac7c9c53d8de7a18d5db653e08c60326bbec10f6fc8a",
+      "bytes": 58709,
+      "artifact_id": 11659984092
+    }
+  },
+  "observations": {
+    "android-runtime-no-sdk-control": {
+      "samples": 12,
+      "started_utc": "2026-10-10T04:52:24.690837+00:00",
+      "boot_observed_utc": "2026-10-10T04:53:10.717328+00:00",
+      "finished_utc": "2026-10-10T04:58:53.080659+00:00",
+      "runtime_page_size": 16384,
+      "boot_ids_observed": [
+        "67f7f4d1-9ca1-4993-8439-d3fd6369b8bf"
+      ],
+      "adbd_pids_observed": [
+        "438"
+      ],
+      "system_server_pids_observed": [
+        "705"
+      ],
+      "all_samples_original_system_server": true,
+      "lmkd_kill_log_lines": 166,
+      "lmkd_kill_first": [
+        "10-10 04:53:10.179   152   152 I lowmemorykiller: Kill 'com.google.android.cellbroadcastreceiver' (1467), uid 10193, oom_score_adj 905 to free 129340kB rss, 0kB swap; reason: min watermark is breached",
+        "10-10 04:53:10.236   152   152 I lowmemorykiller: Kill 'com.google.android.permissioncontroller' (1044), uid 10189, oom_score_adj 100 to free 142044kB rss, 0kB swap; reason: min watermark is breached even after kill"
+      ],
+      "lmkd_kill_last": [
+        "10-10 04:57:43.114   152   152 I lowmemorykiller: Kill 'com.google.android.rkpdapp' (7698), uid 10195, oom_score_adj 905 to free 87788kB rss, 29360kB swap; reason: min watermark is breached even after kill",
+        "10-10 04:57:43.138   152   152 I lowmemorykiller: Kill 'com.google.android.gms.unstable' (6976), uid 10144, oom_score_adj 905 to free 188204kB rss, 43644kB swap; reason: min watermark is breached even after kill"
+      ],
+      "guest_logcat_bytes": 474457,
+      "kernel_console_bytes": 311901,
+      "cleanup_failures": [],
+      "owned_child_exits": [
+        {
+          "name": "emulator",
+          "pid": 2826,
+          "returncode": 0,
+          "forced_kill": false
+        },
+        {
+          "name": "adb-server",
+          "pid": 2823,
+          "returncode": -15,
+          "forced_kill": false
+        }
+      ],
+      "guest_file": "/apex/com.android.art/lib64/libart.so",
+      "transfer_readbacks": [
+        {
+          "member": "sample-00-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-01-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-02-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-03-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-04-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-05-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-06-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-07-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-08-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-09-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-10-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        },
+        {
+          "member": "sample-11-transfer.stdout",
+          "bytes": 14967936,
+          "sha256": "6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133"
+        }
+      ]
+    },
+    "android-framework-instrumentation-control": {
+      "samples": 3,
+      "started_utc": "2026-10-10T04:52:26.720671+00:00",
+      "boot_observed_utc": "2026-10-10T04:53:20.552046+00:00",
+      "finished_utc": "2026-10-10T04:53:39.188609+00:00",
+      "runtime_page_size": 16384,
+      "boot_ids_observed": [
+        "bd8aae01-c7d1-4afc-a4a2-fa186113de2c"
+      ],
+      "adbd_pids_observed": [
+        "437"
+      ],
+      "system_server_pids_observed": [
+        "555"
+      ],
+      "all_samples_original_system_server": true,
+      "lmkd_kill_log_lines": 70,
+      "lmkd_kill_first": [
+        "10-10 04:53:20.655   144   144 I lowmemorykiller: Kill 'com.google.android.ext.services' (1353), uid 10191, oom_score_adj 905 to free 115384kB rss, 0kB swap; reason: min watermark is breached",
+        "10-10 04:53:20.673   144   144 I lowmemorykiller: Kill 'com.google.android.permissioncontroller' (908), uid 10186, oom_score_adj 100 to free 142008kB rss, 0kB swap; reason: min watermark is breached even after kill"
+      ],
+      "lmkd_kill_last": [
+        "10-10 04:53:37.526   144   144 I lowmemorykiller: Kill 'com.android.managedprovisioning' (3554), uid 10103, oom_score_adj 905 to free 112056kB rss, 0kB swap; reason: min watermark is breached",
+        "10-10 04:53:37.538   144   144 I lowmemorykiller: Kill 'com.google.android.as' (3193), uid 10135, oom_score_adj 100 to free 178564kB rss, 0kB swap; reason: min watermark is breached even after kill"
+      ],
+      "guest_logcat_bytes": 273245,
+      "kernel_console_bytes": 266494,
+      "cleanup_failures": [],
+      "owned_child_exits": [
+        {
+          "name": "emulator",
+          "pid": 2959,
+          "returncode": 0,
+          "forced_kill": false
+        },
+        {
+          "name": "adb-server",
+          "pid": 2957,
+          "returncode": -15,
+          "forced_kill": false
+        }
+      ],
+      "invocation_offsets_seconds": [
+        2.7985745309999857,
+        9.200409740999987,
+        16.013012064999998
+      ]
+    }
+  },
+  "conclusions": [
+    "The repaired diagnostic console routing permits both pinned cold emulator control workloads to finish with two nonempty independent console logs.",
+    "The same system-server process and adbd process remain observed through each sampled control run; the pure Java invocations and all 12 guest-library readbacks succeed.",
+    "LMKD background-process kill logs coexist with successful transport and framework operations in these controls; their presence alone is insufficient to explain the earlier intermittent ADB failure."
+  ],
+  "limits": [
+    "One cold emulator per control on the pinned API 35 x86_64 16-KiB image; no frequency or broad reliability claim.",
+    "These controls execute no SDK workload; the pure Java APK uses non-streaming installation and does not match SDK workload/resource pressure.",
+    "The older intermittent SDK ADB disconnection has not been reproduced or causally resolved by these successful controls.",
+    "No lmkd page-unit correctness, physical-device admission, native SDK safety or 0.2.0 release qualification follows from these controls.",
+    "Only selected public metadata, command readbacks and console logs are copied; original artifact SHA-256s bind the complete retained local archives."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "e9a583a61567c0efa92275a456f6093368ee919095f4485ad85021d5e5eeb73c",
+    "bytes": 241846,
+    "files": {
+      "ARTIFACTS.json": "82207706b7925ab335ee51dd1b8e863244cb61e886b2a23c51a19bf39326e76a",
+      "FILE_COPY_READBACK.json": "3ce35757433ddaaf4d245de78149a1ed3567460cab5ec9373edc4cb4ff0fd50d",
+      "OBSERVATIONS.json": "ac230eaa9a121d8ca012de00fd6c4709b305f7889f06841c371fc98b3e8ac8fc",
+      "android-framework-instrumentation-control/PUBLIC_RESULT.json": "6b54865ff47c6a86b73e164881131b26ffcd101c3fce96684847b8e41266235b",
+      "android-framework-instrumentation-control/before-install-adbd-service.stdout": "a4ecc5c87d811bbff7a118c17ef8cf83318cb623a103c15b8549089aa2a7f0ac",
+      "android-framework-instrumentation-control/before-install-adbd.stdout": "12f0783d3dc6d45667e427dcd904c4120257bd1c9ba311259fe425e947ec125b",
+      "android-framework-instrumentation-control/before-install-boot-id.stdout": "603229df6964c991615be676bc68a75458a8b51d0254b92ce10d02da10058610",
+      "android-framework-instrumentation-control/before-install-system-server.stdout": "c502c94f410b5535c1920173107b2e9a75d6938eb2141a09ff1743e689061943",
+      "android-framework-instrumentation-control/before-install-uptime.stdout": "2caa73ad851b379758e11417cc86988015a0491595019f60134db60c10cb9c08",
+      "android-framework-instrumentation-control/emulator.log": "bc9c29dd338fc629362f3f77f11b6255afd6979db6087d43a30c2ed01f15b04e",
+      "android-framework-instrumentation-control/guest-logcat.log": "c4546702ee7ae3a17beb76a84e51aed719201199c54cb77c926beb323a50bf9d",
+      "android-framework-instrumentation-control/invocation-00-after-adbd-service.stdout": "a4ecc5c87d811bbff7a118c17ef8cf83318cb623a103c15b8549089aa2a7f0ac",
+      "android-framework-instrumentation-control/invocation-00-after-adbd.stdout": "12f0783d3dc6d45667e427dcd904c4120257bd1c9ba311259fe425e947ec125b",
+      "android-framework-instrumentation-control/invocation-00-after-boot-id.stdout": "603229df6964c991615be676bc68a75458a8b51d0254b92ce10d02da10058610",
+      "android-framework-instrumentation-control/invocation-00-after-system-server.stdout": "c502c94f410b5535c1920173107b2e9a75d6938eb2141a09ff1743e689061943",
+      "android-framework-instrumentation-control/invocation-00-after-uptime.stdout": "e79383ccc274bcb6008de2c07b8124802e45f51dd81722fd83390f27b5201cbc",
+      "android-framework-instrumentation-control/invocation-00.stdout": "95d47bd2549c723a9569699402a65257028141a7bfaa4a5a69662fdc36118a40",
+      "android-framework-instrumentation-control/invocation-01-after-adbd-service.stdout": "a4ecc5c87d811bbff7a118c17ef8cf83318cb623a103c15b8549089aa2a7f0ac",
+      "android-framework-instrumentation-control/invocation-01-after-adbd.stdout": "12f0783d3dc6d45667e427dcd904c4120257bd1c9ba311259fe425e947ec125b",
+      "android-framework-instrumentation-control/invocation-01-after-boot-id.stdout": "603229df6964c991615be676bc68a75458a8b51d0254b92ce10d02da10058610",
+      "android-framework-instrumentation-control/invocation-01-after-system-server.stdout": "c502c94f410b5535c1920173107b2e9a75d6938eb2141a09ff1743e689061943",
+      "android-framework-instrumentation-control/invocation-01-after-uptime.stdout": "22e307d1e63585459e11276b4417274a1de1fbef81221411dbd6ec3ad09206ea",
+      "android-framework-instrumentation-control/invocation-01.stdout": "bbd92db8c5605d83746f748df5f33fb89ae7f0aefd4d0a13378647657d17ecc4",
+      "android-framework-instrumentation-control/invocation-02-after-adbd-service.stdout": "a4ecc5c87d811bbff7a118c17ef8cf83318cb623a103c15b8549089aa2a7f0ac",
+      "android-framework-instrumentation-control/invocation-02-after-adbd.stdout": "12f0783d3dc6d45667e427dcd904c4120257bd1c9ba311259fe425e947ec125b",
+      "android-framework-instrumentation-control/invocation-02-after-boot-id.stdout": "603229df6964c991615be676bc68a75458a8b51d0254b92ce10d02da10058610",
+      "android-framework-instrumentation-control/invocation-02-after-system-server.stdout": "c502c94f410b5535c1920173107b2e9a75d6938eb2141a09ff1743e689061943",
+      "android-framework-instrumentation-control/invocation-02-after-uptime.stdout": "e7acc3518b20bd63914f2931608ae3dd2d5f67bd0338062ad22a6aa63fc268ff",
+      "android-framework-instrumentation-control/invocation-02.stdout": "6132790b143de58f98143094be1aa86544bcb141d7562b3f7c13d4dab10c59c2",
+      "android-runtime-no-sdk-control/PUBLIC_RESULT.json": "5b01a57d42867b506ef86a81f3685f10502bbc8bcdae29333ea06da03b5868de",
+      "android-runtime-no-sdk-control/emulator.log": "f9921e31669e6f69cece7da3eeaadfc9644ec2e1aca3213c2fa2e14029c9d69c",
+      "android-runtime-no-sdk-control/guest-logcat.log": "42053bd3b314ed52c66c3e9b66fb2562715dd32819c32d7ec5a1ba542ff099ff",
+      "android-runtime-no-sdk-control/sample-00-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-00-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-00-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-00-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-00-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-00-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-00-uptime.stdout": "1cfe6f6d83e31f7a5a855c268c9703678c43945bd21b1f387c58f37aca861643",
+      "android-runtime-no-sdk-control/sample-01-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-01-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-01-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-01-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-01-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-01-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-01-uptime.stdout": "4010c075f1a20d34fd0b7263b3f1b1e9fe1b95a2957f0dc6b32bb050dc45719e",
+      "android-runtime-no-sdk-control/sample-02-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-02-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-02-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-02-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-02-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-02-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-02-uptime.stdout": "3dfdc0f1a5ff27567bb9425c90707ce48e7d04fe8c311d9b5ba1416eaaadd23c",
+      "android-runtime-no-sdk-control/sample-03-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-03-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-03-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-03-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-03-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-03-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-03-uptime.stdout": "4bf007955672d37a2d51a8553656da4b59e8eb4accc9c4eb2c8f6dfad87cdb8c",
+      "android-runtime-no-sdk-control/sample-04-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-04-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-04-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-04-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-04-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-04-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-04-uptime.stdout": "dd4a7d5ed6269721fe8f96861a61d148b23e5b944f404589baaca4649e59b73a",
+      "android-runtime-no-sdk-control/sample-05-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-05-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-05-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-05-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-05-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-05-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-05-uptime.stdout": "8b27cdc756e361d178c96de0bad81e21131e6451788bd19f3dbb4101fa5f323f",
+      "android-runtime-no-sdk-control/sample-06-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-06-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-06-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-06-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-06-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-06-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-06-uptime.stdout": "7278110d8a11bad8afc5651b1c0ba763d7cd5badf24566e8f1f72b63ffdab8f3",
+      "android-runtime-no-sdk-control/sample-07-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-07-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-07-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-07-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-07-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-07-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-07-uptime.stdout": "0f22b93dd863dfae23ce84b1e3ab6283db7e2f82a57e89096f88879e5db1626d",
+      "android-runtime-no-sdk-control/sample-08-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-08-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-08-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-08-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-08-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-08-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-08-uptime.stdout": "f48ae2e37a9c9804fba44c35468cb89e5329dc3c88216376339f84477865c572",
+      "android-runtime-no-sdk-control/sample-09-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-09-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-09-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-09-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-09-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-09-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-09-uptime.stdout": "1e7463a1fe95219748be1297e97cc94623fc7670dfc3c9c6efd94bdad76ce858",
+      "android-runtime-no-sdk-control/sample-10-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-10-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-10-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-10-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-10-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-10-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-10-uptime.stdout": "123faa0c748982877d6b420faf066434853327b68bf1603439d8a131fa46aede",
+      "android-runtime-no-sdk-control/sample-11-adbd.stdout": "a97d621ec6b93d9b869e8cdb134516925f2baf2fa1c8186a387f6fc35ffb77ad",
+      "android-runtime-no-sdk-control/sample-11-boot-id.stdout": "3003d763fd0f1fff66d2bf56a7f4b165a98f54ed91db81f98715788cb4420938",
+      "android-runtime-no-sdk-control/sample-11-hash-after.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-11-hash-before.stdout": "89970c0f8d2b1af2a2c0895264653f8d274e0013351595022bf15455de719a94",
+      "android-runtime-no-sdk-control/sample-11-pid-after.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-11-system-server.stdout": "f3951978da9fd0d44978efafd20f9ce909a7566f387209cf6edc5f7a5fa79b6b",
+      "android-runtime-no-sdk-control/sample-11-uptime.stdout": "b871bbc598da29e2bcbc03a51ed88d8e8af2edeea9015260c92b1ccaebcef677"
+    }
+  }
+}

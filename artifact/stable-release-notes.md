@@ -160,7 +160,7 @@ release documentation as `E`, then generate a separate 190-key initial baseline
 and install it in one commit `D2` together with the
 matching `INITIAL_RESULTS_SHA256` and the authority stated in `ARTIFACT.md`.
 The generator recomputes the retained inputs and removes only the validated pending
-leaves; do not hand-edit the installed 249-key proof map. This reopens development
+leaves; do not hand-edit the installed 254-key proof map. This reopens development
 and does not activate the 0.1.5 cohort or claim current package evidence for `D2`.
 
 Registry publication completed at `W`, followed by finalization from the clean `P`
@@ -471,7 +471,7 @@ assets; post-publication consumers re-download and verify the immutable releases
 
 While `S` still carries the frozen 190-key pre-migration manifest, main CI uses
 only the exact source-transition readiness authority described in `ARTIFACT.md`;
-it is not a generic proof skip. Once `R` installs the exact 249-key map, CI
+it is not a generic proof skip. Once `R` installs the exact 254-key map, CI
 dispatches only to the full proof-to-byte gate. Mixed states and failed readiness
 never fall through to the other mode.
 
@@ -1305,7 +1305,7 @@ publication_state_root=$publication_state_parent/crates.io-v0.1.5
 # First installation only: require that the fixed executable does not exist.
 # For an existing executable, follow Registry tooling recovery above.
 # Materialize the release-pinned exact-byte uploader from the reviewed template
-# and the rust package handoff, then install it as this fixed 0700 child. The
+# and the rust package handoff for review before installation. The
 # generator derives each crate's registry metadata from the packaged .crate
 # (crates_io_registry_metadata, proven byte-identical to cargo's output), binds
 # every crate to the handoff by size and sha256, and embeds the compressed cohort
@@ -1319,9 +1319,20 @@ test ! -e "$uploader_command" && test ! -L "$uploader_command"
 cargo_version_that_packaged_the_crates=$(python3 -I -S -c \
   'import json; print(json.load(open("artifact/results.json"))["rust_publish"]["cargo_version"])')
 sh artifact/python-run.sh artifact/crates_io_uploader_build.py \
-  "$rust_handoff_manifest" "$uploader_command" \
+  "$rust_handoff_manifest" --input-sha256 "$rust_handoff_sha256" \
   --crate-dir "$(dirname "$rust_handoff_manifest")" \
   --cargo-version "$cargo_version_that_packaged_the_crates"
+```
+
+The current builder prepares the candidate at
+`target/qperiapt-crates-io-uploaders/abi2-legacy/<handoff-SHA256>/qperiapt-crates-io-uploader`.
+It leaves the publication state untouched and refuses to replace an existing
+candidate. Its optional output argument only confirms this derived path.
+Review the materialized bytes and install the approved candidate at the fixed
+`$uploader_command` path using the lock and preservation procedure above. Only
+then continue with the publication command:
+
+```sh
 test -f "$uploader_command" && test ! -L "$uploader_command"
 
 # Only an authorized operator on the isolated publication host may run this.

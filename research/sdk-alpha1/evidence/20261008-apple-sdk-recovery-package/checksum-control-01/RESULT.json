@@ -1,0 +1,52 @@
+[
+  {
+    "case": "version",
+    "command": [
+      "/usr/bin/xcrun",
+      "swift",
+      "--version"
+    ],
+    "returncode": 0,
+    "files_created": [],
+    "stdout": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0\n",
+    "stderr": "swift-driver version: 1.168.6 "
+  },
+  {
+    "case": "default",
+    "command": [
+      "/usr/bin/xcrun",
+      "swift",
+      "package",
+      "compute-checksum",
+      "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-01/q-periapt-swift-0.2.0/CQPeriapt.xcframework.zip"
+    ],
+    "returncode": 0,
+    "files_created": [
+      ".build",
+      ".build/CACHEDIR.TAG",
+      ".build/.buildSystem_debug"
+    ],
+    "stdout": "f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86\n",
+    "stderr": ""
+  },
+  {
+    "case": "scratch",
+    "command": [
+      "/usr/bin/xcrun",
+      "swift",
+      "package",
+      "--scratch-path",
+      "owned-cache",
+      "compute-checksum",
+      "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-01/q-periapt-swift-0.2.0/CQPeriapt.xcframework.zip"
+    ],
+    "returncode": 0,
+    "files_created": [
+      "owned-cache",
+      "owned-cache/CACHEDIR.TAG",
+      "owned-cache/.buildSystem_debug"
+    ],
+    "stdout": "f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86\n",
+    "stderr": ""
+  }
+]

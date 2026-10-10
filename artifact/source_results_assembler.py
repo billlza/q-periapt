@@ -6,10 +6,13 @@ never edits ``artifact/results.json``.  A successful finalize operation emits a
 private, no-replace ``target/source-results-successors/transaction.*/results.json``
 candidate for an explicit results-only commit.
 
-The finalize command is deliberately a one-time 190-to-249 proof-input
+The finalize command is deliberately a one-time 190-to-254 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
+
+The explicit sdk-020 CI profile validates current source and ABI contracts
+while preserving the 0.1.5 results bytes as history. It grants no release claim.
 """
 
 from __future__ import annotations
@@ -23,12 +26,14 @@ import pathlib
 import re
 import stat
 import sys
+import tomllib
 from collections.abc import Callable
 from typing import Any, Never, TypeVar
 
 import android_device_proof
 import android_elf
 import apple_publication_contract
+import c_abi_contract
 import crates_io_publication_contract
 import platform_publication_contract
 import platform_stable_publication_contract
@@ -142,6 +147,11 @@ _MUTABLE_TOP_LEVEL = frozenset(
 
 INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
     {
+        "migration_agent_filesystem_adapter_sha256",
+        "host_store_manifest_sha256",
+        "host_store_lib_sha256",
+        "host_store_policy_sha256",
+        "host_store_policy_tests_sha256",
         "stable_release_notes_sha256",
         "rust_package_handoff_sha256",
         "rust_package_handoff_tests_sha256",
@@ -206,14 +216,14 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
-# installed 249-key successors are intentionally not constrained by this value.
+# installed 254-key successors are intentionally not constrained by this value.
 # The 0.1.4 opening repinned this authority for the first time: 0.1.3 is the
 # first line that published for real, so its committed verified manifest —
 # with the 59 declared-missing proof-input keys deleted — became the frozen
 # baseline floor carrying the five historical publication receipts and the
 # activated apple_v0_1_3 selector. This repin reopens the line after its R
 # successor was already installed: the agent, CLI and packaging changes that
-# followed moved thirteen of the installed 249 proof-input digests, no
+# followed moved thirteen of the historical installed 249 proof-input digests, no
 # installed manifest may carry a stale one, and hand-editing the manifest is
 # forbidden. The reopen recomputed the retained 190 from this tree and dropped
 # the fixed 59-key delta; the five-leaf publication floor and the source
@@ -229,6 +239,19 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 INITIAL_RESULTS_SHA256 = (
     "a5cbbac1f3cec5f9d20de1912e5ee6ebc16d36da3eb934333259107087db9590"
 )
+
+# The SDK source lane preserves this published 0.1.5 ledger as historical
+# evidence. It cannot qualify new SDK binaries, devices or a release transaction.
+SDK_HISTORICAL_RESULTS_SHA256 = (
+    "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda"
+)
+SDK_NEW_PROOF_INPUT_KEYS = frozenset({
+    "migration_agent_filesystem_adapter_sha256",
+    "host_store_manifest_sha256",
+    "host_store_lib_sha256",
+    "host_store_policy_sha256",
+    "host_store_policy_tests_sha256",
+})
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(
     {
@@ -548,14 +571,19 @@ def validate_baseline(
 def source_ci_gate(
     expected_results_sha256: str,
     expected_commit: str,
+    *,
+    profile: str = "legacy",
 ) -> tuple[str, SourceIdentity]:
-    """Select only the exact initial-readiness or full installed CI state."""
+    """Select the explicitly requested legacy transition or SDK source contract."""
 
     _require(
         isinstance(expected_commit, str)
         and COMMIT_RE.fullmatch(expected_commit) is not None,
         "expected CI source commit is malformed",
     )
+    _require(isinstance(profile, str) and profile in {"legacy", "sdk-020"}, "unsupported source CI profile")
+    if profile == "sdk-020":
+        return "sdk-020", _sdk_source_ci_gate(expected_results_sha256, expected_commit)
     baseline = _load_pinned_baseline(expected_results_sha256)
     baseline_inputs = _object(
         baseline.get("proof_to_byte_inputs"),
@@ -574,9 +602,9 @@ def source_ci_gate(
         )
         authority = capture_proof_input_digests(REPOSITORY_ROOT)
         _require(
-            len(authority) == 249
+            len(authority) == 254
             and set(authority) == current_keys
-            and len(current_keys - baseline_keys) == 59,
+            and len(current_keys - baseline_keys) == 64,
             "source transition proof-input authority differs",
         )
         _require(
@@ -620,6 +648,53 @@ def source_ci_gate(
     raise SourceResultsAssemblerError(
         "CI results proof-input state is neither exact initial nor installed"
     )
+
+
+def _sdk_source_ci_gate(expected_results_sha256: str, expected_commit: str) -> SourceIdentity:
+    _require(
+        expected_results_sha256 == SDK_HISTORICAL_RESULTS_SHA256,
+        "SDK historical results differ from the frozen 0.1.5 ledger",
+    )
+    baseline = _load_pinned_baseline(expected_results_sha256)
+    baseline_inputs = _object(baseline.get("proof_to_byte_inputs"), "historical proof inputs")
+    _require(
+        len(baseline_inputs) == 249
+        and set(baseline_inputs) == set(PROOF_TO_BYTE_INPUT_PATHS) - SDK_NEW_PROOF_INPUT_KEYS,
+        "SDK historical proof-input inventory differs",
+    )
+    source = _source_identity()
+    _require(source.commit == expected_commit, "SDK CI source differs from the expected commit")
+    try:
+        manifest = read_regular_snapshot(
+            REPOSITORY_ROOT / "Cargo.toml", maximum=1024 * 1024, label="SDK workspace manifest"
+        )
+        document = _object(tomllib.loads(manifest.data.decode("utf-8")), "SDK manifest")
+        workspace = _object(document.get("workspace"), "SDK workspace")
+        package = _object(workspace.get("package"), "SDK workspace package")
+        _require(
+            package.get("version") == "0.2.0",
+            "SDK source gate requires the exact alpha workspace version",
+        )
+        for contract_path, header_path, count in (
+            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
+             "crates/q-periapt-ffi/include/q_periapt.h", 51),
+            ("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+             "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h", 9),
+        ):
+            contract = c_abi_contract.load_contract(REPOSITORY_ROOT / contract_path)
+            _require(len(contract.export_names) == count, "SDK/legacy ABI profile was substituted")
+            c_abi_contract.verify_header(contract, REPOSITORY_ROOT / header_path)
+    except (EvidenceIOError, UnicodeError, tomllib.TOMLDecodeError, c_abi_contract.CAbiContractError) as exc:
+        raise SourceResultsAssemblerError("SDK source contract was rejected") from exc
+    authority = capture_proof_input_digests(REPOSITORY_ROOT)
+    _require(len(authority) == 254, "SDK current proof-input inventory differs")
+    _load_pinned_baseline(expected_results_sha256)
+    _require(
+        capture_proof_input_digests(REPOSITORY_ROOT) == authority,
+        "SDK proof inputs changed during source validation",
+    )
+    _require(_source_identity() == source, "SDK source changed during validation")
+    return source
 
 
 def _validate_baseline_document_shape(
@@ -2167,7 +2242,7 @@ def _build_reopen_candidate(
 ) -> dict[str, Any]:
     """Pure reverse transform: a fully installed manifest -> an initial baseline.
 
-    Requires a 249-key installed input; returns a 190-key/five-leaf initial
+    Requires a 254-key installed input; returns a 190-key/five-leaf initial
     candidate. The source identity (proof_source_tree_sha256 / snapshot_commit)
     is carried over UNCHANGED from the installed manifest: it names the frozen
     stable source S the line descends from -- a reachable, tree-consistent
@@ -2187,7 +2262,7 @@ def _build_reopen_candidate(
     )
     _require(
         set(installed_inputs) == canonical_keys,
-        "reopen requires a fully installed 249-key results baseline",
+        "reopen requires a fully installed 254-key results baseline",
     )
     _require(
         set(current_digests) == canonical_keys,
@@ -2206,7 +2281,7 @@ def _build_reopen_candidate(
 
     candidate = copy.deepcopy(installed)
 
-    # 1) proof_to_byte_inputs 249 -> 190, faithfully from the current tree.
+    # 1) proof_to_byte_inputs 254 -> 190, faithfully from the current tree.
     candidate["proof_to_byte_inputs"] = {
         key: current_digests[key]
         for key in current_digests
@@ -2250,14 +2325,14 @@ def reopen_source_results(
 
     This is the reverse of ``finalize`` and the reviewed replacement for its
     retired one-time forward migration: it returns a frozen, fully installed
-    249-key results manifest to the 190-key source-transition-ready baseline for
+    254-key results manifest to the 190-key source-transition-ready baseline for
     the CURRENT source tree, reopening development for the next line. It needs no
     producer evidence because the initial baseline is validated without
     ``validate_declared_currentness`` -- the carried-over declared sections are
     never re-checked in initial mode.
 
     Exactly two things change relative to the installed manifest:
-      * ``proof_to_byte_inputs`` 249 -> 190 (drop the 59
+      * ``proof_to_byte_inputs`` 254 -> 190 (drop the 64
         INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, recomputed from the current
         tree so the retained 190 are faithful to it);
       * ``release_publications`` reduced to exactly the five frozen historical
@@ -2306,6 +2381,7 @@ def _parser() -> argparse.ArgumentParser:
     ci_gate = commands.add_parser("ci-source-gate")
     ci_gate.add_argument("expected_results_sha256")
     ci_gate.add_argument("expected_commit")
+    ci_gate.add_argument("--profile", choices=("legacy", "sdk-020"), default="legacy")
     reopen = commands.add_parser("reopen-source")
     reopen.add_argument("expected_results_sha256")
     return parser
@@ -2316,19 +2392,28 @@ def run(args: argparse.Namespace) -> None:
         mode, source = source_ci_gate(
             args.expected_results_sha256,
             args.expected_commit,
+            profile=args.profile,
         )
-        if mode == "initial":
+        if mode == "sdk-020":
+            print(
+                "SDK_SOURCE_READINESS_PASS profile=sdk-020 "
+                f"commit={source.commit} results_sha256={args.expected_results_sha256} "
+                "current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+            )
+        elif mode == "initial":
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=249 declared_delta=59"
+                "proof_inputs=254 declared_delta=64"
             )
-        else:
+        elif mode == "installed":
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=249"
+                "proof_inputs=254"
             )
+        else:
+            _fail("source CI gate returned an unsupported mode")
         return
     if args.command == "verify-installed":
         commit = verify_installed_source_successor(args.expected_results_sha256)

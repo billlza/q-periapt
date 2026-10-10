@@ -1,0 +1,417 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/publication-isolation-after-01/admission-tests",
+    "opening::tests::",
+    "publication::tests::",
+    "recovery::invocation_tests::",
+    "tests::full_call_budget",
+    "--test-threads=16",
+    "--nocapture"
+  ],
+  "binary_sha256": "0ce4652d34b8bdf7b1071c02d97b763cc1a254ea6406d41770c97238e1c2badf",
+  "planned_runs": 100,
+  "runs": [
+    {
+      "index": 0,
+      "returncode": 0
+    },
+    {
+      "index": 1,
+      "returncode": 0
+    },
+    {
+      "index": 2,
+      "returncode": 0
+    },
+    {
+      "index": 3,
+      "returncode": 0
+    },
+    {
+      "index": 4,
+      "returncode": 0
+    },
+    {
+      "index": 5,
+      "returncode": 0
+    },
+    {
+      "index": 6,
+      "returncode": 0
+    },
+    {
+      "index": 7,
+      "returncode": 0
+    },
+    {
+      "index": 8,
+      "returncode": 0
+    },
+    {
+      "index": 9,
+      "returncode": 0
+    },
+    {
+      "index": 10,
+      "returncode": 0
+    },
+    {
+      "index": 11,
+      "returncode": 0
+    },
+    {
+      "index": 12,
+      "returncode": 0
+    },
+    {
+      "index": 13,
+      "returncode": 0
+    },
+    {
+      "index": 14,
+      "returncode": 0
+    },
+    {
+      "index": 15,
+      "returncode": 0
+    },
+    {
+      "index": 16,
+      "returncode": 0
+    },
+    {
+      "index": 17,
+      "returncode": 0
+    },
+    {
+      "index": 18,
+      "returncode": 0
+    },
+    {
+      "index": 19,
+      "returncode": 0
+    },
+    {
+      "index": 20,
+      "returncode": 0
+    },
+    {
+      "index": 21,
+      "returncode": 0
+    },
+    {
+      "index": 22,
+      "returncode": 0
+    },
+    {
+      "index": 23,
+      "returncode": 0
+    },
+    {
+      "index": 24,
+      "returncode": 0
+    },
+    {
+      "index": 25,
+      "returncode": 0
+    },
+    {
+      "index": 26,
+      "returncode": 0
+    },
+    {
+      "index": 27,
+      "returncode": 0
+    },
+    {
+      "index": 28,
+      "returncode": 0
+    },
+    {
+      "index": 29,
+      "returncode": 0
+    },
+    {
+      "index": 30,
+      "returncode": 0
+    },
+    {
+      "index": 31,
+      "returncode": 0
+    },
+    {
+      "index": 32,
+      "returncode": 0
+    },
+    {
+      "index": 33,
+      "returncode": 0
+    },
+    {
+      "index": 34,
+      "returncode": 0
+    },
+    {
+      "index": 35,
+      "returncode": 0
+    },
+    {
+      "index": 36,
+      "returncode": 0
+    },
+    {
+      "index": 37,
+      "returncode": 0
+    },
+    {
+      "index": 38,
+      "returncode": 0
+    },
+    {
+      "index": 39,
+      "returncode": 0
+    },
+    {
+      "index": 40,
+      "returncode": 0
+    },
+    {
+      "index": 41,
+      "returncode": 0
+    },
+    {
+      "index": 42,
+      "returncode": 0
+    },
+    {
+      "index": 43,
+      "returncode": 0
+    },
+    {
+      "index": 44,
+      "returncode": 0
+    },
+    {
+      "index": 45,
+      "returncode": 0
+    },
+    {
+      "index": 46,
+      "returncode": 0
+    },
+    {
+      "index": 47,
+      "returncode": 0
+    },
+    {
+      "index": 48,
+      "returncode": 0
+    },
+    {
+      "index": 49,
+      "returncode": 0
+    },
+    {
+      "index": 50,
+      "returncode": 0
+    },
+    {
+      "index": 51,
+      "returncode": 0
+    },
+    {
+      "index": 52,
+      "returncode": 0
+    },
+    {
+      "index": 53,
+      "returncode": 0
+    },
+    {
+      "index": 54,
+      "returncode": 0
+    },
+    {
+      "index": 55,
+      "returncode": 0
+    },
+    {
+      "index": 56,
+      "returncode": 0
+    },
+    {
+      "index": 57,
+      "returncode": 0
+    },
+    {
+      "index": 58,
+      "returncode": 0
+    },
+    {
+      "index": 59,
+      "returncode": 0
+    },
+    {
+      "index": 60,
+      "returncode": 0
+    },
+    {
+      "index": 61,
+      "returncode": 0
+    },
+    {
+      "index": 62,
+      "returncode": 0
+    },
+    {
+      "index": 63,
+      "returncode": 0
+    },
+    {
+      "index": 64,
+      "returncode": 0
+    },
+    {
+      "index": 65,
+      "returncode": 0
+    },
+    {
+      "index": 66,
+      "returncode": 0
+    },
+    {
+      "index": 67,
+      "returncode": 0
+    },
+    {
+      "index": 68,
+      "returncode": 0
+    },
+    {
+      "index": 69,
+      "returncode": 0
+    },
+    {
+      "index": 70,
+      "returncode": 0
+    },
+    {
+      "index": 71,
+      "returncode": 0
+    },
+    {
+      "index": 72,
+      "returncode": 0
+    },
+    {
+      "index": 73,
+      "returncode": 0
+    },
+    {
+      "index": 74,
+      "returncode": 0
+    },
+    {
+      "index": 75,
+      "returncode": 0
+    },
+    {
+      "index": 76,
+      "returncode": 0
+    },
+    {
+      "index": 77,
+      "returncode": 0
+    },
+    {
+      "index": 78,
+      "returncode": 0
+    },
+    {
+      "index": 79,
+      "returncode": 0
+    },
+    {
+      "index": 80,
+      "returncode": 0
+    },
+    {
+      "index": 81,
+      "returncode": 0
+    },
+    {
+      "index": 82,
+      "returncode": 0
+    },
+    {
+      "index": 83,
+      "returncode": 0
+    },
+    {
+      "index": 84,
+      "returncode": 0
+    },
+    {
+      "index": 85,
+      "returncode": 0
+    },
+    {
+      "index": 86,
+      "returncode": 0
+    },
+    {
+      "index": 87,
+      "returncode": 0
+    },
+    {
+      "index": 88,
+      "returncode": 0
+    },
+    {
+      "index": 89,
+      "returncode": 0
+    },
+    {
+      "index": 90,
+      "returncode": 0
+    },
+    {
+      "index": 91,
+      "returncode": 0
+    },
+    {
+      "index": 92,
+      "returncode": 0
+    },
+    {
+      "index": 93,
+      "returncode": 0
+    },
+    {
+      "index": 94,
+      "returncode": 0
+    },
+    {
+      "index": 95,
+      "returncode": 0
+    },
+    {
+      "index": 96,
+      "returncode": 0
+    },
+    {
+      "index": 97,
+      "returncode": 0
+    },
+    {
+      "index": 98,
+      "returncode": 0
+    },
+    {
+      "index": 99,
+      "returncode": 0
+    }
+  ],
+  "seconds": 13.353241708129644,
+  "observed_failure": false
+}

@@ -1,0 +1,311 @@
+{
+  "source_commit": "6e520a99210e1be254fb95ae2a4b4ce546ab8d14",
+  "installed_prefix": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin",
+  "inputs_unchanged": {
+    "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/MANIFEST.json": "bb4362e08160177f7974e8732275088a4f0afaa940f66e671be3cfbee07e8857",
+    "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/libq_periapt_ffi.2.dylib": "1479f66727485fb4695404b6408f895b72e9e2991a002fc6b10dab1a8bcddc8d",
+    "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/libq_periapt_ffi_abi2.a": "d436c265c24778beb92362e711ef9ba44f16165e393a699b8de22b7d43600924",
+    "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/include/qperiapt/abi2/q_periapt.h": "718051dbbf946a7de1b4442d0f629e43786eb30daaa8290a6842cf297bd4358e",
+    "target/options-prefix-current/guard.c": "fa81b5b4679d9e2c5622e1136047ddd06a935820702284e332ec2c2658a6e2f6"
+  },
+  "cases": [
+    {
+      "mode": "shared",
+      "stage": "build",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "target/options-prefix-current/guard.c",
+        "-I/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../include/qperiapt/abi2",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib/libq_periapt_ffi.2.dylib",
+        "-Wl,-rpath,/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib",
+        "-o",
+        "target/options-prefix-current/installed-guard/shared"
+      ],
+      "returncode": 0
+    },
+    {
+      "mode": "shared",
+      "case": "runtime",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "runtime",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "runtime",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "runtime",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "provision",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "provision",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "provision",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "provision",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "open",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "open",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "open",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "open",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "client",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "client",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "client",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "client",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "server",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "server",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "shared",
+      "case": "server",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/shared",
+        "server",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "stage": "build",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "target/options-prefix-current/guard.c",
+        "-I/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../include/qperiapt/abi2",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-sdk-install.40UyDo/unpacked/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib/libq_periapt_ffi_abi2.a",
+        "-liconv",
+        "-o",
+        "target/options-prefix-current/installed-guard/static"
+      ],
+      "returncode": 0
+    },
+    {
+      "mode": "static",
+      "case": "runtime",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "runtime",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "runtime",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "runtime",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "provision",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "provision",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "provision",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "provision",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "open",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "open",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "open",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "open",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "client",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "client",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "client",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "client",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "server",
+      "shape": "size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "server",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "mode": "static",
+      "case": "server",
+      "shape": "revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/installed-guard/static",
+        "server",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    }
+  ]
+}

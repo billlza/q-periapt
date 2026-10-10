@@ -1,0 +1,24 @@
+{
+  "name": "q-periapt-sdk-wasm",
+  "version": "0.2.0",
+  "description": "Signed-policy hybrid KEM SDK with platform randomness and owned keys",
+  "license": "Apache-2.0 OR MIT",
+  "repository": { "type": "git", "url": "https://github.com/billlza/q-periapt" },
+  "type": "module",
+  "main": "./index.cjs",
+  "types": "./index.d.cts",
+  "exports": {
+    ".": {
+      "node": { "types": "./index.d.cts", "default": "./index.cjs" },
+      "default": { "types": "./web/index.d.ts", "default": "./web/index.js" }
+    },
+    "./expert": {
+      "node": { "types": "./expert.d.cts", "default": "./expert.cjs" },
+      "default": { "types": "./web/expert.d.ts", "default": "./web/expert.js" }
+    },
+    "./web": { "types": "./web/index.d.ts", "default": "./web/index.js" },
+    "./web/expert": { "types": "./web/expert.d.ts", "default": "./web/expert.js" }
+  },
+  "files": ["*.cjs", "*.cts", "node/", "web/", "LICENSE", "LICENSES/", "THIRD_PARTY/", "PACKAGE_CONTENTS.json"],
+  "engines": { "node": ">=24" }
+}

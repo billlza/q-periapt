@@ -1,0 +1,50 @@
+
+running 13 tests
+test invocation::tests::enclosing_deadline_is_shared_without_refresh_and_cannot_be_reentered ... ok
+test invocation::tests::sequential_calls_keep_their_own_cancellation_without_retaining_idle_authority ... ok
+test invocation::tests::expired_admission_and_independent_owners_do_not_change_active_scope ... ok
+test publication::tests::publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion ... ok
+test publication::tests::publication_invalid_plan_and_short_output_fail_before_owner_lookup ... ok
+test publication::tests::publication_layouts_and_short_version_prefix_are_checked_before_the_body ... ok
+test opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded ... FAILED
+test recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle ... FAILED
+test retirement::tests::retirement_output_layout_has_no_implicit_padding ... ok
+test recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation ... FAILED
+test tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure ... FAILED
+test witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation ... ok
+test witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation ... ok
+
+failures:
+
+---- opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded stdout ----
+
+thread 'opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded' (195866) panicked at src/opening.rs:681:9:
+assertion `left == right` failed
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle stdout ----
+
+thread 'recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle' (195870) panicked at src/recovery.rs:718:44:
+test registry: PoisonError { .. }
+
+---- recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation stdout ----
+
+thread 'recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation' (195871) panicked at src/recovery.rs:730:44:
+test registry: PoisonError { .. }
+
+---- tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure stdout ----
+
+thread 'tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure' (195873) panicked at src/lib.rs:868:44:
+test registry: PoisonError { .. }
+
+
+failures:
+    opening::tests::prepared_open_is_cancelable_single_use_and_capacity_bounded
+    recovery::invocation_tests::expired_constructor_publication_returns_its_slot_without_a_handle
+    recovery::invocation_tests::late_native_errors_survive_and_success_requires_original_state_reconciliation
+    tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure
+
+test result: FAILED. 9 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+

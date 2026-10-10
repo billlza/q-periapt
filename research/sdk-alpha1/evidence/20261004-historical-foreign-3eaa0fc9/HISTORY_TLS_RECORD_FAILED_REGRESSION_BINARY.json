@@ -1,0 +1,11 @@
+{
+  "binary": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-tls-record-regression-02-failed-test",
+  "binary_sha256": "c7f298d6281b70e660f8d0443211900c793fe116fcbd06e8466cd1735f1362b9",
+  "receipt_sha256": "2d8381ad172093710ce8b80007227adf73bfe2e7c571c8e8d8e180958274532c",
+  "log_sha256": "3088ccd20232f1983753546a5c67c52f34839f43fbaef53a7530261fee659a08",
+  "completed": false,
+  "passed": 470,
+  "failed": [
+    "connect::tests::absolute_deadline_is_not_refreshed_after_os_connect_start"
+  ]
+}

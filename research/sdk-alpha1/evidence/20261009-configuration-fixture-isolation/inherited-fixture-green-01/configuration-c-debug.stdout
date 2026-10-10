@@ -1,0 +1,19 @@
+
+running 2 tests
+test independent_c_configuration_creates_and_resumes_original_identity ... 
+INDEPENDENT_CONFIGURATION_PASS language=C profile=fixed original_request_replayed=true
+
+INDEPENDENT_CONFIGURATION_PASS language=C profile=recoverable original_request_replayed=true
+ok
+test independent_c_required_witness_registration_uses_original_host_trust ... 
+INDEPENDENT_WITNESS_CONFIGURATION_PASS language=C carrier=signed profile=fixed remote_genesis_only=true original_request_replayed=true
+
+INDEPENDENT_WITNESS_CONFIGURATION_PASS language=C carrier=signed profile=recoverable remote_genesis_only=true original_request_replayed=true
+
+INDEPENDENT_WITNESS_CONFIGURATION_PASS language=C carrier=tls profile=fixed remote_genesis_only=true original_request_replayed=true
+
+INDEPENDENT_WITNESS_CONFIGURATION_PASS language=C carrier=tls profile=recoverable remote_genesis_only=true original_request_replayed=true
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 15.53s
+

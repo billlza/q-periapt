@@ -1,0 +1,394 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Owned local advertisement through the existing device invocation boundary.
+use super::*;
+
+#[repr(C)]
+pub struct Key {
+    pub kind: u32,
+    pub reuse: u32,
+    pub valid_from: u64,
+    pub valid_until: u64,
+    pub request: [u8; 32],
+}
+#[repr(C)]
+pub struct Plan {
+    pub struct_size: u32,
+    pub reserved_zero: u32,
+    pub directory: [u8; 32],
+    pub valid_from: u64,
+    pub valid_until: u64,
+    pub keys: *const Key,
+    pub count: usize,
+}
+#[repr(C)]
+#[derive(Default)]
+pub struct Status {
+    pub state: u32,
+    pub reserved_zero: u32,
+    pub intent: [u8; 32],
+    pub manifest: [u8; 32],
+    pub artifact: [u8; 32],
+}
+impl From<p::PrekeyPublicationStatus> for Status {
+    fn from(status: p::PrekeyPublicationStatus) -> Self {
+        match status {
+            p::PrekeyPublicationStatus::Absent => Self::default(),
+            p::PrekeyPublicationStatus::Reserved { intent } => Self {
+                state: 1,
+                intent,
+                ..Self::default()
+            },
+            p::PrekeyPublicationStatus::Prepared {
+                intent,
+                manifest,
+                artifact,
+            } => Self {
+                state: 2,
+                intent,
+                manifest,
+                artifact,
+                reserved_zero: 0,
+            },
+            p::PrekeyPublicationStatus::Retired => Self {
+                state: 3,
+                ..Self::default()
+            },
+        }
+    }
+}
+unsafe fn plan(pointer: *const Plan) -> Result<p::PrekeyPublicationPlan> {
+    if pointer.is_null() || !pointer.is_aligned() {
+        return Err(Failure::argument());
+    }
+    // SAFETY: even an older caller provides the readable aligned u32 header.
+    // Read only this prefix before requiring the complete current structure.
+    let size = unsafe { pointer.cast::<u32>().read() };
+    if usize::try_from(size).map_err(|_| Failure::argument())? != std::mem::size_of::<Plan>() {
+        return Err(Failure::argument());
+    }
+    // SAFETY: caller's exact current struct_size promises the complete readable Plan.
+    let input = unsafe { &*pointer };
+    if input.reserved_zero != 0
+        || input.count == 0
+        || input.count > p::MAX_PREKEYS
+        || input.keys.is_null()
+        || !input.keys.is_aligned()
+    {
+        return Err(Failure::argument());
+    }
+    // SAFETY: the bounded, nonempty, aligned input array remains readable for this call.
+    let keys = unsafe { std::slice::from_raw_parts(input.keys, input.count) };
+    let mut admitted = Vec::with_capacity(keys.len());
+    for key in keys {
+        let kind = match key.kind {
+            1 => p::LeafKind::SignedClassical,
+            2 => p::LeafKind::OneTimeClassical,
+            3 => p::LeafKind::LastResortPq,
+            4 => p::LeafKind::OneTimePq,
+            _ => return Err(Failure::argument()),
+        };
+        let validity = p::Validity::new(key.valid_from, key.valid_until)?;
+        admitted.push(match key.reuse {
+            0 if key.request == [0; 32] => p::PrekeyPublicationKey::generate(kind, validity),
+            1 => p::PrekeyPublicationKey::reuse(
+                p::PrekeyId::from_trusted_state(key.request)?,
+                kind,
+                validity,
+            ),
+            _ => return Err(Failure::argument()),
+        });
+    }
+    Ok(p::PrekeyPublicationPlan::new(
+        input.directory,
+        p::Validity::new(input.valid_from, input.valid_until)?,
+        &admitted,
+    )?)
+}
+/// Return sufficient output capacity for this complete validated plan; no owner mutation.
+/// # Safety
+/// All regions obey the header's size, alignment and nonoverlap requirements.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_publication_size_bound(
+    input: *const Plan,
+    capacity: *mut usize,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |_| {
+        output(capacity)?;
+        unsafe {
+            put(capacity, 0);
+        }
+        let value = unsafe { plan(input) }?;
+        unsafe {
+            put(capacity, value.artifact_size_bound()?);
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+/// Observe the journal-bound next identity without allocating it.
+/// # Safety
+/// Output points to 32 writable bytes; diagnostics and all regions are distinct.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_next_publication(
+    parent: u64,
+    id: *mut u8,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(id)?;
+        unsafe {
+            put(id.cast::<[u8; 32]>(), [0; 32]);
+        }
+        let id_value = device::parent(parent, deadline)?.with_journal(deadline, |journal| {
+            Ok(journal.next_prekey_publication_id()?)
+        })?;
+        unsafe {
+            put(id.cast::<[u8; 32]>(), *id_value.as_bytes());
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+/// Historical local state does not promise current leaf availability or remote publication.
+/// # Safety
+/// Input is 32 readable bytes and status/diagnostics are distinct writable structures.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_publication_status(
+    parent: u64,
+    id: *const u8,
+    status: *mut Status,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        unsafe {
+            put(status, Status::default());
+        }
+        let id = p::PrekeyPublicationId::from_trusted_state(unsafe { fixed(id) }?)?;
+        let observed = device::parent(parent, deadline)?.with_journal(deadline, |journal| {
+            Ok(journal.prekey_publication_status(id)?)
+        })?;
+        unsafe {
+            put(status, observed.into());
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+/// Reserve/recover the original intent and copy only the complete currently admitted public artifact.
+/// # Safety
+/// Buffer has capacity writable bytes and at least the plan's size_bound; regions are distinct.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_prepare_publication(
+    parent: u64,
+    id: *const u8,
+    input: *const Plan,
+    buffer: *mut u8,
+    capacity: usize,
+    length: *mut usize,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(length)?;
+        unsafe {
+            put(length, 0);
+        }
+        let plan = unsafe { plan(input) }?;
+        // A short buffer must fail before any native reservation/generation.
+        if buffer.is_null() || capacity < plan.artifact_size_bound()? {
+            return Err(Failure::argument());
+        }
+        let id = p::PrekeyPublicationId::from_trusted_state(unsafe { fixed(id) }?)?;
+        let prepared =
+            device::parent(parent, deadline)?.prepare_publication(deadline, id, &plan)?;
+        let bytes = prepared.as_bytes();
+        invocation::check(deadline)?;
+        // SAFETY: preflight admitted this writable capacity; owned output is bounded and disjoint.
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
+            put(length, bytes.len());
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+/// Retire only the acknowledged prepared artifact; inventory remains unchanged.
+/// # Safety
+/// IDs/digest point to 32 readable bytes and all output regions are distinct.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_retire_publication(
+    parent: u64,
+    id: *const u8,
+    artifact: *const u8,
+    status: *mut Status,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        unsafe {
+            put(status, Status::default());
+        }
+        let id = p::PrekeyPublicationId::from_trusted_state(unsafe { fixed(id) }?)?;
+        let artifact = unsafe { fixed(artifact) }?;
+        let observed = device::parent(parent, deadline)?.with_journal(deadline, |journal| {
+            Ok(journal.retire_prekey_publication(id, artifact)?)
+        })?;
+        unsafe {
+            put(status, observed.into());
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+/// Abandon the original reserved intent and retire only its fresh unshared keys.
+/// # Safety
+/// IDs/digest point to 32 readable bytes and all output regions are distinct.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_device_v1_abandon_publication(
+    parent: u64,
+    id: *const u8,
+    intent: *const u8,
+    status: *mut Status,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        unsafe {
+            put(status, Status::default());
+        }
+        let id = p::PrekeyPublicationId::from_trusted_state(unsafe { fixed(id) }?)?;
+        let observed =
+            device::parent(parent, deadline)?
+                .abandon_publication(deadline, id, unsafe { fixed(intent) }?)?;
+        unsafe {
+            put(status, observed.into());
+        }
+        Ok(())
+    };
+    unsafe { boundary(error, false, action) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn error() -> ErrorRecord {
+        ErrorRecord {
+            code: 0,
+            length: 0,
+            truncated: 0,
+            message: [0; 512],
+        }
+    }
+    fn keys() -> [Key; 4] {
+        [1, 2, 3, 4].map(|kind| Key {
+            kind,
+            reuse: 0,
+            valid_from: 100,
+            valid_until: 200,
+            request: [0; 32],
+        })
+    }
+    fn input(keys: &[Key]) -> Plan {
+        Plan {
+            struct_size: std::mem::size_of::<Plan>() as u32,
+            reserved_zero: 0,
+            directory: [99; 32],
+            valid_from: 100,
+            valid_until: 200,
+            keys: keys.as_ptr(),
+            count: keys.len(),
+        }
+    }
+    #[test]
+    fn publication_layouts_and_short_version_prefix_are_checked_before_the_body() {
+        // Even rejected FFI input borrows the shared call budget. Coordinate with
+        // registry tests that require every other invocation to have drained.
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
+        assert_eq!(std::mem::size_of::<Key>(), 56);
+        assert_eq!(std::mem::size_of::<Plan>(), 72);
+        assert_eq!(std::mem::size_of::<Status>(), 104);
+        #[repr(C, align(8))]
+        struct Prefix {
+            size: u32,
+            reserved: u32,
+        }
+        let short = Prefix {
+            size: 8,
+            reserved: 0,
+        };
+        let mut cap = 91;
+        assert_eq!(
+            unsafe {
+                qpc_device_v1_publication_size_bound(
+                    (&short as *const Prefix).cast(),
+                    &mut cap,
+                    &mut error(),
+                )
+            },
+            1
+        );
+        assert_eq!(cap, 0);
+    }
+    #[test]
+    fn publication_invalid_plan_and_short_output_fail_before_owner_lookup() {
+        // Even rejected FFI input borrows the shared call budget. Coordinate with
+        // registry tests that require every other invocation to have drained.
+        let _serial = TEST_REGISTRY.lock().expect("test registry");
+        let keys = keys();
+        let mut plan = input(&keys);
+        let mut cap = 0;
+        assert_eq!(
+            unsafe { qpc_device_v1_publication_size_bound(&plan, &mut cap, &mut error()) },
+            0
+        );
+        assert!(cap > 4000 && cap < 20000);
+        let mut bytes = vec![17; cap - 1];
+        let mut length = 99;
+        assert_eq!(
+            unsafe {
+                qpc_device_v1_prepare_publication(
+                    0,
+                    [3; 32].as_ptr(),
+                    &plan,
+                    bytes.as_mut_ptr(),
+                    bytes.len(),
+                    &mut length,
+                    &mut error(),
+                )
+            },
+            1
+        );
+        assert_eq!(length, 0);
+        assert!(bytes.iter().all(|b| *b == 17));
+        plan.count = p::MAX_PREKEYS + 1;
+        assert_eq!(
+            unsafe { qpc_device_v1_publication_size_bound(&plan, &mut cap, &mut error()) },
+            1
+        );
+        assert_eq!(cap, 0);
+        plan = input(&keys);
+        plan.reserved_zero = 1;
+        assert_eq!(
+            unsafe { qpc_device_v1_publication_size_bound(&plan, &mut cap, &mut error()) },
+            1
+        );
+    }
+    #[test]
+    fn publication_absence_retirement_and_reserved_fields_cannot_fabricate_completion() {
+        for (native, state) in [
+            (p::PrekeyPublicationStatus::Absent, 0),
+            (p::PrekeyPublicationStatus::Retired, 3),
+        ] {
+            let status = Status::from(native);
+            assert_eq!(status.state, state);
+            assert_eq!(status.intent, [0; 32]);
+            assert_eq!(status.artifact, [0; 32]);
+            assert_eq!(status.manifest, [0; 32]);
+        }
+        let pending = Status::from(p::PrekeyPublicationStatus::Reserved { intent: [7; 32] });
+        assert_eq!(pending.state, 1);
+        assert_eq!(pending.manifest, [0; 32]);
+        assert_eq!(pending.artifact, [0; 32]);
+    }
+}

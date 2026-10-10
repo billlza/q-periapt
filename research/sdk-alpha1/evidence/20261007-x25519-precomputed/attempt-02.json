@@ -1,0 +1,1 @@
+{"completed":false,"phase":"setup","error":"FileExistsError: prepare_consumer_fixture also copies the entire consumer fixture; the previously copied server.key.der already existed","outside":"/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-x25519-tables-65x7kzc1","sampling_started":false,"release_claim_eligible":false}

@@ -1,0 +1,119 @@
+{
+  "windows_fix": "294fb053",
+  "local_powershell": {
+    "command": [
+      "/opt/homebrew/bin/pwsh",
+      "-NoLogo",
+      "-NoProfile",
+      "-File",
+      "artifact/windows-sdk-profile-tests.ps1",
+      "-Python",
+      "/opt/homebrew/opt/python@3.14/bin/python3.14"
+    ],
+    "returncode": 0,
+    "seconds": 2.517699541989714,
+    "source_sha256": "caf89d57b71a087fd334800ad9e7c376ce75912502850695f4b7b71f2eebca25",
+    "source_unchanged": true
+  },
+  "python_tests": {
+    "command": "QPERIAPT_PYTHON=/opt/homebrew/opt/python@3.14/bin/python3.14 sh artifact/python-run.sh -m unittest -v artifact/test_windows_sdk_profile.py artifact/test_sdk_abi2_contract.py",
+    "count": 15,
+    "result": "pass; tool transcript, no separate raw file capture"
+  },
+  "b626_artifact": {
+    "id": 11527966593,
+    "sha256": "5a3ca1557f8bffa45610e06f7327c8fc59a91815fba6df8646d8431246a91171",
+    "bytes": 471691356,
+    "sarif_sha256": "f22c967b2e0418878dd7ab5a38a035e28286aa2a06b6196062a0ac28bceaa72d",
+    "results": 781,
+    "new_result_reviewed": 578,
+    "other_results_not_reviewed_anew": 780
+  },
+  "current_head_codeql_artifact_downloaded": false,
+  "captures": {
+    "sha256": "667098a82daca95332c2037c334666e84c339e49d4ce8a46099d4074a388518b",
+    "members": [
+      {
+        "path": "2b596975/artifacts.json",
+        "bytes": 1487,
+        "sha256": "7708dd5bf139691bbbcb43d6f6f0db0dff0ea8e5426bacf293c56167f7f55d84"
+      },
+      {
+        "path": "2b596975/rust-job.json",
+        "bytes": 5654,
+        "sha256": "b91d5eb0ace76d2e76989630ac5288094ef191fe39aa9e97db985d1be1c4ea7b"
+      },
+      {
+        "path": "2b596975/windows-2022.log",
+        "bytes": 89503,
+        "sha256": "2a324ef034e8ec2f97bb9e7ed736fb4650005cd7721d760a446a562955e5afe4"
+      },
+      {
+        "path": "2b596975/windows-profile-fixed.json",
+        "bytes": 377,
+        "sha256": "0fdd53b6314e7bec20a9749f8cd4c20aecd7780082078791b89fbf47ae031db4"
+      },
+      {
+        "path": "2b596975/windows-profile-fixed.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "2b596975/windows-profile-fixed.stdout",
+        "bytes": 466,
+        "sha256": "9b191df5ffbdc374896d4ccebeaf861813f532067bdcc260fad44b99aaf23785"
+      },
+      {
+        "path": "2b596975/windows.log",
+        "bytes": 189549,
+        "sha256": "37f495f1f43cb716bcf233f740be72b52154c8e78598b5a4ad45ade46f3ad06d"
+      },
+      {
+        "path": "b626/RESULT_DIFF.json",
+        "bytes": 401,
+        "sha256": "60abc57e09ef9abfdcdbeb08fb63781f95f2a3a97ac8896852a34ff0120a5b33"
+      },
+      {
+        "path": "b626/artifacts.json",
+        "bytes": 1487,
+        "sha256": "ec440be9c5e9ed229da9b3e6fc4c8e61d53dd449401e7181a055e349d17b4c09"
+      },
+      {
+        "path": "b626/review-recovery.rs",
+        "bytes": 7857,
+        "sha256": "2ccecc5e29bcffbab55c30fe67f8cea44a407091414c79a7791c1fbc1e0595b0"
+      },
+      {
+        "path": "b626/review-sources.json",
+        "bytes": 184,
+        "sha256": "b162812d37102187c92f555f1f1b28c78e02655adc1e897cd5b54316e36203cf"
+      },
+      {
+        "path": "b626/review-tests.rs",
+        "bytes": 23682,
+        "sha256": "5e651a41f90e39107cce6216056017d169ddaaca0b6625fb1544713eefa4bd0e"
+      },
+      {
+        "path": "b626/run.json",
+        "bytes": 12686,
+        "sha256": "4ead5e2fd0cb96e34785ad5eae2ed06c1f24a188b4b9604a911a3d479aab0924"
+      },
+      {
+        "path": "b626/rust-job.json",
+        "bytes": 5654,
+        "sha256": "43dfd3f2948e6040999027ebce360150f8e48fe44f81076310d6a851882b19d6"
+      },
+      {
+        "path": "b626/rust.sarif",
+        "bytes": 10021241,
+        "sha256": "f22c967b2e0418878dd7ab5a38a035e28286aa2a06b6196062a0ac28bceaa72d"
+      },
+      {
+        "path": "b626/selected-result-578.json",
+        "bytes": 5106,
+        "sha256": "7292fcb01223b94f84cf702784c9bb93a955f87bd5e26299fcc55cb4d8941f5a"
+      }
+    ]
+  },
+  "release_claim_eligible": false
+}

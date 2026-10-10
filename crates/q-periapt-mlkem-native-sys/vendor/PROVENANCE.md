@@ -3,18 +3,18 @@
 # mlkem-native provenance
 
 - Upstream: `https://github.com/pq-code-package/mlkem-native`
-- Release: `v1.2.0`, published 2026-06-20
-- Commit: `0ba906cb14b1c241476134d7403a811b382ca498`
+- Release: `v2.0.0`, published 2026-08-07
+- Commit: `d1b2fe782888bdb761a50336012923180be7f502`
 - Tag status: unsigned lightweight tag
 - Immutable archive URL:
-  `https://github.com/pq-code-package/mlkem-native/archive/0ba906cb14b1c241476134d7403a811b382ca498.tar.gz`
+  `https://github.com/pq-code-package/mlkem-native/archive/d1b2fe782888bdb761a50336012923180be7f502.tar.gz`
 - Immutable archive SHA-256:
-  `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`
+  `7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3`
 - Upstream `LICENSE` SHA-256:
-  `6393331d41b9fed47a9e18d21b9b844ae8e76bcad8b6da45604c132ae13f3029`
+  `1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b`
 - `git archive --format=tar HEAD mlkem` SHA-256:
-  `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`
-- Vendored subtree: upstream `mlkem/`, 124 regular files, no symlinks
+  `1f0a7c35241f07dae424d197d7b8e8a2742f070fb1d75fa7aecb1846e6686d2e`
+- Vendored subtree: upstream `mlkem/`, 125 regular files, no symlinks
 
 The Git tag and commit have no cryptographic signature. The full commit ID and
 archive hash above are therefore the trust anchors for this import. The

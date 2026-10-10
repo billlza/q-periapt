@@ -1,0 +1,247 @@
+Q-Periapt Swift XCFramework package
+version : 0.2.0
+out     : /Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-02/q-periapt-swift-0.2.0
+rustc   : rustc 1.98.1 (48a229cea 2026-09-01)
+swift   : swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1) Target: arm64-apple-macosx27.0.0
+xcode   : Xcode 27.0 Build version 27A266a 
+
+=== Generated C header freshness ===
+PASS: generated C header freshness
+
+=== Build Apple static libraries ===
+    Finished `release` profile [optimized] target(s) in 0.23s
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "2b027492b4fbca20a78e8686134fe72e60f015d902e7a1d2d02607cacdbe7168",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "b3acbfccbe586a5b18c1f6afdfd97816cf492483d51612cdd3bcd44fea60ae0e",
+  "status": "pass"
+}
+    Finished `release` profile [optimized] target(s) in 0.16s
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "634099a380a89d7860a840abd08cf157279f75c03918cd138f575f7fbb0302b3",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "d20bd5e7f742c024e877846d0667876b6bd39b182ad813c9cdecd6485cb046ce",
+  "status": "pass"
+}
+    Finished `release` profile [optimized] target(s) in 0.16s
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "e1c0688b124f48ef7f04f123be818fd7a8b10e509643bc7373f59d3f8187b730",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "68a8a7fc504f32a88a8a4ef3804b6ffe8a75d3ad2233ac96a8e36b9b38b9d27c",
+  "status": "pass"
+}
+    Finished `release` profile [optimized] target(s) in 0.16s
+{
+  "abi_major": 2,
+  "architectures": [
+    "x86_64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "80e2b553832050b56b77206218f8c147d77e506e51bb0881d273f59f36cac4a8",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "x86_64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "6eceafb7dbebe446e9cc9a0793753dda4d3df8d72bacf56857bfcf608ed615ce",
+  "status": "pass"
+}
+
+=== Assemble release slices ===
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "b3acbfccbe586a5b18c1f6afdfd97816cf492483d51612cdd3bcd44fea60ae0e",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "d20bd5e7f742c024e877846d0667876b6bd39b182ad813c9cdecd6485cb046ce",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "5dc868c125946fb8728d2c30e637ad00e95fdf419e6b564ae4d67a08e38f6d5a",
+  "status": "pass"
+}
+PASS: release slices
+
+=== Create XCFramework ===
+xcframework successfully written out to: /Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-02/q-periapt-swift-0.2.0/CQPeriapt.xcframework
+SWIFT_XCFRAMEWORK_INFO_PASS
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "b3acbfccbe586a5b18c1f6afdfd97816cf492483d51612cdd3bcd44fea60ae0e",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "d20bd5e7f742c024e877846d0667876b6bd39b182ad813c9cdecd6485cb046ce",
+  "status": "pass"
+}
+APPLE_STATIC_ARCHIVE_PATH_HYGIENE_PASS
+{
+  "abi_major": 2,
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "exports_per_architecture": 50,
+  "static_archive_sha256": "5dc868c125946fb8728d2c30e637ad00e95fdf419e6b564ae4d67a08e38f6d5a",
+  "status": "pass"
+}
+
+=== Zip XCFramework ===
+DETERMINISTIC_ARCHIVE_PASS format=zip bytes=14098229 members=17 sha256=f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86
+SWIFT_XCFRAMEWORK_STATIC_ZIP_PASS
+
+=== Generate isolated SwiftPM binary consumer ===
+Building for debugging...
+[Pre-planning 1 / 158]
+[Planning deferred tasks]
+[53 / 92] QPeriaptSDKConsumer_QPeriaptSDKBinaryConsumerTests
+[53 / 92]
+[55 / 94] QPeriaptHybrid
+[65 / 142]
+[70 / 142]
+[75 / 142]
+[76 / 142]
+[80 / 142]
+[82 / 142]
+[86 / 142]
+[90 / 142]
+[92 / 142]
+[93 / 142]
+[103 / 142] QPeriaptHybrid
+[120 / 143] QPeriaptLinkProbe-product
+[122 / 145] QPeriaptSDK
+[123 / 145] QPeriaptLinkProbe-product
+[126 / 145] QPeriaptSDK
+[133 / 146] QPeriaptLinkProbe-product
+[135 / 146] QPeriaptSDKBinaryConsumerTests-product
+[151 / 181]
+[154 / 181]
+[157 / 181]
+[159 / 181]
+[161 / 181]
+[162 / 181]
+[165 / 181]
+[166 / 181]
+[170 / 181] QPeriaptSDKBinaryConsumerTests-product
+[175 / 181] QPeriaptSDKBinaryConsumerTests-product
+[177 / 181] QPeriaptSDKBinaryConsumerTests-product
+Build complete! (9.84秒)
+Test Suite 'All tests' started at 2026-10-08 02:11:54.115.
+Test Suite 'QPeriaptSDKBinaryConsumerTests.xctest' started at 2026-10-08 02:11:54.115.
+Test Suite 'QPeriaptSDKBinaryConsumerTests' started at 2026-10-08 02:11:54.116.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledConnectionRejectsInvalidIdentity]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledConnectionRejectsInvalidIdentity]' passed (0.004 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledExpertTransferAndSignedPolicyTransition]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledExpertTransferAndSignedPolicyTransition]' passed (0.004 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledMetadataOwnersDerivationAndRevocation]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledMetadataOwnersDerivationAndRevocation]' passed (0.003 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPersistentPolicyRestart]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPersistentPolicyRestart]' passed (0.148 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPolicyAuthorityRecoveryAndAdvancedReplay]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPolicyAuthorityRecoveryAndAdvancedReplay]' passed (0.120 seconds).
+Test Suite 'QPeriaptSDKBinaryConsumerTests' passed at 2026-10-08 02:11:54.394.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.278 (0.279) seconds
+Test Suite 'QPeriaptSDKBinaryConsumerTests.xctest' passed at 2026-10-08 02:11:54.395.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.278 (0.279) seconds
+Test Suite 'All tests' passed at 2026-10-08 02:11:54.395.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.278 (0.280) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+SWIFT_BINARY_CONSUMER_PASS
+
+=== Link exact XCFramework ZIP in iOS consumers ===
+{
+  "architecture": "arm64",
+  "link_map_sha256": "84d672a2f4384f94d9f0e644cade22cf941bbbd816d2adfaebeacba178cf2d98",
+  "linked_archive_objects": 224,
+  "status": "pass"
+}
+SWIFT_XCFRAMEWORK_MACOS_ARM64_LINK_PASS arches=arm64
+SWIFT_XCFRAMEWORK_IOS_DEVICE_LINK_PASS arches=arm64
+SWIFT_XCFRAMEWORK_IOS_SIMULATOR_LINK_PASS arches=x86_64 arm64
+
+=== Install and test the complete Swift SDK package outside the checkout ===
+SWIFT_SDK_INSTALLED_CONSUMER_PASS
+
+=== Release manifest ===
+CQPeriapt.xcframework.zip: OK
+QPeriapt-Swift-SDK-0.2.0.zip: OK
+MANIFEST.json: OK
+SWIFT_XCFRAMEWORK_MANIFEST_PASS
+
+SWIFT_XCFRAMEWORK_PACKAGE_PASS checksum=f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86 path=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/apple-recovery-full-02/q-periapt-swift-0.2.0/CQPeriapt.xcframework.zip

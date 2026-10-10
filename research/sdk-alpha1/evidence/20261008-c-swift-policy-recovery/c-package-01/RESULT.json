@@ -1,0 +1,16 @@
+{
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+  "head": "1f6e9edf6fe98a5ff4c572e69c346c7e088e17e5",
+  "command": [
+    "sh",
+    "artifact/c-package.sh",
+    "--profile",
+    "sdk-020"
+  ],
+  "returncode": 0,
+  "seconds": 162.69432500004768,
+  "clean_source_after": true,
+  "head_unchanged": true,
+  "stdout_sha256": "5052800f9b9efa4a4cc016848afece5c092868e7b4d2180a6745e891c6c69e9c",
+  "stderr_sha256": "2a3ad93e84123b114ef933289d97b1a32ca8c38f07d18392503cf38b913f8101"
+}

@@ -467,10 +467,10 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         installed = copy.deepcopy(initial)
         installed["proof_to_byte_inputs"] = _proof_inputs(installed=True)
 
-        self.assertEqual(249, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
-        self.assertEqual(59, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
+        self.assertEqual(254, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
+        self.assertEqual(64, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
         self.assertEqual(190, len(initial["proof_to_byte_inputs"]))
-        self.assertEqual(249, len(installed["proof_to_byte_inputs"]))
+        self.assertEqual(254, len(installed["proof_to_byte_inputs"]))
         self.assertEqual(
             set(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS),
             set(installed["proof_to_byte_inputs"])
@@ -517,7 +517,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
 
         if set(inputs) == current_keys:
             # Installed successor state (source_ci_gate's installed dispatch).
-            self.assertEqual(249, len(inputs))
+            self.assertEqual(254, len(inputs))
             self.assertNotEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
             for key, digest in inputs.items():
                 self.assertTrue(key.endswith("_sha256"), key)
@@ -607,6 +607,23 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                         baseline,
                         require_initial=require_initial,
                     )
+            return
+
+        # The immutable 0.1.5 installed record has the previous 249-key map.
+        # The alpha's shared host store adds five inputs; the old receipt must
+        # remain byte-identical and must not qualify as either current mode.
+        host_store_inputs = {
+            "migration_agent_filesystem_adapter_sha256", "host_store_manifest_sha256",
+            "host_store_lib_sha256", "host_store_policy_sha256", "host_store_policy_tests_sha256",
+        }
+        if set(inputs) == current_keys - host_store_inputs:
+            self.assertEqual(249, len(inputs))
+            self.assertEqual("9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda", live_sha256)
+            for require_initial in (True, False):
+                with self.subTest(require_initial=require_initial), self.assertRaises(
+                    assembler.SourceResultsAssemblerError
+                ):
+                    assembler._validate_baseline_document_shape(baseline, require_initial=require_initial)
             return
 
         # Frozen initial baseline state (source_ci_gate's initial dispatch;
@@ -832,12 +849,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         for mode, expected_marker in (
             ("initial", "SOURCE_TRANSITION_READINESS_PASS mode=initial"),
             ("installed", "SOURCE_CI_GATE_MODE mode=installed"),
+            ("sdk-020", "SDK_SOURCE_READINESS_PASS profile=sdk-020"),
         ):
             output = io.StringIO()
             args = mock.Mock(
                 command="ci-source-gate",
                 expected_results_sha256=RESULTS_DIGEST,
                 expected_commit=SOURCE_COMMIT,
+                profile="sdk-020" if mode == "sdk-020" else "legacy",
             )
             with (
                 mock.patch.object(
@@ -851,6 +870,60 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             self.assertTrue(output.getvalue().startswith(expected_marker))
             if mode == "installed":
                 self.assertNotIn("READINESS_PASS", output.getvalue())
+            if mode == "sdk-020":
+                self.assertIn("release_claim_eligible=false", output.getvalue())
+                self.assertIn("historical_proof_inputs=249", output.getvalue())
+
+    def test_sdk_source_profile_preserves_history_and_requires_explicit_selection(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        with (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+            mock.patch.object(assembler, "_source_identity", return_value=source),
+            mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+        ):
+            self.assertEqual(assembler.source_ci_gate(
+                assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT, profile="sdk-020"
+            ), ("sdk-020", source))
+            # The legacy finalizer still refuses this SDK transition's shape.
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "neither exact"):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT)
+            for profile in ("sdk", "latest", None, []):
+                with self.subTest(profile=profile), self.assertRaises(assembler.SourceResultsAssemblerError):
+                    assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                             SOURCE_COMMIT, profile=profile)
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "frozen 0.1.5"):
+                assembler.source_ci_gate(RESULTS_DIGEST, SOURCE_COMMIT, profile="sdk-020")
+
+    def test_sdk_source_profile_rejects_contract_substitution_and_races(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        changed_authority = dict(authority)
+        changed_authority[next(iter(changed_authority))] = "f" * 64
+        changed_history = copy.deepcopy(historical)
+        changed_history["proof_to_byte_inputs"].pop(next(iter(changed_history["proof_to_byte_inputs"])))
+        legacy = assembler.c_abi_contract.load_contract(ROOT / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
+        changes = (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=changed_history),
+            mock.patch.object(assembler, "_source_identity", return_value=assembler.SourceIdentity(RESULTS_COMMIT, SOURCE_DIGEST)),
+            mock.patch.object(assembler, "_source_identity", side_effect=[source, assembler.SourceIdentity(SOURCE_COMMIT, "e" * 64)]),
+            mock.patch.object(assembler, "capture_proof_input_digests", side_effect=[authority, changed_authority]),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'[workspace.package]\nversion = "0.1.5"\n')),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'workspace = "invalid"\n')),
+            mock.patch.object(assembler.c_abi_contract, "load_contract", return_value=legacy),
+        )
+        for change in changes:
+            with (
+                mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+                mock.patch.object(assembler, "_source_identity", return_value=source),
+                mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+                change,
+                self.assertRaises(assembler.SourceResultsAssemblerError),
+            ):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                         SOURCE_COMMIT, profile="sdk-020")
 
     def test_validate_baseline_pins_worktree_bytes_to_head_and_mode(self) -> None:
         for require_initial in (True, False):
@@ -1612,7 +1685,7 @@ class ReopenSourceTests(unittest.TestCase):
     """Cover the current-to-current reopen reverse transform.
 
     Inputs are the real coordinated publication fixtures (a valid pending or
-    verified installed manifest), expanded to the 249-key proof-input set. The
+    verified installed manifest), expanded to the 254-key proof-input set. The
     transform must reduce a valid pending installed manifest to the exact
     190-key/five-frozen-leaf initial baseline, and refuse fail-closed a
     non-installed input, dropping a verified (published-immutable) leaf, or an
@@ -1636,7 +1709,7 @@ class ReopenSourceTests(unittest.TestCase):
         candidate = assembler._build_reopen_candidate(
             installed, self._current_digests()
         )
-        # 249 -> 190 proof inputs, 7 -> the five frozen historical leaves.
+        # 254 -> 190 proof inputs, 7 -> the five frozen historical leaves.
         self.assertEqual(len(candidate["proof_to_byte_inputs"]), 190)
         self.assertEqual(
             set(candidate["release_publications"]),
@@ -1660,7 +1733,7 @@ class ReopenSourceTests(unittest.TestCase):
         # A valid pending fixture carries only the 190-key baseline.
         installed = pending_manifest_fixture(frozen_baseline_manifest())
         with self.assertRaisesRegex(
-            assembler.SourceResultsAssemblerError, "249-key"
+            assembler.SourceResultsAssemblerError, "254-key"
         ):
             assembler._build_reopen_candidate(installed, self._current_digests())
 

@@ -4,12 +4,17 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.9
+    OTHER_SWIFT_FLAGS: "$(inherited) -parse-as-library"
     CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: YES
 schemes:
   QPeriaptDeviceRunner:
     build:
       targets:
         QPeriaptDeviceRunner: all
+  QPeriaptSDKDeviceRunner:
+    build:
+      targets:
+        QPeriaptSDKDeviceRunner: all
 targets:
   QPeriaptDeviceRunner:
     type: application
@@ -35,6 +40,47 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: Sources/QPeriaptDeviceRunner/QPeriaptDeviceRunner-Bridging-Header.h
         LIBRARY_SEARCH_PATHS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release"
         OTHER_LDFLAGS: "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_DEBUG_DYLIB: NO
+        SUPPORTED_PLATFORMS: iphoneos
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+  QPeriaptSDKDeviceRunner:
+    type: application
+    platform: iOS
+    supportedDestinations:
+      - iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources/QPeriaptDeviceRunner
+        excludes:
+          - Info.plist
+          - QPeriaptDeviceRunner-Bridging-Header.h
+      - path: ../swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift
+      - path: ../swift/Sources/QPeriaptSDK/QPeriaptSDK.swift
+      - path: ../signed-policy-vectors.json
+        buildPhase: resources
+      - path: ../sdk-policy-revocation-vectors.json
+        buildPhase: resources
+      - path: ../sdk-policy-update-vectors.json
+        buildPhase: resources
+    dependencies:
+      - sdk: AppIntents.framework
+        weak: true
+      - sdk: Security.framework
+    settings:
+      base:
+        PRODUCT_NAME: QPeriaptDeviceRunner
+        PRODUCT_BUNDLE_IDENTIFIER: dev.qperiapt.SDKDeviceRunner
+        INFOPLIST_FILE: "$(QPERIAPT_SOURCE_ROOT)/bindings/apple-device/Sources/QPeriaptDeviceRunner/Info.plist"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) QPERIAPT_SDK_DEVICE"
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+        HEADER_SEARCH_PATHS: "$(QPERIAPT_SOURCE_ROOT)/bindings/swift/Sources/CQPeriapt"
+        SWIFT_INCLUDE_PATHS: "$(QPERIAPT_SOURCE_ROOT)/bindings/swift/Sources/CQPeriapt"
+        LIBRARY_SEARCH_PATHS: "$(QPERIAPT_SOURCE_ROOT)/target/aarch64-apple-ios/release"
+        OTHER_LDFLAGS: "$(QPERIAPT_SOURCE_ROOT)/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a"
         CODE_SIGN_STYLE: Automatic
         ENABLE_DEBUG_DYLIB: NO
         SUPPORTED_PLATFORMS: iphoneos

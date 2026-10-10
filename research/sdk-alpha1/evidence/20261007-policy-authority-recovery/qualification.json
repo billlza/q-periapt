@@ -1,0 +1,67 @@
+{
+  "at_utc": "2026-10-07T22:42:29.410652+00:00",
+  "source_commit": "8d835c634a20a8d45e5f2a2ff62a74ec43e8d963",
+  "source_clean_package": true,
+  "host_debug_tests": 42,
+  "host_release_tests": 42,
+  "host_msrv_tests": 42,
+  "SDK_tests": 27,
+  "SDK_doc_tests": 4,
+  "FFI_tests": 43,
+  "strict_clippy": true,
+  "standalone_gate_tests": 60,
+  "standalone_gate_failures": 0,
+  "standalone_gate_skips": 0,
+  "unwind_red": "Actual post-commit unwind in the draft retained an active old store; targeted test failed with child101 instead of73. Exact failing module recovered by matching its recorded SHA256.",
+  "unwind_green": "Mutation temporarily owns Active on stack. Errors/unwinds revoke aliases and leave store closed; normal policy and root recovery both covered.",
+  "process_cuts": {
+    "prepared": 71,
+    "committed_before_activation": 72,
+    "caught_postcommit_unwind": 73,
+    "ordinary_policy_caught_postcommit_unwind": 43
+  },
+  "root_recovery_profile": {
+    "pre_enrolled_independent_root": true,
+    "incoming_transition_possession_proof": true,
+    "normal_versions_monotonic": true,
+    "generation_exact_plus_one": true,
+    "historical_roots_and_operations_never_reused": true,
+    "history_budget": 4096,
+    "unknown_outcomes_use_original_authorization": true,
+    "current_and_historically_advanced_receipts_distinguished": true,
+    "v1_implicit_migration": false,
+    "whole_disk_rollback_protection": false,
+    "C_Swift_recovery_surface": false,
+    "Continuity_root_migration": false
+  },
+  "rust_package_report_sha256": "5c17a8657fafbdd8b1a8a8904962a832a32be31f51eb0a22f3a19d16033c5f72",
+  "rust_msrv_report_sha256": "da247539dda612fcaa495cc66c916db929ebe0e86bd860e43093b5714c1a048f",
+  "cohort_crates": 12,
+  "installed_public_API_groups": 4,
+  "installed_compilers": [
+    "1.98.1",
+    "1.90.0"
+  ],
+  "dependency_audits": "workspace, fuzz and consumer; same fresh RustSec database; no findings/warnings/filters",
+  "openssl": {
+    "version": "OpenSSL 3.6.4 25 Aug 2026 (Library: OpenSSL 3.6.4 25 Aug 2026)",
+    "signed": [
+      "recovery enrollment",
+      "incoming policy",
+      "recovery authorization",
+      "incoming key possession"
+    ],
+    "installed_source_unchanged": true,
+    "Python_reconstructed_every_request_field": true,
+    "swapped_roles_rejected": true,
+    "applied_and_reopened": true,
+    "fresh_OpenSSL_private_key_files_in_evidence": false,
+    "initial_fixture_seed": 91,
+    "scope": "Independent signer and encoding check with installed Rust store; not a separate full Continuity protocol implementation or offline operational isolation.",
+    "archive_dependencies": 8,
+    "warning_free_rerun": true,
+    "initial_probe_warning": "Unused rustls patch in the standalone probe was removed. Initial result/log retained; final probe rejects warnings."
+  },
+  "release_claim_eligible": false,
+  "limits": "Rust source/macOS ARM64 and installed archive component evidence. No remote current-head CI, physical devices, C/Swift recovery, automatic v1 enrollment, threshold governance, recovery-key rotation, complete Continuity root migration, restored confidentiality or external security-review claim."
+}

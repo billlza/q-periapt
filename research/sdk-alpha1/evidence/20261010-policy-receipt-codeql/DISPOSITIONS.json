@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-10T03:49:51.222059+00:00",
+  "analysis_head": "e0e1dee0ba19e9c1e177d30e7ae16ef0d87f3f25",
+  "comparison_head": "69d6d4bba49b7d0b0a14bf2101862d4cb7f9543c",
+  "analysis_run": 37976202077,
+  "diagnostic_artifact": 11644829958,
+  "diagnostic_artifact_sha256": "b376a9dc37ccd9301e32c3a514d465cb72bda53404aa2350fe64454a6d6611a2",
+  "sarif_sha256": "703a5901d22f7b90fc05f962e1fae16a04a6bf9f58bca8f37cb7296467411d3e",
+  "analysis_results": 832,
+  "this_record_reviewed_indices": [
+    741,
+    742,
+    746
+  ],
+  "method": "Static review of all supplied flow locations, their controlling methods, both named cipher-key sinks and actual key construction; all 13 flow source files are byte-identical at analysis and comparison commits. No new runtime test or CodeQL rerun is claimed.",
+  "dispositions": [
+    {
+      "sarif_index": 741,
+      "rule": "rust/hard-coded-cryptographic-value",
+      "fingerprints": {
+        "primaryLocationLineHash": "52dfcd1042b4c29d:1",
+        "primaryLocationStartColumnFingerprint": "10"
+      },
+      "source": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 118
+        },
+        "region": {
+          "startLine": 786,
+          "startColumn": 19,
+          "endColumn": 24
+        }
+      },
+      "classification": "false positive for hard-coded cryptographic value at the two named sinks",
+      "title": "false return for missing enrollment completion",
+      "reason": "policy_renewal.rs:786 returns Ok(false) if no enrollment completion is retained. adopted() then returns Suspended; it cannot initialize or replace a journal key.",
+      "supplied_thread_flows": 4,
+      "supplied_flow_locations": 282,
+      "named_sink_lines": [
+        1014,
+        1051
+      ]
+    },
+    {
+      "sarif_index": 742,
+      "rule": "rust/hard-coded-cryptographic-value",
+      "fingerprints": {
+        "primaryLocationLineHash": "955dcb31338352c0:1",
+        "primaryLocationStartColumnFingerprint": "3"
+      },
+      "source": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 118
+        },
+        "region": {
+          "startLine": 789,
+          "startColumn": 8,
+          "endColumn": 12
+        }
+      },
+      "classification": "false positive for hard-coded cryptographic value at the two named sinks",
+      "title": "true return after completion verification",
+      "reason": "policy_renewal.rs:787-789 checks the retained completion against the image, then returns Ok(true). The bool authorizes continuation of the enclosing check and is not converted to key bytes.",
+      "supplied_thread_flows": 4,
+      "supplied_flow_locations": 282,
+      "named_sink_lines": [
+        1014,
+        1051
+      ]
+    },
+    {
+      "sarif_index": 746,
+      "rule": "rust/hard-coded-cryptographic-value",
+      "fingerprints": {
+        "primaryLocationLineHash": "de3cae74c65c4562:1",
+        "primaryLocationStartColumnFingerprint": "0"
+      },
+      "source": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 118
+        },
+        "region": {
+          "startLine": 37,
+          "endLine": 41,
+          "endColumn": 2
+        }
+      },
+      "classification": "false positive for hard-coded cryptographic value at the two named sinks",
+      "title": "derived receipt-phase equality",
+      "reason": "policy_renewal.rs:37 derives Eq/PartialEq on the two-value ReceiptPhase enum. completion_acknowledged():783 compares the phase with Acknowledged. The comparison yields only a bool and reaches the same guard, not the cipher key argument.",
+      "supplied_thread_flows": 4,
+      "supplied_flow_locations": 290,
+      "named_sink_lines": [
+        1014,
+        1051
+      ]
+    }
+  ],
+  "shared_evidence": {
+    "guard": "policy_renewal.rs:119-129 adopted() uses completion_acknowledged only in an if condition; failure returns Suspended; success returns retained.approval.",
+    "caller_values": "bind_session:168-178 returns the signed approval statement digest; witness_admission:836-855 returns an authorized operation and refreshed device. Neither returns the completion boolean as key bytes.",
+    "cipher_sinks": [
+      "durable.rs:1014 seal() initializes XChaCha20Poly1305 from key.0.as_bytes().",
+      "durable.rs:1051 unseal_image() initializes XChaCha20Poly1305 from the same JournalKey type."
+    ],
+    "key_owner": "durable.rs:222 JournalKey holds boxed ZeroizingBytes<32>; Active.key at 556 is supplied at provision/open, not derived from the receipt phase. image():718-735 and seal_next_image():753-768 borrow Active.key; write_intent snapshot/commit paths pass that same key.",
+    "construction": "durable.rs:271-288 provision() fills all 32 bytes with getrandom before publishing/returning; read_file():329-348 reads the exact retained key file before returning. No fallback from entropy/read failure is present.",
+    "reported_flow_join": "The supplied paths pass through context/service return values and borrow the journal through DeviceService::stores or resume/reopen. This over-approximated container flow does not show an assignment from the branch boolean to Active.key or JournalKey bytes."
+  },
+  "limits": [
+    "Only the named hard-coded-value reports are disposed; this does not prove complete key-management, policy-renewal or cryptographic security.",
+    "No claim that this boolean gate alone is sufficient authorization; surrounding scope, policy, roster and witness checks remain necessary.",
+    "Same-UID wrapping-file disclosure, whole-state rollback and cryptographic erasure retain their documented trust limits.",
+    "Other raw SARIF results and previous analyses retain their own review status; no automatic subtraction or inherited disposition across analysis identities.",
+    "No remote dismissal, suppression, severity change, product-code change or passing aggregate security gate."
+  ],
+  "release_claim_eligible": false,
+  "remote_dismissal_performed": false,
+  "product_modified": false,
+  "source_identities": [
+    {
+      "path": "crates/q-periapt-core/src/lib.rs",
+      "sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "same_as_analysis": true,
+      "lines": [
+        136,
+        137
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "sha256": "728acd71fc1266aad1fa33280806a0b0506151e39ab3b411583e689a06314290",
+      "same_as_analysis": true,
+      "lines": [
+        718,
+        719,
+        720,
+        737,
+        738,
+        739,
+        740,
+        741,
+        753,
+        758,
+        767,
+        925,
+        926,
+        951,
+        1014,
+        1022,
+        1023,
+        1028,
+        1051
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/anchoring.rs",
+      "sha256": "6eace9c333d984463dc412aeb58248b5f48c0f441d2fe1a704b9221908eb980f",
+      "same_as_analysis": true,
+      "lines": [
+        202,
+        203,
+        205
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+      "sha256": "4f121f062599b1fcbe809153ab9d7cd05d479a1a7ff65e7fd342913688432165",
+      "same_as_analysis": true,
+      "lines": [
+        608,
+        611,
+        614,
+        621,
+        622,
+        658,
+        711,
+        768,
+        878,
+        904
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+      "sha256": "ab3b1617588a8430038e5eda82d793985dfed113a0099fed239eaa465d9e0c52",
+      "same_as_analysis": true,
+      "lines": [
+        290,
+        296,
+        299,
+        334
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters.rs",
+      "sha256": "b719452938ebd7004d0688522900811fd83b6d4d8c04e767a184f1bbeb897830",
+      "same_as_analysis": true,
+      "lines": [
+        780,
+        809,
+        1222,
+        1225
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs",
+      "sha256": "567f4c92f3c62cc1628876adfeec3d078fc9180d3272f26d263e19c3fad52ce8",
+      "same_as_analysis": true,
+      "lines": [
+        37,
+        126,
+        175,
+        781,
+        783,
+        786,
+        789,
+        842
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+      "sha256": "714936c85fbc0a62499c8b5e0cd998c44e680479ee34bfa61232354e671b0842",
+      "same_as_analysis": true,
+      "lines": [
+        112,
+        113,
+        116,
+        156,
+        159,
+        164,
+        170,
+        245,
+        342,
+        345,
+        358,
+        362,
+        372,
+        382,
+        463,
+        467
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/witness_policy_session_tests.rs",
+      "sha256": "bd500a8678a9241b31e0cecdacc4386a3e0557984a9a2dde550cf9e567a16906",
+      "same_as_analysis": true,
+      "lines": [
+        415,
+        424,
+        425
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation.rs",
+      "sha256": "a99aa7b0834a51a4c7033065bfd444faea435a03ebd5cb71c5664c210b75d98d",
+      "same_as_analysis": true,
+      "lines": [
+        651,
+        652,
+        653,
+        659
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/reopen.rs",
+      "sha256": "08091073c2e95b038eb80b869914fac8ab4271ba42395229423ec84aafffa068",
+      "same_as_analysis": true,
+      "lines": [
+        219,
+        229,
+        234,
+        240,
+        286,
+        287,
+        312,
+        356
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen.rs",
+      "sha256": "da0af9de8557afe6047ef81850c1b43a5183674aca616cc7adcdba9e3a8b5db6",
+      "same_as_analysis": true,
+      "lines": [
+        144,
+        145,
+        277,
+        281,
+        762,
+        763
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs",
+      "sha256": "f2636337fa90e15df45b444a2242bd820811055e80f04a9f313c082890660da9",
+      "same_as_analysis": true,
+      "lines": [
+        387,
+        396,
+        476
+      ]
+    }
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "75a7f1133735703f9634fa4e4139fbd6981fe98132930205ff384b106cd746ff",
+    "bytes": 117147,
+    "members": 16
+  }
+}

@@ -20,7 +20,15 @@ use q_periapt_backends::{
 use q_periapt_core::{Kem, Xof256};
 use q_periapt_sig::{SigAlg, Signer};
 use serde_json::{json, Value};
+use std::io::Read;
 use std::path::Path;
+
+const MAX_CODE_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+#[cfg(feature = "sdk-cbom")]
+mod sdk_cbom;
+#[cfg(feature = "sdk-cbom")]
+pub use sdk_cbom::{native_sdk_cbom, CbomError};
 
 /// The CycloneDX facts about an algorithm that no suite crate represents.
 ///
@@ -125,7 +133,8 @@ struct CryptoAsset {
 }
 
 const KEM_FUNCTIONS: &[&str] = &["keygen", "encapsulate", "decapsulate"];
-const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "key-agree"];
+// CycloneDX 1.6 calls the primitive key-agree, but its function keyderive.
+const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "keyderive"];
 const SIGNATURE_FUNCTIONS: &[&str] = &["keygen", "sign", "verify"];
 const DIGEST_FUNCTIONS: &[&str] = &["digest"];
 
@@ -638,7 +647,7 @@ fn scan_path(path: &Path, report: &mut ScanReport, is_root: bool) {
         if !ext_ok {
             return;
         }
-        if meta.len() > 2 * 1024 * 1024 {
+        if meta.len() > MAX_CODE_FILE_BYTES {
             report.errors.push(ScanError {
                 path: path.display().to_string(),
                 operation: "too_large",
@@ -646,7 +655,7 @@ fn scan_path(path: &Path, report: &mut ScanReport, is_root: bool) {
             });
             return;
         }
-        match std::fs::read_to_string(path) {
+        match read_code_file(path) {
             Ok(text) => scan_text(&path.display().to_string(), &text, &mut report.findings),
             Err(e) => push_scan_error(report, path, "read_file", e),
         }
@@ -659,6 +668,23 @@ fn scan_path(path: &Path, report: &mut ScanReport, is_root: bool) {
             message: "symlink not followed; scan its target explicitly".to_string(),
         });
     }
+}
+
+fn read_code_file(path: &Path) -> std::io::Result<String> {
+    // Metadata is only a preflight: another writer can grow the file before
+    // or during this read. Read one extra byte to distinguish the exact limit
+    // from an oversized file without accepting a truncated scan as complete.
+    let mut text = String::new();
+    std::fs::File::open(path)?
+        .take(MAX_CODE_FILE_BYTES + 1)
+        .read_to_string(&mut text)?;
+    if text.len() as u64 > MAX_CODE_FILE_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "code file exceeds 2 MiB scanner limit",
+        ));
+    }
+    Ok(text)
 }
 
 fn scan_text(file: &str, text: &str, out: &mut Vec<Finding>) {
@@ -834,6 +860,78 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn code_reader_rejects_growth_after_metadata_admission() {
+        use std::io::Write;
+        let dir = scratch_dir("reader-growth");
+        let path = dir.join("changing.rs");
+        std::fs::write(&path, "a").unwrap();
+        let admitted = std::fs::symlink_metadata(&path).unwrap();
+        assert_eq!(admitted.len(), 1);
+        // Reproduce a writer growing the same file after the scanner's size
+        // preflight, before the actual content read. No filesystem timing race.
+        let mut writer = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        writer.write_all(&vec![b'x'; 2 * 1024 * 1024]).unwrap();
+        drop(writer);
+        let result = read_code_file(&path);
+        assert!(
+            result.is_err(),
+            "reader accepted a file beyond its 2 MiB limit"
+        );
+        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn scan_accepts_exact_byte_limit_and_rejects_one_extra_byte() {
+        let dir = scratch_dir("reader-limit");
+        let path = dir.join("limit.rs");
+        // Use multibyte UTF-8 and a finding at the very end: the limit counts
+        // bytes, and a successful scan must include the full permitted input.
+        let text = "\u{00e9}".repeat((2 * 1024 * 1024 - 4) / 2) + "\nrsa";
+        std::fs::write(&path, &text).unwrap();
+        assert_eq!(read_code_file(&path).unwrap(), text);
+        let report = scan(&path);
+        assert!(report.errors.is_empty());
+        assert!(report
+            .findings
+            .iter()
+            .any(|f| f.token == "rsa" && f.line == 2));
+        assert_eq!(scan_report_to_json(&report)["complete"], true);
+
+        std::fs::write(&path, text + "x").unwrap();
+        assert_eq!(
+            read_code_file(&path).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        let report = scan(&path);
+        assert!(report.findings.is_empty());
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0].operation, "too_large");
+        assert_eq!(scan_report_to_json(&report)["complete"], false);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn scan_rejects_invalid_utf8_instead_of_scanning_a_partial_file() {
+        let dir = scratch_dir("reader-utf8");
+        let path = dir.join("invalid.rs");
+        std::fs::write(&path, b"rsa\n\xff").unwrap();
+        assert_eq!(
+            read_code_file(&path).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        let report = scan(&path);
+        assert!(report.findings.is_empty());
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0].operation, "read_file");
+        assert_eq!(scan_report_to_json(&report)["complete"], false);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[cfg(unix)]

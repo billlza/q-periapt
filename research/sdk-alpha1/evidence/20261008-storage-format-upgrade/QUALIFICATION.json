@@ -1,0 +1,157 @@
+{
+  "product_source": "2b596975c85631be748700a4e6fc109cce144e05",
+  "kind": "isolated experiment, not product migration",
+  "release_claim_eligible": false,
+  "compiler": "Rust 1.98.1 aarch64-apple-darwin",
+  "rustflags": "-D warnings",
+  "dependencies": {
+    "legacy_fixture": {
+      "version": "2.6.3",
+      "checksum": "8eca1e9d98d5a7e9002d0013e18d5a9b000aee942eb134883a82f06ebffb6c01",
+      "source": "historical project Cargo.lock and cached crates.io archive"
+    },
+    "upgrade_probe": {
+      "version": "2.6.4",
+      "checksum": "3d64e07496d293ad8ed401c4d193d5b9f0f97671fbd5bf21d691a0c7d2c53dc8",
+      "source": "crates.io sparse index and static archive; upstream v2.6.3...v2.6.4 changes only LRU/cache and version/changelog"
+    },
+    "current_reader": {
+      "version": "4.3.0",
+      "source": "current pinned project"
+    },
+    "checksum_probe": {
+      "version": "twox-hash 2.1.4",
+      "checksum": "5283634e518fe9e82c7b20520bb4bc209009fd16c82077c802f8111ecbb0117a",
+      "purpose": "non-cryptographic commit-slot corruption check, not provenance authentication"
+    },
+    "final_libc": "0.2.189, matching product Cargo.lock"
+  },
+  "registry_packages_outside_product_lock": [
+    [
+      "redb",
+      "2.6.4",
+      "3d64e07496d293ad8ed401c4d193d5b9f0f97671fbd5bf21d691a0c7d2c53dc8"
+    ],
+    [
+      "twox-hash",
+      "2.1.4",
+      "5283634e518fe9e82c7b20520bb4bc209009fd16c82077c802f8111ecbb0117a"
+    ]
+  ],
+  "baseline_fault_matrix": {
+    "at_utc": "2026-10-08T04:11:57.986308+00:00",
+    "source_unchanged": true,
+    "case_count": 156,
+    "faults_observed": 156,
+    "outcomes": {
+      "legacy_retry_then_current_exact_state": 66,
+      "current_authenticated_exact_state": 90
+    },
+    "current_refusal_modified": [],
+    "failed_or_missing": [],
+    "limits": [
+      "Only public policy fixture and macOS process-cut/typed I/O faults; not power-loss emulation",
+      "Experimental current-first retry sequence does not retain one lock across processes",
+      "Format conversion does not establish freshness or witness reconciliation",
+      "No product migration API implemented"
+    ],
+    "capture_member": "matrix-01/RESULT.json"
+  },
+  "final_lease_matrix": {
+    "source_unchanged": true,
+    "case_count": 157,
+    "passed": 157,
+    "peer_refusals": 1206,
+    "dispatch": {
+      "legacy": 66,
+      "current": 91
+    },
+    "failed": [],
+    "scope": "Public exact fixture only, macOS independent processes, no power-loss or product migration API claim",
+    "capture_member": "lease-matrix-04/RESULT.json"
+  },
+  "final_corruption_controls": [
+    {
+      "slot": 64,
+      "variant": "before",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/build/debug/policy-store-lease-probe-without-checksum",
+        "lease",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/corrupt-dispatch-05/64-before/corrupt.redb"
+      ],
+      "binary_sha256": "88d53af1ea70641881d1d74f5724c249a0e1d8b4ce1945121148ba288badc7fc",
+      "returncode": 101,
+      "file_unchanged": true,
+      "expected_observation": true,
+      "input_sha256": "e183c22165acc589adff4f760316c69c0e20e387a808c182f22447d71ae664f6",
+      "stdout_sha256": "2d6190833913794208768a94c8d82f0591e874a30d3596b40cc6a604602523e0",
+      "stderr_sha256": "c6257be9cf30ad3e1b5bee94ef1d8943f4bc9026b3d31ad3edb2a67af46ce391"
+    },
+    {
+      "slot": 64,
+      "variant": "after",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/build/debug/policy-store-lease-probe",
+        "lease",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/corrupt-dispatch-05/64-after/corrupt.redb"
+      ],
+      "binary_sha256": "ae604df94483f33385fc0fae4a67fc6cb495e61e41d31231a9a334af300835c4",
+      "returncode": 1,
+      "file_unchanged": true,
+      "expected_observation": true,
+      "input_sha256": "e183c22165acc589adff4f760316c69c0e20e387a808c182f22447d71ae664f6",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "f83404b5c49b12cd35f62441c94a556e2656e41d171105c065e96e4cbbca7df6"
+    },
+    {
+      "slot": 192,
+      "variant": "before",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/build/debug/policy-store-lease-probe-without-checksum",
+        "lease",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/corrupt-dispatch-05/192-before/corrupt.redb"
+      ],
+      "binary_sha256": "88d53af1ea70641881d1d74f5724c249a0e1d8b4ce1945121148ba288badc7fc",
+      "returncode": 101,
+      "file_unchanged": true,
+      "expected_observation": true,
+      "input_sha256": "cbe26d147f9bfaa0b0a85f1dcda44f0033bbe1e49de7b4f5f24ce13e9470c401",
+      "stdout_sha256": "2d6190833913794208768a94c8d82f0591e874a30d3596b40cc6a604602523e0",
+      "stderr_sha256": "71a3f824577be7fa7ec5b415046d2f03b97e44845d4e9387f6dedcd0b0ded462"
+    },
+    {
+      "slot": 192,
+      "variant": "after",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/build/debug/policy-store-lease-probe",
+        "lease",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/storage-format-upgrade-current/corrupt-dispatch-05/192-after/corrupt.redb"
+      ],
+      "binary_sha256": "ae604df94483f33385fc0fae4a67fc6cb495e61e41d31231a9a334af300835c4",
+      "returncode": 1,
+      "file_unchanged": true,
+      "expected_observation": true,
+      "input_sha256": "cbe26d147f9bfaa0b0a85f1dcda44f0033bbe1e49de7b4f5f24ce13e9470c401",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "f83404b5c49b12cd35f62441c94a556e2656e41d171105c065e96e4cbbca7df6"
+    }
+  ],
+  "captures": {
+    "path": "CAPTURES.zip",
+    "sha256": "978383da7363b8952698b61eb3b080f55a94b252f2a7c4f0069daed99fc81f3e",
+    "bytes": 1447481,
+    "member_count": 3048,
+    "manifest_member": "MEMBERS.json",
+    "manifest_sha256": "4fcbb751933cb2a3e6a29ce5e5fba7e5ce8fd2b19edb82be9884f2c6e4d8e39c"
+  },
+  "not_qualified": [
+    "product API",
+    "general schemas or trust inputs",
+    "power loss or torn writes",
+    "full handoff I/O faults",
+    "Linux",
+    "Rust minimum",
+    "Continuity witness/rollback migration",
+    "malicious database parser robustness"
+  ]
+}

@@ -12,8 +12,10 @@ use std::fs::File;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use redb::ReadableDatabase;
 use redb::{
-    Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
+    Database, Durability, ReadableTable, ReadableTableMetadata, StorageBackend, TableDefinition,
+    TableHandle,
 };
 
 use crate::authority::{
@@ -495,17 +497,18 @@ impl AuthorityStoreV2 {
     }
 
     fn open_file(file: File) -> Result<Self, AuthorityStoreErrorV2> {
-        if file
-            .metadata()
-            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(map_database_open)?;
+        if backend
             .len()
+            .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?
             == 0
         {
             return Err(AuthorityStoreErrorV2::UnsupportedSchema);
         }
-        refuse_unclean_foreign_redb(&file).map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
         let database = store_database_builder()
-            .create_file(file)
+            .create_with_backend(backend)
             .map_err(map_database_open)?;
         verify_existing_schema(&database)?;
         let transaction = durable_write(&database)?;
@@ -867,7 +870,9 @@ fn durable_write(database: &Database) -> Result<redb::WriteTransaction, Authorit
     let mut transaction = database
         .begin_write()
         .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
-    transaction.set_durability(Durability::Immediate);
+    transaction
+        .set_durability(Durability::Immediate)
+        .map_err(|_| AuthorityStoreErrorV2::CorruptStore)?;
     transaction.set_two_phase_commit(true);
     Ok(transaction)
 }

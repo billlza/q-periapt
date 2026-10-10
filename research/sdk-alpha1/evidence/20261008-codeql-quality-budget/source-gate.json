@@ -1,0 +1,17 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "artifact/source_results_assembler.py",
+    "ci-source-gate",
+    "--profile",
+    "sdk-020",
+    "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+    "f88e89a805a2a423522f34679a0f13e4486ef68d"
+  ],
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/ci-quality-budget-current/source",
+  "head": "f88e89a805a2a423522f34679a0f13e4486ef68d",
+  "returncode": 0,
+  "stdout": "SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=f88e89a805a2a423522f34679a0f13e4486ef68d results_sha256=9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false\n",
+  "stderr": ""
+}

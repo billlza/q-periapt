@@ -1,0 +1,18 @@
+{
+  "source_commit": "814721fafbdffdc0a6cd4ee2cce7fb90289413c2",
+  "platform": "aarch64-apple-darwin",
+  "files": {
+    "package-manifest.json": "09b9265be84936ebe34a258d4de700481a5aa17225e605d6f0c0a7be9dd0168a",
+    "producer-consumers.json": "99b27c8fcbee82a4b5dcba3fb86dfe825ff445ab6e364c1f522fc57f1d9fe06a",
+    "package-01-stdout.json": "d31761e5173dcbe884e4af046d825c276130cd33ada409ad38664d0e4c61b0a7",
+    "qualification.json": "d9d2f314484fb522edfd337cf5b56bd45092450c49641c41a0c24d756f1a1818",
+    "producer.json": "3eaf43da3979043869dfeded86623bfe7cdde4c69886dc879e3db31bf900e194",
+    "package-01-stderr.json": "5b7f9a84ad5703fd08fa5b6acf3b0715dfecd6b9c3339c9c2c7fe82b0460ad69",
+    "README.md": "73804a071394889c62afc026e273754d176f9b79c5558a47fbe91685b0a540c3",
+    "public-consumers.json": "c996845cd5de90c5e49c2dc94a30db7ae2749df6ad2304a775d1457917ea552a",
+    "public-01-stderr.json": "fccc1f1495ee31b03e25c54ca6d770ec4738775a938ff1cdddcd6cd64cb8829d",
+    "public-01-stdout.json": "297f6ae9dc10bb57c5520cf148f24037e76b20dcce54d43fdf7b1e847971e4b4",
+    "public-revalidation.json": "9460b9e8f8738cebe6e1b11446f1a0d925af5acf1bd1cc746c78102dae125791"
+  },
+  "release_claim_eligible": false
+}

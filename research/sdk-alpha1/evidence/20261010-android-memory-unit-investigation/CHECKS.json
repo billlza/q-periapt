@@ -1,0 +1,61 @@
+{
+  "created_at": "2026-10-10T01:24:02.518875+00:00",
+  "ci_head": "8ec10b556e5320356abbae6102328c698280818d",
+  "job": 114085005819,
+  "scope": "Read-only exact-image LMKD disassembly and conditional arithmetic over four captured guest snapshots; no debugger or live process-memory access",
+  "observed": [
+    "Full SDK consumer passed 3 tests and cleanup; minimal consumer lost ADB during postinstall identity checks before instrumentation",
+    "Installed image revision 5, fingerprint 12960925, and captured ELF hashes match the failing job",
+    "ELF initializes a global with getpagesize()/1024 and divides parsed memory fields by it",
+    "Managed-counter totals imply 4096 bytes per unit while getconf reports 16384",
+    "Reference arithmetic yields no breached watermark with divisor 4 for all four snapshots; divisor 16 yields min for three snapshots and low for one"
+  ],
+  "actual_runtime_divisor_observed": false,
+  "adb_disconnect_root_cause_proven": false,
+  "sdk_failure_proven": false,
+  "diagnostic_change": {
+    "created_at": "2026-10-10T01:21:04.952200+00:00",
+    "base_head": "da692a558be8c58ff6430f40e78236ecd5ae7359",
+    "source_sha256": "e03ab4ddccaafbf2942f5394488eda61b4deffe8b62dc2119c5022a19d76250c",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "artifact",
+      "-p",
+      "test_android*control.py",
+      "-v"
+    ],
+    "returncode": 0,
+    "unit_tests": 10,
+    "cold_emulator_execution_completed": false,
+    "production_acceptance_changes": false,
+    "scope": "Owned no-SDK Linux CI control adds host-captured guest kernel/logcat output, ADB identity and host UTC correlation; no memory, timeout, transport retry or APK identity relaxation"
+  },
+  "official_references": [
+    "https://source.android.com/docs/core/architecture/16kb-page-size/getting-started-cf-x86-64-pgagnostic",
+    "https://android.googlesource.com/platform/system/memory/lmkd/+/refs/tags/android-15.0.0_r1/lmkd.cpp",
+    "https://developer.android.com/studio/run/emulator-commandline"
+  ],
+  "limits": [
+    "Snapshots were sequential and not captured at each kill instant",
+    "Android 15 r1 source names the reference calculations; it is not an exact source reconstruction of the captured Google binary",
+    "No evidence yet shows LMKD killing adbd or causing the transport loss",
+    "New hosted cold-image kernel/logcat capture has not yet executed",
+    "No production acceptance, memory settings, retries or deadlines were changed"
+  ],
+  "capture": {
+    "sha256": "02a1aef0b4d08ecbec0690c26655f2e8da1a91a7497a36e08d4b995195817cc3",
+    "bytes": 266624,
+    "members": 29
+  },
+  "local_exact_elf": {
+    "sha256": "1eb42d145ee0e88662bd033c17f75d7e09d5246dae7fb5e3899415a309971be4",
+    "bytes": 103344,
+    "artifact": 11652918279
+  },
+  "release_claim_eligible": false
+}

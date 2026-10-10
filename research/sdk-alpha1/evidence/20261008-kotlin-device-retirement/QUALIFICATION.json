@@ -1,0 +1,493 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T18:25:38.099133+00:00",
+  "base_commit": "15819e5146710a47f063f7403b77bbdd3f6c69ac",
+  "source_files": {
+    "bindings/kotlin/ContinuityPackageConsumer/.gitignore": "8c52614a6393b6b7820cdde0027edb883ac1c2b204d35a088b623ccc4e6157cd",
+    "bindings/kotlin/ContinuityPackageConsumer/build.gradle.kts": "9c6d6f3f7ccc5a20d3535c3cd77e16a1f6e7744737e55e24028b867f2c315d4b",
+    "bindings/kotlin/ContinuityPackageConsumer/settings.gradle.kts": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db",
+    "bindings/kotlin/ContinuityPackageConsumer/gradle/verification-metadata.xml": "543f58282de0ecd79210ccaefd89694b6a1ff641233e9d8b33f43c72eb746141",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/build.gradle.kts": "ef2dacab85dfc07242cc70770e8bcc47593006e01676f898771055b02bf98a0e",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/settings.gradle.kts": "8c27443b5efa745b4a26014fb1968e3c20ecedde4689b30fc5cc3475038265cf",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/RosterRefresh.kt": "d1cc8bfe1006ac3143deb5950af90f3eed822e267b4f9f06a7d8699878110e75",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "ac2d10a303f86b2189dae6c2ecae8e642f6efdc9c709a5a848a2ca0ef2bbf25e",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt": "2df94b112494b8eb747811bd12984fcbb5d6be4f5a5ba7b5b134fe412821e0d8",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Setup.kt": "ef1ca38072af695de9af31d11e3606c734d46bcda797f2990c248d5291b04903",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/RetiredEnrollment.kt": "f29613dea799dc678c1aac06ef0f30d6fef0671dbb4a1d0e91dc346fe0633745",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/PolicyContinuation.kt": "8da87938949819f89de4846fd5bfd072adc309663a65a45e84d937836195887c",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/IndependentPolicy.kt": "bbc1b091398c7274c2544c3f84157c7af638cb78dbe0a0ebae7b38696c295278",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/PolicyRenewal.kt": "997847c5c38d0c788ebef35395ce0f4e66efb3e007ff474c5ada4601d823b070",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "655a2c5d1caad6b23aaa563766c29eb3398943dc416ac437879a1ff751ef37c6",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Types.kt": "a1b6db95bd63ebe261ac29b3ef04d69e3371d7fc1aff7723ec6170b0e384cb1b",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/AccountRecovery.kt": "448b052fc613225752be1cfeab0806dfeed0ad57510998955a8c37c54b3e9fd0",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Device.kt": "e24a8e4c82e56b9f95fc912a140539675d214c71db32f63991d2567fdcd52eac",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Owners.kt": "61e655fce39c585de7913ab1975b31526325ee3c6bf9325691bc4ab1232bda99",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/OwnerTransfer.kt": "d80387a661b8d2f0a233feaff50db5e5fcbef38b26a60a180254d0f725b4451e",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/RosterRefreshTests.kt": "84fbffdf5ee5402bbbc1b389fc98ab96bccd3595ae7252df7f25fa797bd249d4",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/IndependentPolicyTests.kt": "b7d85738652817142a0b304ea50b841143d4ef0f24bc81bdcd9c99be4fc10e9e",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/PolicyRenewalTests.kt": "2dbf1668a3a5d653bd95c7b08ade7c25284ca3d0b7559b83c3fb4f5d8489def8",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/RetirementTests.kt": "b8a3d6b2e57d3e752fa0246dde515aeb93890b5e5267aeb02b2507284fde00f6",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/RosterResolutionTests.kt": "cb90843a347e0e932ebae6412b02392dffdaca0af27e851dcaf2f735ce074be2",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/CredentialRenewalTests.kt": "292613206d6ee77b0e4046da95ee0a76db080b3d935bce60c79c4f384b28eff1",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/PolicyContinuationTests.kt": "ddc63e366daa4227edcd0c1cfea980541e07f63befda2513a1e6d91cd5db4033",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/OwnerTests.kt": "0fe04ee8e5c680df49c4df0ee9cef9673ac0a6bc10ef2bc33f7480ae4344c5f3",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawOwnerProbe.java.txt": "f37ad780c20b150ab6ea9bd295f9038fb9d900d53c8c4c62a9897b40aa6f49ec",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawNativeOwnerProbe.java.txt": "4dab404941da020ad3a3e32f1691732ac2bb1965f270f764b5c7898f18c9e416",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawRetiredEnrollmentProbe.java.txt": "7cb97dbe53d46ad68b4e2cb926fa8f0312d1e1c69845acf1bd50d48c45cd0f84",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawDeviceProbe.java.txt": "209289e9d8a7e3c2d4522ca26d56963bc367c9b925eeba70834fa907ca62a578",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawEnrollmentProbe.java.txt": "4323cc3b06efa7afbd62a6ecbdf70b8fa04e0a1f7b5d5729571894ec4df64218",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawSetupProbe.java.txt": "f9c76479a530f87798c47167cee002eb71c8ce8d59db64df5eaeca5e08853faf",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/NativeKindProbe.kt": "8a583a9b26c4919d02b420b0acd490c672f293ea569163b8ce834afe1bfa6da9",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/RosterRefresh.kt": "00dd33ac6c728fc46502c049e104032eb0028a76cc07451f18c8bb434855651a",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Enrollment.kt": "ed80a789f8e7bbdaa48d83aaaf23e38462e0a554142b99b93dcdc2c60fd08dcb",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/CredentialRenewal.kt": "492c6a0b1b6d06d9bd2e4e82d6121d1d6900eeee7e9b794f970970e4280792fb",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Collection.kt": "b0f38b0edd44e9c06561b7347f27560900c6de17153944d01e2c4a568582477d",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/SetupIO.kt": "051c652c3a0ea408005bb521978e4c25fe52cd911718229062947205120af800",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Application.kt": "bddf8d091334127979485999569606b7d38d9cd5100451f5007131d97f79cbf6",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Setup.kt": "c0b87829bbcbfb8c69d9fc2cf10a68fa62ad373fc06f34ff273a646393ecc859",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/PolicyContinuation.kt": "5904d62e30c792b8fc9a8f94c1d2e2aea9e41760dfa1d0a9801673ed10accf22",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Account.kt": "207d560279fe85bd82054704264ad68a32061301c35bfa3cd579ce5230776774",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/FixtureRecords.kt": "1c2d991e06185a8cdb6ca2d9490937678dc60e1b0b1ea44159bb33df1f527e5b",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/IndependentPolicy.kt": "1a3e168b4d49ceb795e3b799082aeac81d4bd6b20abb30e90413002fb95d2137",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/ContinuityClient.kt": "ed198c62ec2c77e04a4022ab4657ea267ad9193b6f7b7c8a02366f6dbf758346",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/InFlightCollection.kt": "288fd7deed41b961748a03f7ae39ae629a44d046392d1f131cb779b0311fd977",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Recovery.kt": "75c6cfe66a0fc1a98df01ad9238ad709188066f40d1219d103a6fcfafa7e603d",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/PeerRoster.kt": "d9eff252c55e769d6e6cc7df5ce157e60bbc41a2056be5ef1868d7113f847544",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Retirement.kt": "7c4f17da0ce381557b7f81e781a69dac6d56dcebcd0da9f6e80d9e2a30c696cd",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Cancellation.kt": "da81c759905b4741763e3530661fcebe7e189362d08744fffac0b7dbea55c6fc",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/AccountRecovery.kt": "60c7f6c4735403456901647e41d2e2351eadd32a25cbb3bab0e2edadee7ec2e8",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Opening.kt": "4bf693263c8836035083b1fc3b526d8b4e8f53d445f2654849f24648f5f2b909",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/java/consumer/LoaderProbe.java": "c24ad3e8b0186ef0edafcf29b6c88c919e9932b268f90773c3164851d89f743d"
+  },
+  "private_maven": {
+    "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0",
+    "classes": 184,
+    "jvm_version": 25,
+    "jar_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+  },
+  "unit_tests_per_native_profile": 54,
+  "runtime_profiles": [
+    "debug-serial",
+    "debug-g1",
+    "release-serial",
+    "release-g1"
+  ],
+  "native_package_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+  "native_libraries": "Exact copies from the completed installed C producer; original hashes retained per run.",
+  "runs": {
+    "kotlin-tests-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin/bindings/kotlin/ContinuityPackageConsumer",
+        "-Pqperiapt.continuity.lib=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-purpose/libq_periapt_continuity_c_consumer.dylib",
+        "test",
+        "publishContinuityPublicationToCandidateRepository"
+      ],
+      "returncode": 0,
+      "seconds": 28.945608166977763
+    },
+    "kotlin-tests-release-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin/bindings/kotlin/ContinuityPackageConsumer",
+        "-Pqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib",
+        "--rerun-tasks",
+        "test"
+      ],
+      "returncode": 0,
+      "seconds": 22.7615400000941
+    },
+    "kotlin-tests-debug-installed-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin/bindings/kotlin/ContinuityPackageConsumer",
+        "-Pqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib",
+        "--rerun-tasks",
+        "test"
+      ],
+      "returncode": 0,
+      "seconds": 22.570885040797293
+    },
+    "kotlin-consumer-build-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin-installed-consumer",
+        "installDist",
+        "recordRuntime",
+        "-Pqperiapt.repository=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/kotlin-maven"
+      ],
+      "returncode": 0,
+      "seconds": 17.107863708166406,
+      "maven": {
+        "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0",
+        "classes": 184,
+        "jvm_version": 25,
+        "jar_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      }
+    },
+    "kotlin-consumer-build-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer",
+        "installDist",
+        "recordRuntime",
+        "-Pqperiapt.repository=/private/tmp/qperiapt-retired-kotlin-2szehpi1/maven"
+      ],
+      "returncode": 0,
+      "seconds": 37.742431833874434,
+      "maven": {
+        "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0",
+        "classes": 184,
+        "jvm_version": 25,
+        "jar_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "runtime_closure": {
+        "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0": {
+          "resolved": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/maven/dev/qperiapt/q-periapt-continuity-kotlin/0.0.0/q-periapt-continuity-kotlin-0.0.0.jar",
+          "installed": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+          "sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+        },
+        "org.jetbrains.kotlin:kotlin-stdlib:2.4.20": {
+          "resolved": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/gradle-home/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.20/94c1451890d164aed65d43b3db0b7ecef7c183e7/kotlin-stdlib-2.4.20.jar",
+          "installed": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar",
+          "sha256": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f"
+        },
+        "org.jetbrains:annotations:13.0": {
+          "resolved": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/gradle-home/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+          "installed": "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar",
+          "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+        }
+      },
+      "owner_tests": {
+        "tests": 54,
+        "suites": {
+          "OwnerTests": {
+            "tests": 20,
+            "report_sha256": "46829783913e6601bb62d69e701964d390048d2276513420c7a6470068d80921"
+          },
+          "CredentialRenewalTests": {
+            "tests": 6,
+            "report_sha256": "98e0e907568f8a740acdd3ea06a92cdb91ccd8deb7b4d1fd6e00acf52ef8dbe5"
+          },
+          "PolicyContinuationTests": {
+            "tests": 5,
+            "report_sha256": "62fd281d636b3983b8894ab630ffe6bf9de90119327eabfc0e7abf24febafd4d"
+          },
+          "RetirementTests": {
+            "tests": 4,
+            "report_sha256": "34b108078b1c050d3675bc4287e41b11bd6e06336e99caddb00b28779703bd05"
+          },
+          "RosterRefreshTests": {
+            "tests": 5,
+            "report_sha256": "a1daa9d8dd0afc7029c88b338cefbadef210853a32b404c8cd1f7e57c699a319"
+          },
+          "PolicyRenewalTests": {
+            "tests": 6,
+            "report_sha256": "ceb1621474816058777daee5e0e8064f9521b9abeafb974a2a673aca37f7fd91"
+          },
+          "RosterResolutionTests": {
+            "tests": 4,
+            "report_sha256": "1a77b15543abd90780e708df72697ff951089f67a15a8ed8c6d69d66314d41ca"
+          },
+          "IndependentPolicyTests": {
+            "tests": 4,
+            "report_sha256": "6a1852be18be375031281213587a9e1a656fb8ce8e276f86692e82579cbf2c7a"
+          }
+        }
+      }
+    },
+    "kotlin-artifact-tests-01": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_continuity_kotlin_consumer\",\"artifact.test_continuity_device_retirement\",\"artifact.test_continuity_swift_consumer\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 1,
+      "seconds": 1.4974851659499109
+    },
+    "kotlin-artifact-tests-02": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_continuity_kotlin_consumer\",\"artifact.test_continuity_device_retirement\",\"artifact.test_continuity_swift_consumer\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 2.107610708102584
+    },
+    "kotlin-java-admission-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/javac",
+        "-XDrawDiagnostics",
+        "--release",
+        "25",
+        "-cp",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+        "-d",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/negative-retired-classes",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/RawRetiredEnrollmentProbe.java"
+      ],
+      "returncode": 1,
+      "expected_rejection": true,
+      "no_executable_class": true,
+      "jars": {
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      }
+    },
+    "kotlin-runtime-debug-serial": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/retirement-3a3f1e95b17a1f02",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 17.631072541931644,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/retirement-3a3f1e95b17a1f02": "d57e22c45c7f0da65b99322674a2b888f2bc84979cd49ecbe97a5cbd075868db",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-debug-serial": "ed3ce8db696dc1e6aa60e676b725332bafcbc376e9f0db85309d6982e4b2e5c2",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true,
+      "java_command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+        "-Xms32m",
+        "-Xmx128m",
+        "-XX:+UseSerialGC",
+        "--enable-native-access=ALL-UNNAMED",
+        "--illegal-native-access=deny",
+        "-Dqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib",
+        "-cp",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+        "consumer.ContinuityClientKt"
+      ],
+      "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+      "private_maven_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+    },
+    "kotlin-runtime-debug-g1": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/retirement-3a3f1e95b17a1f02",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 16.776481500128284,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/retirement-3a3f1e95b17a1f02": "d57e22c45c7f0da65b99322674a2b888f2bc84979cd49ecbe97a5cbd075868db",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-debug-g1": "d66f2cf56728978a05583ee0445259484854f8fb31070eabd86f73f28d92107b",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true,
+      "java_command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+        "-Xms32m",
+        "-Xmx128m",
+        "-XX:+UseG1GC",
+        "--enable-native-access=ALL-UNNAMED",
+        "--illegal-native-access=deny",
+        "-Dqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib",
+        "-cp",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+        "consumer.ContinuityClientKt"
+      ],
+      "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+      "private_maven_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+    },
+    "kotlin-runtime-release-serial": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/retirement-aac0d9cd9f63926c",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 15.913843209156767,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/retirement-aac0d9cd9f63926c": "5fd569fa1aea8e773e3b8fb71d6e94219fdd2ad4c9cf84ea8e008e0ed5f083f7",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-release-serial": "47bab7d55b717e8c3acba426724ecd4710879095fa3c02660a43dc6e10e90e46",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true,
+      "java_command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+        "-Xms32m",
+        "-Xmx128m",
+        "-XX:+UseSerialGC",
+        "--enable-native-access=ALL-UNNAMED",
+        "--illegal-native-access=deny",
+        "-Dqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib",
+        "-cp",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+        "consumer.ContinuityClientKt"
+      ],
+      "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+      "private_maven_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+    },
+    "kotlin-runtime-release-g1": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/retirement-aac0d9cd9f63926c",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 16.166206458816305,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/retirement-aac0d9cd9f63926c": "5fd569fa1aea8e773e3b8fb71d6e94219fdd2ad4c9cf84ea8e008e0ed5f083f7",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-release-g1": "bd98aacf9661ac1296b387a581dae1db2d8c38cf5f2f362b080300debacabcf3",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true,
+      "java_command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+        "-Xms32m",
+        "-Xmx128m",
+        "-XX:+UseG1GC",
+        "--enable-native-access=ALL-UNNAMED",
+        "--illegal-native-access=deny",
+        "-Dqperiapt.continuity.lib=/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib",
+        "-cp",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+        "consumer.ContinuityClientKt"
+      ],
+      "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+      "private_maven_sha256": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+    },
+    "kotlin-registration-debug-serial": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/enrollment-08272a4f99a4259d",
+        "--exact",
+        "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 17.41094083408825,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/debug/deps/enrollment-08272a4f99a4259d": "69bfa979af11c081635618dbf77711c2534fb4583e04ce8038688a18a3f2f05c",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-debug-serial": "ed3ce8db696dc1e6aa60e676b725332bafcbc376e9f0db85309d6982e4b2e5c2",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true
+    },
+    "kotlin-registration-release-g1": {
+      "command": [
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/enrollment-fb23bcc73e90b542",
+        "--exact",
+        "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 15.612314624944702,
+      "binaries_before": {
+        "/private/tmp/qperiapt-continuity-package-de8re33u/build/release/deps/enrollment-fb23bcc73e90b542": "7df803868e4fc1b9e91ca8c8d9c34f3f69d35a417f9f5f025d7955fd6ef43130",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-release-g1": "bd98aacf9661ac1296b387a581dae1db2d8c38cf5f2f362b080300debacabcf3",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "binaries_unchanged": true
+    }
+  },
+  "artifact_tests": 23,
+  "constructor_refusal": true,
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "cd4f52337024e2a90b6d2cc0872a837b6fa374361e8255ad1b06e66657a0b7a0",
+    "bytes": 736796,
+    "members": 339
+  },
+  "observed_failures": [
+    "Initial compiled consumer failed runtime_closure because its dependency paths were inside the checkout. Fresh outside-checkout Maven/consumer/cache passed the unchanged gate.",
+    "Three artifact fixture expectations still counted 50 tests or omitted the new retirement XML. They now require all 54 tests and retain every suite."
+  ],
+  "scope": "Private local Maven consumer and qualified native C engine, macOS arm64/JDK 25. Four eight-process JVM traces under Serial/G1 configurations plus original registration regression; not proof that every trace triggered GC. Native Rust handles replacement authority, complete canonical-byte comparison and fresh-generation TLS. Complete distributed Kotlin ZIP qualification, independent implementation, physical erasure and full foreign replacement remain open.",
+  "remote_registry_publication_performed": false,
+  "release_claim_eligible": false
+}

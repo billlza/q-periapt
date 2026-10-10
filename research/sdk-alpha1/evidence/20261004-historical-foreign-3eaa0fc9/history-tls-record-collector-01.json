@@ -1,0 +1,24 @@
+{
+  "completed": true,
+  "error": null,
+  "records": [
+    {
+      "command": [
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/continuity-c-enrollment/debug/deps/enrollment_witness-8e65a00f20d7238d",
+        "--exact",
+        "witness_credential_renewal::original_witnessed_credential_renewal_recovers_applied_and_closed_without_sdk_runtime",
+        "--nocapture"
+      ],
+      "exit": 0
+    }
+  ],
+  "seconds": 51.94547916704323,
+  "scope": "Shared collector component exercised with current development binaries; no archive provenance or release claim",
+  "source_hashes": {
+    "continuity_witnessed_renewal.py": "acb7eb002f11e706c6cf13c891c81755c78c1b6c290c61456ad7db9265c94cb8",
+    "continuity_c_enrollment.py": "116da2cd157330cadb557b9e4e8318da93c66385e2c992395ee6445d92d04e3b",
+    "continuity_c_consumer.py": "bc91a95fb84b92fd0b289167e428f340f742f86f3d012484e8790bdf70d8fbcf"
+  },
+  "release_claim_eligible": false,
+  "public_files": 272
+}

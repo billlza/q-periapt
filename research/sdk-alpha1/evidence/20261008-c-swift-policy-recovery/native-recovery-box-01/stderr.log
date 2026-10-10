@@ -1,0 +1,5 @@
+   Compiling q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+   Compiling q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.42s
+     Running unittests src/lib.rs (target/native-stack-debug/build/debug/deps/q_periapt_ffi_abi2-6d69e4017d08f2c8)
+   Doc-tests q_periapt_ffi_abi2

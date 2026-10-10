@@ -1,0 +1,13 @@
+# Rust CodeQL quality budget and integration regression evidence
+
+The original Rust Analyze step completed all 39 queries, but the separate quality adapter stopped Metrics at its 300-second process limit. The unchanged-query [frozen bundle control](https://github.com/billlza/q-periapt/actions/runs/37700675470) completed Metrics in 304 seconds and passed every original quality assertion for 418 tracked Rust sources. Its complete output archive and original input archive were downloaded and matched their GitHub service SHA-256; ZIP members used here passed CRC checks. The result remains scoped to old source 4fc8412a / merge 605de309 and the standard bundle's trimmed cache.
+
+The [first control](https://github.com/billlza/q-periapt/actions/runs/37700011796) failed before evaluation because its reader expected the earlier partial archive layout. That failure is retained. The corrected controller admits the actual inner digest and exact inventory; no query or assertion was removed.
+
+Product commit f88e89a8 grants only Metrics 900 seconds; lighter queries and decoding retain 300 seconds. The Rust job allows 210 minutes around an unchanged 150-minute Analyze step. Four threads, 14000 MB, all metrics, path completeness, and failure-gated SARIF publication remain intact. The measured replay is not current product CI or a security finding disposition.
+
+A clean full artifact run on 1efbc99c ran 2647 tests and failed two integration checks: the new binding contract did not use the shared strict JSON parser, and the root-recovery verifier dependency was absent from the closed publication graph. Commits cb2b426a and 400517bc correct those causes. All 114 affected tests then passed on clean f88e89a8, with unchanged source before/after, alongside the exact SDK source gate and workflow lint. The full suite was not rerun locally after these focused corrections; the new product CI must run it again. The full failed log is retained losslessly, not recast as a pass.
+
+`raw-records.json` contains gzip+base64 original command logs and decoded query output. `control-result.json` retains every metric and exact path inventory, including the existing nonzero path/type consistency telemetry. Detailed evaluator traces, the original database bundle, and full job log remain in the local target directory; their hashes are recorded where applicable. This evidence subset does not contain or replace those large files. CLI bundle behavior is documented by [GitHub](https://docs.github.com/en/code-security/reference/code-scanning/codeql/codeql-cli-manual/database-bundle).
+
+No release, merge, registry publication, Intel Mac qualification, complete alert review, or physical-device qualification is claimed.

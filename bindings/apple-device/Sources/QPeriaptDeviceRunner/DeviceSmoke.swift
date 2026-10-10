@@ -21,23 +21,28 @@ enum DeviceSmokeError: Error, CustomStringConvertible {
 }
 
 enum DeviceSmoke {
-    static func run() throws {
-        try assertSignedPolicyVector()
+    static func run(expectedRuntimeVersion: String = "0.1.5", resources: Bundle = .main) throws {
+        try assertSignedPolicyVector(expectedRuntimeVersion: expectedRuntimeVersion, resources: resources)
     }
 
-    private static func assertSignedPolicyVector() throws {
-        guard QPeriaptHybrid.runtimeAbiVersion == QPeriaptHybrid.abiVersion,
-              QPeriaptHybrid.runtimeVersion == "0.1.5"
-        else {
-            throw DeviceSmokeError.mismatch("ABI2 runtime metadata")
-        }
-        guard let url = Bundle.main.url(forResource: "signed-policy-vectors", withExtension: "json") else {
-            throw DeviceSmokeError.missingResource("signed-policy-vectors.json")
+    static func vector(_ name: String, resources: Bundle) throws -> [String: Any] {
+        guard let url = resources.url(forResource: name, withExtension: "json") else {
+            throw DeviceSmokeError.missingResource(name + ".json")
         }
         let data = try Data(contentsOf: url)
         guard let vector = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw DeviceSmokeError.invalidVector("signed-policy-vectors.json is not an object")
+            throw DeviceSmokeError.invalidVector(name + ".json is not an object")
         }
+        return vector
+    }
+
+    private static func assertSignedPolicyVector(expectedRuntimeVersion: String, resources: Bundle) throws {
+        guard QPeriaptHybrid.runtimeAbiVersion == QPeriaptHybrid.abiVersion,
+              QPeriaptHybrid.runtimeVersion == expectedRuntimeVersion
+        else {
+            throw DeviceSmokeError.mismatch("ABI2 runtime metadata")
+        }
+        let vector = try vector("signed-policy-vectors", resources: resources)
         guard try stringField(vector, "algorithm") == "ML-DSA-65" else {
             throw DeviceSmokeError.invalidVector("signed policy algorithm")
         }
@@ -235,14 +240,14 @@ enum DeviceSmoke {
         return UInt8(n)
     }
 
-    private static func hexField(_ v: [String: Any], _ name: String) throws -> [UInt8] {
+    static func hexField(_ v: [String: Any], _ name: String) throws -> [UInt8] {
         guard let s = v[name] as? String else {
             throw DeviceSmokeError.invalidVector(name)
         }
         return try hex(s)
     }
 
-    private static func stringField(_ v: [String: Any], _ name: String) throws -> String {
+    static func stringField(_ v: [String: Any], _ name: String) throws -> String {
         guard let s = v[name] as? String else {
             throw DeviceSmokeError.invalidVector(name)
         }

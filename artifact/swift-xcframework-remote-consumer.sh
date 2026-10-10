@@ -129,6 +129,7 @@ bindings/signed-policy-vectors.json
 crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json'
 VERIFIER_INPUTS='artifact/swift-xcframework-remote-consumer.sh
 artifact/android_agp_consumer_contract.py
+artifact/android_runtime_profile.py
 artifact/apple_stable_publication.py
 artifact/apple_verifier_recovery.py
 artifact/apple_distribution.py

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "test_continuity_c_enrollment",
+    "test_continuity_swift_consumer",
+    "test_continuity_kotlin_consumer"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration/artifact",
+  "exec_session": 43348,
+  "exit": 0,
+  "test_count": 24,
+  "reported_seconds": 3.151,
+  "evidence_kind": "terminal result captured from the actual completed exec session; no signatures or package execution inferred",
+  "source_hashes": {
+    "test_continuity_swift_consumer.py": "3b793a0381f491b6fd3834d296ac158ddc63b205335f5dcdd1738110f43a8ca4",
+    "continuity_c_enrollment.py": "90c30e75661d5ce65b4b66d5fc68972b09b29a4939c1f416bfb52c1dfe7215a9",
+    "test_continuity_c_enrollment.py": "35416a39d0e975dae19dcfa6d58800c4c7518f4eee07dfba4dc650c82fee3295",
+    "continuity_kotlin_consumer.py": "1693a1e14938877b0861584e51419673aa6ccede1a13f43c48acf9c3cb288de7",
+    "continuity_swift_consumer.py": "15608fcf6a9565a1f7251b315c0b20495b9653277d0097e34094c0cc7b32cd52",
+    "test_continuity_kotlin_consumer.py": "4908d71e50cb23ad7fa67263406153b738187f3daa2ccff8b9cba2caaadc9769"
+  }
+}

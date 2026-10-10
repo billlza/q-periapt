@@ -1,0 +1,75 @@
+Test Suite 'All tests' started at 2026-10-08 01:31:52.712.
+Test Suite 'QPeriaptSDKTests.xctest' started at 2026-10-08 01:31:52.713.
+Test Suite 'QPeriaptSDKTests' started at 2026-10-08 01:31:52.713.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testActualNativeRoundtripImplicitRejectionAndClose]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testActualNativeRoundtripImplicitRejectionAndClose]' passed (0.031 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testCancellationDiscardsCompletedNativeOwnerAndReturnsQuota]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testCancellationDiscardsCompletedNativeOwnerAndReturnsQuota]' passed (0.007 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testCancelledCommittedUpdateClosesUndeliveredOwnerAndRecoversNewState]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testCancelledCommittedUpdateClosesUndeliveredOwnerAndRecoversNewState]' passed (0.156 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testChildRetainsNativeParentUntilExplicitClose]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testChildRetainsNativeParentUntilExplicitClose]' passed (0.008 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testConcurrentOwnedCallsAndAsynchronousRoundtrip]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testConcurrentOwnedCallsAndAsynchronousRoundtrip]' passed (0.009 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testExpertTransferAndPolicyRevocationRecovery]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testExpertTransferAndPolicyRevocationRecovery]' passed (0.028 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentChildRetainsStoreLeaseUntilFinalOwnerDisposal]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentChildRetainsStoreLeaseUntilFinalOwnerDisposal]' passed (0.105 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentRecoveryExhaustionAndIdempotentOwnerPreservation]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentRecoveryExhaustionAndIdempotentOwnerPreservation]' passed (0.285 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentRuntimeReopensRevocationAndRejectsManualActivation]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPersistentRuntimeReopensRevocationAndRejectsManualActivation]' passed (0.177 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPolicyRollbackTamperingBudgetsAndInvalidPublicInputs]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testPolicyRollbackTamperingBudgetsAndInvalidPublicInputs]' passed (0.022 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testRecoveryCancellationClosesOnlyNewlyReturnedOwnership]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testRecoveryCancellationClosesOnlyNewlyReturnedOwnership]' passed (0.270 seconds).
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testRecoveryStatementGrammarAndIndependentRoleMessages]' started.
+Test Case '-[QPeriaptSDKTests.QPeriaptSDKTests testRecoveryStatementGrammarAndIndependentRoleMessages]' passed (0.010 seconds).
+Test Suite 'QPeriaptSDKTests' passed at 2026-10-08 01:31:53.823.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 1.109 (1.111) seconds
+Test Suite 'QPeriaptSDKTests.xctest' passed at 2026-10-08 01:31:53.823.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 1.109 (1.111) seconds
+Test Suite 'All tests' passed at 2026-10-08 01:31:53.823.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 1.109 (1.112) seconds
+Test Suite 'All tests' started at 2026-10-08 01:31:54.073.
+Test Suite 'QPeriaptHybridTests.xctest' started at 2026-10-08 01:31:54.074.
+Test Suite 'QPeriaptHybridTests' started at 2026-10-08 01:31:54.074.
+Test Case '-[QPeriaptHybridTests.QPeriaptHybridTests testRuntimeMetadataMatchesCompiledHeader]' started.
+Test Case '-[QPeriaptHybridTests.QPeriaptHybridTests testRuntimeMetadataMatchesCompiledHeader]' passed (0.001 seconds).
+Test Case '-[QPeriaptHybridTests.QPeriaptHybridTests testSignedPolicyVectorResolvesAtomicDecisionAndRejectsRollbackAndTamper]' started.
+Test Case '-[QPeriaptHybridTests.QPeriaptHybridTests testSignedPolicyVectorResolvesAtomicDecisionAndRejectsRollbackAndTamper]' passed (0.030 seconds).
+Test Suite 'QPeriaptHybridTests' passed at 2026-10-08 01:31:54.106.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.031 (0.031) seconds
+Test Suite 'QPeriaptHybridTests.xctest' passed at 2026-10-08 01:31:54.106.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.031 (0.031) seconds
+Test Suite 'All tests' passed at 2026-10-08 01:31:54.106.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.031 (0.033) seconds
+Test Suite 'All tests' started at 2026-10-08 01:31:54.370.
+Test Suite 'QPeriaptConnectionProbeTests.xctest' started at 2026-10-08 01:31:54.371.
+Test Suite 'ArgumentsTests' started at 2026-10-08 01:31:54.371.
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testAddressCannotBypassScenarioBudgetsOrObservedCancellation]' started.
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testAddressCannotBypassScenarioBudgetsOrObservedCancellation]' passed (0.001 seconds).
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testExplicitAddressKeepsCertificateNameAndDefaultLoopbackSeparate]' started.
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testExplicitAddressKeepsCertificateNameAndDefaultLoopbackSeparate]' passed (0.000 seconds).
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testInvalidInvocationIsRejectedBeforeAnyPolicyStoreIsOpened]' started.
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testInvalidInvocationIsRejectedBeforeAnyPolicyStoreIsOpened]' passed (0.000 seconds).
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testStoreOnlyScenariosPreserveTheirUnusedZeroPort]' started.
+Test Case '-[QPeriaptConnectionProbeTests.ArgumentsTests testStoreOnlyScenariosPreserveTheirUnusedZeroPort]' passed (0.000 seconds).
+Test Suite 'ArgumentsTests' passed at 2026-10-08 01:31:54.373.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'QPeriaptConnectionProbeTests.xctest' passed at 2026-10-08 01:31:54.373.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'All tests' passed at 2026-10-08 01:31:54.373.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.003) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

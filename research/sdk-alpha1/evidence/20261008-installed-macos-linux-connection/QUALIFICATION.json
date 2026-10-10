@@ -1,0 +1,257 @@
+{
+  "cross_os": {
+    "host_driver_commit": "b20cafd765b2e23539be04e6e4179078e11cc181",
+    "guest_source_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "crate_source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+    "client_platform": "native macOS arm64",
+    "server_platform": "native Linux aarch64 in local VZ VM/container, unprivileged UID 1000",
+    "transport": "private loopback SSH TCP forwarding to the selected Linux container address; encrypted SDK bytes unchanged",
+    "independent_physical_hosts": false,
+    "independent_protocol_implementations": false,
+    "cases": [
+      {
+        "case": "roundtrip",
+        "passed": true,
+        "client_elapsed_seconds": 0.3688130839727819
+      },
+      {
+        "case": "concurrent",
+        "passed": true,
+        "client_elapsed_seconds": 0.9287047500256449
+      },
+      {
+        "case": "timeout",
+        "passed": true,
+        "client_elapsed_seconds": 0.262821750016883
+      },
+      {
+        "case": "cancel",
+        "passed": true,
+        "client_elapsed_seconds": 0.09353666706010699
+      },
+      {
+        "case": "request-timeout",
+        "passed": true,
+        "client_elapsed_seconds": 0.30685275001451373
+      },
+      {
+        "case": "request-cancel",
+        "passed": true,
+        "client_elapsed_seconds": 0.1334409578703344
+      },
+      {
+        "case": "runtime-revoke",
+        "passed": true,
+        "client_elapsed_seconds": 0.22684004087932408
+      },
+      {
+        "case": "mismatch",
+        "passed": true,
+        "client_elapsed_seconds": 0.13169695902615786
+      },
+      {
+        "case": "hostname",
+        "passed": true,
+        "client_elapsed_seconds": 0.13697925000451505
+      },
+      {
+        "case": "persist-revocation",
+        "passed": true,
+        "persistent_peers": [
+          "swift-client",
+          "rust-server"
+        ]
+      },
+      {
+        "case": "reject-restart-rollback",
+        "passed": true,
+        "persistent_peers": [
+          "swift-client",
+          "rust-server"
+        ]
+      },
+      {
+        "case": "persist-re-enable-and-reconnect",
+        "passed": true
+      }
+    ],
+    "seconds": 11.462449167156592,
+    "swift_client": {
+      "sha256": "8f7ed6c4f1d1a3d1bb796940781dc4742d5a7a5a6072ae4d3bcf7146997b037d",
+      "static_library_sha256": "82ac25e0ddad65cd1bbb10783effd7d0dc704a86ea3c58d7a8b16a08f119c0ff"
+    },
+    "linux_peer": {
+      "path": "/work/connection-build-02/debug/connection_peer",
+      "sha256": "0f649a9d8eee8520a21e55f9a018440a447ba283ac6e894da7820c29794e8257"
+    },
+    "driver_inputs": {
+      "linux-server-proxy.py": "12d2dfbcb697d4237ec21c38b1ce06d84acb9896ba9f83e8a73c16dadd686508",
+      "cross-os-config.json": "51bdebfe57a12b124089909bc140c80c3880a2c602461d888e6f02cd3e7a2393",
+      "remote-supervisor.py": "db06c8c311f3412cc27b483a8a219d9ab225c5f4e67dec49bbc95227f57c9b81",
+      "known_hosts": "cf0cc93cea6a25abecf38ba6db02d96b663510f1127629bfea39041d126a3606"
+    },
+    "boundary_manifest_sha256": "529875b1473b5c90460d56e8100c2859e07ec29c0154853a13f182735ba5415d",
+    "sources_unchanged": true,
+    "release_claim_eligible": false
+  },
+  "macos_baseline": {
+    "abi_major": 2,
+    "boundary": {
+      "cases": [
+        "roundtrip",
+        "concurrent",
+        "timeout",
+        "cancel",
+        "request-timeout",
+        "request-cancel",
+        "runtime-revoke",
+        "mismatch",
+        "hostname",
+        "persist-revocation",
+        "reject-restart-rollback",
+        "persist-re-enable-and-reconnect"
+      ],
+      "manifest_sha256": "0fe078b9c21609d84b965f9eb90264e9fc689bccd616a8d7197abab604991572"
+    },
+    "client_platform": "Darwin",
+    "completed": true,
+    "kind": "qperiapt.installed_connection_qualification",
+    "link_map": {
+      "architecture": "arm64",
+      "link_map_sha256": "e88f41b9320c5f3f3d206f9ec7768906f7a3c2a2660eafb87ec381db934428a6",
+      "linked_archive_objects": 224,
+      "status": "pass"
+    },
+    "native_linux_server_executed": false,
+    "network": "loopback",
+    "outside_checkout": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-connection-_omys1cf",
+    "release_claim_eligible": false,
+    "rust_report_sha256": "0b829385401232b2c33ede818bf3dd55e29ce1e288856ba0b33f61e7ca59b58b",
+    "rust_resolution": {
+      "external_packages": 131,
+      "lockfile_sha256": "e44a4b027978648988a5c38288d3bfc28883715ec965199428cda473fe1b874f",
+      "product_crates": 9
+    },
+    "rust_tool_binaries": {
+      "cargo": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "sha256": "6e17e865f3a20dd55a1d212f849f58b77124179f0de7c52973096d84ba34118d"
+      },
+      "cargo-clippy": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo-clippy",
+        "sha256": "8d552a240180cecf00971a870f5fee443249389d39c0667d37f29676d868f18b"
+      },
+      "clippy-driver": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/clippy-driver",
+        "sha256": "3e43a13a5b341ce6ceaf90addfd94bd7958c0e1988cf44d357fe07c6383ce3e9"
+      },
+      "rustc": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustc",
+        "sha256": "766eda9d8f53afd6fc7f27b3cd2e444dd22afacb5afa710a5625fc8e45b8c941"
+      },
+      "rustdoc": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustdoc",
+        "sha256": "8ce1ae78157758d4d75eee1355ed333f27e903ab6b0904e09d326009b333c2ee"
+      }
+    },
+    "server_platform": "Darwin",
+    "swift_client": {
+      "sha256": "8f7ed6c4f1d1a3d1bb796940781dc4742d5a7a5a6072ae4d3bcf7146997b037d",
+      "static_library_sha256": "82ac25e0ddad65cd1bbb10783effd7d0dc704a86ea3c58d7a8b16a08f119c0ff"
+    },
+    "swift_native_zip_sha256": "cd000648c9e490bdb8b500c2be917c059f71356329c475c19bb365f947d2e4f1",
+    "swift_zip_sha256": "46dcf7fb538415f68bce9cace96f96982368b9b0ff18950c6b8e310736c7c8fd"
+  },
+  "linux_peer": {
+    "archive_sources_unchanged": true,
+    "binaries": {
+      "connection_peer": {
+        "path": "/work/connection-build-02/debug/connection_peer",
+        "sha256": "0f649a9d8eee8520a21e55f9a018440a447ba283ac6e894da7820c29794e8257"
+      },
+      "standard_peer": {
+        "path": "/work/connection-build-02/debug/standard_peer",
+        "sha256": "2b976d4d7b886fad1e07e43b57c5233b5860c137b570a46895fd27efa5fd594d"
+      }
+    },
+    "collector_note": "Use the existing 256-MiB native-binary identity bound; the initial post-build collector incorrectly used the 32-MiB crate bound.",
+    "consumer": "/work/connection-consumer-02",
+    "crate_source": "de2c49e9e572972165a05411d2a11777f06e31b2",
+    "guest_source_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "native_linux": true,
+    "release_claim_eligible": false,
+    "resolution": {
+      "external_packages": 131,
+      "lockfile_sha256": "e44a4b027978648988a5c38288d3bfc28883715ec965199428cda473fe1b874f",
+      "product_crates": 9
+    },
+    "uid": 1000
+  },
+  "linux_final_database": {
+    "path": "/work/cross-os-connection-04/server.policy.redb",
+    "bytes": 81920,
+    "uid": 1000,
+    "sha256": "5d23b97e98344c6a7748d13a2fe69fe23fec303c79c3601717f574979970df23"
+  },
+  "client_final_database_sha256": "afa5b9cd21576df2e42447c0906237b772d56d31a15cc6f347af2e9ee0b4693b",
+  "vm_stopped": {
+    "recorded_at": "2026-10-08T14:03:38.153704+00:00",
+    "commands": [
+      {
+        "argv": [
+          "/Users/bill/.cargo/bin/docker",
+          "--host",
+          "unix:///Users/bill/Documents/Codex/vm-020-20261008/colima/arm64/docker.sock",
+          "stop",
+          "--time",
+          "10",
+          "policy-lifecycle"
+        ],
+        "returncode": 0
+      },
+      {
+        "argv": [
+          "/opt/homebrew/bin/colima",
+          "--profile",
+          "arm64",
+          "stop"
+        ],
+        "returncode": 0
+      }
+    ],
+    "lima_status": "Stopped",
+    "disks_preserved": true,
+    "no_global_context_change": true
+  },
+  "failed_attempts": [
+    {
+      "attempt": "01",
+      "cause": "SSH inherited Lima multiplexing; forward child exited before readiness; no handshake."
+    },
+    {
+      "attempt": "02",
+      "cause": "Application roundtrip succeeded, guest supervisor failed during Python buffered stdin daemon-thread shutdown."
+    },
+    {
+      "attempt": "03",
+      "cause": "All application observations succeeded; final collector expected the remote server database locally and failed."
+    }
+  ],
+  "limitations": [
+    "Different OS kernels and filesystems on one physical Mac; no independent physical-host qualification.",
+    "Both endpoints use Q-Periapt; no independent application protocol implementation.",
+    "SSH forwarding leaves encrypted SDK bytes unchanged; LISTEN address is rewritten.",
+    "Linux database snapshot on macOS is evidence only, never runtime input.",
+    "No physical-device/minimum-OS, controlled performance/energy, full Continuity or release claim."
+  ],
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:06:40.322532+00:00",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 1291862,
+    "sha256": "d9315121da04922aaa495d7c6231acd712566d783367151c4e206a8bf23aa538",
+    "members": 249
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

@@ -56,10 +56,22 @@ private func finish(_ marker: String, resultFileRunID: String?, exitCode: Int32)
     }
 }
 
-do {
-    let runID = try deviceRunID()
-    try DeviceSmoke.run()
-    finish("QPERIAPT_DEVICE_PASS run-id=\(runID)", resultFileRunID: runID, exitCode: 0)
-} catch {
-    finish("QPERIAPT_DEVICE_FAIL \(error)", resultFileRunID: try? deviceRunID(), exitCode: 1)
+@main
+struct DeviceRunner {
+    static func main() async {
+        do {
+            let runID = try deviceRunID()
+            #if QPERIAPT_SDK_DEVICE
+            let tests = try await SDKDeviceSmoke.run()
+            let marker = "QPERIAPT_SDK_DEVICE_PASS profile=sdk-020 version=\(SDKDeviceSmoke.version) " +
+                "abi=2 extension=1 tests=\(tests.joined(separator: ",")) run-id=\(runID)"
+            #else
+            try DeviceSmoke.run()
+            let marker = "QPERIAPT_DEVICE_PASS run-id=\(runID)"
+            #endif
+            finish(marker, resultFileRunID: runID, exitCode: 0)
+        } catch {
+            finish("QPERIAPT_DEVICE_FAIL \(error)", resultFileRunID: try? deviceRunID(), exitCode: 1)
+        }
+    }
 }

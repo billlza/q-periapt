@@ -1,5 +1,30 @@
 # Q-Periapt — Roadmap
 
+## 0.2.0 release qualification
+
+The development SDK implements verified runtime and key ownership, explicit
+purpose derivation/import, policy transitions and the bounded ContextBound
+data path across Rust, C, Swift, Kotlin/JVM, Android and product WASM. Native
+ABI major remains **2**: the SDK profile has exactly 43 C exports and preserves
+the released nine declarations, status values and library identities. The
+opt-in GNU/Linux x86_64 AVX2 candidate is implemented; native qualification is
+still required. Standard TLS interoperability and the reference connection
+are implemented as separate paths with their own authentication/policy limits.
+
+Start with [SDK_GETTING_STARTED.md](SDK_GETTING_STARTED.md). The
+[release-readiness ledger](SDK_0_2_RELEASE_READINESS.md) tracks each current
+implementation, package and runtime result and the remaining gates.
+[SDK_0_2_ALPHA1.md](SDK_0_2_ALPHA1.md) is the historical first Rust/WASM checkpoint,
+not the current pending-work list. Exact-source hosted CI/CodeQL, native Linux
+reference execution, remaining platform/device coverage, controlled performance,
+binary CT and final release coordination remain open.
+The 0.2.0 candidate requires its own final qualification; the 0.1.5 history below
+retains the outcomes and source identities of that release.
+Persistent Continuity sessions, ongoing PQ recovery and multi-device lifecycle
+are now required in 0.2.0 under the
+[expanded release scope](continuity/RELEASE_0_2_SCOPE.md). Their implementation
+and protocol-specific verification remain open.
+
 Authoritative status and forward plan for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 One dependency-free Rust core (`q-periapt-core`) is reused across C ABI / WASM /
@@ -21,8 +46,7 @@ tip is not. `main`'s trusted results therefore record no `0.1.4` publication and
 carry `apple_v0_1_3` as the active Apple selector; this is a statement about where the
 evidence lives, not about whether `0.1.4` shipped.
 Verified stable publication is not a production-readiness claim; registry publication,
-physical-device coverage, and
-independent audit remain open (see
+physical-device coverage, and source-bound runtime qualification remain open (see
 [`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md)).
 Any recorded receipt for a portable-derived artifact remains immutable history only;
 the current target-selected source requires a fresh target-specific transaction before
@@ -66,11 +90,12 @@ a standardized shipping advantage. Q-Periapt does **not** invent or accelerate a
 - **We track standards; we do not set them.** The identical MLKEM768-X25519
   construction is now in CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04`, which is
   still an Internet-Draft, not an RFC.
-- **No completed third-party audit.** This is **research-grade, not
-  production**: the target-selected `q-periapt-mlkem-native-sys` integration over
-  `mlkem-native` v1.2.0, pinned `fips204` 0.4.6, `sha3` 0.10.9,
-  x25519-dalek, and optional fips205 integrations have not been independently
-  audited as this suite or ABI. **Do not deploy.**
+- **Qualification is source-specific.** The target-selected
+  `q-periapt-mlkem-native-sys` integration over `mlkem-native` v1.2.0, pinned
+  `fips204` 0.4.6, `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations
+  require evidence for their selected versions, configuration and platform.
+  Component validation alone does not qualify every embedding. The SDK
+  candidate remains subject to the current release-readiness gates above.
 
 **Where the genuine, defensible value is** — none of it is speed:
 
@@ -389,8 +414,7 @@ method orthogonal to fixed KATs, ACVP, the differential, the proof, and cross-pl
 
 ## PENDING
 
-Stated honestly. None of these are blockers for the research claims above; they
-are the gap between research-grade and audited/production.
+These milestones qualify broader production use beyond the research claims above.
 
 1. **Broader ACVP coverage + `ContextBound` cross-platform reference vectors.**
    The NIST ACVP ML-KEM-768 **and ML-KEM-1024** sets (keyGen/encaps/decaps incl.
@@ -441,7 +465,9 @@ are the gap between research-grade and audited/production.
    CI runs, and additional targets (signature paths, policy/TOML parsing) are
    pending.
 
-4. **Independent third-party audit.** None has been performed.
+4. **Current-source security qualification.** Bind cryptographic-boundary review,
+   KAT/differential checks, binary CT, formal results and runtime validation to
+   the selected release source and preserve the scope of each result.
 
 5. **Embedding and package distribution.** `artifact/embedding-readiness.sh` now gives
    downstream consumers one fail-closed gate over the current Rust/C/Swift/Android/Kotlin/WASM faces:
@@ -514,7 +540,7 @@ are the gap between research-grade and audited/production.
    XCFramework and `abi2-platforms-v0.1.5` Android/Linux packages,
    each bound to its own release receipt. Production promotion remains blocked on
    warning-clean dependency audit currency, clean signed or
-   transparency-backed source provenance, independent cryptographic/C-FFI/ABI review,
+   transparency-backed source provenance, internal cryptographic/C-FFI/ABI review,
    and live verification of same-source Apple matrix and controlled-host performance evidence.
    Continuity's abstract snapshot schema 3 is unrelated and must not enter ABI 2.
    The target-selection/source migration invalidated all prior portable-derived
@@ -525,7 +551,7 @@ are the gap between research-grade and audited/production.
    Rust package line into a production or
    full-binary release.
 
-6. **Production hardening.** Backends are pre-1.0 / unaudited for this integration.
+6. **Production hardening.** Review pinned backends and verify each supported target.
    The current graph uses target-selected `mlkem-native` v1.2.0, `fips204`, and `sha3`; it
    removes both the `fips203` path that failed the project CT gate and the earlier
    `libcrux`/hax/`proc-macro-error2` advisory edge. The ML-KEM trust anchors are commit
@@ -535,7 +561,7 @@ are the gap between research-grade and audited/production.
    `ignore = []`, but RustSec does not inspect vendored C. This closes the Rust dependency-
    advisory gate only. Upstream HOL-Light evidence is limited to selected upstream
    assembly source/object routines; it does not prove downstream reassembly or the
-   full ABI. Independent cryptographic/C-FFI/code/ABI review, fresh per-target source-bound
+   full ABI. Internal cryptographic/C-FFI/code/ABI review, fresh per-target source-bound
    CT and platform evidence, and signed distribution provenance remain mandatory.
 
 7. **Q-Periapt Continuity session research.** This is a separate, gated workstream,
@@ -565,7 +591,7 @@ are the gap between research-grade and audited/production.
      freedom; provenance hashes alone do not meet Signal's reported baseline.
    - G5: close same-source physical iPad, iPhone, macOS, and physical Android
      latency/wire/energy/thermal/storage/healing budgets.
-   - G6: obtain independent review and pilot fault/scale telemetry before deployment.
+   - G6: complete protocol/implementation review and pilot fault/scale telemetry before deployment.
 
    The complete gates, candidate performance budgets, and forbidden claims are in
    [`docs/CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md). G0 documentation baseline
@@ -645,12 +671,12 @@ are the gap between research-grade and audited/production.
 | Android AAR/JNI package proof | **Harness implemented:** the four-ABI package is audited for 16 KiB alignment, exact nine-symbol exports, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The recorded alpha.2 portable-derived package/receipt is immutable historical evidence and does not attest the target-selected rebuild; a fresh source-bound AAR and verified stable publication transaction are required. |
 | Android ART runtime smoke | **Harness implemented.** Historical release evidence binds an API 35 / 16 KiB-page emulator run to its exact public AAR, and CI is configured to execute the package job's AAR on x86_64 API-35/16-KiB ART. Neither replaces the results-selected clean arm64-v8a canonical AVD or physical proof. Target selection is a source change and makes earlier selections stale; production remains pending until fresh same-source, same-AAR canonical and physical runs are selected (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). |
 | Local hash-bound release index (C archive + Swift XCFramework + Android AAR) | **Schema 5 release-index validation and an append-only dynamic+static C consumer receipt are implemented. A current selection requires the exact AAR and canonical Android run in the first index, then the emitted receipt and one evidence-only `results.json` successor; the final bound gate verifies those bytes without generating a receipt. Recorded older artifacts remain historical and a fresh same-source transaction is required after source change.** |
-| C ABI 2 stable package readiness | **The 0.1.5 source/crate contract is stable-version and pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a verified registry receipt remain separate gates. The Apple `v0.1.5` XCFramework and stable Android/Linux packages are the coordinated GitHub targets; attested public status requires verified receipts and `prerelease=false`. Same-source device/performance evidence, signed or transparency-backed source provenance, and independent cryptographic/C-FFI/ABI audit remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
+| C ABI 2 stable package readiness | **The 0.1.5 source/crate contract is stable-version and pre-publication package-ready; crates.io upload-API acceptance, crate-name ownership, publishing credentials/authorization, server-side policy acceptance, and a verified registry receipt remain separate gates. The Apple `v0.1.5` XCFramework and stable Android/Linux packages are the coordinated GitHub targets; attested public status requires verified receipts and `prerelease=false`. Same-source device/performance evidence, signed or transparency-backed source provenance, and cryptographic/C-FFI/ABI contract validation remain required for production promotion; ART-rerun currentness is tracked live in `artifact/results.json`.** |
 | Stable immutable GitHub targets (`v0.1.5` Apple receipt + `abi2-platforms-v0.1.5` receipt) | **Stable targets remain governed by versioned receipts under `results.json.release_publications`; historical alpha.2 receipts remain immutable. `main`'s trusted results carry no `0.1.4` release publication at all: that cohort is recorded at the annotated tag `v0.1.4-verified-cohort` rather than on `main`, and the immutable published GitHub and crates.io records are unaffected by its absence here. A receipt does not promote unrelated device/performance evidence. The legacy `swift_xcframework.distribution` field is only an exact active projection. Stable publication is not a production, registry, or store-readiness claim.** |
 | liboqs-style package distribution surface (crates/C archive/XCFramework/AAR) | Partial; historical Apple XCFramework + Android AAR + Linux/Windows C SDK GitHub prereleases are bound to their exact receipts, and the ten `0.1.4` crates are published on crates.io, while current target-selected rebuilds, a complete remote Swift package, and `0.1.5` crates.io plus Maven/deb/rpm/MSIX registry publication remain pending |
 | Fresh ML-KEM CT capture plus binary-CT beyond the configured decap probe + riscv64/wasm32 + timing as a hard gate | Pending |
 | Broader `cargo-fuzz` corpora | Pending |
-| Independent third-party audit | Pending |
+| Release-source contract and quality review | Required for the selected candidate; see [SDK release readiness](SDK_0_2_RELEASE_READINESS.md). |
 | Production hardening | Pending |
 | PQXDH + Triple-Ratchet component reference and separately specified Sesame-compatible manager | Future; no session crate, integration trace, or interoperability claim |
 | Q-Periapt Continuity research lane | G1 partial: selected revisions/reproducible content hashes + test-only lifecycle model with candidate canonical context and strict four-quadrant prekey-selection bytes, independent encoders/decoders/vectors, structural EasyCrypt diagnostics, exact state CAS and trusted session/context admission; no manifest/lease/consumption state, context advancement, or identity/protocol/security claim |

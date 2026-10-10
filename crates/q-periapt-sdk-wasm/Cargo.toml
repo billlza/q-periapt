@@ -1,0 +1,22 @@
+[package]
+name = "q-periapt-sdk-wasm"
+version.workspace = true
+description = "Product WASM entry point with platform randomness and owned hybrid keys"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+q-periapt-core = { version = "=0.2.0", path = "../q-periapt-core" }
+q-periapt-sdk = { version = "=0.2.0", path = "../q-periapt-sdk" }
+q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
+wasm-bindgen = "0.2"
+js-sys = "0.3"

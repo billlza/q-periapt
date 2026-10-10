@@ -1,0 +1,34 @@
+{
+  "workflow_sha256": "027b5916213e5eb57e532d528bbf42602b4ae16c677773de02c6acbb7e6553e7",
+  "statistics_code_sha256": "354745206d77e111fd456c97427f78cd9bbbda8da980dcdcb07266697a95e93c",
+  "actual_hardened_runner_cases": [
+    {
+      "case": "real-CI",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "case": "missing",
+      "returncode": 1,
+      "stderr": "combine: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "zero",
+      "returncode": 1,
+      "stderr": "combine: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "duplicate",
+      "returncode": 1,
+      "stderr": "combine: missing or empty libFuzzer execution statistics\n"
+    },
+    {
+      "case": "nonnumeric",
+      "returncode": 1,
+      "stderr": "combine: missing or empty libFuzzer execution statistics\n"
+    }
+  ],
+  "actionlint_fuzz_only": true,
+  "toolchain_test_update": "Closed canonical setup count26->27 includes new stable seed generator; exact pinned nightly replaces floating nightly in install/fetch/build expectations; no assertion removed or skipped.",
+  "product_ci_fix_uploaded": false
+}

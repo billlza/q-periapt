@@ -1,5 +1,21 @@
 # Security Policy
 
+## Development SDK candidates
+
+The `0.2.0` owned-key SDK in this development tree is a release candidate
+under qualification. ABI major 2 compatibility does not make
+an SDK wrapper compatible with the released nine-export library: the new
+SDK wrappers require the matching 43-export SDK profile and package version.
+
+Use the [integration guide](docs/SDK_GETTING_STARTED.md) for package selection
+and the [readiness ledger](docs/SDK_0_2_RELEASE_READINESS.md) for the source-bound
+validation scope. A successful build, local installation or declared minimum OS
+does not establish support on another target or qualify a production release.
+Current-source platform/device execution, hosted quality checks, security review
+and the final release transaction remain required. Preview candidates do not
+inherit the stable publication receipts or support status below. Report preview
+vulnerabilities through the same private reporting channel described here.
+
 ## Supported releases
 
 Q-Periapt 0.1.5 is the stable SemVer source line, succeeding the fully published

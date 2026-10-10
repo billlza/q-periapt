@@ -1,0 +1,31 @@
+{
+  "base_head": "e8054edf9794c09513972f796b06dd9dfb0cb646",
+  "finding": "The complete package source identity omitted the newly required first-configuration and explicit-peer collectors",
+  "affected_files": [
+    "artifact/continuity_first_configuration.py",
+    "artifact/continuity_peer_configuration.py"
+  ],
+  "before": "One existing source-binding test failed for both new collector modules after extending its closed module inventory",
+  "after": [
+    "----------------------------------------------------------------------",
+    "Ran 27 tests in 1.894s",
+    "",
+    "OK"
+  ],
+  "commands": [
+    "sh artifact/python-run.sh -m unittest artifact.test_continuity_package.ContinuityPackageTests.test_every_account_witness_reader_is_bound_to_package_source -v",
+    "sh artifact/python-run.sh -m unittest artifact.test_continuity_package artifact.test_continuity_first_configuration artifact.test_continuity_peer_configuration -v"
+  ],
+  "logs": [
+    {
+      "file": "source-binding-red-01.log.gz",
+      "uncompressed_sha256": "7cb9aec602579fc64226882b28d9171acc8168d9025fdf4cbf1e3f3c7c1749b1",
+      "bytes": 182806
+    },
+    {
+      "file": "source-binding-green-01.log.gz",
+      "uncompressed_sha256": "d8d89c81950e9ee152d765f2ae9e1fe3e162e0221f459b041fd0fee6efb7c6c9",
+      "bytes": 5426
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "rustc",
+    "--locked",
+    "--offline",
+    "--lib",
+    "--",
+    "-Dwarnings",
+    "-C",
+    "link-arg=-Wl,-install_name,@rpath/libq_periapt_continuity_c_consumer.dylib"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+  "exit": 0,
+  "seconds": 58.836928667034954
+}

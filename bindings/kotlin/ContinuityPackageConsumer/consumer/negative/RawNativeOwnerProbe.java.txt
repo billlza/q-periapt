@@ -1,0 +1,7 @@
+import dev.qperiapt.continuity.NativeOwner;
+
+public final class RawNativeOwnerProbe {
+    public static void main(String[] args) {
+        new NativeOwner(1L, null);
+    }
+}

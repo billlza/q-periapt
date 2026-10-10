@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime
 import enum
 import errno
 import hashlib
+import json
+import math
 import os
 import pathlib
 import re
 import resource
+import shlex
 import signal
 import socket
 import stat
@@ -68,6 +72,7 @@ RESULT_TEXT_REMOTE = "files/qperiapt-android-device-result.txt"
 RESULT_JSON_REMOTE = "files/qperiapt-android-device-result.json"
 REMOTE_BASE_APK = re.compile("/[A-Za-z0-9_./+=~:-]+/base\\.apk")
 DEVICE_EPOCH = re.compile("[1-9][0-9]{9,12}\\.[0-9]{3}")
+DEVICE_CALENDAR_TIME = re.compile(r"[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}")
 _REMOTE_PATH_CHARACTERS = frozenset(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_./+=~:-"
 )
@@ -119,10 +124,15 @@ class AndroidCommandError(RuntimeError):
     """The private Android command capability or requested operation is invalid."""
 
 
+class AdbValidationDeadlineExpired(AndroidCommandError):
+    """The original observation budget cannot admit another owned-listener check."""
+
+
 class InstalledApkRetryReason(str, enum.Enum):
     """Safe shell-facing reasons for an inconclusive installed-APK observation."""
 
     PACKAGE_UNAVAILABLE = "package-unavailable"
+    TRANSPORT_ABSENT = "transport-absent"
     PULL_FAILED = "pull-failed"
     PATH_CHANGED = "path-changed"
     BYTES_MISMATCH = "bytes-mismatch"
@@ -186,11 +196,20 @@ class AndroidOperation(str, enum.Enum):
     INSTALL_APK = "install-apk"
     UNINSTALL_APP = "uninstall-app"
     DEVICE_TIME = "device-time"
+    DEVICE_TIME_CALENDAR = "device-time-calendar"
+    PAGE_SIZE_AUXV = "page-size-auxv"
     START_APP = "start-app"
     RUN_INSTRUMENTATION = "run-instrumentation"
     READ_RESULT_TEXT = "read-result-text"
     READ_RESULT_JSON = "read-result-json"
     CAPTURE_LOGCAT = "capture-logcat"
+    CAPTURE_EMULATOR_DIAGNOSTICS = "capture-emulator-diagnostics"
+    CAPTURE_EMULATOR_BASELINE = "capture-emulator-baseline"
+    CAPTURE_EMULATOR_FAILURE_STATE = "capture-emulator-failure-state"
+    CAPTURE_EMULATOR_APP_EXIT_INFO = "capture-emulator-app-exit-info"
+    CAPTURE_EMULATOR_RECOVERY_STATE = "capture-emulator-recovery-state"
+    CAPTURE_EMULATOR_RECOVERY_LOGCAT = "capture-emulator-recovery-logcat"
+    CAPTURE_EMULATOR_MEMORY_RUNTIME = "capture-emulator-memory-runtime"
 
 
 class OutputRoot(str, enum.Enum):
@@ -210,11 +229,13 @@ class OperationSpec:
     mode: Literal[
         "run",
         "capture",
+        "page-size-auxv",
         "write",
         "package-state",
         "recover-emulator",
         "observe-apk",
         "logcat",
+        "emulator-diagnostics",
         "register-emulator",
     ]
     timeout_seconds: int
@@ -542,6 +563,131 @@ def _device(
     return _adb(capability, "-s", capability.expected_serial, *arguments)
 
 
+def _package_state_argv(
+    capability: runtime_state.AndroidCommandCapability,
+) -> tuple[str, ...]:
+    # Legacy adb shell omits the guest exit code. The final record proves that
+    # this fixed query returned; a disconnected/aborted command cannot supply
+    # an empty successful package observation merely because adb exits zero.
+    program = (
+        f"pm list packages {PACKAGE}; "
+        "qperiapt_query_status=$?; "
+        f"printf '\\nQPERIAPT_PACKAGE_QUERY_EXIT:{capability.run_id}:%d\\n' "
+        '"$qperiapt_query_status"; exit "$qperiapt_query_status"'
+    )
+    # adb joins shell arguments before guest parsing, so sh -c needs one
+    # explicitly quoted, fixed program. The run ID is capability-validated.
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
+def _boot_completed_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Android FDE can report sys.boot_completed from its temporary encryption
+    # framework, before /data is replaced and the real framework is started.
+    # Native property reads avoid launching ART during that transition. Keep
+    # both guest statuses because old adb shell transports discard them.
+    program = (
+        "qperiapt_boot=$(getprop sys.boot_completed); qperiapt_boot_status=$?; "
+        "qperiapt_decrypt=$(getprop vold.decrypt); qperiapt_decrypt_status=$?; "
+        'if [ "$qperiapt_boot_status" -eq 0 ]; then '
+        'qperiapt_boot_status=$qperiapt_decrypt_status; fi; '
+        "printf 'boot_completed=%s\\nvold_decrypt=%s\\n' "
+        '"$qperiapt_boot" "$qperiapt_decrypt"; '
+        f"printf '\\nQPERIAPT_BOOT_QUERY_EXIT:{capability.run_id}:%d\\n' "
+        '"$qperiapt_boot_status"; exit "$qperiapt_boot_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
+def _native_diagnostic_argv(
+    capability: runtime_state.AndroidAdbCapability,
+    probes: tuple[tuple[str, tuple[str, ...]], ...],
+    *, header: str, completion: str,
+) -> tuple[str, ...]:
+    # These native commands do not launch ART or modify the guest. Each result
+    # keeps its exit status; a later successful probe cannot hide an earlier
+    # failure, including on legacy adb transports that lose the guest status.
+    encoded_header = shlex.quote(header + "\\n")
+    program = (
+        "qperiapt_state_status=0; "
+        "qperiapt_state_probe() { "
+        "qperiapt_probe_name=$1; shift; "
+        "printf '\\nQPERIAPT_STATE_PROBE:%s\\n' \"$qperiapt_probe_name\"; "
+        '\"$@\"; qperiapt_probe_status=$?; '
+        "printf '\\nQPERIAPT_STATE_STATUS:%s:%d\\n' "
+        '\"$qperiapt_probe_name\" \"$qperiapt_probe_status\"; '
+        'if [ "$qperiapt_state_status" -eq 0 ]; then '
+        'qperiapt_state_status=$qperiapt_probe_status; fi; }; '
+        f"printf {encoded_header}; "
+    )
+    program += "; ".join(shlex.join(("qperiapt_state_probe", label, *argv)) for label, argv in probes)
+    program += (
+        f"; printf '\\n{completion}:{capability.run_id}:%d\\n' "
+        '"$qperiapt_state_status"; exit "$qperiapt_state_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
+def _emulator_state_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    probes = (
+        ("boot-id", ("cat", "/proc/sys/kernel/random/boot_id")),
+        ("uptime", ("cat", "/proc/uptime")),
+        ("memory", ("cat", "/proc/meminfo")),
+        # MemAvailable alone does not describe per-zone watermarks or reclaim
+        # pressure. Preserve the kernel's original counters and page units;
+        # these snapshots are diagnostics, not peak-memory measurements.
+        ("memory-vmstat", ("cat", "/proc/vmstat")),
+        ("memory-zones", ("cat", "/proc/zoneinfo")),
+        ("data-space", ("df", "/data")),
+        ("data-mounts", ("cat", "/proc/mounts")),
+        ("crypto-state", ("getprop", "ro.crypto.state")),
+        ("decrypt-state", ("getprop", "vold.decrypt")),
+        ("zygote-mode", ("getprop", "ro.zygote")),
+        ("zygote-primary", ("getprop", "init.svc.zygote")),
+        ("zygote-secondary", ("getprop", "init.svc.zygote_secondary")),
+        ("processes", ("ps",)),
+    )
+    return _native_diagnostic_argv(
+        capability, probes, header="QPERIAPT_EMULATOR_STATE_VERSION=2",
+        completion="QPERIAPT_EMULATOR_STATE_EXIT",
+    )
+
+
+def _emulator_memory_runtime_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Production images deny shell reads of /proc/cmdline and /system/bin/lmkd.
+    # Preserve accessible guest identity here. The host image diagnostic reads
+    # lmkd as data separately; neither record attests the running process bytes.
+    return _native_diagnostic_argv(
+        capability, (
+            ("kernel-release", ("uname", "-r")),
+            ("runtime-page-size", ("getconf", "PAGE_SIZE")),
+            ("build-fingerprint", ("getprop", "ro.build.fingerprint")),
+            ("system-build-fingerprint", ("getprop", "ro.system.build.fingerprint")),
+        ),
+        header="QPERIAPT_EMULATOR_MEMORY_RUNTIME_VERSION=2",
+        completion="QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT",
+    )
+
+
+def _emulator_app_exit_info_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # Query only the fixed smoke package. This does not restart its dead process
+    # or clear exit history, and preserves the status across legacy adb shells.
+    program = (
+        shlex.join(("dumpsys", "activity", "exit-info", PACKAGE))
+        + "; qperiapt_exit_info_status=$?; "
+        + f"printf '\\nQPERIAPT_APP_EXIT_INFO_EXIT:{capability.run_id}:%d\\n' "
+        + '"$qperiapt_exit_info_status"; exit "$qperiapt_exit_info_status"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _owned_emulator_ports(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[int, int]:
@@ -673,7 +819,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             None,
-            lambda cap: _device(cap, "shell", "getprop", "sys.boot_completed"),
+            _boot_completed_argv,
         ),
         AndroidOperation.QEMU_KIND: OperationSpec(
             "capture",
@@ -695,6 +841,10 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             None,
             lambda cap: _device(cap, "shell", "getconf", "PAGE_SIZE"),
+        ),
+        AndroidOperation.PAGE_SIZE_AUXV: OperationSpec(
+            "page-size-auxv", 15, 15, None,
+            lambda cap: _device(cap, "exec-out", "cat", "/proc/self/auxv"),
         ),
         AndroidOperation.DEVICE_SDK: OperationSpec(
             "capture",
@@ -746,9 +896,7 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             15,
             None,
-            lambda cap: _device(
-                cap, "shell", "cmd", "package", "list", "packages", PACKAGE
-            ),
+            _package_state_argv,
             requires_private_server=True,
             stderr_to_stdout=True,
         ),
@@ -787,6 +935,13 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             OutputSpec(proof, "adb-device-time.txt", 4096),
             lambda cap: _device(cap, "shell", "date", "+%s.%3N"),
+        ),
+        AndroidOperation.DEVICE_TIME_CALENDAR: OperationSpec(
+            "write", 15, 15, OutputSpec(proof, "adb-device-time.txt", 4096),
+            # API 23 date uses strftime; logcat accepts this local calendar
+            # form. Round down to the containing second for a lower bound.
+            # adb shell joins its arguments before the guest shell parses them.
+            lambda cap: _device(cap, "shell", "date", "'+%m-%d %H:%M:%S.000'"),
         ),
         AndroidOperation.START_APP: OperationSpec(
             "capture",
@@ -849,6 +1004,43 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             30,
             OutputSpec(proof, "logcat-raw.txt", 16777216),
             lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS: OperationSpec(
+            "emulator-diagnostics",
+            30,
+            30,
+            OutputSpec(proof, "emulator-crash-logcat.txt", 16777216),
+            lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_BASELINE: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-state-before.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_FAILURE_STATE: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-state-failure.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-app-exit-info.txt", 1048576),
+            _emulator_app_exit_info_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_STATE: OperationSpec(
+            "emulator-diagnostics", 5, 5,
+            OutputSpec(proof, "emulator-state-recovery.txt", 65536),
+            _emulator_state_argv, stderr_to_stdout=True,
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT: OperationSpec(
+            "emulator-diagnostics", 5, 5,
+            OutputSpec(proof, "emulator-recovery-logcat.txt", 16777216),
+            lambda cap: (),
+        ),
+        AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME: OperationSpec(
+            "emulator-diagnostics", 15, 15,
+            OutputSpec(proof, "emulator-memory-runtime.txt", 4194304),
+            _emulator_memory_runtime_argv, stderr_to_stdout=True,
         ),
     }
     return MappingProxyType(specs)
@@ -1056,7 +1248,10 @@ def _executable_file_identity(path: pathlib.Path, label: str) -> tuple[int, int]
     return metadata.st_dev, metadata.st_ino
 
 
-def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
+def exec_emulator(
+    run_id: str, device_abi: str,
+    expected_runtime_profile: str = runtime_state.DEFAULT_RUNTIME_PROFILE,
+) -> NoReturn:
     """Persist recovery identity, drop the lane lock, and exec one fixed AVD."""
     runtime_state.validate_lane_lock_descriptor()
     layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
@@ -1076,6 +1271,7 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
     selection = runtime_state.validate_runtime_avd_selection(
         capability.adb_profile,
         canonical_abi,
+        expected_runtime_profile,
     )
     canonical_avd = selection.name
     launcher, backend = _fixed_emulator_paths(capability, canonical_abi)
@@ -1107,6 +1303,7 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
     confirmed_selection = runtime_state.validate_runtime_avd_selection(
         capability.adb_profile,
         canonical_abi,
+        expected_runtime_profile,
     )
     _require(
         confirmed_selection == selection,
@@ -1454,7 +1651,9 @@ def _remaining_adb_listener_timeout(deadline: float | None) -> int:
     if deadline is None:
         return 5
     remaining = deadline - time.monotonic()
-    _require(remaining >= 1, "owned adb server validation deadline expired")
+    _require(math.isfinite(remaining), "owned adb server validation deadline is not finite")
+    if remaining < 1:
+        raise AdbValidationDeadlineExpired("owned adb server validation deadline expired")
     return min(5, int(remaining))
 
 
@@ -3228,7 +3427,11 @@ def _write_operation(
             output_name=output.leaf,
             timeout_seconds=timeout_seconds,
             maximum_bytes=output.maximum_bytes,
+            stderr=subprocess.STDOUT if spec.stderr_to_stdout else None,
             environment=_client_environment(capability),
+            # Diagnostics remain failed on nonzero exit, but keep the command
+            # statuses and merged error text needed to explain that failure.
+            retain_nonzero=spec.mode == "emulator-diagnostics",
         )
     except BaseException as exc:
         primary = exc
@@ -3310,6 +3513,7 @@ def _capture_installed_apk_path(
     capability: runtime_state.AndroidCommandCapability,
     *,
     timeout_seconds: int,
+    stage: Literal["before-copy", "after-copy"],
 ) -> tuple[BoundedResult, str | None]:
     try:
         result = capture_stdout(
@@ -3322,10 +3526,65 @@ def _capture_installed_apk_path(
     except BoundedProcessError as exc:
         if exc.kind != "timeout" or getattr(exc, "__notes__", None):
             raise
+        _report_package_command_failure(
+            capability, operation="installed-apk-path", stage=stage,
+            failure="timeout", result=None,
+        )
         return BoundedResult(1), None
     if result.returncode != 0 or not result.stdout:
+        _report_package_command_failure(
+            capability, operation="installed-apk-path", stage=stage,
+            failure="unavailable", result=result,
+        )
         return result, None
     return result, _parse_remote_base_apk_output(result.stdout)
+
+
+def _report_package_command_failure(
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    operation: Literal["installed-apk-path", "package-state"],
+    stage: Literal["before-copy", "after-copy", "observation"],
+    failure: Literal["timeout", "unavailable", "malformed"],
+    result: BoundedResult | None,
+    remote_returncode: int | None = None,
+) -> None:
+    # The producer already retains this operation's stderr per attempt. Keep
+    # its typed stdout unchanged. Both queries have a 64 KiB combined-output bound;
+    # JSON escaping prevents guest text from becoming terminal/log commands.
+    diagnostic: dict[str, object] = {
+        "operation": operation,
+        "stage": stage,
+        "failure": failure,
+    }
+    if remote_returncode is not None:
+        diagnostic["remote_returncode"] = remote_returncode
+    if result is not None:
+        diagnostic.update(
+            returncode=result.returncode,
+            output_bytes=len(result.stdout),
+            output_sha256=hashlib.sha256(result.stdout).hexdigest(),
+        )
+        # Only the disposable, receipt-owned emulator exposes guest errors.
+        # Physical-device identifiers and responses remain outside this log.
+        if capability.device_kind == "emulator":
+            diagnostic["output"] = result.stdout.decode("utf-8", errors="backslashreplace")
+    print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+
+
+def _package_unavailable_observation(
+    capability: runtime_state.AndroidCommandCapability, *, deadline: float,
+) -> BoundedResult:
+    """Keep package absence distinct from an observed missing emulator transport."""
+    timeout = _remaining_observation_timeout(deadline)
+    reason = InstalledApkRetryReason.PACKAGE_UNAVAILABLE
+    if timeout is None:
+        reason = InstalledApkRetryReason.DEADLINE_EXHAUSTED
+    elif capability.device_kind == "emulator" and _observe_expected_transport(
+        capability, timeout_seconds=timeout
+    ) is ExpectedTransportState.ABSENT:
+        reason = InstalledApkRetryReason.TRANSPORT_ABSENT
+    return BoundedResult(0, f"retryable:{reason.value}\n".encode("ascii"))
 
 
 def _observe_installed_apk(
@@ -3347,15 +3606,10 @@ def _observe_installed_apk(
             ),
         )
     before_result, before_path = _capture_installed_apk_path(
-        capability, timeout_seconds=before_timeout
+        capability, timeout_seconds=before_timeout, stage="before-copy"
     )
     if before_result.returncode != 0 or before_path is None:
-        return BoundedResult(
-            0,
-            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
-                "ascii"
-            ),
-        )
+        return _package_unavailable_observation(capability, deadline=deadline)
 
     pull_timeout = _remaining_observation_timeout(deadline)
     if pull_timeout is None:
@@ -3399,6 +3653,35 @@ def _observe_installed_apk(
             f"retryable:{InstalledApkRetryReason.PULL_FAILED.value}\n".encode("ascii"),
         )
 
+    # Raw exec-out can return zero after a truncated stream. Establish that
+    # failure before a later package query can replace it with "unavailable".
+    # This is an early rejection only: the final snapshot below must still
+    # recheck the copy after the path observation before admitting exact bytes.
+    copied = consume_regular_snapshot(
+        layout.work / INSTALLED_APK_COPY_LEAF,
+        maximum=runtime_state.MAX_APK_BYTES,
+        label="installed Android smoke APK copy",
+        validate_metadata=runtime_state.private_file_metadata,
+    )
+    if not (
+        copied.size == capability.signed_apk_size
+        and copied.sha256 == capability.signed_apk_sha256
+    ):
+        if capability.device_kind == "emulator":
+            print(json.dumps({
+                "operation": "installed-apk-copy",
+                "failure": "bytes-mismatch",
+                "observed_bytes": copied.size,
+                "observed_sha256": copied.sha256,
+                "expected_bytes": capability.signed_apk_size,
+                "expected_sha256": capability.signed_apk_sha256,
+            }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+        _remove_installed_apk_copy(layout)
+        return BoundedResult(
+            0,
+            f"retryable:{InstalledApkRetryReason.BYTES_MISMATCH.value}\n".encode("ascii"),
+        )
+
     after_timeout = _remaining_observation_timeout(deadline)
     if after_timeout is None:
         _remove_installed_apk_copy(layout)
@@ -3409,16 +3692,11 @@ def _observe_installed_apk(
             ),
         )
     after_result, after_path = _capture_installed_apk_path(
-        capability, timeout_seconds=after_timeout
+        capability, timeout_seconds=after_timeout, stage="after-copy"
     )
     if after_result.returncode != 0 or after_path is None:
         _remove_installed_apk_copy(layout)
-        return BoundedResult(
-            0,
-            f"retryable:{InstalledApkRetryReason.PACKAGE_UNAVAILABLE.value}\n".encode(
-                "ascii"
-            ),
-        )
+        return _package_unavailable_observation(capability, deadline=deadline)
     if after_path != before_path:
         _remove_installed_apk_copy(layout)
         return BoundedResult(
@@ -3584,6 +3862,59 @@ def _observe_exact_device_state(
     return True
 
 
+def _parse_guest_completion(
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "app-exit-info", "memory-runtime"],
+) -> tuple[int, bytes]:
+    marker = {
+        "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
+        "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
+        "boot-state": b"QPERIAPT_BOOT_QUERY_EXIT:",
+        "app-exit-info": b"QPERIAPT_APP_EXIT_INFO_EXIT:",
+        "memory-runtime": b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:",
+    }[kind]
+    parts = output.rsplit(b"\n", 2)
+    _require(
+        len(parts) == 3 and parts[2] == b"",
+        f"Android {kind} output is malformed: incomplete query",
+    )
+    payload, completion, _ = parts
+    # Remove only the framing newline. Keep the payload unchanged; the package
+    # observer still requires one exact LF/CRLF line without extra controls.
+    if completion.endswith(b"\r"):
+        _require(
+            payload.endswith(b"\r"),
+            f"Android {kind} output is malformed: mixed completion framing",
+        )
+        payload, completion = payload[:-1], completion[:-1]
+    matched = re.fullmatch(
+        marker + run_id.encode("ascii")
+        + rb":(0|[1-9][0-9]{0,2})",
+        completion,
+    )
+    _require(
+        matched is not None and int(matched[1]) <= 255,
+        f"Android {kind} output is malformed: invalid query completion",
+    )
+    return int(matched[1]), payload
+
+
+def _boot_readiness_result(result: BoundedResult, run_id: str) -> BoundedResult:
+    if result.returncode != 0:
+        return BoundedResult(result.returncode)
+    status, payload = _parse_guest_completion(result.stdout, run_id, "boot-state")
+    if status != 0:
+        return BoundedResult(status)
+    matched = re.fullmatch(
+        rb"boot_completed=([01]?)\r?\nvold_decrypt=([a-z_]{0,92})\r?\n", payload,
+    )
+    _require(matched is not None, "Android boot-state properties are malformed")
+    # An empty vold.decrypt is valid when the FDE flow is not used (including
+    # modern FBE). Every active encryption/decryption transition waits within
+    # the existing boot deadline; only the full-framework trigger admits FDE.
+    ready = matched[1] == b"1" and matched[2] in (b"", b"trigger_restart_framework")
+    return BoundedResult(0, b"1\n" if ready else b"0\n")
+
+
 def _observe_package_state(
     capability: runtime_state.AndroidCommandCapability,
     spec: OperationSpec,
@@ -3627,19 +3958,37 @@ def _observe_package_state(
                     f"{PackageState.DEVICE_UNAVAILABLE.value}\n".encode("ascii"),
                 )
         return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
-    if b"\x00" in raw.stdout or b"\r" in raw.stdout:
-        _fail("Android package-state output contains a forbidden control character")
     try:
-        text = raw.stdout.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise AndroidCommandError(
-            f"Android package-state output is not UTF-8: {exc}"
-        ) from exc
-    if text == "":
+        remote_status, payload = _parse_guest_completion(
+            raw.stdout, capability.run_id, "package-state",
+        )
+    except AndroidCommandError:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="malformed", result=raw,
+        )
+        raise
+    if remote_status != 0:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="unavailable", result=raw, remote_returncode=remote_status,
+        )
+        return BoundedResult(0, f"{PackageState.QUERY_NONZERO.value}\n".encode("ascii"))
+    # API 23 adbd uses a PTY for shell commands, which maps the final LF to
+    # CRLF. Accept exactly these two complete lines, without stripping controls
+    # or whitespace that could conceal extra packages or command diagnostics.
+    if payload == b"":
         state = PackageState.ABSENT
-    elif text == f"package:{PACKAGE}\n":
+    elif payload in (
+        f"package:{PACKAGE}\n".encode("ascii"),
+        f"package:{PACKAGE}\r\n".encode("ascii"),
+    ):
         state = PackageState.PRESENT
     else:
+        _report_package_command_failure(
+            capability, operation="package-state", stage="observation",
+            failure="malformed", result=raw,
+        )
         _fail("Android package-state output is malformed")
     return BoundedResult(0, f"{state.value}\n".encode("ascii"))
 
@@ -3655,6 +4004,7 @@ def _invoke_package_state(
     deadline = time.monotonic() + timeout_seconds
     result: BoundedResult | None = None
     primary: BaseException | None = None
+    deadline_only = False
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
         result = _observe_package_state(
@@ -3665,17 +4015,23 @@ def _invoke_package_state(
         )
     except BaseException as exc:
         primary = exc
+        deadline_only = isinstance(exc, AdbValidationDeadlineExpired) and not getattr(exc, "__notes__", None)
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
     except BaseException as postcheck_error:
+        postcheck_deadline = isinstance(postcheck_error, AdbValidationDeadlineExpired) and not getattr(postcheck_error, "__notes__", None)
         if primary is None:
             primary = postcheck_error
+            deadline_only = postcheck_deadline
         else:
+            deadline_only = deadline_only and postcheck_deadline
             primary.add_note(
                 "owned adb server post-package-state validation also failed: "
                 f"{postcheck_error}"
             )
     if primary is not None:
+        if deadline_only:
+            return BoundedResult(0, f"{PackageState.QUERY_TIMEOUT.value}\n".encode("ascii"))
         raise primary
     _require(result is not None, "Android package-state observation produced no result")
     return result
@@ -3897,7 +4253,26 @@ def _recover_owned_emulator_transport(
     return result
 
 
-def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
+def canonical_logcat_start_time(value: object) -> str:
+    _require(isinstance(value, str) and 14 <= len(value) <= 18,
+             "Android logcat start time has invalid type or length")
+    if DEVICE_EPOCH.fullmatch(value) is not None:
+        return runtime_state.canonical_ascii_atom(
+            value, characters=_EPOCH_CHARACTERS, minimum=14, maximum=17,
+            label="Android logcat start time",
+        )
+    _require(DEVICE_CALENDAR_TIME.fullmatch(value) is not None,
+             "Android logcat start time is non-canonical")
+    try:
+        # A leap year admits Feb 29; the guest logcat resolves its local year.
+        parsed = datetime.datetime.strptime("2000-" + value, "%Y-%m-%d %H:%M:%S.%f")
+    except ValueError as error:
+        raise AndroidCommandError("Android logcat calendar time is invalid") from error
+    return (f"{parsed.month:02d}-{parsed.day:02d} {parsed.hour:02d}:"
+            f"{parsed.minute:02d}:{parsed.second:02d}.{parsed.microsecond // 1000:03d}")
+
+
+def _device_logcat_start_time(layout: runtime_state.AndroidRunLayout) -> str:
     snapshot = read_regular_snapshot(
         layout.proof / "adb-device-time.txt",
         maximum=4096,
@@ -3910,18 +4285,133 @@ def _device_epoch(layout: runtime_state.AndroidRunLayout) -> str:
         raise AndroidCommandError(
             f"Android logcat start time is not ASCII: {exc}"
         ) from exc
-    value = runtime_state.canonical_ascii_atom(
-        raw_value,
-        characters=_EPOCH_CHARACTERS,
-        minimum=14,
-        maximum=17,
-        label="Android logcat start time",
-    )
+    return canonical_logcat_start_time(raw_value)
+
+
+def _auxv_page_size(data: bytes) -> int:
+    """Read AT_PAGESZ from one complete little-endian Android ELF aux vector.
+
+    The minimum x86_64 profile can run a 32- or 64-bit cat. Require one valid
+    interpretation, a final AT_NULL pair and exactly one supported page size.
+    This measures kernel pages and is not the API 35 16 KiB libc emulation probe.
+    """
+    _require(0 < len(data) <= 4096, "Android aux vector size differs")
+    candidates = []
+    for width in (4, 8):
+        stride = width * 2
+        if len(data) % stride != 0:
+            continue
+        entries = [(int.from_bytes(data[i:i + width], "little"),
+                    int.from_bytes(data[i + width:i + stride], "little"))
+                   for i in range(0, len(data), stride)]
+        if entries[-1] != (0, 0) or any(kind == 0 for kind, _ in entries[:-1]):
+            continue
+        pages = [value for kind, value in entries if kind == 6]  # Linux AT_PAGESZ
+        if len(pages) == 1 and pages[0] in (4096, 16384):
+            candidates.append(pages[0])
+    _require(len(candidates) == 1, "Android aux vector lacks one unambiguous page size")
+    return candidates[0]
+
+
+def _capture_emulator_diagnostics(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *,
+    operation: AndroidOperation,
+    timeout_seconds: int,
+) -> BoundedResult:
+    """Read bounded diagnostic data only from this run's live owned emulator."""
     _require(
-        DEVICE_EPOCH.fullmatch(value) is not None,
-        "Android logcat start time is non-canonical",
+        capability.device_kind == "emulator",
+        "system diagnostics require an owned emulator",
     )
-    return value
+    deadline = time.monotonic() + timeout_seconds
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None
+        and receipt.run_id == layout.run_id
+        and receipt.device_kind == "emulator"
+        and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED,
+        "system diagnostics lack this run's active emulator receipt",
+    )
+    context = _validate_recovery_receipt(receipt)
+    _require(
+        context.layout == layout
+        and _command_capability_adb_identity(context.capability)
+        == _command_capability_adb_identity(capability),
+        "system diagnostic capability differs from its receipt",
+    )
+    process = _same_receipt_process(receipt)
+    _require(
+        process is not None
+        and context.backend is not None
+        and process.executable == context.backend,
+        "system diagnostics require the receipt-bound live backend",
+    )
+    _revalidate_emulator_transport_identity(
+        layout, capability, context, receipt, process, deadline=deadline
+    )
+    remaining = _remaining_observation_timeout(deadline)
+    _require(remaining is not None, "system diagnostic deadline expired")
+    spec = OPERATION_SPECS[operation]
+    state_capture = operation not in {
+        AndroidOperation.CAPTURE_EMULATOR_DIAGNOSTICS,
+        AndroidOperation.CAPTURE_EMULATOR_RECOVERY_LOGCAT,
+    }
+    argv = spec.build_argv(capability) if state_capture else _device(
+        capability,
+        "logcat", "-d", "-b", "main", "-b", "system", "-b", "crash", "-b", "events",
+        "-v", "threadtime",
+        "-T", _device_logcat_start_time(layout), "-s",
+        "AndroidRuntime:E", "art:W", "dalvikvm:E", "debuggerd:E",
+        "Watchdog:*", "ActivityManager:I", "SystemServer:E",
+        "PackageManager:E", "PackageInstaller:E", "PackageInstallerSession:E", "installd:E",
+        "Zygote:E", "lmkd:*", "lowmemorykiller:*", "killinfo:I", "libc:F", "DEBUG:*",
+        # LMKD's events-buffer killinfo record includes the kill-time meminfo
+        # counters; adjacent point snapshots alone cannot explain a watermark
+        # decision. Add this fixed tag to the existing allowlist, keeping the
+        # same live-owner, run-start time, byte and deadline limits.
+        # An offline transport need not restart the guest or its adbd process.
+        # Keep daemon/service evidence within the same owned-emulator/time bound.
+        "adbd:I", "adbd_auth:I", "AdbService:I", "UsbDeviceManager:I", "init:W", "*:S",
+    )
+    primary: BaseException | None = None
+    try:
+        result = _write_operation(
+            layout,
+            capability,
+            spec,
+            argv,
+            remaining,
+        )
+        if state_capture and result.returncode == 0:
+            _require(spec.output is not None, "emulator state output is missing")
+            raw = read_regular_snapshot(
+                layout.proof / spec.output.leaf,
+                maximum=spec.output.maximum_bytes, label="owned emulator state",
+            ).data
+            if operation is AndroidOperation.CAPTURE_EMULATOR_APP_EXIT_INFO:
+                kind = "app-exit-info"
+            elif operation is AndroidOperation.CAPTURE_EMULATOR_MEMORY_RUNTIME:
+                kind = "memory-runtime"
+            else:
+                kind = "emulator-state"
+            status, _ = _parse_guest_completion(raw, capability.run_id, kind)
+            return BoundedResult(status)
+        return result
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        try:
+            _revalidate_emulator_transport_identity(
+                layout, capability, context, receipt, process, deadline=deadline
+            )
+        except BaseException as exc:
+            if primary is None:
+                raise
+            primary.add_note(f"system diagnostic postcheck also failed: {exc}")
 
 
 def invoke_operation(
@@ -3940,6 +4430,10 @@ def invoke_operation(
     if spec.mode == "recover-emulator":
         return _recover_owned_emulator_transport(
             layout, capability, timeout_seconds=timeout
+        )
+    if spec.mode == "emulator-diagnostics":
+        return _capture_emulator_diagnostics(
+            layout, capability, operation=operation, timeout_seconds=timeout
         )
     if spec.mode == "package-state":
         return _invoke_package_state(
@@ -3961,7 +4455,7 @@ def invoke_operation(
             "-v",
             "tag",
             "-T",
-            _device_epoch(layout),
+            _device_logcat_start_time(layout),
             "-s",
             "QPeriaptSmoke:*",
             "*:S",
@@ -3975,7 +4469,31 @@ def invoke_operation(
         _validate_owned_adb_server_for_client(capability)
         return result
     argv = spec.build_argv(capability)
+    if spec.mode == "page-size-auxv":
+        result = capture_stdout(
+            argv, timeout_seconds=timeout, maximum_bytes=4096,
+            stderr=subprocess.STDOUT, environment=_client_environment(capability),
+        )
+        _validate_owned_adb_server_for_client(capability)
+        _require(result.returncode == 0, "Android kernel page-size query failed")
+        return BoundedResult(0, f"{_auxv_page_size(result.stdout)}\n".encode("ascii"))
     if spec.mode == "run":
+        if operation is AndroidOperation.INSTALL_APK:
+            # APK/tool bytes have passed capability validation above. Flush
+            # their public identity before adb can fail or time out; its log is
+            # retained even when instrumentation never starts. Omit private
+            # routing/key paths and do not infer adb's guest session arguments.
+            print("ANDROID_INSTALL_INPUT " + json.dumps({
+                "schema_version": 1,
+                "run_id": capability.run_id,
+                "device_kind": capability.device_kind,
+                "apk_bytes": capability.signed_apk_size,
+                "apk_sha256": capability.signed_apk_sha256,
+                "adb_sha256": capability.adb_sha256,
+                "adb_command": [*argv[-3:-1], layout.signed_apk.name],
+                "timeout_seconds": timeout,
+                "guest_session_arguments_observed": False,
+            }, sort_keys=True), flush=True)
         result = run(
             argv, timeout_seconds=timeout, environment=_client_environment(capability)
         )
@@ -3990,6 +4508,8 @@ def invoke_operation(
             environment=_client_environment(capability),
         )
         _validate_owned_adb_server_for_client(capability)
+        if operation == AndroidOperation.BOOT_COMPLETED:
+            return _boot_readiness_result(result, capability.run_id)
         return result
     if spec.mode == "write":
         result = _write_operation(layout, capability, spec, argv, timeout)
@@ -4065,6 +4585,9 @@ def _build_parser() -> argparse.ArgumentParser:
     runtime_avd.add_argument(
         "--device-abi", required=True, choices=["arm64-v8a", "x86_64"]
     )
+    for command in (emulator, runtime_avd):
+        command.add_argument("--runtime-profile", choices=tuple(runtime_state.RUNTIME_PROFILES),
+                             default=runtime_state.DEFAULT_RUNTIME_PROFILE)
     sub.add_parser("avd-home-path")
     isolation = sub.add_parser("record-adb-isolation-checkpoint")
     isolation.add_argument("--run-id", required=True)
@@ -4146,7 +4669,7 @@ def main(argv: list[str]) -> int:
         print(runtime_state.avd_home_directory())
         return 0
     if args.action == "runtime-avd-name":
-        print(runtime_state.runtime_avd_name(args.adb_profile, args.device_abi))
+        print(runtime_state.runtime_avd_name(args.adb_profile, args.device_abi, args.runtime_profile))
         return 0
     if args.action == "capability-adb-path":
         layout = runtime_state.AndroidRunLayout.from_run_id(args.run_id)
@@ -4174,7 +4697,7 @@ def main(argv: list[str]) -> int:
         print(identity)
         return 0
     if args.action == "emulator-nodaemon":
-        exec_emulator(args.run_id, args.device_abi)
+        exec_emulator(args.run_id, args.device_abi, args.runtime_profile)
     if args.action == "record-adb-isolation-checkpoint":
         checkpoint = AdbIsolationCheckpoint(args.checkpoint)
         record_adb_isolation_checkpoint(args.run_id, checkpoint)

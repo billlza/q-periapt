@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+    "-isysroot",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wpedantic",
+    "-pthread",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer/client.c",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer/recovery_client.c",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer/opening_client.c",
+    "-I",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+    "-L",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-installed-debug",
+    "-lq_periapt_continuity_c_consumer",
+    "-Wl,-rpath,@loader_path",
+    "-o",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-installed-debug/qpc-c-client"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+  "exit": 0,
+  "seconds": 0.32991645799484104
+}

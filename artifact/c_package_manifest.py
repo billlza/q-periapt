@@ -15,7 +15,7 @@ from typing import Any, NoReturn
 
 from c_abi_contract import ABI_MAJOR, PACKAGE_SEMVER, load_contract
 from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
-from package_bom import PackageBomError, verify as verify_package_boms
+from package_bom import BomProfile, PackageBomError, verify as verify_package_boms
 from release_binary_scan import ReleaseBinaryScanError, scan_release_file
 from third_party_licenses import (
     INVENTORY_RELATIVE as THIRD_PARTY_INVENTORY_RELATIVE,
@@ -91,6 +91,43 @@ SOURCE_INPUT_PATHS = {
     "qperiapt_cli_lib": "crates/q-periapt-cli/src/lib.rs",
     "qperiapt_cli_main": "crates/q-periapt-cli/src/main.rs",
 }
+C_PROFILES = ("legacy", "sdk-020")
+SDK_CONTRACT_PATH = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_EMBEDDED_CONTRACT = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
+SDK_PACKAGE_VERSION = "0.2.0"
+SDK_SOURCE_INPUT_PATHS = {
+    **SOURCE_INPUT_PATHS,
+    "c_abi_contract": SDK_CONTRACT_PATH,
+    "c_sdk_smoke": "bindings/c/sdk_smoke.c",
+    "c_sdk_policy_fixture": "bindings/c/sdk_policy_update_fixture.h",
+    "c_legacy_header": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    "native_cbom_source": "crates/q-periapt-cli/src/sdk_cbom.rs",
+    "native_cbom_inventory": "artifact/fixtures/sdk-native-020-tls-inventory.json",
+    "package_bom_verifier": "artifact/package_bom.py",
+    "apple_rustc_wrapper": "artifact/apple-sdk-rustc.sh",
+    "rust_library_notices": "LICENSES/Rust-1.98.1-library.html",
+}
+SDK_EXTRA_FILES = frozenset({
+    "share/q-periapt/sdk_smoke.c", "include/qperiapt/abi2/sdk_policy_update_fixture.h",
+    "share/q-periapt/legacy/q_periapt.h", "LICENSES/Rust-1.98.1-library.html",
+})
+SDK_PAYLOAD_SOURCES = {
+    "share/q-periapt/sdk_smoke.c": "bindings/c/sdk_smoke.c",
+    "include/qperiapt/abi2/sdk_policy_update_fixture.h": "bindings/c/sdk_policy_update_fixture.h",
+    "share/q-periapt/legacy/q_periapt.h": "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h",
+    "LICENSES/Rust-1.98.1-library.html": "LICENSES/Rust-1.98.1-library.html",
+}
+
+
+def profile_source_paths(profile: str) -> dict[str, str]:
+    require(profile in C_PROFILES, "unknown C package profile")
+    return dict(SDK_SOURCE_INPUT_PATHS if profile == "sdk-020" else SOURCE_INPUT_PATHS)
+
+
+def source_fingerprints(repository: pathlib.Path, profile: str) -> dict[str, str]:
+    return {**{key: _snapshot(repository / path, f"C package source {path}").sha256
+               for key, path in profile_source_paths(profile).items()},
+            "rust_workspace_build_inputs": rust_workspace_source_digest(repository)}
 RUST_WORKSPACE_INPUTS = ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "crates")
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_FILE_BYTES = 512 * 1024 * 1024
@@ -99,8 +136,8 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)+$")
 SHARED_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
-EXPECTED_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-EXPECTED_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
+EXPECTED_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+EXPECTED_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 LDD_MAPPING_RE = re.compile(
     r"^(?P<name>\S+)\s+=>\s+(?P<target>.+)$"
 )
@@ -390,6 +427,14 @@ def _expected_files(target: str, runtime_identity: dict[str, Any], third_party: 
     ) | third_party
 
 
+def expected_profile_files(root: pathlib.Path, target: str, runtime_identity: dict[str, Any], profile: str) -> frozenset[str]:
+    require(profile in C_PROFILES, "unknown C package profile")
+    required = _expected_files(target, runtime_identity, _third_party_files(root, target))
+    if profile == "sdk-020":
+        required = (required - {"share/q-periapt/abi/q-periapt-c-abi-v2.json"}) | {SDK_EMBEDDED_CONTRACT} | SDK_EXTRA_FILES
+    return required
+
+
 def _validate_licenses(root: pathlib.Path, repository: pathlib.Path) -> None:
     pairs = {
         "LICENSE": "LICENSE",
@@ -408,6 +453,36 @@ def _validate_licenses(root: pathlib.Path, repository: pathlib.Path) -> None:
         )
 
 
+def verify_sealed_payload(package_root: pathlib.Path, expected_manifest_sha256: str) -> dict[str, Any]:
+    """Recheck installed bytes against the manifest pinned before extraction.
+
+    This consistency check follows full contract verification; it does not
+    independently authenticate a caller-supplied manifest digest.
+    """
+    require(SHA256_RE.fullmatch(expected_manifest_sha256) is not None, "C package pinned manifest digest is malformed")
+    root = _root(package_root)
+    manifest, data = _json(root / "MANIFEST.json", "installed C manifest")
+    require(hashlib.sha256(data).hexdigest() == expected_manifest_sha256, "installed C manifest changed after packaging")
+    files = _inventory(root)
+    entries = manifest.get("files")
+    require(isinstance(entries, list) and entries, "installed C manifest has no files")
+    hashes: dict[str, str] = {}
+    for entry in entries:
+        require(isinstance(entry, dict), "installed C manifest file row is malformed")
+        name, expected = entry.get("path"), entry.get("sha256")
+        require(isinstance(name, str) and name in files and name not in hashes, "installed C manifest file path differs")
+        require(isinstance(expected, str) and SHA256_RE.fullmatch(expected) is not None, "installed C file hash is malformed")
+        snapshot = _snapshot(files[name], f"installed C payload {name}")
+        require(snapshot.sha256 == expected and snapshot.size == entry.get("bytes"), f"installed C payload changed: {name}")
+        require(stat.S_IMODE(files[name].stat().st_mode) == 0o644, f"installed C file mode changed: {name}")
+        hashes[name] = expected
+    require(set(files) == set(hashes) | {"MANIFEST.json", "SHA256SUMS"}, "installed C package inventory changed")
+    hashes["MANIFEST.json"] = expected_manifest_sha256
+    sums = "".join(f"{digest}  {name}\n" for name, digest in sorted(hashes.items())).encode("ascii")
+    require(_snapshot(root / "SHA256SUMS", "installed C checksums").data == sums, "installed C checksum file changed")
+    return manifest
+
+
 def verify_package(
     package_root: pathlib.Path,
     repository_root: pathlib.Path,
@@ -415,18 +490,27 @@ def verify_package(
     expected_target: str,
     expected_commit: str | None = None,
     expected_source_date_epoch: int | None = None,
+    profile: str = "legacy",
+    allow_diagnostic: bool = False,
 ) -> dict[str, Any]:
     """Verify all portable package invariants before native ELF consumer gates."""
 
+    require(profile in C_PROFILES, "unknown C package profile")
+    sdk = profile == "sdk-020"
+    version = SDK_PACKAGE_VERSION if sdk else PACKAGE_SEMVER
+    export_count = 51 if sdk else 9
+    source_paths = profile_source_paths(profile)
+    contract_path = source_paths["c_abi_contract"]
+    embedded_path = SDK_EMBEDDED_CONTRACT if sdk else "share/q-periapt/abi/q-periapt-c-abi-v2.json"
     require(expected_target in SUPPORTED_TARGETS, f"unsupported Linux target: {expected_target}")
     root = _root(package_root)
     repository = _root(repository_root)
     inventory = _inventory(root)
     manifest, manifest_bytes = _json(root / "MANIFEST.json", "C package MANIFEST.json")
     require(set(manifest) == MANIFEST_KEYS, "C package manifest fields differ")
-    require(manifest["schema_version"] == SCHEMA_VERSION, "C package manifest schema differs")
-    require(manifest["package"] == f"q-periapt-c-abi2-{PACKAGE_SEMVER}-{expected_target}", "C package name differs")
-    require(manifest["version"] == PACKAGE_SEMVER, "C package version differs")
+    require(type(manifest["schema_version"]) is int and manifest["schema_version"] == (3 if sdk else SCHEMA_VERSION), "C package manifest schema differs")
+    require(manifest["package"] == f"q-periapt-c-abi2-{version}-{expected_target}", "C package name differs")
+    require(manifest["version"] == version, "C package version differs")
     require(manifest["host"] == expected_target, "C package host differs")
     epoch = manifest["source_date_epoch"]
     require(type(epoch) is int and 0 <= epoch <= 0xFFFFFFFF, "C package source epoch is malformed")
@@ -437,7 +521,11 @@ def verify_package(
     require(COMMIT_RE.fullmatch(manifest.get("git_commit", "")) is not None, "C package commit is malformed")
     if expected_commit is not None:
         require(manifest["git_commit"] == expected_commit, "C package commit differs from release source")
-    require(manifest["git_dirty"] is False and manifest["diagnostic_only"] is False, "C package is not clean release evidence")
+    if sdk and allow_diagnostic:
+        require(type(manifest["git_dirty"]) is bool and manifest["diagnostic_only"] is manifest["git_dirty"],
+                "C package diagnostic provenance differs")
+    else:
+        require(manifest["git_dirty"] is False and manifest["diagnostic_only"] is False, "C package is not clean release evidence")
     require(
         manifest["rustc"] == EXPECTED_RUSTC_VERSION,
         "C package rustc version differs from the canonical release toolchain",
@@ -450,9 +538,9 @@ def verify_package(
     abi = manifest["abi"]
     require(isinstance(abi, dict) and set(abi) == ABI_KEYS, "C package ABI fields differ")
     require(abi["major"] == ABI_MAJOR and abi["platform"] == "linux", "C package ABI platform differs")
-    require(abi["export_count"] == 9, "C package ABI export count differs")
-    require(abi["contract_path"] == "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json", "C package source contract path differs")
-    require(abi["embedded_contract_path"] == "share/q-periapt/abi/q-periapt-c-abi-v2.json", "C package embedded contract path differs")
+    require(type(abi["export_count"]) is int and abi["export_count"] == export_count, "C package ABI export count differs")
+    require(abi["contract_path"] == contract_path, "C package source contract path differs")
+    require(abi["embedded_contract_path"] == embedded_path, "C package embedded contract path differs")
     try:
         source_contract = load_contract(repository / abi["contract_path"])
         embedded_contract = load_contract(root / abi["embedded_contract_path"])
@@ -460,7 +548,7 @@ def verify_package(
         fail(f"C package ABI contract is invalid: {exc}")
     require(source_contract.sha256 == embedded_contract.sha256 == abi["contract_sha256"], "C package ABI contract digest differs")
     exports = sorted(item["name"] for item in embedded_contract.document["abi"]["exports"])
-    require(len(exports) == 9 and len(set(exports)) == 9, "C package ABI export set differs")
+    require(len(exports) == export_count and len(set(exports)) == export_count, "C package ABI export set differs")
     exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode()).hexdigest()
     require(exports_sha256 == abi["exports_sha256"], "C package ABI export digest differs")
     runtime_identity = embedded_contract.document["package"]["platforms"]["linux"]
@@ -491,8 +579,7 @@ def verify_package(
         "C package ELF hardening evidence differs",
     )
 
-    third_party = _third_party_files(root, expected_target)
-    expected_payload = _expected_files(expected_target, runtime_identity, third_party)
+    expected_payload = expected_profile_files(root, expected_target, runtime_identity, profile)
     expected_all = expected_payload | {"MANIFEST.json", "SHA256SUMS"}
     require(set(inventory) == expected_all, f"C package file set differs: missing={sorted(expected_all - set(inventory))} extra={sorted(set(inventory) - expected_all)}")
 
@@ -534,18 +621,23 @@ def verify_package(
     require(sums == {**manifest_hashes, "MANIFEST.json": hashlib.sha256(manifest_bytes).hexdigest()}, "C package SHA256SUMS differs from package bytes")
 
     source_inputs = manifest["source_inputs_sha256"]
-    expected_source_keys = set(SOURCE_INPUT_PATHS) | {"rust_workspace_build_inputs", "third_party_rust_license_inventory"}
+    expected_source_keys = set(source_paths) | {"rust_workspace_build_inputs", "third_party_rust_license_inventory"}
     require(isinstance(source_inputs, dict) and set(source_inputs) == expected_source_keys, "C package source-input fields differ")
     for key, digest in source_inputs.items():
         require(isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None, f"C package source-input digest is malformed: {key}")
-    for key, relative in SOURCE_INPUT_PATHS.items():
+    for key, relative in source_paths.items():
         require(source_inputs[key] == _snapshot(repository / relative, f"source input {relative}").sha256, f"C package source-input digest differs: {relative}")
     require(source_inputs["rust_workspace_build_inputs"] == rust_workspace_source_digest(repository), "C package Rust workspace source digest differs")
     require(source_inputs["third_party_rust_license_inventory"] == _snapshot(root.joinpath(*THIRD_PARTY_INVENTORY_RELATIVE.parts), "third-party Rust inventory").sha256, "C package third-party inventory source digest differs")
 
     _validate_licenses(root, repository)
+    if sdk:
+        for packaged, source in SDK_PAYLOAD_SOURCES.items():
+            require(_snapshot(root / packaged, packaged).sha256 == _snapshot(repository / source, source).sha256,
+                    f"C SDK installed source differs: {packaged}")
     try:
-        verify_package_boms(root, cargo_lock=repository / "Cargo.lock")
+        verify_package_boms(root, cargo_lock=repository / "Cargo.lock",
+                            profile=BomProfile.NATIVE_SDK_020 if sdk else BomProfile.BACKENDS_V0_1_5)
     except PackageBomError as exc:
         fail(f"C package BOM is invalid: {exc}")
     forbidden = [str(repository), repository.as_posix()]
@@ -585,6 +677,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--expected-target", required=True)
     parser.add_argument("--expected-commit")
     parser.add_argument("--expected-source-date-epoch", type=int)
+    parser.add_argument("--profile", choices=C_PROFILES, default="legacy")
+    parser.add_argument("--allow-diagnostic", action="store_true")
     args = parser.parse_args(argv)
     try:
         manifest = verify_package(
@@ -593,6 +687,8 @@ def main(argv: list[str]) -> int:
             expected_target=args.expected_target,
             expected_commit=args.expected_commit,
             expected_source_date_epoch=args.expected_source_date_epoch,
+            profile=args.profile,
+            allow_diagnostic=args.allow_diagnostic,
         )
     except (CPackageManifestError, OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)

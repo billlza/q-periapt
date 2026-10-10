@@ -13,9 +13,11 @@ struct allocation { void *pointer; size_t length; };
 static struct allocation allocations[24];
 static size_t allocation_count, allocation_calls, copy_calls, output_calls, backend_calls;
 static size_t fail_allocation, fail_copy, fail_output;
+static int fail_result_array, sdk_live, sdk_status;
+static size_t sdk_close_calls;
 static int pending, native_code;
 static const char *exception_class, *exception_message, *native_operation;
-static jbyte public_bytes[65537], result_bytes[Q_PERIAPT_POLICY_DECISION_LEN];
+static jbyte public_bytes[65537], result_bytes[Q_PERIAPT_SDK_EXPANDED_KEY_LEN];
 static struct array returned_array;
 static size_t cases;
 
@@ -60,7 +62,8 @@ static void JNICALL set_region(JNIEnv *env, jbyteArray value, jsize start, jsize
     }
 }
 static jbyteArray JNICALL new_array(JNIEnv *env, jsize length) {
-    (void)env; assert(!pending && length == Q_PERIAPT_POLICY_DECISION_LEN);
+    (void)env; assert(!pending && length >= 0 && (size_t)length <= sizeof(result_bytes));
+    if (fail_result_array) { pending = 1; exception_class = "java/lang/OutOfMemoryError"; return NULL; }
     returned_array = (struct array){length, result_bytes};
     return (jbyteArray)&returned_array;
 }
@@ -73,13 +76,14 @@ static jmethodID JNICALL get_method(JNIEnv *env, jclass cls, const char *name, c
     return (jmethodID)(uintptr_t)1;
 }
 static jstring JNICALL new_string(JNIEnv *env, const char *value) { (void)env; assert(!pending); return (jstring)value; }
+static const char *status_name(int32_t code);
 static jobject JNICALL new_object(JNIEnv *env, jclass cls, jmethodID method, ...) {
     (void)env; (void)method; assert(!pending);
     va_list arguments; va_start(arguments, method);
     native_operation = (const char *)va_arg(arguments, jstring);
     native_code = va_arg(arguments, jint);
     const char *status = (const char *)va_arg(arguments, jstring);
-    assert(strcmp(status, native_code == Q_PERIAPT_ERR_LENGTH ? "ERR_LENGTH" : "ERR_POLICY") == 0);
+    assert(strcmp(status, status_name(native_code)) == 0);
     va_end(arguments);
     return (jobject)cls;
 }
@@ -87,7 +91,74 @@ static jint JNICALL throw_object(JNIEnv *env, jthrowable value) { (void)env; (vo
 static jint JNICALL throw_string(JNIEnv *env, jclass cls, const char *value) {
     (void)env; (void)cls; assert(!pending); pending = 1; exception_message = value; return JNI_OK;
 }
-static const char *status_name(int32_t code) { return code == Q_PERIAPT_ERR_LENGTH ? "ERR_LENGTH" : "ERR_POLICY"; }
+static const char *status_name(int32_t code) {
+    switch (code) {
+        case Q_PERIAPT_ERR_LENGTH: return "ERR_LENGTH";
+        case Q_PERIAPT_ERR_POLICY: return "ERR_POLICY";
+        case Q_PERIAPT_ERR_LIMITS: return "ERR_LIMITS";
+        case Q_PERIAPT_ERR_CLOSED: return "ERR_CLOSED";
+        default: assert(0); return NULL;
+    }
+}
+
+/* Recording ABI boundary for JNI fault injection, not cryptographic evidence.
+ * sdk-jni-host-smoke.sh separately executes this adapter against the real core. */
+static int32_t sdk_create(uint64_t *out) {
+    backend_calls++;
+    assert(!sdk_live);
+    if (sdk_status != Q_PERIAPT_OK) { *out = 0; return sdk_status; }
+    sdk_live = 1; *out = 100;
+    return Q_PERIAPT_OK;
+}
+uint32_t q_periapt_sdk_extension_version(void) { return 1; }
+int32_t q_periapt_sdk_runtime_new(const QPeriaptRuntimeOptions *options, uint64_t *out) {
+    assert(options->struct_size == sizeof(*options) && options->extension_version == 1);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_key_generate(uint64_t parent, uint64_t *out) { assert(parent == 42); return sdk_create(out); }
+int32_t q_periapt_sdk_runtime_state(uint64_t handle, QPeriaptOutput out) {
+    assert(handle == 42);
+    backend_calls++;
+    memset(out.data, sdk_status == Q_PERIAPT_OK ? 0x42 : 0, out.len);
+    return sdk_status;
+}
+int32_t q_periapt_sdk_key_public(uint64_t handle, QPeriaptOutput out) { return q_periapt_sdk_runtime_state(handle, out); }
+int32_t q_periapt_sdk_secret_export(uint64_t handle, QPeriaptOutput out) { return q_periapt_sdk_runtime_state(handle, out); }
+int32_t q_periapt_sdk_derived_key_export(uint64_t handle, QPeriaptOutput out) { return q_periapt_sdk_runtime_state(handle, out); }
+int32_t q_periapt_sdk_policy_update_states(uint64_t handle, QPeriaptOutput out) { return q_periapt_sdk_runtime_state(handle, out); }
+int32_t q_periapt_sdk_expert_key_export(uint64_t handle, QPeriaptOutput out) { return q_periapt_sdk_runtime_state(handle, out); }
+int32_t q_periapt_sdk_runtime_enabled(uint64_t handle, uint32_t *out) {
+    assert(handle == 42); backend_calls++;
+    *out = sdk_status == Q_PERIAPT_OK ? 1 : 0;
+    return sdk_status;
+}
+int32_t q_periapt_sdk_policy_update_activate(uint64_t handle, uint64_t *out) { assert(handle == 42); return sdk_create(out); }
+int32_t q_periapt_sdk_runtime_prepare_update(uint64_t handle, QPeriaptInput policy, QPeriaptInput signature, uint64_t *out) {
+    assert(handle == 42 && policy.len > 0 && policy.len <= 65536 && signature.len == 3309);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_expert_key_import(uint64_t handle, QPeriaptInput encoded, uint64_t *out) {
+    assert(handle == 42 && encoded.len == Q_PERIAPT_SDK_EXPANDED_KEY_LEN);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_secret_derive(uint64_t parent, uint32_t purpose, QPeriaptInput label, QPeriaptInput context, uint64_t *out) {
+    assert(parent == 42 && purpose == 1 && label.len > 0 && label.len <= 255 && context.len <= 65536);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_encapsulate(uint64_t parent, QPeriaptInput peer, QPeriaptInput context, QPeriaptOutput ct, uint64_t *out) {
+    assert(parent == 42 && peer.len == Q_PERIAPT_SDK_PUBLIC_KEY_LEN && context.len <= 65536);
+    memset(ct.data, 0x42, ct.len);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_decapsulate(uint64_t parent, QPeriaptInput ct, QPeriaptInput context, uint64_t *out) {
+    assert(parent == 42 && ct.len == Q_PERIAPT_SDK_CIPHERTEXT_LEN && context.len <= 65536);
+    return sdk_create(out);
+}
+int32_t q_periapt_sdk_close(uint64_t handle) {
+    assert(handle == 100 && sdk_live);
+    sdk_live = 0; sdk_close_calls++;
+    return Q_PERIAPT_OK;
+}
 static int32_t write_one(uint8_t *out, uintptr_t length) {
     backend_calls++; memset(out, 0x42, length); return Q_PERIAPT_OK;
 }
@@ -135,8 +206,10 @@ struct call {
 };
 static void reset(void) {
     assert(allocation_count == 0);
+    assert(!sdk_live);
     allocation_calls = copy_calls = output_calls = backend_calls = 0;
     fail_allocation = fail_copy = fail_output = 0;
+    fail_result_array = 0; sdk_status = Q_PERIAPT_OK; sdk_close_calls = 0;
     pending = native_code = 0;
     exception_class = exception_message = native_operation = NULL;
 }
@@ -189,6 +262,87 @@ static void expect_java(struct call *call, const char *type, const char *message
     assert(pending && strcmp(exception_class, type) == 0);
     if (message != NULL) assert(strcmp(exception_message, message) == 0);
     assert(allocation_calls == 0 && copy_calls == 0 && backend_calls == 0);
+}
+
+static void test_sdk_inputs(void) {
+    size_t sdk_cases = 0;
+    for (int op = 0; op < 6; op++) {
+        const jsize good[6][4] = {{1, 3309, 1952, 36}, {1216, 1, 0, 0}, {1120, 1, 0, 0}, {255, 1, 0, 0}, {1, 3309, 0, 0}, {2440, 0, 0, 0}};
+        const size_t count = op == 0 ? 4 : (op == 5 ? 1 : 2);
+        // Baseline; malformed shape; each allocation/copy failure; output-copy failure.
+        for (int variant = 0; variant < (int)(2 + 3 * count + (op == 1)); variant++) {
+            reset();
+            struct array arrays[4];
+            jbyteArray inputs[4];
+            for (size_t i = 0; i < count; i++) {
+                arrays[i] = (struct array){good[op][i], public_bytes};
+                inputs[i] = (jbyteArray)&arrays[i];
+            }
+            struct array output = {1120, result_bytes};
+            if (variant >= 1 && variant <= (int)count) {
+                size_t index = (size_t)variant - 1;
+                arrays[index].length = ((op == 0 || op == 4) && index == 0) || (op != 0 && index == 1) ? 65537 : good[op][index] + 1;
+            } else if (variant > (int)count && variant <= (int)(2 * count)) {
+                fail_allocation = (size_t)variant - count;
+            } else if (variant > (int)(2 * count) && variant <= (int)(3 * count)) {
+                fail_copy = (size_t)variant - 2 * count;
+            } else if (variant == (int)(3 * count + 1)) {
+                sdk_status = Q_PERIAPT_ERR_CLOSED;
+            } else if (variant != 0) {
+                fail_output = 1;
+            }
+            jlong result;
+            if (op == 0) result = native_sdk_runtime_new(&environment, NULL, inputs[0], inputs[1], inputs[2], inputs[3], 1, 1);
+            else if (op == 1) result = native_sdk_encapsulate(&environment, NULL, 42, inputs[0], inputs[1], (jbyteArray)&output);
+            else if (op == 2) result = native_sdk_decapsulate(&environment, NULL, 42, inputs[0], inputs[1]);
+            else if (op == 3) result = native_sdk_secret_derive(&environment, NULL, 42, 1, inputs[0], inputs[1]);
+            else if (op == 4) result = native_sdk_runtime_prepare_update(&environment, NULL, 42, inputs[0], inputs[1]);
+            else result = native_sdk_expert_key_import(&environment, NULL, 42, inputs[0]);
+            assert(allocation_count == 0);
+            if (variant == 0) {
+                assert(result == 100 && sdk_live && !pending && backend_calls == 1);
+                q_periapt_sdk_close(100);
+            } else {
+                assert(result == 0 && !sdk_live && pending);
+                if (variant <= (int)count) assert(native_code == Q_PERIAPT_ERR_LENGTH && allocation_calls == 0 && copy_calls == 0);
+                if (variant <= (int)(3 * count)) assert(backend_calls == 0);
+                if (fail_output) assert(sdk_close_calls == 1 && backend_calls == 1);
+            }
+            sdk_cases++;
+        }
+    }
+    for (int op = 0; op < 6; op++) {
+        for (int variant = 0; variant < 4; variant++) {
+            reset();
+            if (variant == 1) fail_result_array = 1;
+            if (variant == 2) fail_output = 1;
+            if (variant == 3) sdk_status = Q_PERIAPT_ERR_CLOSED;
+            jbyteArray result = op == 0 ? native_sdk_runtime_state(&environment, NULL, 42) :
+                op == 1 ? native_sdk_key_public(&environment, NULL, 42) :
+                op == 2 ? native_sdk_secret_export(&environment, NULL, 42) :
+                op == 3 ? native_sdk_derived_key_export(&environment, NULL, 42) :
+                op == 4 ? native_sdk_policy_update_states(&environment, NULL, 42) : native_sdk_expert_key_export(&environment, NULL, 42);
+            if (variant == 0) assert(result != NULL && !pending);
+            else assert(result == NULL && pending);
+            assert(backend_calls == (variant == 1 ? 0 : 1) && allocation_count == 0);
+            sdk_cases++;
+        }
+    }
+    for (int variant = 0; variant < 2; variant++) {
+        reset();
+        if (variant) sdk_status = Q_PERIAPT_ERR_CLOSED;
+        jboolean enabled = native_sdk_runtime_enabled(&environment, NULL, 42);
+        assert(enabled == (variant ? JNI_FALSE : JNI_TRUE));
+        assert(pending == variant && backend_calls == 1 && allocation_count == 0);
+        reset();
+        if (variant) sdk_status = Q_PERIAPT_ERR_CLOSED;
+        jlong handle = native_sdk_policy_update_activate(&environment, NULL, 42);
+        assert(handle == (variant ? 0 : 100));
+        assert(pending == variant && backend_calls == 1 && allocation_count == 0);
+        if (!variant) q_periapt_sdk_close(100);
+        sdk_cases += 2;
+    }
+    printf("SDK_JNI_INPUT_SHAPES_PASS cases=%zu\n", sdk_cases);
 }
 int main(void) {
     memset(public_bytes, 0x42, sizeof(public_bytes));
@@ -256,5 +410,6 @@ int main(void) {
     setup(&call, ENCAP); call.arrays[8].length = 0; call.arrays[3].length = 65537;
     expect_java(&call, "java/lang/IllegalArgumentException", "output array length mismatch");
     printf("JNI_INPUT_SHAPES_PASS cases=%zu\n", cases);
+    test_sdk_inputs();
     return 0;
 }

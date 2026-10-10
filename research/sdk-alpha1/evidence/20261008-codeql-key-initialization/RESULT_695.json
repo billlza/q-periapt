@@ -1,0 +1,2276 @@
+{
+  "ruleId": "rust/hard-coded-cryptographic-value",
+  "rule": {
+    "id": "rust/hard-coded-cryptographic-value",
+    "index": 12,
+    "toolComponent": {
+      "index": 0
+    }
+  },
+  "message": {
+    "text": "This hard-coded value is used as [a key](1).\nThis hard-coded value is used as [a key](2).\nThis hard-coded value is used as [a key](3).\nThis hard-coded value is used as [a key](4).\nThis hard-coded value is used as [a key](5).\nThis hard-coded value is used as [a key](6).\nThis hard-coded value is used as [a key](7).\nThis hard-coded value is used as [a key](8).\nThis hard-coded value is used as [a key](9).\nThis hard-coded value is used as [a key](10).\nThis hard-coded value is used as [a key](11).\nThis hard-coded value is used as [a key](12).\nThis hard-coded value is used as [a key](13).\nThis hard-coded value is used as [a key](14).\nThis hard-coded value is used as [a key](15).\nThis hard-coded value is used as [a key](16).\nThis hard-coded value is used as [a key](17).\nThis hard-coded value is used as [a key](18).\nThis hard-coded value is used as [a key](19).\nThis hard-coded value is used as [a key](20).\nThis hard-coded value is used as [a key](21).\nThis hard-coded value is used as [a key](22).\nThis hard-coded value is used as [a key](23)."
+  },
+  "locations": [
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "crates/q-periapt-core/src/lib.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 162
+        },
+        "region": {
+          "startLine": 125,
+          "startColumn": 14,
+          "endColumn": 22
+        }
+      }
+    }
+  ],
+  "partialFingerprints": {
+    "primaryLocationLineHash": "64a9ef7be318adcc:1",
+    "primaryLocationStartColumnFingerprint": "5"
+  },
+  "codeFlows": [
+    {
+      "threadFlows": [
+        {
+          "locations": [
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 14,
+                    "endColumn": 22
+                  }
+                },
+                "message": {
+                  "text": "[0u8; N]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 9,
+                    "endColumn": 23
+                  }
+                },
+                "message": {
+                  "text": "Self(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 124,
+                    "startColumn": 35,
+                    "endLine": 126,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 244,
+                    "startColumn": 23,
+                    "endColumn": 47
+                  }
+                },
+                "message": {
+                  "text": "...::zeroed(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 244,
+                    "startColumn": 13,
+                    "endColumn": 20
+                  }
+                },
+                "message": {
+                  "text": "mut key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 251,
+                    "startColumn": 12,
+                    "endColumn": 15
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 251,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 243,
+                    "startColumn": 81,
+                    "endLine": 252,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 61,
+                    "startColumn": 15,
+                    "endColumn": 43
+                  }
+                },
+                "message": {
+                  "text": "wrapping.signing_owner_key() [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 61,
+                    "startColumn": 15,
+                    "endColumn": 44
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 61,
+                    "startColumn": 9,
+                    "endColumn": 12
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 62,
+                    "startColumn": 41,
+                    "endColumn": 44
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 21,
+                    "endColumn": 26
+                  }
+                },
+                "message": {
+                  "text": "SelfParam [&ref, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 10,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "self.0"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "&... [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 40,
+                    "endLine": 138,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 62,
+                    "startColumn": 41,
+                    "endColumn": 55
+                  }
+                },
+                "message": {
+                  "text": "key.as_bytes() [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 62,
+                    "startColumn": 41,
+                    "endColumn": 62
+                  }
+                },
+                "message": {
+                  "text": "... .into() [element]"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 33,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "step"
+                  }
+                }
+              ]
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 62,
+                    "startColumn": 41,
+                    "endColumn": 62
+                  }
+                },
+                "message": {
+                  "text": "... .into()"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 77,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "sink"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "threadFlows": [
+        {
+          "locations": [
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 14,
+                    "endColumn": 22
+                  }
+                },
+                "message": {
+                  "text": "[0u8; N]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 9,
+                    "endColumn": 23
+                  }
+                },
+                "message": {
+                  "text": "Self(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 124,
+                    "startColumn": 35,
+                    "endLine": 126,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 244,
+                    "startColumn": 23,
+                    "endColumn": 47
+                  }
+                },
+                "message": {
+                  "text": "...::zeroed(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 244,
+                    "startColumn": 13,
+                    "endColumn": 20
+                  }
+                },
+                "message": {
+                  "text": "mut key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 251,
+                    "startColumn": 12,
+                    "endColumn": 15
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 251,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 101
+                  },
+                  "region": {
+                    "startLine": 243,
+                    "startColumn": 81,
+                    "endLine": 252,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 91,
+                    "startColumn": 15,
+                    "endColumn": 43
+                  }
+                },
+                "message": {
+                  "text": "wrapping.signing_owner_key() [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 91,
+                    "startColumn": 15,
+                    "endColumn": 44
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 91,
+                    "startColumn": 9,
+                    "endColumn": 12
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 92,
+                    "startColumn": 28,
+                    "endColumn": 31
+                  }
+                },
+                "message": {
+                  "text": "key [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 21,
+                    "endColumn": 26
+                  }
+                },
+                "message": {
+                  "text": "SelfParam [&ref, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 10,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "self.0"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "&... [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 40,
+                    "endLine": 138,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 92,
+                    "startColumn": 28,
+                    "endColumn": 42
+                  }
+                },
+                "message": {
+                  "text": "key.as_bytes() [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 92,
+                    "startColumn": 28,
+                    "endColumn": 49
+                  }
+                },
+                "message": {
+                  "text": "... .into() [element]"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 33,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "step"
+                  }
+                }
+              ]
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 176
+                  },
+                  "region": {
+                    "startLine": 92,
+                    "startColumn": 28,
+                    "endColumn": 49
+                  }
+                },
+                "message": {
+                  "text": "... .into()"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 77,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "sink"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "threadFlows": [
+        {
+          "locations": [
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 14,
+                    "endColumn": 22
+                  }
+                },
+                "message": {
+                  "text": "[0u8; N]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 9,
+                    "endColumn": 23
+                  }
+                },
+                "message": {
+                  "text": "Self(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 124,
+                    "startColumn": 35,
+                    "endLine": 126,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 188,
+                    "startColumn": 21,
+                    "endColumn": 45
+                  }
+                },
+                "message": {
+                  "text": "...::zeroed(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 188,
+                    "startColumn": 9,
+                    "endColumn": 18
+                  }
+                },
+                "message": {
+                  "text": "mut value [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 190,
+                    "startColumn": 8,
+                    "endColumn": 13
+                  }
+                },
+                "message": {
+                  "text": "value [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 190,
+                    "startColumn": 5,
+                    "endColumn": 14
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 186,
+                    "startColumn": 59,
+                    "endLine": 191,
+                    "endColumn": 2
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 222,
+                    "startColumn": 9,
+                    "endColumn": 65
+                  }
+                },
+                "message": {
+                  "text": "key(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 222,
+                    "startColumn": 9,
+                    "endColumn": 66
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 220,
+                    "startColumn": 8,
+                    "endLine": 223,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "TupleExpr [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 220,
+                    "startColumn": 5,
+                    "endLine": 223,
+                    "endColumn": 7
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 210,
+                    "startColumn": 62,
+                    "endLine": 224,
+                    "endColumn": 2
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 417,
+                    "startColumn": 31,
+                    "endColumn": 58
+                  }
+                },
+                "message": {
+                  "text": "step(...) [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 417,
+                    "startColumn": 31,
+                    "endColumn": 59
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 417,
+                    "startColumn": 13,
+                    "endColumn": 28
+                  }
+                },
+                "message": {
+                  "text": "TuplePat [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 417,
+                    "startColumn": 20,
+                    "endColumn": 27
+                  }
+                },
+                "message": {
+                  "text": "message [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 429,
+                    "startColumn": 46,
+                    "endColumn": 53
+                  }
+                },
+                "message": {
+                  "text": "message [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 21,
+                    "endColumn": 26
+                  }
+                },
+                "message": {
+                  "text": "SelfParam [&ref, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 10,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "self.0"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "&... [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 40,
+                    "endLine": 138,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 429,
+                    "startColumn": 46,
+                    "endColumn": 64
+                  }
+                },
+                "message": {
+                  "text": "message.as_bytes() [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 429,
+                    "startColumn": 46,
+                    "endColumn": 64
+                  }
+                },
+                "message": {
+                  "text": "message.as_bytes()"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 74,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "sink"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "threadFlows": [
+        {
+          "locations": [
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 14,
+                    "endColumn": 22
+                  }
+                },
+                "message": {
+                  "text": "[0u8; N]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 125,
+                    "startColumn": 9,
+                    "endColumn": 23
+                  }
+                },
+                "message": {
+                  "text": "Self(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 124,
+                    "startColumn": 35,
+                    "endLine": 126,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 188,
+                    "startColumn": 21,
+                    "endColumn": 45
+                  }
+                },
+                "message": {
+                  "text": "...::zeroed(...) [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 188,
+                    "startColumn": 9,
+                    "endColumn": 18
+                  }
+                },
+                "message": {
+                  "text": "mut value [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 190,
+                    "startColumn": 8,
+                    "endColumn": 13
+                  }
+                },
+                "message": {
+                  "text": "value [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 190,
+                    "startColumn": 5,
+                    "endColumn": 14
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 186,
+                    "startColumn": 59,
+                    "endLine": 191,
+                    "endColumn": 2
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 222,
+                    "startColumn": 9,
+                    "endColumn": 65
+                  }
+                },
+                "message": {
+                  "text": "key(...) [Ok, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 222,
+                    "startColumn": 9,
+                    "endColumn": 66
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 220,
+                    "startColumn": 8,
+                    "endLine": 223,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "TupleExpr [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 220,
+                    "startColumn": 5,
+                    "endLine": 223,
+                    "endColumn": 7
+                  }
+                },
+                "message": {
+                  "text": "Ok(...) [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 121
+                  },
+                  "region": {
+                    "startLine": 210,
+                    "startColumn": 62,
+                    "endLine": 224,
+                    "endColumn": 2
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 505,
+                    "startColumn": 35,
+                    "endColumn": 69
+                  }
+                },
+                "message": {
+                  "text": "step(...) [Ok, tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 505,
+                    "startColumn": 35,
+                    "endColumn": 70
+                  }
+                },
+                "message": {
+                  "text": "TryExpr [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 505,
+                    "startColumn": 17,
+                    "endColumn": 32
+                  }
+                },
+                "message": {
+                  "text": "TuplePat [tuple.1, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 505,
+                    "startColumn": 24,
+                    "endColumn": 31
+                  }
+                },
+                "message": {
+                  "text": "message [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 489,
+                    "startColumn": 13,
+                    "endColumn": 20
+                  }
+                },
+                "message": {
+                  "text": "message [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 523,
+                    "startColumn": 46,
+                    "endColumn": 53
+                  }
+                },
+                "message": {
+                  "text": "message [ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 21,
+                    "endColumn": 26
+                  }
+                },
+                "message": {
+                  "text": "SelfParam [&ref, ZeroizingBytes]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 10,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "self.0"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 137,
+                    "startColumn": 9,
+                    "endColumn": 16
+                  }
+                },
+                "message": {
+                  "text": "&... [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "crates/q-periapt-core/src/lib.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 162
+                  },
+                  "region": {
+                    "startLine": 136,
+                    "startColumn": 40,
+                    "endLine": 138,
+                    "endColumn": 6
+                  }
+                },
+                "message": {
+                  "text": "{ ... } [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 523,
+                    "startColumn": 46,
+                    "endColumn": 64
+                  }
+                },
+                "message": {
+                  "text": "message.as_bytes() [&ref]"
+                }
+              }
+            },
+            {
+              "location": {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+                    "uriBaseId": "%SRCROOT%",
+                    "index": 125
+                  },
+                  "region": {
+                    "startLine": 523,
+                    "startColumn": 46,
+                    "endColumn": 64
+                  }
+                },
+                "message": {
+                  "text": "message.as_bytes()"
+                }
+              },
+              "taxa": [
+                {
+                  "index": 74,
+                  "toolComponent": {
+                    "index": 1
+                  },
+                  "properties": {
+                    "CodeQL/DataflowRole": "sink"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "relatedLocations": [
+    {
+      "id": 1,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 176
+        },
+        "region": {
+          "startLine": 62,
+          "startColumn": 41,
+          "endColumn": 62
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 2,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 176
+        },
+        "region": {
+          "startLine": 92,
+          "startColumn": 28,
+          "endColumn": 49
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 3,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 125
+        },
+        "region": {
+          "startLine": 429,
+          "startColumn": 46,
+          "endColumn": 64
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 4,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 125
+        },
+        "region": {
+          "startLine": 523,
+          "startColumn": 46,
+          "endColumn": 64
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 5,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 29
+        },
+        "region": {
+          "startLine": 1623,
+          "startColumn": 59,
+          "endColumn": 77
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 6,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 29
+        },
+        "region": {
+          "startLine": 1716,
+          "startColumn": 38,
+          "endColumn": 56
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 7,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 101
+        },
+        "region": {
+          "startLine": 982,
+          "startColumn": 43,
+          "endColumn": 59
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 8,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 101
+        },
+        "region": {
+          "startLine": 1017,
+          "startColumn": 43,
+          "endColumn": 59
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 9,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/bootstrap.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 177
+        },
+        "region": {
+          "startLine": 830,
+          "startColumn": 52,
+          "endColumn": 55
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 10,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/bootstrap.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 177
+        },
+        "region": {
+          "startLine": 835,
+          "startColumn": 52,
+          "endColumn": 55
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 11,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/cancellation.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 170
+        },
+        "region": {
+          "startLine": 348,
+          "startColumn": 68,
+          "endColumn": 86
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 12,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/closure/archive.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 127
+        },
+        "region": {
+          "startLine": 18,
+          "startColumn": 53,
+          "endColumn": 71
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 13,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 123
+        },
+        "region": {
+          "startLine": 91,
+          "startColumn": 67,
+          "endColumn": 81
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 14,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 150
+        },
+        "region": {
+          "startLine": 101,
+          "startColumn": 67,
+          "endColumn": 81
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 15,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/anchoring/tests.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 35
+        },
+        "region": {
+          "startLine": 2026,
+          "startColumn": 65,
+          "endColumn": 83
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 16,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 178
+        },
+        "region": {
+          "startLine": 455,
+          "startColumn": 67,
+          "endColumn": 84
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 17,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 179
+        },
+        "region": {
+          "startLine": 155,
+          "startColumn": 67,
+          "endColumn": 84
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 18,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/resolution.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 124
+        },
+        "region": {
+          "startLine": 217,
+          "startColumn": 71,
+          "endColumn": 85
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 19,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/tests/send_budget.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 28
+        },
+        "region": {
+          "startLine": 568,
+          "startColumn": 67,
+          "endColumn": 85
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 20,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/retired_report.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 180
+        },
+        "region": {
+          "startLine": 340,
+          "startColumn": 63,
+          "endColumn": 81
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 21,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 29
+        },
+        "region": {
+          "startLine": 1972,
+          "startColumn": 57,
+          "endColumn": 80
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 22,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 85
+        },
+        "region": {
+          "startLine": 48,
+          "startColumn": 57,
+          "endColumn": 75
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "id": 23,
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 100
+        },
+        "region": {
+          "startLine": 336,
+          "startColumn": 53,
+          "endColumn": 71
+        }
+      },
+      "message": {
+        "text": "a key"
+      }
+    },
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 176
+        },
+        "region": {
+          "startLine": 62,
+          "startColumn": 41,
+          "endColumn": 62
+        }
+      }
+    },
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 176
+        },
+        "region": {
+          "startLine": 92,
+          "startColumn": 28,
+          "endColumn": 49
+        }
+      }
+    },
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 125
+        },
+        "region": {
+          "startLine": 429,
+          "startColumn": 46,
+          "endColumn": 64
+        }
+      }
+    },
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+          "uriBaseId": "%SRCROOT%",
+          "index": 125
+        },
+        "region": {
+          "startLine": 523,
+          "startColumn": 46,
+          "endColumn": 64
+        }
+      }
+    }
+  ]
+}

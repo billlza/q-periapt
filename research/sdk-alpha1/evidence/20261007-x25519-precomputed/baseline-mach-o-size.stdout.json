@@ -1,0 +1,4 @@
+{
+  "raw_utf8": "Segment __PAGEZERO: 4294967296 (zero fill) \nSegment __TEXT: 655360\n\tSection __text: 502744\n\tSection __stubs: 888\n\tSection __stub_helper: 912\n\tSection __gcc_except_tab: 10724\n\tSection __const: 51368\n\tSection __cstring: 13007\n\tSection __unwind_info: 9904\n\tSection __eh_frame: 57228\n\ttotal 646775\nSegment __DATA_CONST: 16384\n\tSection __const: 15520\n\tSection __got: 32\n\ttotal 15552\nSegment __DATA: 16384\n\tSection __la_symbol_ptr: 592\n\tSection __data: 2504\n\tSection __thread_vars: 144\n\tSection __thread_data: 48\n\tSection __thread_bss: 40 (zerofill)\n\tSection __common: 72 (zerofill)\n\tSection __bss: 136 (zerofill)\n\ttotal 3536\nSegment __LINKEDIT: 229376\ntotal 4295884800\n",
+  "decoded_sha256": "4e5d3907c216aa4b54cdebfe7f0412202fb51bd3ae76d6443cbfcd264cabffa1"
+}

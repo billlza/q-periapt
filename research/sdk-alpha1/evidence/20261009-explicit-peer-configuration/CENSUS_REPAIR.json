@@ -1,0 +1,29 @@
+{
+  "base_head": "468dfc0a13b31e8aee0cad94b96d05316276224b",
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "artifact.test_continuity_c_independent_policy",
+    "artifact.test_continuity_foreign_account_results",
+    "artifact.test_continuity_foreign_policy",
+    "artifact.test_continuity_foreign_roster",
+    "-v"
+  ],
+  "before": "7 tests, 7 errors: stale enrollment binary census in synthetic evidence fixtures",
+  "after": "7 tests passed; too-low and too-high filtered-count counterexamples remain rejected",
+  "scope": "validator fixtures only; no product or validator weakening",
+  "logs": [
+    {
+      "file": "census-red-01.log.gz",
+      "uncompressed_sha256": "17a26a173be30c06ea48b057dcbb445eff3b7fb9721bc11bb72da934d6fcbf76",
+      "bytes": 16750
+    },
+    {
+      "file": "census-green-01.log.gz",
+      "uncompressed_sha256": "edacd56bd1dfc1cd3d643757ff00c86fc814be066400e12c9c4897cbb109afaf",
+      "bytes": 1445
+    }
+  ]
+}

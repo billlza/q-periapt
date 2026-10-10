@@ -480,8 +480,7 @@ conformance test---the encoding and combiner---is the same code regardless of wh
 backend (target-selected \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
 plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
 audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
-commit- and archive-hash-pinned, but RustSec does not inspect vendored C and neither the
-provider nor this Rust/C integration has completed an independent audit. Exactly the
+commit- and archive-hash-pinned, but RustSec does not inspect vendored C. Exactly the
 little-endian targets \code{aarch64-apple-darwin}, \code{aarch64-apple-ios},
 \code{aarch64-apple-ios-sim}, \code{aarch64-unknown-linux-gnu}, and
 \code{aarch64-linux-android} use upstream native arithmetic and fixed Armv8-A scalar
@@ -1145,8 +1144,7 @@ run is historical, and riscv64 and wasm32 have no current binary-CT
 or inherited source-CT claim. ACVP byte-identity is conformance, not CMVP
 certification. Upstream HOL-Light evidence covers only selected upstream AArch64
 assembly source/object routines, not downstream reassembly or the full ABI. The suite
-is research-grade and has not had an independent third-party audit. The
-historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
+is research-grade. The historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
 retained as supporting context and labeled as such. The matched-backend host gate accepts only a
 controlled proof whose digest matches the live canonical source tree; its machine-readable manifest
@@ -1162,13 +1160,13 @@ Apple matrix and controlled-host matched-backend proof results, but the release-
 changed the source digest again; all recorded package, device, performance, and binary-CT evidence
 is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
-without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
+without an ignore. This dependency scan covers the resolved Rust dependency graph.
 ABI~2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. Its stable binary targets are immutable, attestation-bound GitHub releases:
 an Apple Developer~ID-signed XCFramework
 revision and a platform distribution carrying the Android AAR with API~35 / 16\,KiB-page emulator
 runtime evidence and Linux x86\_64/aarch64 SDK archives. The unsigned Windows SDK
-remains an unsupported CI diagnostic outside the formal release. Production promotion still requires such review, fresh
+remains an unsupported CI diagnostic outside the formal release. Production promotion still requires internal cryptographic/ABI review, fresh
 release-bound two-ISA CT, same-source device/performance evidence, clean
 signed or transparency-backed source provenance and registry publication. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to

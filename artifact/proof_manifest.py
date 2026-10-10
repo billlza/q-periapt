@@ -505,6 +505,8 @@ def _validate_current_rust_package_contract(
         source_commit=source_commit,
         label="Rust package contract",
     )
+    # This is the frozen ten-crate release contract. SDK 0.2 uses its separate
+    # rust_sdk_profile qualification; changing this pin would reinterpret old receipts.
     exact_fields: tuple[tuple[str, object], ...] = (
         ("evidence_schema", 2),
         ("status", "pass"),

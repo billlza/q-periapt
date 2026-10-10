@@ -9,6 +9,28 @@
 The reference lane must reproduce public components before Q-Periapt research deltas
 are compared. The following revisions are the selected comparison baseline:
 
+The pinned SPQR implementation now has an
+[isolated execution driver](../../research/continuity-spqr-reference/README.md).
+It retains the original 32-byte chunks, dependency versions and source commit,
+compares actual send/receive message keys, and locks seven public traffic corpora.
+This supplies a component execution baseline. Full PQXDH/Triple Ratchet/manager
+composition, controlled latency/energy measurements and deployment interoperability remain open.
+Its [passive state-snapshot experiment](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
+now derives actual exposed message keys from 84 captured endpoint states and the
+public transcript. Pending decapsulation keys expose an additional epoch in the
+duplex traces; all subsequent one-way keys remain derivable. Uncomputed keys are
+not labeled secure, and active/repeated compromise analysis remains open.
+The [64-byte experiment](../../research/continuity-spqr-reference/variants/README.md)
+adds a separately identified source patch and matched traffic/snapshot corpus.
+It advances epochs faster under duplex delivery at a higher per-message byte cost;
+one-way traffic still does not advance. It is not a component-conformant result.
+An [authenticated whole-KEM control](../../research/continuity-whole-kem-reference/README.md)
+now executes full ML-KEM-768 exchanges at three fixed intervals under the same
+traffic schedules and snapshot cuts. It binds all three confirmation flights,
+preserves exact pending material and bounds skipped keys. Its different
+authentication and retention rules are explicit; the finite comparison does not
+select the product construction or establish a recovery theorem.
+
 | Component | Selected public revision | Role | Boundary |
 |---|---|---|---|
 | [PQXDH](https://signal.org/docs/specifications/pqxdh/) | Revision 3, 2023-05-24; last updated 2024-01-23 | asynchronous initial key agreement | Classical mutual authentication in this revision; not active-PQ authentication |

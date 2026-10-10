@@ -1,0 +1,131 @@
+{
+  "debug": {
+    "result_sha256": "bb7898c4953b3158abc2ff6c8ee90a2e5dfcea80f161d019ae15d18fd63ce451",
+    "seconds": 88.79344820789993,
+    "native": "68d6634d7c0e74e05741a8c2a1150ceafdcc4ae594155b222dfe8243b8833769",
+    "C": [
+      "local-fixed",
+      "local-recoverable",
+      "signed-fixed",
+      "signed-recoverable",
+      "tls-fixed",
+      "tls-recoverable"
+    ],
+    "Swift": [
+      "local-fixed",
+      "local-recoverable",
+      "signed-fixed",
+      "signed-recoverable",
+      "tls-fixed",
+      "tls-recoverable"
+    ],
+    "Kotlin": {
+      "G1": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "Serial": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ]
+    }
+  },
+  "release": {
+    "result_sha256": "bfde24afbd600991e33b149f545b1addaf8ebe8f8d5616d5a398d7ef5af2a1cc",
+    "seconds": 111.455051332945,
+    "native": "b0b93ba4e4d62940c2a77c5f8c81041944e6e49ccc763379e5e70e623384dc99",
+    "C": [
+      "local-fixed",
+      "local-recoverable",
+      "signed-fixed",
+      "signed-recoverable",
+      "tls-fixed",
+      "tls-recoverable"
+    ],
+    "Swift": [
+      "local-fixed",
+      "local-recoverable",
+      "signed-fixed",
+      "signed-recoverable",
+      "tls-fixed",
+      "tls-recoverable"
+    ],
+    "Kotlin": {
+      "G1": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "Serial": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ]
+    }
+  },
+  "clippy-01": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "returncode": 0,
+    "result_sha256": "d0803c391d59ab11d337cbdd51a4a8ddf6505705536545c60e3dc973c854e0cc"
+  },
+  "format-02": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "returncode": 0,
+    "result_sha256": "82eb083ea9a9fd2d6948c8a9f59307d7882171d3ee4e275767a5811f68b8467a"
+  },
+  "focused_reader_tests": {
+    "consumer_readers": 30,
+    "configuration_readers": 5
+  },
+  "prior_component_captures": {
+    "WITNESS_CAPTURE": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/WITNESS_CAPTURE.zip",
+      "sha256": "71f204f670ad2aa7dc8c1a861cdb2639228a895e9b4eba12664699707de232a6",
+      "bytes": 16933139
+    },
+    "SWIFT_CAPTURE": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/SWIFT_CAPTURE.zip",
+      "sha256": "2786f0e07cad818921e6c5b301fa9404edda80378892bfd4b8b2bb914ae9df47",
+      "bytes": 10607241
+    },
+    "KOTLIN_CAPTURE": {
+      "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/KOTLIN_CAPTURE.zip",
+      "sha256": "170e2bb6dd2ded4dfd2c9907c25260d4268e1adc7ab0b7962de0bb0903f136b5",
+      "bytes": 10029252
+    }
+  },
+  "scope": "Integrated source and new installed execution gate. Native/foreign executable bytes are the previously qualified identical implementation, with new source-built coordinator and public readback. Full current distribution/preflight and CI remain required."
+}

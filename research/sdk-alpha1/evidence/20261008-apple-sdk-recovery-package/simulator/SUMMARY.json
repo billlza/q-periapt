@@ -1,0 +1,118 @@
+{
+  "scope": "Installed SDK package on an owned iOS 27 ARM64 simulator only; not physical/current-minimum-device acceptance or durable iOS storage",
+  "source_head": "4d253e72399dcde331ec4da06b7d0f7bd0d0d676",
+  "archive_sha256": "3fb15050c6335ac565da5239afa6f90d811d7b9a85ccfd27d9b94a18b9ed093d",
+  "source_hashes": {
+    "bindings/apple-device/Sources/QPeriaptDeviceRunner/DeviceSmoke.swift": "4135e20798cdd54fc2949672c7cb6a358e70dc87818a867a8ba44ebe3d88ed1f",
+    "bindings/apple-device/Sources/QPeriaptDeviceRunner/SDKDeviceSmoke.swift": "abfadc25d63df082551be1a961e6dfba54c60954edd1d4542736d3d074999d6b",
+    "bindings/apple-device/Sources/QPeriaptDeviceRunner/main.swift": "b08c00cd2b5887365b61cc62a85b4fd4d114d84ee683df11e27a71890ef5eeeb"
+  },
+  "packaged_simulator_archive_sha256": "5dc868c125946fb8728d2c30e637ad00e95fdf419e6b564ae4d67a08e38f6d5a",
+  "app_executable_sha256": "b01b433e31177ee1340a61c1b4fe05488e810d5a8f66c31c0e7bb8bc220e8970",
+  "workload_pass": true,
+  "physical_device_qualified": false,
+  "runtime": "iOS 27.0 arm64 simulator",
+  "adaptation": "Source-identical SDK from archive; existing four-group device workloads gain only module imports. Entry point changes marker/environment/file names to simulator-specific forms. No physical proof emitted.",
+  "groups": [
+    "compatibilitySignedPolicy",
+    "ownedKeysAndPurposeDerivation",
+    "expertTransferAndPolicyRevocation",
+    "resourceLimitsAndCancellation"
+  ],
+  "steps": [
+    {
+      "label": "generate",
+      "returncode": 0,
+      "seconds": 0.139842625008896,
+      "stdout_sha256": "1987a355a24458ccbc557d49d6c6f9f8fda4afc599824919671e14aaef77a71e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "build",
+      "returncode": 0,
+      "seconds": 7.188445999985561,
+      "stdout_sha256": "fdf3a37d24b7c07048be35ff8168eadd2afcc00bdf78cc825c28c5d7e0e99444",
+      "stderr_sha256": "4b990ff133c9f04f15d9369c7a92d708f8875c4d229b22da5522fba0ffbd2b4b"
+    },
+    {
+      "label": "create-simulator",
+      "returncode": 0,
+      "seconds": 0.31483416678383946,
+      "stdout_sha256": "de167516e05e142660261140f6eb5c96aae6c956b2ad06a7a559b1127dacf647",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "boot",
+      "returncode": 0,
+      "seconds": 1.292047749971971,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "boot-status",
+      "returncode": 0,
+      "seconds": 28.004129125038162,
+      "stdout_sha256": "6807bc35cc4867401c0711b7132478247c79c85c6b6cb5cd1c33b790c4063860",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "install",
+      "returncode": 0,
+      "seconds": 14.038606042042375,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "launch",
+      "returncode": 0,
+      "seconds": 1.9500005829613656,
+      "stdout_sha256": "556f31b6fb648bab207ce84eb3f21ae1639d9fe62cce7813849c34391788856a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "container",
+      "returncode": 0,
+      "seconds": 0.48095816699787974,
+      "stdout_sha256": "912ba8f5115899ad36638d4c99cb288cc323db7170c39ed74d0305ca20fb31b4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "cleanup-uninstall",
+      "returncode": 0,
+      "seconds": 0.4797365409322083,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "cleanup-shutdown",
+      "returncode": 0,
+      "seconds": 3.3920465828850865,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "cleanup-delete",
+      "returncode": 0,
+      "seconds": 0.20761516690254211,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "cleanup-inventory",
+      "returncode": 0,
+      "seconds": 0.20568150002509356,
+      "stdout_sha256": "bc26c32e369d721c82764d00feb97c029722ecf7b738a517fe75905ee2c9e824",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "cleanup": {
+    "returncodes": [
+      0,
+      0,
+      0
+    ],
+    "owned_simulator_absent": true
+  },
+  "marker_sha256": "f94cf51a0b18e8f6f4488253d196305f56839a7af11117157e374f80ff26ee8b",
+  "raw_evidence": "Private local simulator-01 records retained; raw device identifiers and container paths are not included here."
+}
