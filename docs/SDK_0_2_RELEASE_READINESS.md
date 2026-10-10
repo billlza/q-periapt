@@ -209,6 +209,17 @@ are retained runtime failures; the version transition does not close them.
 
 ## Latest qualification checkpoints
 
+At `a30b572c252da88a48750de4c9bcb9623c4ed08e`, the original local installed pipeline
+stopped during Kotlin plugin resolution after its C and Swift components completed.
+One separate fresh-cache Kotlin continuation now completes Debug/Release and
+Serial/G1 execution. Independent readback verifies all 273 members of each package,
+64 owner tests per native profile, 11 loader/construction rejection controls per
+profile and the same native library hashes used by the completed C/Swift profiles.
+The [sealed continuation](../research/sdk-alpha1/evidence/20261010-installed-kotlin-continuation/CHECKS.json)
+retains the original failure and the separate result. This is macOS arm64/JVM
+component evidence at `a30b572c`; it does not qualify later source, Android ART,
+minimum-version devices or one successful uninterrupted full-pipeline run.
+
 At `56ae4e099dca2ae5aaf5b868fb001b9307c3d8ad`, actual extracted Debug archive
 consumers exercise credential renewal through existing C, Swift and Kotlin
 owners. Three real-clock cases cover committed renewal after expiry, explicit
