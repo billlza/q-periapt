@@ -524,3 +524,48 @@ expectations, witness pins, signature components and purpose substitution.
 Authenticated history tests reject broken links, repeated operations and a changed
 retry. These establish the native composition, not a fully integrated installed
 root-replacement workflow, independent implementation, or cross-platform result.
+
+### Enrollment-owned terminal transition
+
+`AccountRootEnrollmentRecovery::transition_after_noncommit` now coordinates the
+original parent and child. It first authenticates the original parent, verifies
+the closure against its retained proposal and validates the approved next proposal
+against the actual child image and pending intent while holding the child lease.
+An incompatible local head fails before replacing the parent intent. A missing
+child can never be supplied by creating another journal.
+
+Only after that validation does the enrollment commit the next proposal and
+transition history. It then reconciles its child journal and returns the restricted
+owner. A failure consumes all local owners and can follow either database commit;
+`resume_transition` uses the same original closure and independent approval to
+reconcile either side of those commits. Original enrollment bytes, signing
+identity, journal identity and encrypted image/pending bytes remain unchanged.
+This coordinates two commits; it does not claim a cross-database atomic commit.
+
+The parent uses `QPERPL02` only when it has transition history; ordinary root
+fences retain the exact `QPERPL01` layout. It reuses the journal's bounded history
+codec and validation, including its 256-entry limit. The parent MAC and original
+enrollment binding authenticate that locally retained authorization. It is not a
+transferable witness receipt and does not protect a rollback of the whole host.
+Older readers explicitly reject the extended parent layout.
+
+After the new parent intent commits, `resume_original` with that exact next
+proposal can restore a compatible older child backup using the parent's retained
+history. The child must be unfenced or retain an exact prefix of that history;
+its original encrypted state must still satisfy the approved witnessed head.
+A conflicting child proposal, unrelated history, missing file or incompatible
+state fails explicitly. The crate-internal parent checkpoint is not an external
+journal API for supplying arbitrary history. A retained parent retirement is
+reapplied to the child before returning the restricted owner.
+
+Native regression now covers an original target expiring at 160 and activation
+of a separately enrolled successor through the actual `EnrolledDevice` API at
+170, under fresh witness admission. It also covers multiple abandoned targets,
+restoration of child backups taken before a fence and after an intermediate
+transition, six typed parent sync faults and four actual process-loss cuts around
+the parent-first/child-second commits. A red/green regression records the new
+implementation's initial validation-order defect and its correction. These tests
+compose the registry with enrollment recovery; they do not yet make the registry,
+target enrollment and foreign service lifetimes one managed product owner.
+Installed language adapters, that owning orchestration and the remaining release
+and platform qualifications remain required.

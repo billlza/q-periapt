@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Keep original root-replacement approval outside replaceable journal backups.
 use super::*;
+use crate::durable::account_root_transfer::{self as transfer, ParentCheckpoint, Transfer};
 use crate::{AccountRootJournalRecovery, AnchorAccountReplacementProposal as Proposal};
 use redb::ReadableTable;
+mod transition;
 
 pub(super) const ROW: &str = "root-replacement";
 const TAG: &[u8; 8] = b"QPERPL01";
+const TRANSFER_TAG: &[u8; 8] = b"QPERPL02";
 const RECEIPT_BYTES: usize = 3449;
-const MAX_BYTES: usize = 174 + 65_536 + RECEIPT_BYTES;
+const MAX_BYTES: usize =
+    174 + 65_536 + RECEIPT_BYTES + 2 + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct State {
@@ -16,6 +20,7 @@ pub(super) struct State {
     journal: JournalIdentity,
     proposal: Proposal,
     receipt: Option<Vec<u8>>,
+    history: Vec<Transfer>,
 }
 fn image_digest(wire: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ROOT-ENROLLMENT/v1", wire)
@@ -35,7 +40,12 @@ impl State {
         mac.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *TAG || d.array::<32>()? != binding {
+        let extended = match &d.array::<8>()? {
+            tag if tag == TAG => false,
+            tag if tag == TRANSFER_TAG => true,
+            _ => return Err(DurableError::Conflict),
+        };
+        if d.array::<32>()? != binding {
             return Err(DurableError::Conflict);
         }
         let identity = SigningKeyId::from_trusted_state(d.array()?)?;
@@ -53,22 +63,31 @@ impl State {
             RECEIPT_BYTES => Some(d.take(RECEIPT_BYTES)?.to_vec()),
             _ => return Err(DurableError::Corrupt),
         };
+        let history = if extended {
+            transfer::decode_history(&mut d)?
+        } else {
+            Vec::new()
+        };
         d.finish()?;
+        transfer::check_history(&history, &proposal)?;
         Ok(Box::new(Self {
             identity,
             image,
             journal,
             proposal,
             receipt,
+            history,
         }))
     }
     fn encode(&self, key: &JournalKey, binding: [u8; 32]) -> Result<Vec<u8>, DurableError> {
+        transfer::check_history(&self.history, &self.proposal)?;
         let proposal = self.proposal.to_bytes()?;
         let receipt = self.receipt.as_deref().unwrap_or(&[]);
         if !receipt.is_empty() && receipt.len() != RECEIPT_BYTES {
             return Err(DurableError::Corrupt);
         }
-        let mut wire = TAG.to_vec();
+        let extended = !self.history.is_empty();
+        let mut wire = if extended { TRANSFER_TAG } else { TAG }.to_vec();
         wire.extend_from_slice(&binding);
         wire.extend_from_slice(self.identity.as_bytes());
         wire.extend_from_slice(&self.image);
@@ -85,6 +104,9 @@ impl State {
                 .to_be_bytes(),
         );
         wire.extend_from_slice(receipt);
+        if extended {
+            transfer::encode_history(&self.history, &mut wire)?;
+        }
         let mut mac = auth(key)?;
         mac.update(&wire);
         wire.extend_from_slice(&mac.finalize().into_bytes());
@@ -219,13 +241,16 @@ impl Owners {
     fn fence_journal(&mut self) -> Result<(), DurableError> {
         let original = self.read()?;
         self.journal = None;
-        let mut journal = AccountRootJournalRecovery::resume_original(
+        let mut journal = AccountRootJournalRecovery::resume_parent(
             self.enrollment.paths.installation.files()[1],
             self.enrollment.key()?,
             &original,
             self.state.journal,
             self.pin.clone(),
-            self.state.proposal.clone(),
+            ParentCheckpoint {
+                proposal: &self.state.proposal,
+                history: &self.state.history,
+            },
         )?;
         if let Some(receipt) = &self.state.receipt {
             journal.retain_witness_retirement(receipt)?;
@@ -317,6 +342,7 @@ impl AccountRootEnrollmentRecovery {
                     journal: admission.journal,
                     proposal,
                     receipt: None,
+                    history: Vec::new(),
                 };
                 save(&enrollment, None, &state, "intent")?;
                 state

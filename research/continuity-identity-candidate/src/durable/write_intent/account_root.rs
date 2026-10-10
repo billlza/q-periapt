@@ -5,7 +5,7 @@ use crate::{
     AnchorAccountReplacementProposal as Proposal, AnchorPin, AnchorRetiredAccount, AnchorSubject,
 };
 
-mod transfer;
+pub(crate) mod transfer;
 pub use transfer::AccountRootJournalTransition;
 
 const ROW: &str = "account-root-fence";

@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
-pub(in crate::durable::write_intent::account_root) fn encode_history(
-    history: &[Transfer],
-    out: &mut Vec<u8>,
-) -> Result<(), DurableError> {
+pub(crate) fn encode_history(history: &[Transfer], out: &mut Vec<u8>) -> Result<(), DurableError> {
     out.extend_from_slice(
         &u16::try_from(history.len())
             .map_err(|_| DurableError::Capacity)?
@@ -18,9 +15,7 @@ pub(in crate::durable::write_intent::account_root) fn encode_history(
     }
     Ok(())
 }
-pub(in crate::durable::write_intent::account_root) fn decode_history(
-    d: &mut Decoder<'_>,
-) -> Result<Vec<Transfer>, DurableError> {
+pub(crate) fn decode_history(d: &mut Decoder<'_>) -> Result<Vec<Transfer>, DurableError> {
     let count = usize::from(d.u16()?);
     if count == 0 || count > MAX_TRANSFERS {
         return Err(DurableError::Corrupt);

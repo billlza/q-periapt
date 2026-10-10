@@ -79,6 +79,7 @@ pub use publication::{
     PrekeyPublicationRequest, PrekeyPublicationRun, PrekeyPublicationStatus,
     PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
 };
+pub(crate) use write_intent::account_root::transfer as account_root_transfer;
 pub use write_intent::account_root::{
     AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
 };

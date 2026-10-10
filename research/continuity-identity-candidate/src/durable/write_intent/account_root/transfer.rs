@@ -5,11 +5,13 @@ use crate::{
     AnchorAccountReplacementId, AnchorClosedAccountPreparation, AnchorClosedAccountReplacement,
 };
 mod codec;
-pub(super) use codec::{decode_history, encode_history};
-pub(super) const MAX_TRANSFERS: usize = 256;
-pub(super) const TRANSFER_BYTES: usize = 129;
+mod parent;
+pub(crate) use codec::{decode_history, encode_history};
+pub(crate) use parent::ParentCheckpoint;
+pub(crate) const MAX_TRANSFERS: usize = 256;
+pub(crate) const TRANSFER_BYTES: usize = 129;
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct Transfer {
+pub(crate) struct Transfer {
     operation: AnchorAccountReplacementId,
     previous: [u8; 32],
     next: [u8; 32],
@@ -81,7 +83,7 @@ impl AccountRootJournalTransition {
             Closed::Plan(c) => Ok((1, c.plan().binding()?)),
         }
     }
-    fn marker(&self, old: &Proposal) -> Result<Transfer, DurableError> {
+    pub(crate) fn marker(&self, old: &Proposal) -> Result<Transfer, DurableError> {
         self.check_scope()?;
         let matches = match &self.closed {
             Closed::Exact(c) => c.proposal() == old,
@@ -99,7 +101,7 @@ impl AccountRootJournalTransition {
             closure,
         })
     }
-    fn is_original_retry(&self, marker: &Transfer) -> Result<bool, Error> {
+    pub(crate) fn is_original_retry(&self, marker: &Transfer) -> Result<bool, Error> {
         let (kind, closure) = self.closure_binding()?;
         Ok(marker.operation == self.origin().operation()
             && marker.next == self.next.binding()?
@@ -107,7 +109,7 @@ impl AccountRootJournalTransition {
             && marker.closure == closure)
     }
 }
-pub(super) fn check_history(history: &[Transfer], current: &Proposal) -> Result<(), DurableError> {
+pub(crate) fn check_history(history: &[Transfer], current: &Proposal) -> Result<(), DurableError> {
     if history.len() > MAX_TRANSFERS {
         return Err(DurableError::Capacity);
     }
@@ -133,7 +135,10 @@ pub(super) fn check_history(history: &[Transfer], current: &Proposal) -> Result<
     Ok(())
 }
 impl Owners {
-    fn transfer(&mut self, transition: &AccountRootJournalTransition) -> Result<(), DurableError> {
+    fn prepared_transition(
+        &self,
+        transition: &AccountRootJournalTransition,
+    ) -> Result<(Fence, Fence), DurableError> {
         transition.check_scope()?;
         let original = self.read_snapshot()?;
         if original.proposal == transition.next {
@@ -146,8 +151,7 @@ impl Owners {
             {
                 return Err(DurableError::Conflict);
             }
-            self.proposal = transition.next.clone();
-            return Ok(());
+            return Ok((original.clone(), original));
         }
         if original.receipt.is_some() {
             return Err(DurableError::Conflict);
@@ -163,6 +167,14 @@ impl Owners {
         next.proposal = transition.next.clone();
         next.history.push(marker);
         next.check(&self.key, &image, pending.as_ref())?;
+        Ok((original, next))
+    }
+    fn transfer(&mut self, transition: &AccountRootJournalTransition) -> Result<(), DurableError> {
+        let (original, next) = self.prepared_transition(transition)?;
+        if original == next {
+            self.proposal = transition.next.clone();
+            return Ok(());
+        }
         self.save(Some(&original), &next, "handoff")?;
         self.proposal = transition.next.clone();
         self.read()?;
@@ -170,6 +182,22 @@ impl Owners {
     }
 }
 impl AccountRootJournalRecovery {
+    // Validate the exact local image/pending snapshot while retaining this child
+    // lease, before its enrollment commits a new parent expectation.
+    pub(crate) fn validate_transition(
+        &mut self,
+        transition: &AccountRootJournalTransition,
+    ) -> Result<(), DurableError> {
+        let result = self
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)
+            .and_then(|owners| owners.prepared_transition(transition).map(|_| ()));
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     /// Durably replace only the original fence descriptor after authenticated
     /// non-commit. Ciphertext, image, pending intent and witnessed head never change.
     /// Errors consume this owner and may follow commit; resume the same transition.
