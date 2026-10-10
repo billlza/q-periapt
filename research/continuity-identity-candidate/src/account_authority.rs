@@ -218,8 +218,8 @@ impl Image {
             {
                 return Err(DurableError::Corrupt);
             }
-            if !roots.insert(p.successor_account())
-                && !(replacement.decision == Decision::Adopted
+            if !(roots.insert(p.successor_account())
+                || replacement.decision == Decision::Adopted
                     && closed_roots.get(&p.successor_account()) == Some(&replacement.application))
             {
                 return Err(DurableError::Corrupt);
