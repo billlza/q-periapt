@@ -2147,7 +2147,9 @@ jobs:
     # At 491b6cde, Kotlin execution took 178m35s and artifact upload 84s;
     # job 112452386048 exceeded 180m during finalization after both succeeded.
     # Allow 30m job headroom; individual command deadlines stay fixed.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 210 || 120 }}
+    # At 29ec0a37, Swift hit 120m while Release lifecycle checks still progressed.
+    # Keep both profiles and the 15m command bound; budget the expanded cohort.
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 210 || 180 }}
     strategy:
       fail-fast: false
       matrix:
