@@ -278,6 +278,16 @@ impl JournalKey {
             .map_err(|_| Error::Provider)?;
         Ok(key)
     }
+    pub(crate) fn account_authority_key(&self) -> Result<ZeroizingBytes<32>, Error> {
+        let mut key = ZeroizingBytes::zeroed();
+        hkdf::Hkdf::<sha2::Sha256>::new(None, self.0.as_bytes())
+            .expand(
+                b"Q-PERIAPT-CONTINUITY-ACCOUNT-AUTHORITY-KEY/v1",
+                key.as_mut_bytes(),
+            )
+            .map_err(|_| Error::Provider)?;
+        Ok(key)
+    }
     /// Generate and durably provision a fresh key without replacing an existing file.
     pub fn provision(path: &Path) -> Result<Self, DurableError> {
         let mut key = Box::new(ZeroizingBytes::zeroed());

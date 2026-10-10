@@ -102,6 +102,16 @@ impl AnchorAccountReplacementProposal {
     pub(crate) fn witness_binding(&self) -> [u8; 32] {
         self.witness
     }
+    pub(crate) fn authority_transition(
+        &self,
+    ) -> (&PublicKey, &PublicKey, [u8; 32], RosterCheckpoint) {
+        (
+            &self.previous_root,
+            &self.successor_root,
+            self.identity.description.family,
+            self.roster,
+        )
+    }
     pub(crate) fn predecessor_observation(
         &self,
         subject: AnchorSubject,

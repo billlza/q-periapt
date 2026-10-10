@@ -7,6 +7,7 @@
 //! Account enrollment must independently pin the intended account and roster head.
 //! No production crate, C ABI, or language binding depends on this candidate.
 
+mod account_authority;
 mod anchor;
 mod bootstrap;
 mod bootstrap_bundle;
@@ -19,6 +20,11 @@ pub mod contract;
 #[cfg(feature = "control-tls")]
 pub mod control_transport;
 mod crypto;
+pub use account_authority::{
+    AccountAuthorityAccess, AccountAuthorityCheckpoint, AccountAuthorityIdentity,
+    AccountAuthorityLease, AccountAuthorityReplacementState, AccountAuthorityStore,
+    ApplicationAccountId,
+};
 mod durable;
 mod enrollment;
 mod identity;

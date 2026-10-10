@@ -1513,7 +1513,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/rosters/peer_retirement.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs",
-
+            "research/continuity-identity-candidate/src/account_authority.rs",
+            "research/continuity-identity-candidate/src/account_authority/codec.rs",
+            "research/continuity-identity-candidate/src/account_authority/runtime.rs",
+            "research/continuity-identity-candidate/src/account_authority/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1584,6 +1588,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/rosters/peer_retirement.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs",
+            "research/continuity-identity-candidate/src/account_authority.rs",
+            "research/continuity-identity-candidate/src/account_authority/codec.rs",
+            "research/continuity-identity-candidate/src/account_authority/runtime.rs",
+            "research/continuity-identity-candidate/src/account_authority/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

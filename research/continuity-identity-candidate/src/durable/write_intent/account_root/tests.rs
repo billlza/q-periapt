@@ -8,6 +8,8 @@ use std::{
 #[path = "tests/support.rs"]
 mod support;
 use support::*;
+#[path = "tests/account_authority.rs"]
+mod account_authority;
 #[path = "tests/peer_retirement.rs"]
 mod peer_retirement;
 

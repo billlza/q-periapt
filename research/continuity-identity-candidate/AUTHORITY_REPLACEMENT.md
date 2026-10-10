@@ -307,3 +307,30 @@ business effects under a new identity.
 Keep signature/namespace experiments, authenticated-store transitions, witness
 transactions, installed foreign calls and platform persistence as separate evidence.
 A pin decoder or a successful new registration is not an executed root cutover.
+
+### Application authority registry component
+
+`AccountAuthorityStore` is a native foundation for an independently authenticated
+application account ID and its current cryptographic root. It retains the exact
+approved replacement proposal, advances its own revision by one on verified
+witness retirement, and preserves original-operation history. A pending entry
+suspends both roots at this registry. Its old read leases stay revoked after a
+replacement or owner close; an unrelated application's successful update does
+not revoke other entries. An uncertain database mutation closes the owner and
+all its leases, and recovery must reopen the same path/key/identity and retry
+the original proposal or verified retirement.
+
+The public state is MAC authenticated under a separately retained key, with
+path, registry identity, policy family and witness binding. The committed bit
+records the locally verified decision; the registry does not retain a separately
+transferable witness signature. This is neither encryption nor protection from
+rollback of the entire registry or host. The bounded format currently retains
+64 associations and 256 replacement operations globally, with explicit capacity
+errors. Resetting history to regain capacity is not a supported recovery path.
+
+This component does not yet govern existing journal, service or enrollment
+operations. Mandatory persisted registry binding, original successor enrollment
+coordination, concurrent operational release, lifetime-capacity migration,
+foreign owners and witness-key handoff remain required for managed cutover.
+Observing a committed historical operation never authorizes its successor if a
+later operation has already retired that root.
