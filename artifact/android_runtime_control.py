@@ -88,6 +88,7 @@ class Control:
     def command(self, label: str, argv: list[str], timeout: int = 20,
                 input_bytes: bytes | None = None) -> dict:
         started = time.monotonic()
+        started_utc = datetime.now(timezone.utc).isoformat()
         remaining = self.deadline - started
         if remaining <= 0:
             raise RuntimeError("control observation exceeded its 15-minute deadline")
@@ -103,6 +104,7 @@ class Control:
         out = self.output / (label + ".stdout")
         error = self.output / (label + ".stderr")
         record = {"label": label, "argv": argv, "returncode": code,
+                  "started_utc": started_utc,
                   "timed_out": timed_out, "seconds": time.monotonic() - started,
                   "stdout_bytes": out.stat().st_size, "stdout_sha256": file_hash(out),
                   "stderr_bytes": error.stat().st_size, "stderr_sha256": file_hash(error)}
@@ -141,9 +143,13 @@ class Control:
             "zoneinfo": ["cat", "/proc/zoneinfo"],
             "vmstat": ["cat", "/proc/vmstat"],
             "system-server": ["pidof", "system_server"],
+            "adbd": ["pidof", "adbd"],
+            "adbd-service": ["getprop", "init.svc.adbd"],
+            "boot-id": ["cat", "/proc/sys/kernel/random/boot_id"],
             "uptime": ["cat", "/proc/uptime"],
             "logcat": ["logcat", "-d", "-t", "2000", "-b", "all", "-v", "threadtime",
-                       "lmkd:*", "lowmemorykiller:*", "libc:F", "DEBUG:*", "AndroidRuntime:E", "ActivityManager:I", "*:S"],
+                       "lmkd:*", "lowmemorykiller:*", "adbd:*", "init:*", "libc:F", "DEBUG:*",
+                       "AndroidRuntime:E", "ActivityManager:I", "*:S"],
         }
         for name, args in probes.items():
             record = self.adb_command(label + "-" + name, ["shell", *args])
@@ -177,9 +183,14 @@ class Control:
         for port in (5554, 5555, 5586):
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", port))
+        # Keep the guest kernel console on the owned host log. A later ADB
+        # disconnect must not also remove our only channel for crash evidence.
+        self.result["guest_kernel_console"] = "emulator.log"
+        self.result["guest_logcat_console"] = "emulator.log"
         self.spawn("emulator", [str(self.emulator), "-avd", AVD, "-port", "5554",
                    "-no-snapshot", "-read-only", "-no-window", "-no-audio",
-                   "-no-boot-anim", "-no-direct-adb", "-adb-path", str(self.adb),
+                   "-no-boot-anim", "-show-kernel", "-no-direct-adb", "-adb-path", str(self.adb),
+                   "-logcat", "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
                    "-gpu", "swiftshader"],
                    {**self.environment, "ANDROID_ADB_SERVER_PORT": "5586"})
         deadline = time.monotonic() + 90
@@ -212,6 +223,7 @@ class Control:
             raise RuntimeError("running image or page size differs")
         self.result.update(fingerprint=fingerprint, runtime_page_size=int(page_size))
         self.result["boot_observed_monotonic"] = time.monotonic()
+        self.result["boot_observed_utc"] = datetime.now(timezone.utc).isoformat()
         self.save()
         self.observe()
 
