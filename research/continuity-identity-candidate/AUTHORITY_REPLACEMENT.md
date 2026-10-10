@@ -1,7 +1,8 @@
 # Account-root and witness authority replacement
 
-Status: the native witness account-root transaction, original-journal fence and
-original-enrollment parent fence are implemented; the complete managed account cutover and witness-key handoff
+Status: the native witness account-root transaction, original-journal fence,
+original-enrollment parent fence and explicit peer-account retirement are implemented;
+the complete managed account cutover and witness-key handoff
 are **not implemented**. Both
 remain part of the required 0.2.0 lifecycle. Existing registration, credential
 renewal, policy continuation and device replacement do not complete that lifecycle.
@@ -248,6 +249,39 @@ application-account authority registry, govern arbitrary low-level journal impor
 fence cached remote-account owners, select/activate a successor on the user's behalf,
 or transfer the witness key. Restoring the parent or whole host is outside this
 local backup boundary. These remaining obligations still block managed cutover.
+
+### Explicit peer-account retirement
+
+`DeviceService::retire_peer_account` explicitly adopts an `AnchorRetiredAccount`
+that the host has authenticated and independently approved. Receipt verification
+remains pure. Adoption requires a known remote account, the original installation's
+required witness and current local credential/policy authority. It cannot retire
+the local account or admit an unknown peer. A different witness is refused even
+when its signature is valid.
+
+The original roster record gains a `QPRHST07` prefix containing the operation ID,
+statement commitment, successor account and witness binding (136 additional bytes).
+The encrypted journal authenticates this local decision; these fields are not a
+transferable witness signature. Retain the original proposal and receipt for exact
+reconciliation. Historical rosters, generation floors, renewal grants, session and
+message identities remain intact. Ordinary roster and credential refresh cannot
+clear the retirement marker, including an otherwise identical refresh.
+
+The normal encrypted-image/write-intent transaction advances this sender's own
+witness head. After acknowledged commit, an older whole-journal backup cannot
+remove the peer floor while that witness retains its current state. Storage errors
+close the journal and may follow commit; reopening reconciles the original sealed
+intent before admitting traffic, and the same retirement can then be retried.
+An identical retry performs no additional journal transaction. Capacity and policy
+errors do not claim that a durable fence exists; managed approval-intent retention
+before this component remains part of the unfinished account-authority owner.
+
+Operational admission checks the marker for cached sessions, fresh bootstrap,
+message/retransmission and complete-roster fanout. Historical cleanup still reports
+the original peer and unknown deliveries; it does not relabel them under the target.
+The successor account is recorded for correlation only. This operation selects no
+application-account mapping, creates no successor session and transfers no witness
+trust. Foreign adapters and complete managed cutover remain required.
 
 ### Remaining product acceptance
 

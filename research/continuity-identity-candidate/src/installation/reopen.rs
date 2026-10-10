@@ -84,6 +84,38 @@ impl ServiceOwners {
 }
 
 impl DeviceService {
+    /// Durably adopt an independently approved, authenticated retirement of a
+    /// known peer account at this installation's pinned witness. Verification of
+    /// the receipt alone has no side effects; this explicit call fences cached
+    /// and fresh old-root operations while retaining historical record identities.
+    ///
+    /// Retain the original proposal and receipt on failure. Reopen the original
+    /// owner and repeat this exact operation with current local authorization;
+    /// failure can follow commit. A conflicting original operation is refused.
+    /// This does not activate the successor, select an application-account mapping,
+    /// retire the local account or transfer trust to another witness.
+    pub fn retire_peer_account(
+        &mut self,
+        retirement: &crate::AnchorRetiredAccount,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if owners.installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        owners.journal.retire_peer_account(
+            &PolicyScope {
+                authority: &owners.authority,
+                original_policy: &owners.original_policy,
+                original_device: &owners.original_device,
+            },
+            retirement,
+            policy,
+            now,
+        )
+    }
+
     /// Install an independently authenticated monotonic roster for a known remote
     /// account through this original active device service and its current policy.
     /// The local account must use its original enrollment R transaction instead.

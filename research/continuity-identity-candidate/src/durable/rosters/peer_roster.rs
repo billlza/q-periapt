@@ -2,7 +2,7 @@
 //! Known remote-account heads admitted through an original current device owner.
 use super::*;
 
-fn authorize(
+pub(super) fn authorize(
     image: &Image,
     scope: &crate::installation::PolicyScope<'_>,
     policy: &crate::VerifiedSessionPolicy,
@@ -51,6 +51,7 @@ impl DeviceJournal {
         // Initial peer trust is admitted only by the original bootstrap. An
         // update cannot introduce a new account or replace an existing root.
         let saved = get(&image, &roster.account_id())?;
+        saved.require_live_account()?;
         if !saved.roster.same_authority(roster) {
             return Err(DurableError::Conflict);
         }

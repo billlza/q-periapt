@@ -10,8 +10,10 @@ fn id(account: &[u8; 32]) -> [u8; 32] {
 }
 use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
 mod local_renewal;
+mod peer_retirement;
 mod peer_roster;
 pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
+use peer_retirement::PeerRetirement;
 mod roster_refresh;
 pub use roster_refresh::RosterRefreshMaterials;
 pub(super) use roster_refresh::{check_roster_refresh_intent, check_witnessed_roster_terminal};
@@ -187,6 +189,7 @@ struct Stored {
     local_commit: Option<LocalRenewalCommit>,
     policy_continuation: Option<crate::HistoricalPolicyContinuation>,
     policy_renewal: Option<StoredPolicyRenewal>,
+    peer_retirement: Option<PeerRetirement>,
 }
 impl Stored {
     fn initial(roster: &VerifiedRoster) -> Self {
@@ -200,6 +203,7 @@ impl Stored {
             local_commit: None,
             policy_continuation: None,
             policy_renewal: None,
+            peer_retirement: None,
         }
     }
     fn record(&self) -> Result<Record, DurableError> {
@@ -264,6 +268,9 @@ impl Stored {
         if let Some(renewal) = &self.policy_renewal {
             renewal.encode(&mut payload)?;
         }
+        if let Some(retirement) = &self.peer_retirement {
+            payload = retirement.wrap(payload);
+        }
         Ok(Record {
             kind: RecordKind::Roster,
             context: self.roster.checkpoint().digest(),
@@ -283,6 +290,7 @@ impl Stored {
         roster: &VerifiedRoster,
         renewal: Option<&VerifiedCredentialRenewal>,
     ) -> Result<Self, DurableError> {
+        self.require_live_account()?;
         if let Some(renewal) = renewal {
             let predecessor = renewal.previous_device();
             let successor = renewal.successor_device();
@@ -351,7 +359,15 @@ impl Stored {
             local_commit: self.local_commit,
             policy_continuation: self.policy_continuation,
             policy_renewal: self.policy_renewal,
+            peer_retirement: None,
         })
+    }
+
+    fn require_live_account(&self) -> Result<(), DurableError> {
+        if self.peer_retirement.is_some() {
+            return Err(Error::Scope.into());
+        }
+        Ok(())
     }
 }
 fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
@@ -365,6 +381,16 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
     }
     let mut decoder = Decoder::new(&record.payload);
     let tag = decoder.array::<8>()?;
+    let peer_retirement = if tag == *b"QPRHST07" {
+        Some(PeerRetirement::decode(&mut decoder)?)
+    } else {
+        None
+    };
+    let tag = if peer_retirement.is_some() {
+        decoder.array::<8>()?
+    } else {
+        tag
+    };
     let credential_renewed = tag == *b"QPRHST06";
     let policy_only = tag == *b"QPRHST05" || credential_renewed;
     let tag = if policy_only {
@@ -487,6 +513,7 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         local_commit,
         policy_continuation,
         policy_renewal,
+        peer_retirement,
     })
 }
 fn get(image: &Image, account: &[u8; 32]) -> Result<Stored, DurableError> {
@@ -494,6 +521,7 @@ fn get(image: &Image, account: &[u8; 32]) -> Result<Stored, DurableError> {
     let saved = decode(&key, image.records.get(&key).ok_or(DurableError::Absent)?)?;
     check_policy_continuation_scope(image, &saved)?;
     policy_renewal::check_scope(image, &saved)?;
+    peer_retirement::check_scope(image, &saved)?;
     Ok(saved)
 }
 fn check_policy_continuation_scope(image: &Image, saved: &Stored) -> Result<(), DurableError> {
@@ -565,6 +593,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
             let saved = decode(key, record)?;
             check_policy_continuation_scope(image, &saved)?;
             policy_renewal::check_scope(image, &saved)?;
+            peer_retirement::check_scope(image, &saved)?;
             if let Some(commit) = &saved.local_commit {
                 if saved.roster.account_id() != image.local_account || commit.owner != image.owner {
                     return Err(DurableError::Corrupt);
@@ -614,16 +643,15 @@ pub(super) fn authorize_device(
     now: u64,
 ) -> Result<(), DurableError> {
     require_original_operational_policy(image)?;
-    get(image, &device.account_id())
-        .map_err(|error| {
-            if matches!(error, DurableError::Absent) {
-                DurableError::Corrupt
-            } else {
-                error
-            }
-        })?
-        .roster
-        .authorize_device(device, now)?;
+    let saved = get(image, &device.account_id()).map_err(|error| {
+        if matches!(error, DurableError::Absent) {
+            DurableError::Corrupt
+        } else {
+            error
+        }
+    })?;
+    saved.require_live_account()?;
+    saved.roster.authorize_device(device, now)?;
     Ok(())
 }
 // Structural cleanup binding can survive expiry/revocation. The original
@@ -689,6 +717,7 @@ pub(super) fn resolve_session_identities(
     let mut result = [None, None];
     for (slot, original) in result.iter_mut().zip(context.devices()) {
         let saved = get(image, &original.account_id())?;
+        saved.require_live_account()?;
         if let Some(grant) = saved.renewals.get(&original.device_id()) {
             let current = saved.roster.checkpoint();
             let historical = original.roster().checkpoint();
@@ -984,7 +1013,10 @@ fn authorize_bootstrap_peer(
     now: u64,
 ) -> Result<(), DurableError> {
     match get(image, &device.account_id()) {
-        Ok(current) => current.roster.authorize_device(device, now)?,
+        Ok(current) => {
+            current.require_live_account()?;
+            current.roster.authorize_device(device, now)?;
+        }
         Err(DurableError::Absent) => {
             if image.record_count(RecordKind::Roster) >= MAX_ROSTERS {
                 return Err(DurableError::Capacity);
@@ -1077,6 +1109,7 @@ impl DeviceJournal {
         self.check_operational_release(&image, policy, now)?;
         let successor = renewal.successor_device();
         let saved = get(&image, &successor.account_id())?;
+        saved.require_live_account()?;
         let target = successor.roster().checkpoint();
         if saved.roster.checkpoint() == target {
             let original = saved
@@ -1149,6 +1182,7 @@ impl DeviceJournal {
         let key = id(&roster.account_id());
         let updated = if let Some(saved) = image.records.get(&key) {
             let saved = decode(&key, saved)?;
+            saved.require_live_account()?;
             if !saved.roster.same_authority(roster) {
                 return Err(DurableError::Conflict);
             }

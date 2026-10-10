@@ -74,6 +74,10 @@ impl Case {
         .expect("peer client");
         peer.activate_anchor(device, policy, client)
             .expect("peer activation");
+        let session = self.connect_peer(&mut peer);
+        (peer, session)
+    }
+    pub(super) fn connect_peer(&mut self, peer: &mut DeviceJournal) -> [u8; 32] {
         let request = crate::InitiationId::from_trusted_state([211; 32])
             .expect("original bootstrap operation");
         let initial = peer
@@ -119,7 +123,7 @@ impl Case {
                 .expect("responder chains"),
             session
         );
-        (peer, session)
+        session
     }
     pub(super) fn proposal(&self, id: u8) -> Proposal {
         self.witness
