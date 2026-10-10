@@ -354,6 +354,21 @@ data grants no cleanup authority: uninstall still requires both fresh matching
 APK observations and the signer check. Recovery files are distinct from baseline
 and final-failure files and remain forbidden for physical-device runs.
 
+At `f19a3961`, the separate
+[cold-image control run](https://github.com/billlza/q-periapt/actions/runs/38025513433)
+completes both workloads on the pinned API 35 x86_64 16-KiB image. Twelve reads of
+the 14,967,936-byte guest `libart.so` match its exact SHA-256, and three pure Java
+instrumentation invocations return their original tokens. Each run retains one
+boot identity and unchanged sampled `adbd` and `system_server` PIDs. The repaired
+launcher keeps kernel and guest logcat output on distinct, nonempty files.
+The [sealed readback](../research/sdk-alpha1/evidence/20261010-android-control-runtime/CHECKS.json)
+binds the original artifacts and selected public logs. The successful file-copy
+and Java controls still contain 166 and 70 LMKD kill lines respectively, so those
+lines alone do not explain the earlier transport failures. Neither control runs
+the SDK; the small Java APK uses non-streaming installation and does not reproduce
+its workload or resource pressure. These finite successes do not resolve the
+intermittent SDK failure, validate lmkd's page conversion or qualify physical devices.
+
 The current [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records which of
 these gates have actually executed. Synthetic verifier tests, an APK build,
 workflow syntax checks and historical device receipts do not establish a
