@@ -65,7 +65,7 @@ impl Renewal<'_> {
         let device = account.verify_historical_device(certificate, roster.as_bytes())?;
         let mut sdk = fixture::sdk(reference)
             .map_err(|e| format!("independent policy operator SDK lease: {e}"))?;
-        let original = fixture::protocol_policy(reference, &sdk)?;
+        let original = historical(source)?;
         assert_eq!(request.scope.original_policy, original.checkpoint());
         assert_eq!(request.scope.previous_policy, original.checkpoint());
         assert_eq!(request.scope.previous_authorization, None);
@@ -134,8 +134,8 @@ impl Renewal<'_> {
         )?
         .verify(issued.as_bytes(), sdk.runtime()?, fixture::now()?)?;
         let materials = p::PolicyRenewalMaterials {
-            original: original.historical(),
-            previous: original.historical(),
+            original: &original,
+            previous: &original,
             target: &target_policy,
             original_device: &device,
             current_device: &device,
@@ -226,8 +226,19 @@ impl Renewal<'_> {
             }
         }
         target_policy.close();
-        original.close();
         sdk.close();
         Ok(())
     }
+}
+
+pub(crate) fn historical(path: &Path) -> Result<p::HistoricalSessionPolicy> {
+    let pin = p::PolicyPin::new(
+        fixture::array(path, "family")?,
+        p::PublicKey::decode(&fixture::read(path, "policy-root", 8192)?)?,
+        p::PolicyCheckpoint::from_trusted_state(
+            u64::from_be_bytes(fixture::array(path, "policy-version")?),
+            fixture::array(path, "policy-digest")?,
+        )?,
+    )?;
+    Ok(pin.verify_historical(&fixture::read(path, "protocol-policy", 8192)?)?)
 }

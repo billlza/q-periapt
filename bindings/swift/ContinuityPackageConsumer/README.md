@@ -39,8 +39,12 @@ original message's application effect commits but its ACK is lost. It obtains
 independent two-root approval, adopts the original policy-renewal operation and
 recovers the same session/message with one receiver effect. Both trust modes and
 all three carriers are covered by the [first-use composition checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json).
-The SDK policy remains unchanged and P0 is still valid when renewal starts;
-expired-policy recovery and SDK-policy replacement are separate qualifications.
+That checkpoint covers renewal while P0 remained valid. The current workload
+additionally waits for actual P0 expiry, requires old activation to return 104,
+and retains the original request before renewal. Its native reference receiver
+adopts the same P1 before expiry. Public readbacks bind these observations to the
+original policy and message. Credentials, rosters and SDK policy stay unchanged;
+SDK-policy replacement remains a separate qualification.
 
 The following legacy registration route assumes already provisioned native
 configuration and wrapping-key inputs:

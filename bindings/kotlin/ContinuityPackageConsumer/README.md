@@ -825,5 +825,9 @@ result. It then recovers the same session/message and observes one receiver
 effect. Fixed/recoverable trust and local/signed-TCP/mutual-TLS carriers run under
 both Serial and G1 GC with Debug and Release native libraries; see the
 [integrated checkpoint](../../../research/sdk-alpha1/evidence/20261010-first-configuration-policy-integration/CHECKS.json).
-P0 is valid when renewal starts and the SDK policy is unchanged. Expired-policy
-first-use recovery and SDK-policy replacement still need their own qualification.
+That checkpoint covers renewal while P0 remained valid. The current workload
+also requires actual P0 expiry, activation refusal 104, the unchanged original
+request and independently approved P1 on the native reference receiver before
+expiry. The reader binds the public observations to the original signed policy
+and message. Credentials, rosters and the SDK policy remain unchanged;
+SDK-policy replacement still needs its own qualification.

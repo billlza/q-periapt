@@ -18,6 +18,7 @@ pub(crate) struct Case<'a> {
     pub(crate) language: &'static str,
     pub(crate) profile: &'static str,
     pub(crate) carrier: Option<&'static str>,
+    pub(crate) enrolled_receiver: bool,
 }
 enum Receiver {
     Native(fixture::OwnedChild),
@@ -58,10 +59,10 @@ impl Case<'_> {
         mode: &str,
         session: Option<[u8; 32]>,
     ) -> Result<(Receiver, SocketAddr)> {
-        let Some(carrier) = self.carrier else {
+        if self.carrier.is_none() && !self.enrolled_receiver {
             let (child, address) = fixture::spawn(self.receiver, attempt, mode)?;
             return Ok((Receiver::Native(child), address));
-        };
+        }
         let executable = PathBuf::from(
             std::env::var_os("QPC_CONFIGURATION_RECEIVER")
                 .ok_or("explicit configuration receiver required")?,
@@ -69,15 +70,30 @@ impl Case<'_> {
         if !executable.is_absolute() || !executable.is_file() {
             return Err("configuration receiver path".into());
         }
-        let mut args: Vec<OsString> = vec![
-            match carrier {
-                "signed" => "--witness",
-                "tls" => "--witness-tls",
-                _ => return Err("receiver witness carrier".into()),
-            }
-            .into(),
-            fs::read_to_string(self.source.join("witness-address"))?.into(),
-        ];
+        let mut args: Vec<OsString> = Vec::new();
+        if let Some(carrier) = self.carrier {
+            args.extend([
+                match carrier {
+                    "signed" => "--witness",
+                    "tls" => "--witness-tls",
+                    _ => return Err("receiver witness carrier".into()),
+                }
+                .into(),
+                fs::read_to_string(self.source.join("witness-address"))?.into(),
+            ]);
+        }
+        if self.enrolled_receiver {
+            args.extend([
+                if mode == "application" {
+                    "--independent-policy-parent"
+                } else {
+                    "--enrollment-parent"
+                }
+                .into(),
+                self.receiver.as_os_str().into(),
+                "2".into(),
+            ]);
+        }
         if let Some(session) = session {
             args.extend(["--session".into(), fixture::hex(&session).into()]);
         }

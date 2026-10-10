@@ -34,7 +34,8 @@ pub(crate) fn peer_bundle_at(
     let at = fixture::now()?;
     let validity = p::Validity::new(
         at.saturating_sub(1),
-        at.checked_add(600).ok_or("clock overflow")?,
+        at.checked_add(600).ok_or("clock overflow")?
+            .min(context.current_policy()?.validity().until()),
     )?;
     let mut leaves = Vec::new();
     for (index, kind) in [

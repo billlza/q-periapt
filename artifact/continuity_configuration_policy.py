@@ -18,6 +18,8 @@ COMMON = frozenset({
 LOCAL = frozenset({"policy-committed.bin", "policy-commit-replayed.bin"})
 WITNESS = frozenset({"policy-proposal.bin", "proposal-replayed.bin", "proposal-recovered.bin",
                      "witness-applied.bin", "witness-reconciled.bin"})
+EXPIRY = frozenset({"expired-activation.bin", "expired-request.bin", "expiry-observation.bin",
+                    "receiver-policy.bin"})
 
 
 def names(carrier: str) -> frozenset[str]:
@@ -28,6 +30,11 @@ def names(carrier: str) -> frozenset[str]:
 def marker(language: str, carrier: str, profile: str) -> str:
     return (f"INDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={language} carrier={carrier} profile={profile} "
             "original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1")
+
+
+def expiry_marker(language: str, carrier: str, profile: str) -> str:
+    return (f"INDEPENDENT_CONFIGURATION_EXPIRED_POLICY_PASS language={language} carrier={carrier} profile={profile} "
+            "old_activation_refused=true original_request=true receiver_adopted_before_expiry=true")
 
 
 def digest(domain: bytes, value: bytes) -> bytes:
@@ -72,6 +79,26 @@ def _checkpoint(wire: bytes, family: bytes) -> tuple[int, bytes, bytes]:
                 "configuration policy validity differs")
     return counter(body[40:48], "big"), digest(
         b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1", body), body
+
+
+def verify_expiry(data: dict[str, bytes], *, family: bytes, original_request: bytes,
+                  identity_until: int) -> dict:
+    """Bind actual-clock expiry/refusal to P0 and the original retained request."""
+    _, _, original = _checkpoint(data["original-policy.bin"], family)
+    target = _checkpoint(data["target-policy.bin"], family)
+    receiver = _checkpoint(data["receiver-policy.bin"], family)
+    sdk.require(receiver == target, "configuration expiry receiver adopted another policy")
+    observation = data["expiry-observation.bin"]
+    sdk.require(len(observation) == 24, "configuration expiry observation width differs")
+    until, at, adopted = (counter(observation[n:n + 8], "big") for n in (0, 8, 16))
+    sdk.require(counter(original[48:56], "big") <= adopted < until
+                == counter(original[56:64], "big") <= at < identity_until
+                and at < counter(target[2][56:64], "big"),
+                "configuration expiry did not observe expired P0 with live identity and target")
+    sdk.require(data["expired-activation.bin"] == (104).to_bytes(4, sys.byteorder)
+                and data["expired-request.bin"] == original_request,
+                "configuration expiry did not refuse activation and preserve original request")
+    return dict(policy_until=until, observed_at=at, receiver_adopted_at=adopted)
 
 
 def _approvals(data: dict[str, bytes], raw: bytes, family: bytes,

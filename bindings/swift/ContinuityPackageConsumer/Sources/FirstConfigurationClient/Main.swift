@@ -256,7 +256,7 @@ private struct Main {
         let args = CommandLine.arguments
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -339,6 +339,11 @@ private struct Main {
                         bytes = [0, 0, 0, 2] + journal.bytes + genesis.subject + genesis.imageDigest
                         marker = "QPC_CONFIGURATION_GENESIS_PASS"
                     }
+                } else if mode == "activate-expired" {
+                    try expect(104) { _ = try owner.activate() }
+                    try expect(2) { _ = try owner.status() }
+                    bytes = hostNumber(UInt32(104))
+                    marker = "QPC_CONFIGURATION_POLICY_EXPIRED"
                 } else if mode == "activate-missing" || mode == "activate-bad-receipt" {
                     try expect(mode == "activate-missing" ? 216 : 218) { _ = try owner.activate() }
                     marker = mode == "activate-missing" ? "QPC_CONFIGURATION_WITNESS_REQUIRED" : "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"

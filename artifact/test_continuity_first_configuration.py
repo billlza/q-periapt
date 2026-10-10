@@ -1,6 +1,7 @@
 """Public configuration evidence refuses partial runs, misbinding and private files."""
 import hashlib
 import json
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -18,7 +19,7 @@ def fixture(root, language="C"):
         domain = b"Q-PERIAPT-CONTINUITY-ACCOUNT-CANDIDATE/v1"
         account = hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain + len(authority).to_bytes(8, "big") + authority).digest()
         family, policy_values = fixture_values(index, account, carrier)
-        intent = bytes([2]) * 16 + (1).to_bytes(8, "big") + family + (10).to_bytes(8, "big") + (20).to_bytes(8, "big")
+        intent = bytes([2]) * 16 + (1).to_bytes(8, "big") + family + (10).to_bytes(8, "big") + (40).to_bytes(8, "big")
         body = b"QPENRQ01" + bytes([index+8])*32 + account + intent[:24] + intent[56:72] + intent[24:56] + bytes([index+16])*1985
         # Reader fixtures contain dummy signature bytes. The reader checks public
         # grammar and replay; only real native execution verifies signatures.
@@ -32,12 +33,17 @@ def fixture(root, language="C"):
         values.update({"session.bin": session, "unknown.bin": session + message,
                        "acknowledged.bin": session + message, "after-traffic.bin": request,
                        "effect.bin": session + message + b"persisted before process exit"})
+        values.update({"expired-activation.bin": (104).to_bytes(4, sys.byteorder),
+                       "expired-request.bin": request,
+                       "expiry-observation.bin": b"".join(n.to_bytes(8, "big") for n in (20, 21, 19)),
+                       "receiver-policy.bin": values["target-policy.bin"]})
         for name, data in values.items(): (folder/name).write_bytes(data)
+        stdout += configuration.policy.expiry_marker(language, carrier, profile) + "\n"
+        stdout += configuration.policy.marker(language, carrier, profile) + "\n"
+        stdout += configuration.connection_marker(language, carrier, profile) + "\n"
         if carrier == "local":
             stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
-        stdout += configuration.connection_marker(language, carrier, profile) + "\n"
-        stdout += configuration.policy.marker(language, carrier, profile) + "\n"
     return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;\n").encode()
 
 
@@ -59,16 +65,41 @@ class FirstConfigurationTests(unittest.TestCase):
             with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory); data = fixture(root, language)
                 result = configuration.verify_execution(data, root, language=language)
-                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 166)
+                self.assertTrue(result["completed"]); self.assertEqual(len(result["public_readbacks"]), 190)
                 self.assertEqual(result["local_connection_recovery_profiles"], ["fixed", "recoverable"])
                 self.assertTrue(result["witnessed_connection_composition"])
                 self.assertTrue(result["policy_renewal_composition"])
+                self.assertTrue(result["real_clock_policy_expiry"])
+                self.assertEqual(len(result["expiry_observations"]), 6)
                 self.assertFalse(result["sdk_policy_replacement_qualified"])
                 self.assertFalse(result["release_claim_eligible"])
                 for changed in (data.replace(b"2 passed", b"1 passed"), data.replace(b"0 ignored", b"1 ignored"),
                                 data.replace(b"carrier=tls", b"carrier=other"), data + data, data.replace(b"INDEPENDENT_", b"OMITTED_")):
                     with self.assertRaises(ValueError): configuration.verify_execution(changed, root, language=language)
                 with self.assertRaises(ValueError): configuration.verify_execution(data, root, language="unknown")
+
+    def test_expiry_cannot_be_omitted_or_reported_after_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); data = fixture(root)
+            marker = configuration.policy.expiry_marker("C", "local", "fixed").encode() + b"\n"
+            for changed in (data.replace(marker, b""), data + marker,
+                            data.replace(marker, b"") + marker):
+                with self.assertRaises(ValueError): configuration.verify_execution(changed, root, language="C")
+
+    def test_expiry_requires_real_p0_refusal_original_request_and_receiver_target(self):
+        for carrier in ("local", "signed", "tls"):
+            for leaf in configuration.policy.EXPIRY:
+                for mutation in (lambda b: b[:-1], lambda b: bytes([b[0] ^ 1]) + b[1:]):
+                    with self.subTest(carrier=carrier, leaf=leaf), tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory); data = fixture(root); path = root / (carrier + "-fixed") / leaf
+                        path.write_bytes(mutation(path.read_bytes()))
+                        with self.assertRaises(ValueError): configuration.verify_execution(data, root, language="C")
+        for times in ((19, 21, 18), (20, 19, 18), (20, 21, 20), (20, 21, 9), (20, 40, 19)):
+            with self.subTest(times=times), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); data = fixture(root)
+                (root / "local-fixed" / "expiry-observation.bin").write_bytes(b"".join(n.to_bytes(8, "big") for n in times))
+                with self.assertRaisesRegex(ValueError, "configuration expiry"):
+                    configuration.verify_execution(data, root, language="C")
 
     def test_connection_requires_original_identity_and_uncertain_message_readback(self):
         for carrier in ("local", "signed", "tls"):

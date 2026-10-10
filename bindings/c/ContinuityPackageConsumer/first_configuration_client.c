@@ -158,13 +158,14 @@ int main(int argc, char **argv) {
     int create = strcmp(argv[1], "create") == 0 || target_create;
     int prepare = strcmp(argv[1], "prepare") == 0;
     int activate = strcmp(argv[1], "activate") == 0;
+    int expired = strcmp(argv[1], "activate-expired") == 0;
     int missing = strcmp(argv[1], "activate-missing") == 0;
     int wrong = strcmp(argv[1], "wrong-witness") == 0;
     int bad_receipt = strcmp(argv[1], "activate-bad-receipt") == 0;
     int cancel = strcmp(argv[1], "cancel") == 0;
     int local = strcmp(argv[1], "enroll-local") == 0;
     int connection = continued || strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
-    if (!policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
+    if (!expired && !policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
     unsigned carrier = argc == 6 ? 0u : strcmp(argv[6], "signed") == 0 ? 1u : strcmp(argv[6], "tls") == 0 ? 2u : 3u;
     if (carrier == 3u || (missing && carrier != 0u) || (wrong && carrier == 0u)) return 64;
     int recoverable = strcmp(argv[2], "recoverable") == 0;
@@ -276,10 +277,17 @@ int main(int argc, char **argv) {
         memcpy(genesis + 132, prepared.image_digest, 32);
         if (!local) { written_bytes = genesis; written_length = sizeof(genesis); }
     }
-    if (activate || missing || bad_receipt || local || connection) {
+    if (expired || activate || missing || bad_receipt || local || connection) {
         if(continued && select_policy_target(handle,source,target,recoverable,&error)) goto done;
         int32_t activated = continued ? qpc_enrollment_v1_activate_policy_renewal(handle,&error) : qpc_enrollment_v1_activate(handle, &error);
-        if (missing) {
+        if (expired) {
+            if (activated != 104 || error.code != 104) { (void)checked(activated, &error); goto done; }
+            qpc_enrollment_status_v1 unusable = {0};
+            int32_t inactive = qpc_enrollment_v1_status(handle, &unusable, &error);
+            if (inactive != QPC_CLOSED || error.code != QPC_CLOSED) goto done;
+            memcpy(policy_output, &activated, sizeof(activated));
+            written_bytes = policy_output; written_length = sizeof(activated);
+        } else if (missing) {
             if (activated != QPC_ANCHOR_REQUIRED) { (void)checked(activated, &error); goto done; }
         } else if (bad_receipt) {
             if (activated != QPC_ANCHOR) { (void)checked(activated, &error); goto done; }
@@ -300,7 +308,7 @@ int main(int argc, char **argv) {
 done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
-    if (!result) puts(target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+    if (!result) puts(expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
         strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
         local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :

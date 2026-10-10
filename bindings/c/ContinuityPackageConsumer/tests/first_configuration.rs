@@ -13,6 +13,8 @@ use std::{
 use zeroize::Zeroizing;
 #[path = "common/first_connection.rs"]
 mod first_connection;
+#[path = "common/first_expiry.rs"]
+mod first_expiry;
 #[path = "common/first_policy.rs"]
 mod first_policy;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
@@ -110,6 +112,7 @@ fn run_carrier(
         "retry-send" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
         "prepare" => "QPC_CONFIGURATION_GENESIS_PASS\n",
         "activate" => "QPC_CONFIGURATION_ACTIVATION_PASS\n",
+        "activate-expired" => "QPC_CONFIGURATION_POLICY_EXPIRED\n",
         "activate-missing" => "QPC_CONFIGURATION_WITNESS_REQUIRED\n",
         "activate-bad-receipt" => "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED\n",
         "wrong-witness" => "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED\n",
@@ -176,6 +179,13 @@ fn export_public(
     }
     for (name, path) in [
         ("policy-request.bin", source.join("renewal-request")),
+        ("expired-activation.bin", base.join("expired-activation")),
+        ("expired-request.bin", base.join("expired-original-request")),
+        (
+            "expiry-observation.bin",
+            base.join("expired-policy-observation"),
+        ),
+        ("receiver-policy.bin", base.join("receiver-policy")),
         (
             "policy-request-replayed.bin",
             base.join("renewal-request-replayed"),
@@ -269,7 +279,7 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
     );
     assert!(client.is_absolute() && client.is_file());
     for recoverable in [false, true] {
-        let reference = fixture::setup(fixture::enrollment::SetupKind::Installed)?;
+        let reference = fixture::setup(fixture::enrollment::SetupKind::EnrolledExpiringPolicy)?;
         let dir = tempfile::Builder::new()
             .permissions(fs::Permissions::from_mode(0o700))
             .tempdir()?;
@@ -463,9 +473,13 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
             language,
             profile,
             carrier: None,
+            enrolled_receiver: true,
         };
+        first_expiry::prepare_receiver_metadata(&reference)?;
         connection.prepare(&authority, &certificate, &roster, None)?;
         connection.run_with_policy(&original, &mut || {
+            first_expiry::renew_receiver_before_expiry(&connection, &reference, None)?;
+            first_expiry::wait_and_refuse_expired(&connection, &original)?;
             first_policy::Renewal {
                 account_root: &authority,
                 policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
@@ -500,7 +514,7 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
         for recoverable in [false, true] {
             let profile = if recoverable { "recoverable" } else { "fixed" };
             let mut witness = witness::Witness::start()?;
-            let reference = fixture::setup_with_witness(Some(&witness.configured))?;
+            let reference = fixture::setup_expiring_policy(Some(&witness.configured))?;
             let witness_pin = witness
                 .configured
                 .store
@@ -691,9 +705,11 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
                 language,
                 profile,
                 carrier: Some(carrier),
+                enrolled_receiver: true,
             };
             // Prepare responder prekeys before measuring TLS traffic. Its original
             // setup witness uses signed TCP; runtime traffic must use selected TLS.
+            first_expiry::prepare_receiver_metadata(&reference)?;
             connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
             let mut tls = if carrier == "tls" {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
@@ -753,6 +769,12 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
             )?;
             assert_eq!(fs::read(base.join("active-reopened"))?, request);
             connection.run_with_policy(&request, &mut || {
+                first_expiry::renew_receiver_before_expiry(
+                    &connection,
+                    &reference,
+                    Some(&witness.configured),
+                )?;
+                first_expiry::wait_and_refuse_expired(&connection, &request)?;
                 first_policy::Renewal {
                     account_root: &authority,
                     policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,

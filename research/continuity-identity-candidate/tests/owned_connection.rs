@@ -414,6 +414,7 @@ impl Drop for Setup {
 pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
     match kind {
         enrollment::SetupKind::Installed => setup_with_witness(None),
+        enrollment::SetupKind::EnrolledExpiringPolicy => setup_expiring_policy(None),
         enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement => {
             Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
         }
@@ -452,6 +453,18 @@ impl WitnessFixture {
             Duration::from_secs(3),
         )?)
     }
+}
+pub(crate) fn setup_expiring_policy(witness: Option<&WitnessFixture>) -> Result<Setup> {
+    Ok(setup_devices_for(
+        witness,
+        None,
+        None,
+        false,
+        false,
+        true,
+        enrollment::SetupKind::EnrolledExpiringPolicy,
+    )?
+    .0)
 }
 pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Setup> {
     setup_with_advertisement(witness, None)
@@ -504,6 +517,7 @@ fn setup_devices_for(
     let enrolled = matches!(
         kind,
         enrollment::SetupKind::Enrolled
+            | enrollment::SetupKind::EnrolledExpiringPolicy
             | enrollment::SetupKind::DeviceReplacement
             | enrollment::SetupKind::DeviceRetirement
     );
@@ -578,7 +592,12 @@ fn setup_devices_for(
         time.saturating_sub(1),
         time.checked_add(3600).ok_or("clock overflow")?,
     )?;
-    let advertisement = match advertisement_seconds {
+    let effective_advertisement_seconds = if kind == enrollment::SetupKind::EnrolledExpiringPolicy {
+        Some(advertisement_seconds.unwrap_or(60).min(60))
+    } else {
+        advertisement_seconds
+    };
+    let advertisement = match effective_advertisement_seconds {
         Some(seconds) => p::Validity::new(
             validity.from(),
             time.checked_add(seconds).ok_or("advertisement overflow")?,
@@ -594,7 +613,14 @@ fn setup_devices_for(
         &sdk,
         p::SessionPolicyParameters::new(
             1,
-            validity,
+            if kind == enrollment::SetupKind::EnrolledExpiringPolicy {
+                p::Validity::new(
+                    validity.from(),
+                    time.checked_add(60).ok_or("policy expiry")?,
+                )?
+            } else {
+                validity
+            },
             p::AllowedPrekeyModes::new(&[p::PrekeyQuality::OneTimeBoth])?,
             match witness {
                 Some(witness) => p::AnchorRequirement::required(&witness.pin()?),

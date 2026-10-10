@@ -217,7 +217,7 @@ fun main(args: Array<String>) {
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
+        "prepare", "activate", "activate-expired", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
     if (mode == "policy-target-create") {
@@ -279,6 +279,12 @@ fun main(args: Array<String>) {
                                 bytes = byteArrayOf(0, 0, 0, 2) + journal.encoded() + prepared.genesis.subject.encoded() + prepared.genesis.imageDigest.encoded()
                                 marker = "QPC_CONFIGURATION_GENESIS_PASS"
                             }
+                        }
+                        "activate-expired" -> {
+                            expect(104) { owner.activate().use { it.cancel() } }
+                            expect(2) { owner.status() }
+                            bytes = ByteBuffer.allocate(4).order(java.nio.ByteOrder.nativeOrder()).putInt(104).array()
+                            marker = "QPC_CONFIGURATION_POLICY_EXPIRED"
                         }
                         "activate-missing", "activate-bad-receipt" -> {
                             expect(if (mode == "activate-missing") 216 else 218) { owner.activate().use { it.cancel() } }
