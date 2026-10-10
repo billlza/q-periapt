@@ -2144,12 +2144,11 @@ jobs:
     needs: rust-publish-contract
     runs-on: macos-15
     # Keep every Rust/C prerequisite and both Kotlin profiles/GC variants.
-    # At 491b6cde, Kotlin execution took 178m35s and artifact upload 84s;
-    # job 112452386048 exceeded 180m during finalization after both succeeded.
-    # Allow 30m job headroom; individual command deadlines stay fixed.
+    # At 29ec0a37, Kotlin hit 210m after completing Release sync-fault recovery
+    # and while account-witness checks still progressed. Budget the full cohort.
     # At 29ec0a37, Swift hit 120m while Release lifecycle checks still progressed.
     # Keep both profiles and the 15m command bound; budget the expanded cohort.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 210 || 180 }}
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 270 || 180 }}
     strategy:
       fail-fast: false
       matrix:
