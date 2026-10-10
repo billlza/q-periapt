@@ -174,6 +174,81 @@ class CaptureTest(unittest.TestCase):
                 unrelated.terminate()
                 unrelated.wait(timeout=10)
 
+    def test_final_console_retains_a_crash_absent_from_the_later_adb_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            obj.result.update(system_crash_observed=False, observations_clean=True)
+            (obj.output / "guest-logcat.log").write_text(
+                "10-10 11:54:38.961   549   563 F libc : Fatal signal 11 (SIGSEGV), "
+                "code 1 (SEGV_MAPERR) in tid 563 (HeapTaskDaemon), pid 549 (system_server)\n"
+                "normal output after a restarted system_server\n")
+            emulator = Mock()
+            emulator.poll.return_value = 0
+            emulator.returncode = 0
+            emulator.pid = 123
+            obj.children = [("emulator", emulator)]
+            obj.stop()
+            self.assertTrue(obj.result["system_crash_observed"])
+            self.assertFalse(obj.result["observations_clean"])
+            console = obj.result["guest_console_observation"]
+            self.assertEqual(console["system_crash_lines"], [1])
+            self.assertTrue(console["complete"])
+            self.assertEqual(console["sha256"], control.file_hash(obj.output / "guest-logcat.log"))
+
+    def test_missing_console_after_emulator_start_is_a_diagnostic_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            obj.result["observations_clean"] = True
+            emulator = Mock()
+            emulator.poll.return_value = 0
+            emulator.returncode = 0
+            emulator.pid = 123
+            obj.children = [("emulator", emulator)]
+            obj.stop()
+            self.assertFalse(obj.result["observations_clean"])
+            self.assertIn("guest-logcat-console", obj.result["diagnostic_failures"])
+            self.assertFalse(obj.result["guest_console_observation"]["complete"])
+            self.assertNotIn("system_crash_observed", obj.result)
+
+    def test_console_without_crash_does_not_erase_an_earlier_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            obj.result.update(system_crash_observed=True, observations_clean=False)
+            (obj.output / "guest-logcat.log").write_text("normal system_server observation\n")
+            emulator = Mock()
+            emulator.poll.return_value = 0
+            emulator.returncode = 0
+            emulator.pid = 123
+            obj.children = [("emulator", emulator)]
+            obj.stop()
+            self.assertTrue(obj.result["system_crash_observed"])
+            self.assertFalse(obj.result["observations_clean"])
+
+    def test_console_scan_has_a_line_size_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            (obj.output / "guest-logcat.log").write_bytes(b"x" * 65537)
+            emulator = Mock()
+            emulator.poll.return_value = 0
+            emulator.returncode = 0
+            emulator.pid = 123
+            obj.children = [("emulator", emulator)]
+            obj.stop()
+            self.assertIn("guest-logcat-console", obj.result["diagnostic_failures"])
+            self.assertFalse(obj.result["guest_console_observation"]["complete"])
+
+    def test_live_console_cannot_be_reported_as_complete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            (obj.output / "guest-logcat.log").write_text("normal output so far\n")
+            emulator = Mock()
+            emulator.poll.return_value = None
+            obj.children = [("emulator", emulator)]
+            obj.retain_console_observation()
+            self.assertFalse(obj.result["guest_console_observation"]["complete"])
+            self.assertFalse(obj.result["observations_clean"])
+            self.assertIn("guest-logcat-console", obj.result["diagnostic_failures"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,7 +14,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from android_runtime_control import Control, file_hash, run_control
+from android_runtime_control import Control, file_hash, run_control, system_crash_observed
 
 PACKAGE = "org.qperiapt.runtimecontrol"
 COMPONENT = PACKAGE + "/.ControlRunner"
@@ -63,10 +63,6 @@ def invocation_passed(record: dict, raw: str, token: str) -> bool:
     lines = raw.strip().splitlines()
     return (record["returncode"] == 0 and not record["timed_out"]
             and len(lines) == 3 and set(lines) == expected)
-
-
-def system_crash_observed(raw: str) -> bool:
-    return bool(re.search(r"FATAL EXCEPTION IN SYSTEM PROCESS|>>> system_server <<<|Fatal signal[^\n]*\(system_server\)", raw))
 
 
 def check_apk(apk: Path, dex: Path) -> dict:

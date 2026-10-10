@@ -49,6 +49,10 @@ def transfer_matches(record: dict, expected_size: int, expected_hash: str) -> bo
     )
 
 
+def system_crash_observed(raw: str) -> bool:
+    return bool(re.search(r"FATAL EXCEPTION IN SYSTEM PROCESS|>>> system_server <<<|Fatal signal[^\n]*\(system_server\)", raw))
+
+
 class Control:
     def __init__(self, output: Path, sdk: Path, avdmanager: Path):
         output.mkdir(mode=0o700)
@@ -348,6 +352,41 @@ class Control:
             raise RuntimeError("incomplete or malformed guest hash: " + label)
         return match.group(1)
 
+    def retain_console_observation(self):
+        """Inspect the complete owned console after shutdown, including pre-boot crashes."""
+        observation: dict = {"path": "guest-logcat.log", "complete": False}
+        self.result["guest_console_observation"] = observation
+        digest = hashlib.sha256()
+        total = 0
+        crash_lines = []
+        try:
+            if any(name == "emulator" and child.poll() is None for name, child in self.children):
+                raise RuntimeError("owned emulator is still running; console is not final")
+            # Bound memory and work; a refused diagnostic remains a failure.
+            with (self.output / "guest-logcat.log").open("rb") as stream:
+                for number in range(1, 1048577):
+                    line = stream.readline(65537)
+                    if not line:
+                        break
+                    total += len(line)
+                    if len(line) > 65536 or total > 64 * 1024 * 1024:
+                        raise RuntimeError("guest console exceeds diagnostic byte limits")
+                    digest.update(line)
+                    if system_crash_observed(line.decode("utf-8", errors="replace")):
+                        crash_lines.append(number)
+                else:
+                    raise RuntimeError("guest console exceeds diagnostic line limit")
+            observation.update(complete=True, bytes=total, sha256=digest.hexdigest(),
+                               system_crash_lines=crash_lines)
+            self.result["system_crash_observed"] = (
+                self.result.get("system_crash_observed", False) or bool(crash_lines))
+            if self.result["system_crash_observed"]:
+                self.result["observations_clean"] = False
+        except (OSError, RuntimeError) as error:
+            observation["failure"] = str(error)
+            self.result.setdefault("diagnostic_failures", []).append("guest-logcat-console")
+            self.result["observations_clean"] = False
+
     def stop(self):
         exits = []
         failures = []
@@ -368,6 +407,8 @@ class Control:
             exits.append({"name": name, "pid": child.pid, "returncode": child.returncode, "forced_kill": forced})
         self.result["owned_child_exits"] = exits
         self.result["cleanup_failures"] = failures
+        if any(name == "emulator" for name, _ in self.children):
+            self.retain_console_observation()
         self.result["finished_utc"] = datetime.now(timezone.utc).isoformat()
         self.save()
 
