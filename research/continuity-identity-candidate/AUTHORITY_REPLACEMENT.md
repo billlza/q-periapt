@@ -200,6 +200,15 @@ admission, successor installation/activation and the account-specific historical
 cleanup workflow also remain to be integrated. A per-journal marker must not be
 described as an executed managed account cutover or whole-host rollback protection.
 
+The [fresh backup-boundary experiment](../sdk-alpha1/evidence/20261010-account-root-backup-boundary/CHECKS.json)
+confirms this distinction with a real two-endpoint handshake and application
+ciphertext. Before witness retirement, restoring the complete pre-fence journal
+permits anchored reopening and release of the identical cached ciphertext. After
+witness retirement, the same restored bytes cannot reopen a traffic journal. The
+fixture transport reports the witness's refusal as unavailability; a separate
+purpose-22 receipt supplies authenticated historical retirement. This does not
+test whole-host or witness rollback.
+
 ### Remaining product acceptance
 
 Actual installed owners must exercise the same original operation across cuts

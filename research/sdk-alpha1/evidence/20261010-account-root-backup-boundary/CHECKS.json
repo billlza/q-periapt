@@ -1,0 +1,64 @@
+{
+  "base_head": "1a1cd2c97e87f384cbfe6d9a023444bfeabf7526",
+  "experiment_head": "3b44c073bcb8efd28f07b048eb76f9d0336aab59",
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--manifest-path",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/android-control-29ec-current/console-routing-fix/gate-source/research/continuity-identity-candidate/Cargo.toml",
+    "--all-features",
+    "--locked",
+    "--offline",
+    "-j",
+    "2",
+    "--lib",
+    "account_root_backup_boundary",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "seconds": 18.462061292026192,
+  "returncode": 0,
+  "source_clean": true,
+  "head_unchanged": true,
+  "scope": "One isolated fresh macOS arm64 two-endpoint witnessed journal experiment. Product source unchanged by this experiment; not a managed-cutover implementation or cross-platform qualification.",
+  "tests_passed": 1,
+  "tests_filtered": 838,
+  "observed": [
+    "An actual two-endpoint handshake and accepted application ciphertext precede a complete quiescent original-journal snapshot.",
+    "The local fence alone refuses ordinary and anchored reopening while present.",
+    "Restoring the identical complete pre-fence database before witness retirement allows anchored reopening and releases the exact original cached ciphertext again.",
+    "Refencing with the independently retained original proposal does not require another operation or target.",
+    "After actual account-root witness retirement, restoring the same database cannot reopen a traffic journal. Direct server request returns AnchorError::Rejected(Error::Scope); the fixture carrier exposes AnchorClientError::Transport with io::ErrorKind::Other to the client.",
+    "The unavailable ordinary request is not a signed retirement receipt. Historical recovery separately authenticates and retains the exact purpose-22 receipt; no old traffic owner is returned."
+  ],
+  "development_failure": "The first isolated test incorrectly expected the local-row Suspended error after the row had been restored away. Static tracing showed the witness rejection is mapped by the fixture carrier into a typed transport error. The corrected experiment checks both exact server rejection and exact client error; product behavior was unchanged. Original failed test patch, source identity and logs retained.",
+  "remaining": [
+    "Parent account/enrollment authority and exact replacement intent must survive outside old journal backups and govern product reopen/import.",
+    "Whole-host rollback, witness rollback or witness-key compromise remain separate trust assumptions; this experiment restores only one fresh journal with its original key and retained witness.",
+    "Peer authority, stable application-account mapping, original target activation, historical delivery accounting and foreign adapters remain incomplete."
+  ],
+  "reproduce": "Apply EXPERIMENT.patch to the recorded base_head in an isolated checkout and run the retained Cargo command with the selected toolchain/environment. No fixture data, private keys or journal backups are retained in this capsule.",
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 11984,
+    "sha256": "a6da8ae9ac22ef3383725a531992948df5815ddb45df285999dfd8e588f9689e",
+    "members": {
+      "SOURCE.json": "9c20be189a8b3f507f9be7d10902c52a40d08bcddcdefa8f00a02b473ef09161",
+      "START.json": "37669c2b85f07b088de078c5b80ff638972ca54df59ad33ef360ef299cc319de",
+      "RESULT.json": "e84ec2f5bd1f4b3c8fe12005a70900117266f5480a85dc93afa4403e4047211d",
+      "EXPERIMENT.patch": "0107328d08a9c4246586ba4b66f8f73c60ba44eba653a113be2720eb1e99ecc3",
+      "run.py": "cf39e76063cc134a521b6af5329145bdb4afcea02356c719e336bdaf92a873ef",
+      "stdout": "55741f8a195d6ecfc5c120224e655c67befceee48c6f31155fdd3530aee33388",
+      "stderr": "751c3b11986a190ef335d524a124cce56eed85f063675d9f0cf7f46728624c88",
+      "attempt-01/run.py": "cf39e76063cc134a521b6af5329145bdb4afcea02356c719e336bdaf92a873ef",
+      "attempt-01/RESULT.json": "ad3a64627cc5bb6a5c09a5692e559fcf32f97cf9c4fabc1660dd42c9c3d5f684",
+      "attempt-01/stdout": "023e14162bc98bd61dea4761a011fec83712c51b58b7260cedaf0a8e4562a775",
+      "attempt-01/SOURCE.json": "ab308dee473255a24e59a87c9b43e32479bd355281a62f005354b55da55ebb80",
+      "attempt-01/stderr": "2dc67f5ac7142c0b37fb8adf116a3ad1320994199dc37d209b239d09082cf430",
+      "attempt-01/START.json": "9a254f7ec71cc9ffdf741bc6a252739c9e4cc19a7be69c59ddd9b0dd78a84225",
+      "attempt-01/EXPERIMENT.patch": "32c225d0f98cd4b35cce70816dcd06227660a2c5dc7049ad3616b9c68c9e7e69"
+    }
+  }
+}
