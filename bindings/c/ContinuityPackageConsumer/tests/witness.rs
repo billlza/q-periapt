@@ -60,6 +60,7 @@ impl Witness {
 }
 
 struct Process {
+    label: String,
     child: fixture::OwnedChild,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -121,6 +122,7 @@ fn start_selected(
         .stdout(Stdio::from(file(&stdout)?))
         .stderr(Stdio::from(file(&stderr)?));
     Ok(Process {
+        label: label.to_owned(),
         child: fixture::OwnedChild(command.spawn()?),
         stdout,
         stderr,
@@ -131,7 +133,11 @@ fn finish(mut process: Process, expected: i32) -> Result<String> {
     let stdout = fs::read_to_string(&process.stdout)?;
     let stderr = fs::read_to_string(&process.stderr)?;
     if status.code() != Some(expected) || !stderr.is_empty() || stdout.len() > 65536 {
-        return Err(format!("C witness command: {status}; {stdout}; {stderr}").into());
+        return Err(format!(
+            "C witness command {}: {status}; {stdout}; {stderr}",
+            process.label
+        )
+        .into());
     }
     Ok(stdout)
 }

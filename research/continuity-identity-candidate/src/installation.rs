@@ -563,7 +563,7 @@ impl DeviceInstallation {
         journal.check_installation_state(device, policy, false)?;
         admit(device, policy, now)?;
         Ok(DeviceService {
-            active: Some(ServiceOwners {
+            active: Some(Box::new(ServiceOwners {
                 original_device: device.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
@@ -572,7 +572,7 @@ impl DeviceInstallation {
                 journal,
                 archives,
                 installation: self,
-            }),
+            })),
         })
     }
     pub(crate) fn reconcile_original_enrollment(
@@ -604,7 +604,7 @@ impl DeviceInstallation {
         )?;
         journal.check_installation_state(original, policy, false)?;
         Ok(DeviceService {
-            active: Some(ServiceOwners {
+            active: Some(Box::new(ServiceOwners {
                 original_device: original.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     original, policy,
@@ -613,7 +613,7 @@ impl DeviceInstallation {
                 journal,
                 archives,
                 installation,
-            }),
+            })),
         })
     }
     fn open_children(
@@ -678,7 +678,10 @@ struct ServiceOwners {
 /// complete lifetime. Closing erases journal key ownership and drops child leases
 /// before releasing configuration. It never deletes persisted state.
 pub struct DeviceService {
-    active: Option<ServiceOwners>,
+    // Keep the large authenticated owner state at one stable location. Service
+    // returns and transfers otherwise copy value-sized temporaries through every
+    // admission frame, exhausting ordinary foreign worker stacks in Debug.
+    active: Option<Box<ServiceOwners>>,
 }
 impl DeviceService {
     /// Borrow the existing protocol engines together; no key material is exported.

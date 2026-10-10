@@ -384,7 +384,7 @@ impl DeviceInstallation {
             AccountAuthorityOpen::Existing(admission.account),
         )?;
         let mut service = DeviceService {
-            active: Some(ServiceOwners {
+            active: Some(Box::new(ServiceOwners {
                 original_device: device.clone(),
                 authority: crate::RetainedInstallationAuthority::active_installation(
                     device, policy,
@@ -393,7 +393,7 @@ impl DeviceInstallation {
                 journal,
                 archives,
                 installation,
-            }),
+            })),
         };
         let peer = service.reopen_peer(
             SessionReopenRequest {
