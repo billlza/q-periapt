@@ -38,7 +38,7 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
 EXPORTS |= {"qpc_authority_v1_" + name for name in
             ("provision_wrapping_key", "prepare_create", "prepare_open", "checkpoint",
-             "associate", "prepare_enrollment", "prepare_owner")}
+             "associate", "prepare_enrollment", "prepare_owner", "select_enrollment")}
 EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen",
             "qpc_peer_v1_prepare_configured", "qpc_peer_v1_prepare_configured_reopen"}
@@ -320,6 +320,8 @@ def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, st
 def verify_admission(stdout: bytes) -> None:
     tests = {
         "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
+        "account_authority::tests::authority_registry_wrong_enrollment_root_is_refused_before_record_creation",
+        "configuration::tests::account_authority::configured_first_account_selects_registry_after_request_and_requires_it_on_reopen",
         "account_authority::tests::authority_registry_parent_close_rejects_pending_enrollment_before_file_creation",
         "account_authority::tests::authority_registry_reopens_exact_mapping_and_cancel_does_not_replace_close",
         "account_authority::tests::authority_registry_short_options_are_refused_before_full_structure_read",
@@ -370,7 +372,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 

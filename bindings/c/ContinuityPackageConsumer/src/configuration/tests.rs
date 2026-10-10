@@ -1113,3 +1113,5 @@ fn configured_witness_snapshots_trust_without_files_and_checks_tls_identity() ->
     assert!(unsafe { WitnessInput::read(std::ptr::from_ref(&short).cast()) }.is_err());
     Ok(())
 }
+
+mod account_authority;

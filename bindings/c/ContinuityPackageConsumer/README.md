@@ -1404,6 +1404,19 @@ keeping the database/key owner alive. Reopening the same registry does not reviv
 old read access. Cancel applies to this registry handle's invocations; use close
 for revocation of its delegated access, after cancelling and joining a busy call.
 
+For a first device, obtain the original signed enrollment request before the
+account is associated. The independently approving account issuer verifies that
+request and issues the real credential/roster. Associate that account with the
+registry, then call `qpc_authority_v1_select_enrollment` on the same registration
+handle before acceptance, storage preparation, independent witness enrollment and
+activation. This avoids requiring an already enrolled device to begin its own
+registration. Selection performs no I/O; a known scope refusal keeps the original
+registration owner available. Already operational device handles reject selection.
+Direct managed construction checks account/family admission before creating the
+registration record, so a known mismatched root cannot strand a fresh installation.
+Concurrent closure after the precheck can still follow I/O; preserve the original
+intent and reconcile it without switching to creation or discarding state.
+
 The existing activation, renewal and peer operations continue to use the same
 native journal engine. A managed session reopen requires an existing exact
 binding; it cannot silently adopt another registry. Ordinary historical recovery
@@ -1432,6 +1445,6 @@ probe verifies that both refused sends create no connection, and a newly admitte
 owner retains the original committed message. The package qualifier separately
 checks the public witness transitions, exact command results and host effects in
 Debug and Release. These are same-host endpoints sharing the native engine, not
-an independent protocol implementation. Managed first-use enrollment, retirement,
+an independent protocol implementation. The complete installed first-use flow, retirement,
 Swift/Kotlin registry ownership and the complete account replacement controller
 still require their own qualification.

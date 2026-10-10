@@ -465,3 +465,108 @@ fn authority_registry_parent_close_blocks_all_existing_owner_routes_before_io() 
     assert_eq!(fs::read_dir(&path)?.count(), 0);
     Ok(())
 }
+
+#[test]
+fn authority_registry_wrong_enrollment_root_is_refused_before_record_creation() -> TestResult<()> {
+    let _serial = TEST_REGISTRY.lock().map_err(|_| "registry lock")?;
+    let registry = Registry::new()?;
+    let (checkpoint, approved_root, validity) = registry.associate(None)?;
+    let wrong_root = p::RootSigningKey::generate()?.public_key()?.encode();
+    let dir = directory()?;
+    let path = dir.path().canonicalize()?;
+    let wire = path.to_str().ok_or("path")?.as_bytes();
+    let intent = enrollment::Intent {
+        root: wrong_root.as_ptr(),
+        root_length: wrong_root.len(),
+        device: [31; 16],
+        generation: 1,
+        family: registry.options.family,
+        valid_from: validity.from(),
+        valid_until: validity.until(),
+    };
+    let address = b"127.0.0.1:9";
+    let witness = witness::Options {
+        address: address.as_ptr(),
+        address_length: address.len(),
+        timeout_ms: 1000,
+    };
+    let opening = opening::Options {
+        kind: 3,
+        quality: 0,
+        carrier: 1,
+        witness: &witness,
+    };
+    let options = EnrollmentOptions {
+        struct_size: u32::try_from(std::mem::size_of::<EnrollmentOptions>())?,
+        create: 1,
+        registry: registry.handle.0,
+        checkpoint,
+        intent: &intent,
+        options: &opening,
+    };
+    let mut error = diagnostic();
+    let mut child = Handle(0);
+    // SAFETY: original caller buffers and exclusive output remain live throughout.
+    unsafe {
+        checked(
+            enrollment::qpc_enrollment_v1_provision_wrapping_key(
+                wire.as_ptr(),
+                wire.len(),
+                &mut error,
+            ),
+            &error,
+        )?;
+        checked(
+            qpc_authority_v1_prepare_enrollment(
+                wire.as_ptr(),
+                wire.len(),
+                &options,
+                &mut child.0,
+                &mut error,
+            ),
+            &error,
+        )?;
+        assert_eq!(opening::qpc_owner_v1_finish_open(child.0, &mut error), 211);
+    }
+    assert!(
+        !path.join("enrollment.redb").exists(),
+        "rejected account root must not leave an original registration intent"
+    );
+    assert!(!path.join("signer.key").exists());
+    assert_eq!(
+        fs::read_dir(&path)?.count(),
+        1,
+        "only the explicitly provisioned wrapping key remains"
+    );
+    child.close()?;
+    let correct_intent = enrollment::Intent {
+        root: approved_root.as_ptr(),
+        root_length: approved_root.len(),
+        ..intent
+    };
+    let correct_options = EnrollmentOptions {
+        intent: &correct_intent,
+        ..options
+    };
+    unsafe {
+        checked(
+            qpc_authority_v1_prepare_enrollment(
+                wire.as_ptr(),
+                wire.len(),
+                &correct_options,
+                &mut child.0,
+                &mut error,
+            ),
+            &error,
+        )?;
+        checked(
+            opening::qpc_owner_v1_finish_open(child.0, &mut error),
+            &error,
+        )?;
+    }
+    assert!(
+        path.join("enrollment.redb").is_file(),
+        "the correct original intent can still be created"
+    );
+    Ok(())
+}

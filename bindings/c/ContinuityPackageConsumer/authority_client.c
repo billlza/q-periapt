@@ -63,6 +63,8 @@ int main(int argc, char **argv) {
     _Alignas(qpc_authority_options_v1) uint32_t short_header = sizeof short_header;
     if (qpc_authority_v1_prepare_create(path, strlen(argv[2]),
         (const qpc_authority_options_v1 *)&short_header, &registry, &error) != QPC_ARGUMENT || registry) goto done;
+    if (qpc_authority_v1_select_enrollment(0,
+        (const qpc_authority_enrollment_selection_v1 *)&short_header, &error) != QPC_ARGUMENT) goto done;
     if (checked(qpc_authority_v1_provision_wrapping_key(path, strlen(argv[2]), &error), &error) ||
         checked(qpc_authority_v1_prepare_create(path, strlen(argv[2]), &in->registry, &registry, &error), &error)) goto done;
     /* Preparation must have copied the caller's original public key. */
@@ -97,11 +99,20 @@ int main(int argc, char **argv) {
     if (observed.revision != original.revision || memcmp(observed.account, original.account, 32) ||
         memcmp(observed.application, original.application, 32)) goto done;
     selected.registry = registry;
-    if (checked(qpc_enrollment_v1_provision_wrapping_key(enrollment, strlen(argv[3]), &error), &error) ||
-        checked(qpc_authority_v1_prepare_enrollment(enrollment, strlen(argv[3]), &selected, &child, &error), &error) ||
+    if (checked(qpc_enrollment_v1_provision_wrapping_key(enrollment, strlen(argv[3]), &error), &error)) goto done;
+    qpc_enrollment_intent_v1 wrong = intent;
+    wrong.root = in->witness; wrong.root_length = in->registry.public_key_length;
+    selected.intent = &wrong;
+    if (checked(qpc_authority_v1_prepare_enrollment(enrollment, strlen(argv[3]), &selected, &child, &error), &error)) goto done;
+    if (qpc_owner_v1_finish_open(child, &error) != QPC_SCOPE_CONFLICT || close_owner(&child, &error)) goto done;
+    if (stat(absent, &entry) != -1 || errno != ENOENT) goto done;
+    selected.intent = &intent;
+    if (checked(qpc_authority_v1_prepare_enrollment(enrollment, strlen(argv[3]), &selected, &child, &error), &error) ||
         checked(qpc_owner_v1_finish_open(child, &error), &error)) goto done;
+    qpc_authority_enrollment_selection_v1 selection = {sizeof selection, registry, original};
+    if (checked(qpc_authority_v1_select_enrollment(child, &selection, &error), &error)) goto done;
     if (close_owner(&registry, &error) || close_owner(&child, &error)) goto done;
-    puts("AUTHORITY_C_OWNER exact_mapping=true snapshot=true short_header=true pending_closed=202 same_registry_reopen=true managed_enrollment_constructed=true traffic_qualified=false");
+    puts("AUTHORITY_C_OWNER exact_mapping=true snapshot=true short_header=true pending_closed=202 same_registry_reopen=true wrong_root_before_create=211 managed_enrollment_constructed=true explicit_selection=true traffic_qualified=false");
     failed = 0;
 done:
     {

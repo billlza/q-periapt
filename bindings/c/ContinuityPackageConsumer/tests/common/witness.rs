@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! The original signed witness socket, shared by independent installed test targets.
-use crate::{fixture, p, Result};
+use super::{fixture, p, Result};
 use std::{
     fs,
     io::{self, Read, Write},

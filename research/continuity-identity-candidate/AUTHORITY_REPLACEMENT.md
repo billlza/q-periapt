@@ -615,8 +615,9 @@ tests cover credential, policy and roster paths; a lost credential commit reply 
 historically recovered after registry closure without dispatching another commit.
 These are native owner-integration results, not installed foreign-language,
 physical-device, independent-endpoint or final product-ABI qualification. The
-application still owns the original registry lifetime; package adapters and the
-complete root-replacement controller remain required.
+application still owns the original registry lifetime. Separate C package
+workloads exercise registry ownership and managed session traffic; Swift/Kotlin
+registry adapters and the complete root-replacement controller remain required.
 
 
 ### Registry admission through standalone installation entry points
@@ -637,6 +638,41 @@ actual rekey before standalone reopening at time 170. The original archived
 session and cached ciphertext survive; registry closure denies further release.
 Other regressions cover initial activation, refusal to adopt during reopening,
 missing/wrong/closed registry admission before dispatch and closure immediately
-after a signed witness reply. This is native entry-point coverage. Foreign
-registry ownership, installed package use of the new managed admission and the
-full root-replacement controller remain separate unqualified boundaries.
+after a signed witness reply. This is native entry-point coverage. The C
+installed-package workload additionally exercises a managed initiator against an
+ordinary C receiver, same-ID delivery recovery, rekey and cached-owner closure.
+It uses the same native engine on one host. Other language/platform adapters,
+independent implementations and the full root-replacement controller remain
+separate qualification boundaries.
+
+
+### First-account enrollment and admission before creation
+
+`DeviceEnrollment::provision_with_account_authority` checks the independently
+selected registry against the approved account root and family before creating
+an enrollment record. `open_with_account_authority` performs the same admission
+before opening original state. Known scope refusal leaves no newly created
+registration. Later failures can still follow I/O, including concurrent registry
+closure; preserve and reconcile the same original intent. These constructors
+reuse the existing provisioning/opening engine and do not change storage formats.
+
+A first device cannot depend on an already-issued credential to request its own
+registration. The ordinary approved intent first produces its original signed
+request. The independently authorizing issuer verifies that request, issues its
+real credential and roster, and associates that account in the host registry.
+`select_account_authority` then attaches the live original descriptor to the same
+registration owner before acceptance, witness enrollment and activation. Selection
+performs no I/O and known admission refusal leaves the previous selection intact.
+`with_account_authority` remains the consuming Rust convenience form. Request
+possession is still not membership or operating permission; the existing policy,
+credential, witness and durable activation checks remain mandatory.
+
+The C entry `qpc_authority_v1_select_enrollment` exposes that non-I/O selection on
+an enrollment handle. It validates the size header first, preserves a live
+registration after a known scope refusal, and rejects an already operational
+device handle. Current C-boundary regressions use the first real request to issue
+and associate a new account, retain it across a failed witness admission, require
+the original registry on subsequent activation, and refuse a known wrong root
+before record creation while allowing the correct original intent afterward.
+The complete installed first-use workflow and other language adapters require
+separate qualification; these regressions do not stand in for them.

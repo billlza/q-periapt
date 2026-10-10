@@ -2,7 +2,39 @@
 //! Carry one explicit original registry admission through the owning enrollment.
 use super::*;
 use crate::JournalAccountAuthority;
+impl EnrollmentIntent {
+    fn check_account_authority(
+        &self,
+        authority: &JournalAccountAuthority,
+    ) -> Result<(), DurableError> {
+        authority.check_enrollment(
+            crate::identity::account_id(&self.root),
+            self.description.family,
+        )
+    }
+}
 impl DeviceEnrollment {
+    /// Check the selected registry and approved intent before creating the
+    /// original registration record. A later error can still follow I/O (for
+    /// example, concurrent registry closure); reconcile the same original intent.
+    pub fn provision_with_account_authority(
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+        authority: JournalAccountAuthority,
+    ) -> Result<Self, DurableError> {
+        intent.check_account_authority(&authority)?;
+        Self::provision(paths, intent)?.with_account_authority(authority)
+    }
+    /// Check the original registry/intent before opening the existing record.
+    /// This never provisions on absence or replaces the original enrollment.
+    pub fn open_with_account_authority(
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+        authority: JournalAccountAuthority,
+    ) -> Result<Self, DurableError> {
+        intent.check_account_authority(&authority)?;
+        Self::open(paths, intent)?.with_account_authority(authority)
+    }
     pub(super) fn authorize_journal_commit(
         &self,
         original: &VerifiedDevice,
@@ -42,11 +74,19 @@ impl DeviceEnrollment {
         mut self,
         authority: JournalAccountAuthority,
     ) -> Result<Self, DurableError> {
+        self.select_account_authority(authority)?;
+        Ok(self)
+    }
+    /// Select the original registry after the first device's request has been
+    /// issued and its real account associated. Known admission failures leave the
+    /// prior selection unchanged. This performs no I/O and grants no operational
+    /// authority before activation checks and binds the same descriptor.
+    pub fn select_account_authority(
+        &mut self,
+        authority: JournalAccountAuthority,
+    ) -> Result<(), DurableError> {
         self.active.as_ref().ok_or(DurableError::Closed)?;
-        authority.check_enrollment(
-            crate::identity::account_id(&self.intent.root),
-            self.intent.description.family,
-        )?;
+        self.intent.check_account_authority(&authority)?;
         if self
             .account_authority
             .as_ref()
@@ -55,7 +95,7 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         self.account_authority = Some(authority);
-        Ok(self)
+        Ok(())
     }
     pub(super) fn reconcile_installation(
         &self,

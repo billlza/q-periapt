@@ -460,3 +460,39 @@ pub unsafe extern "C" fn qpc_authority_v1_prepare_owner(
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+#[repr(C)]
+pub struct EnrollmentSelection {
+    pub struct_size: u32,
+    pub registry: u64,
+    pub checkpoint: Checkpoint,
+}
+
+/// Select original registry admission on a registration before operational activation.
+/// This permits the first device's signed request to precede account association.
+/// # Safety
+/// The aligned size header and complete options remain immutable and readable;
+/// error is a distinct exclusive diagnostic record for this synchronous invocation.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_authority_v1_select_enrollment(
+    enrollment: u64,
+    options: *const EnrollmentSelection,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        // SAFETY: read only the size header before borrowing the declared structure.
+        unsafe { check_options(options) }?;
+        let input = unsafe { &*options };
+        let selection = Selection::read(input.registry, &input.checkpoint, deadline)?;
+        with_owned(enrollment, deadline, |owned, cancel| {
+            opening::check(cancel, deadline)?;
+            match owned {
+                Owned::Enrollment(owner) => owner.select_account_authority(selection.admit()?)?,
+                _ => return Err(failure(6)),
+            }
+            opening::check(cancel, deadline)
+        })
+    };
+    // SAFETY: forwarded invocation-local diagnostic contract.
+    unsafe { boundary(error, false, action) }
+}

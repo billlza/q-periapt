@@ -524,6 +524,25 @@ int32_t qpc_authority_v1_prepare_enrollment(
 int32_t qpc_authority_v1_prepare_owner(
     const uint8_t *path, size_t length, const qpc_authority_open_options_v1 *options,
     uint64_t *handle, qpc_error_v1 *error);
+/* Select registry admission on the original enrollment handle before activation.
+ * First-device flow: create configuration, begin enrollment, obtain the original
+ * signed request, independently issue/verify credential and roster, associate
+ * that real account, then select this registry and finish the normal enrollment.
+ * The selection snapshots no new trust and performs no storage I/O. A wrong
+ * account/family, changed prior binding or closed registry leaves it unchanged.
+ * Keep the registry open through activation and operation. Its public checkpoint
+ * alone grants no authority. Reopening a previously managed enrollment requires
+ * selecting the same original registry/checkpoint again before fresh work.
+ * Already operational device handles reject this entry with OWNER_KIND.
+ */
+typedef struct {
+    uint32_t struct_size;
+    uint64_t registry;
+    qpc_authority_checkpoint_v1 checkpoint;
+} qpc_authority_enrollment_selection_v1;
+int32_t qpc_authority_v1_select_enrollment(uint64_t enrollment,
+    const qpc_authority_enrollment_selection_v1 *options, qpc_error_v1 *error);
+
 
 
 typedef struct {

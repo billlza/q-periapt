@@ -12,6 +12,8 @@ class AdmissionTests(unittest.TestCase):
     def test_all_deadline_and_drain_tests_must_actually_execute(self):
         names = [
             "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
+            "account_authority::tests::authority_registry_wrong_enrollment_root_is_refused_before_record_creation",
+            "configuration::tests::account_authority::configured_first_account_selects_registry_after_request_and_requires_it_on_reopen",
             "account_authority::tests::authority_registry_parent_close_rejects_pending_enrollment_before_file_creation",
             "account_authority::tests::authority_registry_reopens_exact_mapping_and_cancel_does_not_replace_close",
             "account_authority::tests::authority_registry_short_options_are_refused_before_full_structure_read",
@@ -60,7 +62,7 @@ class AdmissionTests(unittest.TestCase):
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,

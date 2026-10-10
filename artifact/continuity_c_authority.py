@@ -4,7 +4,7 @@ from pathlib import Path
 import rust_sdk_profile as sdk
 
 MARKER = (b"AUTHORITY_C_OWNER exact_mapping=true snapshot=true short_header=true "
-          b"pending_closed=202 same_registry_reopen=true managed_enrollment_constructed=true "
+          b"pending_closed=202 same_registry_reopen=true wrong_root_before_create=211 managed_enrollment_constructed=true explicit_selection=true "
           b"traffic_qualified=false\n")
 
 
@@ -12,7 +12,8 @@ def verify_execution(stdout: bytes) -> dict:
     sdk.require(stdout == MARKER, "C account registry owner workload did not execute completely")
     return {"completed": True, "exact_mapping": True, "options_copied": True,
             "short_header_refused": True, "pending_closed_code": 202,
-            "same_registry_reopen": True, "managed_enrollment_constructed": True,
+            "same_registry_reopen": True, "wrong_root_before_create": 211,
+            "managed_enrollment_constructed": True, "explicit_selection": True,
             "traffic_qualified": False, "release_claim_eligible": False,
             "scope": "Compiled C caller, installed native engine, registry lifecycle and deferred enrollment; no managed traffic or other language qualification"}
 

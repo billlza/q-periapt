@@ -220,6 +220,12 @@ pub(crate) fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
     )?)
 }
 impl Owner {
+    pub(crate) fn select_account_authority(
+        &mut self,
+        authority: p::JournalAccountAuthority,
+    ) -> Result<()> {
+        Ok(self.enrollment.select_account_authority(authority)?)
+    }
     pub(crate) fn open(
         path: &Path,
         create: bool,
@@ -232,14 +238,17 @@ impl Owner {
         opening::check(cancel, deadline)?;
         let account = approved.account_authority;
         let paths = paths(path)?;
-        let enrollment = if create {
-            p::DeviceEnrollment::provision(paths, approved.native)?
-        } else {
-            p::DeviceEnrollment::open(paths, approved.native)?
-        };
-        let enrollment = match account {
-            Some(account) => enrollment.with_account_authority(account)?,
-            None => enrollment,
+        let enrollment = match (create, account) {
+            (true, Some(account)) => p::DeviceEnrollment::provision_with_account_authority(
+                paths,
+                approved.native,
+                account,
+            )?,
+            (false, Some(account)) => {
+                p::DeviceEnrollment::open_with_account_authority(paths, approved.native, account)?
+            }
+            (true, None) => p::DeviceEnrollment::provision(paths, approved.native)?,
+            (false, None) => p::DeviceEnrollment::open(paths, approved.native)?,
         };
         let result = Box::new(Self {
             path: path.into(),
