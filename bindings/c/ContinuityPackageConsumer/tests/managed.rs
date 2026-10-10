@@ -143,7 +143,7 @@ fn identifier(text: &str) -> Result<[u8; 32]> {
         return Err("identifier encoding".into());
     }
     let mut result = [0; 32];
-    for (out, pair) in result.iter_mut().zip(text.as_bytes().chunks_exact(2)) {
+    for (out, pair) in result.iter_mut().zip(text.as_bytes().as_chunks::<2>().0) {
         *out = u8::from_str_radix(std::str::from_utf8(pair)?, 16)?;
     }
     Ok(result)
