@@ -1,0 +1,195 @@
+{
+  "source_commit": "306afeb379b7616d3d6a6dacabf8fbc878e5fb99",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Installed C first registration and its existing ordinary-policy-renewal workload; same-host independent processes sharing the native Rust engine",
+  "candidate_archive": {
+    "sha256": "cf640e4c1df89890edac083d35d7d4cc537359b826b5ced9e014b4e2753ecbca",
+    "bytes": 1331903,
+    "members": 406
+  },
+  "archive_scope": "Reused immutable native archive built at 6d70c61408148e9a0251a1dbc8247b48214d0e29. Native executable source is unchanged by this consumer/test/collector change; new documentation is not part of that older archive. This receipt is not full current-package or release qualification.",
+  "profiles": {
+    "debug": {
+      "ordinary_scenarios": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "managed_scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "short_header_guard": true,
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+          "sha256": "21460c8abc6e703037f008940a82a007d3c7daf3e65c9171fddd8fb45419c5e5",
+          "bytes": 14163160
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-first-configuration-client",
+          "sha256": "d2bbba53203d07e688c47313211f10cda0bfa809bc0d62edd50d024fbb59ad96",
+          "bytes": 56032
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+          "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+          "bytes": 176128
+        }
+      },
+      "managed_binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+          "sha256": "21460c8abc6e703037f008940a82a007d3c7daf3e65c9171fddd8fb45419c5e5",
+          "bytes": 14163160
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-first-configuration-client",
+          "sha256": "d2bbba53203d07e688c47313211f10cda0bfa809bc0d62edd50d024fbb59ad96",
+          "bytes": 56032
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+          "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+          "bytes": 176128
+        }
+      }
+    },
+    "release": {
+      "ordinary_scenarios": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "managed_scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "short_header_guard": true,
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+          "sha256": "373b426b7689f663a5402c39692cbe5b99fe47cc7b1bfd6611b8c2e284d42c43",
+          "bytes": 8578944
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-first-configuration-client",
+          "sha256": "881847949b191cfba792d17f9f15de5b780189c3502d6991aa9a65a54406e045",
+          "bytes": 54576
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+          "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+          "bytes": 212016
+        }
+      },
+      "managed_binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+          "sha256": "373b426b7689f663a5402c39692cbe5b99fe47cc7b1bfd6611b8c2e284d42c43",
+          "bytes": 8578944
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-first-configuration-client",
+          "sha256": "881847949b191cfba792d17f9f15de5b780189c3502d6991aa9a65a54406e045",
+          "bytes": 54576
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+          "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+          "bytes": 212016
+        }
+      }
+    }
+  },
+  "validation": {
+    "inventory_and_reader_tests": 58,
+    "clippy_versions": [
+      "1.98.1",
+      "1.90.0"
+    ],
+    "warnings": "denied",
+    "source_gate": "passed at code commit",
+    "input_hashes_unchanged": true
+  },
+  "behaviors": [
+    "First real request exists before independent account association",
+    "Fixed/recoverable SDK roots and signed TCP/mutual TLS witnesses",
+    "Same registry retained through activation and reopened owner; omission returns 211",
+    "Original session/message retained after receiver exit after host-effect persistence; host deduplicates retry",
+    "Ordinary six-scenario real-clock policy expiry/renewal/retry composition remains checked in both profiles"
+  ],
+  "maintenance": {
+    "source_commit": "306afeb379b7616d3d6a6dacabf8fbc878e5fb99",
+    "scope": "Recheck named maintenance candidates and changed evidence parsing; not a new whole-repository complexity census or performance benchmark",
+    "functions": [
+      {
+        "path": "artifact/continuity_c_consumer.py",
+        "function": "_qualify_c",
+        "line": 409,
+        "lines": 425,
+        "sha256": "010abcd9bdd9331f8c770a72b3ded79cfba2fee7fe75750ba907066c11ec08fa"
+      },
+      {
+        "path": "artifact/continuity_kotlin_consumer.py",
+        "function": "qualify_kotlin",
+        "line": 390,
+        "lines": 400,
+        "sha256": "018b2bc8141777708370c8ddd8d5b3d8cb3a79ad7422430d37185c88ac21e369"
+      },
+      {
+        "path": "artifact/rust_publish_contract.py",
+        "function": "validate_rust_package_contract_transcript",
+        "line": 1847,
+        "lines": 486,
+        "sha256": "42f1385fba51fcf8fab1b922eebd53d15193b3001dc3c799547aee718249b06f"
+      },
+      {
+        "path": "artifact/continuity_first_configuration.py",
+        "function": "verify_execution",
+        "line": 62,
+        "lines": 62,
+        "sha256": "9b03d1ad3d2f3c90996367252f8e6cfceaed285c51bb1b0607a23ec9bcd36de4"
+      },
+      {
+        "path": "artifact/continuity_first_configuration.py",
+        "function": "verify_original",
+        "line": 29,
+        "lines": 31,
+        "sha256": "9b03d1ad3d2f3c90996367252f8e6cfceaed285c51bb1b0607a23ec9bcd36de4"
+      }
+    ],
+    "changes": [
+      "Share original registration/session/message and public genesis validation between ordinary and managed first-use workflows; retain exact scenario inventories and negative controls.",
+      "Keep registry C loading/selection in a dedicated helper, with explicit input and lifetime through device close.",
+      "Reuse first-connection crash/retry workload; optional policy renewal is explicit and managed cases do not claim it."
+    ],
+    "runtime_evidence": "research/sdk-alpha1/evidence/20261010-managed-c-owner-stack/CHECKS.json",
+    "runtime_limits": "Prior default-thread SIGBUS red/green and two selected stack frames remain the measured runtime evidence. Function length is not a throughput result; peak RSS, allocations and energy remain unmeasured.",
+    "release_claim_eligible": false
+  },
+  "not_claimed": [
+    "Managed policy-renewal composition",
+    "Swift/Kotlin account registry ownership",
+    "Independent protocol engine or cross-host interoperability",
+    "Throughput, RSS, energy or tail-latency improvement",
+    "Complete 0.2.0 qualification"
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 1971597,
+    "sha256": "e96f6d833c712ea9f13bd2d4487ed9a17c43edca2b0cac08d25a3af95d769a9c",
+    "members": 1081
+  }
+}
