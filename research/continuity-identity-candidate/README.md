@@ -56,6 +56,12 @@ The explicit [same-key credential renewal](CREDENTIAL_RENEWAL.md) transaction re
 original storage and established transcripts while admitting current root-authorized
 credentials. It also reconciles expired pending intents without inventing NoCommit.
 
+[Account-root and witness-key replacement](AUTHORITY_REPLACEMENT.md) require a
+separate durable authority cutover. A new root changes the cryptographic account
+ID; a new pin does not revoke old pins or stored rosters. The retained experiment
+also distinguishes per-device retirement from an account-wide old-root floor.
+These replacement transactions remain unimplemented.
+
 The local-only [joint policy continuation](POLICY_CONTINUATION.md) candidate uses
 independent account and policy approvals to retain an original established session
 after its policy expires. `stage_policy_continuation` saves the exact intent;

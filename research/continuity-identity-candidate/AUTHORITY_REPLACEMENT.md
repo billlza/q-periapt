@@ -1,0 +1,119 @@
+# Account-root and witness authority replacement
+
+Status: construction requirements, **not an implemented replacement protocol**.
+Root and witness-key replacement remain part of the required 0.2.0 lifecycle.
+The existing registration, credential renewal, policy continuation and device
+generation replacement operations do not discharge this requirement.
+
+## Preserve the current identity meanings
+
+`identity::account_id` commits to the complete root public key. A new root has a
+new cryptographic account ID, even when the device key, device ID and generation
+are unchanged. `AccountPin::new` correctly refuses an old account ID paired with
+the new root. The enrollment intent, immutable storage owner and signed rosters
+also bind the original root/account. Those checks must remain.
+
+A product may keep the same **application account** across this transition, but
+that mapping needs independently authenticated host authority. It must not rename
+an old cryptographic account, rewrite its journal header or derive the application's
+account association from a replacement message. The original account, session,
+message and delivery identities remain attached to historical records.
+
+Creating a new `AccountPin` does not revoke an existing pin, verified roster or
+stored roster. Closing a root signing owner only removes that owner's ability to
+sign; it does not revoke issued credentials. `VerifiedRoster::from_journal`
+authenticates the original stored authority; it is not a root-replacement registry.
+The product transition therefore needs a durable current-authority owner whose
+fence applies to cached objects, reopened state and newly admitted peers.
+
+The [source-bound boundary experiment](../sdk-alpha1/evidence/20261010-authority-cutover-boundary/CHECKS.json)
+executes six isolated cases and an existing pinned-root negative control. Its
+real witness-store case retires the original device, enrolls a new-root account,
+then explicitly enrolls a previously unseen device under the old root. The old
+device remains retired; the other two subjects remain current after reopening
+the encrypted store. These are trusted-control-plane operations with actual
+signatures. The result confirms the existing per-device contract and rules out
+using that composition as account-root retirement; it is not a network enrollment
+exploit or an implemented replacement transaction.
+
+## Authorization and disclosure scope
+
+Recovery after disclosure of the old root requires approval independent of that
+root. An old-root signature, even together with a new self-signed root, cannot by
+itself distinguish an authorized recovery from an attacker-selected successor.
+The host must authenticate the application account and independently obtain the
+exact target root and roster expectation before approving the transition.
+
+Approval must bind the host's original account association, original authority
+revision, original and target cryptographic account/root, operation ID, target
+enrollment identity, policy family and witness authority. Retries retain this
+whole operation. The target's credential and device proof must still verify under
+the independently selected target root. Public IDs and a structurally valid
+descriptor do not supply this approval.
+
+Root-only disclosure is separate from device signing-key, policy-root, witness,
+wrapping-key or entropy-source disclosure. Recovery cannot reuse an authority or
+secret whose continued trust is assumed without stating that assumption. It
+cannot promise to remove knowledge already obtained by an attacker.
+
+## Durable cutover obligations
+
+The following are required state properties, not allocated wire tags or a final
+storage layout:
+
+| State | Required behavior |
+| --- | --- |
+| Current | Only the independently retained current authority admits new operations. |
+| Replacement intent retained | The exact approved operation and target survive restart; old authority is fenced before the transition reports that fence as durable. Unknown persistence outcomes permit only original-operation reconciliation. |
+| Target prepared | Original target configuration/enrollment and any witness preparation are retained. Preparation alone grants no target traffic authority. |
+| Target committed | The durable authority revision selects the exact target. Final activation checks it before returning an owner. Cached old owners cannot release new operational results. |
+| Historical cleanup | Old sessions and operations retain their original identities and explicit outcomes. Cleanup cannot reactivate the old account or turn unknown delivery into success. |
+
+An approved recovery cannot fall back to the compromised root because target
+creation, network access or witness confirmation fails. Partial target creation
+must resume the original operation, without reusing the old journal as the new
+account or silently generating another enrollment. Any cancellation semantics
+must distinguish a planned rotation from recovery after revoked trust; cancellation
+must not be invented as an automatic error path.
+
+The owner must govern both local-account and peer-account admission. Borrowed
+Rust handles, foreign aliases, reopened journals and fresh configuration imports
+must not bypass its persisted authority revision. Existing session views are
+historical inputs; carrying a session into a new root requires its own explicit
+construction. The initial replacement path should establish a fresh authenticated
+session under the new account while preserving old loss/delivery accounting.
+
+## Required witness boundary
+
+Existing witness device replacement retires named device subjects. Root retirement
+must also reject future enrollment under the retired account/root, including a
+device ID that was never previously observed. Enumerating only existing subjects
+leaves that case uncovered. A durable account-wide retirement floor must govern
+both trusted-control-plane enrollment and ordinary subject operations; host
+approval of a stale descriptor cannot erase the floor.
+
+Keeping the witness key during account-root replacement and replacing the witness
+key are distinct transitions. `AnchorPin` binds both the witness instance ID and
+its full public key: reusing the instance ID with another key changes its binding.
+New witness enrollment at revision one must not stand in for transfer of an old
+head, fence, last-command identity, retired authority floors or pending outcomes.
+
+A witness-key handoff needs exact retained state and independently authorized
+target trust. If the old witness is compromised or unavailable, its signature or
+silence cannot prove a safe current head or an uncommitted operation. That case
+needs an explicit recovery construction and unknown-outcome treatment. Neither
+root replacement nor fresh installation silently supplies it.
+
+## Acceptance before product admission
+
+Actual installed owners must exercise the same original operation across cuts
+before and after each durable boundary, lost replies, competing targets, stale
+approvals and reopening. Check cached aliases and old configuration imports after
+commit, old-root issuance for a previously unseen device, full-roster fanout races,
+and old-account traffic/ACK rejection under the new account. Reports must retain
+unknown old deliveries without relabeling them as delivered or replaying their
+business effects under a new identity.
+
+Keep signature/namespace experiments, real encrypted-store transitions, witness
+transactions, installed foreign calls and platform persistence as separate evidence.
+A pin decoder or a successful new registration is not an executed root cutover.

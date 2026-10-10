@@ -1,9 +1,10 @@
 # Joint credential and policy continuation: construction boundary
 
-Status: **experimental authorization construction; no policy-renewal operation is
-implemented**. This does not change the 0.2.0 release scope. Policy and witness
-renewal, device replacement and independently authorized root replacement remain
-required lifecycle work. The first construction below keeps the same account
+Status: **historical authorization-construction experiments**. The later
+[policy-continuation implementation](POLICY_CONTINUATION.md) and its own execution
+evidence are separate from these experiments. This record does not change the
+0.2.0 release scope or complete
+[root/witness-key replacement](AUTHORITY_REPLACEMENT.md). The first construction below keeps the same account
 root, policy root, complete device key/generation, journal and witness. It extends
 validity only; later identity/key changes need their own explicit authorization.
 
