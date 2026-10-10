@@ -519,6 +519,7 @@ pub(super) fn fault_store(
                 id: image.id,
                 protection: image.protection,
                 anchor: None,
+                account_authority: None,
                 enrollment_completion: None,
             }),
         },

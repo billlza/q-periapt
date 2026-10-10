@@ -246,8 +246,8 @@ impl AccountAuthorityStore {
             active: Some(Active { db, key, image }),
             binding,
             family,
+            runtime: Arc::new(Runtime::new(binding, family, pin.binding())),
             pin,
-            runtime: Arc::new(Runtime::new(binding)),
         })
     }
     /// Open only the original existing database. No error creates a replacement registry or key.
@@ -264,7 +264,7 @@ impl AccountAuthorityStore {
         let db = open_private_database(path)?;
         let image = codec::read(&db, &key, binding)?;
         let current = image.current(family, &pin)?;
-        let runtime = Arc::new(Runtime::new(binding));
+        let runtime = Arc::new(Runtime::new(binding, family, pin.binding()));
         runtime.publish(&current)?;
         Ok(Self {
             active: Some(Active { db, key, image }),

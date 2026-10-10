@@ -46,6 +46,8 @@ fn authenticated_policy_record_cannot_move_to_another_journal_of_the_same_owner(
         digest: [17; 32],
         protection: Protection::Local,
         records: BTreeMap::from([(id(&account), stored.record().expect("original record"))]),
+        account_authority: None,
+        authority_access: None,
         enrollment_completion: None,
     };
     assert!(get(&image, &account).is_ok());

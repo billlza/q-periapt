@@ -1518,6 +1518,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/account_authority/runtime.rs",
             "research/continuity-identity-candidate/src/account_authority/tests.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1593,6 +1596,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/account_authority/runtime.rs",
             "research/continuity-identity-candidate/src/account_authority/tests.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

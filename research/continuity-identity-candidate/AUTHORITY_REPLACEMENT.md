@@ -328,9 +328,36 @@ rollback of the entire registry or host. The bounded format currently retains
 64 associations and 256 replacement operations globally, with explicit capacity
 errors. Resetting history to regain capacity is not a supported recovery path.
 
-This component does not yet govern existing journal, service or enrollment
-operations. Mandatory persisted registry binding, original successor enrollment
-coordination, concurrent operational release, lifetime-capacity migration,
-foreign owners and witness-key handoff remain required for managed cutover.
+`DeviceJournal::adopt_account_authority` now explicitly binds an existing
+required-witness journal to the original registry and local application revision
+through its ordinary image/write-intent/witness transaction. The new authenticated
+image variants `QPVLT023`/`QPVLT024` add a 104-byte registry/checkpoint binding;
+unbound `QPVLT021`/`QPVLT022` encodings remain unchanged. This is an explicit format
+transition: older readers cannot open the new image. The original witnessed head
+refuses a restored pre-binding backup. Neither format conversion nor missing
+storage is silently recreated during reopen.
+
+`open_anchored_with_account_authority` requires the same registry scope before
+replaying any saved adoption intent and rechecks it after witness I/O. Ordinary
+open refuses a bound image or pending bound target. Each live local and peer
+admission reads the registry's current mapping; post-witness message, ACK and
+fanout release checks repeat that admission. A shared registry read lock checks
+the selected accounts at one point before returning, while replacement invalidation
+takes the write lock before persistence. This does not recall bytes already returned
+before a fence. A parent intent that precedes the journal fence resumes through
+the existing restricted `AccountRootJournalRecovery`, without reopening old traffic.
+Historical peer-delivery accounting preserves its original account and unknown
+outbox even when current peer traffic is refused.
+
+This is still a native journal component. Owning installation/enrollment binding,
+original successor enrollment coordination, lifetime-capacity migration, foreign
+owners and witness-key handoff remain required for managed cutover.
+An executed counterexample also remains open: an ordinary old-device message
+committed after proposal capture makes that original witness snapshot stale.
+The registry correctly retains its original pending intent and refuses to replace
+it with a fresh proposal, but currently has no terminal reconciliation path for
+this race. Managed orchestration needs a preparation freeze or an authenticated,
+durably terminal decision that the original proposal can never commit. An absent
+observation, local reset or silent proposal regeneration is insufficient.
 Observing a committed historical operation never authorizes its successor if a
 later operation has already retired that root.

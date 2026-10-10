@@ -10,6 +10,8 @@ mod support;
 use support::*;
 #[path = "tests/account_authority.rs"]
 mod account_authority;
+#[path = "tests/journal_authority.rs"]
+mod journal_authority;
 #[path = "tests/peer_retirement.rs"]
 mod peer_retirement;
 
