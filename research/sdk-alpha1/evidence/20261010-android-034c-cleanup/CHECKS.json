@@ -1,0 +1,143 @@
+{
+  "observed_at": "2026-10-10T09:29:42.485214+00:00",
+  "run": 38037903189,
+  "job": 114173894079,
+  "head": "034cfd8b47353600a7e392b504e07a8388e2105c",
+  "url": "https://github.com/billlza/q-periapt/actions/runs/38037903189/job/114173894079",
+  "job_conclusion": "failure",
+  "failed_step": "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime",
+  "runtime_profile": "Android API35 / 16384-byte pages / x86_64",
+  "instrumentation_payloads": [
+    {
+      "schema": 1,
+      "status": "pass",
+      "run_id": "6fc43e891db91241d3b1857db12471d5",
+      "test_count": 3,
+      "passed_tests": [
+        "sdkOwnersAndPurposeKeys",
+        "sdkExpertCancellationAndInputSnapshot",
+        "sdkSignedPolicyRevocationAndRecovery"
+      ]
+    },
+    {
+      "schema": 1,
+      "status": "pass",
+      "run_id": "ceac69a438215fe6e3a0e431b22239a1",
+      "test_count": 1,
+      "passed_tests": [
+        "runtimeVersionOnly"
+      ]
+    }
+  ],
+  "short_zero_exit_apk_reads": [
+    {
+      "file": "ceac69a438215fe6e3a0e431b22239a1/proof/adb-package-cleanup-1-attempt-2.err",
+      "expected_bytes": 13702871,
+      "expected_sha256": "f7ade1527d5d86556065d4d3e8a6e110bf15033fe0460c733bff2f8c37e014ad",
+      "failure": "bytes-mismatch",
+      "observed_bytes": 26112,
+      "observed_sha256": "4e9e92b2f4078e78d1a2fe6738951fff6738c24e241dcfee5ef8673eb2a2ba0d",
+      "operation": "installed-apk-copy"
+    },
+    {
+      "file": "ceac69a438215fe6e3a0e431b22239a1/proof/adb-package-cleanup-1-attempt-5.err",
+      "expected_bytes": 13702871,
+      "expected_sha256": "f7ade1527d5d86556065d4d3e8a6e110bf15033fe0460c733bff2f8c37e014ad",
+      "failure": "bytes-mismatch",
+      "observed_bytes": 11776,
+      "observed_sha256": "695f2459620fdf83148663f7873d56fb24e8dd0a4023c50cbd3fb8d058913f1f",
+      "operation": "installed-apk-copy"
+    }
+  ],
+  "first_transport_recovery_process_snapshots": {
+    "ceac69a438215fe6e3a0e431b22239a1/proof/emulator-state-before.txt": {
+      "boot-id": "055f22b1-a0c2-42e0-9daf-7a55fec63717",
+      "uptime": "42.63 8.56",
+      "adbd_pid": 430,
+      "system_server_pid": 547
+    },
+    "ceac69a438215fe6e3a0e431b22239a1/proof/emulator-state-recovery.txt": {
+      "boot-id": "055f22b1-a0c2-42e0-9daf-7a55fec63717",
+      "uptime": "70.94 9.01",
+      "adbd_pid": 430,
+      "system_server_pid": 547
+    }
+  },
+  "observed": [
+    "Full SDK instrumentation reported three passed cases and its cleanup subsequently confirmed absence.",
+    "Minimal runtimeVersionOnly instrumentation reported pass. Its later installed-APK verification retained zero-exit reads of 26112 and 11776 bytes instead of 13702871.",
+    "The first missing transport was re-registered once. It failed again and cleanup never established removal, so the job correctly failed and retired its failed runtime receipt.",
+    "Before the first outage and after its first recovery, boot ID, adbd PID 430 and system_server PID 547 match. The second outage has no successful final guest-state capture."
+  ],
+  "not_proven": [
+    "A root cause for either ADB transport loss; the transport read/write-failure logs do not identify it.",
+    "An SDK native crash, adbd kill, guest reboot or causal LMKD explanation. Prior no-SDK controls also had LMKD kills and succeeded.",
+    "Completion of the Android 16KiB runtime/cleanup gate or the dependent replay. Instrumentation pass is not overall qualification."
+  ],
+  "follow_up": {
+    "change": "Compare direct-file capture with the unchanged production bounded_process.write_stdout_at engine in the existing no-SDK file-copy control. Preserve 12 samples per method, guest hash brackets, deadlines and failure reporting; alternate which method runs first.",
+    "basis": "Previous successful no-SDK file copies used subprocess stdout directly to a file. The failing installed-APK reader uses the bounded pipe writer. This controlled comparison narrows a real harness difference without changing the production admission or cleanup rules.",
+    "local_tests": 16,
+    "cold_runtime_comparison_executed": false,
+    "full_production_harness_reproduced": false,
+    "independent_guest_console_capture": "Existing kernel and logcat console routing remains available in the control when ADB disappears.",
+    "production_bounded_writer_sha256": "836fffda15c4a380b9dfd108a44162f245903788be507bb561936c758044ec82"
+  },
+  "release_claim_eligible": false,
+  "artifacts": [
+    {
+      "artifact": 11665425337,
+      "bytes": 127811,
+      "sha256": "810324c332b2d98ace247f09da6812c032d84775e0f71a18a33f28675892dbe5",
+      "verified": true,
+      "seconds": 1.0523479590192437
+    },
+    {
+      "artifact": 11665635198,
+      "bytes": 47165802,
+      "sha256": "1942618bb277adba521eaae207f03d53fe2537b3573b317d6eb32f3197566022",
+      "verified": true,
+      "seconds": 22.847697040997446
+    }
+  ],
+  "retention_scope": "Complete failure-diagnostic ZIP and selected job/analysis/control-test metadata are in this capture. The verified complete 47-MB runtime artifact and job console remain under target; no APK, native-library binary or device secret is republished in this checkpoint.",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 90234,
+    "sha256": "e0c3ed60d45d8e065ce0039718823537fb748253c3533e75c8383e5af0b167ba",
+    "members": {
+      "JOB.json": "527c162d0bcebeeec5a4dcd5d6fc0ce75c4a1baf59f68ea4a7ee0f072503000b",
+      "ANNOTATIONS.json": "b76aa98d73ee38b21decadd3c581a591b839bcfce747d17193e4c7789017f720",
+      "ARTIFACTS.json": "6ec77947e1c9e73ea3f4900dfad6fbcb70c74504deac902c70534bb73c90de65",
+      "FAILURE_DOWNLOAD.json": "5029d662ca170d3d3fd3d1f89aa74c5e3131aaba807a489fdf66c0b383093de7",
+      "RUNTIME_DOWNLOAD.json": "774267d8e15c4f45485de56a39c0bf2b6353cd75402a5b367a283aec1852b8f1",
+      "SOURCE_TREE_IDENTITY.json": "08ed67a8f8e3fc970a4a4c5ce70a03c138a9c45de34367ee2d4e166f70859ed9",
+      "ANALYSIS.json": "0f42d8ed531567746b74d7279b023ccc5d8538afe89936d27543dc2f84d361b7",
+      "failure-diagnostics.zip": "810324c332b2d98ace247f09da6812c032d84775e0f71a18a33f28675892dbe5",
+      "FAILURE_INDEX.json": "c3c45e526576129c7c3537c06810f21e6d87d29100dbb742ee19b18b81e8c3e1",
+      "CONTROL_COMPARISON.patch": "7d6f31da3cfa3a27f6631caa74462a804ca0c8586cbde8e921cd72cede4296ec",
+      "control-comparison-tests/RESULT.json": "aac7f1b63fd9e7340d4b74606d166ffa3135cec2c1edcb56a9cf5946ad6ea3df",
+      "control-comparison-tests/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control-comparison-tests/stderr": "4cb072e4d662b3b08f86548b54ff458eef11195ac244c747629d66c0fe6b98b5",
+      "SAME_SOURCE_CI_JOBS.json": "b5ab2e7aff5c8d6e8e3959b1387c8bd1bc1a68622039850b76b8d9fd55c73279"
+    }
+  },
+  "same_source_ci_observation": {
+    "source_commit": "034cfd8b47353600a7e392b504e07a8388e2105c",
+    "push_run": 38037897986,
+    "observed_at": "2026-10-10T09:35:19Z",
+    "scope": "Successful job status at the same source head; the PR merge has an identical Git tree. This is not a controlled same-binary comparison and does not diagnose either transport failure. The original PR failure remains failure.",
+    "successful_jobs": [
+      {
+        "id": 114172914244,
+        "name": "bindings-android-runtime-16k",
+        "conclusion": "success"
+      },
+      {
+        "id": 114175448045,
+        "name": "bindings-android-runtime-replay-api35-16k",
+        "conclusion": "success"
+      }
+    ]
+  }
+}

@@ -9,6 +9,8 @@ on:
       - artifact/test_android_runtime_control.py
       - artifact/android_instrumentation_control.py
       - artifact/test_android_instrumentation_control.py
+      - artifact/bounded_process.py
+      - artifact/test_bounded_process.py
 
 permissions:
   contents: read

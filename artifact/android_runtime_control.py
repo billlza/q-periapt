@@ -18,6 +18,8 @@ import subprocess
 import tempfile
 import time
 
+import bounded_process
+
 
 IMAGE = "system-images;android-35;google_apis_ps16k;x86_64"
 AVD = "QPeriapt_Runtime_Control_API35"
@@ -41,6 +43,7 @@ def transfer_matches(record: dict, expected_size: int, expected_hash: str) -> bo
     return (
         record["returncode"] == 0
         and not record["timed_out"]
+        and not record.get("bounded_failure")
         and record["stdout_bytes"] == expected_size
         and record["stdout_sha256"] == expected_hash
     )
@@ -78,11 +81,12 @@ class Control:
             "run_id": os.environ["GITHUB_RUN_ID"],
             "started_utc": datetime.now(timezone.utc).isoformat(),
             "controller_sha256": file_hash(Path(__file__)),
+            "bounded_writer_sha256": file_hash(Path(bounded_process.__file__)),
             "host": {"architecture": platform.machine(), "kernel": platform.release(),
                      "cpu_count": os.cpu_count(), "python": platform.python_version()},
             "sdk_workload_executed": False, "release_claim_eligible": False,
             "completed": False, "samples": self.samples, "commands": self.events,
-            "scope": "One fresh x86_64 ps16k emulator; no APK install or SDK execution. A clean result cannot exonerate the SDK workload or the production transport harness.",
+            "scope": "One fresh x86_64 ps16k emulator; no APK install or SDK execution. File-copy observations compare direct stdout-to-file with the production bounded stdout writer. They do not reproduce the complete installed-APK/cleanup harness or exonerate the SDK workload.",
         }
 
     def command(self, label: str, argv: list[str], timeout: int = 20,
@@ -104,12 +108,72 @@ class Control:
         out = self.output / (label + ".stdout")
         error = self.output / (label + ".stderr")
         record = {"label": label, "argv": argv, "returncode": code,
+                  "capture_method": "direct-file",
                   "started_utc": started_utc,
                   "timed_out": timed_out, "seconds": time.monotonic() - started,
                   "stdout_bytes": out.stat().st_size, "stdout_sha256": file_hash(out),
                   "stderr_bytes": error.stat().st_size, "stderr_sha256": file_hash(error)}
         self.events.append(record)
         self.save()
+        return record
+
+    def bounded_command(self, label: str, argv: list[str], maximum: int,
+                        timeout: int = 30) -> dict:
+        """Use the same stdout engine and exact-size bound as APK readback."""
+        started = time.monotonic()
+        started_utc = datetime.now(timezone.utc).isoformat()
+        remaining = int(self.deadline - started)
+        if remaining < 1:
+            raise RuntimeError("control observation exceeded its 15-minute deadline")
+        effective_timeout = min(timeout, remaining)
+        directory_fd = os.open(self.output, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        code = None
+        primary: BaseException | None = None
+        try:
+            with (self.output / (label + ".stderr")).open("xb") as stderr:
+                result = bounded_process.write_stdout_at(
+                    argv, output_directory_fd=directory_fd,
+                    output_name=label + ".stdout", timeout_seconds=effective_timeout,
+                    maximum_bytes=maximum, stderr=stderr.fileno(),
+                    environment=self.environment, retain_nonzero=False,
+                )
+                code = result.returncode
+        except BaseException as error:
+            primary = error
+        finally:
+            try:
+                os.close(directory_fd)
+            except OSError as error:
+                if primary is None:
+                    primary = error
+                else:
+                    primary.add_note(f"closing the control output directory also failed: {error}")
+            try:
+                output = self.output / (label + ".stdout")
+                error_output = self.output / (label + ".stderr")
+                failure = None if primary is None else {
+                    "kind": primary.kind if isinstance(primary, bounded_process.BoundedProcessError) else type(primary).__name__,
+                    "message": str(primary), "notes": list(getattr(primary, "__notes__", ()))}
+                # Production does not publish timed-out, overflowing or nonzero
+                # output. Preserve that absence instead of inventing empty bytes.
+                record = {"label": label, "argv": argv, "capture_method": "bounded-writer",
+                          "started_utc": started_utc, "seconds": time.monotonic() - started,
+                          "timeout_seconds": effective_timeout, "maximum_bytes": maximum,
+                          "returncode": code, "timed_out": failure is not None and failure["kind"] == "timeout",
+                          "bounded_failure": failure, "stdout_published": output.is_file(),
+                          "stdout_bytes": output.stat().st_size if output.is_file() else None,
+                          "stdout_sha256": file_hash(output) if output.is_file() else None,
+                          "stderr_bytes": error_output.stat().st_size if error_output.is_file() else None,
+                          "stderr_sha256": file_hash(error_output) if error_output.is_file() else None}
+                self.events.append(record)
+                self.save()
+            except BaseException as error:
+                if primary is None:
+                    primary = error
+                else:
+                    primary.add_note(f"retaining the failed control observation also failed: {error}")
+        if primary is not None:
+            raise primary
         return record
 
     def save(self):
@@ -136,6 +200,12 @@ class Control:
             if child.poll() is not None:
                 raise RuntimeError("owned process exited: " + name)
         return self.command(label, [str(self.adb), "-s", SERIAL, *args], timeout)
+
+    def adb_bounded_command(self, label: str, args: list[str], maximum: int) -> dict:
+        for name, child in self.children:
+            if child.poll() is not None:
+                raise RuntimeError("owned process exited: " + name)
+        return self.bounded_command(label, [str(self.adb), "-s", SERIAL, *args], maximum)
 
     def snapshot(self, label: str):
         probes = {
@@ -239,18 +309,30 @@ class Control:
         initial_pid = self.text(self.adb_command("system-server-initial", ["shell", "pidof", "system_server"]))
         if re.fullmatch(r"[1-9][0-9]*", initial_pid) is None:
             raise RuntimeError("system_server identity unavailable")
+        self.result["copy_capture_methods"] = ["direct-file", "bounded-writer"]
+        self.result["samples_per_capture_method"] = 12
         for sample in range(12):
             label = f"sample-{sample:02}"
             self.snapshot(label)
-            before = self.guest_hash(label + "-hash-before")
-            transfer = self.adb_command(label + "-transfer", ["exec-out", "cat", GUEST_FILE], 30)
-            after = self.guest_hash(label + "-hash-after")
-            pid = self.text(self.adb_command(label + "-pid-after", ["shell", "pidof", "system_server"]))
-            self.samples.append({"sample": sample, "transfer": transfer["label"],
-                                 "exact_transfer": transfer_matches(transfer, expected_size, baseline_hash),
-                                 "guest_hash_unchanged": before == baseline_hash == after,
-                                 "system_server_pid": pid, "original_system_server": pid == initial_pid})
-            self.save()
+            methods = ("direct-file", "bounded-writer")
+            if sample % 2:
+                methods = tuple(reversed(methods))
+            for method in methods:
+                capture = label + "-" + method
+                before = self.guest_hash(capture + "-hash-before")
+                if method == "direct-file":
+                    transfer = self.adb_command(capture + "-transfer", ["exec-out", "cat", GUEST_FILE], 30)
+                else:
+                    transfer = self.adb_bounded_command(capture + "-transfer",
+                        ["exec-out", "cat", GUEST_FILE], expected_size)
+                after = self.guest_hash(capture + "-hash-after")
+                pid = self.text(self.adb_command(capture + "-pid-after", ["shell", "pidof", "system_server"]))
+                self.samples.append({"sample": sample, "capture_method": method,
+                                     "transfer": transfer["label"],
+                                     "exact_transfer": transfer_matches(transfer, expected_size, baseline_hash),
+                                     "guest_hash_unchanged": before == baseline_hash == after,
+                                     "system_server_pid": pid, "original_system_server": pid == initial_pid})
+                self.save()
             if sample < 11:
                 time.sleep(30)
         self.snapshot("final")
