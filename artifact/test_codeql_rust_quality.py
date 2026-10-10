@@ -1499,6 +1499,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_version.rs",
 
         ):
             with self.subTest(source=sdk_source):
@@ -1556,6 +1561,11 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_version.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

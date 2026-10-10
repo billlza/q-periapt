@@ -1466,6 +1466,120 @@ fn host_ack_fixture(pending: Option<bool>) -> (InventoryCase, crate::AnchorRetir
         .expect("original report retention");
     (f, report)
 }
+
+#[test]
+fn account_root_retirement_preserves_prior_device_cleanup_reports_and_acknowledgements() {
+    use crate::{
+        AnchorAccountReplacementId, AnchorAccountReplacementState,
+        AnchorRetiredReportAcknowledgementState as AckState,
+    };
+    for acknowledged in [false, true] {
+        let (mut f, report) = host_ack_fixture(None);
+        if acknowledged {
+            f.c.store
+                .acknowledge_retired_report(&report)
+                .expect("independent historical report acknowledgement");
+        }
+        let before = f.c.store.image().expect("authenticated witness image");
+        let active = f.c.store.active.as_ref().expect("live witness owner");
+        let old_bytes = encode(&active.wrapping, &active.pin, &before)
+            .expect("canonical authenticated witness image");
+        assert_eq!(
+            old_bytes.get(..8).expect("prior witness layout tag"),
+            if acknowledged {
+                b"QPANC014"
+            } else {
+                b"QPANC013"
+            }
+        );
+        let next = super::account_root::root_target(&f.c, 190, 192);
+        let old_root =
+            f.c.peer
+                .responder
+                .inventory_inputs()
+                .expect("original verified inventory authority")
+                .1
+                .authority_key
+                .clone();
+        let p =
+            f.c.store
+                .account_root_replacement_proposal(
+                    AnchorAccountReplacementId::from_trusted_state([230; 32])
+                        .expect("original account replacement operation"),
+                    &old_root,
+                    &next.genesis,
+                    &next.device,
+                    f.c.peer
+                        .responder
+                        .current_policy()
+                        .expect("current fixture policy"),
+                    150,
+                )
+                .expect("complete root replacement descriptor");
+        assert_eq!(p.predecessors().count(), 2);
+        assert_eq!(
+            f.c.store
+                .replace_account_root(
+                    &p,
+                    &old_root,
+                    &next.genesis,
+                    &next.device,
+                    f.c.peer
+                        .responder
+                        .current_policy()
+                        .expect("current fixture policy"),
+                    150
+                )
+                .expect("exact account replacement"),
+            AnchorAccountReplacementState::Committed
+        );
+        f.c.store.close();
+        f.c.store = reopen(&f.c.server);
+        assert_eq!(
+            f.c.store
+                .retired_report_acknowledgement_status(&report)
+                .expect("historical acknowledgement status"),
+            if acknowledged {
+                AckState::Acknowledged
+            } else {
+                AckState::Unavailable
+            }
+        );
+        f.c.store
+            .acknowledge_retired_report(&report)
+            .expect("independent historical report acknowledgement");
+        let original =
+            f.c.store
+                .retired_subject_observation(&f.replacement, f.c.genesis.subject())
+                .expect("original retired device observation");
+        let wire =
+            f.c.store
+                .retired_cleanup_receipt(report.inventory())
+                .expect("signed original cleanup inventory");
+        f.c.pin
+            .verify_retired_cleanup(original, report.inventory(), &wire)
+            .expect("authenticated original cleanup inventory");
+        let proof =
+            f.c.store
+                .retired_account_receipt(&p)
+                .expect("signed permanent account retirement");
+        f.c.pin
+            .verify_retired_account(&p, &proof)
+            .expect("authenticated exact account retirement");
+        let after = f.c.store.image().expect("authenticated witness image");
+        let active = f.c.store.active.as_ref().expect("live witness owner");
+        assert_eq!(
+            encode(&active.wrapping, &active.pin, &after)
+                .expect("canonical authenticated witness image")
+                .get(..8)
+                .expect("account-retirement witness layout tag"),
+            b"QPANC015"
+        );
+        assert_eq!(after.retired_cleanup.len(), before.retired_cleanup.len());
+        assert_eq!(after.retired_reports.len(), before.retired_reports.len());
+        assert_eq!(query(&mut f.c, &next).outcome(), AnchorOutcome::Current);
+    }
+}
 #[test]
 fn host_ack_is_distinct_permanent_and_uses_the_already_admitted_storage_length() {
     use crate::{AnchorRetiredReportAcknowledgementState as AckState, AnchorRetiredReportState};

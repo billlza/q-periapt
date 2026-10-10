@@ -319,9 +319,10 @@ pub(super) fn encode_records(
 pub(super) fn decode_records(
     d: &mut Decoder<'_>,
     pin: &AnchorPin,
+    allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], AnchorRetiredCleanupProposal>, DurableError> {
     let count = usize::from(d.u16()?);
-    if count == 0 || count > MAX_ENTRIES {
+    if (!allow_empty && count == 0) || count > MAX_ENTRIES {
         return Err(DurableError::Corrupt);
     }
     let mut records = BTreeMap::new();

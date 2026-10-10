@@ -2,6 +2,9 @@
 use super::*;
 use crate::{AnchorDeviceReplacementProposal as Proposal, AnchorDeviceReplacementState as State};
 
+#[path = "account_replacement_tests.rs"]
+mod account_root;
+
 fn required_case() -> Case {
     let directory = directory();
     let base = directory.path().canonicalize().expect("root");

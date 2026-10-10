@@ -91,16 +91,18 @@ impl RetainedInstallationAuthority {
 mod tests;
 
 pub use anchor::{
+    AnchorAccountReplacementId, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
     AnchorClient, AnchorClientError, AnchorCredentialCancellationState,
     AnchorCredentialRenewalCancellation, AnchorCredentialRenewalProposal,
     AnchorCredentialRenewalState, AnchorDeviceReplacementProposal, AnchorDeviceReplacementState,
     AnchorError, AnchorGenesis, AnchorHead, AnchorIdentity, AnchorOperation, AnchorOutcome,
     AnchorPin, AnchorPolicyRenewalProposal, AnchorPolicyRenewalState, AnchorReply, AnchorRequest,
-    AnchorRetiredCleanup, AnchorRetiredCleanupProposal, AnchorRetiredCleanupState,
-    AnchorRetiredReport, AnchorRetiredReportAcknowledgement,
-    AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
-    AnchorRetiredSubject, AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore,
-    AnchorSubject, AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
+    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
+    AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
+    AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject,
+    AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore, AnchorSubject,
+    AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,

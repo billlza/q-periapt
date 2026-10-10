@@ -259,10 +259,10 @@ fn check_policy_proofs(
     Ok(())
 }
 
-fn key_commitment(key: &PublicKey) -> [u8; 32] {
+pub(super) fn key_commitment(key: &PublicKey) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-REPLACEMENT-KEY/v1", &key.encode())
 }
-fn state_commitment(entry: &Entry, pin: &AnchorPin) -> Result<[u8; 32], DurableError> {
+pub(super) fn state_commitment(entry: &Entry, pin: &AnchorPin) -> Result<[u8; 32], DurableError> {
     let mut bytes = pin.binding.to_vec();
     encode_entry(entry, pin, EntryFormat::COMPLETE, &mut bytes)?;
     Ok(digest(
@@ -335,12 +335,16 @@ impl Image {
             .find(|(_, p)| p.predecessors.iter().any(|e| e.subject == subject))
     }
     pub(super) fn require_live(&self, subject: AnchorSubject) -> Result<(), DurableError> {
-        if self.retirement(subject).is_some() {
+        if self.subject_retired(subject) {
             return Err(Error::Scope.into());
         }
         Ok(())
     }
+    pub(super) fn subject_retired(&self, subject: AnchorSubject) -> bool {
+        self.retirement(subject).is_some() || self.account_retirement(subject)
+    }
     pub(super) fn admit_new_device(&self, device: &VerifiedDevice) -> Result<(), DurableError> {
+        self.require_account_live(device.account_id())?;
         for entry in self.entries.values() {
             let original = entry
                 .original_identity
@@ -516,6 +520,7 @@ impl AnchorStore {
         next: &VerifiedDevice,
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
+        image.require_account_live(next.account_id())?;
         if image.entries.contains_key(&p.target.id(&pin.binding)) {
             return Err(DurableError::Conflict);
         }
@@ -707,9 +712,10 @@ impl Image {
 
 pub(super) fn decode_decisions(
     d: &mut Decoder<'_>,
+    allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], AnchorDeviceReplacementProposal>, DurableError> {
     let count = usize::from(d.u16()?);
-    if count == 0 || count > MAX_ENTRIES {
+    if (!allow_empty && count == 0) || count > MAX_ENTRIES {
         return Err(DurableError::Corrupt);
     }
     let mut decisions = BTreeMap::new();

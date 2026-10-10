@@ -43,6 +43,16 @@ cannot create registrations. Enrollment does not track later roster changes
 automatically. Revocation, credential/policy replacement and migration need their
 own authenticated control-plane transitions.
 
+The [account-root replacement transaction](AUTHORITY_REPLACEMENT.md#native-witness-transaction)
+now fences the entire old cryptographic account, including future unseen device
+IDs, while admitting one independently approved fresh target journal in the same
+store commit. This is separate from per-device retirement. It preserves exact
+historical status and purpose-22 retirement receipts, and introduces witness
+layout `QPANC015`; existing layouts remain readable. The witness image contains
+public state protected by HMAC, not encrypted state. Device journals and protected
+signing-owner files have their separate encryption contracts. Local account-owner
+cutover, deployment authorization and witness-key transfer remain separate work.
+
 ### Immutable original identity and legacy witness migration
 
 New `enroll` entries retain the original account, device ID, generation, credential

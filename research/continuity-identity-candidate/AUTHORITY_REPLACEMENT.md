@@ -1,9 +1,9 @@
 # Account-root and witness authority replacement
 
-Status: construction requirements, **not an implemented replacement protocol**.
-Root and witness-key replacement remain part of the required 0.2.0 lifecycle.
-The existing registration, credential renewal, policy continuation and device
-generation replacement operations do not discharge this requirement.
+Status: the native witness account-root transaction is implemented; the complete
+managed account cutover and witness-key handoff are **not implemented**. Both
+remain part of the required 0.2.0 lifecycle. Existing registration, credential
+renewal, policy continuation and device replacement do not complete that lifecycle.
 
 ## Preserve the current identity meanings
 
@@ -31,7 +31,7 @@ executes six isolated cases and an existing pinned-root negative control. Its
 real witness-store case retires the original device, enrolls a new-root account,
 then explicitly enrolls a previously unseen device under the old root. The old
 device remains retired; the other two subjects remain current after reopening
-the encrypted store. These are trusted-control-plane operations with actual
+the MAC-authenticated witness store. These are trusted-control-plane operations with actual
 signatures. The result confirms the existing per-device contract and rules out
 using that composition as account-root retirement; it is not a network enrollment
 exploit or an implemented replacement transaction.
@@ -106,6 +106,63 @@ root replacement nor fresh installation silently supplies it.
 
 ## Acceptance before product admission
 
+### Native witness transaction
+
+`account_root_replacement_proposal` retains an independent operation ID, both full
+roots, a fresh target account/journal and all old-account subjects. The operator
+must authenticate application-account recovery and the target enrollment outside
+this API. Incoming bytes or the old root's signature cannot supply that approval.
+The target must use the same required witness and different root-key components.
+Unknown legacy entry identities suspend preparation until independently classified.
+
+`replace_account_root` compares the exact original descriptor, current target
+authorization and complete old-account snapshot before one atomic store commit.
+It admits the target genesis and permanently fences old-root enrollment, including
+unseen device IDs, old subject requests and device-replacement attempts. Unrelated
+account progress does not invalidate the old-account snapshot. A changed old head,
+new old-account subject, competing target or reused operation identity conflicts.
+Requests served before the commit may still arrive late over a transport; this
+witness transaction does not replace a local managed-authority fence.
+
+`account_root_replacement_status` and exact committed retries preserve historical
+Committed after target expiry. Unavailable never permits fallback. Sync failures
+consume the current store owner and can follow commit: reopen the same instance
+and reconcile the original descriptor. No frozen head, pending command or unknown
+delivery is reclassified as successful consumption.
+
+`retired_account_observation` returns frozen public metadata.
+`retired_account_receipt` signs purpose 22 over
+`QPARTR01[8] || witness_binding[32] || proposal_binding[32]`; its verifier is
+`AnchorPin::verify_retired_account`. It is a 72-byte body and 3449-byte envelope.
+The statement proves historical retirement under continued witness key/storage
+trust, not freshness, successor permission, physical erasure or witness migration.
+
+The canonical unsigned proposal is `QPARPL01`, with a 4452-byte fixed portion and
+209 bytes per frozen subject. At most 256 subjects and 65536 input bytes are
+accepted. Its binding uses domain `Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-REPLACEMENT/v1`.
+The store emits `QPANC015` only when account replacements exist. It retains all old
+entry layouts, device retirement, cleanup, reports and acknowledgement records.
+Earlier layouts keep their canonical nonempty-table requirements; empty older
+sections are permitted only inside this new aggregate format. Unknown versions,
+including reserved `QPANC005`, still refuse admission.
+
+The existing 256-entry and 1-MiB aggregate limits still apply, along with a maximum
+of 256 account-replacement records. Capacity failure commits nothing and is not a
+successful emergency fence. Capacity planning/reclamation, the local authority
+owner, account authentication, foreign adapters and complete cutover failure
+qualification remain product requirements. The witness's own rollback protection
+remains an independent deployment assumption.
+
+The [2026-10-10 native qualification](../sdk-alpha1/evidence/20261010-account-root-retirement/CHECKS.json)
+retains 828 passing Release library tests, 12 focused root-retirement test entries
+(including one subprocess helper), 15 compile-fail doctests, strict Clippy and the
+Rust 1.90 check. The focused paths exercise four real pre/post-sync failures and
+process termination after durable commit but before return. These fresh macOS
+arm64 fixtures qualify this native component; they do not complete the managed
+local/foreign cutover or the platform requirements below.
+
+### Remaining product acceptance
+
 Actual installed owners must exercise the same original operation across cuts
 before and after each durable boundary, lost replies, competing targets, stale
 approvals and reopening. Check cached aliases and old configuration imports after
@@ -114,6 +171,6 @@ and old-account traffic/ACK rejection under the new account. Reports must retain
 unknown old deliveries without relabeling them as delivered or replaying their
 business effects under a new identity.
 
-Keep signature/namespace experiments, real encrypted-store transitions, witness
+Keep signature/namespace experiments, authenticated-store transitions, witness
 transactions, installed foreign calls and platform persistence as separate evidence.
 A pin decoder or a successful new registration is not an executed root cutover.

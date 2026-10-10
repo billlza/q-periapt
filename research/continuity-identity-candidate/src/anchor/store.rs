@@ -20,6 +20,13 @@ mod tests;
 
 mod lineage;
 use lineage::OriginalIdentity;
+mod image_version;
+use image_version::ImageVersion;
+mod account_replacement;
+pub use account_replacement::{
+    AnchorAccountReplacementId, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject,
+};
 mod replacement;
 pub use replacement::{
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorRetiredSubject,
@@ -66,6 +73,7 @@ struct Image {
     replacements: BTreeMap<[u8; 32], AnchorDeviceReplacementProposal>,
     retired_cleanup: BTreeMap<[u8; 32], AnchorRetiredCleanupProposal>,
     retired_reports: BTreeMap<[u8; 32], retired_report::ReportRecord>,
+    account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
 }
 struct Active {
     db: Database,
@@ -97,6 +105,7 @@ impl AnchorStore {
             replacements: BTreeMap::new(),
             retired_cleanup: BTreeMap::new(),
             retired_reports: BTreeMap::new(),
+            account_replacements: BTreeMap::new(),
         };
         let bytes = encode(&wrapping, &pin, &image)?;
         let db = provision_private_database(path, |db| {
@@ -400,7 +409,7 @@ impl AnchorStore {
         let pin = self.pin()?;
         let request = incoming(&pin, wire)?;
         let mut image = self.image()?;
-        if image.retirement(request.subject).is_some() {
+        if image.subject_retired(request.subject) {
             return Err(Error::Scope.into());
         }
         let entry = image
@@ -718,8 +727,10 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     image.check_replacements(pin)?;
     image.check_retired_cleanup(pin)?;
     image.check_retired_reports(pin)?;
+    image.check_account_replacements(pin)?;
+    let account_format = !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
-    let report_format = !image.retired_reports.is_empty();
+    let report_format = account_format || !image.retired_reports.is_empty();
     let cleanup_format = report_format || !image.retired_cleanup.is_empty();
     let replacement_format = cleanup_format || !image.replacements.is_empty();
     let lineage_format = replacement_format
@@ -761,7 +772,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if acknowledged_report_format {
+    let mut bytes = if account_format {
+        b"QPANC015".to_vec()
+    } else if acknowledged_report_format {
         b"QPANC014".to_vec()
     } else if report_format {
         b"QPANC013".to_vec()
@@ -827,6 +840,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     if report_format {
         retired_report::encode_records(&image.retired_reports, &mut bytes)?;
     }
+    if account_format {
+        account_replacement::encode_records(&image.account_replacements, &mut bytes)?;
+    }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
@@ -846,27 +862,8 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        let version = d.array::<8>()?;
-        let has_replacement =
-            [*b"QPANC011", *b"QPANC012", *b"QPANC013", *b"QPANC014"].contains(&version);
-        if ![
-            *b"QPANC001",
-            *b"QPANC002",
-            *b"QPANC003",
-            *b"QPANC004",
-            *b"QPANC006",
-            *b"QPANC007",
-            *b"QPANC008",
-            *b"QPANC009",
-            *b"QPANC010",
-            *b"QPANC011",
-            *b"QPANC012",
-            *b"QPANC013",
-            *b"QPANC014",
-        ]
-        .contains(&version)
-            || d.array::<32>()? != pin.binding
-        {
+        let version = ImageVersion::decode(d.array()?)?;
+        if d.array::<32>()? != pin.binding {
             return Err(DurableError::Conflict);
         }
         let revision = d.u64()?;
@@ -886,7 +883,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             previous = Some(id);
             let subject = AnchorSubject::decode(&mut d)?;
             let device = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
-            let credential_owner = if version != *b"QPANC001" {
+            let credential_owner = if version >= ImageVersion::V2 {
                 let owner = d.array()?;
                 nonzero(&owner)?;
                 owner
@@ -900,21 +897,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             nonzero(&genesis)?;
             let head = AnchorHead::decode(&mut d)?;
             let last = decode_last(&mut d, head)?;
-            let (renewal_floor, renewal_ack, renewal) = if [
-                *b"QPANC003",
-                *b"QPANC004",
-                *b"QPANC006",
-                *b"QPANC007",
-                *b"QPANC008",
-                *b"QPANC009",
-                *b"QPANC010",
-                *b"QPANC011",
-                *b"QPANC012",
-                *b"QPANC013",
-                *b"QPANC014",
-            ]
-            .contains(&version)
-            {
+            let (renewal_floor, renewal_ack, renewal) = if version >= ImageVersion::V3 {
                 let floor = d.u64()?;
                 let [present] = d.array()?;
                 let binding = d.array()?;
@@ -931,58 +914,31 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                     ack,
                     CredentialRenewalRecord::decode(
                         &mut d,
-                        [
-                            *b"QPANC004",
-                            *b"QPANC006",
-                            *b"QPANC007",
-                            *b"QPANC008",
-                            *b"QPANC009",
-                            *b"QPANC010",
-                            *b"QPANC011",
-                            *b"QPANC012",
-                            *b"QPANC013",
-                            *b"QPANC014",
-                        ]
-                        .contains(&version),
-                        version == *b"QPANC006"
-                            || version == *b"QPANC007"
-                            || version == *b"QPANC008"
-                            || version == *b"QPANC009"
-                            || (version == *b"QPANC010" || has_replacement),
-                        version == *b"QPANC007"
-                            || version == *b"QPANC008"
-                            || version == *b"QPANC009"
-                            || (version == *b"QPANC010" || has_replacement),
+                        version >= ImageVersion::V4,
+                        version >= ImageVersion::V6,
+                        version >= ImageVersion::V7,
                     )?,
                 )
             } else {
                 (0, None, None)
             };
-            let (policy_floor, credential_authorization, policy_authorization) = if version
-                == *b"QPANC006"
-                || version == *b"QPANC007"
-                || version == *b"QPANC008"
-                || version == *b"QPANC009"
-                || (version == *b"QPANC010" || has_replacement)
-            {
-                let floor = d.u64()?;
-                let (credential, policy) = match d.array::<1>()? {
-                    [0] => (None, None),
-                    [1] => {
-                        let credential = d.array()?;
-                        nonzero(&credential)?;
-                        (Some(credential), Some(PolicyAuthority::decode(&mut d)?))
-                    }
-                    _ => return Err(DurableError::Corrupt),
+            let (policy_floor, credential_authorization, policy_authorization) =
+                if version >= ImageVersion::V6 {
+                    let floor = d.u64()?;
+                    let (credential, policy) = match d.array::<1>()? {
+                        [0] => (None, None),
+                        [1] => {
+                            let credential = d.array()?;
+                            nonzero(&credential)?;
+                            (Some(credential), Some(PolicyAuthority::decode(&mut d)?))
+                        }
+                        _ => return Err(DurableError::Corrupt),
+                    };
+                    (floor, credential, policy)
+                } else {
+                    (0, None, None)
                 };
-                (floor, credential, policy)
-            } else {
-                (0, None, None)
-            };
-            let independent_policy = if version == *b"QPANC008"
-                || version == *b"QPANC009"
-                || (version == *b"QPANC010" || has_replacement)
-            {
+            let independent_policy = if version >= ImageVersion::V8 {
                 match d.array::<1>()? {
                     [0] => None,
                     [1] => Some(PolicyRenewal::decode(&mut d)?),
@@ -991,17 +947,16 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             } else {
                 None
             };
-            let independent_roster =
-                if version == *b"QPANC009" || (version == *b"QPANC010" || has_replacement) {
-                    match d.array::<1>()? {
-                        [0] => None,
-                        [1] => Some(RosterRefresh::decode(&mut d)?),
-                        _ => return Err(DurableError::Corrupt),
-                    }
-                } else {
-                    None
-                };
-            let original_identity = if version == *b"QPANC010" || has_replacement {
+            let independent_roster = if version >= ImageVersion::V9 {
+                match d.array::<1>()? {
+                    [0] => None,
+                    [1] => Some(RosterRefresh::decode(&mut d)?),
+                    _ => return Err(DurableError::Corrupt),
+                }
+            } else {
+                None
+            };
+            let original_identity = if version >= ImageVersion::V10 {
                 match d.array::<1>()? {
                     [0] => None,
                     [1] => Some(OriginalIdentity::decode(&mut d)?),
@@ -1042,23 +997,33 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             }
             entries.insert(id, entry);
         }
-        let replacements = if has_replacement {
-            replacement::decode_decisions(&mut d)?
+        let replacements = if version >= ImageVersion::V11 {
+            replacement::decode_decisions(&mut d, version >= ImageVersion::V15)?
         } else {
             BTreeMap::new()
         };
-        let retired_cleanup = if [*b"QPANC012", *b"QPANC013", *b"QPANC014"].contains(&version) {
-            retired_cleanup::decode_records(&mut d, pin)?
+        let retired_cleanup = if version >= ImageVersion::V12 {
+            retired_cleanup::decode_records(&mut d, pin, version >= ImageVersion::V15)?
         } else {
             BTreeMap::new()
         };
-        let retired_reports = if version == *b"QPANC013" || version == *b"QPANC014" {
-            retired_report::decode_records(&mut d, pin, version == *b"QPANC014")?
+        let retired_reports = if version >= ImageVersion::V13 {
+            retired_report::decode_records(
+                &mut d,
+                pin,
+                version >= ImageVersion::V14,
+                version >= ImageVersion::V15,
+            )?
+        } else {
+            BTreeMap::new()
+        };
+        let account_replacements = if version >= ImageVersion::V15 {
+            account_replacement::decode_records(&mut d)?
         } else {
             BTreeMap::new()
         };
         d.finish()?;
-        if (version == *b"QPANC010" || has_replacement)
+        if version >= ImageVersion::V10
             && !entries
                 .values()
                 .any(|entry| entry.original_identity.is_some())
@@ -1072,14 +1037,18 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             replacements,
             retired_cleanup,
             retired_reports,
+            account_replacements,
         };
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
         image.check_retired_reports(pin)?;
-        if version == *b"QPANC014" && !image.retired_reports.values().any(|r| r.acknowledged) {
+        image.check_account_replacements(pin)?;
+        if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }
-        if has_replacement && image.replacements.is_empty() {
+        if (ImageVersion::V11..=ImageVersion::V14).contains(&version)
+            && image.replacements.is_empty()
+        {
             return Err(DurableError::Corrupt);
         }
         Ok(image)

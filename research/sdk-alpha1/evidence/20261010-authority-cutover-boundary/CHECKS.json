@@ -1,7 +1,7 @@
 {
   "source_commit": "af184b9b3c07ef7226546549205eaec9f85b1b60",
   "source_copy": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/authority-cutover-current/source",
-  "scope": "Actual-signature authorization boundaries and a real encrypted witness database composition counterexample; no production protocol/API modification.",
+  "scope": "Actual-signature authorization boundaries and a real MAC-authenticated witness database composition counterexample; no production protocol/API modification.",
   "observations": [
     "A new root changes AccountId despite an unchanged device key/id/generation. Pairing the old account with the new root is refused.",
     "New-root admission and closure of the old root signer do not revoke an independently retained old pin or the original serialized roster. The roster decoder probe is not a full device-journal restart.",
@@ -43,7 +43,7 @@
   "limits": [
     "Synthetic trusted time 150 and test fixtures, including deterministic signing seeds; not real-time expiry or root-compromise detection.",
     "The witness case performs explicit trusted-control-plane enrollments. Incoming network bytes cannot invoke those operations.",
-    "Witness state is exercised through the real local encrypted store and signed replies on macOS arm64 in one process; no process-crash, power-loss, network, foreign-binding, device or platform qualification.",
+    "Witness state is exercised through the real local MAC-authenticated witness store and signed replies on macOS arm64 in one process; no process-crash, power-loss, network, foreign-binding, device or platform qualification.",
     "No root-cutover transaction, managed account-trust owner, root-retirement floor or witness-key handoff has been implemented by these probes.",
     "No computational proof or post-compromise secrecy claim follows from finite acceptance/refusal observations."
   ],
@@ -70,5 +70,11 @@
       "witness-probe-01/stderr": "2361dd5ab3a8e9b9b65db2f445041a48b804bda24e3cc0a69061f8a4c9528914",
       "witness-probe-01/stdout": "d6f0ab0568f240bbc3a7a474c00953c04b51e16586f53c514046336a412d4bab"
     }
+  },
+  "description_correction": {
+    "prior_commit": "479e48df5b62d1c2bd4c57837df26e5825345801",
+    "correction": "The witness image is HMAC-authenticated public state, not encrypted state. The device journal and protected signing-key files are encrypted separately.",
+    "raw_capture_changed": false,
+    "evidence": "src/anchor/store.rs encode/authenticator and decode/auth.verify_slice; same source recorded by production_source_sha256."
   }
 }

@@ -58,9 +58,20 @@ prefix is not permission to allocate outside that cap.
 | 9, 10, 11, 12, 13 | Rekey offer, response, final, receipt, request |
 | 14, 15 | Enrollment request, same-key credential renewal |
 | 16 | Joint policy-continuation approval (both independent roots) |
+| 17 | Independent protocol-policy renewal |
+| 18, 19 | Permanent device retirement, retained cleanup inventory |
+| 20, 21 | Retained retired-device report, independent host acknowledgement |
+| 22 | Permanent account-root retirement |
 
 Purpose numbers are signature inputs, not a free-form signing API. No application
 message acquires a dual signature merely by belonging to a signed session.
+
+Purpose 22 signs the 72-byte body
+`QPARTR01[8] || witness_binding[32] || proposal_binding[32]`, for a 3449-byte
+envelope. The separately retained `QPARPL01` descriptor and its exact binding are
+defined by the [native account-root transaction](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md#native-witness-transaction).
+It is historical retirement metadata, not an ordinary fresh witness reply or a
+new command on the device data-plane transport.
 
 The enrollment and credential-renewal records are specified in the candidate's
 [enrollment](../../research/continuity-identity-candidate/ENROLLMENT.md) and

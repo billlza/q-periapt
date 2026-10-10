@@ -60,7 +60,9 @@ credentials. It also reconciles expired pending intents without inventing NoComm
 separate durable authority cutover. A new root changes the cryptographic account
 ID; a new pin does not revoke old pins or stored rosters. The retained experiment
 also distinguishes per-device retirement from an account-wide old-root floor.
-These replacement transactions remain unimplemented.
+The native witness now atomically admits the exact target and retains an old-root
+floor, with original-operation reconciliation and a separate historical receipt.
+The managed local-account cutover and witness-key handoff remain unimplemented.
 
 The local-only [joint policy continuation](POLICY_CONTINUATION.md) candidate uses
 independent account and policy approvals to retain an original established session
