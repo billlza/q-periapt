@@ -283,6 +283,17 @@ The successor account is recorded for correlation only. This operation selects n
 application-account mapping, creates no successor session and transfers no witness
 trust. Foreign adapters and complete managed cutover remain required.
 
+The peer-adoption process regression also kills the actual sender process at four
+boundaries: before an intent exists, after the original sealed intent is durable,
+after the real witness commits while its signed reply is withheld, and after the
+local image commit before the API returns. The parent retains the same durable
+witness and independently verifies its signed head replies. Restart resumes the
+exact original statement, preserves unknown delivery accounting and never advances
+the head again merely for an identical retry. Before intent persistence, the test
+correctly observes that no durable local fence exists yet; it does not infer one
+from host approval. These are process-loss checks with a bounded test IPC carrier,
+not TCP/TLS qualification, simultaneous witness failure or physical power-loss tests.
+
 ### Remaining product acceptance
 
 Actual installed owners must exercise the same original operation across cuts
