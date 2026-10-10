@@ -47,14 +47,10 @@ pub(crate) fn inspect(root: &Path, label: &str, anchor: Option<p::AnchorClient>)
     if label == "original" {
         fixture::store(root, "setup-fault-original-id", id.as_bytes())?;
         fixture::store(root, "setup-fault-original-batch", batch.as_bytes())?;
-    } else {
-        if id.as_bytes() != &fixture::array::<32>(root, "setup-fault-original-id")?
-            || batch.as_bytes() != &fixture::array::<32>(root, "setup-fault-original-batch")?
-        {
-            return Err(
-                "setup interruption replaced its original identity or account position".into(),
-            );
-        }
+    } else if id.as_bytes() != &fixture::array::<32>(root, "setup-fault-original-id")?
+        || batch.as_bytes() != &fixture::array::<32>(root, "setup-fault-original-batch")?
+    {
+        return Err("setup interruption replaced its original identity or account position".into());
     }
     let phase = match phase {
         p::InstallationStatus::Creating => 1,

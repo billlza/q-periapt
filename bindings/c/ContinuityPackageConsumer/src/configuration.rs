@@ -295,6 +295,7 @@ unsafe fn prepare_initial(
         let request = opening::PathRequest {
             path,
             witness: None,
+            account: None,
             kind: opening::Kind::Configuration(Preparation::Initial {
                 input: Box::new(input),
                 create,
@@ -358,6 +359,7 @@ pub unsafe extern "C" fn qpc_configuration_v1_prepare_open(
         let request = opening::PathRequest {
             path,
             witness: None,
+            account: None,
             kind: opening::Kind::Configuration(Preparation::Current(Box::new(input))),
         };
         let id = Reservation::new()?.publish(

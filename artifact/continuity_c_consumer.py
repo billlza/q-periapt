@@ -10,6 +10,7 @@ import continuity_c_recovery as recovery
 import continuity_c_opening as opening
 import continuity_c_device as device
 import continuity_c_account as account
+import continuity_c_authority as authority
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
@@ -34,6 +35,9 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("open", "session_count", "ses
             "archive", "begin", "status", "reserved", "epoch", "unconfirmed", "delivery", "skipped",
             "acknowledge", "retire", "restore_index")}
 EXPORTS |= {"qpc_owner_v1_open_witness", "qpc_recovery_v1_open_witness"}
+EXPORTS |= {"qpc_authority_v1_" + name for name in
+            ("provision_wrapping_key", "prepare_create", "prepare_open", "checkpoint",
+             "associate", "prepare_enrollment", "prepare_owner")}
 EXPORTS |= {"qpc_owner_v1_open_witness_tls", "qpc_recovery_v1_open_witness_tls"}
 EXPORTS |= {"qpc_peer_v1_prepare", "qpc_peer_v1_prepare_reopen",
             "qpc_peer_v1_prepare_configured", "qpc_peer_v1_prepare_configured_reopen"}
@@ -314,6 +318,10 @@ def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, st
 
 def verify_admission(stdout: bytes) -> None:
     tests = {
+        "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
+        "account_authority::tests::authority_registry_parent_close_rejects_pending_enrollment_before_file_creation",
+        "account_authority::tests::authority_registry_reopens_exact_mapping_and_cancel_does_not_replace_close",
+        "account_authority::tests::authority_registry_short_options_are_refused_before_full_structure_read",
         "configuration::tests::configuration_cancel_before_finish_has_no_filesystem_effect",
         "configuration::tests::configuration_headers_reject_short_structures_before_payload_reads",
         "configuration::tests::configuration_historical_snapshot_does_not_authorize_credential_acceptance",
@@ -361,7 +369,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -484,7 +492,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                           "-j", "2", *extra], "admission-build-" + profile)
         unit_test = built_artifact(unit_build, consumer, build, library=False, unit=True)
         unit_identity = sdk.snapshot(unit_test, maximum=MAX_BINARY)
-        checked = run([str(unit_test)], "admission-" + profile, runtime=runtime)
+        authority_fixture = outside / ("c-" + profile + "-authority-fixture")
+        authority_fixture.mkdir(mode=0o700)
+        checked = run([str(unit_test)], "admission-" + profile,
+                      runtime=dict(runtime, QPC_AUTHORITY_FIXTURE=str(authority_fixture)))
         verify_admission(checked)
         trace = built_artifact(built, consumer, build, library=False)
         trace_identity = sdk.snapshot(trace, maximum=MAX_BINARY)
@@ -492,6 +503,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        result["execution"][profile]["account_authority"] = authority.qualify(
+            outside, consumer, installed, authority_fixture, cc, platform_flags, profile, run,
+            darwin=darwin, runtime=runtime, filename=filename)
         from continuity_first_configuration import qualify_native as qualify_configuration
         result["execution"][profile]["first_configuration"] = qualify_configuration(
             outside, output, consumer, build, cargo, runtime, cc, platform_flags,

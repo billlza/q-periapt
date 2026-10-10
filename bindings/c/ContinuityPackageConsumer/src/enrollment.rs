@@ -20,8 +20,16 @@ pub struct Intent {
 pub(crate) struct Approved {
     native: p::EnrollmentIntent,
     pub(crate) family: [u8; 32],
+    account_authority: Option<p::JournalAccountAuthority>,
 }
 impl Approved {
+    pub(crate) fn with_account_authority(
+        mut self,
+        authority: Option<p::JournalAccountAuthority>,
+    ) -> Self {
+        self.account_authority = authority;
+        self
+    }
     pub(crate) fn into_native(self) -> p::EnrollmentIntent {
         self.native
     }
@@ -43,6 +51,7 @@ impl Approved {
         Ok(Self {
             native: p::EnrollmentIntent::new(root, description),
             family: input.family,
+            account_authority: None,
         })
     }
 }
@@ -221,11 +230,16 @@ impl Owner {
         supplied: Option<crate::first_install::SuppliedPolicy>,
     ) -> Result<Box<Self>> {
         opening::check(cancel, deadline)?;
+        let account = approved.account_authority;
         let paths = paths(path)?;
         let enrollment = if create {
             p::DeviceEnrollment::provision(paths, approved.native)?
         } else {
             p::DeviceEnrollment::open(paths, approved.native)?
+        };
+        let enrollment = match account {
+            Some(account) => enrollment.with_account_authority(account)?,
+            None => enrollment,
         };
         let result = Box::new(Self {
             path: path.into(),

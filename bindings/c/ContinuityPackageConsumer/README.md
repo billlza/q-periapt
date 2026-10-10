@@ -1383,3 +1383,37 @@ invalidates retained children and releases the actual stores. Product ABI 2 is
 unchanged. The installed C/Swift/Kotlin gates require explicit-input traffic,
 original-session recovery and public readback; foreign probes additionally
 exercise public-wrapper release, explicit close and pending-child cancellation.
+
+
+## Independent account registry ownership
+
+The unpublished `qpc_authority_v1_*` entries own the native
+`AccountAuthorityStore` through the same bounded owner table. Retain the original
+private directory, registry identity, family, witness pin and `authority.key`
+independently of device-journal backups. Explicit first use provisions the key and
+prepares registry creation; `qpc_owner_v1_finish_open` performs I/O. Reopening an
+existing registry never replaces missing or rejected state. An error can follow a
+commit: preserve the original inputs and reconcile that original state.
+
+Association requires an independently selected account pin and actual signed
+credential/roster. The returned checkpoint is public expectation data. It is not
+permission without a live original registry check. Managed enrollment, device and
+session preparation explicitly select that registry/checkpoint. Their pending
+handles retain only native read access; closing the registry revokes it without
+keeping the database/key owner alive. Reopening the same registry does not revive
+old read access. Cancel applies to this registry handle's invocations; use close
+for revocation of its delegated access, after cancelling and joining a busy call.
+
+The existing activation, renewal and peer operations continue to use the same
+native journal engine. A managed session reopen requires an existing exact
+binding; it cannot silently adopt another registry. Ordinary historical recovery
+entry points remain separate from operating permission. All new options check
+their declared size before reading their full structure.
+
+`authority_client.c` is a separately compiled C caller covering real association,
+caller-buffer copying, short options, deferred parent closure, exact registry
+reopen and managed enrollment construction. The canonical C package qualifier
+runs it against the installed Debug and Release libraries and checks their loader
+binding. Its receipt explicitly keeps managed traffic unqualified. Full managed
+traffic/rekey/retirement, Swift/Kotlin registry ownership and the complete account
+replacement controller still require their own qualification.

@@ -11,6 +11,7 @@ pub struct Options {
     pub witness: *const witness::Options,
 }
 pub(crate) enum Kind {
+    AccountAuthority(Box<crate::account_authority::Admission>),
     Configuration(crate::configuration::Preparation),
     Operational(owner::Admission),
     Recovery,
@@ -33,6 +34,7 @@ pub(crate) struct PathRequest {
     pub(crate) path: String,
     pub(crate) kind: Kind,
     pub(crate) witness: Option<witness::Configuration>,
+    pub(crate) account: Option<crate::account_authority::Selection>,
 }
 pub(crate) enum Request {
     Path(Box<PathRequest>),
@@ -86,7 +88,11 @@ pub(crate) fn check(cancel: &Cancellation, deadline: Instant) -> Result<()> {
     invocation::check(deadline)
 }
 impl PathRequest {
-    unsafe fn read(path: *const u8, length: usize, options: *const Options) -> Result<Self> {
+    pub(crate) unsafe fn read(
+        path: *const u8,
+        length: usize,
+        options: *const Options,
+    ) -> Result<Self> {
         if options.is_null() || !options.is_aligned() {
             return Err(Failure::argument());
         }
@@ -117,9 +123,10 @@ impl PathRequest {
             path,
             kind,
             witness,
+            account: None,
         })
     }
-    unsafe fn read_reopen(
+    pub(crate) unsafe fn read_reopen(
         path: *const u8,
         length: usize,
         options: *const Options,
@@ -141,6 +148,11 @@ impl PathRequest {
     }
     fn open(self, entry: &Entry, deadline: Instant) -> Result<Owned> {
         check(&entry.cancel, deadline)?;
+        let account = self
+            .account
+            .as_ref()
+            .map(crate::account_authority::Selection::admit)
+            .transpose()?;
         let path = Path::new(&self.path);
         let cancel = entry.cancel.clone();
         let invocation = entry.invocation.clone();
@@ -148,6 +160,9 @@ impl PathRequest {
         // boxes here reserves value-sized temporaries for unrelated match arms
         // even while an operational owner is signing on a foreign worker stack.
         let owner = match self.kind {
+            Kind::AccountAuthority(admission) => Owned::AccountAuthority(
+                crate::account_authority::Owner::open(path, *admission, &cancel, deadline)?,
+            ),
             Kind::Configuration(preparation) => Owned::Configuration(
                 crate::configuration::Owner::open(path, preparation, &cancel, deadline)?,
             ),
@@ -157,7 +172,7 @@ impl PathRequest {
             Kind::Enrollment { create, approved } => Owned::Enrollment(enrollment::Owner::open(
                 path,
                 create,
-                *approved,
+                (*approved).with_account_authority(account),
                 self.witness,
                 &cancel,
                 deadline,
@@ -173,6 +188,7 @@ impl PathRequest {
             Kind::Device => Owned::Device(device::Shared::open(
                 path,
                 self.witness,
+                account,
                 cancel,
                 invocation,
                 deadline,
@@ -188,6 +204,7 @@ impl PathRequest {
                 path,
                 admission,
                 self.witness,
+                account,
                 cancel,
                 invocation,
                 deadline,
@@ -228,6 +245,7 @@ pub unsafe extern "C" fn qpc_retired_v1_prepare_open(
             path,
             kind: Kind::Retirement(Box::new(admission)),
             witness: None,
+            account: None,
         };
         let reservation = Reservation::new()?;
         let id = reservation.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;
@@ -405,6 +423,7 @@ unsafe fn prepare_peer(
                 role,
             },
             witness: None,
+            account: None,
         };
         let slot = Reservation::new()?;
         let id = slot.publish(Owned::Opening(Request::Path(Box::new(request))), deadline)?;

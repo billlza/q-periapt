@@ -441,6 +441,91 @@ typedef struct {
     uint8_t family[32];
     qpc_roster_checkpoint_v1 checkpoint;
 } qpc_account_pin_v1;
+
+/* Independent application-account registry. Keep its path, identity, family,
+ * original witness pin and authority.key outside device-journal backups.
+ * First use explicitly provisions authority.key, then prepares creation of
+ * authority.redb. Reopen never creates either missing file. Creation/association
+ * errors may follow commit: retry the SAME original inputs and inspect state.
+ * The original registry must remain open while managed children operate.
+ * Closing it revokes their retained native admission, even if child handles live.
+ * cancel stops calls on this registry handle; it does not close the registry or
+ * replace explicit authority revocation by close. Cancel, join, then close.
+ * All size-versioned options require at least a readable aligned uint32_t header;
+ * after exact sizeof validation, their entire declared input must be readable.
+ */
+typedef struct {
+    uint32_t struct_size;
+    uint8_t identity[32];
+    uint8_t family[32];
+    uint8_t witness[32];
+    const uint8_t *public_key;
+    size_t public_key_length;
+} qpc_authority_options_v1;
+typedef struct {
+    uint8_t application[32];
+    uint64_t revision;
+    uint8_t account[32];
+} qpc_authority_checkpoint_v1;
+typedef struct {
+    uint32_t struct_size;
+    uint8_t application[32];
+    const qpc_account_pin_v1 *pin; /* Independently trusted, never bundle-selected. */
+    const uint8_t *certificate;
+    size_t certificate_length;
+    const uint8_t *roster;
+    size_t roster_length;
+} qpc_authority_association_v1;
+typedef struct {
+    uint32_t struct_size;
+    uint32_t create; /* 0: original enrollment reopen; 1: explicit first creation. */
+    uint64_t registry;
+    qpc_authority_checkpoint_v1 checkpoint;
+    const qpc_enrollment_intent_v1 *intent;
+    const qpc_open_options_v1 *options; /* Device kind with an explicit witness. */
+} qpc_authority_enrollment_options_v1;
+typedef struct {
+    uint32_t struct_size;
+    uint32_t reopen; /* 0: existing device/bootstrap owner; 1: existing session. */
+    uint64_t registry;
+    qpc_authority_checkpoint_v1 checkpoint;
+    const qpc_open_options_v1 *options; /* Operational or device kind, explicit witness. */
+    const uint8_t *session; /* NULL for reopen=0; exact 32 bytes for reopen=1. */
+} qpc_authority_open_options_v1;
+
+int32_t qpc_authority_v1_provision_wrapping_key(
+    const uint8_t *path, size_t length, qpc_error_v1 *error);
+int32_t qpc_authority_v1_prepare_create(
+    const uint8_t *path, size_t length, const qpc_authority_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+int32_t qpc_authority_v1_prepare_open(
+    const uint8_t *path, size_t length, const qpc_authority_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+/* Both constructors return pending handles; qpc_owner_v1_finish_open performs I/O.
+ * Use the ordinary owner close/cancel functions. Checkpoints are public expected
+ * identities, not self-contained permission or approval for another root. */
+int32_t qpc_authority_v1_checkpoint(
+    uint64_t handle, const uint8_t application[32],
+    qpc_authority_checkpoint_v1 *checkpoint, qpc_error_v1 *error);
+int32_t qpc_authority_v1_associate(
+    uint64_t handle, const qpc_authority_association_v1 *association,
+    qpc_authority_checkpoint_v1 *checkpoint, qpc_error_v1 *error);
+/* Caller-owned options are copied during preparation. A pending child does not
+ * keep the original registry alive. Closed authority is checked before opening
+ * enrollment storage and again before releasing native authority. Ordinary
+ * enrollment activation/renewal functions operate on the resulting same owner. */
+int32_t qpc_authority_v1_prepare_enrollment(
+    const uint8_t *path, size_t length, const qpc_authority_enrollment_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+/* Reuses the ordinary existing device/bootstrap/session constructors. Session
+ * reopen requires an already bound journal; it never adopts an unbound journal.
+ * Existing device activation may explicitly adopt the selected original registry.
+ * Recovery-only owners continue to use the ordinary historical recovery API. */
+int32_t qpc_authority_v1_prepare_owner(
+    const uint8_t *path, size_t length, const qpc_authority_open_options_v1 *options,
+    uint64_t *handle, qpc_error_v1 *error);
+
+
 typedef struct {
     uint32_t phase;
     uint8_t signing_id[32];

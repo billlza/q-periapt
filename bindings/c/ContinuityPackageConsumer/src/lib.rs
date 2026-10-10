@@ -3,6 +3,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod account;
+mod account_authority;
 mod configuration;
 mod device;
 mod enrollment;
@@ -235,6 +236,7 @@ impl From<p::connection_transport::Error> for Failure {
 
 enum Owned {
     Opening(opening::Request),
+    AccountAuthority(Box<account_authority::Owner>),
     Configuration(Box<configuration::Owner>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),
@@ -577,6 +579,7 @@ unsafe fn open_owner(
             Path::new(&path),
             owner::Admission::Bootstrap(quality),
             witness,
+            None,
             slot.cancel.clone(),
             slot.invocation.clone(),
             deadline,

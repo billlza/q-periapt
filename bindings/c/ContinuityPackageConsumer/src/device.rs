@@ -170,6 +170,7 @@ impl Shared {
     pub(crate) fn open(
         path: &Path,
         witness: Option<witness::Configuration>,
+        account: Option<p::JournalAccountAuthority>,
         cancel: Cancellation,
         invocation: invocation::Scope,
         deadline: Instant,
@@ -195,7 +196,7 @@ impl Shared {
             &authority.identity,
             &authority.environment.authority.policy,
             now().map_err(Failure::configuration)?,
-            anchor,
+            crate::account_authority::installation(anchor, account)?,
         )?;
         opening::check(&cancel, deadline)?;
         Ok(Self::from_parts(service, authority, cancel, invocation))

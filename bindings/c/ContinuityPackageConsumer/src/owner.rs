@@ -237,6 +237,7 @@ struct Activation<'a> {
     paths: p::InstallationPaths,
     key: p::JournalKey,
     signer: p::DeviceSigningKey,
+    account: Option<p::JournalAccountAuthority>,
     cancel: &'a Cancellation,
     deadline: Instant,
 }
@@ -263,7 +264,7 @@ impl Activation<'_> {
             device,
             context.current_policy()?,
             now().map_err(Failure::configuration)?,
-            anchor,
+            crate::account_authority::installation(anchor, self.account)?,
         )?;
         Ok((
             crate::native_owner::NativeOwner::installed(service, self.signer),
@@ -284,7 +285,7 @@ impl Activation<'_> {
             self.key,
             request,
             now().map_err(Failure::configuration)?,
-            anchor,
+            crate::account_authority::installation(anchor, self.account)?,
         )?
         .into_parts();
         Ok((
@@ -324,6 +325,7 @@ impl Owner {
         path: &Path,
         admission: Admission,
         witness: Option<crate::witness::Configuration>,
+        account: Option<p::JournalAccountAuthority>,
         cancel: Cancellation,
         invocation: crate::invocation::Scope,
         deadline: Instant,
@@ -357,6 +359,7 @@ impl Owner {
             paths,
             key,
             signer,
+            account,
             cancel: &cancel,
             deadline,
         };

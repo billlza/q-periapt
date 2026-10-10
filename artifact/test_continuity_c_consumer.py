@@ -11,6 +11,10 @@ import continuity_c_consumer as consumer
 class AdmissionTests(unittest.TestCase):
     def test_all_deadline_and_drain_tests_must_actually_execute(self):
         names = [
+            "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
+            "account_authority::tests::authority_registry_parent_close_rejects_pending_enrollment_before_file_creation",
+            "account_authority::tests::authority_registry_reopens_exact_mapping_and_cancel_does_not_replace_close",
+            "account_authority::tests::authority_registry_short_options_are_refused_before_full_structure_read",
             "configuration::tests::configuration_cancel_before_finish_has_no_filesystem_effect",
             "configuration::tests::configuration_headers_reject_short_structures_before_payload_reads",
             "configuration::tests::configuration_historical_snapshot_does_not_authorize_credential_acceptance",
@@ -56,7 +60,7 @@ class AdmissionTests(unittest.TestCase):
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,
@@ -373,6 +377,22 @@ class RestorationTests(unittest.TestCase):
             for language in ("Swift", "Kotlin"):
                 report_path.write_text(json.dumps(dict(report, language=language)))
                 self.assertEqual(consumer.verify_restore_execution(stdout, root, language=language)["language"], language)
+
+
+
+class AuthorityTests(unittest.TestCase):
+    def test_authority_receipt_requires_every_boundary_and_keeps_traffic_unqualified(self):
+        from continuity_c_authority import MARKER, verify_execution
+        result = verify_execution(MARKER)
+        self.assertTrue(result["completed"])
+        self.assertFalse(result["traffic_qualified"])
+        self.assertFalse(result["release_claim_eligible"])
+        for invalid in (b"", MARKER + MARKER, MARKER.replace(b"pending_closed=202", b"pending_closed=2"),
+                        MARKER.replace(b"snapshot=true", b"snapshot=false"),
+                        MARKER.replace(b"traffic_qualified=false", b"traffic_qualified=true")):
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                verify_execution(invalid)
+
 
 if __name__ == "__main__":
     unittest.main(warnings="error")
