@@ -1309,6 +1309,7 @@ def exec_emulator(
         confirmed_selection == selection,
         "fixed Android AVD selection changed before emulator registration",
     )
+    guest_logcat = _prepare_emulator_guest_logcat(layout)
     receipt = runtime_state.register_emulator_child(
         receipt=prior_receipt,
         registration=runtime_state.EmulatorChildRegistration(
@@ -1341,6 +1342,11 @@ def exec_emulator(
         "-no-window",
         "-no-audio",
         "-no-boot-anim",
+        "-show-kernel",
+        "-logcat",
+        "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
+        "-logcat-output",
+        str(guest_logcat),
         "-no-direct-adb",
         "-adb-path",
         str(capability.adb_snapshot_path),
@@ -1358,6 +1364,38 @@ def exec_emulator(
                 f"cannot start the owned Android emulator: {primary}"
             ) from primary
         raise
+
+
+def _prepare_emulator_guest_logcat(layout: runtime_state.AndroidRunLayout) -> pathlib.Path:
+    """Keep guest diagnostics available when its ADB transport has failed.
+
+    Kernel output remains on inherited stdout (emulator.log). A separate logcat
+    file avoids assigning both guest consoles to QEMU's stdio character device.
+    The private run directory and exclusive leaf prevent stale-log replacement.
+    """
+    leaf = "emulator-guest-logcat.txt"
+    directory_fd = _output_directory(layout, OutputRoot.PROOF)
+    primary: BaseException | None = None
+    try:
+        descriptor = os.open(
+            leaf,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+            dir_fd=directory_fd,
+        )
+        os.close(descriptor)
+        return layout.proof / leaf
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            directory_fd, label="the emulator diagnostic directory", primary=primary
+        )
 
 
 def _same_receipt_process(

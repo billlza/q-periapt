@@ -279,6 +279,19 @@ The runtime fingerprint and reported 16-KiB page size remain recorded. The
 diagnostic archive is artifact `11210818387`. The matching PR workflow fails APK
 installation instead; neither failure is erased by earlier successful runs.
 
+Owned emulator launches also capture the guest kernel console through
+`-show-kernel` into the existing `emulator.log`, and guest logcat into a
+separate `emulator-guest-logcat.txt`. These streams do not require a functioning
+ADB connection. The logcat destination is created exclusively in the private run
+directory; an existing file or symlink is refused. Keeping the two consoles on
+different outputs avoids the QEMU stdio conflict observed in the earlier control
+experiment. Tag filters are requested, but emulator versions may emit additional
+tags; this is not a byte-size bound. CI retains both files after runtime failure.
+They are diagnostics:
+missing/truncated observations do not establish that no system crash occurred,
+and enabling the streams does not prove that the intermittent failure is fixed.
+APK ownership, cleanup, transport deadlines and release acceptance are unchanged.
+
 Failure diagnostics also attempt `emulator-app-exit-info.txt` for the fixed
 `dev.qperiapt.androidsmoke` package, before cleanup after an instrumentation
 failure. The read-only `dumpsys activity exit-info` query uses Android's recorded

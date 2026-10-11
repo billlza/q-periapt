@@ -5398,6 +5398,23 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
             commands.recover_owned_runtime()
         self.assertTrue(unsafe.exists())
 
+    def test_emulator_guest_logcat_does_not_replace_existing_observations(self) -> None:
+        path = commands._prepare_emulator_guest_logcat(self.layout)
+        self.assertEqual(path, self.proof / "emulator-guest-logcat.txt")
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        path.write_bytes(b"retained diagnostic")
+        with self.assertRaises(FileExistsError):
+            commands._prepare_emulator_guest_logcat(self.layout)
+        self.assertEqual(path.read_bytes(), b"retained diagnostic")
+
+    def test_emulator_guest_logcat_cannot_truncate_a_symlink_target(self) -> None:
+        canary = self.root / "unrelated-log-canary"
+        canary.write_bytes(b"owned test canary")
+        (self.proof / "emulator-guest-logcat.txt").symlink_to(canary)
+        with self.assertRaises(FileExistsError):
+            commands._prepare_emulator_guest_logcat(self.layout)
+        self.assertEqual(canary.read_bytes(), b"owned test canary")
+
     def test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure(
         self,
     ) -> None:
@@ -5446,6 +5463,11 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
                     "-no-window",
                     "-no-audio",
                     "-no-boot-anim",
+                    "-show-kernel",
+                    "-logcat",
+                    "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
+                    "-logcat-output",
+                    str(self.layout.proof / "emulator-guest-logcat.txt"),
                     "-no-direct-adb",
                     "-adb-path",
                     str(self.snapshot),

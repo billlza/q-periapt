@@ -1676,6 +1676,7 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log
             target/qperiapt-android-device-smoke-runs/*/proof/emulator.log
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-guest-logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.txt
