@@ -2513,7 +2513,9 @@ mod tests {
 
         drop(client);
         drop(listener);
-        directory.close().expect("temporary socket directory cleanup");
+        directory
+            .close()
+            .expect("temporary socket directory cleanup");
     }
 
     fn request_body(command: u8) -> Result<Vec<u8>, IpcError> {
