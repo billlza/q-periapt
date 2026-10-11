@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "implementation_commit": "a3147978761ab6cd29b7b320032dea8370eb3244",
+  "release_claim_eligible": false,
+  "scope": "Unpublished qpc-owner/1 managed root controller, installed native archive; Rust-driven C entry lifecycle and separately compiled C guarded-option contracts. Not full compiled-C lifecycle, other-language or full release qualification.",
+  "behavior": [
+    "Existing registry handle owns native managed root replacement and retains read access; actual enrolled device is transferred once and idle shared references are closed.",
+    "Paired handles share one nonblocking admission, deadline and call-local cancellation. Cancellation of either handle interrupts the real target witness socket; processed-request cancellation retains witness-unknown code 218.",
+    "Original resume, separately approved next-target transition and independently committed winner adoption use native proofs and original storage. No invented winner plan or replacement state.",
+    "Existing retired reporting, independent host ACK, journal and signer erasure methods accept the committed root controller. Successful old signer erasure preserves successor authority; admitted cleanup error or controller close revokes it."
+  ],
+  "validation": [
+    {
+      "label": "exact-source-admission",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 104.58112054085359,
+      "tests": 55,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "minimum-root",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "root_foreign_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 196.0239679578226,
+      "tests": 7,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "release-root",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--release",
+        "root_foreign_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 162.28419541590847,
+      "tests": 7,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "final-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 8.112212041160092,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "minimum-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 67.63535554194823,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation": true
+    }
+  ],
+  "compiled_c_contract": {
+    "debug": {
+      "completed": true,
+      "executable_sha256": "d3457adfa136f0b0b8597e4c3b54ca3508954205b39d71e728f2342b7060530c",
+      "library_sha256": "737173e65a8af6e3f6201df3116c0ed4f790e80b07b4d36c9f711aed1723d4fc",
+      "source_sha256": "6f7bb41a54bea7ecde6d3d6d4895baf7ab0f33d2bf7136a1660bcb9fdc307bb7",
+      "header_sha256": "b30a28b1bacfe2ef0b6415a0df8cf206fb1b6b3e8217196bfb1fdc1c06870b5a",
+      "lifecycle_qualified": false,
+      "release_claim_eligible": false,
+      "exports": 151,
+      "files_unchanged": true
+    },
+    "release": {
+      "completed": true,
+      "executable_sha256": "351b3e799be931772ed19ca7aaf38a847a6157a21f77274be42a300fdbcf67d6",
+      "library_sha256": "60fcc3052d5e429a1abb3c2bbc060c4d7f572dd310e59f65123069d91f54d27b",
+      "source_sha256": "6f7bb41a54bea7ecde6d3d6d4895baf7ab0f33d2bf7136a1660bcb9fdc307bb7",
+      "header_sha256": "b30a28b1bacfe2ef0b6415a0df8cf206fb1b6b3e8217196bfb1fdc1c06870b5a",
+      "lifecycle_qualified": false,
+      "release_claim_eligible": false,
+      "exports": 151,
+      "files_unchanged": true
+    }
+  },
+  "candidate_c_exports": 151,
+  "new_c_exports": 11,
+  "tracked_rust_sources": 544,
+  "tool_tests": {
+    "codeql_inventory": 44,
+    "c_consumer_collector": 13,
+    "package_collector": 15
+  },
+  "source_gate": "SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=a3147978761ab6cd29b7b320032dea8370eb3244 results_sha256=9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false",
+  "installed_rustfmt": true,
+  "native_package": {
+    "returncode": 0,
+    "seconds": 137.68001125007868,
+    "native_head": "0e90df0c51d62a01cf838742e20ffa76cf835d7e",
+    "archive": {
+      "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/build/package/q-periapt-continuity-identity-candidate-0.0.0.crate",
+      "sha256": "90684e636f83632b84f6c49080fac6ea44268c96a1da06fb0290599c4c43f51e",
+      "bytes": 1365999
+    },
+    "source_files_verified": 425
+  },
+  "sdk_archives_provenance": "14dce089 full installed qualification; crates/ has no diff through native_head",
+  "native_and_sdk_sources_unchanged_through_implementation": true,
+  "maintainability": {
+    "root_adapter_files": {
+      "root_replacement.rs": 351,
+      "alternative.rs": 165,
+      "paired.rs": 68,
+      "recovery.rs": 47,
+      "cleanup.rs": 48
+    },
+    "new_native_state_machine": false,
+    "performance_improvement_measured": false
+  },
+  "development_failures": "Captured initial failures include a missing private fixture directory, a test incorrectly expecting pre-dispatch cancellation for an already processed witness request, prohibited target-root reuse in a new preparation, and double close in a test helper. These were fixture/expectation corrections, not a claimed product vulnerability red/green.",
+  "limitations": [
+    "Same-host macOS arm64, same native engine. No Intel Mac support added.",
+    "Compiled C program validates layouts/short options with protected pages and installed-library linkage only. Complete compiled C root lifecycle, process cuts and default foreign stack qualification remain open.",
+    "Swift/Kotlin root-controller integration, independent endpoint/implementation, physical current/minimum devices, external security review, broader proof/performance/upgrade and full release gates remain open.",
+    "No Android emulator investigation or new physical-device stability claim. Existing failed jobs stay failed.",
+    "No merge, release, registry publication, or remote push in this component. CodeQL run 38122738417 at remote 3b654771 was still running in the captured snapshot."
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 2396190,
+    "members": 127,
+    "sha256": "73d6f1723ff35eea4200da4475916588acc6c038323c35606cd851ef9b7ae4a9"
+  }
+}
