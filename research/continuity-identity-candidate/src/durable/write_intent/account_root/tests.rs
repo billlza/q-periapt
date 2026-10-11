@@ -42,7 +42,7 @@ pub(super) fn at_boundary(stage: &str, after: bool) {
     if selected != format!("{stage}-{}", if after { "after" } else { "before" }) {
         return;
     }
-    fs::write(Path::new(&path).join("ready"), selected).expect("owned child checkpoint");
+    crate::durable::tests::publish_process_checkpoint(Path::new(&path), selected.as_bytes());
     loop {
         std::thread::sleep(Duration::from_millis(10));
     }

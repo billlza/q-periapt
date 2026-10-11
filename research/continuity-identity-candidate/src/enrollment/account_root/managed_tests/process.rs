@@ -54,8 +54,35 @@ fn managed_root_process_child() {
     .expect("original registry");
     let expected = AccountAuthorityCheckpoint::from_trusted_state(application, revision, account)
         .expect("original checkpoint");
+    let transition = if std::env::var_os("QPERIAPT_MANAGED_ROOT_TRANSITION").as_deref()
+        == Some(std::ffi::OsStr::new("1"))
+    {
+        let next = AnchorAccountReplacementPlan::from_trusted_state(
+            &fs::read(path.join("managed-next-plan")).expect("independent next approval"),
+        )
+        .expect("next plan");
+        Some(
+            crate::ManagedAccountRootTransition::verify(
+                &pin,
+                &plan,
+                next,
+                &fs::read(path.join("managed-noncommit")).expect("original non-commit"),
+                &fs::read(path.join("managed-freeze")).expect("signed original freeze"),
+            )
+            .expect("pinned transition"),
+        )
+    } else {
+        None
+    };
     let mut managed = Managed::resume_original(registry, expected, plan, paths(&path), intent, pin)
         .expect("existing original preparation");
+    if let Some(transition) = transition {
+        managed
+            .transition_after_noncommit(&transition)
+            .expect("ordered registry and parent transition");
+        fs::write(path.join("returned"), b"returned").expect("API return marker");
+        return;
+    }
     managed
         .bind_witness_freeze(&fs::read(path.join("managed-freeze")).expect("signed freeze"))
         .expect("bound original");
@@ -65,6 +92,28 @@ fn managed_root_process_child() {
         )
         .expect("original committed outcome");
     fs::write(path.join("returned"), b"returned").expect("API return marker");
+}
+
+pub(super) fn original_inputs(s: &Setup) -> &Path {
+    let path =
+        s.f.original
+            .paths
+            .wrapping
+            .parent()
+            .expect("original private directory");
+    let mut public = s.identity.as_bytes().to_vec();
+    public.extend_from_slice(s.expected.application().as_bytes());
+    public.extend_from_slice(&s.expected.revision().to_be_bytes());
+    public.extend_from_slice(&s.expected.account());
+    public.extend_from_slice(s.f.pin.identity().as_bytes());
+    public.extend_from_slice(&s.f.pin.public_key().encode());
+    fs::write(path.join("managed-inputs"), public).expect("public registry and witness pins");
+    fs::write(
+        path.join("managed-plan"),
+        s.plan.to_bytes().expect("original approval"),
+    )
+    .expect("retained approval");
+    path
 }
 
 #[test]
@@ -91,24 +140,7 @@ fn managed_root_process_loss_preserves_original_operation_across_registry_parent
             .expect("independently approved original target");
         let receipt = s.f.receipt(&proposal);
         managed.close();
-        let path =
-            s.f.original
-                .paths
-                .wrapping
-                .parent()
-                .expect("original private directory");
-        let mut public = s.identity.as_bytes().to_vec();
-        public.extend_from_slice(s.expected.application().as_bytes());
-        public.extend_from_slice(&s.expected.revision().to_be_bytes());
-        public.extend_from_slice(&s.expected.account());
-        public.extend_from_slice(s.f.pin.identity().as_bytes());
-        public.extend_from_slice(&s.f.pin.public_key().encode());
-        fs::write(path.join("managed-inputs"), public).expect("public registry and witness pins");
-        fs::write(
-            path.join("managed-plan"),
-            s.plan.to_bytes().expect("original approval"),
-        )
-        .expect("retained approval");
+        let path = original_inputs(&s);
         fs::write(path.join("managed-freeze"), &freeze).expect("signed freeze");
         fs::write(path.join("managed-receipt"), &receipt).expect("signed retirement");
         let log = fs::File::create_new(path.join("managed-child.log")).expect("owned log");

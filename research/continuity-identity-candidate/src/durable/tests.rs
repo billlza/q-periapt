@@ -24,6 +24,15 @@ pub(crate) fn directory() -> tempfile::TempDir {
         .tempdir()
         .expect("private directory")
 }
+pub(crate) fn publish_process_checkpoint(directory: &Path, marker: &[u8]) {
+    use std::io::Write;
+    // Publish complete bytes atomically to the observer. This is process
+    // synchronization, not a claim about marker durability after power loss.
+    let mut file = tempfile::NamedTempFile::new_in(directory).expect("owned checkpoint file");
+    file.write_all(marker).expect("complete checkpoint bytes");
+    file.persist_noclobber(directory.join("ready"))
+        .expect("publish new complete checkpoint");
+}
 pub(crate) fn new_store(dir: &Path, device: &VerifiedDevice) -> DeviceJournal {
     let key = JournalKey::provision(&dir.join("key")).expect("provision key");
     let identity = retain_new_identity(&dir.join("store-id"));

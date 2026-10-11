@@ -6,6 +6,8 @@ use crate::{
     AnchorAccountReplacementPlan as Plan, AnchorAccountReplacementProposal as Proposal,
     JournalAccountAuthority,
 };
+mod transition;
+pub use transition::ManagedAccountRootTransition;
 
 struct Owners {
     recovery: Option<AccountRootEnrollmentRecovery>,
@@ -35,8 +37,21 @@ impl Owners {
         Ok(state)
     }
     fn reconcile(&mut self) -> Result<(), DurableError> {
-        match self.state()? {
-            State::Preparing => {
+        let proposal = match self.state()? {
+            State::Preparing => None,
+            State::Closed => match self.registry.replacement(self.plan.operation()) {
+                Ok((_, _, proposal)) => Some(proposal.clone()),
+                // A closed unbound plan has no journal proposal. This says
+                // nothing about missing files or an unavailable witness.
+                Err(DurableError::Suspended) => None,
+                Err(error) => return Err(error),
+            },
+            State::Pending | State::Committed => {
+                Some(self.registry.replacement(self.plan.operation())?.2.clone())
+            }
+        };
+        match proposal {
+            None => {
                 if self.enrollment.is_none() {
                     self.enrollment = Some(DeviceEnrollment::open(
                         self.paths.clone(),
@@ -45,9 +60,7 @@ impl Owners {
                 }
                 Ok(())
             }
-            State::Closed => Err(Error::Retired.into()),
-            State::Pending | State::Committed => {
-                let proposal = self.registry.replacement(self.plan.operation())?.2.clone();
+            Some(proposal) => {
                 self.recovery = Some(match self.enrollment.take() {
                     Some(enrollment) => AccountRootEnrollmentRecovery::prepare(
                         enrollment,
@@ -95,9 +108,10 @@ impl Owners {
 /// Witness freeze/replacement approval and target issuance remain independent
 /// control-plane actions. This owner verifies their receipts; it cannot approve them.
 ///
-/// Keep this owner alive while a returned successor operates. Close, drop or any
-/// method error revokes its registry access and releases all original leases.
-/// An error can follow a commit: reopen the original registry and use
+/// Keep this owner alive while a returned successor operates. Close/drop and
+/// failures during storage/recovery revoke registry access and release all leases.
+/// Invalid receipt bytes are refused before mutation and preserve the owner.
+/// A storage/recovery error can follow a commit: reopen the original registry and use
 /// `resume_original` with the same retained inputs, then replay the same receipt.
 pub struct ManagedAccountRootReplacement {
     active: Option<Box<Owners>>,
@@ -211,10 +225,15 @@ impl ManagedAccountRootReplacement {
     /// Verify the original signed freeze, bind it in the registry, and retain the
     /// exact parent/journal fences before returning the approved witness proposal.
     pub fn bind_witness_freeze(&mut self, receipt: &[u8]) -> Result<Proposal, DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        if owners.state()? == State::Closed {
+            return Err(Error::Retired.into());
+        }
+        let frozen = owners
+            .pin
+            .verify_account_freeze(owners.plan.request(), receipt)?;
+        owners.plan.bind(&frozen)?;
         self.run(|owners| {
-            let frozen = owners
-                .pin
-                .verify_account_freeze(owners.plan.request(), receipt)?;
             owners
                 .registry
                 .bind_preparation(owners.plan.operation(), &frozen)?;
@@ -237,13 +256,13 @@ impl ManagedAccountRootReplacement {
         &mut self,
         receipt: &[u8],
     ) -> Result<AccountAuthorityCheckpoint, DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        if owners.state()? == State::Closed {
+            return Err(Error::Retired.into());
+        }
+        let proposal = owners.registry.replacement(owners.plan.operation())?.2;
+        let retired = owners.pin.verify_retired_account(proposal, receipt)?;
         self.run(|owners| {
-            let proposal = owners
-                .registry
-                .replacement(owners.plan.operation())?
-                .2
-                .clone();
-            let retired = owners.pin.verify_retired_account(&proposal, receipt)?;
             owners
                 .recovery
                 .as_mut()

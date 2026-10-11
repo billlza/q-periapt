@@ -8,6 +8,8 @@ use crate::{
 };
 #[path = "managed_tests/process.rs"]
 mod process;
+#[path = "managed_tests/transition.rs"]
+mod transition;
 
 fn enrollment_rows(enrollment: &DeviceEnrollment) -> Vec<(String, Vec<u8>)> {
     let transaction = enrollment
@@ -279,7 +281,7 @@ fn managed_root_preparation_keeps_exclusive_original_enrollment_ownership() {
 }
 
 #[test]
-fn managed_root_rejects_wrong_freeze_and_recovers_original_after_owner_closure() {
+fn managed_root_rejects_wrong_freeze_before_mutation_and_recovers_after_explicit_close() {
     let (s, registry, original) = Setup::new(200);
     let access = registry.access().expect("original read access");
     let mut managed = s.begin(registry, original);
@@ -287,7 +289,17 @@ fn managed_root_rejects_wrong_freeze_and_recovers_original_after_owner_closure()
     let mut wrong = freeze.clone();
     *wrong.last_mut().expect("signed wire") ^= 1;
     assert!(managed.bind_witness_freeze(&wrong).is_err());
-    assert!(matches!(managed.state(), Err(DurableError::Closed)));
+    assert_eq!(
+        managed
+            .state()
+            .expect("bad receipt did not consume preparation"),
+        State::Preparing
+    );
+    assert!(matches!(
+        access.current(s.expected.application()),
+        Err(DurableError::Suspended)
+    ));
+    managed.close();
     assert!(matches!(
         access.current(s.expected.application()),
         Err(DurableError::Closed)
@@ -464,6 +476,13 @@ fn managed_root_invalid_retirement_does_not_select_successor() {
     let mut wrong = receipt.clone();
     *wrong.last_mut().expect("signature byte") ^= 1;
     assert!(managed.retain_witness_retirement(&wrong).is_err());
+    assert_eq!(
+        managed
+            .state()
+            .expect("bad receipt preserves pending owner"),
+        State::Pending
+    );
+    managed.close();
     let mut resumed = s.resume();
     assert_eq!(
         resumed.state().expect("no local selection from bad proof"),
@@ -477,4 +496,62 @@ fn managed_root_invalid_retirement_does_not_select_successor() {
         2
     );
     resumed.close();
+}
+
+#[test]
+fn managed_root_bad_receipts_preserve_unrelated_registry_authority() {
+    let (s, mut registry, original) = Setup::new(200);
+    let other = account(
+        &s.f._dir
+            .path()
+            .canonicalize()
+            .expect("owned base")
+            .join("unrelated-account"),
+        &s.f.policy,
+    );
+    let checkpoint = registry
+        .associate(
+            ApplicationAccountId::from_trusted_state([96; 32]).expect("other application"),
+            &other.device,
+        )
+        .expect("unrelated current account");
+    let lease = registry
+        .access()
+        .expect("shared registry")
+        .admit(checkpoint)
+        .expect("unrelated live admission");
+    let mut managed = s.begin(registry, original);
+    let freeze = s.freeze();
+    let mut wrong = freeze.clone();
+    *wrong.last_mut().expect("signed freeze") ^= 1;
+    assert!(managed.bind_witness_freeze(&wrong).is_err());
+    assert!(
+        lease.check().is_ok(),
+        "untrusted rejected freeze must not revoke another application account"
+    );
+    assert_eq!(
+        managed.state().expect("original preparation retained"),
+        State::Preparing
+    );
+    let proposal = managed
+        .bind_witness_freeze(&freeze)
+        .expect("same approved original freeze");
+    let receipt = s.f.receipt(&proposal);
+    let mut wrong = receipt.clone();
+    *wrong.last_mut().expect("signed retirement") ^= 1;
+    assert!(managed.retain_witness_retirement(&wrong).is_err());
+    assert!(
+        lease.check().is_ok(),
+        "untrusted rejected retirement must not revoke another application account"
+    );
+    assert_eq!(
+        managed.state().expect("same pending operation"),
+        State::Pending
+    );
+    managed
+        .retain_witness_retirement(&receipt)
+        .expect("same valid original outcome");
+    assert!(lease.check().is_ok());
+    managed.close();
+    assert!(matches!(lease.check(), Err(DurableError::Closed)));
 }

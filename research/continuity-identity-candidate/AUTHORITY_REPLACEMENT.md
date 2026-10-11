@@ -46,12 +46,34 @@ a failing regression followed by the corrected result. These are controlled nati
 fixtures on one macOS arm64 host, with real signatures and storage; they do not
 qualify deployed authority transport or installed foreign-language consumers.
 
-This is the initial native managed cutover. Managed orchestration of authenticated
-non-commit, approval of another target, committed-winner adoption, retired-message
-accounting/erasure, deployed control-plane transport, foreign adapters and supported
-platform qualification remain required. Those cases must reuse the terminal and
-transition primitives below, preserving original identities and approvals; they
-cannot reset Preparing/Pending or regenerate a root to recover availability.
+`retain_witness_noncommit` now persists the original signed permanent plan closure,
+including before a freeze result was bound. Closed plans keep old traffic suspended;
+reopening them retains the existing parent lease or exact restricted journal owner.
+A closure does not cancel an in-flight freeze. `ManagedAccountRootTransition::verify`
+authenticates the original closure and the next freeze against independently retained
+plans and witness pins. Neither receipt chooses the next target.
+
+`transition_after_noncommit` persists the closure, next preparation and exact
+binding before reconciling parent and child. A live bound parent validates the
+local head before advancing the registry intent. `resume_transition` repeats those
+same steps across any partial commit. It distinguishes an authenticated parent
+with no previous fence from a missing or corrupt parent; only the former can take
+its initial approved fence. Existing journal history is preserved, and a retry of
+an initial fence is admitted only after the registry has checked the original
+closure and exact next plan. A known closed next target is refused before mutation;
+another independently approved plan is required. Original operation identities and
+the application revision survive multiple abandoned targets and final commitment.
+
+Receipt decoding, signature and requested-scope failures are rejected before the
+storage/recovery path and leave the controller usable. They do not revoke unrelated
+application accounts sharing its registry. A failure inside persistence or recovery
+still consumes the owner and can follow commit; explicit close/drop also revokes
+registry access. Preserve the original inputs and reconcile after those failures.
+
+Managed committed-winner adoption, retired-message accounting/erasure, deployed
+control-plane transport, foreign adapters and supported platform qualification
+remain required. They must preserve original identities and approvals; they cannot
+reset Preparing/Pending or regenerate a root to recover availability.
 
 ## Preserve the current identity meanings
 

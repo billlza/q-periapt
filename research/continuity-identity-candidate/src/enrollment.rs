@@ -27,7 +27,7 @@ mod account_authority;
 mod account_root;
 pub use account_root::{AccountRootEnrollmentRecovery, AccountRootEnrollmentState};
 mod managed_root;
-pub use managed_root::ManagedAccountRootReplacement;
+pub use managed_root::{ManagedAccountRootReplacement, ManagedAccountRootTransition};
 mod policy_renewal;
 mod renewal;
 mod retirement;
