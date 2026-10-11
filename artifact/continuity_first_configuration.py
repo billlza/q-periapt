@@ -4,6 +4,7 @@ Public readback checks grammar, original-input linkage and exact replay. Native
 execution verifies signatures; this reader does not claim a second crypto engine.
 """
 from pathlib import Path
+from functools import partial
 import hashlib
 import os
 import re
@@ -26,7 +27,8 @@ def connection_marker(language: str, carrier: str, profile: str) -> str:
             "original_message=true receiver_exit_after_effect=true acknowledged=true effects=1")
 
 
-def verify_original(data: dict) -> tuple:
+def verify_original(data: dict, *, after_traffic: str = "request") -> tuple:
+    sdk.require(after_traffic in {"request", "identity"}, "configuration readback kind differs")
     request, intent, root = data["request.bin"], data["intent.bin"], data["root.bin"]
     sdk.require(len(root) == 1985 and len(intent) == 72 and any(root) and any(intent[:16]) and any(intent[24:56]),
                 "configuration original public inputs differ")
@@ -47,9 +49,13 @@ def verify_original(data: dict) -> tuple:
     sdk.require(len(session) == 32 and any(session) and len(unknown) == 64
                 and unknown[:32] == session and any(unknown[32:])
                 and data["acknowledged.bin"] == unknown
-                and data["after-traffic.bin"] == request
                 and data["effect.bin"] == unknown + b"persisted before process exit",
                 "configuration connection lost the original registration/session/message or application effect")
+    if after_traffic == "request":
+        sdk.require(data["after-traffic.bin"] == request, "configuration connection original request changed after traffic")
+    else:
+        sdk.require("genesis.bin" in data and data["after-traffic.bin"] == body[8:40] + data["genesis.bin"][4:36],
+                    "configuration connection original signer or journal changed after traffic")
     if "genesis.bin" in data:
         genesis = data["genesis.bin"]
         sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
@@ -64,7 +70,7 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     text = stdout.decode("utf-8")
     tests = re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE)
     sdk.require(len(tests) == 2 and set(tests) == TESTS and len(re.findall(
-        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;", text, re.MULTILINE)) == 1,
+        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;", text, re.MULTILINE)) == 1,
         "configuration execution did not run both complete scenarios")
     expected = {f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
                 for profile in ("fixed", "recoverable")} | {
@@ -124,11 +130,14 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
 
 
 def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: Path, client: Path,
-             run, *, receiver: Path, language: str, collector: str = "", managed: bool = False) -> dict:
+             run, *, receiver: Path, language: str, collector: str = "", managed: bool = False,
+             credential: bool = False) -> dict:
     sdk.require(profile in {"debug", "release"} and ((language == "Kotlin" and collector in {"Serial", "G1"})
                 or (language in {"C", "Swift"} and not collector)), "configuration qualification profile differs")
     sdk.require(not managed or language in {"C", "Swift", "Kotlin"}, "managed configuration requires a qualified registry adapter")
-    label = ("managed-configuration-" if managed else "configuration-") + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
+    sdk.require(not credential or (managed and language == "C"), "credential configuration requires its managed C adapter")
+    prefix = "managed-credential-configuration" if credential else "managed-configuration" if managed else "configuration"
+    label = prefix + "-" + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
     evidence = outside / label
     evidence.mkdir(mode=0o700)
     executables = (("helper", helper), ("client", client), ("receiver", receiver))
@@ -144,14 +153,14 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
         import continuity_first_account as account
         environment.pop("QPERIAPT_CONFIGURATION_EVIDENCE")
         environment["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"] = str(evidence)
-        selector = ["--exact", account.TEST]
-        verify = account.verify_execution
+        selector = ["--exact", account.credentials.TEST if credential else account.TEST]
+        verify = partial(account.verify_execution, credential=credential)
     else:
         selector = ["independent_c_"]
         verify = verify_execution
     stdout = run([str(helper), *selector, "--nocapture", "--test-threads=1"], label, runtime=environment)
     checked = verify(stdout, evidence, language=language)
-    exported = output / ("managed-configuration-public" if managed else "configuration-public") / language.lower() / profile / (collector.lower() or "default")
+    exported = output / (prefix + "-public") / language.lower() / profile / (collector.lower() or "default")
     for name, digest in checked["public_readbacks"].items():
         sdk.require(sdk.snapshot(evidence / name).sha256 == digest, "configuration public record changed before export")
         sdk.copy(evidence / name, exported / name)
@@ -190,6 +199,8 @@ def qualify_native(outside, output, consumer, build, cargo, runtime, cc, platfor
     checked = _qualify(outside, output, profile, runtime, helper, client, run, receiver=receiver, language="C")
     checked["managed_first_registration"] = _qualify(outside, output, profile, runtime, helper, client, run,
                                                       receiver=receiver, language="C", managed=True)
+    checked["managed_credential_renewal"] = _qualify(outside, output, profile, runtime, helper, client, run,
+                                                    receiver=receiver, language="C", managed=True, credential=True)
     checked["short_header_guard"] = True
     return checked
 

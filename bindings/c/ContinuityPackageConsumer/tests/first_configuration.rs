@@ -15,6 +15,8 @@ use zeroize::Zeroizing;
 mod first_account;
 #[path = "common/first_connection.rs"]
 mod first_connection;
+#[path = "common/first_credential.rs"]
+mod first_credential;
 #[path = "common/first_expiry.rs"]
 mod first_expiry;
 #[path = "common/first_policy.rs"]
@@ -118,7 +120,7 @@ impl ConfigurationProcess<'_> {
         let stderr = fs::read(&error)?;
         assert!(
             status.success(),
-            "foreign configuration failed: {status}; {}",
+            "foreign configuration mode {mode} failed: {status}; {}",
             String::from_utf8_lossy(&stderr)
         );
         assert!(
@@ -127,6 +129,19 @@ impl ConfigurationProcess<'_> {
             String::from_utf8_lossy(&stderr)
         );
         let expected = match mode {
+            "credential-identity"
+            | "credential-expired"
+            | "credential-expired-request"
+            | "credential-activate"
+            | "credential-activation-unmanaged"
+            | "credential-stage"
+            | "credential-stage-refused"
+            | "credential-prepare"
+            | "credential-commit"
+            | "credential-commit-closed"
+            | "credential-commit-unmanaged"
+            | "credential-commit-unknown"
+            | "credential-reconcile" => "QPC_CONFIGURATION_CREDENTIAL_OPERATION\n",
             "policy-request"
             | "policy-stage-refused"
             | "policy-stage"
@@ -136,7 +151,7 @@ impl ConfigurationProcess<'_> {
             | "policy-witness-commit"
             | "policy-witness-reconcile" => "QPC_CONFIGURATION_POLICY_OPERATION\n",
             "policy-target-create" => "QPC_CONFIGURATION_POLICY_TARGET\n",
-            "retry-policy" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
+            "retry-policy" | "retry-credential" => "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED\n",
             "enroll-local" => "QPC_CONFIGURATION_LOCAL_ACTIVE\n",
             "connect" => "QPC_CONFIGURATION_CONNECTION_PASS\n",
             "uncertain-send" => "QPC_CONFIGURATION_UNKNOWN_COMMITTED\n",
@@ -473,19 +488,32 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
 mod witness;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
+#[path = "common/witness_tls_faults.rs"]
+mod witness_tls_faults;
+#[path = "common/witness_tls_relay.rs"]
+mod witness_tls_relay;
 
 #[test]
 fn independent_c_required_witness_registration_uses_original_host_trust() -> Result<()> {
-    witnessed_registration(false)
+    witnessed_registration(false, first_connection::RenewalKind::Policy)
 }
 
 #[test]
 fn managed_first_registration_preserves_identity_and_delivery() -> Result<()> {
-    witnessed_registration(true)
+    witnessed_registration(true, first_connection::RenewalKind::Policy)
 }
 
-fn witnessed_registration(managed: bool) -> Result<()> {
+#[test]
+fn managed_first_credential_renewal_preserves_identity_and_delivery() -> Result<()> {
+    witnessed_registration(true, first_connection::RenewalKind::Credential)
+}
+
+fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind) -> Result<()> {
+    let credential = renewal == first_connection::RenewalKind::Credential;
     let language = client_language()?;
+    if credential && language != "C" {
+        return Err("credential first-use adapter is not qualified for this language".into());
+    }
     if managed && !matches!(language, "C" | "Swift" | "Kotlin") {
         return Err("managed first-use requires a qualified registry adapter".into());
     }
@@ -497,7 +525,11 @@ fn witnessed_registration(managed: bool) -> Result<()> {
         for recoverable in [false, true] {
             let profile = if recoverable { "recoverable" } else { "fixed" };
             let mut witness = witness::Witness::start()?;
-            let reference = fixture::setup_expiring_policy(Some(&witness.configured))?;
+            let reference = if credential {
+                fixture::setup_with_witness(Some(&witness.configured))?
+            } else {
+                fixture::setup_expiring_policy(Some(&witness.configured))?
+            };
             let witness_pin = witness
                 .configured
                 .store
@@ -542,8 +574,11 @@ fn witnessed_registration(managed: bool) -> Result<()> {
             let authority = p::RootSigningKey::generate()?;
             let family = fixture::array::<32>(&source, "family")?;
             let now = fixture::now()?;
-            let validity =
-                p::Validity::new(now.saturating_sub(1), now.checked_add(1800).ok_or("clock")?)?;
+            let validity = p::Validity::new(
+                now.saturating_sub(1),
+                now.checked_add(if credential { 60 } else { 1800 })
+                    .ok_or("clock")?,
+            )?;
             let device_id = [117; 16];
             let intent = p::EnrollmentIntent::new(
                 authority.public_key()?,
@@ -687,14 +722,28 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                 language,
                 profile,
                 carrier: Some(carrier),
-                enrolled_receiver: true,
+                enrolled_receiver: !credential,
                 registry: selected_registry,
             };
             // Prepare responder prekeys before measuring TLS traffic. Its original
             // setup witness uses signed TCP; runtime traffic must use selected TLS.
-            first_expiry::prepare_receiver_metadata(&reference)?;
+            if !credential {
+                first_expiry::prepare_receiver_metadata(&reference)?;
+            }
             connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
-            let mut tls = if carrier == "tls" {
+            let mut credential_tls = if carrier == "tls" && credential {
+                publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
+                let server = witness_tls_faults::FaultWitness::start(
+                    std::sync::Arc::clone(&witness.configured.store),
+                    [source.as_path(), reference.responder.as_path()],
+                    witness._directory.path().join("witness.redb"),
+                )?;
+                fs::write(source.join("witness-address"), server.address.to_string())?;
+                Some(server)
+            } else {
+                None
+            };
+            let mut tls = if carrier == "tls" && !credential {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls::TlsWitness::start(
                     std::sync::Arc::clone(&witness.configured.store),
@@ -765,7 +814,21 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                     assert_eq!(slots, 63);
                 }
             }
-            connection.run_with_policy(&request, &mut || {
+            connection.run_with_renewal(&request, renewal, &mut || {
+                if credential {
+                    return first_credential::Renewal {
+                        root: &authority,
+                        original: &device,
+                        public_key: verified.public_key(),
+                        validity,
+                        certificate: &certificate,
+                        roster: &roster,
+                        reference: &reference.initiator,
+                        witness: &witness,
+                        tls: credential_tls.as_ref(),
+                    }
+                    .run(&connection);
+                }
                 first_expiry::renew_receiver_before_expiry(
                     &connection,
                     &reference,
@@ -790,12 +853,44 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                     "TLS must not fall back to signed TCP"
                 );
                 assert!(server.finish()?.is_empty());
+            } else if let Some(server) = &mut credential_tls {
+                let records = server
+                    .captured
+                    .lock()
+                    .map_err(|_| "credential TLS capture")?;
+                assert!(records.len() >= 2);
+                let lost: Vec<_> = records.iter().filter(|r| !r.delivered).collect();
+                assert_eq!(lost.len(), 1);
+                let lost = lost.first().ok_or("credential TLS lost reply")?;
+                assert!(lost.advanced && lost.encrypted_reply_bytes > 0);
+                assert_eq!(lost.record.request().get(204), Some(&5));
+                assert_eq!(lost.record.reply().get(204), Some(&8));
+                drop(records);
+                assert_eq!(
+                    witness.captured.lock().map_err(|_| "capture")?.len(),
+                    measured_start,
+                    "credential TLS must not fall back to signed TCP"
+                );
+                server.finish()?;
             } else {
                 // Preserve the actual witness exchange records for this configured path.
                 let records = witness.captured.lock().map_err(|_| "capture")?;
                 assert!(records.len() > measured_start);
+                if credential {
+                    let lost: Vec<_> = records
+                        .iter()
+                        .skip(measured_start)
+                        .filter(|r| !r.delivered)
+                        .collect();
+                    assert_eq!(lost.len(), 1);
+                    let lost = lost.first().ok_or("credential TCP lost reply")?;
+                    assert_eq!(lost.request.get(204), Some(&5));
+                    assert_eq!(lost.reply.get(204), Some(&8));
+                }
                 for record in records.iter().skip(measured_start) {
-                    assert!(record.delivered);
+                    if !credential {
+                        assert!(record.delivered);
+                    }
                     assert!(!record.request.is_empty() && !record.reply.is_empty());
                 }
                 drop(records);
@@ -803,9 +898,14 @@ fn witnessed_registration(managed: bool) -> Result<()> {
             witness.join()?;
             if managed {
                 first_account::export_public(
-                    &source, &base, &registry, language, profile, carrier,
+                    &source, &base, &registry, language, profile, carrier, credential,
                 )?;
-                println!("\nMANAGED_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} request_before_association=true original_registry=true missing_registry=211 release_qualified=false");
+                let prefix = if credential {
+                    "MANAGED_CREDENTIAL_CONFIGURATION"
+                } else {
+                    "MANAGED_CONFIGURATION"
+                };
+                println!("\n{prefix}_PASS language={language} carrier={carrier} profile={profile} request_before_association=true original_registry=true missing_registry=211 release_qualified=false");
             } else {
                 export_public(&source, &base, language, profile, carrier)?;
                 println!("\nINDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true");

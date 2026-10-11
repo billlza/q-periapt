@@ -2097,6 +2097,7 @@ jobs:
             target/continuity-installed-rust/c-enrollment-public/**
             target/continuity-installed-rust/configuration-public/**
             target/continuity-installed-rust/managed-configuration-public/**
+            target/continuity-installed-rust/managed-credential-configuration-public/**
             target/continuity-installed-rust/c-managed-public/**
             target/continuity-installed-rust/peer-configuration-public/**
             target/continuity-installed-rust/c-retirement-public/**
@@ -2239,6 +2240,7 @@ jobs:
             target/continuity-installed-swift/c-enrollment-public/**
             target/continuity-installed-swift/configuration-public/**
             target/continuity-installed-swift/managed-configuration-public/**
+            target/continuity-installed-swift/managed-credential-configuration-public/**
             target/continuity-installed-swift/c-managed-public/**
             target/continuity-installed-swift/peer-configuration-public/**
             target/continuity-installed-swift/c-retirement-public/**

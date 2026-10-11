@@ -21,6 +21,11 @@ pub(crate) struct Case<'a> {
     pub(crate) enrolled_receiver: bool,
     pub(crate) registry: Option<&'a Path>,
 }
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum RenewalKind {
+    Policy,
+    Credential,
+}
 enum Receiver {
     Native(fixture::OwnedChild),
     Witnessed(receiver_process::Server),
@@ -96,6 +101,14 @@ impl Case<'_> {
                 self.receiver.as_os_str().into(),
                 "2".into(),
             ]);
+        } else {
+            // The operational parent replays saved peer credential grants before
+            // opening the original session; the fixture shortcut checks fresh peers.
+            args.extend([
+                "--device-parent".into(),
+                self.receiver.as_os_str().into(),
+                "2".into(),
+            ]);
         }
         if let Some(session) = session {
             args.extend(["--session".into(), fixture::hex(&session).into()]);
@@ -159,6 +172,14 @@ impl Case<'_> {
         original: &[u8],
         renew: &mut dyn FnMut() -> Result<()>,
     ) -> Result<()> {
+        self.run_with_renewal(original, RenewalKind::Policy, renew)
+    }
+    pub(crate) fn run_with_renewal(
+        &self,
+        original: &[u8],
+        kind: RenewalKind,
+        renew: &mut dyn FnMut() -> Result<()>,
+    ) -> Result<()> {
         let initiation = p::InitiationId::generate()?;
         publish_private_bytes(
             &self.source.join("connection-initiation"),
@@ -192,7 +213,13 @@ impl Case<'_> {
         renew()?;
         let (server, address) = self.start(83, "application", Some(session))?;
         fs::write(self.source.join("connection-address"), address.to_string())?;
-        self.sender("retry-policy", "acknowledged")?;
+        self.sender(
+            match kind {
+                RenewalKind::Policy => "retry-policy",
+                RenewalKind::Credential => "retry-credential",
+            },
+            "acknowledged",
+        )?;
         self.finish(server, 0, Some((session, message)))?;
         assert_eq!(fs::read(self.base.join("acknowledged"))?, uncertain);
         assert_eq!(fs::read(&effect_path)?, effect);
@@ -213,9 +240,24 @@ impl Case<'_> {
             })
             .count();
         assert_eq!(effects, 1);
-        self.sender("resume", "after-traffic.request")?;
-        assert_eq!(fs::read(self.base.join("after-traffic.request"))?, original);
-        println!("\nINDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
+        match kind {
+            RenewalKind::Policy => {
+                self.sender("resume", "after-traffic.request")?;
+                assert_eq!(fs::read(self.base.join("after-traffic.request"))?, original);
+            }
+            RenewalKind::Credential => {
+                self.sender("credential-identity", "after-traffic.identity")?;
+                assert_eq!(
+                    fs::read(self.base.join("after-traffic.identity"))?,
+                    fs::read(self.base.join("credential-original-identity"))?
+                );
+            }
+        }
+        let renewal = match kind {
+            RenewalKind::Policy => "POLICY",
+            RenewalKind::Credential => "CREDENTIAL",
+        };
+        println!("\nINDEPENDENT_CONFIGURATION_{renewal}_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
         println!("\nINDEPENDENT_CONFIGURATION_CONNECTION_PASS language={} carrier={} profile={} fresh_installation=true original_registration=true explicit_peer=true original_session=true original_message=true receiver_exit_after_effect=true acknowledged=true effects=1",self.language,self.carrier.unwrap_or("local"),self.profile);
         Ok(())
     }

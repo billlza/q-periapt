@@ -78,6 +78,7 @@ pub(crate) fn export_public(
     language: &str,
     profile: &str,
     carrier: &str,
+    credential: bool,
 ) -> Result<()> {
     let root = PathBuf::from(
         std::env::var_os("QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE")
@@ -97,7 +98,14 @@ pub(crate) fn export_public(
         ("session.bin", base.join("connected")),
         ("unknown.bin", base.join("uncertain")),
         ("acknowledged.bin", base.join("acknowledged")),
-        ("after-traffic.bin", base.join("after-traffic.request")),
+        (
+            "after-traffic.bin",
+            base.join(if credential {
+                "after-traffic.identity"
+            } else {
+                "after-traffic.request"
+            }),
+        ),
         ("effect.bin", base.join("effect-public")),
         ("registry-required.bin", base.join("registry-required")),
     ] {
@@ -147,7 +155,11 @@ pub(crate) fn export_public(
             publish_private_bytes(&target.join(&name), &fs::read(base.join(&name))?)?;
         }
     }
-    crate::first_policy::export_public(source, base, &target, carrier)?;
+    if credential {
+        crate::first_credential::export_public(source, base, &target)?;
+    } else {
+        crate::first_policy::export_public(source, base, &target, carrier)?;
+    }
     let metadata = format!("{{\"schema_version\":1,\"language\":\"{language}\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n");
     publish_private_bytes(&target.join("manifest.json"), metadata.as_bytes())?;
     Ok(())

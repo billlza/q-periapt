@@ -133,9 +133,9 @@ pub(crate) struct FaultWitness {
     worker: Option<thread::JoinHandle<Result<()>>>,
 }
 impl FaultWitness {
-    pub(crate) fn start(
+    pub(crate) fn start<const N: usize>(
         store: Arc<Mutex<p::AnchorStore>>,
-        paths: [&Path; 3],
+        paths: [&Path; N],
         image: PathBuf,
     ) -> Result<Self> {
         let configured = witness_tls::provision(paths)?;

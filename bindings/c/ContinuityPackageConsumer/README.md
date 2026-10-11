@@ -1464,6 +1464,20 @@ owner closes in each process.
 
 These first-use cases reuse the existing enrollment/connection workload and
 public record verifier, including policy/approval linkage and actual-clock expiry.
-They do not qualify managed credential renewal, SDK policy replacement, account
-retirement or the complete account replacement controller. Swift and Kotlin
+They do not qualify SDK policy replacement, account retirement or the complete
+account replacement controller. Swift and Kotlin
 adapters reuse this first-use workload and add their own ARC/Cleaner lifetime checks.
+
+The additional C credential workload retains the original signer, journal, session
+and unacknowledged message while the original credential expires. A fresh enrollment
+request is still refused after its original intent expires. Renewal and recovery
+therefore reopen the existing enrollment and use its status and signed renewal
+grant; they do not call `request` as a prerequisite for every operation.
+
+The workload refuses new Commit dispatch with an omitted or closed registry,
+drops the real witness reply after applying the authorized Commit, then reconciles
+that exact result without registry admission. This historical result does not grant
+activation permission. With the original registry and independently admitted peer
+renewal, the original message completes with host deduplication. Signed TCP and
+mutual TLS are separate cases. This C composition does not qualify the corresponding
+Swift/Kotlin credential flow, an independent engine, physical devices or a release.

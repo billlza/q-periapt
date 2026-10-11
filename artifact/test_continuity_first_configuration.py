@@ -44,7 +44,7 @@ def fixture(root, language="C"):
         if carrier == "local":
             stdout += f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true\n"
         else: stdout += f"INDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true\n"
-    return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;\n").encode()
+    return (stdout + "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
 
 
 class FirstConfigurationTests(unittest.TestCase):
@@ -204,6 +204,7 @@ class FirstConfigurationTests(unittest.TestCase):
             upload = workflow.split("- name: " + section + "\n", 1)[1].split("if-no-files-found:", 1)[0]
             self.assertIn(prefix + "configuration-public/**", upload)
             self.assertIn(prefix + "managed-configuration-public/**", upload)
+            self.assertIn(prefix + "managed-credential-configuration-public/**", upload)
             self.assertIn(prefix + "c-managed-public/**", upload)
 
     def test_each_scenario_requires_its_own_registration(self):
@@ -213,3 +214,16 @@ class FirstConfigurationTests(unittest.TestCase):
                 if path.name != "manifest.json":
                     (root/'local-recoverable'/path.name).write_bytes(path.read_bytes())
             with self.assertRaisesRegex(ValueError, "reused"): configuration.verify_execution(data, root, language="C")
+
+    def test_expired_registration_uses_explicit_signer_and_journal_readback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture(root)
+            data = {p.name: p.read_bytes() for p in (root / "signed-fixed").iterdir()}
+            data["after-traffic.bin"] = data["request.bin"][12:44] + data["genesis.bin"][4:36]
+            configuration.verify_original(data, after_traffic="identity")
+            with self.assertRaises(ValueError):
+                configuration.verify_original(data)
+            data["after-traffic.bin"] = bytes(64)
+            with self.assertRaisesRegex(ValueError, "signer or journal"):
+                configuration.verify_original(data, after_traffic="identity")

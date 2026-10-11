@@ -42,7 +42,7 @@ def fixture(root, language="C"):
         output += account.policy.marker(language, carrier, profile) + "\n"
         output += configuration.connection_marker(language, carrier, profile) + "\n"
         output += account.marker(language, carrier, profile) + "\n"
-    return (output + "ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
+    return (output + "ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;\n").encode()
 
 
 class FirstAccountTests(unittest.TestCase):

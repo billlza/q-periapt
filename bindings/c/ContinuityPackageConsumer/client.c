@@ -360,6 +360,14 @@ int main(int argc, char **argv) {
         if (device_path || existing || witness) fail("credential peer check owns its local-only parent");
         return credential_peer_check(argc,argv);
     }
+    if (!strcmp(argv[1],"credential-peer-admit")) {
+        if (argc != 4 || device_path || existing) fail("credential peer admission arguments");
+        uint64_t parent = device_open(argv[2], witness, witness_tls);
+        credential_peer_admit(parent, argv[3], 1);
+        close_owner(parent);
+        puts("credential-peer-admitted");
+        return 0;
+    }
     if (!strncmp(argv[1],"enrollment-",11)) {
         if(device_path || existing) fail("enrollment command owns its registration");
         return enrollment_command(argc,argv,witness,witness_tls);
