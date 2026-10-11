@@ -16,7 +16,7 @@ CASES = (
 )
 PUBLIC = tuple(name for name, _ in CASES) + (
     "credential-refusal-transcript", "credential-history-transcript", "credential-commit-request",
-    "credential-commit-reply", "credential-dispatch-observation",
+    "credential-commit-reply", "credential-dispatch-observation", "inputs/renewal-version", "inputs/renewal-digest",
 ) + tuple(name + "." + suffix for name, _ in CASES for suffix in ("stdout", "stderr"))
 
 
@@ -48,8 +48,10 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
         sdk.require(read("credential-staged") == pending and read("credential-stage-replayed") == pending,
                     "Android pending renewal changed or claims a terminal checkpoint")
         committed = read("credential-recovered")
+        target = read("inputs/renewal-version") + read("inputs/renewal-digest")
         sdk.require(len(committed) == 116 and committed[:68] == (2).to_bytes(4, "big") + operation + statement
                     and committed[68:76] == (2).to_bytes(8, "big") and any(committed[76:108])
+                    and len(target) == 40 and committed[68:108] == target
                     and committed[108:] == bytes(8) and read("credential-terminal-replayed") == committed,
                     "Android historical renewal did not recover the original committed target")
         request, reply = read("credential-commit-request"), read("credential-commit-reply")

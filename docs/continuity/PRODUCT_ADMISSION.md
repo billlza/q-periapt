@@ -25,8 +25,14 @@ authority for first activation, and reopens the original managed enrollment.
 The [four registry routes](../../research/sdk-alpha1/evidence/20261011-android-authority/CHECKS.json)
 pass in fifty ART processes: forged revisions are refused,
 cancel does not revoke an already selected child, and close does, even after the
-same registry is reopened. Credential/roster renewal, device retirement and root
-replacement still need Android integration. The CI host JNI lane exercises
+same registry is reopened. The [same-key credential renewal route](../../research/sdk-alpha1/evidence/20261011-android-credential/CHECKS.json)
+passes in 110 ART processes on that phone: independently approved target,
+original operation after process restart, lost Commit/Applied reply, historical
+reconciliation without a new commit, and current-authority activation with the
+same signing identity and journal. This route runs before original credential
+expiry. Android checks for original-session traffic across renewal, expiry cleanup
+and independently approved cancellation remain separate software work, along with
+roster renewal, device retirement and root replacement. The CI host JNI lane exercises
 packaged Java classes against Debug/Release C libraries; it is distinct from
 the accepted physical ART run.
 

@@ -212,8 +212,12 @@ including independent genesis enrollment and refusal of missing/wrong witness
 trust or a corrupted signed receipt. Independent registry creation, association,
 managed activation/reopen and cancel/close admission boundaries additionally pass
 in [fifty ART processes on that phone](../research/sdk-alpha1/evidence/20261011-android-authority/CHECKS.json).
-Credential/roster renewal, device retirement,
-root replacement and final candidate package admission remain work
+Same-key credential renewal additionally passes in
+[110 ART processes](../research/sdk-alpha1/evidence/20261011-android-credential/CHECKS.json):
+lost committed replies recover the original operation and preserve signing identity
+and journal, while fresh activation still requires current registry authority.
+Original-session traffic across renewal, expiry/cancellation scenario checks,
+roster renewal, device retirement, root replacement and final candidate package admission remain work
 on the software contract, not a requirement for another physical device.
 
 | Requirement | Required completion evidence | Current state |

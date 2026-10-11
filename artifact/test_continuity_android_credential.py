@@ -23,6 +23,8 @@ def fixture(root: Path) -> bytes:
             pending = (1).to_bytes(4, "big") + b"o" * 32 + b"s" * 32 + bytes(48)
             for name in ("credential-staged", "credential-stage-replayed"): values[name] = pending
             committed = (2).to_bytes(4, "big") + pending[4:68] + (2).to_bytes(8, "big") + b"d" * 32 + bytes(8)
+            (base / "inputs").mkdir()
+            values["inputs/renewal-version"], values["inputs/renewal-digest"] = committed[68:76], committed[76:108]
             for name in ("credential-recovered", "credential-terminal-replayed"): values[name] = committed
             proposal = bytearray(296); proposal[:8] = b"QPCRNP01"; proposal[136:200] = pending[4:68]
             for name in ("credential-proposal", "credential-proposal-replayed"): values[name] = proposal
@@ -48,7 +50,7 @@ class CredentialReaderTests(unittest.TestCase):
 
     def test_original_identity_operation_and_outcome_cannot_be_replaced(self):
         for name in ("credential-renewed-identity", "credential-current-activation", "credential-stage-replayed",
-                     "credential-terminal-replayed", "credential-proposal-replayed", "credential-unknown", "credential-closed"):
+                     "credential-terminal-replayed", "credential-proposal-replayed", "credential-unknown", "credential-closed", "inputs/renewal-digest"):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp); stdout = fixture(root); path = root / "signed-fixed" / name
                 original = path.read_bytes(); path.write_bytes(bytes([original[0] ^ 1]) + original[1:])

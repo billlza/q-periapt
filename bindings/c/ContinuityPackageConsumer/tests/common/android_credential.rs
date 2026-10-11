@@ -112,10 +112,16 @@ impl Renewal<'_> {
     pub(crate) fn run(&self, run: &impl Fn(&str, &str) -> Result<Vec<u8>>) -> Result<()> {
         let identity = run("credential-identity", "credential-original-identity")?;
         assert_eq!(identity.len(), 64);
-        assert!(identity[..32].iter().any(|v| *v != 0));
+        assert!(identity
+            .get(..32)
+            .ok_or("signing identity")?
+            .iter()
+            .any(|v| *v != 0));
         assert_eq!(
-            &identity[32..],
-            &std::fs::read(self.base.join("genesis"))?[4..36]
+            identity.get(32..).ok_or("journal identity")?,
+            std::fs::read(self.base.join("genesis"))?
+                .get(4..36)
+                .ok_or("genesis journal")?
         );
         assert_eq!(run("credential-status", "credential-absent")?, vec![0; 116]);
         let proof = self.issue()?;
@@ -226,16 +232,23 @@ impl Renewal<'_> {
 }
 fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Result<()> {
     assert_eq!(bytes.len(), 116);
-    assert_eq!(&bytes[..4], phase.to_be_bytes());
-    assert_eq!(&bytes[4..36], proof.operation().as_bytes());
-    assert_eq!(&bytes[36..68], proof.statement_digest());
+    assert_eq!(bytes.get(..4), Some(phase.to_be_bytes().as_slice()));
+    assert_eq!(
+        bytes.get(4..36),
+        Some(proof.operation().as_bytes().as_slice())
+    );
+    assert_eq!(bytes.get(36..68), Some(proof.statement_digest().as_slice()));
     if phase == 1 {
-        assert_eq!(&bytes[68..108], &[0; 40]);
+        assert_eq!(bytes.get(68..108), Some([0; 40].as_slice()));
     } else {
-        assert_eq!(&bytes[68..76], 2u64.to_be_bytes());
-        assert!(bytes[76..108].iter().any(|v| *v != 0));
+        let expected = proof.successor_device().roster().checkpoint();
+        assert_eq!(
+            bytes.get(68..76),
+            Some(expected.version().to_be_bytes().as_slice())
+        );
+        assert_eq!(bytes.get(76..108), Some(expected.digest().as_slice()));
     }
-    assert_eq!(&bytes[108..], &[0; 8]);
+    assert_eq!(bytes.get(108..), Some([0; 8].as_slice()));
     Ok(())
 }
 fn no_commit(records: &[witness::Capture]) -> Result<()> {
