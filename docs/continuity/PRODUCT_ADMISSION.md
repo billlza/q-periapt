@@ -29,9 +29,14 @@ same registry is reopened. The [same-key credential renewal route](../../researc
 passes in 110 ART processes on that phone: independently approved target,
 original operation after process restart, lost Commit/Applied reply, historical
 reconciliation without a new commit, and current-authority activation with the
-same signing identity and journal. This route runs before original credential
-expiry. Android checks for original-session traffic across renewal, expiry cleanup
-and independently approved cancellation remain separate software work, along with
+same signing identity and journal. The [extended original-traffic route](../../research/sdk-alpha1/evidence/20261011-android-renewal-traffic/CHECKS.json)
+passes in 130 ART processes: an unassociated peer is refused, explicit independent
+peer registration enables communication, and the installed native C receiver
+persists one business effect before exiting with 77. After local renewal, Android
+reopens the original session and retries the original message; its acknowledgment
+returns without replacing or duplicating that effect. These routes run before
+original credential expiry. Android admission of a remote peer's renewal, expiry
+cleanup and independently approved cancellation remain separate software work, along with
 roster renewal, device retirement and root replacement. The CI host JNI lane exercises
 packaged Java classes against Debug/Release C libraries; it is distinct from
 the accepted physical ART run.

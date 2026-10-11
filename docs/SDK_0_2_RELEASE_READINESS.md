@@ -216,7 +216,10 @@ Same-key credential renewal additionally passes in
 [110 ART processes](../research/sdk-alpha1/evidence/20261011-android-credential/CHECKS.json):
 lost committed replies recover the original operation and preserve signing identity
 and journal, while fresh activation still requires current registry authority.
-Original-session traffic across renewal, expiry/cancellation scenario checks,
+The [extended 130-process ART route](../research/sdk-alpha1/evidence/20261011-android-renewal-traffic/CHECKS.json)
+also preserves the original session, message and one durable receiver effect
+through local renewal and retry. It requires independent peer account association;
+unknown peers remain refused. Android admission of a remote peer's renewal, expiry/cancellation scenario checks,
 roster renewal, device retirement, root replacement and final candidate package admission remain work
 on the software contract, not a requirement for another physical device.
 
