@@ -128,6 +128,15 @@ Original receipt retries keep revision 2 and do not reopen old traffic or invent
 preparation for an adopted winner. Historical cleanup does not extend an expired
 successor credential; successor activation still checks current authorization.
 
+The [managed cleanup qualification](../sdk-alpha1/evidence/20261011-managed-root-cleanup/CHECKS.json)
+records 58 root-lifecycle tests on each Rust compiler, 16 direct ordinary enrollment
+regressions, 36 historical retirement regressions, ten focused Release tests and
+strict Clippy on both compilers. Eight new process-loss cuts run in each root Debug
+suite and Release. The callback-unwind regression first observed a still-live
+controller/cached successor, then passed after operations took scoped ownership.
+The 44 inventory checks and current 534-source gate pass; installed package and
+physical-platform evidence are separate requirements.
+
 Installed foreign adapters, deployed control-plane transport and supported-platform
 qualification remain required. They must preserve original identities and approvals;
 they cannot reset Preparing/Pending or regenerate a root to recover availability.
