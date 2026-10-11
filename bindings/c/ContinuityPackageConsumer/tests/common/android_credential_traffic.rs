@@ -69,13 +69,28 @@ pub(crate) fn received(
     code: i32,
     event: Option<([u8; 32], [u8; 32])>,
 ) -> Result<()> {
+    received_effect(server, code, event, 0)
+}
+pub(crate) fn received_new(
+    server: receiver_process::Server,
+    session: [u8; 32],
+    message: [u8; 32],
+) -> Result<()> {
+    received_effect(server, 0, Some((session, message)), 1)
+}
+fn received_effect(
+    server: receiver_process::Server,
+    code: i32,
+    event: Option<([u8; 32], [u8; 32])>,
+    created: u8,
+) -> Result<()> {
     let output = receiver_process::finish(server, code)?;
     if let Some((session, message)) = event {
         let (kind, calls) = if message == [0; 32] { (1, 0) } else { (2, 1) };
         assert_eq!(
             output,
             format!(
-                "served:{kind}:0:{calls}:0\n{}\n{}\n",
+                "served:{kind}:0:{calls}:{created}\n{}\n{}\n",
                 fixture::hex(&session),
                 fixture::hex(&message)
             )

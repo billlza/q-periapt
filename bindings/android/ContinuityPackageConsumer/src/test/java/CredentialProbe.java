@@ -9,7 +9,7 @@ import static dev.qperiapt.continuity.android.tests.EnrollmentProbe.*;
 /** Actual original-operation renewal, with historical cleanup separate from fresh activation. */
 public final class CredentialProbe {
     private CredentialProbe() { }
-    private static byte[] status(CredentialRenewalStatus value) {
+    static byte[] status(CredentialRenewalStatus value) {
         ByteBuffer output = ByteBuffer.allocate(116); output.putInt(value.phase().ordinal());
         if (value.operation() != null) { output.put(value.operation().encoded()); output.put(value.statement().encoded()); }
         output.position(68);
@@ -17,7 +17,7 @@ public final class CredentialProbe {
         output.position(108); if (value.observedAt() != null) output.putLong(Long.parseUnsignedLong(value.observedAt().toString()));
         return output.array();
     }
-    private static byte[] identity(ContinuityEnrollment enrollment) {
+    static byte[] identity(ContinuityEnrollment enrollment) {
         EnrollmentStatus observed = enrollment.status();
         require(observed.journalId() != null, "original journal is absent");
         return ByteBuffer.allocate(64).put(observed.signingKeyId()).put(observed.journalId()).array();
@@ -25,7 +25,8 @@ public final class CredentialProbe {
     private static void run(Path inputs, Path installation, Path output, String profile, String mode, ConfigurationWitness witness) throws Exception {
         boolean recovery = profile.equals("recoverable"); require(recovery || profile.equals("fixed"), "profile");
         boolean historical = mode.equals("credential-reconcile") || mode.equals("credential-commit-replay")
-            || mode.equals("credential-commit-unmanaged") || mode.equals("credential-activate-unmanaged");
+            || mode.equals("credential-commit-unmanaged") || mode.equals("credential-activate-unmanaged")
+            || CredentialTerminalProbe.historical(mode);
         try (ContinuityConfiguration configuration = configuration(inputs, installation, recovery, false)) {
             configuration.finishOpen();
             try (ContinuityEnrollment enrollment = configuration.resumeEnrollment(intent(inputs), witness)) {
@@ -37,6 +38,7 @@ public final class CredentialProbe {
                     }
                     if (mode.equals("credential-identity")) { publish(output, identity(enrollment)); return; }
                     if (mode.equals("credential-status")) { publish(output, status(enrollment.credentialRenewalStatus())); return; }
+                    if (mode.startsWith("credential-terminal-")) { CredentialTerminalProbe.run(enrollment,inputs,mode,output); return; }
                     if (mode.startsWith("credential-remote-")) {
                         try (ContinuityDevice active = enrollment.activate()) { PeerRenewalProbe.run(active, inputs, mode, output); }
                         return;

@@ -55,6 +55,14 @@ and reconcile the same grant. This API cannot renew the local identity or create
 a session. Existing peer objects retain their original authorization view: close
 them and explicitly reopen each original session after successful admission.
 
+Under required-witness protection, an expired target is not proof that it was
+never committed. Reserve the exact cancellation expectation and obtain the
+independent witness's Closed decision. Reconciliation can persist Closed before
+losing its cleanup ACK, so resume that same operation after a transport error.
+Close of an already committed target remains Committed. A cancelled target grants
+no new authority; ordinary activation separately checks whether the preceding
+credential, roster, registry and policy still permit traffic.
+
 `prepareWitnessedCredentialCancellation` exports the original target-free
 expectation for independent cancellation approval. `closeWitnessedCredentialRenewal`
 can lose to an already applied target and must report it as committed. The

@@ -200,6 +200,7 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
                 println!("qualified credential renewal {carrier}/{profile}: same identity and journal, original operation, lost committed reply, historical recovery, current authority activation");
                 println!("qualified credential traffic {carrier}/{profile}: original session and message, receiver effect before exit, renewal, exact retry, one business effect");
                 println!("qualified remote credential {carrier}/{profile}: explicit remote grant, stale peer refusal, original pending message, restart, exact retry, two distinct business effects");
+                println!("qualified credential terminal {carrier}/{profile}: committed outcome retained, real roster expiry, independent cancellation, lost cleanup acknowledgment, original authority and traffic restored");
             }
             policy.close();
             sdk.close();

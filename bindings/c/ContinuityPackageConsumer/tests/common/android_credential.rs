@@ -23,7 +23,7 @@ pub(crate) struct Renewal<'a> {
     pub(crate) tls: Option<&'a witness_tls_faults::FaultWitness>,
 }
 impl Renewal<'_> {
-    fn exchanges(&self) -> Result<Vec<witness::Capture>> {
+    pub(crate) fn exchanges(&self) -> Result<Vec<witness::Capture>> {
         Ok(if let Some(tls) = self.tls {
             tls.captured
                 .lock()
@@ -109,6 +109,8 @@ impl Renewal<'_> {
                 target.checkpoint().version().to_be_bytes().to_vec(),
             ),
             ("renewal-digest", target.checkpoint().digest().to_vec()),
+            ("renewed-certificate", successor),
+            ("renewed-roster", target.as_bytes().to_vec()),
         ] {
             publish_private_bytes(&self.inputs.join(name), &bytes)?;
         }
@@ -235,6 +237,7 @@ impl Renewal<'_> {
         publish_private_bytes(&self.base.join("credential-dispatch-observation"), &counts)?;
         traffic.resume(self, run)?;
         crate::android_remote_credential::run(self, run)?;
+        crate::android_credential_terminal::run(self, run)?;
         Ok(())
     }
 }

@@ -128,7 +128,7 @@ impl Witness {
                 let drop_independent = request
                     .get(204)
                     .copied()
-                    .filter(|op| matches!(op, 1 | 2 | 11 | 14 | 16 | 19))
+                    .filter(|op| matches!(op, 1 | 2 | 8 | 11 | 14 | 16 | 19))
                     .is_some_and(|op| {
                         pending
                             .compare_exchange(20 + op, 0, Ordering::AcqRel, Ordering::Acquire)

@@ -55,7 +55,7 @@ final class WitnessInputs {
         if (!operation.equals("authority-create")) install(inputs, arguments, "authority-checkpoint", 72, 72, true);
     }
     static void installCredential(File inputs, Bundle arguments, String operation) throws Exception {
-        if (operation.equals("credential-identity") || operation.equals("credential-status") || operation.startsWith("credential-peer-") || operation.startsWith("credential-remote-")) return;
+        if (operation.equals("credential-identity") || operation.equals("credential-status") || operation.startsWith("credential-peer-") || operation.startsWith("credential-remote-") || operation.startsWith("credential-terminal-")) return;
         for (String name : new String[] {"credential-operation", "credential-statement", "renewal-digest"})
             install(inputs, arguments, name, 32, 32, true);
         install(inputs, arguments, "renewal-version", 8, 8, true);
@@ -71,5 +71,14 @@ final class WitnessInputs {
             install(inputs,arguments,"remote-digest",32,32,true);
         }
         if (operation.equals("credential-remote-reopen")) install(inputs,arguments,"remote-next",32,32,true);
+    }
+    static void installTerminalCredential(File inputs, Bundle arguments, String operation) throws Exception {
+        if (operation.equals("credential-terminal-close-committed") || operation.equals("credential-terminal-expiry-committed")) return;
+        for(String name:new String[]{"terminal-operation","terminal-statement"}) install(inputs,arguments,name,32,32,true);
+        if(operation.equals("credential-terminal-stage")) {
+            install(inputs,arguments,"terminal-grant",1,65536,true);
+            install(inputs,arguments,"terminal-version",8,8,true);
+            install(inputs,arguments,"terminal-digest",32,32,true);
+        }
     }
 }
