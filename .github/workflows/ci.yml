@@ -2036,10 +2036,10 @@ jobs:
     needs: rust-publish-contract
     # OpenSSL >= 3.5 is required by the independent PQ TLS witness peer.
     runs-on: ubuntu-26.04
-    # The timed-out run reached Release account cleanup after Debug completed.
-    # Allow the remaining Release lifecycle/fault workloads to run;
-    # individual command (15 minutes) and transport deadlines stay unchanged.
-    timeout-minutes: 90
+    # At 252eb954 the full cohort took 65m. First-use managed policy and
+    # credential expiry add about 18m in the local two-profile matrix.
+    # Individual command (15 minutes) and transport deadlines stay unchanged.
+    timeout-minutes: 105
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2146,12 +2146,10 @@ jobs:
     name: continuity-installed-${{ matrix.consumer }}
     needs: rust-publish-contract
     runs-on: macos-15
-    # Keep every Rust/C prerequisite and both Kotlin profiles/GC variants.
-    # At 29ec0a37, Kotlin hit 210m after completing Release sync-fault recovery
-    # and while account-witness checks still progressed. Budget the full cohort.
-    # At 29ec0a37, Swift hit 120m while Release lifecycle checks still progressed.
-    # Keep both profiles and the 15m command bound; budget the expanded cohort.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 270 || 180 }}
+    # At 252eb954 Swift/Kotlin took 141m/231m. Budget the added native and
+    # foreign first-use expiry matrices, including both Kotlin GC variants.
+    # Keep every prerequisite, both profiles and the 15m command bound.
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 300 || 210 }}
     strategy:
       fail-fast: false
       matrix:
