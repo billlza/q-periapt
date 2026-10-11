@@ -5654,10 +5654,19 @@ with _temporary_release_test_directories(parents):
             with self.subTest(workflow=path.name):
                 source = path.read_text(encoding="utf-8")
                 steps = extract_action_steps(source, PINNED_CANONICAL_RUST_ACTION)
-                self.assertEqual(len(steps), expected_count)
+                minimum = []
+                if path == CI_WORKFLOW:
+                    swift = extract_workflow_job(source, "continuity-installed-swift")
+                    minimum = [step for step in extract_action_steps(swift, PINNED_CANONICAL_RUST_ACTION)
+                               if "          toolchain: 1.90.0\n" in step]
+                    self.assertEqual(len(minimum), 1)
+                    self.assertIn("        if: matrix.consumer == 'swift'\n", minimum[0])
+                    self.assertEqual(minimum[0].count("          toolchain: 1.90.0\n"), 1)
+                    self.assertIn('--swift-minimum-toolchain-root "$(rustc +1.90.0 --print sysroot)"', swift)
+                self.assertEqual(len(steps), expected_count + len(minimum))
                 canonical = f"          toolchain: {CANONICAL_RUST_TOOLCHAIN}\n"
                 for step in steps:
-                    self.assertEqual(step.count(canonical), 1)
+                    self.assertEqual(step.count(canonical), 0 if step in minimum else 1)
                 self.assertNotIn("cargo +stable", source)
                 self.assertNotIn("toolchain: stable", source)
                 self.assertNotIn("RUSTUP_TOOLCHAIN", source)
