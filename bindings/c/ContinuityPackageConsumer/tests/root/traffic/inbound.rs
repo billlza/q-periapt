@@ -31,7 +31,7 @@ fn receiver(
 ) -> Result<(Process, String)> {
     let mut command = Command::new(client);
     command
-        .arg(format!("traffic-receive-{stage}"))
+        .arg(case.command_mode(&format!("traffic-receive-{stage}")))
         .arg(&case.public)
         .arg(&case.old.path)
         .arg(&case.target.path)

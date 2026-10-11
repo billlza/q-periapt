@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Installed C controller on its default pthread stack across owned SIGKILL cuts.
+#[path = "root/alternatives.rs"]
+mod alternatives;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "root/fixture.rs"]
@@ -32,7 +34,7 @@ fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u3
     };
     let mut child = fixture::OwnedChild(
         Command::new(client)
-            .args([mode])
+            .arg(case.command_mode(mode))
             .arg(&case.public)
             .arg(&case.old.path)
             .arg(&case.target.path)
@@ -108,7 +110,8 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
         PathBuf::from(std::env::var_os("QPC_ROOT_EVIDENCE").ok_or("fresh root evidence required")?);
     fs::DirBuilder::new().mode(0o700).create(&path)?;
     let path = path.canonicalize()?;
-    let mut case = setup::Case::new(&path)?;
+    let variant = alternatives::Variant::selected()?;
+    let mut case = setup::Case::new(&path, variant.is_transition())?;
     let witness_start = case
         .witness
         .captured
@@ -118,53 +121,7 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
     let mut processes = Vec::new();
     processes.push(stage(&client, &case, "begin", true)?);
     processes.push(stage(&client, &case, "preparing", false)?);
-    let freeze = {
-        let mut witness = case
-            .witness
-            .configured
-            .store
-            .lock()
-            .map_err(|_| "witness")?;
-        witness.freeze_account(case.plan.request())?;
-        witness.account_freeze_receipt(case.plan.request())?
-    };
-    fixture::store(&case.public, "freeze-receipt", &freeze)?;
-    processes.push(stage(&client, &case, "freeze", true)?);
-    processes.push(stage(&client, &case, "freeze-retry", false)?);
-    let proposal = p::AnchorAccountReplacementProposal::from_trusted_state(&fixture::read(
-        &case.public,
-        "bound-proposal",
-        65536,
-    )?)?;
-    case.pin
-        .verify_account_freeze(case.plan.request(), &freeze)?;
-    let mut registry = case.registry()?;
-    let (application, state, retained) = registry.replacement(case.plan.operation())?;
-    assert_eq!(application, case.checkpoint.application());
-    assert_eq!(state, p::AccountAuthorityReplacementState::Pending);
-    assert_eq!(retained, &proposal);
-    assert_eq!(registry.preparation(case.plan.operation())?.2, &case.plan);
-    registry.close();
-    let retirement = {
-        let mut witness = case
-            .witness
-            .configured
-            .store
-            .lock()
-            .map_err(|_| "witness")?;
-        witness.replace_account_root(
-            &proposal,
-            &case.old.root.public_key()?,
-            &case.target.genesis,
-            &case.target.credential,
-            &case.policy,
-            fixture::now()?,
-        )?;
-        witness.retired_account_receipt(&proposal)?
-    };
-    fixture::store(&case.public, "retirement-receipt", &retirement)?;
-    processes.push(stage(&client, &case, "retain", true)?);
-    processes.push(stage(&client, &case, "retain-retry", false)?);
+    alternatives::prepare(&client, &mut case, variant, &mut processes)?;
     // The signed Observe was handled by the actual witness; drop its response.
     case.witness.arm(21)?;
     processes.push(stage(&client, &case, "activation-unknown", false)?);
@@ -305,11 +262,11 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
         &u64::try_from(witness_start)?.to_be_bytes(),
     )?;
 
-    assert_eq!(processes.len(), 31);
+    assert_eq!(processes.len(), variant.processes());
     let unique = processes.iter().collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(unique.len(), 31);
-    let result=b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=true\n";
-    fixture::store(&case.public, "result", result)?;
-    print!("{}", std::str::from_utf8(result)?);
+    assert_eq!(unique.len(), variant.processes());
+    let result = variant.marker();
+    fixture::store(&case.public, "result", result.as_bytes())?;
+    print!("{result}");
     Ok(())
 }

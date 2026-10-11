@@ -150,7 +150,7 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
         let mode = format!("traffic-{name}");
         let mut command = Command::new(client);
         command
-            .arg(&mode)
+            .arg(case.command_mode(&mode))
             .arg(&case.public)
             .arg(&case.old.path)
             .arg(&case.target.path)
@@ -181,7 +181,7 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
         let mode = format!("traffic-{stage}");
         let mut command = Command::new(client);
         command
-            .arg(&mode)
+            .arg(case.command_mode(&mode))
             .arg(&case.public)
             .arg(&case.old.path)
             .arg(&case.target.path)

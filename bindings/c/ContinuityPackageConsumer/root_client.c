@@ -5,14 +5,16 @@
 #endif
 #include "root_client.h"
 #include "root_cleanup_client.c"
+#include "root_alternative_client.c"
 #include "root_receive_client.c"
 #include "root_traffic_client.c"
 
 static int execute(int argc,char **argv) {
     if(argc<2) fail("root mode required");
-    int traffic=!strncmp(argv[1],"traffic-",8);
+    const char *mode=argv[1];root_route route=select_route(&mode);
+    int traffic=!strncmp(mode,"traffic-",8);
     if(argc!=(traffic ? 9 : 7)) fail("root inputs and optional traffic peer required");
-    const char *mode=argv[1],*public=argv[2],*old=argv[3],*target=argv[4],*registry_path=argv[5];
+    const char *public=argv[2],*old=argv[3],*target=argv[4],*registry_path=argv[5];
     root_inputs *in=calloc(1,sizeof *in);if(!in) fail("bounded public input allocation");
     read_inputs(in,public,old,target);
     char marker[128];int n=snprintf(marker,sizeof marker,"process-%s",mode);
@@ -39,15 +41,18 @@ static int execute(int argc,char **argv) {
         require(qpc_root_v1_begin(root,device,&in->scope,in->plan,in->plan_length,&error),&error);
         uint8_t rejected[32];expect(qpc_device_v1_next_publication(device,rejected,&error),QPC_CLOSED,&error);
         close_owner(device);device=0;
-    } else require(qpc_root_v1_resume(root,(const uint8_t *)old,strlen(old),&in->original,&in->scope,
-                                     in->plan,in->plan_length,&error),&error);
+    } else resume_root(root,in,public,old,route);
     uint32_t state=0;require(qpc_root_v1_state(root,&state,&error),&error);
     if(!strcmp(mode,"begin") || !strcmp(mode,"preparing")) {
         if(state!=1) fail("original preparation missing");
-    } else if(!strcmp(mode,"freeze") || !strcmp(mode,"freeze-retry")) {
+    } else if(!strcmp(mode,"transition") || !strcmp(mode,"transition-retry") ||
+              !strcmp(mode,"adopt") || !strcmp(mode,"adopt-retry")) {
+        alternative(root,in,public,mode);
+    } else if(!strcmp(mode,"freeze") || !strcmp(mode,"freeze-retry") || !strcmp(mode,"freeze-original")) {
         size_t length=0;if(load(public,"freeze-receipt",in->receipt,sizeof in->receipt,&length)) fail("freeze receipt");
         size_t written=0;require(qpc_root_v1_bind_freeze(root,in->receipt,length,in->proposal,sizeof in->proposal,&written,&error),&error);
-        if(!strcmp(mode,"freeze")) save(public,"bound-proposal",in->proposal,written);
+        if(!strcmp(mode,"freeze-original")) save(public,"original-bound-proposal",in->proposal,written);
+        else if(!strcmp(mode,"freeze")) save(public,"bound-proposal",in->proposal,written);
         else {
             size_t expected=0;if(load(public,"bound-proposal",in->receipt,sizeof in->receipt,&expected) ||
                 expected!=written || memcmp(in->receipt,in->proposal,written)) fail("proposal identity changed on retry");
@@ -77,7 +82,8 @@ static int execute(int argc,char **argv) {
             if(memcmp(before,after,32)) fail("query or historical cleanup changed publication identity");
         }
     }
-    if(!strcmp(mode,"begin") || !strcmp(mode,"freeze") || !strcmp(mode,"retain") ||
+    if(!strcmp(mode,"begin") || !strcmp(mode,"freeze") || !strcmp(mode,"freeze-original") ||
+       !strcmp(mode,"transition") || !strcmp(mode,"adopt") || !strcmp(mode,"retain") ||
        !strcmp(mode,"inventory") || !strcmp(mode,"report") || !strcmp(mode,"prepare-ack") ||
        !strcmp(mode,"journal") || !strcmp(mode,"signer")) pause_for_kill(public,mode);
     close_owner(root);

@@ -16,7 +16,14 @@ pub(super) struct Account {
     pub(super) roster: Vec<u8>,
     pub(super) genesis: p::AnchorGenesis,
 }
+pub(super) enum Recovery {
+    Original,
+    Transition(Box<p::ManagedAccountRootTransition>),
+    Adoption(Box<p::ManagedAccountRootAdoption>),
+}
 pub(super) struct Case {
+    pub(super) recovery: Recovery,
+    pub(super) original_target: [u8; 32],
     pub(super) witness: witness::Witness,
     pub(super) reference: fixture::Setup,
     pub(super) sdk: q_periapt_host_store::PolicyStore,
@@ -31,7 +38,7 @@ pub(super) struct Case {
     pub(super) public: PathBuf,
 }
 impl Case {
-    pub(super) fn new(path: &Path) -> Result<Self> {
+    pub(super) fn new(path: &Path, transition: bool) -> Result<Self> {
         let witness = witness::Witness::start()?;
         let reference = fixture::setup_with_witness(Some(&witness.configured))?;
         let sdk = fixture::sdk(&reference.initiator)?;
@@ -44,7 +51,7 @@ impl Case {
             .pin()?;
         let configuration = configuration(&reference.initiator)?;
         let old = account(&path.join("original"), &configuration, &policy, &pin)?;
-        let target = account(&path.join("target"), &configuration, &policy, &pin)?;
+        let original_target = account(&path.join("target"), &configuration, &policy, &pin)?;
         let registry_path = path.join("registry");
         fs::DirBuilder::new().mode(0o700).create(&registry_path)?;
         let identity = p::AccountAuthorityIdentity::generate()?;
@@ -71,11 +78,17 @@ impl Case {
             store.account_replacement_plan(
                 p::AnchorAccountReplacementId::from_trusted_state([153; 32])?,
                 request,
-                &target.genesis,
-                &target.credential,
+                &original_target.genesis,
+                &original_target.credential,
                 &policy,
                 fixture::now()?,
             )?
+        };
+        let original_target_id = original_target.credential.account_id();
+        let target = if transition {
+            account(&path.join("next-target"), &configuration, &policy, &pin)?
+        } else {
+            original_target
         };
         let public = path.join("public");
         fs::DirBuilder::new().mode(0o700).create(&public)?;
@@ -89,6 +102,7 @@ impl Case {
             ("revision", checkpoint.revision().to_be_bytes().to_vec()),
             ("approved-plan", plan.to_bytes()?),
             ("target-account", target.credential.account_id().to_vec()),
+            ("original-target-account", original_target_id.to_vec()),
             (
                 "original-roster-version",
                 old.credential
@@ -120,6 +134,8 @@ impl Case {
             fixture::store(&public, name, &wire)?;
         }
         Ok(Self {
+            recovery: Recovery::Original,
+            original_target: original_target_id,
             witness,
             reference,
             sdk,
@@ -143,15 +159,41 @@ impl Case {
             self.pin.clone(),
         )?)
     }
+    pub(super) fn command_mode(&self, mode: &str) -> String {
+        match self.recovery {
+            Recovery::Original => mode.to_owned(),
+            Recovery::Transition(_) => format!("transition:{mode}"),
+            Recovery::Adoption(_) => format!("adoption:{mode}"),
+        }
+    }
     pub(super) fn resume(&self) -> Result<p::ManagedAccountRootReplacement> {
-        Ok(p::ManagedAccountRootReplacement::resume_original(
-            self.registry()?,
-            self.checkpoint,
-            self.plan.clone(),
-            self.old.paths.clone(),
-            self.old.intent.clone(),
-            self.pin.clone(),
-        )?)
+        let registry = self.registry()?;
+        Ok(match &self.recovery {
+            Recovery::Original => p::ManagedAccountRootReplacement::resume_original(
+                registry,
+                self.checkpoint,
+                self.plan.clone(),
+                self.old.paths.clone(),
+                self.old.intent.clone(),
+                self.pin.clone(),
+            )?,
+            Recovery::Transition(approved) => p::ManagedAccountRootReplacement::resume_transition(
+                registry,
+                self.checkpoint,
+                self.old.paths.clone(),
+                self.old.intent.clone(),
+                self.pin.clone(),
+                approved,
+            )?,
+            Recovery::Adoption(approved) => p::ManagedAccountRootReplacement::resume_adoption(
+                registry,
+                self.checkpoint,
+                self.old.paths.clone(),
+                self.old.intent.clone(),
+                self.pin.clone(),
+                approved,
+            )?,
+        })
     }
 }
 fn configuration(path: &Path) -> Result<FirstInstallConfiguration> {
