@@ -150,7 +150,7 @@ def verify_linkage(dependencies: str, loader: str, native_dir: Path) -> list[str
     return paths
 
 
-def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) -> dict:
+def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, minimum_toolchain: Path) -> dict:
     sdk.require(os.uname().sysname == "Darwin" and native["completed"], "Swift qualification requires a completed native macOS C package")
     result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
     env = {key: value for key, value in environment.items()
@@ -362,6 +362,9 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
                 "recovery_execution": recovery_checked, "recovery_public_files": recovery_files,
                 "witnessed": witnessed, "restoration": {"execution": restored, "public_files": restored_files},
                 "restoration_opening": {"execution": restore_opening, "public_files": restore_opening_files}, "sync_faults": sync_faults, "sync_fault_public_files": fault_files}
+        from continuity_swift_root_msrv import qualify as qualify_minimum
+        result["minimum_root"] = qualify_minimum(outside, output, outside / "c-consumer", source,
+                                                  minimum_toolchain, environment, swift, identity)
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
         result["completed"] = True
     except Exception as error:

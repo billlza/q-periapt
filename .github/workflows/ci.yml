@@ -2170,6 +2170,10 @@ jobs:
         with:
           toolchain: 1.98.1
           components: clippy
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        if: matrix.consumer == 'swift'
+        with:
+          toolchain: 1.90.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         id: continuity_python
         with:
@@ -2200,7 +2204,7 @@ jobs:
           report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
           case "$CONTINUITY_CONSUMER" in
             swift)
-              consumer_args=(--with-swift-consumer)
+              consumer_args=(--with-swift-consumer --swift-minimum-toolchain-root "$(rustc +1.90.0 --print sysroot)")
               ;;
             kotlin)
               gradle_home=$(sh artifact/python-run.sh -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve(strict=True).parent.parent)' "$(command -v gradle)")
@@ -2228,6 +2232,7 @@ jobs:
             target/continuity-installed-swift/*.json
             target/continuity-installed-swift/*.stdout
             target/continuity-installed-swift/*.stderr
+            target/continuity-installed-swift/swift-minimum-root/**
             target/continuity-installed-swift/*.events
             target/continuity-installed-swift/debug-roster-renewal-public/**
             target/continuity-installed-swift/release-roster-renewal-public/**

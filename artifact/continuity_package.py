@@ -37,7 +37,7 @@ def source_inputs() -> dict:
         "artifact/continuity_peer_configuration.py",
         "artifact/continuity_foreign_account_results.py", "artifact/continuity_foreign_policy.py",
         "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py", "artifact/continuity_device_retirement.py",
-        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_authority.py", "artifact/continuity_c_root_contract.py", "artifact/continuity_c_root.py", "artifact/continuity_c_root_alternatives.py", "artifact/continuity_c_root_traffic.py", "artifact/continuity_c_root_reverse.py", "artifact/continuity_swift_root.py", "artifact/continuity_c_managed.py", "artifact/continuity_first_account.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
+        FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_authority.py", "artifact/continuity_c_root_contract.py", "artifact/continuity_c_root.py", "artifact/continuity_c_root_alternatives.py", "artifact/continuity_c_root_traffic.py", "artifact/continuity_c_root_reverse.py", "artifact/continuity_swift_root.py", "artifact/continuity_swift_root_msrv.py", "artifact/continuity_c_managed.py", "artifact/continuity_first_account.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
         "artifact/continuity_c_account_tls.py", "artifact/continuity_c_account_tls_loss.py", "artifact/continuity_c_account_delivery.py", "artifact/continuity_c_setup.py", "artifact/continuity_c_enrollment.py", "artifact/continuity_c_independent_policy.py", "artifact/continuity_witnessed_renewal.py", "artifact/continuity_witnessed_policy_expiry.py", "artifact/continuity_witnessed_cancellation.py", "artifact/continuity_witnessed_commit_error.py", "artifact/continuity_setup_faults.py", "artifact/continuity_setup_io.py", "artifact/continuity_setup_witness_faults.py",
         "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
@@ -222,7 +222,13 @@ def compiler_identity(toolchain: Path) -> dict:
     return tools
 
 
+def validate_swift_minimum(selected: bool, toolchain: Path | None) -> None:
+    sdk.require(selected == (toolchain is not None),
+                "--with-swift-consumer requires --swift-minimum-toolchain-root; the tool option requires Swift")
+
+
 def qualify(args: argparse.Namespace) -> dict:
+    validate_swift_minimum(args.with_swift_consumer, args.swift_minimum_toolchain_root)
     sdk.require(not args.with_swift_consumer or (args.with_c_consumer and os.uname().sysname == "Darwin"),
                 "Swift qualification requires the installed C consumer on macOS")
     sdk.require(not args.with_kotlin_consumer or
@@ -386,7 +392,7 @@ def qualify(args: argparse.Namespace) -> dict:
                                "no independent witness engine, other foreign bindings or cross-host qualification")
         if args.with_swift_consumer:
             from continuity_swift_consumer import qualify_swift
-            result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment)
+            result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment, args.swift_minimum_toolchain_root)
             result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
                                "and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification")
         if args.with_kotlin_consumer:
@@ -428,6 +434,8 @@ def main() -> None:
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
     parser.add_argument("--with-swift-consumer", action="store_true",
                         help="also package and execute the Swift owner with the installed C engine on macOS")
+    parser.add_argument("--swift-minimum-toolchain-root", type=Path,
+                        help="required with Swift: actual Rust 1.90.0 toolchain for default-stack root recovery regression")
     parser.add_argument("--with-kotlin-consumer", action="store_true",
                         help="also package and execute Kotlin/JVM local/witnessed owners and constructor lifecycle with both installed C profiles")
     parser.add_argument("--kotlin-java-home", type=Path, help="explicit JDK 25 installation for the Kotlin consumer")
