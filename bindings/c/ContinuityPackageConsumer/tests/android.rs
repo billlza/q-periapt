@@ -21,8 +21,12 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 
 #[path = "common/android_credential.rs"]
 mod android_credential;
+#[path = "common/android_credential_traffic.rs"]
+mod android_credential_traffic;
 #[path = "common/android_witness.rs"]
 mod android_witness;
+#[path = "common/receiver_process.rs"]
+mod receiver_process;
 #[path = "common/witness_tls.rs"]
 mod witness_tls;
 #[path = "common/witness_tls_faults.rs"]

@@ -43,14 +43,54 @@ public final class PeerProbe {
             }
         }
     }
-    private static PeerConfiguration.Device expectation(Path inputs, String prefix) throws Exception {
-        AccountPin account = new AccountPin(read(inputs, prefix + "-account"), read(inputs, prefix + "-root"), read(inputs, "family"),
+    static AccountPin account(Path inputs, String prefix) throws Exception {
+        return new AccountPin(read(inputs, prefix + "-account"), read(inputs, prefix + "-root"), read(inputs, "family"),
             counter(read(inputs, prefix + "-roster-version")), read(inputs, prefix + "-roster-digest"));
-        return new PeerConfiguration.Device(account, read(inputs, prefix + "-device"), counter(read(inputs, prefix + "-generation")));
+    }
+    private static PeerConfiguration.Device expectation(Path inputs, String prefix) throws Exception {
+        return new PeerConfiguration.Device(account(inputs, prefix), read(inputs, prefix + "-device"), counter(read(inputs, prefix + "-generation")));
     }
     private static PeerConfiguration configuration(Path inputs) throws Exception {
         return new PeerConfiguration(expectation(inputs, "initiator"), expectation(inputs, "responder"), read(inputs, "directory"),
             read(inputs, "bootstrap.bundle"), read(inputs, "tls-peer"), new String(read(inputs, "tls-peer-name"), java.nio.charset.StandardCharsets.UTF_8));
+    }
+    static void client(ContinuityDevice device, Path inputs, String mode, Path output) throws Exception {
+        PeerConfiguration config = configuration(inputs.resolve("peer"));
+        Ids.Session session = mode.equals("peer-connect") ? null : new Ids.Session(read(inputs, "connection-session"));
+        try (ContinuityPeer peer = session == null
+                ? device.preparePeer(config, PeerConfiguration.Quality.ONE_TIME_BOTH, PeerConfiguration.Role.INITIATOR)
+                : device.preparePeerReopen(config, PeerConfiguration.Quality.ONE_TIME_BOTH, PeerConfiguration.Role.INITIATOR, session)) {
+            peer.finishOpen(); exchange(peer, inputs, mode, session, output);
+        }
+    }
+    static void unassociated(ContinuityDevice device, Path inputs, Path output) throws Exception {
+        try (ContinuityPeer peer = device.preparePeer(configuration(inputs.resolve("peer")), PeerConfiguration.Quality.ONE_TIME_BOTH,
+                PeerConfiguration.Role.INITIATOR)) {
+            EnrollmentProbe.failed(201, peer::finishOpen);
+            publish(output, ByteBuffer.allocate(4).putInt(201).array());
+        }
+    }
+    private static void exchange(ContinuityPeer peer, Path inputs, String mode, Ids.Session session, Path output) throws Exception {
+        String address = new String(read(inputs, "connection-address"), java.nio.charset.StandardCharsets.US_ASCII);
+        switch (mode) {
+                    case "peer-connect" -> publish(output, peer.establish(address, new Ids.Initiation(read(inputs, "connection-initiation"))).session().encoded());
+                    case "peer-uncertain", "peer-retry" -> {
+                        Ids.Message message = mode.equals("peer-uncertain") ? peer.nextMessage(session) : new Ids.Message(read(inputs, "connection-message"));
+                        if (mode.equals("peer-uncertain")) {
+                            try { peer.send(address, session, message, PAYLOAD, AD); throw new AssertionError("crashed receiver acknowledged"); }
+                            catch (ContinuityFailure failure) {
+                                require(failure.code() == 309 || failure.code() == 310 || failure.code() == 311 || failure.code() == 303, "unexpected send failure " + failure.code());
+                            }
+                            require(peer.messageStatus(session, message) == ContinuityPeer.MessageStatus.COMMITTED, "original message not committed");
+                        } else {
+                            require(peer.send(address, session, message, PAYLOAD, AD).consumption() == ContinuityPeer.Consumption.CONFIRMED, "consumption not confirmed");
+                            require(peer.messageStatus(session, message) == ContinuityPeer.MessageStatus.ACKNOWLEDGED, "acknowledgment not durable");
+                        }
+                        byte[] result = new byte[64]; System.arraycopy(session.encoded(), 0, result, 0, 32); System.arraycopy(message.encoded(), 0, result, 32, 32);
+                        publish(output, result);
+                    }
+            default -> throw new IllegalArgumentException("client exchange mode");
+        }
     }
     public static void main(String[] args) throws Exception {
         run(args, port -> {
@@ -81,22 +121,7 @@ public final class PeerProbe {
                 peer.finishOpen();
                 String address = new String(read(inputs, "connection-address"), java.nio.charset.StandardCharsets.US_ASCII);
                 switch (mode) {
-                    case "peer-connect" -> publish(output, peer.establish(address, new Ids.Initiation(read(inputs, "connection-initiation"))).session().encoded());
-                    case "peer-uncertain", "peer-retry" -> {
-                        Ids.Message message = mode.equals("peer-uncertain") ? peer.nextMessage(session) : new Ids.Message(read(inputs, "connection-message"));
-                        if (mode.equals("peer-uncertain")) {
-                            try { peer.send(address, session, message, PAYLOAD, AD); throw new AssertionError("crashed receiver acknowledged"); }
-                            catch (ContinuityFailure failure) {
-                                require(failure.code() == 309 || failure.code() == 310 || failure.code() == 311 || failure.code() == 303, "unexpected send failure " + failure.code());
-                            }
-                            require(peer.messageStatus(session, message) == ContinuityPeer.MessageStatus.COMMITTED, "original message not committed");
-                        } else {
-                            require(peer.send(address, session, message, PAYLOAD, AD).consumption() == ContinuityPeer.Consumption.CONFIRMED, "consumption not confirmed");
-                            require(peer.messageStatus(session, message) == ContinuityPeer.MessageStatus.ACKNOWLEDGED, "acknowledgment not durable");
-                        }
-                        byte[] result = new byte[64]; System.arraycopy(session.encoded(), 0, result, 0, 32); System.arraycopy(message.encoded(), 0, result, 32, 32);
-                        publish(output, result);
-                    }
+                    case "peer-connect", "peer-uncertain", "peer-retry" -> exchange(peer, inputs, mode, session, output);
                     case "peer-rekey" -> {
                         Counter64 epoch = peer.rekey(address, session, new Counter64("1"));
                         require(epoch.equals(new Counter64("1")), "epoch"); publish(output, new byte[] {1});

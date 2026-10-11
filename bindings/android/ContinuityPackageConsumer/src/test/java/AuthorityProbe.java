@@ -60,6 +60,20 @@ public final class AuthorityProbe {
                 failed(211, () -> ContinuityAccountAuthority.provisionWrappingKey(directory.toString()));
                 publish(output, encoded(checkpoint));
             }
+        } else if (args[3].equals("authority-peer-associate")) {
+            try (ContinuityAccountAuthority registry = open(inputs, installation)) {
+                Path peer = inputs.resolve("peer");
+                Ids.ApplicationAccount peerApplication = new Ids.ApplicationAccount(read(inputs, "authority-peer-application"));
+                AccountPin pin = PeerProbe.account(peer, "responder");
+                byte[] certificate = read(peer, "approved-certificate"), roster = read(peer, "approved-roster");
+                byte[] corrupt = roster.clone(); corrupt[corrupt.length - 1] ^= 1;
+                failed(102, () -> registry.associate(peerApplication, pin, certificate, corrupt));
+                failed(201, () -> registry.checkpoint(peerApplication));
+                AccountAuthorityCheckpoint checkpoint = registry.associate(peerApplication, pin, certificate, roster);
+                require(registry.associate(peerApplication, pin, certificate, roster).equals(checkpoint), "peer association replay");
+                require(registry.checkpoint(application).equals(expected(inputs)), "peer association changed local checkpoint");
+                publish(output, encoded(checkpoint));
+            }
         } else if (args[3].equals("authority-reopen")) {
             try (ContinuityAccountAuthority registry = open(inputs, installation)) {
                 AccountAuthorityCheckpoint expected = expected(inputs);

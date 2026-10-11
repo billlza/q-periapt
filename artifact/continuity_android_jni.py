@@ -138,6 +138,11 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             library = Path(record["path"])
             sdk.require(sdk.snapshot(library, maximum=c.MAX_BINARY).sha256 == record["sha256"], "native C library changed")
             sdk.copy(library, installed / library.name, maximum=c.MAX_BINARY)
+            receiver_record = native["execution"][profile]["binaries"]["C_client"]
+            receiver = installed / "qpc-c-client"
+            sdk.require(sdk.snapshot(Path(receiver_record["path"]), maximum=c.MAX_BINARY).sha256 == receiver_record["sha256"],
+                        "installed C receiver changed")
+            sdk.copy(Path(receiver_record["path"]), receiver, maximum=c.MAX_BINARY); receiver.chmod(0o700)
             bridge = installed / "libqperiapt_continuity_jni.dylib"
             run([str(clang), "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-fvisibility=hidden",
                  "-isysroot", str(platform), "-I" + str(consumer), "-I" + str(java_home / "include"),
@@ -169,7 +174,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             for lane, managed, test in (("witness", False, witnessed.TEST), ("authority", True, "android_witness::managed_first_registration"),
                                         ("credential", True, credential.TEST)):
                 witness_cases = installed / (lane + "-cases")
-                witness_runtime = dict(env, QPC_ANDROID_CASES=str(witness_cases), QPC_ANDROID_DRIVER=str(driver))
+                witness_runtime = dict(env, QPC_ANDROID_CASES=str(witness_cases), QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver))
                 witnessed_stdout = run([str(binary), "--exact", test, "--nocapture"],
                                        profile + "-" + lane, consumer, witness_runtime)
                 witness_outcomes = (credential.verify_execution(witnessed_stdout, witness_cases) if lane == "credential"
@@ -185,6 +190,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                         sdk.copy(witness_cases / label / name, output / f"android-jni-{profile}-{lane}-{label}-{name}.public")
             result["profiles"][profile] = {"credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,
+                "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}
         sdk.require(source_files() == source and tool_identity(java_home) == tools and sdk.snapshot(jar).sha256 == jar_hash,
                     "Android JNI source, JDK or packaged classes changed during qualification")

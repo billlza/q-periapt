@@ -107,8 +107,12 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         WitnessInputs.installAuthority(inputs, arguments, operation);
                     if (credential) {
                         WitnessInputs.installCredential(inputs, arguments, operation);
+                        if (operation.startsWith("credential-peer-")) PeerInputs.install(inputs, arguments, operation.substring("credential-".length()));
                         CredentialProbe.main(call);
-                    } else if (authority) AuthorityProbe.main(call); else WitnessProbe.main(call);
+                    } else if (authority) {
+                        if (operation.equals("authority-peer-associate")) PeerInputs.installApproval(inputs, arguments);
+                        AuthorityProbe.main(call);
+                    } else WitnessProbe.main(call);
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
                 if (bytes.length < 1 || bytes.length > 8192) throw new IllegalStateException("public result width");

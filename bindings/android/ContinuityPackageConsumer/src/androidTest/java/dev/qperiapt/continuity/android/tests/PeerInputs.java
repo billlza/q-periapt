@@ -45,10 +45,16 @@ final class PeerInputs {
         original(new File(peer, "bootstrap.bundle"), decoded(arguments, "peer-bootstrap.bundle", 1, 65536));
         original(new File(peer, "tls-peer"), decoded(arguments, "peer-tls-peer", 1, 8192));
         original(new File(peer, "tls-peer-name"), decoded(arguments, "peer-tls-peer-name", 1, 128));
+        if (operation.equals("peer-unassociated")) return;
         // Transport address may change. It never selects TLS or account trust.
         Files.write(new File(inputs, "connection-address").toPath(), decoded(arguments, "connection-address", 1, 128));
         String identity = operation.equals("peer-connect") ? "connection-initiation" : "connection-session";
         original(new File(inputs, identity), decoded(arguments, identity, 32, 32));
         if (operation.equals("peer-retry")) original(new File(inputs, "connection-message"), decoded(arguments, "connection-message", 32, 32));
+    }
+    static void installApproval(File inputs, Bundle arguments) throws Exception {
+        original(new File(inputs, "authority-peer-application"), decoded(arguments, "authority-peer-application", 32, 32));
+        original(new File(inputs, "peer/approved-certificate"), decoded(arguments, "peer-approved-certificate", 1, 8192));
+        original(new File(inputs, "peer/approved-roster"), decoded(arguments, "peer-approved-roster", 1, 65536));
     }
 }

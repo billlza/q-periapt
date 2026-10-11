@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Renewal of one actual managed Android installation across fresh processes.
-use crate::{android_witness::witness, fixture, p, witness_tls_faults, Result};
+use crate::{
+    android_credential_traffic, android_witness::witness, fixture, p, witness_tls_faults, Result,
+};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::path::Path;
 
@@ -14,6 +16,8 @@ pub(crate) struct Renewal<'a> {
     pub(crate) policy: &'a p::VerifiedSessionPolicy,
     pub(crate) inputs: &'a Path,
     pub(crate) base: &'a Path,
+    pub(crate) receiver: &'a Path,
+    pub(crate) carrier: &'a str,
     pub(crate) witness: &'a witness::Witness,
     pub(crate) tls: Option<&'a witness_tls_faults::FaultWitness>,
 }
@@ -124,6 +128,7 @@ impl Renewal<'_> {
                 .ok_or("genesis journal")?
         );
         assert_eq!(run("credential-status", "credential-absent")?, vec![0; 116]);
+        let traffic = android_credential_traffic::Traffic::begin(self, run)?;
         let proof = self.issue()?;
         assert_eq!(
             run("credential-stage-refused", "credential-refused")?,
@@ -227,6 +232,7 @@ impl Renewal<'_> {
         counts.extend_from_slice(&u32::try_from(historical.len())?.to_be_bytes());
         counts.extend_from_slice(&0u32.to_be_bytes());
         publish_private_bytes(&self.base.join("credential-dispatch-observation"), &counts)?;
+        traffic.resume(self, run)?;
         Ok(())
     }
 }

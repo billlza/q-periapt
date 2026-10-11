@@ -130,7 +130,7 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
                 publish_private_bytes(&inputs.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls_faults::FaultWitness::start(
                     Arc::clone(&witness.configured.store),
-                    [inputs.as_path()],
+                    [inputs.as_path(), reference.responder.as_path()],
                     witness._directory.path().join("witness.redb"),
                 )?;
                 fs::write(inputs.join("witness-address"), server.address.to_string())?;
@@ -183,11 +183,14 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
                     policy: &policy,
                     inputs: &inputs,
                     base: &base,
+                    receiver: &reference.responder,
+                    carrier,
                     witness: &witness,
                     tls: fault_tls.as_ref(),
                 }
                 .run(&run)?;
                 println!("qualified credential renewal {carrier}/{profile}: same identity and journal, original operation, lost committed reply, historical recovery, current authority activation");
+                println!("qualified credential traffic {carrier}/{profile}: original session and message, receiver effect before exit, renewal, exact retry, one business effect");
             }
             policy.close();
             sdk.close();

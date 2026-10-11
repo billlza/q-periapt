@@ -34,8 +34,23 @@ def fixture(root: Path) -> bytes:
             values["credential-refusal-transcript"] = b""
             values["credential-history-transcript"] = b"\1" + request + reply
             values["credential-dispatch-observation"] = (1).to_bytes(4, "big") * 2 + bytes(4)
+            values["credential-connected"] = b"x" * 32
+            values["credential-peer-unassociated"] = (201).to_bytes(4,"big")
+            values["credential-peer-associated"] = bytes([134])*32 + (1).to_bytes(8,"big") + b"b" * 32
+            values["credential-uncertain"] = b"x" * 32 + b"m" * 32
+            values["credential-acknowledged"] = values["credential-uncertain"]
+            values["credential-effect-before"] = values["credential-uncertain"] + b"persisted before process exit"
+            values["credential-effect-after"] = values["credential-effect-before"]
+            values["credential-effect-count"] = (1).to_bytes(4, "big")
+            values["credential-peer-admit.stdout"] = b"credential-peer-admitted\n"
+            values["credential-peer-admit.stderr"] = b""
+            for mode, body in (("bootstrap", f"served:1:0:0:0\n{(b'x'*32).hex()}\n{'00'*32}\n"), ("crash-after", ""),
+                               ("message", f"served:2:0:1:0\n{(b'x'*32).hex()}\n{(b'm'*32).hex()}\n")):
+                values["traffic-credential-"+mode+".stdout"] = ("listening:12345\n" + body).encode()
+                values["traffic-credential-"+mode+".stderr"] = b""
             for name, value in values.items(): (base / name).write_bytes(value)
             stdout += f"qualified credential renewal {carrier}/{trust}: same identity and journal, original operation, lost committed reply, historical recovery, current authority activation\n".encode()
+            stdout += f"qualified credential traffic {carrier}/{trust}: original session and message, receiver effect before exit, renewal, exact retry, one business effect\n".encode()
     return stdout
 
 
@@ -44,13 +59,15 @@ class CredentialReaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); stdout = fixture(root)
             result = credential.verify_execution(stdout, root)
-            self.assertEqual(sum(v["foreign_processes"] for v in result.values()), 110)
-            self.assertTrue(all(not v["original_session_traffic_qualified"] for v in result.values()))
+            self.assertEqual(sum(v["foreign_processes"] for v in result.values()), 130)
+            self.assertTrue(all(v["original_session_traffic_qualified"] for v in result.values()))
             with self.assertRaises(ValueError): credential.verify_execution(stdout.replace(b"qualified credential renewal tls/fixed", b"missing"), root)
 
     def test_original_identity_operation_and_outcome_cannot_be_replaced(self):
         for name in ("credential-renewed-identity", "credential-current-activation", "credential-stage-replayed",
-                     "credential-terminal-replayed", "credential-proposal-replayed", "credential-unknown", "credential-closed", "inputs/renewal-digest"):
+                     "credential-terminal-replayed", "credential-proposal-replayed", "credential-unknown", "credential-closed", "inputs/renewal-digest",
+                     "credential-connected", "credential-acknowledged", "credential-effect-after", "credential-effect-count",
+                     "credential-peer-unassociated", "credential-peer-associated"):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp); stdout = fixture(root); path = root / "signed-fixed" / name
                 original = path.read_bytes(); path.write_bytes(bytes([original[0] ^ 1]) + original[1:])
@@ -66,6 +83,12 @@ class CredentialReaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); stdout = fixture(root); (root / "tls-fixed/credential-unknown.stderr").write_bytes(b"JNI diagnostic")
             with self.assertRaises(ValueError): credential.verify_execution(stdout, root)
+
+    def test_receiver_outcome_cannot_be_substituted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); stdout = fixture(root); path = root / "signed-fixed/traffic-credential-message.stdout"
+            path.write_bytes(path.read_bytes().replace(b"served:2:0:1:0", b"served:2:0:0:0"))
+            with self.assertRaises(ValueError): credential.verify_execution(stdout,root)
 
 
 if __name__ == "__main__": unittest.main()

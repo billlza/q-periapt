@@ -37,6 +37,13 @@ public final class CredentialProbe {
                     }
                     if (mode.equals("credential-identity")) { publish(output, identity(enrollment)); return; }
                     if (mode.equals("credential-status")) { publish(output, status(enrollment.credentialRenewalStatus())); return; }
+                    if (mode.startsWith("credential-peer-")) {
+                        try (ContinuityDevice active = enrollment.activate()) {
+                            if (mode.equals("credential-peer-unassociated")) PeerProbe.unassociated(active, inputs, output);
+                            else PeerProbe.client(active, inputs, mode.substring("credential-".length()), output);
+                        }
+                        return;
+                    }
                     Ids.CredentialRenewal operation = new Ids.CredentialRenewal(read(inputs, "credential-operation"));
                     Ids.CredentialStatement statement = new Ids.CredentialStatement(read(inputs, "credential-statement"));
                     switch (mode) {

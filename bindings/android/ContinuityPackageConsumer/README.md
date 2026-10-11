@@ -6,8 +6,8 @@ surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
-first activation and same-key credential renewal. Original-session traffic across
-credential renewal, roster renewal, device retirement and root replacement
+first activation, same-key credential renewal and original-message retry across
+local credential renewal. Roster renewal, device retirement and root replacement
 integration remain subsequent work. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate.
 
@@ -38,6 +38,15 @@ with the original operation and statement. This query emits neither Commit nor
 Close. `PENDING` does not establish that the operation is uncommitted; `COMMITTED`
 is historical evidence and grants no current traffic permission. Select the live
 account registry and use the ordinary `activate()` path for current authorization.
+
+For registry-managed traffic, independently associate the peer account as well as
+the local account. An unknown peer is refused even when its TLS certificate and
+bootstrap bundle are valid. After local renewal, call `preparePeerReopen` with
+the original peer expectations and session ID, then retry the original message
+with the same payload and associated data. The counterparty must independently
+admit the renewal grant before reopening that session. The current integration
+uses the public C device interface for this counterpart admission; the Android
+wrapper for admitting a remote peer's renewal is still subsequent work.
 
 `prepareWitnessedCredentialCancellation` exports the original target-free
 expectation for independent cancellation approval. `closeWitnessedCredentialRenewal`
