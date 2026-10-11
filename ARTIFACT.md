@@ -47,7 +47,7 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 `cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
-The Rust job has a 210-minute bound, with a 150-minute limit on the upstream Analyze
+The Rust job has a 240-minute bound, with a 180-minute limit on the upstream Analyze
 step so checkout verification, the separate quality gate and diagnostic retention can finish.
 The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
 52-minute evaluation. Later full analyses reached the 90-minute step limit while still
@@ -58,6 +58,22 @@ database and evaluation cache: it does not establish a cold current-source runti
 resource fix, or passage of the product quality gate. The larger bound gives the complete
 analysis more time without changing its runner, queries, or evaluator settings; its
 adequacy remains subject to current-source CI results.
+
+Source `3b654771` reached the 180-minute Analyze deadline with 38 of 39 queries
+complete; the full `SummaryStats` global taint-reach calculation remained active.
+The retained evaluator log shows repeated eviction and reconstruction of native
+cache entries. This observation does not establish that memory allocation is the
+only cause. The isolated `CodeQL memory control` workflow compares JVM/native
+allocations of 5788/6898 MiB and 3072/9614 MiB, with the same 12686 MiB sum, four
+threads, pinned CLI/compiled queries, local threat model and frozen database/cache.
+It uses a fresh result directory and requires all 39 newly produced BQRS outputs.
+The source artifact, database, suite, query text and compiled plans are hash-bound
+by `artifact/codeql_memory_control.py` and `artifact/codeql_memory_queries.json`.
+Both arms have a 15-minute wall-clock bound; unfinished runs remain failures and
+retain their detailed evaluator logs and command receipts. The bounded console
+capture is published only after the child exits; timeout diagnostics are in the
+evaluator logs. The experiment has no SARIF upload permission, never qualifies
+the current source, and does not change the production analysis or quality gate.
 
 Rust and Swift emit the pinned action's diagnostic artifacts, which can
 include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
