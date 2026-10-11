@@ -107,7 +107,10 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "AccountAuthorityTests.testAuthorityLayoutsAndCheckpointRejectMalformedOutput",
              "AccountAuthorityTests.testAuthorityInputsOwnBytesAndRejectEmptyScope",
              "AccountAuthorityTests.testPendingAuthorityUsesSharedCapacityAndPreservesCancellation",
-             "AccountAuthorityTests.testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease"}
+             "AccountAuthorityTests.testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease",
+             "RootReplacementTests.testRootLayoutsKeepSizePrefixAndAllFourIndependentInputs",
+             "RootReplacementTests.testRootApprovalsRejectWrongGrammarAndBoundsWithoutClaimingAuthority",
+             "RootReplacementTests.testPendingRegistryCannotGrantRootOrCleanupAuthority"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests
@@ -336,6 +339,9 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             witnessed_setup = setup_witness_faults.qualify_all(outside, output, profile, runtime, binary,
                 setup_witness_faults.installed_helper(row["setup_witness_faults"]), fault_tools["sync_probe"], fault_tools["probe_smoke"],
                 language="Swift", expected_library=native_dir / LIBRARY)
+            from continuity_swift_root import qualify as qualify_root
+            root_lifecycle = qualify_root(outside, output, profile, runtime, binary,
+                row["root_lifecycle"], native_dir / LIBRARY, run)
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(consumer / name, maximum=MAX_PACKAGE).sha256 == expected,
                             "installed Swift package changed")
@@ -344,6 +350,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict) 
             result["profiles"][profile] = {"archive": filename, "archive_sha256": hashlib.sha256(data).hexdigest(),
                 "files": hashes, "binary": {"path": str(binary), "sha256": executable.sha256, "bytes": executable.size},
                 "native_library_sha256": library.sha256, "loader_paths": loader_paths,
+                "root_lifecycle": root_lifecycle,
                 "execution": checked, "public_files": public_files, "enrollment": enrollment,
                 "device_retirement": retirement, "first_configuration": configuration, "peer_configuration": peer_configuration,
                 "account_owner": {"execution": account_checked, "public_files": account_files},

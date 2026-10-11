@@ -772,5 +772,51 @@ renewal approvals and recovers the original session/message with the original
 registry selected in every reopened process. The receiver adopts the target before
 expiry. These are same-host Swift/C endpoints sharing the native engine. Managed
 credential renewal, SDK policy replacement, direct managed existing-owner constructors,
-and the complete account replacement controller still need separate integration
-and qualification.
+still need separate integration and qualification. Account-root replacement uses
+the controller flow below.
+
+
+## Account-root replacement
+
+The original `ContinuityAccountAuthority` becomes the root controller; no second
+registry or backup is created. Retain the original `RootReplacementScope`,
+`RootReplacementPlan` and enrollment intent outside replaceable state. The scope
+contains an independently retained application checkpoint and witness pin; an
+incoming receipt must not choose them or the successor.
+
+For an existing registration, finish opening the enrollment, then call
+`selectAccountAuthority(_:checkpoint:)` before `activate()`. Pass that active
+device to `beginRootReplacement(device:scope:plan:)`. The old device and its
+aliases lose operational authority. Obtain the signed freeze through the
+independent control plane, call `bindRootFreeze(receipt:)`, retain the returned
+proposal, then submit that exact proposal. `retainRootRetirement(receipt:)`
+records the independently authenticated commitment. Committed history alone is
+not traffic authority: open the original target enrollment and call
+`activateRootSuccessor(_:)`, which verifies current policy, credentials and
+witness state and transfers the same enrollment into a `ContinuityDevice`.
+
+After a process loss or unknown result, close failed owners, reopen the same
+registry, and use `resumeRootReplacement(path:intent:scope:plan:)`. A separately
+approved next target uses `RootReplacementTransition` and `transitionRoot(_:)`;
+subsequent processes use `resumeRootTransition`. An independently approved
+committed winner uses `RootReplacementAdoption`, `adoptRoot(_:)` and
+`resumeRootAdoption`. Both alternatives retain the exact original noncommit
+receipt and approved next plan/winner. Noncommit does not unfreeze the old root
+or authorize choosing another target.
+
+The controller exposes the original retired inventory, complete report,
+acknowledgement and erasure operations through `retiredInventory`,
+`prepareRetiredReport`, `loadRetiredReport`, `prepareRetiredAcknowledgement`,
+`eraseRetiredJournal`, `prepareRetiredSignerErasure` and `eraseRetiredSigner`.
+Persist the report and account by its original report ID before requesting the
+independent acknowledgement. These operations preserve the live successor;
+closing or finally releasing the controller revokes it. Logical erasure does
+not remove retained pages, backups or wrapping keys.
+
+The installed `ContinuityClient root:...` workload uses these public methods
+for original recovery, transitions from unbound and bound original plans, and
+adoption. All routes continue through retirement cleanup, application traffic,
+rekey and bidirectional original-message recovery after owned process loss.
+The shared native fixture's `ROOT_C_*` marker names describe its wire format;
+the client-language record and executable identity distinguish the Swift
+facade from the C consumer. The peers share the same native engine.

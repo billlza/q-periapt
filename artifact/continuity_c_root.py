@@ -146,7 +146,7 @@ def qualify(outside: Path, output: Path, consumer: Path, installed: Path, build:
         suffix = "" if variant == "original" else "-" + variant
         evidence = outside / ("c-" + profile + "-root-runtime" + suffix)
         selected = dict(runtime, QPC_ROOT_CLIENT=str(executable), QPC_ROOT_EVIDENCE=str(evidence),
-                        QPERIAPT_C_CLIENT=str(peer_executable), QPC_ROOT_VARIANT=variant)
+                        QPERIAPT_C_CLIENT=str(peer_executable), QPC_ROOT_VARIANT=variant, QPC_ROOT_CLIENT_LANGUAGE="C")
         # Each route owns fresh state; no recovery input comes from another run.
         selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
         stdout = run([str(helper), "--exact", TEST, "--nocapture"], "root-" + profile + suffix, runtime=selected)
@@ -159,4 +159,6 @@ def qualify(outside: Path, output: Path, consumer: Path, installed: Path, build:
     sdk.require(all(sdk.snapshot(path, maximum=MAX_BINARY).sha256 == digest for path, digest in identities.items()),
                 "root C binaries changed during qualification")
     result["binaries"] = {path.name: digest for path, digest in identities.items()}
+    result["driver"] = {"path": str(helper), "sha256": identities[helper]}
+    result["peer"] = {"path": str(peer_executable), "sha256": identities[peer_executable]}
     return result

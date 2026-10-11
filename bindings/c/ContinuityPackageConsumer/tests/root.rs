@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Installed C controller on its default pthread stack across owned SIGKILL cuts.
+//! Shared installed-controller driver across owned SIGKILL cuts.
+//! ROOT_C_* names identify the existing fixture wire format, not a client language.
 #[path = "root/alternatives.rs"]
 mod alternatives;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
@@ -111,7 +112,11 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
     fs::DirBuilder::new().mode(0o700).create(&path)?;
     let path = path.canonicalize()?;
     let variant = alternatives::Variant::selected()?;
-    let mut case = setup::Case::new(&path, variant.is_transition())?;
+    let mut case = setup::Case::new(
+        &path,
+        variant.is_transition(),
+        setup::ClientLanguage::selected()?,
+    )?;
     let witness_start = case
         .witness
         .captured

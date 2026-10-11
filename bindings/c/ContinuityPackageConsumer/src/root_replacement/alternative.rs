@@ -33,23 +33,26 @@ impl Evidence {
             receipt: unsafe { bytes(value.receipt, value.receipt_length, RECEIPT_BYTES) }?,
         })
     }
-    fn transition(&self, pin: &p::AnchorPin) -> Result<p::ManagedAccountRootTransition> {
-        Ok(p::ManagedAccountRootTransition::verify(
+    // Construct large verified public approvals in this short-lived frame.
+    // Deep recovery/signature verification retains only a Box, not another
+    // full approval on the foreign worker stack.
+    fn transition(&self, pin: &p::AnchorPin) -> Result<Box<p::ManagedAccountRootTransition>> {
+        Ok(Box::new(p::ManagedAccountRootTransition::verify(
             pin,
             &self.original,
             p::AnchorAccountReplacementPlan::from_trusted_state(&self.approved)?,
             &self.noncommit,
             &self.receipt,
-        )?)
+        )?))
     }
-    fn adoption(&self, pin: &p::AnchorPin) -> Result<p::ManagedAccountRootAdoption> {
-        Ok(p::ManagedAccountRootAdoption::verify(
+    fn adoption(&self, pin: &p::AnchorPin) -> Result<Box<p::ManagedAccountRootAdoption>> {
+        Ok(Box::new(p::ManagedAccountRootAdoption::verify(
             pin,
             &self.original,
             p::AnchorAccountReplacementProposal::from_trusted_state(&self.approved)?,
             &self.noncommit,
             &self.receipt,
-        )?)
+        )?))
     }
 }
 

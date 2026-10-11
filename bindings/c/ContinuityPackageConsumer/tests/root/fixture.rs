@@ -16,12 +16,32 @@ pub(super) struct Account {
     pub(super) roster: Vec<u8>,
     pub(super) genesis: p::AnchorGenesis,
 }
+pub(super) enum ClientLanguage {
+    C,
+    Swift,
+}
+impl ClientLanguage {
+    pub(super) fn selected() -> Result<Self> {
+        match std::env::var("QPC_ROOT_CLIENT_LANGUAGE").as_deref() {
+            Ok("C") | Err(std::env::VarError::NotPresent) => Ok(Self::C),
+            Ok("Swift") => Ok(Self::Swift),
+            _ => Err("unknown installed root client language".into()),
+        }
+    }
+    pub(super) fn name(&self) -> &'static str {
+        match self {
+            Self::C => "C",
+            Self::Swift => "Swift",
+        }
+    }
+}
 pub(super) enum Recovery {
     Original,
     Transition(Box<p::ManagedAccountRootTransition>),
     Adoption(Box<p::ManagedAccountRootAdoption>),
 }
 pub(super) struct Case {
+    language: ClientLanguage,
     pub(super) recovery: Recovery,
     pub(super) original_target: [u8; 32],
     pub(super) witness: witness::Witness,
@@ -38,7 +58,7 @@ pub(super) struct Case {
     pub(super) public: PathBuf,
 }
 impl Case {
-    pub(super) fn new(path: &Path, transition: bool) -> Result<Self> {
+    pub(super) fn new(path: &Path, transition: bool, language: ClientLanguage) -> Result<Self> {
         let witness = witness::Witness::start()?;
         let reference = fixture::setup_with_witness(Some(&witness.configured))?;
         let sdk = fixture::sdk(&reference.initiator)?;
@@ -133,7 +153,9 @@ impl Case {
         ] {
             fixture::store(&public, name, &wire)?;
         }
+        fixture::store(&public, "client-language", language.name().as_bytes())?;
         Ok(Self {
+            language,
             recovery: Recovery::Original,
             original_target: original_target_id,
             witness,
@@ -160,10 +182,14 @@ impl Case {
         )?)
     }
     pub(super) fn command_mode(&self, mode: &str) -> String {
-        match self.recovery {
+        let selected = match self.recovery {
             Recovery::Original => mode.to_owned(),
             Recovery::Transition(_) => format!("transition:{mode}"),
             Recovery::Adoption(_) => format!("adoption:{mode}"),
+        };
+        match self.language {
+            ClientLanguage::C => selected,
+            ClientLanguage::Swift => format!("root:{selected}"),
         }
     }
     pub(super) fn resume(&self) -> Result<p::ManagedAccountRootReplacement> {

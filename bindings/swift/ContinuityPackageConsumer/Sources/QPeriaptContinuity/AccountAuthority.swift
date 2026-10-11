@@ -70,7 +70,7 @@ func accountAuthorityCheckpoint(_ raw: inout qpc_authority_checkpoint_v1) throws
 /// Children do not retain it through ARC; close or final release revokes their
 /// native read access. Reopening does not revive an old child's admission.
 public final class ContinuityAccountAuthority: Sendable {
-    private let native: NativeOwner
+    let native: NativeOwner
     private init(_ native: NativeOwner) { self.native = native }
 
     public static func provisionWrappingKey(path: String) throws {

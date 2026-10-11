@@ -5,7 +5,7 @@ import QPeriaptContinuity
 
 // Public authority records belong to the test host. The native registration
 // remains the only writer of the protected key, request and installation state.
-private struct EnrollmentInputs {
+struct EnrollmentInputs {
     let records: FixtureRecords
     func read(_ name: String, maximum: Int) throws -> [UInt8] {
         let bytes = try records.read(name)

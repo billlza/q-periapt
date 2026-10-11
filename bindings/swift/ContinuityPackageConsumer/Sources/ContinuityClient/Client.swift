@@ -106,6 +106,10 @@ func waitMarker(_ path: String) throws {
     }
     static func run(_ arguments: [String]) async throws {
         try verifyLoadedLibrary()
+        if let first = arguments.first, first.hasPrefix("root:") {
+            try rootCommand([String(first.dropFirst(5))] + arguments.dropFirst())
+            return
+        }
         if arguments.first == "retired" {
             try retirementCommand(arguments)
             return

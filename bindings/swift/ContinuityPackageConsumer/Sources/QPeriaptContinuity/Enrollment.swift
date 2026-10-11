@@ -757,6 +757,18 @@ public final class ContinuityEnrollment: Sendable {
             return device
         }
     }
+    // The root controller remains independently owned; this moves only the
+    // original enrollment reference into the operational successor wrapper.
+    func activateRootSuccessor(registry: UInt64) throws -> ContinuityDevice {
+        try reference.transfer { native in
+            let device = ContinuityDevice.activated(native)
+            try native.call { handle in
+                var error = qpc_error_v1()
+                try checked(qpc_root_v1_activate_successor(registry, handle, &error), &error)
+            }
+            return device
+        }
+    }
     /// Transfer the original native enrollment and complete selected target
     /// runtime to the same owning device. Required mode needs completed ACK;
     /// historical recovery alone never authorizes activation.

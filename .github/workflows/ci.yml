@@ -2102,6 +2102,7 @@ jobs:
             target/continuity-installed-rust/c-managed-public/**
             target/continuity-installed-rust/peer-configuration-public/**
             target/continuity-installed-rust/c-retirement-public/**
+            target/continuity-installed-rust/c-root-public/**
             target/continuity-installed-rust/c-enrollment-witness-public/**
             target/continuity-installed-rust/c-witnessed-renewal-public/**
             target/continuity-installed-rust/c-witnessed-policy-expiry-public/**
@@ -2245,6 +2246,7 @@ jobs:
             target/continuity-installed-swift/c-managed-public/**
             target/continuity-installed-swift/peer-configuration-public/**
             target/continuity-installed-swift/c-retirement-public/**
+            target/continuity-installed-swift/c-root-public/**
             target/continuity-installed-swift/c-enrollment-witness-public/**
             target/continuity-installed-swift/c-witnessed-renewal-public/**
             target/continuity-installed-swift/c-witnessed-policy-expiry-public/**
@@ -2310,6 +2312,7 @@ jobs:
             target/continuity-installed-swift/kotlin-account-delivery-public/**
             target/continuity-installed-swift/kotlin-own-account-delivery-public/**
             target/continuity-installed-swift/swift-public/**
+            target/continuity-installed-swift/swift-root-public/**
             target/continuity-installed-swift/kotlin-public/**
             target/continuity-installed-swift/kotlin-inflight-compilation/**
             target/continuity-installed-swift/consumer-Cargo.lock
