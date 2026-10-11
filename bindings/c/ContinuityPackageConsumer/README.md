@@ -1538,8 +1538,12 @@ returning from its callback. The sender retains an uncertain committed message,
 then receives SIGKILL. A new root controller reopens the original session and
 retries the original message ID: the peer's effect remains single, and the sender
 obtains acknowledgement. Further processes complete a network rekey to epoch 1
-and deliver a second message. The complete scenario has 26 C processes, nine
-SIGKILL cuts and two application records. Public readback verifies the complete
+and deliver a second message. The peer then sends a reverse message at epoch 1.
+The root receiver is killed inside its callback after effect persistence; a new
+root process recovers that same reply and acknowledges it without a second effect.
+Both C receivers share the original `application_effect.h` persistence and
+deduplication implementation. The complete scenario has 31 C processes, ten
+SIGKILL cuts and three application records. Public readback verifies the complete
 four-subject witness history from genesis, including the earlier setup and
 cutover; an arbitrary intermediate head cannot substitute for that history.
 
@@ -1550,8 +1554,9 @@ values only at the consuming native call. It preserves the validation and owner
 failure contracts. The regression uses the same failed durable state as well as
 fresh complete C process scenarios, with unchanged default thread settings.
 
-Compiled-C transition/adoption process variants, reverse application traffic after
-cutover, Swift/Kotlin controller integration, other hosts and physical devices
-remain separate gates. The SIGKILL cuts here follow public call returns; native
+Compiled-C transition/adoption process variants, Swift/Kotlin controller
+integration, other hosts and physical devices
+remain separate gates. Nine SIGKILL cuts follow public call returns, and the
+reverse receiver cut is inside the host callback after effect persistence; native
 in-commit storage cuts retain their separate qualification. This interface remains
 unpublished `qpc-owner/1`, outside product ABI 2.

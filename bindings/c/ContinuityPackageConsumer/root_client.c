@@ -5,6 +5,7 @@
 #endif
 #include "root_client.h"
 #include "root_cleanup_client.c"
+#include "root_receive_client.c"
 #include "root_traffic_client.c"
 
 static int execute(int argc,char **argv) {

@@ -47,6 +47,8 @@ static void root_traffic(uint64_t device,const char *public,const char *mode,
         require(qpc_owner_v1_establish(peer,(const uint8_t *)address,strlen(address),request,session,&exchanges,&error),&error);
         if(!exchanges || exchanges>8) fail("root bootstrap exchange bound");
         save(path,"session",session,32);
+    } else if(!strcmp(mode,"traffic-receive-cut") || !strcmp(mode,"traffic-receive-recover")) {
+        root_receive(peer,path,mode,session);
     } else if(!strcmp(mode,"traffic-rekey")) {
         uint64_t epoch=0;
         require(qpc_owner_v1_rekey(peer,(const uint8_t *)address,strlen(address),session,1,&epoch,&error),&error);
@@ -65,7 +67,7 @@ static void root_traffic(uint64_t device,const char *public,const char *mode,
                 fail("root traffic original epoch or sequence");
             save(path,after ? "message-after" : "message-before",message,32);
         }
-        const uint8_t payload[]="persisted before process exit",ad[]="owned-service";
+        const uint8_t ad[]="owned-service";
         uint8_t consumption=99;uint16_t exchanges=99;
         code=qpc_owner_v1_send(peer,(const uint8_t *)address,strlen(address),session,message,
                               payload,sizeof payload-1,ad,sizeof ad-1,&consumption,&exchanges,&error);

@@ -5,6 +5,7 @@ import re
 import rust_sdk_profile as sdk
 from continuity_c_witness import RECORD_BYTES, commit, export_selected, transcript
 import continuity_c_root_traffic as traffic
+from continuity_c_root_reverse import MARKER as REVERSE_MARKER
 
 TEST = "installed_c_root_controller_recovers_original_state_and_erasure_after_process_loss"
 STAGES = ("begin", "preparing", "freeze", "freeze-retry", "retain", "retain-retry",
@@ -15,9 +16,10 @@ MARKER = (b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_r
           b"original_revision=2 report_preserved=true cleanup_keeps_successor=true "
           b"close_revokes_successor=true application_traffic=true\n")
 SCOPE = ("same-host installed compiled C root controller on default pthread attributes, "
-         "26 child processes and nine SIGKILL cuts after public calls; real signed-TCP witness "
+         "31 child processes, nine SIGKILL cuts after public calls and one inside a persisted host callback; real signed-TCP witness "
          "query loss; independent C peer-root association; post-cutover mutual TLS, original-message "
-         "recovery after peer effect persistence and sender loss, then rekey and another application message; "
+         "recovery after peer effect persistence and sender loss, then rekey, another outbound message "
+         "and reverse-message recovery after root receiver loss; "
          "three same-engine native readbacks. Not in-commit storage fault injection, transition/adoption "
          "process variants, independent implementation, cross-host/device or full release qualification.")
 
@@ -92,11 +94,12 @@ def verify_execution(stdout: bytes, directory: Path, *, darwin: bool) -> dict:
         headers = {"approved-plan": b"QPAFPL01", "bound-proposal": b"QPARPL02", "host-report": b"QPRDMD01"}
         sdk.require(name not in headers or wire.startswith(headers[name]), "root public proof grammar differs")
     sdk.require(traffic.MARKER.decode().rstrip("\n") in text.splitlines(), "root traffic workload marker absent")
+    sdk.require(REVERSE_MARKER.decode().rstrip("\n") in text.splitlines(), "reverse root workload marker absent")
     traffic_result = traffic.verify(directory, read, authority=authority, original=old, target=target,
                                    history=setup + read("public/witness-transcript", RECORD_BYTES * 4096),
                                    previous_pids=pids, darwin=darwin)
     return {"completed": True, "scope": SCOPE, "release_claim_eligible": False,
-            "processes": len(pids) + 12, "sigkill_cuts": len(CUTS) + 1, "native_readbacks": 3,
+            "processes": len(pids) + 17, "sigkill_cuts": len(CUTS) + 2, "native_readbacks": 3,
             "application_traffic": traffic_result, "witness": observed, "default_thread_stacks": stacks,
             "public_readbacks": public, "command_logs": logs}
 

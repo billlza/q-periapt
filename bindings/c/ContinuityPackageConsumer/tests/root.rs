@@ -305,9 +305,9 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
         &u64::try_from(witness_start)?.to_be_bytes(),
     )?;
 
-    assert_eq!(processes.len(), 26);
+    assert_eq!(processes.len(), 31);
     let unique = processes.iter().collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(unique.len(), 26);
+    assert_eq!(unique.len(), 31);
     let result=b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=true\n";
     fixture::store(&case.public, "result", result)?;
     print!("{}", std::str::from_utf8(result)?);

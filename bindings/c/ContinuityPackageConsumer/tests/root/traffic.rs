@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Real post-cutover C traffic, an unknown delivery, process loss and rekey.
 use super::*;
+#[path = "traffic/inbound.rs"]
+mod inbound;
 #[path = "traffic/setup.rs"]
 mod inputs;
 
@@ -255,6 +257,9 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
             .count(),
         2
     );
+    ids.extend(inbound::exercise(
+        client, case, &left, &right, &public, &logs,
+    )?);
     let marker = b"ROOT_C_TRAFFIC sender_processes=7 peer_processes=5 sender_sigkill=1 peer_exit_after_effect=77 unknown_peer_refused=201 independent_peer_association=1 original_message_recovered=true application_records=2 rekey_epoch=1\n";
     fixture::store(&public, "result", marker)?;
     print!("{}", std::str::from_utf8(marker)?);

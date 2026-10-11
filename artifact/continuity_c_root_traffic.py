@@ -4,6 +4,7 @@ import re
 
 import rust_sdk_profile as sdk
 from continuity_c_witness import RECORD_BYTES, transcript
+import continuity_c_root_reverse as reverse
 
 STAGES = ("connect", "send-cut", "recover", "rekey", "after-rekey")
 SENDERS = ("reject-peer", "authorize-peer", *STAGES)
@@ -81,6 +82,8 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
             message = bytes(32) if stage == "connect" else before if stage == "recover" else after
             wanted = f"served:{kind}:0:{calls}:{created}\n{session.hex()}\n{message.hex()}\n".encode()
         sdk.require(data[ready.end():] == wanted, "root traffic peer consumption or deduplication differs")
+    reverse_result = reverse.verify(read, pid, log, session=session, outbound=after,
+                                    payload=PAYLOAD, darwin=darwin)
     sdk.require({p.name for p in (directory / "traffic").glob("*.std*")} == logs,
                 "root traffic process log census differs")
     traffic_history = public("witness-transcript", RECORD_BYTES * 4096)
@@ -88,11 +91,14 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
     # retained record from genesis rather than accepting an arbitrary start head.
     observed = transcript(history + traffic_history, authority,
                           expected_lost_advances=0, expected_lost_queries=1, expected_subjects=4,
-                          authority_observations=[(original, 5)] + [(target, 5)] * 13)
-    sdk.require(observed["logical_advances"] == 55, "root traffic durable transition census differs")
+                          authority_observations=[(original, 5)] + [(target, 5)] * 15)
+    # The reverse message adds sender reserve/commit/ACK and receiver commit/
+    # consumption. Replaying either original operation must not add another one.
+    sdk.require(observed["logical_advances"] == 60, "root traffic durable transition census differs")
     return {"completed": True, "sender_processes": 7, "peer_processes": 5,
             "sender_sigkill": 1, "peer_exit_after_effect": 77, "application_records": 2,
             "session": session.hex(), "original_message": before.hex(), "after_rekey_message": after.hex(),
             "rekey_epoch": 1, "independent_peer_association": True, "default_thread_stacks": stacks,
+            "reverse": reverse_result,
             "traffic_witness_exchanges": len(traffic_history) // RECORD_BYTES,
             "full_history_witness": observed, "release_claim_eligible": False}
