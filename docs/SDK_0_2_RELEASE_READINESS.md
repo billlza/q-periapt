@@ -197,6 +197,18 @@ not required. See [the explicit device scope](SDK_ANDROID_RUNTIME.md). The
 emulator investigation remains sealed; retained emulator failures are not a
 verdict on the physical phone.
 
+The unpublished Android Continuity adapter now has
+[source-bound actual-AAR/ART results](../research/sdk-alpha1/evidence/20261011-android-continuity/CHECKS.json)
+on that same phone. Fixed-root and recoverable-root profiles each complete twelve
+separate processes: original registration and rejection/reopen, TLS bootstrap,
+lost-ACK retry after the native receiver's business write and exit, rekey,
+reverse callback commit uncertainty, child/parent cancellation and concurrent
+close. The installed R8 APK hashes and native library bytes are checked, and the
+test installations and port mappings are retired. This is accepted physical
+evidence for those implemented behaviors. Android account-wide lifecycle,
+required-witness networking and final candidate package admission remain work
+on the software contract, not a requirement for another physical device.
+
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. The selected API 37 phone passes both SDK consumers at 24ecaf46, including cleanup and export; this completes the agreed Android physical gate. JVM Java-source owner construction is closed |

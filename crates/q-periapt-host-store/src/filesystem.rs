@@ -188,10 +188,16 @@ impl redb::StorageBackend for BoundedBackend {
         self.0.set_len(len)
     }
     fn sync_data(&self) -> std::io::Result<()> {
-        #[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+        #[cfg(all(
+            test,
+            any(target_os = "macos", target_os = "linux", target_os = "android")
+        ))]
         publication::database_tests::at_database_sync(false)?;
         self.0.sync_data()?;
-        #[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+        #[cfg(all(
+            test,
+            any(target_os = "macos", target_os = "linux", target_os = "android")
+        ))]
         publication::database_tests::at_database_sync(true)?;
         Ok(())
     }
@@ -266,11 +272,11 @@ pub fn provision_private_database<E>(
 where
     E: From<PrivateDatabaseError>,
 {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
     {
         publication::provision_database(path, initialize)
     }
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
     {
         let _ = (path, initialize);
         Err(E::from(PrivateDatabaseError::File))
@@ -743,18 +749,36 @@ fn open_directory(path: &Path) -> Result<std::os::fd::OwnedFd, PrivateFileError>
 
     use rustix::fs::{open, openat, Mode, OFlags};
 
-    let mut components = path.components();
+    let mut components = path.components().peekable();
     if components.next() != Some(Component::RootDir) {
         return Err(PrivateFileError);
     }
     let directory_flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
-    let mut directory = open("/", directory_flags, Mode::empty()).map_err(|_| PrivateFileError)?;
-    for component in components {
+    // Android permits searching app-data ancestors but denies listing them.
+    // O_PATH pins each intermediate directory without requesting read access;
+    // NOFOLLOW | DIRECTORY still refuses symlinks. The final descriptor remains
+    // readable so its owner-only admission and directory fsync are unchanged.
+    #[cfg(target_os = "android")]
+    let traversal_flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
+    #[cfg(not(target_os = "android"))]
+    let traversal_flags = directory_flags;
+    let initial_flags = if components.peek().is_some() {
+        traversal_flags
+    } else {
+        directory_flags
+    };
+    let mut directory = open("/", initial_flags, Mode::empty()).map_err(|_| PrivateFileError)?;
+    while let Some(component) = components.next() {
         let Component::Normal(component) = component else {
             return Err(PrivateFileError);
         };
-        directory = openat(&directory, component, directory_flags, Mode::empty())
-            .map_err(|_| PrivateFileError)?;
+        let flags = if components.peek().is_some() {
+            traversal_flags
+        } else {
+            directory_flags
+        };
+        directory =
+            openat(&directory, component, flags, Mode::empty()).map_err(|_| PrivateFileError)?;
     }
     Ok(directory)
 }
@@ -811,14 +835,17 @@ fn require_no_extended_acl(descriptor: &std::os::fd::OwnedFd) -> Result<(), Priv
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn require_no_extended_acl(_: &std::os::fd::OwnedFd) -> Result<(), PrivateFileError> {
-    // Linux POSIX access-ACL grants are reflected through the group-class mask
+    // Linux and Android POSIX access-ACL grants are reflected through the group-class mask
     // bits, which the exact mode checks reject.
     Ok(())
 }
 
-#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+#[cfg(all(
+    unix,
+    not(any(target_os = "linux", target_os = "macos", target_os = "android"))
+))]
 fn require_no_extended_acl(_: &std::os::fd::OwnedFd) -> Result<(), PrivateFileError> {
     // Other Unix ACL models have not been reviewed for an exact correspondence
     // with mode bits, so this reference boundary fails closed.

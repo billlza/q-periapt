@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Independent foreign executables consume signed inputs, never a copied store/identity.
 use q_periapt_continuity_identity_candidate as p;
-use q_periapt_host_store::{filesystem::publish_private_bytes, PolicyRecoveryTrust};
-use q_periapt_sig::Signer;
+use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{
     fs,
     os::unix::fs::{DirBuilderExt, PermissionsExt},
@@ -11,6 +10,9 @@ use std::{
     time::{Duration, Instant},
 };
 use zeroize::Zeroizing;
+#[path = "common/recovery_inputs.rs"]
+mod recovery_inputs;
+use recovery_inputs::install_recovery;
 #[path = "common/first_account.rs"]
 mod first_account;
 #[path = "common/first_connection.rs"]
@@ -233,26 +235,6 @@ fn export_public(
         "{{\"schema_version\":1,\"language\":\"{language}\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n"
     );
     publish_private_bytes(&target.join("manifest.json"), metadata.as_bytes())?;
-    Ok(())
-}
-
-fn install_recovery(source: &Path) -> Result<()> {
-    let (key, public) = q_periapt_backends::MlDsa65::generate([101; 32]);
-    let key = Zeroizing::new(key);
-    let scope = [102; 32];
-    let trust = PolicyRecoveryTrust::new(scope, &fs::read(source.join("sdk-root"))?, &public)?;
-    let mut proof = vec![0; 3309];
-    q_periapt_backends::MlDsa65
-        .sign(
-            key.as_ref(),
-            &trust.enrollment_message(),
-            &[103; 32],
-            &mut proof,
-        )
-        .map_err(|e| format!("test recovery proof: {e:?}"))?;
-    publish_private_bytes(&source.join("recovery-scope"), &scope)?;
-    publish_private_bytes(&source.join("recovery-root"), &public)?;
-    publish_private_bytes(&source.join("recovery-enrollment"), &proof)?;
     Ok(())
 }
 

@@ -9,7 +9,7 @@ pub struct PrivatePublicationError {
     staging_name: Option<std::ffi::OsString>,
 }
 impl PrivatePublicationError {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
     pub(super) fn staged(operation: io::Error, name: std::ffi::OsString) -> Self {
         Self {
             operation,
@@ -74,11 +74,11 @@ impl From<io::Error> for PrivatePublicationError {
 /// checks are not isolation from malicious same-UID processes. They make no claim
 /// about cryptographic erasure of filesystem pages or backups.
 pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePublicationError> {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
     {
         publish_with(path, bytes, |_, _, _, _| Ok(()))
     }
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
     {
         let _ = (path, bytes);
         Err(io::Error::new(
@@ -89,15 +89,15 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 use super::{
     open_locked_database, open_private_parent, validate_private_directory, validate_regular_file,
     DatabaseOpenMode, OwnedPrivateDirectory, PrivateDatabaseError,
 };
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 use std::{ffi::OsStr, fs::File, io::Write, os::fd::OwnedFd};
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Step {
     Created,
@@ -110,7 +110,7 @@ enum Step {
     DirectorySynced,
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 fn admission() -> io::Error {
     io::Error::new(
         io::ErrorKind::PermissionDenied,
@@ -118,7 +118,7 @@ fn admission() -> io::Error {
     )
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 fn same_leaf(parent: &OwnedPrivateDirectory, leaf: &OsStr, original: &OwnedFd) -> io::Result<()> {
     use rustix::fs::{fstat, openat, Mode, OFlags};
     validate_private_directory(&parent.descriptor).map_err(|_| admission())?;
@@ -144,14 +144,14 @@ fn same_leaf(parent: &OwnedPrivateDirectory, leaf: &OsStr, original: &OwnedFd) -
 
 /// Internal publication capability. The descriptor is a plain probe only: never
 /// wrap a duplicate in a second lock-managing backend or explicitly unlock it.
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 pub(super) struct StagedFile {
     parent: OwnedPrivateDirectory,
     destination: std::ffi::OsString,
     name: std::ffi::OsString,
     descriptor: OwnedFd,
 }
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 impl StagedFile {
     pub(super) fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
         use rustix::fs::{openat, statat, AtFlags, Mode, OFlags};
@@ -236,7 +236,7 @@ impl StagedFile {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 fn publish_with(
     path: &Path,
     bytes: &[u8],
@@ -257,7 +257,7 @@ fn publish_with(
     staged.publish_with(&file, &mut hook)
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 pub(super) fn provision_database<E>(
     path: &Path,
     initialize: impl FnOnce(&redb::Database) -> Result<(), E>,
@@ -268,7 +268,7 @@ where
     provision_database_with(path, initialize, StagedFile::publish)
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
 fn provision_database_with<E>(
     path: &Path,
     initialize: impl FnOnce(&redb::Database) -> Result<(), E>,
@@ -294,8 +294,14 @@ where
     Ok(database)
 }
 
-#[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+#[cfg(all(
+    test,
+    any(target_os = "macos", target_os = "linux", target_os = "android")
+))]
 mod tests;
 
-#[cfg(all(test, any(target_os = "macos", target_os = "linux")))]
+#[cfg(all(
+    test,
+    any(target_os = "macos", target_os = "linux", target_os = "android")
+))]
 pub(super) mod database_tests;

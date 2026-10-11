@@ -40,6 +40,9 @@ def source_inputs() -> dict:
         FIXTURE, ".github/workflows/ci.yml", "artifact/continuity_package.py", "artifact/continuity_roster_renewal.py", "artifact/continuity_enrollment.py", "artifact/continuity_c_consumer.py", "artifact/continuity_c_authority.py", "artifact/continuity_c_root_contract.py", "artifact/continuity_c_root.py", "artifact/continuity_c_root_alternatives.py", "artifact/continuity_c_root_traffic.py", "artifact/continuity_c_root_reverse.py", "artifact/continuity_swift_root.py", "artifact/continuity_kotlin_root.py", "artifact/continuity_swift_root_msrv.py", "artifact/continuity_c_managed.py", "artifact/continuity_first_account.py", "artifact/continuity_c_recovery.py", "artifact/continuity_c_opening.py", "artifact/continuity_c_device.py", "artifact/continuity_c_account.py", "artifact/continuity_c_account_cleanup.py", "artifact/continuity_c_account_witness.py", "artifact/continuity_c_faults.py", "artifact/continuity_c_witness.py", "artifact/rust_sdk_msrv.py",
         "artifact/continuity_c_account_tls.py", "artifact/continuity_c_account_tls_loss.py", "artifact/continuity_c_account_delivery.py", "artifact/continuity_c_setup.py", "artifact/continuity_c_enrollment.py", "artifact/continuity_c_independent_policy.py", "artifact/continuity_witnessed_renewal.py", "artifact/continuity_witnessed_policy_expiry.py", "artifact/continuity_witnessed_cancellation.py", "artifact/continuity_witnessed_commit_error.py", "artifact/continuity_setup_faults.py", "artifact/continuity_setup_io.py", "artifact/continuity_setup_witness_faults.py",
         "artifact/continuity_c_witness_tls.py", "artifact/continuity_c_witness_openssl.py", "artifact/continuity_swift_consumer.py", "artifact/continuity_kotlin_consumer.py", "artifact/continuity_package_archive.py", "artifact/jvm_sdk_package.py", "artifact/third_party_licenses.py", "LICENSES/Rust-1.98.1-library.html", "artifact/python-run.sh", "artifact/python-env.sh", "artifact/python_bootstrap.py"))]
+    files.append(ROOT / "artifact/continuity_android_jni.py")
+    from continuity_android_jni import source_files as android_source_files
+    files.extend(ROOT / "bindings/android/ContinuityPackageConsumer" / name for name in android_source_files())
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
     files.extend((ROOT / "bindings/swift/ContinuityPackageConsumer").rglob("*"))
     from continuity_kotlin_consumer import source_files
@@ -236,6 +239,11 @@ def qualify(args: argparse.Namespace) -> dict:
                 "Kotlin qualification requires installed C packages and explicit JDK/Gradle installations")
     sdk.require(args.with_kotlin_consumer or (args.kotlin_java_home is None and args.kotlin_gradle_home is None),
                 "Kotlin tool options require --with-kotlin-consumer")
+    sdk.require(args.with_android_jni_consumer == (args.android_java_home is not None),
+                "Android JNI qualification and --android-java-home must be selected together")
+    sdk.require(not args.with_android_jni_consumer or (args.with_c_consumer and
+                (os.uname().sysname, os.uname().machine) == ("Darwin", "arm64")),
+                "Android JNI host qualification requires installed C packages on macOS arm64")
     sdk.require(args.witness_openssl_prefix is None or args.with_c_consumer,
                 "OpenSSL witness qualification requires the installed C consumer")
     sdk.validate_no_registry_credentials(os.environ)
@@ -395,6 +403,10 @@ def qualify(args: argparse.Namespace) -> dict:
             result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment, args.swift_minimum_toolchain_root)
             result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
                                "and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification")
+        if args.with_android_jni_consumer:
+            from continuity_android_jni import qualify_android_jni
+            result["android_jni_consumer"] = qualify_android_jni(outside, output, result["c_consumer"],
+                                                               environment, args.android_java_home)
         if args.with_kotlin_consumer:
             from continuity_kotlin_consumer import qualify_kotlin
             result["kotlin_consumer"] = qualify_kotlin(outside, output, result["c_consumer"], environment,
@@ -406,6 +418,8 @@ def qualify(args: argparse.Namespace) -> dict:
                                "Kotlin controller interruption uses explicit native cancel/join; "
                                "calibrated journal sync process interruptions and bounded prepared/in-flight owner GC under selected C2 frames; "
                                "other JVM implementations and automatic JVM cancellation qualification remain separate")
+        if args.with_android_jni_consumer:
+            result["scope"] += "; Android adapter packaged Java/JNI host lifecycle and cancellation; physical ART/AAR acceptance recorded separately"
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -440,11 +454,14 @@ def main() -> None:
                         help="also package and execute Kotlin/JVM local/witnessed owners and constructor lifecycle with both installed C profiles")
     parser.add_argument("--kotlin-java-home", type=Path, help="explicit JDK 25 installation for the Kotlin consumer")
     parser.add_argument("--kotlin-gradle-home", type=Path, help="explicit Gradle 9.8.0 installation for the Kotlin consumer")
+    parser.add_argument("--with-android-jni-consumer", action="store_true",
+                        help="also execute Android adapter packaged Java/JNI lifecycle against both C library profiles on macOS arm64")
+    parser.add_argument("--android-java-home", type=Path, help="explicit JDK 25 installation for Android JNI host qualification")
     parser.add_argument("--witness-openssl-prefix", type=Path,
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
-                                                  "c_consumer", "swift_consumer", "kotlin_consumer", "release_claim_eligible") if key in result}, indent=2))
+                                                  "c_consumer", "swift_consumer", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,17 @@ The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
 
 ## What the installed consumers currently establish
 
+The unpublished [Android JNI adapter](../../bindings/android/ContinuityPackageConsumer/README.md)
+now covers first-use configuration, independently pinned registration, explicit
+peers, bidirectional transport, original-ID retry, rekey and cancellation. Its
+actual AAR is consumed by a minified release app on the selected API 37 phone;
+[two trust profiles and 24 ART processes](../../research/sdk-alpha1/evidence/20261011-android-continuity/CHECKS.json)
+pass the implemented lifecycle. One phone satisfies the agreed device scope.
+Android account-wide lifecycle and required-witness network routes still require
+their own implementation and functional checks. The CI host JNI lane exercises
+packaged Java classes against Debug/Release C libraries; it is distinct from
+the accepted physical ART run.
+
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
 [Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), and
