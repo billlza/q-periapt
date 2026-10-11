@@ -2148,8 +2148,10 @@ jobs:
     runs-on: macos-15
     # At 252eb954 Swift/Kotlin took 141m/231m. Budget the added native and
     # foreign first-use expiry matrices, including both Kotlin GC variants.
+    # Kotlin's added credential matrix alone takes 21m locally across the
+    # two profiles and two collectors; preserve margin for the full cohort.
     # Keep every prerequisite, both profiles and the 15m command bound.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 300 || 210 }}
+    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 330 || 210 }}
     strategy:
       fail-fast: false
       matrix:

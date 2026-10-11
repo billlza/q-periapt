@@ -223,7 +223,7 @@ fun main(arguments: Array<String>) {
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
+        "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile") || mode in credentialModes) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
     if (mode == "policy-target-create") {
@@ -234,7 +234,7 @@ fun main(arguments: Array<String>) {
         "reconcile", "reconcile-refused" -> prepareInitial(source, target, recoverable, true)
         else -> ContinuityConfiguration.prepareOpen(target, trust(source, recoverable), policy(source))
     }
-    check(mode != "activate-unmanaged" || registryPath == null) { "unmanaged probe selected a registry" }
+    check(mode !in setOf("activate-unmanaged", "credential-commit-unmanaged", "credential-activation-unmanaged") || registryPath == null) { "unmanaged probe selected a registry" }
     check(mode !in setOf("activate-closed-registry", "activate-released-registry") || registryPath != null) { "registry lifecycle probe requires registry" }
     var registry: ContinuityAccountAuthority? = null
     var registration: ContinuityEnrollment? = null
@@ -268,9 +268,18 @@ fun main(arguments: Array<String>) {
                         registry = selectRegistry(registryPath, source, owner, mode == "prepare")
                     }
                     configuration.close()
-                    var bytes = owner.request().encoded()
+                    val credential = mode in credentialModes || mode == "retry-credential"
+                    var bytes = if (credential) credentialIdentity(owner) else owner.request().encoded()
                     marker = "QPC_CONFIGURATION_REQUEST_PASS"
                     when (mode) {
+                        in credentialModes -> {
+                            if (mode == "credential-commit-closed") {
+                                checkNotNull(registry) { "credential commit requires original registry" }.close()
+                                registry = null
+                            }
+                            bytes = credentialOperation(owner, source, mode)
+                            marker = "QPC_CONFIGURATION_CREDENTIAL_OPERATION"
+                        }
                         "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile" -> {
                             bytes=policyOperation(owner,source,target,recoverable,carrier,mode); marker="QPC_CONFIGURATION_POLICY_OPERATION"
                         }
@@ -321,7 +330,7 @@ fun main(arguments: Array<String>) {
                             expect(if (mode == "activate-missing") 216 else 218) { owner.activate().use { it.cancel() } }
                             marker = if (mode == "activate-missing") "QPC_CONFIGURATION_WITNESS_REQUIRED" else "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
                         }
-                        "connect", "uncertain-send", "retry-send", "retry-policy" -> {
+                        "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential" -> {
                             if(mode=="retry-policy") selectPolicyTarget(owner,source,target,recoverable)
                             val active = if(mode=="retry-policy") owner.activatePolicyRenewal() else owner.activate(); device = active; owner.close()
                             bytes = traffic(active, source, mode)

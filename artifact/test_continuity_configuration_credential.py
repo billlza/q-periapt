@@ -10,6 +10,7 @@ import continuity_first_account as account
 FIXTURE = Path(__file__).resolve().parent / "fixtures/first-credential-public-v1.zip"
 FIXTURE_SHA256 = "b4ff5b8aa153e50278579077556c818c977e0b5c83ab4a6618907d982ce0157d"
 SWIFT_FIXTURE_SHA256 = "fdfdb01b481793add0e1fe6689cf0fe04674b4c6307a11d4049599a4a9e70af4"
+KOTLIN_FIXTURE_SHA256 = "d98ec197daa12252f0fd73ab71aeb0c7dc7ca23432ea61ef04f1e6b62fdace36"
 
 
 def fixture(root, language="C"):
@@ -18,6 +19,9 @@ def fixture(root, language="C"):
     elif language == "Swift":
         source = FIXTURE.with_name("first-credential-swift-public-v1.zip")
         expected = SWIFT_FIXTURE_SHA256
+    elif language == "Kotlin":
+        source = FIXTURE.with_name("first-credential-kotlin-public-v1.zip")
+        expected = KOTLIN_FIXTURE_SHA256
     else:
         raise ValueError("no actual credential fixture for this language")
     if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
@@ -94,7 +98,7 @@ class FirstCredentialTests(unittest.TestCase):
             root = Path(directory); output = fixture(root)
             with self.assertRaisesRegex(ValueError, "matrix differs"):
                 account.verify_execution(output, root, language="Swift", credential=True)
-            with self.assertRaisesRegex(ValueError, "not qualified"):
+            with self.assertRaisesRegex(ValueError, "matrix differs"):
                 account.verify_execution(output, root, language="Kotlin", credential=True)
 
     def test_actual_swift_matrix_preserves_identity_and_registry_lifetime(self):
@@ -110,3 +114,23 @@ class FirstCredentialTests(unittest.TestCase):
                 self.assertEqual(observation["historical_new_commits"], 0)
             with self.assertRaisesRegex(ValueError, "matrix differs"):
                 account.verify_execution(output, root, language="C", credential=True)
+
+    def test_actual_kotlin_matrix_requires_observed_registry_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); output = fixture(root, "Kotlin")
+            result = account.verify_execution(output, root, language="Kotlin", credential=True)
+            self.assertEqual(len(result["scenarios"]), 4)
+            self.assertEqual(result["registry_lifetime_probes"], ["registry-closed", "registry-released"])
+            self.assertEqual(len(result["gc_observations"]), 4)
+            self.assertFalse(result["release_claim_eligible"])
+            for observation in result["expiry_observations"].values():
+                self.assertEqual(observation["new_commits"], 1)
+                self.assertEqual(observation["historical_new_commits"], 0)
+            for observation in result["gc_observations"].values():
+                self.assertEqual(observation["available_slots"], 63)
+            path = root / "signed-fixed/registry-gc.bin"
+            original = path.read_bytes()
+            for invalid in (bytes(16), original[:12] + (62).to_bytes(4, "big")):
+                path.write_bytes(invalid)
+                with self.assertRaisesRegex(ValueError, "registry collection"):
+                    account.verify_execution(output, root, language="Kotlin", credential=True)

@@ -32,7 +32,7 @@ def marker(language: str, carrier: str, profile: str, *, credential: bool = Fals
 
 
 def verify_execution(stdout: bytes, evidence: Path, *, language: str, credential: bool = False) -> dict:
-    sdk.require(not credential or language in {"C", "Swift"}, "managed credential adapter is not qualified for this language")
+    sdk.require(not credential or language in {"C", "Swift", "Kotlin"}, "managed credential adapter is not qualified for this language")
     test = credentials.TEST if credential else TEST
     renewal = credentials if credential else policy
     text = stdout.decode()
