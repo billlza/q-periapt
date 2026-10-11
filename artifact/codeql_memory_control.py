@@ -22,7 +22,7 @@ import urllib.request
 import zipfile
 
 from bounded_process import BoundedProcessError, capture_output, write_stdout_at
-from evidence_io import fresh_output_directory
+from evidence_io import fresh_output_directory, parse_strict_json_bytes
 
 
 ARTIFACT_ID = 11699924502
@@ -85,13 +85,13 @@ def inspect_database(path: Path) -> list[str]:
         require("\nfinalised: true\n" in metadata and f"  sha: {MERGE_SHA}\n" in metadata
                 and "  cliVersion: 2.27.1\n" in metadata
                 and "primaryLanguage: rust\n" in metadata, "database metadata differs")
-        require(json.loads(archive.read("temp/analysisConfig.json"))
+        require(parse_strict_json_bytes(archive.read("temp/analysisConfig.json"), label="frozen analysis config")
                 == {"extensionPacks": [], "threatModels": ["local"]},
                 "database threat model or extensions differ")
         suite = archive.read("temp/config-queries.qls")
         require(hashlib.sha256(suite).hexdigest() == SUITE_SHA, "query suite differs")
         queries = re.findall(r"^\s+query: (.+\.ql)$", suite.decode(), re.MULTILINE)
-        expected = json.loads(QUERY_MANIFEST.read_text())["query_hashes"]
+        expected = parse_strict_json_bytes(QUERY_MANIFEST.read_bytes(), label="frozen query manifest")["query_hashes"]
         require(len(queries) == len(set(queries)) == len(expected) == 39
                 and {q.removeprefix(QUERY_PREFIX) for q in queries} == set(expected),
                 "query census differs")
@@ -168,7 +168,7 @@ def admit_tool(codeql: Path, queries: list[str], evidence: Path,
     require(version.strip() == b"2.27.1", "CodeQL version differs")
     small_command([str(codeql), "execute", "queries", "--help"], evidence / "execute-help", env)
     selected = [codeql.parent / q.removeprefix(QUERY_PREFIX) for q in queries]
-    manifest = json.loads(QUERY_MANIFEST.read_text())
+    manifest = parse_strict_json_bytes(QUERY_MANIFEST.read_bytes(), label="frozen query manifest")
     observed = {"query_hashes": {}, "compiled_query_hashes": {}}
     for q, path in zip(queries, selected):
         key = q.removeprefix(QUERY_PREFIX)
@@ -219,7 +219,7 @@ def decode_results(codeql: Path, queries: list[str], root: Path, env: dict[str, 
         require(bqrs.is_file(), f"required fresh query result missing: {relative}")
         decoded = small_command([str(codeql), "bqrs", "decode", "--format=json", str(bqrs)],
                                 root / "evidence" / (Path(relative).stem + "-decoded"), env)
-        data = json.loads(decoded)
+        data = parse_strict_json_bytes(decoded, label="decoded CodeQL result")
         for table in data.values():
             require(isinstance(table, dict) and isinstance(table.get("tuples"), list),
                     "result table shape differs")
@@ -260,7 +260,7 @@ def evaluate(codeql: Path, output: Path, profile: str) -> None:
         # Capture the pinned CLI's own RAM heuristic as well as its help text.
         ram = small_command([str(codeql), "resolve", "ram", "--ram=14575", "--format=json",
                              f"--dataset={database / 'db-rust'}"], evidence / "resolve-ram", env)
-        report["resolved_ram"] = json.loads(ram)
+        report["resolved_ram"] = parse_strict_json_bytes(ram, label="CodeQL RAM allocation")
         require(any(value.startswith("--off-heap-ram=") for value in report["resolved_ram"]),
                 "pinned CLI does not expose the expected native memory control")
         (root / "frozen.qls").write_text("\n".join("- query: " + json.dumps(str(p)) for p in selected) + "\n")

@@ -28,8 +28,8 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Check archive admission, complete results and child cleanup
-        run: sh artifact/python-run.sh -m unittest discover -s artifact -p test_codeql_memory_control.py -v
+      - name: Check archive admission, strict JSON and child cleanup
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_memory_control test_evidence_io
       - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         id: codeql
         with:
