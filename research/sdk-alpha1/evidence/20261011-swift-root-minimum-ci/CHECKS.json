@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.swift_root_minimum_ci_regression",
+  "implementation_commit": "cb28d8ce852fe40843d37ec781d6c8d7345f508b",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Installed same-source Rust 1.90 Debug C engine and Swift facade on macOS arm64; four original/alternative root recovery routes, default worker stacks, cleanup and bidirectional message recovery after rekey. This is the minimum-compiler root regression, not the whole foreign matrix.",
+  "compiler": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+  "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+  "native_root_tests": 7,
+  "Swift_package_tests": 69,
+  "focused_artifact_tests": 27,
+  "routes": {
+    "original": {
+      "C_completed": true,
+      "Swift_completed": true,
+      "processes_per_language": 31,
+      "sigkill_per_language": 10,
+      "final_arc_release_revokes_successor": true
+    },
+    "transition": {
+      "C_completed": true,
+      "Swift_completed": true,
+      "processes_per_language": 31,
+      "sigkill_per_language": 10,
+      "final_arc_release_revokes_successor": true
+    },
+    "bound-transition": {
+      "C_completed": true,
+      "Swift_completed": true,
+      "processes_per_language": 32,
+      "sigkill_per_language": 11,
+      "final_arc_release_revokes_successor": true
+    },
+    "adoption": {
+      "C_completed": true,
+      "Swift_completed": true,
+      "processes_per_language": 29,
+      "sigkill_per_language": 9,
+      "final_arc_release_revokes_successor": true
+    }
+  },
+  "archive_replayed": true,
+  "native_library_sha256": "b286ce8bf3c9a94209256d2d06d29cfdfd88f244b5aa50120c60e23afdff7334",
+  "package_sha256": "853cd004a8dfe39ad6a1229cbac83eecb9f30119b9b0efdde19fb69f3b50c8b2",
+  "workflow_lint": {
+    "same_diagnostics_as_HEAD": true,
+    "current_diagnostics": 2,
+    "HEAD_diagnostics": 2,
+    "baseline_commit": "562dc474c33cc078bd4aa20b5d210992a3da7dfb",
+    "current_commit": "cb28d8ce852fe40843d37ec781d6c8d7345f508b"
+  },
+  "archive": {
+    "file": "CAPTURE.zip",
+    "bytes": 35411331,
+    "sha256": "eb041cd30267f68a311448158c888058a7e25d50c8ed20bf648576b0488de52c",
+    "members": 1688
+  },
+  "hosted_ci": "Configured and locally executed; hosted result must be observed on the uploaded commit."
+}

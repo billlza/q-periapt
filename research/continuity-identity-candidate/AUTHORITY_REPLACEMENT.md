@@ -900,3 +900,11 @@ Rust 1.90 arm64 disassembly measures that specific outer closure frame at 79,568
 bytes before and 736 bytes after; these are not total peak-stack measurements.
 No signature, state, durability or cancellation check was removed, and the 151
 `qpc-owner/1` exports remain identical.
+
+The [minimum-Rust Swift collector checkpoint](../sdk-alpha1/evidence/20261011-swift-root-minimum-ci/CHECKS.json)
+executes the same-source installed C engine with Rust 1.90.0, then all four C and
+Swift process routes. The hosted Swift collector requires the explicit minimum
+toolchain and retains the resulting package and public captures. Compiler
+substitution, missing native root tests and omitted minimum-lane selection are
+rejected. Local execution and archive replay pass; hosted CI remains a separate
+result for the uploaded commit.

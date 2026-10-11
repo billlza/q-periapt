@@ -244,8 +244,10 @@ client/server and cleanup traces. Other platforms and integration
 into the published Swift SDK remain unfinished. These are required for the full
 0.2.0 goal, not silently excluded from it.
 
-Run the existing package collector with `--with-c-consumer --with-swift-consumer`
-on macOS. It first qualifies the actual installed native engine, then creates
+Run the existing package collector on macOS with `--with-c-consumer
+--with-swift-consumer --swift-minimum-toolchain-root <Rust-1.90.0-sysroot>`.
+The explicit minimum compiler is required: the collector rebuilds the same C
+engine and runs all four C/Swift root recovery routes on default worker stacks. It first qualifies the actual installed native engine, then creates
 profile-specific ZIP packages containing this Swift source, the exact C header,
 library and licenses. Fresh installations outside the checkout build and run
 Swift Debug/Release with warnings treated as errors. The shared protocol harness

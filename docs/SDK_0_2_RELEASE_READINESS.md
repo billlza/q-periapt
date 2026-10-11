@@ -216,6 +216,17 @@ verdict on the physical phone.
 
 ## Latest qualification checkpoints
 
+The [2026-10-11 minimum-Rust Swift CI regression](../research/sdk-alpha1/evidence/20261011-swift-root-minimum-ci/CHECKS.json)
+rebuilds the installed native engine with Rust 1.90.0, verifies the compiler and
+Cargo versions, and executes all four C and Swift root recovery routes on default
+worker stacks. Each language completes 123 child processes and 40 SIGKILL cuts;
+seven native root tests, 69 installed Swift tests and 27 artifact tests pass.
+The archived public captures replay successfully. The existing hosted Swift job
+now requires this additional lane and uploads its package and public evidence;
+its hosted outcome remains subject to the uploaded commit's CI result. The
+qualification commit precedes the following documentation-only collector-usage
+update; native and Swift executable sources are unchanged.
+
 The [2026-10-11 Swift root lifecycle checkpoint](../research/sdk-alpha1/evidence/20261011-swift-root/CHECKS.json)
 adds public original/transition/adoption recovery, successor activation and
 retired cleanup on the original Swift account-authority owner. Current
@@ -233,9 +244,10 @@ state and Swift binary pass with the repaired library at the same observed
 536,576-byte stack. The shared retirement method bodies are unchanged apart
 from visibility/comments. This is a stack-resource repair, not a latency or
 constant-time result. The hosted canonical Swift collector now runs the root
-matrix and retains its public captures; a dedicated hosted minimum-Rust Swift
-root lane and Kotlin root facade remain integration tasks. Workflow lint adds
-no diagnostics; the two existing unsupported-runner-label diagnostics remain.
+matrix and retains its public captures. The minimum-Rust Swift lane is now
+configured as described above; the Kotlin root facade remains an integration
+task. Workflow lint adds no diagnostics; the two existing unsupported-runner-label
+diagnostics remain.
 
 The [2026-10-11 Android physical acceptance](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json)
 completes the agreed single-phone SDK gate. The Samsung SM-S948U1 runs Android
