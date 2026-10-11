@@ -869,3 +869,34 @@ Kotlin workload observes actual collection and completed native cleanup under
 Serial and G1 GC. Managed policy renewal, direct managed existing-owner language
 constructors and the full account replacement controller require separate
 integration and qualification.
+
+
+## Swift managed root controller
+
+`ContinuityAccountAuthority` now exposes the existing native controller through
+`RootReplacementScope`, `RootReplacementPlan`, `RootReplacementTransition` and
+`RootReplacementAdoption`. The registry becomes the controller, consumes the old
+operational device, resumes the exact original or alternative inputs, and
+transfers an independently prepared successor enrollment into a device only
+under current authority. Its retired cleanup methods share the same marshalling
+implementation as the standalone retired enrollment. Closing or finally
+releasing the controller revokes its still-reachable successor.
+
+The [installed Swift root checkpoint](../sdk-alpha1/evidence/20261011-swift-root/CHECKS.json)
+executes original recovery, transition before/after original binding, and
+committed-winner adoption. Current Debug, current Release and minimum-Rust
+Debug native libraries each pass both C and Swift consumers, with full cleanup,
+mutual TLS, epoch-1 rekey and bidirectional original-message recovery. Swift also
+observes final ARC release and subsequent successor refusal. These processes
+share the native engine; this is not an independent implementation or power-loss
+claim. Kotlin root-controller integration remains open.
+
+The minimum-Rust Swift run exposed a stack-guard fault during transition resume.
+Verified alternative evidence was retained by value in the outer FFI frame while
+deep journal authentication ran. That helper now returns boxed verified evidence.
+The same Swift executable, original state, approvals and observed 536,576-byte
+worker stack fail with the old library and pass with the fixed library. Static
+Rust 1.90 arm64 disassembly measures that specific outer closure frame at 79,568
+bytes before and 736 bytes after; these are not total peak-stack measurements.
+No signature, state, durability or cancellation check was removed, and the 151
+`qpc-owner/1` exports remain identical.

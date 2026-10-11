@@ -216,6 +216,27 @@ verdict on the physical phone.
 
 ## Latest qualification checkpoints
 
+The [2026-10-11 Swift root lifecycle checkpoint](../research/sdk-alpha1/evidence/20261011-swift-root/CHECKS.json)
+adds public original/transition/adoption recovery, successor activation and
+retired cleanup on the original Swift account-authority owner. Current
+Debug/Release and minimum-Rust Debug each pass all four C and Swift process
+routes: 123 child processes and 40 SIGKILL cuts per language/configuration,
+including bidirectional traffic after rekey. Swift final ARC release also
+revokes the surviving successor. Each Swift package passes 69 tests; each native
+configuration passes seven root tests, and current/minimum Clippy plus 51 related
+artifact tests pass. The 151 native exports are unchanged.
+
+This workload found and reproduced a Rust 1.90 stack-guard fault under a normal
+Swift worker. Boxing large verified alternative proofs reduces the measured
+outer resume closure frame from 79,568 to 736 bytes. The same failing original
+state and Swift binary pass with the repaired library at the same observed
+536,576-byte stack. The shared retirement method bodies are unchanged apart
+from visibility/comments. This is a stack-resource repair, not a latency or
+constant-time result. The hosted canonical Swift collector now runs the root
+matrix and retains its public captures; a dedicated hosted minimum-Rust Swift
+root lane and Kotlin root facade remain integration tasks. Workflow lint adds
+no diagnostics; the two existing unsupported-runner-label diagnostics remain.
+
 The [2026-10-11 Android physical acceptance](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json)
 completes the agreed single-phone SDK gate. The Samsung SM-S948U1 runs Android
 17 / API 37 with arm64 and 4-KiB pages. Both full and minimal installed, minified
