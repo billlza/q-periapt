@@ -223,9 +223,19 @@ unknown peers remain refused. The
 [150-process remote-renewal route](../research/sdk-alpha1/evidence/20261011-android-remote-credential/CHECKS.json)
 additionally exercises the Android device admission API, stale-peer refusal,
 restart with the same pending message and next slot, and exact retry after the
-native C counterparty renews. Expiry/cancellation scenario checks,
-roster renewal, device retirement, root replacement and final candidate package admission remain work
-on the software contract, not a requirement for another physical device.
+native C counterparty renews. The
+[222-process witnessed cancellation route](../research/sdk-alpha1/evidence/20261012-android-credential-terminal/CHECKS.json)
+now passes real target-roster expiry, independent Closed authorization, lost
+cleanup-ACK recovery and exact replay. The target credential and original policy
+remain live in this case. Cancellation never treats expiry or an unavailable witness
+as proof of non-commit; existing committed outcomes remain Committed. Restoring
+the preceding authority preserves the same signing identity, journal and session,
+and the next new message creates one additional receiver effect. Debug/Release
+host JNI validation also passes all 654 Java processes, with 80 focused reader
+and source checks plus strict Clippy. Local-only ExpiredUncommitted, cleanup
+after original-policy/runtime expiry, roster renewal, device retirement, root
+replacement and final candidate package admission remain software work; the
+agreed one-phone Android physical gate is complete.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |

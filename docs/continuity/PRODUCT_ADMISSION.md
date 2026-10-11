@@ -41,11 +41,20 @@ an independently approved remote credential grant. The
 renews the installed C counterparty, rejects wrong pins/operations and local-identity
 misuse, refuses the superseded peer object, then reopens the original session.
 A fresh process retains the pending message and next slot; exact retry preserves
-the two distinct application effects. Expiry cleanup and independently approved
-cancellation remain separate software work, along with
-roster renewal, device retirement and root replacement. The CI host JNI lane exercises
-packaged Java classes against Debug/Release C libraries; it is distinct from
-the accepted physical ART run.
+the two distinct application effects. The
+[222-process cancellation route](../../research/sdk-alpha1/evidence/20261012-android-credential-terminal/CHECKS.json)
+now also passes on that phone. A target roster expires under real clocks while
+its credential and the original policy remain live. Cancellation stays Pending
+until independently authorized Closed; a lost cleanup acknowledgment preserves
+that decision across restart. Recovery dispatches no new Commit or Close and
+restores the preceding authority, original identity, journal and session; a new
+third message produces exactly one additional business effect. Already committed
+renewals remain Committed under close and expiry reconciliation. Local-only
+ExpiredUncommitted, cleanup after original-policy/runtime expiry, roster renewal,
+device retirement and root replacement remain software scenarios to complete.
+The CI host JNI lane exercises packaged Java classes against Debug/Release C
+libraries; its 654-process complete local run is distinct from the accepted
+physical ART run. No additional Android device is required.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
