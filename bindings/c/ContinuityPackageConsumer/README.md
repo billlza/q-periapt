@@ -1460,5 +1460,6 @@ stays alive until the registration/device owner closes.
 
 These first-use cases reuse the existing enrollment/connection workload and
 public record verifier. They do not qualify managed policy renewal, account
-retirement, Kotlin registry ownership or the complete account replacement
-controller; those compositions still require their own qualification.
+retirement or the complete account replacement controller; those compositions
+still require their own qualification. Swift and Kotlin adapters reuse this
+first-use workload and add their own ARC/Cleaner lifetime checks.

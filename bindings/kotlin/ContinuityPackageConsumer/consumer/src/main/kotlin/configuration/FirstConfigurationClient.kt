@@ -13,12 +13,12 @@ import java.nio.file.StandardOpenOption.CREATE_NEW
 import java.nio.file.StandardOpenOption.WRITE
 import java.nio.file.attribute.PosixFilePermissions
 
-private fun load(source: Path, name: String, maximum: Int): ByteArray =
+internal fun load(source: Path, name: String, maximum: Int): ByteArray =
     Files.newInputStream(source.resolve(name)).use {
         it.readNBytes(maximum + 1).also { bytes -> check(bytes.size in 1..maximum) { "input width: $name" } }
     }
-private fun exact(source: Path, name: String, count: Int) = load(source, name, count).also { check(it.size == count) }
-private fun counter(bytes: ByteArray) = Counter64.parse(java.lang.Long.toUnsignedString(ByteBuffer.wrap(bytes).long))
+internal fun exact(source: Path, name: String, count: Int) = load(source, name, count).also { check(it.size == count) }
+internal fun counter(bytes: ByteArray) = Counter64.parse(java.lang.Long.toUnsignedString(ByteBuffer.wrap(bytes).long))
 private fun write(bytes: ByteArray, path: String) {
     Files.newByteChannel(Path.of(path), setOf(CREATE_NEW, WRITE),
         PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"))).use { channel ->
@@ -81,12 +81,12 @@ private fun traffic(device: ContinuityDevice, source: Path, mode: String): ByteA
         }
     }
 }
-private fun expect(code: Int, body: () -> Unit) {
+internal fun expect(code: Int, body: () -> Unit) {
     try { body(); error("expected native refusal $code") } catch (failure: ContinuityFailure) {
         if (failure.code != code) throw failure
     }
 }
-private fun closeAll(values: List<AutoCloseable>, original: Throwable? = null) {
+internal fun closeAll(values: List<AutoCloseable>, original: Throwable? = null) {
     var failure = original
     for (value in values) try { value.close() } catch (next: Throwable) {
         if (failure == null) failure = next else failure.addSuppressed(next)
@@ -103,7 +103,7 @@ private fun preparedPool(source: Path, target: String, recoverable: Boolean): Li
 }
 private fun forgetPool(source: Path, target: String, recoverable: Boolean, queue: ReferenceQueue<ContinuityConfiguration>): List<WeakReference<ContinuityConfiguration>> =
     preparedPool(source, target, recoverable).map { WeakReference(it, queue) }
-private fun pressure() {
+internal fun pressure() {
     val buffers = Array(8) { index -> ByteArray(1024 * 1024) { index.toByte() } }
     check(buffers.sumOf { it.first().toInt() + it.last().toInt() } == 56)
     System.gc(); Reference.reachabilityFence(buffers)
@@ -213,11 +213,17 @@ private fun policyOperation(owner:ContinuityEnrollment,source:Path,target:String
     }
 }
 
-fun main(args: Array<String>) {
+fun main(arguments: Array<String>) {
+    val registryPath: String?
+    val args: Array<String>
+    if (arguments.firstOrNull() == "--registry") {
+        check(arguments.size >= 3) { "registry argument" }
+        registryPath = arguments[1]; args = arguments.drop(2).toTypedArray()
+    } else { registryPath = null; args = arguments }
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-expired", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
+        "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile")) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
     if (mode == "policy-target-create") {
@@ -228,6 +234,9 @@ fun main(args: Array<String>) {
         "reconcile", "reconcile-refused" -> prepareInitial(source, target, recoverable, true)
         else -> ContinuityConfiguration.prepareOpen(target, trust(source, recoverable), policy(source))
     }
+    check(mode != "activate-unmanaged" || registryPath == null) { "unmanaged probe selected a registry" }
+    check(mode !in setOf("activate-closed-registry", "activate-released-registry") || registryPath != null) { "registry lifecycle probe requires registry" }
+    var registry: ContinuityAccountAuthority? = null
     var registration: ContinuityEnrollment? = null
     var device: ContinuityDevice? = null
     var failure: Throwable? = null
@@ -255,6 +264,9 @@ fun main(args: Array<String>) {
                         if (mode == "create") configuration.createEnrollment(intent, it) else configuration.resumeEnrollment(intent, it)
                     }
                     registration = owner
+                    if (registryPath != null && mode != "activate-released-registry") {
+                        registry = selectRegistry(registryPath, source, owner, mode == "prepare")
+                    }
                     configuration.close()
                     var bytes = owner.request().encoded()
                     marker = "QPC_CONFIGURATION_REQUEST_PASS"
@@ -280,6 +292,21 @@ fun main(args: Array<String>) {
                                 marker = "QPC_CONFIGURATION_GENESIS_PASS"
                             }
                         }
+                        "activate-unmanaged" -> {
+                            expect(211) { owner.activate().use { it.cancel() } }
+                            marker = "QPC_CONFIGURATION_REGISTRY_REQUIRED"
+                        }
+                        "activate-closed-registry" -> {
+                            checkNotNull(registry).close(); registry = null
+                            expect(202) { owner.activate().use { it.cancel() } }
+                            marker = "QPC_CONFIGURATION_REGISTRY_CLOSED"
+                        }
+                        "activate-released-registry" -> {
+                            val observed = collectRegistry(checkNotNull(registryPath), source, owner)
+                            write(observed, output + ".gc")
+                            expect(202) { owner.activate().use { it.cancel() } }
+                            marker = "QPC_CONFIGURATION_REGISTRY_RELEASED"
+                        }
                         "activate-expired" -> {
                             expect(104) { owner.activate().use { it.cancel() } }
                             expect(2) { owner.status() }
@@ -303,6 +330,6 @@ fun main(args: Array<String>) {
             }
         }
     } catch (caught: Throwable) { failure = caught }
-    closeAll(listOfNotNull(device, registration, configuration), failure)
+    closeAll(listOfNotNull(device, registration, configuration, registry), failure)
     println(checkNotNull(marker))
 }

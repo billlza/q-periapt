@@ -551,7 +551,7 @@ fn managed_first_registration_preserves_identity_and_delivery() -> Result<()> {
 
 fn witnessed_registration(managed: bool) -> Result<()> {
     let language = client_language()?;
-    if managed && !matches!(language, "C" | "Swift") {
+    if managed && !matches!(language, "C" | "Swift" | "Kotlin") {
         return Err("managed first-use requires a qualified registry adapter".into());
     }
     let client = PathBuf::from(
@@ -813,7 +813,7 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                     Some(carrier),
                 )?;
                 assert_eq!(fs::read(base.join("registry-required"))?, request);
-                if language == "Swift" {
+                if matches!(language, "Swift" | "Kotlin") {
                     for (mode, output) in [
                         ("activate-closed-registry", "registry-closed"),
                         ("activate-released-registry", "registry-released"),
@@ -821,6 +821,19 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                         process.run(mode, &base.join(output), Some(carrier))?;
                         assert_eq!(fs::read(base.join(output))?, request);
                     }
+                }
+                if language == "Kotlin" {
+                    let observed = fs::read(base.join("registry-released.gc"))?;
+                    assert_eq!(observed.len(), 16);
+                    let collections =
+                        u64::from_be_bytes(observed.get(..8).ok_or("GC collections")?.try_into()?);
+                    let rounds =
+                        u32::from_be_bytes(observed.get(8..12).ok_or("GC rounds")?.try_into()?);
+                    let slots =
+                        u32::from_be_bytes(observed.get(12..16).ok_or("GC slots")?.try_into()?);
+                    assert!((1..=1024).contains(&collections));
+                    assert!((1..=32).contains(&rounds));
+                    assert_eq!(slots, 63);
                 }
                 connection.run(&request)?;
             } else {

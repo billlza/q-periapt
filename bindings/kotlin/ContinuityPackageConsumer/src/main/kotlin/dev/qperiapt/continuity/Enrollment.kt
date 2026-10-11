@@ -76,6 +76,10 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     @JvmSynthetic internal fun selectConfiguration(configuration: NativeOwner) = reference.call { owner ->
         configuration.call { source -> owner.call { target -> ContinuityNative.selectConfiguredPolicy(source, target) } }
     }
+    /** Select original live admission after independent first-request approval.
+     * The enrollment does not keep the host registry alive through GC. */
+    fun selectAccountAuthority(registry: ContinuityAccountAuthority, checkpoint: AccountAuthorityCheckpoint) =
+        reference.call { registry.select(it, checkpoint) }
     fun finishOpen() = reference.call { owner -> owner.call { ContinuityNative.simple(it, "finish_open") } }
     /** May race activation; join cancellation before using a returned successor. */
     fun cancel() = reference.call(cancellation = true) { owner -> owner.call { ContinuityNative.simple(it, "cancel") } }

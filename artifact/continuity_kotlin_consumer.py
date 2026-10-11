@@ -71,6 +71,10 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "AccountAuthorityTests": frozenset({
+        "authorityLayoutsAndUnsignedCheckpointsMatchNative", "authorityTrustCopiesCallerBytesAndRejectsEmptyScope",
+        "pendingAuthoritySharesCapacityAndPreservesCancellation", "originalAuthorityStoreReopensAfterExplicitClose",
+    }),
     "PeerConfigurationTests": frozenset({"callerAndReturnedArraysCannotChangePeerTrust", "ffiLayoutsAndInputBoundsMatchNativeContract"}),
     "ConfigurationTests": frozenset({
         "ffiStructuresMatchC", "originalTrustAndPolicyInputsAreCopiedAndBounded",
@@ -146,7 +150,7 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
+        ("AccountAuthorityID", "ApplicationAccountID", "AccountAuthorityTrust", "AccountAuthorityCheckpoint", "ContinuityAccountAuthority", "PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
          "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
@@ -735,6 +739,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(not list((installed / "negative-retired-classes").glob("**/*.class")),
                         "raw-retired negative control produced an executable class")
             for probe, rejection in (
+                ("RawAccountAuthorityProbe", "compiler.err.report.access: dev.qperiapt.continuity.ContinuityAccountAuthority(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityAccountAuthority"),
                 ("RawConfigurationProbe", "compiler.err.report.access: dev.qperiapt.continuity.ContinuityConfiguration(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityConfiguration"),
                 ("RawConfigurationKeyProbe", "compiler.err.cant.resolve.location.args: kindname.method, withKey$q_periapt_continuity_kotlin"),
             ):

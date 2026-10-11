@@ -28,10 +28,12 @@ def fixture(root, language="C"):
         }.items():
             (folder / name).write_bytes(value)
         commands = dict(account.COMMANDS)
-        if language == "Swift":
+        if language in {"Swift", "Kotlin"}:
             commands.update({"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"})
             for name in ("registry-closed.bin", "registry-released.bin"):
                 (folder / name).write_bytes(data["request.bin"])
+        if language == "Kotlin":
+            (folder / "registry-gc.bin").write_bytes((2).to_bytes(8, "big") + (1).to_bytes(4, "big") + (63).to_bytes(4, "big"))
         for command, marker in commands.items():
             (folder / (command + ".stdout")).write_text("QPC_CONFIGURATION_" + marker + "\n")
             (folder / (command + ".stderr")).write_bytes(b"")
@@ -67,6 +69,17 @@ class FirstAccountTests(unittest.TestCase):
             (root / "tls-fixed" / "registry-released.bin").write_bytes(b"another request")
             with self.assertRaises(ValueError):
                 account.verify_execution(output, root, language="Swift")
+
+    def test_kotlin_requires_observed_gc_and_completed_native_reclamation(self):
+        for payload in (bytes(16), (2).to_bytes(8, "big") + (1).to_bytes(4, "big") + (62).to_bytes(4, "big"), b"short"):
+            with self.subTest(payload=payload), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output = fixture(root, "Kotlin")
+                result = account.verify_execution(output, root, language="Kotlin")
+                self.assertEqual(len(result["gc_observations"]), 4)
+                (root / "tls-fixed" / "registry-gc.bin").write_bytes(payload)
+                with self.assertRaisesRegex(ValueError, "slot reclamation"):
+                    account.verify_execution(output, root, language="Kotlin")
 
     def test_bindings_and_process_results_cannot_be_substituted(self):
         for leaf in ("account", "family", "revision", "registry-required.bin", "acknowledged.bin",

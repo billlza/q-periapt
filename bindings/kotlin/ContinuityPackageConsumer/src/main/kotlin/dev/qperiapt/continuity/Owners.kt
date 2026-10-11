@@ -65,7 +65,7 @@ internal class NativeOwner private constructor(private val handle: Long, parent:
                 throw failure
             }
         }
-        @JvmSynthetic internal fun <T> prepareConfiguration(prepare: () -> Long, wrap: (NativeOwner) -> T): T {
+        @JvmSynthetic internal fun <T> prepareOwned(prepare: () -> Long, wrap: (NativeOwner) -> T): T {
             val handle = prepare()
             return try { wrap(NativeOwner(handle)) } catch (failure: Throwable) {
                 try { ContinuityNative.simple(handle, "close") } catch (disposal: Throwable) { failure.addSuppressed(disposal) }

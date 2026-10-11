@@ -23,8 +23,8 @@ import java.nio.file.Path
 
 /** Raw handles stay internal to this module and are synthetic at the Java boundary. */
 internal object ContinuityNative {
-    private fun array(length: Long) = MemoryLayout.sequenceLayout(length, JAVA_BYTE)
-    private fun struct(vararg fields: Pair<String, MemoryLayout>): MemoryLayout {
+    @JvmSynthetic internal fun array(length: Long) = MemoryLayout.sequenceLayout(length, JAVA_BYTE)
+    @JvmSynthetic internal fun struct(vararg fields: Pair<String, MemoryLayout>): MemoryLayout {
         val members = mutableListOf<MemoryLayout>()
         var size = 0L
         val alignment = fields.maxOf { it.second.byteAlignment() }
@@ -182,6 +182,12 @@ internal object ContinuityNative {
     private val preparePeerConfiguration = function("qpc_peer_v1_prepare_configured", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS)
     private val preparePeerConfigurationReopen = function("qpc_peer_v1_prepare_configured_reopen", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS)
     private val calls = mapOf(
+        "authority_key" to function("qpc_authority_v1_provision_wrapping_key", ADDRESS, JAVA_LONG, ADDRESS),
+        "authority_create" to function("qpc_authority_v1_prepare_create", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "authority_open" to function("qpc_authority_v1_prepare_open", ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "authority_checkpoint" to function("qpc_authority_v1_checkpoint", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "authority_associate" to function("qpc_authority_v1_associate", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "authority_select_enrollment" to function("qpc_authority_v1_select_enrollment", JAVA_LONG, ADDRESS, ADDRESS),
         "publication_size_bound" to function("qpc_device_v1_publication_size_bound", ADDRESS, ADDRESS, ADDRESS),
         "next_publication" to function("qpc_device_v1_next_publication", JAVA_LONG, ADDRESS, ADDRESS),
         "publication_status" to function("qpc_device_v1_publication_status", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
@@ -309,7 +315,7 @@ internal object ContinuityNative {
         "retired_signer_state" to function("qpc_retired_v1_signer_state", JAVA_LONG, ADDRESS, ADDRESS),
         "retired_erase_signer" to function("qpc_retired_v1_erase_signer", JAVA_LONG, ADDRESS),
     )
-    private fun offset(layout: MemoryLayout, name: String) = layout.byteOffset(MemoryLayout.PathElement.groupElement(name))
+    @JvmSynthetic internal fun offset(layout: MemoryLayout, name: String) = layout.byteOffset(MemoryLayout.PathElement.groupElement(name))
     private fun malformed(message: String): Nothing = throw ContinuityBoundaryFailure(message)
     private fun checked(operation: String, code: Int, error: MemorySegment): ContinuityFailure? {
         val length = error.get(JAVA_INT, offset(errorLayout, "length"))
@@ -324,15 +330,15 @@ internal object ContinuityNative {
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
         return ContinuityFailure(operation, code, text, truncated == 1)
     }
-    private fun invoke(arena: Arena, operation: String, vararg args: Any) {
+    @JvmSynthetic internal fun invoke(arena: Arena, operation: String, vararg args: Any) {
         val error = arena.allocate(errorLayout)
         val code = calls.getValue(operation).invokeWithArguments(args.toList() + error) as Int
         checked(operation, code, error)?.let { throw it }
     }
-    private fun Arena.bytes(value: ByteArray): MemorySegment = allocate(value.size.toLong().coerceAtLeast(1)).also {
+    @JvmSynthetic internal fun Arena.bytes(value: ByteArray): MemorySegment = allocate(value.size.toLong().coerceAtLeast(1)).also {
         if (value.isNotEmpty()) it.asSlice(0, value.size.toLong()).copyFrom(MemorySegment.ofArray(value))
     }
-    private fun text(value: String, maximum: Int): ByteArray {
+    @JvmSynthetic internal fun text(value: String, maximum: Int): ByteArray {
         require(value.isNotEmpty() && value.length <= maximum && !value.contains('\u0000')) { "invalid Continuity text" }
         val encoded = StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(value))
@@ -650,7 +656,7 @@ internal object ContinuityNative {
         it.set(JAVA_LONG, offset(checkpointLayout, "version"), checkpoint.version.bits())
         it.put(checkpointLayout, "digest", checkpoint.digest.encoded())
     }
-    private fun encodeAccountPin(arena: Arena, pin: AccountPin): MemorySegment = arena.allocate(enrollmentPinLayout).also {
+    @JvmSynthetic internal fun encodeAccountPin(arena: Arena, pin: AccountPin): MemorySegment = arena.allocate(enrollmentPinLayout).also {
         val root = pin.root.encoded()
         it.put(enrollmentPinLayout, "account", pin.account.encoded())
         it.set(ADDRESS, offset(enrollmentPinLayout, "root"), arena.bytes(root))

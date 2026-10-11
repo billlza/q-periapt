@@ -126,7 +126,7 @@ pub(crate) fn export_public(
         "acknowledged",
         "after-traffic",
     ];
-    if language == "Swift" {
+    if matches!(language, "Swift" | "Kotlin") {
         for name in ["registry-closed", "registry-released"] {
             commands.push(name);
             publish_private_bytes(
@@ -134,6 +134,12 @@ pub(crate) fn export_public(
                 &fs::read(base.join(name))?,
             )?;
         }
+    }
+    if language == "Kotlin" {
+        publish_private_bytes(
+            &target.join("registry-gc.bin"),
+            &fs::read(base.join("registry-released.gc"))?,
+        )?;
     }
     for name in commands {
         for extension in ["stdout", "stderr"] {

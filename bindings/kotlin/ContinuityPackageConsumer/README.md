@@ -735,7 +735,7 @@ signer. Java source cannot invoke its private owner constructor.
 
 macOS arm64/JDK 25 private Maven consumers now pass eight actual cleanup processes
 with each Debug/Release C engine under Serial and G1 configurations. Both native
-profiles pass 54 named JVM tests; original registration and wrong-purpose ACK
+profiles pass 68 named JVM tests; original registration and wrong-purpose ACK
 refusal also pass. This does not assert that every run triggered collection or
 qualify every JVM's GC behavior. Complete Kotlin distribution qualification,
 Android/WASM persistence, complete foreign replacement and physical erasure or
@@ -838,3 +838,41 @@ request and independently approved P1 on the native reference receiver before
 expiry. The reader binds the public observations to the original signed policy
 and message. Credentials, rosters and the SDK policy remain unchanged;
 SDK-policy replacement still needs its own qualification.
+
+
+## Account registry during first registration
+
+`ContinuityAccountAuthority` owns the original host registry. Supply independent
+`AccountAuthorityTrust` values, provision its wrapping key explicitly, and choose
+`prepareCreate` or `prepareOpen` before `finishOpen`. `associate` admits an actual
+credential/roster under a separately approved `AccountPin`. A returned
+`AccountAuthorityCheckpoint` is a public expectation, not permission by itself.
+
+A first device obtains its original signed request before account association.
+After independent issuance and approval, associate that actual account and call
+`ContinuityEnrollment.selectAccountAuthority(registry, checkpoint)` on the same
+registration. Continue the existing acceptance, storage, witness-enrollment and
+activation operations. Reopen the same registry and original registration after
+an uncertain result; omitting the registry on activation is refused with `211`.
+
+Keep the host registry reachable through all selected child operations, normally
+with `use` and an explicit close boundary. Children do not retain it. Explicit
+close or eventual Cleaner disposal invalidates old native admission; another
+registry object cannot revive it. `cancel` stops the registry's own active call,
+and is separate from revocation by close. Cleaner is a backstop, not a scheduling
+or deterministic cleanup promise.
+
+The installed `FirstConfigurationClient --registry PATH ...` workload checks
+fixed/recoverable SDK roots and signed TCP/mutual TLS witnesses in both native
+profiles under Serial and G1 GC. It checks idempotent association, exact checkpoint
+readback, original-message recovery and host effect deduplication. Its GC fixture
+observes collection and completed native cleanup before asserting the old child's
+`202` refusal; merely requesting GC or observing a queued weak reference is not
+a success condition. These are bounded qualification controls, not application
+recovery APIs or guarantees for all JVM implementations.
+
+The registry marshaller is separate from `Native.kt` and shares its existing ABI
+layout, symbol lookup and error decoder. Java can use the public input types;
+raw registry-owner construction remains private. Managed policy renewal, direct
+managed existing-owner constructors, complete account replacement, cross-host
+interoperability and other platform contracts retain their separate gates.

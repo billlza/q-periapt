@@ -108,13 +108,13 @@ class ContinuityConfiguration private constructor(native: NativeOwner) : AutoClo
     private val reference = OwnerTransfer(native, "configuration")
     companion object {
         fun prepareCreate(path: String, input: InstallationConfiguration): ContinuityConfiguration =
-            NativeOwner.prepareConfiguration({ ContinuityNative.prepareConfiguration(path, input, false) }, ::ContinuityConfiguration)
+            NativeOwner.prepareOwned({ ContinuityNative.prepareConfiguration(path, input, false) }, ::ContinuityConfiguration)
         /** Compare original independently retained inputs after an unknown publication result. */
         fun prepareReconcile(path: String, input: InstallationConfiguration): ContinuityConfiguration =
-            NativeOwner.prepareConfiguration({ ContinuityNative.prepareConfiguration(path, input, true) }, ::ContinuityConfiguration)
+            NativeOwner.prepareOwned({ ContinuityNative.prepareConfiguration(path, input, true) }, ::ContinuityConfiguration)
         /** Committed SDK state under original host trust; no initial-policy replay or sidecar trust. */
         fun prepareOpen(path: String, trust: SdkPolicyTrust, protocolPolicy: PolicyDocument): ContinuityConfiguration =
-            NativeOwner.prepareConfiguration({ ContinuityNative.prepareConfigurationOpen(path, trust, protocolPolicy) }, ::ContinuityConfiguration)
+            NativeOwner.prepareOwned({ ContinuityNative.prepareConfigurationOpen(path, trust, protocolPolicy) }, ::ContinuityConfiguration)
     }
     fun finishOpen() = reference.call { owner -> owner.call { ContinuityNative.simple(it, "finish_open") } }
     fun cancel() = reference.call(cancellation = true) { owner -> owner.call { ContinuityNative.simple(it, "cancel") } }

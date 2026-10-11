@@ -767,6 +767,6 @@ explicit-close/final-ARC-release refusal. The control plane uses the actual new
 request; no device identity or installation store is copied into the new path.
 The host deduplicates the repeated business callback by original message identity.
 These are same-host Swift/C endpoints sharing the native engine. Managed policy
-renewal, direct managed existing-owner constructors, Kotlin registry ownership,
+renewal, direct managed existing-owner constructors,
 and the complete account replacement controller still need separate integration
 and qualification.

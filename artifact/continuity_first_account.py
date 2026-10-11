@@ -8,7 +8,7 @@ import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 TEST = "managed_first_registration_preserves_identity_and_delivery"
-SCOPE = ("installed C/Swift first registration, account selection, witnessed activation and original-message "
+SCOPE = ("installed C/Swift/Kotlin first registration, account selection, witnessed activation and original-message "
          "recovery; fixed and recoverable SDK roots; signed TCP and mutual TLS witness; "
          "same host and shared native engine; no managed policy renewal or independent implementation claim")
 BASE = {"manifest.json", "request.bin", "replayed.bin", "root.bin", "intent.bin", "genesis.bin",
@@ -29,7 +29,7 @@ def marker(language: str, carrier: str, profile: str) -> str:
 
 def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     text = stdout.decode()
-    sdk.require(language in {"C", "Swift"} and re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE) == [TEST]
+    sdk.require(language in {"C", "Swift", "Kotlin"} and re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE) == [TEST]
                 and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;",
                                    text, re.MULTILINE)) == 1, "managed first registration did not execute completely")
     scenarios = [(c, p) for c in ("signed", "tls") for p in ("fixed", "recoverable")]
@@ -41,10 +41,11 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     sdk.require(not evidence.is_symlink() and {p.name for p in evidence.iterdir()} == directories,
                 "managed first registration scenarios differ")
     commands = dict(COMMANDS)
-    lifetime = {"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"} if language == "Swift" else {}
+    lifetime = {"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"} if language in {"Swift", "Kotlin"} else {}
     commands.update(lifetime)
     names = BASE | {f"{name}.{extension}" for name in commands for extension in ("stdout", "stderr")} | {n + ".bin" for n in lifetime}
-    hashes, requests, registries = {}, set(), set()
+    if language == "Kotlin": names.add("registry-gc.bin")
+    hashes, requests, registries, gc_observations = {}, set(), set(), {}
     for carrier, profile in scenarios:
         name = f"{carrier}-{profile}"
         folder = evidence / name
@@ -67,6 +68,12 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         for command, outcome in commands.items():
             sdk.require(data[command + ".stdout"] == f"QPC_CONFIGURATION_{outcome}\n".encode()
                         and data[command + ".stderr"] == b"", "managed first registration process outcome differs")
+        if language == "Kotlin":
+            raw = data["registry-gc.bin"]
+            collections, rounds, slots = int.from_bytes(raw[:8], "big"), int.from_bytes(raw[8:12], "big"), int.from_bytes(raw[12:16], "big")
+            sdk.require(len(raw) == 16 and 1 <= collections <= 1024 and 1 <= rounds <= 32 and slots == 63,
+                        "Kotlin registry collection or native slot reclamation was not observed")
+            gc_observations[name] = dict(collections=collections, rounds=rounds, available_slots=slots)
         requests.add(digest)
         registries.add(data["registry-id"])
         hashes.update({name + "/" + leaf: hashlib.sha256(value).hexdigest() for leaf, value in data.items()})
@@ -74,5 +81,5 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     return dict(completed=True, scope=SCOPE, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes, missing_registry=211,
                 original_message_recovered=True, host_effects_per_scenario=1,
-                registry_lifetime_probes=sorted(lifetime),
+                registry_lifetime_probes=sorted(lifetime), gc_observations=gc_observations,
                 signature_verification="shared native execution only")
