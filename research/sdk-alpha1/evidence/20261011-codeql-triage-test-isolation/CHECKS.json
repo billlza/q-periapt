@@ -1,0 +1,154 @@
+{
+  "source_commit": "4d17b09d76a70f0941dc4e5b2b6ac54aae64ad2e",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Initial CodeQL alert triage and private ownership of policy-agent IPC/activation test sockets; not complete security adjudication.",
+  "fixed_behavior": "Old actual accept-wait test passes but deletes a canary through a preplaced predictable-directory symlink. Exclusive TempDir preserves the canary while the same test passes. Related activation fixtures retain private short directories and check cleanup.",
+  "validation": {
+    "actual_canary_reproduction": "old return 0/canary lost; final Rust 1.98.1 and 1.90.0 return 0/canary preserved",
+    "targeted_tests_per_toolchain": 6,
+    "strict_Clippy": [
+      "1.90.0",
+      "1.98.1"
+    ],
+    "source_gate": "passed",
+    "public_input_mutation": "7 overwrites retained in inspected release IR and linked arm64 executable"
+  },
+  "limits": [
+    "Test isolation repair, not a demonstrated production IPC vulnerability",
+    "Static C mutation evidence belongs to the inspected macOS arm64 compiler/binary",
+    "CodeQL source scan remains at 252eb954 / merge506eaba2, not this local commit",
+    "Remaining alert groups require reachability and capability review; no alert dismissed or rule disabled",
+    "Initial long-path canary setup exceeded macOS SUN_LEN; the actual old/new comparison uses a fresh private short /tmp fixture",
+    "No debugger or live-process memory inspection; only controlled child stop/exec and static disassembly"
+  ],
+  "initial_triage": {
+    "scope": "Initial source-grounded triage, not a clean security verdict or bulk dismissal",
+    "code_commit": "4d17b09d76a70f0941dc4e5b2b6ac54aae64ad2e",
+    "scanned_head": "252eb9540599d573c79af74797db22e3138dca51",
+    "scanned_merge": "506eaba2c1a118de62e0cfee6a57bb88418dde5f",
+    "open_alerts": {
+      "total": 1729,
+      "rules": {
+        "rust/command-line-injection": 135,
+        "rust/path-injection": 614,
+        "py/path-injection": 835,
+        "rust/log-injection": 48,
+        "rust/cleartext-logging": 29,
+        "cpp/memset-may-be-deleted": 1,
+        "py/command-line-injection": 39,
+        "rust/hard-coded-cryptographic-value": 23,
+        "cpp/path-injection": 3,
+        "rust/uncontrolled-allocation-size": 2
+      },
+      "scanner_security_labels": {
+        "critical": 197,
+        "high": 1484,
+        "medium": 48
+      },
+      "inventory_sha256": "dca9123d48c3dcb3473b383335e4f1864fab952930b19dbdf7c5eeb688676315",
+      "note": "Scanner labels and totals are not confirmed vulnerability counts. Full raw metadata remains local."
+    },
+    "assessments": [
+      {
+        "alerts": [
+          2275
+        ],
+        "status": "not reproduced in inspected release compiler output",
+        "source": "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c:49-57",
+        "evidence": "IR_CHECK.json and static disassembly retain all seven public-input overwrites after preparation and before finish_open. These are public inputs, not secret-key erasure.",
+        "change": "none",
+        "limits": "macOS arm64 release build; no universal compiler/platform claim"
+      },
+      {
+        "alerts": [
+          678,
+          679
+        ],
+        "status": "range-check false positive",
+        "source": "crates/q-periapt-ffi/examples/sdk_path_perf.rs:127-213",
+        "evidence": "main accepts n only in 100..=5000 before either call to private paired; both Vec<u128> allocations therefore have at most 5000 elements each. No arbitrary allocation size is reachable through this CLI parameter.",
+        "change": "none"
+      },
+      {
+        "alerts": [
+          481
+        ],
+        "status": "public protocol salt, not a hard-coded secret",
+        "source": "crates/q-periapt-sdk/src/purpose.rs:14-15,78-82,108-110",
+        "evidence": "Constant is HKDF salt/domain information; IKM comes from the owned shared secret. Keeping salt secret is not required by HKDF.",
+        "reference": "https://www.rfc-editor.org/rfc/rfc5869.html#section-3.1",
+        "change": "none; preserve the versioned key schedule"
+      },
+      {
+        "alerts": [
+          644,
+          645,
+          666,
+          667
+        ],
+        "status": "confirmed test isolation defect repaired",
+        "source": "services/q-periapt-policy-agent/src/ipc.rs:2494",
+        "evidence": "The actual old test passes while deleting a canary through a preplaced directory symlink in a fresh owned temporary root. The patched actual test passes and preserves the canary.",
+        "repair": "Exclusive TempDir, no pre-emptive unlink, explicit checked cleanup after closing the listener. The analogous activation test fixtures now retain private short-path TempDirs too.",
+        "limits": "A test ownership defect; not evidence of a production IPC path-traversal vulnerability."
+      }
+    ],
+    "scope_observations": [
+      {
+        "alerts": [
+          2101,
+          2098,
+          2096,
+          2094,
+          2093,
+          2099,
+          2097,
+          2095,
+          713,
+          829,
+          804,
+          802,
+          799,
+          798,
+          787,
+          748,
+          746,
+          744,
+          738
+        ],
+        "evidence": "Sinks inspected in retirement test_boundary, erasure at_boundary, rekey after_effect and connection/control test_support are guarded by cfg(all(test, unix)).",
+        "meaning": "Excluded from normal library compilation. This fact alone does not establish test safety."
+      },
+      {
+        "alerts": [
+          1122,
+          1121,
+          1115,
+          1070,
+          875
+        ],
+        "evidence": "bindings/rust/SDKPackageConsumer/src/lib.rs starts with cfg(test) mod tests.",
+        "meaning": "Package-consumer test surface, not a production export."
+      }
+    ],
+    "unresolved": [
+      "Other cryptographic constant/nonce paths require full source-to-sink review; zero-initialized buffers observed being filled are not enough to adjudicate every sink",
+      "CLI scanner path operations accept explicit roots and bound reads; investigate metadata-to-open replacement before claiming race safety",
+      "Remaining command/path/logging findings require caller and capability analysis; tests and evidence tools are not blanket-exempt",
+      "Swift/Kotlin first-use credential integration and full release gates remain outstanding"
+    ],
+    "unchanged_controls": [
+      "No CodeQL rule disabled",
+      "No alert dismissed",
+      "No check weakened",
+      "No debugger or live-process memory inspection used"
+    ]
+  },
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 49897,
+    "sha256": "c1f39f277e9de30416299bb1931db789364ba1d340f58919d37ca03fd72c32b4",
+    "members": 48
+  }
+}
