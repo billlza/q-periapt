@@ -2228,6 +2228,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-guest-logcat.txt\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.txt\n"
