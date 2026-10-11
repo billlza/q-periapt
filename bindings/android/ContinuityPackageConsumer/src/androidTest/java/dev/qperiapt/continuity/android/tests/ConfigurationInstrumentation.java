@@ -108,6 +108,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                     if (credential) {
                         WitnessInputs.installCredential(inputs, arguments, operation);
                         if (operation.startsWith("credential-peer-")) PeerInputs.install(inputs, arguments, operation.substring("credential-".length()));
+                        if (operation.startsWith("credential-remote-")) {
+                            WitnessInputs.installRemoteCredential(inputs,arguments,operation);
+                            if (operation.equals("credential-remote-uncertain") || operation.equals("credential-remote-retry")) PeerInputs.install(inputs,arguments,"peer-retry");
+                        }
                         CredentialProbe.main(call);
                     } else if (authority) {
                         if (operation.equals("authority-peer-associate")) PeerInputs.installApproval(inputs, arguments);

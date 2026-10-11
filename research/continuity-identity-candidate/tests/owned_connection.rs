@@ -415,7 +415,8 @@ pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
     match kind {
         enrollment::SetupKind::Installed => setup_with_witness(None),
         enrollment::SetupKind::EnrolledExpiringPolicy => setup_expiring_policy(None),
-        enrollment::SetupKind::Enrolled | enrollment::SetupKind::DeviceReplacement => {
+        enrollment::SetupKind::Enrolled => setup_enrolled_with_witness(None),
+        enrollment::SetupKind::DeviceReplacement => {
             Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
         }
         enrollment::SetupKind::DeviceRetirement => {
@@ -468,6 +469,19 @@ pub(crate) fn setup_expiring_policy(witness: Option<&WitnessFixture>) -> Result<
 }
 pub(crate) fn setup_with_witness(witness: Option<&WitnessFixture>) -> Result<Setup> {
     setup_with_advertisement(witness, None)
+}
+/// Keep the original enrollment for both endpoints so each can renew its credential.
+pub(crate) fn setup_enrolled_with_witness(witness: Option<&WitnessFixture>) -> Result<Setup> {
+    Ok(setup_devices_for(
+        witness,
+        None,
+        None,
+        false,
+        false,
+        true,
+        enrollment::SetupKind::Enrolled,
+    )?
+    .0)
 }
 fn setup_with_advertisement(
     witness: Option<&WitnessFixture>,

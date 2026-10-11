@@ -50,7 +50,7 @@ public final class PeerProbe {
     private static PeerConfiguration.Device expectation(Path inputs, String prefix) throws Exception {
         return new PeerConfiguration.Device(account(inputs, prefix), read(inputs, prefix + "-device"), counter(read(inputs, prefix + "-generation")));
     }
-    private static PeerConfiguration configuration(Path inputs) throws Exception {
+    static PeerConfiguration configuration(Path inputs) throws Exception {
         return new PeerConfiguration(expectation(inputs, "initiator"), expectation(inputs, "responder"), read(inputs, "directory"),
             read(inputs, "bootstrap.bundle"), read(inputs, "tls-peer"), new String(read(inputs, "tls-peer-name"), java.nio.charset.StandardCharsets.UTF_8));
     }

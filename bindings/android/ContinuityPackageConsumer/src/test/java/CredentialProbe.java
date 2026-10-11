@@ -37,6 +37,10 @@ public final class CredentialProbe {
                     }
                     if (mode.equals("credential-identity")) { publish(output, identity(enrollment)); return; }
                     if (mode.equals("credential-status")) { publish(output, status(enrollment.credentialRenewalStatus())); return; }
+                    if (mode.startsWith("credential-remote-")) {
+                        try (ContinuityDevice active = enrollment.activate()) { PeerRenewalProbe.run(active, inputs, mode, output); }
+                        return;
+                    }
                     if (mode.startsWith("credential-peer-")) {
                         try (ContinuityDevice active = enrollment.activate()) {
                             if (mode.equals("credential-peer-unassociated")) PeerProbe.unassociated(active, inputs, output);

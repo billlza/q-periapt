@@ -55,10 +55,21 @@ final class WitnessInputs {
         if (!operation.equals("authority-create")) install(inputs, arguments, "authority-checkpoint", 72, 72, true);
     }
     static void installCredential(File inputs, Bundle arguments, String operation) throws Exception {
-        if (operation.equals("credential-identity") || operation.equals("credential-status") || operation.startsWith("credential-peer-")) return;
+        if (operation.equals("credential-identity") || operation.equals("credential-status") || operation.startsWith("credential-peer-") || operation.startsWith("credential-remote-")) return;
         for (String name : new String[] {"credential-operation", "credential-statement", "renewal-digest"})
             install(inputs, arguments, name, 32, 32, true);
         install(inputs, arguments, "renewal-version", 8, 8, true);
         install(inputs, arguments, "credential-renewal", 1, 65536, true);
+    }
+    static void installRemoteCredential(File inputs, Bundle arguments, String operation) throws Exception {
+        if (operation.equals("credential-remote-uncertain")) return;
+        install(inputs,arguments,"remote-message",32,32,true);
+        if (operation.equals("credential-remote-admit") || operation.equals("credential-remote-reopen")) {
+            install(inputs,arguments,"remote-grant",1,65536,true);
+            install(inputs,arguments,"remote-operation",32,32,true);
+            install(inputs,arguments,"remote-version",8,8,true);
+            install(inputs,arguments,"remote-digest",32,32,true);
+        }
+        if (operation.equals("credential-remote-reopen")) install(inputs,arguments,"remote-next",32,32,true);
     }
 }

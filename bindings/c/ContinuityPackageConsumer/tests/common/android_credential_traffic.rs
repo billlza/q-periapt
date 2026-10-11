@@ -15,7 +15,7 @@ pub(crate) struct Traffic {
     message: [u8; 32],
     effect: Vec<u8>,
 }
-fn executable() -> Result<PathBuf> {
+pub(crate) fn executable() -> Result<PathBuf> {
     let path = PathBuf::from(
         std::env::var_os("QPC_CONFIGURATION_RECEIVER").ok_or("explicit installed C receiver")?,
     );
@@ -24,7 +24,7 @@ fn executable() -> Result<PathBuf> {
     }
     Ok(path)
 }
-fn witness_args(case: &Renewal<'_>) -> Result<Vec<OsString>> {
+pub(crate) fn witness_args(case: &Renewal<'_>) -> Result<Vec<OsString>> {
     Ok(vec![
         match case.carrier {
             "signed" => "--witness",
@@ -40,9 +40,17 @@ fn start(
     mode: &str,
     session: Option<[u8; 32]>,
 ) -> Result<(receiver_process::Server, SocketAddr)> {
+    start_labelled(case, mode, session, &format!("credential-{mode}"))
+}
+pub(crate) fn start_labelled(
+    case: &Renewal<'_>,
+    mode: &str,
+    session: Option<[u8; 32]>,
+    label: &str,
+) -> Result<(receiver_process::Server, SocketAddr)> {
     let mut args = witness_args(case)?;
     args.extend([
-        "--device-parent".into(),
+        "--enrollment-parent".into(),
         case.receiver.as_os_str().into(),
         "2".into(),
     ]);
@@ -54,15 +62,9 @@ fn start(
         case.receiver.as_os_str().into(),
         mode.into(),
     ]);
-    receiver_process::start_selected(
-        &executable()?,
-        None,
-        case.base,
-        &format!("credential-{mode}"),
-        &args,
-    )
+    receiver_process::start_selected(&executable()?, None, case.base, label, &args)
 }
-fn received(
+pub(crate) fn received(
     server: receiver_process::Server,
     code: i32,
     event: Option<([u8; 32], [u8; 32])>,
@@ -88,6 +90,7 @@ impl Traffic {
         case: &Renewal<'_>,
         run: &impl Fn(&str, &str) -> Result<Vec<u8>>,
     ) -> Result<Self> {
+        crate::android_remote_credential::receiver_metadata(case)?;
         peer_bundle::peer_bundle_at(
             case.receiver,
             &case.inputs.join("peer"),

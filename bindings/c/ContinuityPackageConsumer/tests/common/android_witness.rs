@@ -29,7 +29,11 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
     for carrier in ["signed", "tls"] {
         for profile in ["fixed", "recoverable"] {
             let mut witness = witness::Witness::start()?;
-            let reference = fixture::setup_with_witness(Some(&witness.configured))?;
+            let reference = if renewal {
+                fixture::setup_enrolled_with_witness(Some(&witness.configured))?
+            } else {
+                fixture::setup_with_witness(Some(&witness.configured))?
+            };
             let base = output.join(format!("{carrier}-{profile}"));
             fs::DirBuilder::new().mode(0o700).create(&base)?;
             let inputs = base.join("inputs");
@@ -184,6 +188,10 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
                     inputs: &inputs,
                     base: &base,
                     receiver: &reference.responder,
+                    receiver_root: reference
+                        .responder_issuer
+                        .as_ref()
+                        .ok_or("receiver issuer")?,
                     carrier,
                     witness: &witness,
                     tls: fault_tls.as_ref(),
@@ -191,6 +199,7 @@ fn registration(managed: bool, renewal: bool) -> Result<()> {
                 .run(&run)?;
                 println!("qualified credential renewal {carrier}/{profile}: same identity and journal, original operation, lost committed reply, historical recovery, current authority activation");
                 println!("qualified credential traffic {carrier}/{profile}: original session and message, receiver effect before exit, renewal, exact retry, one business effect");
+                println!("qualified remote credential {carrier}/{profile}: explicit remote grant, stale peer refusal, original pending message, restart, exact retry, two distinct business effects");
             }
             policy.close();
             sdk.close();

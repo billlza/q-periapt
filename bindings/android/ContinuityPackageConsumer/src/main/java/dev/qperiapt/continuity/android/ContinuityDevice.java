@@ -7,6 +7,19 @@ public final class ContinuityDevice implements AutoCloseable {
     ContinuityDevice(long handle) { owner = new Owner(handle); }
     public void cancel() { owner.action(2); }
     @Override public void close() { owner.close(); }
+    /** Admit an independently approved remote grant on this original device.
+     * Reopen original peer/session owners after success; cached children are not
+     * refreshed. This cannot renew the local identity or create a new session.
+     * A failed/unknown result is not absence: close/reopen the original owners
+     * and reconcile the SAME grant and operation, never replace the journal.
+     */
+    public RosterCheckpoint admitPeerCredentialRenewal(byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
+        java.util.Objects.requireNonNull(independentPin, "independent account pin");
+        byte[][] pin = independentPin.snapshot();
+        byte[][] input = {ConfigurationInputs.copy(grant, 1, 65536, "peer credential grant"), pin[0], pin[1], pin[2], pin[3],
+            java.util.Objects.requireNonNull(original, "original renewal").encoded()};
+        return owner.call(false, handle -> RosterCheckpoint.decode(Native.credentialCommand(handle, 9, input, independentPin.version.bits)));
+    }
     private ContinuityPeer prepare(PeerConfiguration configuration, PeerConfiguration.Quality quality,
             PeerConfiguration.Role role, Ids.Session session) {
         java.util.Objects.requireNonNull(configuration, "peer configuration");

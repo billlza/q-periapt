@@ -15,6 +15,14 @@ public final class RosterCheckpoint {
             throw new IllegalArgumentException("roster checkpoint");
     }
     public Counter64 version() { return version; }
+    static RosterCheckpoint decode(byte[] wire) {
+        if (wire.length != 40) throw new IllegalStateException("native roster checkpoint width");
+        long version = java.nio.ByteBuffer.wrap(wire).getLong();
+        byte[] digest = Arrays.copyOfRange(wire, 8, 40);
+        if (version == 0 || version == -1 || !EnrollmentIntent.nonzero(digest))
+            throw new IllegalStateException("malformed native roster checkpoint");
+        return new RosterCheckpoint(Counter64.fromBits(version), digest);
+    }
     public byte[] digest() { return digest.clone(); }
     @Override public boolean equals(Object other) {
         return other instanceof RosterCheckpoint && version.equals(((RosterCheckpoint) other).version)

@@ -17,6 +17,7 @@ pub(crate) struct Renewal<'a> {
     pub(crate) inputs: &'a Path,
     pub(crate) base: &'a Path,
     pub(crate) receiver: &'a Path,
+    pub(crate) receiver_root: &'a p::RootSigningKey,
     pub(crate) carrier: &'a str,
     pub(crate) witness: &'a witness::Witness,
     pub(crate) tls: Option<&'a witness_tls_faults::FaultWitness>,
@@ -233,6 +234,7 @@ impl Renewal<'_> {
         counts.extend_from_slice(&0u32.to_be_bytes());
         publish_private_bytes(&self.base.join("credential-dispatch-observation"), &counts)?;
         traffic.resume(self, run)?;
+        crate::android_remote_credential::run(self, run)?;
         Ok(())
     }
 }

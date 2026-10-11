@@ -35,7 +35,10 @@ public final class BridgeProbe {
             rejected(IllegalArgumentException.class, () -> Native.authorityCommand(0, 1, new byte[][] {new byte[31]}, 0));
             rejected(IllegalArgumentException.class, () -> Native.selectAuthority(0, 0, new byte[][] {new byte[71]}));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 0, new byte[0][], 0));
+            rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 10, new byte[0][], 0));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 9, new byte[0][], 0));
+            rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 9,
+                new byte[][] {new byte[65537], new byte[32], new byte[1985], new byte[32], new byte[32], new byte[32]}, 1));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 1, new byte[0][], 1));
             rejected(NullPointerException.class, () -> Native.credentialCommand(0, 1, null, 0));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 6, new byte[][] {new byte[32], new byte[31]}, 0));
@@ -57,6 +60,10 @@ public final class BridgeProbe {
         System.out.println("configuration:bridge:passed");
     }
     private static void credentialCodecs() {
+        rejected(IllegalStateException.class, () -> RosterCheckpoint.decode(new byte[40]));
+        rejected(IllegalStateException.class, () -> RosterCheckpoint.decode(new byte[39]));
+        byte[] checkpoint = new byte[40]; checkpoint[0] = (byte) 0x80; checkpoint[7] = 1; checkpoint[8] = 2;
+        if (!RosterCheckpoint.decode(checkpoint).version().equals(new Counter64("9223372036854775809"))) throw new AssertionError("unsigned checkpoint");
         for (int command : new int[] {1,4,5}) {
             final int selected = command;
             rejected(ContinuityFailure.class, () -> Native.credentialCommand(0, selected, new byte[0][], 0));

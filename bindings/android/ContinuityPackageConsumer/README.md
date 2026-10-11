@@ -44,9 +44,16 @@ the local account. An unknown peer is refused even when its TLS certificate and
 bootstrap bundle are valid. After local renewal, call `preparePeerReopen` with
 the original peer expectations and session ID, then retry the original message
 with the same payload and associated data. The counterparty must independently
-admit the renewal grant before reopening that session. The current integration
-uses the public C device interface for this counterpart admission; the Android
-wrapper for admitting a remote peer's renewal is still subsequent work.
+admit the renewal grant before reopening that session.
+
+For a remote peer's renewal, call `ContinuityDevice.admitPeerCredentialRenewal`
+with the signed grant, an independently retained target `AccountPin` and the
+original renewal ID. Keep the original device and registry alive. The returned
+checkpoint describes the installed target; it is not a receipt proving absence
+after a failed call. Close and reopen the original owners after an unknown result
+and reconcile the same grant. This API cannot renew the local identity or create
+a session. Existing peer objects retain their original authorization view: close
+them and explicitly reopen each original session after successful admission.
 
 `prepareWitnessedCredentialCancellation` exports the original target-free
 expectation for independent cancellation approval. `closeWitnessedCredentialRenewal`
