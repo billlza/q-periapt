@@ -23,4 +23,8 @@ jbyteArray qpj_peer_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
 jbyteArray qpj_peer_server(JNIEnv *, jclass, jlong, jint, jobjectArray, jobject);
 jboolean qpj_valid_commit(JNIEnv *, jobject);
 jint qpj_commit(JNIEnv *, jobject, jbyteArray, jbyteArray, jbyteArray);
+void qpj_provision_authority(JNIEnv *, jclass, jobjectArray);
+jlong qpj_prepare_authority(JNIEnv *, jclass, jobjectArray, jboolean);
+jbyteArray qpj_authority_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
+void qpj_select_authority(JNIEnv *, jclass, jlong, jlong, jobjectArray);
 #endif

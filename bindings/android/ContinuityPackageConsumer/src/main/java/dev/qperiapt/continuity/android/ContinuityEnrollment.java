@@ -36,6 +36,12 @@ public final class ContinuityEnrollment implements AutoCloseable {
     public StoragePreparation prepareStorage() {
         return owner.call(false, handle -> new StoragePreparation(Native.enrollmentQuery(handle, 3)));
     }
+    /** Select the original live registry after independent approval of this request.
+     * Keep the registry open throughout activation and use of its managed children.
+     */
+    public void selectAccountAuthority(ContinuityAccountAuthority registry, AccountAuthorityCheckpoint checkpoint) {
+        Objects.requireNonNull(registry, "account registry").select(owner, Objects.requireNonNull(checkpoint, "checkpoint"));
+    }
     /** Missing required witness enrollment is an error, never a local-mode fallback. */
     public ContinuityDevice activate() {
         return owner.transfer(handle -> {

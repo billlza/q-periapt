@@ -49,4 +49,9 @@ final class WitnessInputs {
             install(inputs, arguments, "witness-tls-name", 1, 128, true);
         }
     }
+    static void installAuthority(File inputs, Bundle arguments, String operation) throws Exception {
+        install(inputs, arguments, "authority-id", 32, 32, true);
+        install(inputs, arguments, "authority-application", 32, 32, true);
+        if (!operation.equals("authority-create")) install(inputs, arguments, "authority-checkpoint", 72, 72, true);
+    }
 }

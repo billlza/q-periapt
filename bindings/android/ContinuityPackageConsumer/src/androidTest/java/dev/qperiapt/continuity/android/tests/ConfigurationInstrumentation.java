@@ -47,8 +47,11 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             String profile = arguments.getString("profile"), operation = arguments.getString("operation");
             if (!("fixed".equals(profile) || "recoverable".equals(profile))) throw new IllegalArgumentException("profile");
             if (operation == null) throw new IllegalArgumentException("operation");
-            boolean witnessed = operation.startsWith("witness-");
-            boolean enrollment = operation.startsWith("enrollment-") || witnessed;
+            boolean managed = operation.startsWith("managed-");
+            String baseOperation = managed ? operation.substring(8) : operation;
+            boolean authority = operation.startsWith("authority-");
+            boolean witnessed = operation.startsWith("witness-") || managed;
+            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority;
             boolean peer = operation.startsWith("peer-");
             File base = new File(getTargetContext().getFilesDir().getCanonicalFile(), "continuity");
             try { android.system.Os.mkdir(base.getPath(), 0700); }
@@ -85,7 +88,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             if (enrollment || peer) {
                 String label = arguments.getString("label");
                 if (label == null || !label.matches("[a-z][a-z0-9.-]{0,63}")) throw new IllegalArgumentException("result label");
-                if ("enrollment-reject".equals(operation) || "enrollment-activate".equals(operation) || "witness-prepare".equals(operation)) grantInputs(inputs);
+                if ("enrollment-reject".equals(operation) || "enrollment-activate".equals(operation)
+                        || "witness-prepare".equals(baseOperation) || "authority-create".equals(operation)) grantInputs(inputs);
                 File publicResult = new File(base, label);
                 String[] call = {inputs.getPath(), new File(base, leaf).getPath(), profile, operation, publicResult.getPath()};
                 if (peer) {
@@ -95,8 +99,12 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         ready.putString("apk_sha256", result.getString("apk_sha256")); ready.putString("stage", "peer-listening");
                         sendStatus(2, ready);
                     });
-                } else if (witnessed) {
-                    WitnessInputs.install(inputs, arguments); WitnessProbe.main(call);
+                } else if (witnessed || authority) {
+                    WitnessInputs.install(inputs, arguments);
+                    if (authority || (managed && !baseOperation.equals("witness-create")
+                            && !baseOperation.equals("witness-wrong") && !baseOperation.equals("witness-resume")))
+                        WitnessInputs.installAuthority(inputs, arguments, operation);
+                    if (authority) AuthorityProbe.main(call); else WitnessProbe.main(call);
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
                 if (bytes.length < 1 || bytes.length > 8192) throw new IllegalStateException("public result width");

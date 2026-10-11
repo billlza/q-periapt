@@ -28,6 +28,12 @@ public final class BridgeProbe {
             rejected(IllegalArgumentException.class, () -> Native.beginEnrollment(0, null, new long[2], 1, 0, 0));
             rejected(IllegalArgumentException.class, () -> Native.enrollmentQuery(0, 0));
             rejected(IllegalArgumentException.class, () -> Native.enrollmentAccept(0, new byte[5][], 1));
+            rejected(NullPointerException.class, () -> Native.provisionAuthority(null));
+            rejected(IllegalArgumentException.class, () -> Native.provisionAuthority(new byte[][] {new byte[0]}));
+            rejected(IllegalArgumentException.class, () -> Native.prepareAuthority(new byte[4][], true));
+            rejected(IllegalArgumentException.class, () -> Native.authorityCommand(0, 3, new byte[0][], 0));
+            rejected(IllegalArgumentException.class, () -> Native.authorityCommand(0, 1, new byte[][] {new byte[31]}, 0));
+            rejected(IllegalArgumentException.class, () -> Native.selectAuthority(0, 0, new byte[][] {new byte[71]}));
         }
         rejected(ContinuityFailure.class, () -> Native.enrollmentQuery(0, 1));
         rejected(IllegalArgumentException.class, () -> Native.path("\ud800"));

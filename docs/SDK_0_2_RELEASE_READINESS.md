@@ -209,8 +209,11 @@ evidence for those implemented behaviors. [Required-witness signed TCP/mutual TL
 registration](../research/sdk-alpha1/evidence/20261011-android-witness/CHECKS.json)
 additionally passes in thirty ART processes on the same phone,
 including independent genesis enrollment and refusal of missing/wrong witness
-trust or a corrupted signed receipt. Android account-wide lifecycle and final
-candidate package admission remain work
+trust or a corrupted signed receipt. Independent registry creation, association,
+managed activation/reopen and cancel/close admission boundaries additionally pass
+in [fifty ART processes on that phone](../research/sdk-alpha1/evidence/20261011-android-authority/CHECKS.json).
+Credential/roster renewal, device retirement,
+root replacement and final candidate package admission remain work
 on the software contract, not a requirement for another physical device.
 
 | Requirement | Required completion evidence | Current state |

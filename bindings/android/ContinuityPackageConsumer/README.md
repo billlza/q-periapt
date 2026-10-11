@@ -5,8 +5,9 @@ It is separate from the product SDK's ABI 2 Android package. Its present public
 surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
-reopening, message status/retry, bidirectional transport and rekey. Account-wide
-lifecycle integration remains subsequent work. The current extracted AAR has a
+reopening, message status/retry, bidirectional transport, rekey and registry-backed
+first activation. Credential/roster renewal, device retirement and root replacement
+integration remain subsequent work. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate.
 
 `ConfigurationInputs` copies independently supplied SDK trust, signed policies,
@@ -34,6 +35,26 @@ No blocking native operation runs under the Java ownership monitor. A previously
 admitted cancellation may race a transfer and affect its successor; join the
 cancelling thread before using the returned successor. All I/O-bearing operations
 are synchronous and belong on a worker thread.
+
+For managed first use, create a separate private registry directory, explicitly
+call `ContinuityAccountAuthority.provisionWrappingKey`, then `prepareCreate` and
+`finishOpen`. Retain `AccountAuthorityTrust` independently of journal backups.
+After the issuer approves the original request, `associate` verifies its grant
+against an independent `AccountPin` and returns a public checkpoint. Select it
+with `enrollment.selectAccountAuthority` before storage preparation and activation.
+Selection performs no storage I/O; successful activation durably binds the registry.
+Subsequent `prepareOpen` never recreates missing storage, and managed enrollment
+reopen requires explicit selection of the original checkpoint again.
+
+Keep the registry open while its managed children operate. `cancel` stops calls
+on that registry handle; `close` revokes retained child admission. Reopening the
+same database does not revive an old selection. A checkpoint alone is never a
+permission token. Association errors may follow commit, so retain the original
+inputs and inspect the checkpoint before deciding the next action. Registry
+creation, signature refusal, exact association replay, reopen, forged revision
+refusal and these cancel/close boundaries pass through the actual AAR in fifty
+ART processes on the same API 37 phone, across both witness carriers and both
+root trust profiles.
 
 `ContinuityDevice.preparePeer` copies an independently supplied
 `PeerConfiguration`; bundle contents cannot select its account, device, directory
@@ -146,7 +167,8 @@ lane selects these options on macOS arm64. It compiles the public classes for
 Java 11 into a JAR, compiles the probes for Java 17 against that JAR, and builds
 the real JNI bridge against each installed Debug/Release C library. Each profile
 runs the JNI malformed-input probe, both twelve-process lifecycle traces and the
-four required-witness routes (thirty additional foreign processes per profile).
+four required-witness routes (thirty additional foreign processes per profile),
+and four managed registry routes (fifty additional processes per profile).
 The result is `ANDROID_JNI_CONSUMER.json` with source, tool, JAR and binary hashes.
 This host lane complements the recorded actual-AAR/ART physical run; the JNI
 adapter remains an unpublished candidate.

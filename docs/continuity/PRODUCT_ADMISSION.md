@@ -19,8 +19,14 @@ pass the implemented lifecycle. One phone satisfies the agreed device scope.
 The [signed-TCP and mutual-TLS required-witness registration routes](../../research/sdk-alpha1/evidence/20261011-android-witness/CHECKS.json)
 additionally pass in 30 ART processes on that same phone; missing/wrong trust and a corrupted
 signed reply are refused, and independent genesis enrollment enables activation
-and original-request reopen. Android account-wide lifecycle still requires its
-own implementation and functional checks. The CI host JNI lane exercises
+and original-request reopen. Android now also provisions its own independent
+account registry, verifies and replays the approved association, selects its live
+authority for first activation, and reopens the original managed enrollment.
+The [four registry routes](../../research/sdk-alpha1/evidence/20261011-android-authority/CHECKS.json)
+pass in fifty ART processes: forged revisions are refused,
+cancel does not revoke an already selected child, and close does, even after the
+same registry is reopened. Credential/roster renewal, device retirement and root
+replacement still need Android integration. The CI host JNI lane exercises
 packaged Java classes against Debug/Release C libraries; it is distinct from
 the accepted physical ART run.
 

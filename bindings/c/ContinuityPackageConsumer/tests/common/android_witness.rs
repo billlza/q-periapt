@@ -10,6 +10,15 @@ mod witness_tls;
 
 #[test]
 fn required_witness_registration() -> Result<()> {
+    registration(false)
+}
+
+#[test]
+fn managed_first_registration() -> Result<()> {
+    registration(true)
+}
+
+fn registration(managed: bool) -> Result<()> {
     let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("case output")?);
     let client = PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("client driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;
@@ -40,7 +49,12 @@ fn required_witness_registration() -> Result<()> {
                 publish_private_bytes(&inputs.join(name), &bytes)?;
             }
             let run = |mode: &str, label: &str| {
-                run_foreign(&client, profile, &inputs, &base, mode, label)
+                let selected = if managed && mode.starts_with("witness-") {
+                    format!("managed-{mode}")
+                } else {
+                    mode.to_owned()
+                };
+                run_foreign(&client, profile, &inputs, &base, &selected, label)
             };
             let original = run("witness-create", "original.request")?;
             let before = witness.captured.lock().map_err(|_| "capture")?.len();
@@ -52,11 +66,30 @@ fn required_witness_registration() -> Result<()> {
             assert_eq!(run("witness-resume", "resumed.request")?, original);
             let (certificate, roster) =
                 issue_grant(&inputs, &authority, &intent, validity, &original)?;
+            if managed {
+                let identity = p::AccountAuthorityIdentity::generate()?;
+                let application = [133; 32];
+                publish_private_bytes(&inputs.join("authority-id"), identity.as_bytes())?;
+                publish_private_bytes(&inputs.join("authority-application"), &application)?;
+                let checkpoint = run("authority-create", "authority-created")?;
+                assert_eq!(checkpoint.len(), 72);
+                assert_eq!(checkpoint.get(..32), Some(application.as_slice()));
+                assert_eq!(checkpoint.get(32..40), Some(1u64.to_be_bytes().as_slice()));
+                assert_eq!(
+                    checkpoint.get(40..),
+                    Some(authority.account_id()?.as_slice())
+                );
+                publish_private_bytes(&inputs.join("authority-checkpoint"), &checkpoint)?;
+                assert_eq!(run("authority-reopen", "authority-reopened")?, checkpoint);
+            }
             let exported = run("witness-prepare", "genesis")?;
             assert_eq!(exported.len(), 164);
             assert_eq!(exported.get(..4), Some(&2u32.to_be_bytes()[..]));
             let before = witness.captured.lock().map_err(|_| "capture")?.len();
             assert_eq!(run("witness-missing", "missing")?, original);
+            if managed {
+                assert_eq!(run("managed-closed-registry", "closed-registry")?, original);
+            }
             assert_eq!(
                 witness.captured.lock().map_err(|_| "capture")?.len(),
                 before
@@ -105,6 +138,15 @@ fn required_witness_registration() -> Result<()> {
                 assert_eq!(run("witness-bad-receipt", "bad-receipt")?, original);
                 None
             };
+            if managed {
+                assert_eq!(
+                    run("managed-cancelled-registry", "cancelled-registry")?,
+                    original
+                );
+                // Selection is initially in memory. First successful activation
+                // durably binds the registry; only then is unmanaged reopen a bypass.
+                assert_eq!(run("managed-unselected", "unselected")?, original);
+            }
             let before = witness.captured.lock().map_err(|_| "capture")?.len();
             assert_eq!(run("witness-activate", "activated.request")?, original);
             assert_eq!(
@@ -132,7 +174,11 @@ fn required_witness_registration() -> Result<()> {
                 &base.join("signed-witness-transcript"),
                 transcript.as_bytes(),
             )?;
-            println!("qualified witness {carrier}/{profile}: original registration, independent genesis, refused missing or wrong trust, authenticated activation and reopen");
+            if managed {
+                println!("qualified managed witness {carrier}/{profile}: independent registry, original association, checkpoint refusal, cancelled registry retains admission, closed registry revokes admission, authenticated activation and reopen");
+            } else {
+                println!("qualified witness {carrier}/{profile}: original registration, independent genesis, refused missing or wrong trust, authenticated activation and reopen");
+            }
         }
     }
     Ok(())

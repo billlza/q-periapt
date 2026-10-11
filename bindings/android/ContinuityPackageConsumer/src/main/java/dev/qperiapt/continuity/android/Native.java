@@ -37,6 +37,10 @@ final class Native {
     static native long preparePeer(long parent, byte[][] inputs, long[] counters, int quality, int role, boolean reopen);
     static native byte[] peerCommand(long handle, int operation, byte[][] inputs, long target);
     static native byte[] peerServer(long handle, int operation, byte[][] inputs, Object callback);
+    static native void provisionAuthority(byte[][] inputs);
+    static native long prepareAuthority(byte[][] inputs, boolean create);
+    static native byte[] authorityCommand(long handle, int operation, byte[][] inputs, long version);
+    static native void selectAuthority(long enrollment, long registry, byte[][] checkpoint);
     static final class CommitInvocation {
         private final ApplicationCommit commit;
         Throwable failure;

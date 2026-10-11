@@ -27,4 +27,7 @@ public final class Ids {
     }
     public static final class Session extends Value { public Session(byte[] bytes) { super(bytes); } }
     public static final class Message extends Value { public Message(byte[] bytes) { super(bytes); } }
+    public static final class AccountAuthority extends Value { public AccountAuthority(byte[] bytes) { super(bytes); } }
+    public static final class ApplicationAccount extends Value { public ApplicationAccount(byte[] bytes) { super(bytes); } }
+    public static final class Account extends Value { public Account(byte[] bytes) { super(bytes); } }
 }
