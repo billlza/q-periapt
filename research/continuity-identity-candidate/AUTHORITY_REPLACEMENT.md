@@ -1,11 +1,49 @@
 # Account-root and witness authority replacement
 
 Status: the native witness account-root transaction, original-journal fence,
-original-enrollment parent fence and explicit peer-account retirement are implemented;
+original-enrollment parent fence, explicit peer-account retirement and initial
+managed replacement owner are implemented;
 the complete managed account cutover and witness-key handoff
 are **not implemented**. Both
 remain part of the required 0.2.0 lifecycle. Existing registration, credential
 renewal, policy continuation and device replacement do not complete that lifecycle.
+
+## Managed original replacement owner
+
+`ManagedAccountRootReplacement` composes the existing native registry, enrollment
+and journal engines without adding a storage format or witness protocol. `begin`
+consumes a device already bound to the selected registry/checkpoint and retains
+the independently approved plan before a witness freeze may be requested. It
+keeps the original enrollment lease throughout preparation; a separate open cannot
+take over that parent while the controller waits for the witness. Closing or
+dropping the controller revokes registry access before disposing database owners.
+
+The independently authorized control plane still issues the successor, approves
+the plan, freezes the witness and commits its root replacement. The controller
+authenticates the original freeze receipt, binds the exact proposal in the registry
+and transfers the same enrollment into restricted parent/journal recovery.
+`retain_witness_retirement` verifies the exact signed retirement and persists it
+in child and parent before selecting the successor in the registry. These are
+ordered commits, not one cross-database transaction. A lost return may follow any
+commit; `resume_original` requires the same existing registry, checkpoint, approved
+plan, enrollment paths/intent and witness pin. It neither creates an absent
+operation nor treats silence as non-commit. Replaying the original receipt cannot
+advance the application revision twice.
+
+`activate_successor` requires retained retirement in both local owners and the
+exact target journal/account from the approved proposal. It then uses ordinary
+current credential/policy admission, fresh witness verification and durable
+registry binding. Committed history does not bypass expiry or authorize a different
+target. The controller must outlive returned operating owners;
+`successor_authority` supplies the same revocable registry descriptor for ordinary
+enrollment reopening and later lifecycle operations.
+
+This is the initial native managed cutover. Managed orchestration of authenticated
+non-commit, approval of another target, committed-winner adoption, retired-message
+accounting/erasure, deployed control-plane transport, foreign adapters and supported
+platform qualification remain required. Those cases must reuse the terminal and
+transition primitives below, preserving original identities and approvals; they
+cannot reset Preparing/Pending or regenerate a root to recover availability.
 
 ## Preserve the current identity meanings
 

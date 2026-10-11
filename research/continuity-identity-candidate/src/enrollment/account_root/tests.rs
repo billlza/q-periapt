@@ -11,6 +11,8 @@ use std::{
     time::Instant,
 };
 
+#[path = "managed_tests.rs"]
+mod managed;
 #[path = "process.rs"]
 mod process;
 #[path = "registry_activation_tests.rs"]

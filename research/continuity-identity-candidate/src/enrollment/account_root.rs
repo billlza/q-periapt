@@ -10,6 +10,10 @@ pub(super) const ROW: &str = "root-replacement";
 const TAG: &[u8; 8] = b"QPERPL01";
 const TRANSFER_TAG: &[u8; 8] = b"QPERPL02";
 const RECEIPT_BYTES: usize = 3449;
+#[cfg(all(test, unix))]
+pub(super) fn managed_boundary(stage: &str) {
+    tests::at_boundary(&format!("managed-{stage}"), true);
+}
 const MAX_BYTES: usize =
     174 + 65_536 + RECEIPT_BYTES + 2 + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
 
@@ -319,7 +323,7 @@ impl AccountRootEnrollmentRecovery {
             proposal,
         )
     }
-    fn prepare(
+    pub(super) fn prepare(
         enrollment: DeviceEnrollment,
         pin: AnchorPin,
         proposal: Proposal,

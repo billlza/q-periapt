@@ -26,6 +26,8 @@ const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
 mod account_authority;
 mod account_root;
 pub use account_root::{AccountRootEnrollmentRecovery, AccountRootEnrollmentState};
+mod managed_root;
+pub use managed_root::ManagedAccountRootReplacement;
 mod policy_renewal;
 mod renewal;
 mod retirement;
