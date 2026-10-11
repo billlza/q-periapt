@@ -19,12 +19,14 @@ pub(super) struct Account {
 pub(super) enum ClientLanguage {
     C,
     Swift,
+    Kotlin,
 }
 impl ClientLanguage {
     pub(super) fn selected() -> Result<Self> {
         match std::env::var("QPC_ROOT_CLIENT_LANGUAGE").as_deref() {
             Ok("C") | Err(std::env::VarError::NotPresent) => Ok(Self::C),
             Ok("Swift") => Ok(Self::Swift),
+            Ok("Kotlin") => Ok(Self::Kotlin),
             _ => Err("unknown installed root client language".into()),
         }
     }
@@ -32,6 +34,7 @@ impl ClientLanguage {
         match self {
             Self::C => "C",
             Self::Swift => "Swift",
+            Self::Kotlin => "Kotlin",
         }
     }
 }
@@ -181,6 +184,26 @@ impl Case {
             self.pin.clone(),
         )?)
     }
+    pub(super) fn records_pthread_stacks(&self) -> bool {
+        !matches!(self.language, ClientLanguage::Kotlin)
+    }
+    pub(super) fn cut_output(&self, mode: &str) -> String {
+        match self.language {
+            ClientLanguage::Kotlin => format!("root-cut-ready:{mode}\n"),
+            ClientLanguage::C | ClientLanguage::Swift => String::new(),
+        }
+    }
+    pub(super) fn cut_ready(&self, mode: &str, stdout: &Path) -> Result<bool> {
+        let expected = self.cut_output(mode);
+        if expected.is_empty() {
+            return Ok(true);
+        }
+        // The JVM host publishes records with a temporary second hard link.
+        // Its explicit flush follows removal of that link and directory sync;
+        // keep the private-file reader's single-link requirement unchanged.
+        let bytes = fs::read(stdout)?;
+        Ok(bytes.ends_with(expected.as_bytes()))
+    }
     pub(super) fn command_mode(&self, mode: &str) -> String {
         let selected = match self.recovery {
             Recovery::Original => mode.to_owned(),
@@ -189,7 +212,7 @@ impl Case {
         };
         match self.language {
             ClientLanguage::C => selected,
-            ClientLanguage::Swift => format!("root:{selected}"),
+            ClientLanguage::Swift | ClientLanguage::Kotlin => format!("root:{selected}"),
         }
     }
     pub(super) fn resume(&self) -> Result<p::ManagedAccountRootReplacement> {

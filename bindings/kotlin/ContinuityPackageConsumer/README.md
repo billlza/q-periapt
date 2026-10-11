@@ -880,3 +880,27 @@ the original session/message. Each reopened process selects the original registr
 the receiver adopts the target policy before expiry. Managed credential renewal,
 SDK policy replacement, direct managed existing-owner constructors, complete account replacement, cross-host
 interoperability and other platform contracts retain their separate gates.
+
+### Original account-root replacement
+
+Keep the original `ContinuityAccountAuthority` reachable through root replacement,
+retired cleanup and successor use. Its close or final Cleaner release revokes its
+selected successor. `beginRootReplacement` consumes the old device's operation
+authority; aliases cannot bypass this transition. `activateRootSuccessor` moves
+the original enrollment's sole owner after current native admission. On an unknown
+outcome, close both affected wrappers and resume the same retained inputs.
+
+Supply the original `RootReplacementScope` and independently approved
+`RootReplacementPlan`. `bindRootFreeze` returns the exact proposal to retain;
+`retainRootRetirement` returns the new application checkpoint. A signed noncommit
+preserves suspension and does not authorize a new target. A separately approved
+`RootReplacementTransition` or `RootReplacementAdoption` retains all four exact
+inputs; after selection, use `resumeRootTransition` or `resumeRootAdoption` rather
+than the original-plan resume. These public byte containers validate shape and
+copy caller inputs; native code authenticates their authority and original state.
+
+The controller exposes the existing inventory, complete report, host acknowledgement,
+journal and signer erasure sequence. Historical cleanup does not grant fresh
+successor authority. Logical erasure does not erase old pages, backups or wrapping
+keys. Use deterministic `close`/`use`; bounded Cleaner observations in the installed
+consumer are a test of the selected JVM, not a promise of prompt cleanup on every JVM.

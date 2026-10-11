@@ -36,7 +36,7 @@ def scope(variant):
             "cross-host/device, power-loss or full release qualification.")
 
 
-def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: str = "original") -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: str = "original", cut_ready: bool = False) -> dict:
     stages, cuts = (STAGES, CUTS) if variant == "original" else alternatives.layout(variant)
     marker = MARKER if variant == "original" else alternatives.marker(variant)
     text = stdout.decode()
@@ -58,7 +58,7 @@ def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: s
     sdk.require(read("public/result") == marker, "C root result or qualification scope differs")
     pids, stacks = [], {}
     for stage in stages:
-        expected = b"" if stage in cuts else f"root-stage-pass:{stage}\n".encode()
+        expected = (f"root-cut-ready:{stage}\n".encode() if cut_ready else b"") if stage in cuts else f"root-stage-pass:{stage}\n".encode()
         sdk.require(read(stage + ".stdout", log=True) == expected
                     and read(stage + ".stderr", log=True) == b"", "C root stage outcome differs")
         pid = number("process-" + stage)
@@ -113,7 +113,7 @@ def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: s
     sdk.require(REVERSE_MARKER.decode().rstrip("\n") in text.splitlines(), "reverse root workload marker absent")
     traffic_result = traffic.verify(directory, read, authority=authority, original=old, target=target,
                                    history=setup + read("public/witness-transcript", RECORD_BYTES * 4096),
-                                   previous_pids=pids, darwin=darwin)
+                                   previous_pids=pids, darwin=darwin, cut_ready=cut_ready)
     return {"completed": True, "scope": scope(variant), "alternative": alternative, "release_claim_eligible": False,
             "processes": len(pids) + 17, "sigkill_cuts": len(cuts) + 2, "native_readbacks": 3,
             "application_traffic": traffic_result, "witness": observed, "default_thread_stacks": stacks,

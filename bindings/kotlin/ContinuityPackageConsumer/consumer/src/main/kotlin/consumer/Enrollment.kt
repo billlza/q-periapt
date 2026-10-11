@@ -10,20 +10,20 @@ import java.nio.file.Path
 internal fun FixtureRecords.enrollmentExact(name: String, count: Int): ByteArray = read(name).also {
     check(it.size == count) { "enrollment public input width: $name" }
 }
-private fun counter(bytes: ByteArray): Counter64 {
+internal fun enrollmentCounter(bytes: ByteArray): Counter64 {
     check(bytes.size == 8)
     return Counter64.parse(java.lang.Long.toUnsignedString(ByteBuffer.wrap(bytes).long))
 }
-private fun intent(records: FixtureRecords): EnrollmentIntent {
+internal fun enrollmentIntent(records: FixtureRecords): EnrollmentIntent {
     val bytes = records.enrollmentExact("enrollment-intent", 72)
     return EnrollmentIntent(records.enrollmentExact("enrollment-root", 1985), bytes.copyOfRange(0, 16),
-        counter(bytes.copyOfRange(16, 24)), bytes.copyOfRange(24, 56),
-        counter(bytes.copyOfRange(56, 64)), counter(bytes.copyOfRange(64, 72)))
+        enrollmentCounter(bytes.copyOfRange(16, 24)), bytes.copyOfRange(24, 56),
+        enrollmentCounter(bytes.copyOfRange(56, 64)), enrollmentCounter(bytes.copyOfRange(64, 72)))
 }
 internal fun enrollmentPin(records: FixtureRecords, renewal: Boolean): AccountPin {
-    val original = intent(records)
+    val original = enrollmentIntent(records)
     return AccountPin(AccountID(records.enrollmentExact("trusted-account", 32)), original.root.encoded(), original.family.encoded(),
-        RosterCheckpoint(counter(records.enrollmentExact(if (renewal) "renewal-version" else "trusted-roster-version", 8)),
+        RosterCheckpoint(enrollmentCounter(records.enrollmentExact(if (renewal) "renewal-version" else "trusted-roster-version", 8)),
             records.enrollmentExact(if (renewal) "renewal-digest" else "trusted-roster-digest", 32)))
 }
 private fun status(value: EnrollmentStatus): String =
@@ -46,7 +46,7 @@ private fun ContinuityEnrollment.activate(policy: EnrollmentPolicy): ContinuityD
 private data class TransferredEnrollment(val device: ContinuityDevice, val old: WeakReference<ContinuityEnrollment>)
 private fun transfer(path: String, witness: WitnessCarrier, queue: ReferenceQueue<ContinuityEnrollment>,
                      policy: EnrollmentPolicy): TransferredEnrollment =
-    ContinuityEnrollment.resume(path, intent(FixtureRecords(Path.of(path))), witness).use { owner ->
+    ContinuityEnrollment.resume(path, enrollmentIntent(FixtureRecords(Path.of(path))), witness).use { owner ->
         val old = WeakReference(owner, queue)
         val device = if (policy != EnrollmentPolicy.ORIGINAL) {
             val target = Path.of(path).resolve(if (policy == EnrollmentPolicy.JOINT) "continued-sdk" else "independent-sdk")
@@ -108,8 +108,8 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
         "enrollment-refuse-resume", "enrollment-refuse-create" -> {
             val creating = mode == "enrollment-refuse-create"
             val wanted = if (creating) 211 else 204
-            val pending = if (creating) ContinuityEnrollment.prepareCreate(path, intent(records), witness)
-                else ContinuityEnrollment.prepareResume(path, intent(records), witness)
+            val pending = if (creating) ContinuityEnrollment.prepareCreate(path, enrollmentIntent(records), witness)
+                else ContinuityEnrollment.prepareResume(path, enrollmentIntent(records), witness)
             pending.use { owner -> refused(setOf(wanted)) { owner.finishOpen() }; refused(setOf(2)) { owner.status() } }
             return "enrollment-open-refused:$wanted"
         }
@@ -140,8 +140,8 @@ internal fun enrollment(args: List<String>, witness: WitnessCarrier): String {
             return "enrollment-active\n${hex(batch)}"
         }
     }
-    val owner = if (mode == "enrollment-create") ContinuityEnrollment.create(path, intent(records), witness)
-        else ContinuityEnrollment.resume(path, intent(records), witness)
+    val owner = if (mode == "enrollment-create") ContinuityEnrollment.create(path, enrollmentIntent(records), witness)
+        else ContinuityEnrollment.resume(path, enrollmentIntent(records), witness)
     return owner.use {
         val original = it.status()
         if (mode.startsWith("enrollment-witnessed-roster-")) {

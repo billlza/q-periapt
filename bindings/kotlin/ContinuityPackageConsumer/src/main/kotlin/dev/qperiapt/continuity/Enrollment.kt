@@ -250,6 +250,11 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     /** Move the sole owning reference after native activation. On failure, close
      * this wrapper and resume the original state, which may already be Active.
      */
+    @JvmSynthetic internal fun activateRootSuccessor(registry: Long): ContinuityDevice = reference.transfer { owner ->
+        val device = ContinuityDevice.activated(owner)
+        owner.call { RootReplacementNative.activate(registry, it) }
+        device
+    }
     fun activate(): ContinuityDevice = reference.transfer { owner ->
         val device = ContinuityDevice.activated(owner)
         owner.call { ContinuityNative.simple(it, "enrollment_activate") }

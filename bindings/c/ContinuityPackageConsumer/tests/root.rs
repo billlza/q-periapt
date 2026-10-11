@@ -49,7 +49,7 @@ fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u3
     if kill {
         let marker = case.public.join(format!("cut-{mode}"));
         let deadline = Instant::now() + Duration::from_secs(15);
-        while !marker.exists() {
+        while !marker.exists() || !case.cut_ready(mode, &log.join(format!("{mode}.stdout")))? {
             if let Some(status) = child.0.try_wait()? {
                 return Err(format!(
                     "{mode} exited before cut: {status}; {}",
@@ -69,7 +69,10 @@ fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u3
         child.0.kill()?;
         let status = fixture::wait(&mut child)?;
         assert_eq!(status.signal(), Some(9));
-        assert!(fs::read(log.join(format!("{mode}.stdout")))?.is_empty());
+        assert_eq!(
+            fs::read(log.join(format!("{mode}.stdout")))?,
+            case.cut_output(mode).as_bytes()
+        );
     } else {
         let status = fixture::wait(&mut child)?;
         if !status.success() {
@@ -89,15 +92,14 @@ fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u3
         u64::from_be_bytes(fixture::array(&case.public, &format!("process-{mode}"))?),
         u64::from(pid)
     );
-    #[cfg(target_os = "macos")]
-    {
+    if cfg!(target_os = "macos") && case.records_pthread_stacks() {
         let actual = u64::from_be_bytes(fixture::array(&case.public, &format!("stack-{mode}"))?);
         let configured = u64::from_be_bytes(fixture::array(
             &case.public,
             &format!("stack-default-{mode}"),
         )?);
-        // pthread_create uses NULL attributes. Report both the system default
-        // and the actual stack, which may include runtime TLS allocation.
+        // C and Swift report the system default and actual worker stack
+        // independently. JVM stack bytes are not part of its GC observation.
         assert!(actual > 0 && configured > 0);
     }
     Ok(pid)

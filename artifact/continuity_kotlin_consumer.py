@@ -71,6 +71,11 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "RootReplacementTests": frozenset({
+        "rootLayoutsAndAllFourIndependentInputsMatchNative",
+        "rootApprovalsOwnBytesAndRejectWrongGrammarBoundsAndStates",
+        "pendingRegistryCannotGrantRootOrCleanupAuthority",
+    }),
     "AccountAuthorityTests": frozenset({
         "authorityLayoutsAndUnsignedCheckpointsMatchNative", "authorityTrustCopiesCallerBytesAndRejectsEmptyScope",
         "pendingAuthoritySharesCapacityAndPreservesCancellation", "originalAuthorityStoreReopensAfterExplicitClose",
@@ -150,7 +155,8 @@ def maven_contract() -> jvm.MavenContract:
     return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
         "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
-        ("AccountAuthorityID", "ApplicationAccountID", "AccountAuthorityTrust", "AccountAuthorityCheckpoint", "ContinuityAccountAuthority", "PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
+        ("RootReplacementScope", "RootReplacementPlan", "RootReplacementProposal", "RootReplacementState",
+         "RootReplacementTransition", "RootReplacementAdoption", "AccountAuthorityID", "ApplicationAccountID", "AccountAuthorityTrust", "AccountAuthorityCheckpoint", "ContinuityAccountAuthority", "PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
          "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
@@ -756,6 +762,16 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 rejection="compiler.err.report.access: dev.qperiapt.continuity.NativeOwner(long,dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.NativeOwner")
             sdk.require(not (installed / "negative-native-classes/RawNativeOwnerProbe.class").exists(),
                         "raw-native-owner negative control produced an executable class")
+            from continuity_kotlin_root import qualify as qualify_root
+            root_clients = {}
+            for collector in ("Serial", "G1"):
+                root_client = installed / ("client-root-" + collector.lower())
+                command = [str(java), "-Xms32m", "-Xmx128m", "-XX:+Use" + collector + "GC", *argv[1:]]
+                with root_client.open("x") as stream:
+                    stream.write("#!/bin/sh\nexec " + shlex.join(command) + ' "$@"\n')
+                root_client.chmod(0o700); root_clients[collector] = root_client
+            root_lifecycle = qualify_root(outside, output, profile, runtime, root_clients,
+                row["root_lifecycle"], library_path, run)
             for name, expected in hashes.items():
                 sdk.require(sdk.snapshot(installed / name, maximum=MAX_PACKAGE).sha256 == expected, "installed Kotlin package changed")
             sdk.require({p.name: sdk.snapshot(p).sha256 for p in (distribution / "lib").iterdir()} == jar_files
@@ -765,7 +781,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(sdk.snapshot(trace, maximum=c.MAX_BINARY).sha256 == row["binaries"]["Rust_trace"]["sha256"], "native Kotlin harness changed during execution")
             sdk.require(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).sha256 == hashlib.sha256(data).hexdigest(),
                         "Kotlin candidate archive changed during execution")
-            result["profiles"][profile] = {"account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
+            result["profiles"][profile] = {"root_lifecycle": root_lifecycle, "account_owner": accounts, "account_cleanup": cleaned, "setup": configured,
                 "device_retirement": retirement, "first_configuration": configurations, "peer_configuration": peer_configurations,
                 "setup_faults": interrupted_setup, "setup_io": io_setup,
                 "setup_witness_faults": witnessed_setup,

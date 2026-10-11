@@ -39,6 +39,9 @@ internal fun waitMarker(name: String) {
     error("fixture marker deadline")
 }
 private fun run(arguments: List<String>): String {
+    if (arguments.firstOrNull()?.startsWith("root:") == true) {
+        return rootCommand(listOf(arguments[0].removePrefix("root:")) + arguments.drop(1))
+    }
     if (arguments.firstOrNull() == "retired") return retirementCommand(arguments)
     var args = arguments
     val configuredPeer = args.firstOrNull() == "--peer-configured"

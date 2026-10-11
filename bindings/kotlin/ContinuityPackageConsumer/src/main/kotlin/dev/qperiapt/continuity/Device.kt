@@ -46,6 +46,7 @@ class ContinuityDevice private constructor(private val native: NativeOwner) : Au
             }
         }
     }
+    @JvmSynthetic internal fun <T> call(body: (Long) -> T): T = native.call(body)
     fun finishOpen() = native.call { ContinuityNative.simple(it, "finish_open") }
     fun cancel() = native.call { ContinuityNative.simple(it, "cancel") }
     override fun close() = native.close()

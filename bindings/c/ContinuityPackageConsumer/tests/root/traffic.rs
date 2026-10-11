@@ -94,10 +94,10 @@ fn server(
         std::thread::sleep(Duration::from_millis(5));
     }
 }
-fn cut_sender(process: &mut Process, public: &Path) -> Result<()> {
+fn cut_sender(case: &setup::Case, process: &mut Process, public: &Path) -> Result<()> {
     let marker = public.join("cut-sender");
     let deadline = Instant::now() + Duration::from_secs(40);
-    while !marker.exists() {
+    while !marker.exists() || !case.cut_ready("sender", &process.stdout)? {
         if let Some(status) = process.child.0.try_wait()? {
             return Err(format!(
                 "root sender exited before cut: {status}; {}",
@@ -116,7 +116,11 @@ fn cut_sender(process: &mut Process, public: &Path) -> Result<()> {
     );
     process.child.0.kill()?;
     assert_eq!(fixture::wait(&mut process.child)?.signal(), Some(9));
-    assert!(fs::read(&process.stdout)?.is_empty() && fs::read(&process.stderr)?.is_empty());
+    assert_eq!(
+        fs::read(&process.stdout)?,
+        case.cut_output("sender").as_bytes()
+    );
+    assert!(fs::read(&process.stderr)?.is_empty());
     Ok(())
 }
 fn effect(
@@ -192,7 +196,7 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
         let mut sender = spawn(&mut command, &logs, &format!("sender-{stage}"))?;
         ids.push(sender.child.0.id());
         if stage == "send-cut" {
-            cut_sender(&mut sender, &public)?;
+            cut_sender(case, &mut sender, &public)?;
         } else {
             assert_eq!(finish(&mut sender, 0)?, format!("root-stage-pass:{mode}\n"));
         }

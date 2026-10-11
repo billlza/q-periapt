@@ -124,7 +124,9 @@ pub(super) fn exercise(
         )?;
         if stage == "cut" {
             let deadline = Instant::now() + Duration::from_secs(25);
-            while !public.join("cut-receiver").exists() {
+            while !public.join("cut-receiver").exists()
+                || !case.cut_ready("receiver", &root.stdout)?
+            {
                 if root.child.0.try_wait()?.is_some() || Instant::now() >= deadline {
                     return Err(format!(
                         "root receive cut absent: {}",
@@ -142,11 +144,10 @@ pub(super) fn exercise(
             assert_eq!(fixture::wait(&mut root.child)?.signal(), Some(9));
             assert!(fs::read(&root.stderr)?.is_empty());
             let stdout = fs::read_to_string(&root.stdout)?;
-            assert!(stdout
-                .split_once('\n')
-                .ok_or("root cut readiness")?
-                .1
-                .is_empty());
+            assert_eq!(
+                stdout.split_once('\n').ok_or("root cut readiness")?.1,
+                case.cut_output("receiver")
+            );
         } else {
             assert_eq!(
                 finish(&mut root, 0)?

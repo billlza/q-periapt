@@ -188,6 +188,17 @@ internal object ContinuityNative {
         "authority_checkpoint" to function("qpc_authority_v1_checkpoint", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "authority_associate" to function("qpc_authority_v1_associate", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "authority_select_enrollment" to function("qpc_authority_v1_select_enrollment", JAVA_LONG, ADDRESS, ADDRESS),
+        "root_begin" to function("qpc_root_v1_begin", JAVA_LONG, JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS),
+        "root_resume" to function("qpc_root_v1_resume", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS),
+        "root_state" to function("qpc_root_v1_state", JAVA_LONG, ADDRESS, ADDRESS),
+        "root_bind_freeze" to function("qpc_root_v1_bind_freeze", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "root_retain_retirement" to function("qpc_root_v1_retain_retirement", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "root_retain_noncommit" to function("qpc_root_v1_retain_noncommit", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "root_activate_successor" to function("qpc_root_v1_activate_successor", JAVA_LONG, JAVA_LONG, ADDRESS),
+        "root_transition" to function("qpc_root_v1_transition", JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
+        "root_adopt" to function("qpc_root_v1_adopt", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "root_resume_transition" to function("qpc_root_v1_resume_transition", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "root_resume_adoption" to function("qpc_root_v1_resume_adoption", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "publication_size_bound" to function("qpc_device_v1_publication_size_bound", ADDRESS, ADDRESS, ADDRESS),
         "next_publication" to function("qpc_device_v1_next_publication", JAVA_LONG, ADDRESS, ADDRESS),
         "publication_status" to function("qpc_device_v1_publication_status", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
@@ -641,7 +652,7 @@ internal object ContinuityNative {
     private fun MemorySegment.put(layout: MemoryLayout, field: String, value: ByteArray) {
         asSlice(offset(layout, field), value.size.toLong()).copyFrom(MemorySegment.ofArray(value))
     }
-    private fun encodeEnrollmentIntent(arena: Arena, intent: EnrollmentIntent): MemorySegment =
+    @JvmSynthetic internal fun encodeEnrollmentIntent(arena: Arena, intent: EnrollmentIntent): MemorySegment =
         arena.allocate(enrollmentIntentLayout).also { output ->
             val root = intent.root.encoded()
             output.set(ADDRESS, offset(enrollmentIntentLayout, "root"), arena.bytes(root))

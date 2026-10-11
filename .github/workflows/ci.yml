@@ -2318,6 +2318,7 @@ jobs:
             target/continuity-installed-swift/kotlin-own-account-delivery-public/**
             target/continuity-installed-swift/swift-public/**
             target/continuity-installed-swift/swift-root-public/**
+            target/continuity-installed-swift/kotlin-root-public/**
             target/continuity-installed-swift/kotlin-public/**
             target/continuity-installed-swift/kotlin-inflight-compilation/**
             target/continuity-installed-swift/consumer-Cargo.lock

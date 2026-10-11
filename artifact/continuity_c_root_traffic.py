@@ -15,7 +15,7 @@ PAYLOAD = b"persisted before process exit"
 
 
 def verify(directory: Path, read, *, authority: bytes, original: bytes, target: bytes, history: bytes,
-           previous_pids: list[int], darwin: bool) -> dict:
+           previous_pids: list[int], darwin: bool, cut_ready: bool = False) -> dict:
     def public(name, maximum=65536):
         return read("public/traffic/" + name, maximum)
 
@@ -56,7 +56,7 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
         return read("traffic/" + name, log=True)
 
     for stage in SENDERS:
-        wanted = b"" if stage == "send-cut" else f"root-stage-pass:traffic-{stage}\n".encode()
+        wanted = (b"root-cut-ready:sender\n" if cut_ready else b"") if stage == "send-cut" else f"root-stage-pass:traffic-{stage}\n".encode()
         sdk.require(log("sender-" + stage + ".stdout") == wanted
                     and log("sender-" + stage + ".stderr") == b"", "root traffic sender failed")
         process = pid(root_number("process-traffic-" + stage))
@@ -83,7 +83,7 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
             wanted = f"served:{kind}:0:{calls}:{created}\n{session.hex()}\n{message.hex()}\n".encode()
         sdk.require(data[ready.end():] == wanted, "root traffic peer consumption or deduplication differs")
     reverse_result = reverse.verify(read, pid, log, session=session, outbound=after,
-                                    payload=PAYLOAD, darwin=darwin)
+                                    payload=PAYLOAD, darwin=darwin, cut_ready=cut_ready)
     sdk.require({p.name for p in (directory / "traffic").glob("*.std*")} == logs,
                 "root traffic process log census differs")
     traffic_history = public("witness-transcript", RECORD_BYTES * 4096)

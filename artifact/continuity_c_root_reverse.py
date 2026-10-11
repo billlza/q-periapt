@@ -7,7 +7,7 @@ MARKER = (b"ROOT_C_REVERSE processes=5 receiver_sigkill=1 original_reply_recover
           b"application_records=1 epoch=1\n")
 
 
-def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, darwin: bool) -> dict:
+def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, darwin: bool, cut_ready: bool = False) -> dict:
     def public(name, maximum=128):
         return read("public/traffic/" + name, maximum)
 
@@ -39,7 +39,7 @@ def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, d
         ready = re.match(rb"root-listening:([1-9][0-9]*)\n", data)
         sdk.require(ready is not None and int(ready[1]) <= 65535
                     and log("root-receive-" + stage + ".stderr") == b"", "root receiver did not listen")
-        wanted = b"" if stage == "cut" else b"root-stage-pass:traffic-receive-recover\n"
+        wanted = (b"root-cut-ready:receiver\n" if cut_ready else b"") if stage == "cut" else b"root-stage-pass:traffic-receive-recover\n"
         sdk.require(data[ready.end():] == wanted, "root receiver completion differs")
         wanted = b"delivery-unknown-committed\n" if stage == "cut" else b"consumed\n"
         sdk.require(log("peer-reply-" + stage + ".stdout") == wanted

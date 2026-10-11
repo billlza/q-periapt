@@ -13,6 +13,24 @@ public final class ConfigurationPublicProbe {
    configuration.finishOpen(); configuration.selectContinuationTarget(existing);
   }
  }
+ public static void roots(ContinuityAccountAuthority authority, ContinuityDevice device,
+                          ContinuityEnrollment enrollment, String path, EnrollmentIntent intent,
+                          RootReplacementScope scope, RootReplacementPlan plan,
+                          RootReplacementTransition transition, RootReplacementAdoption adoption, byte[] receipt) {
+  authority.beginRootReplacement(device, scope, plan);
+  authority.resumeRootReplacement(path, intent, scope, plan);
+  authority.rootReplacementState(); authority.bindRootFreeze(receipt);
+  authority.retainRootRetirement(receipt); authority.retainRootNoncommit(receipt);
+  authority.transitionRoot(transition); authority.adoptRoot(adoption);
+  authority.resumeRootTransition(path, intent, scope, transition);
+  authority.resumeRootAdoption(path, intent, scope, adoption);
+  try (ContinuityDevice successor = authority.activateRootSuccessor(enrollment)) { successor.cancel(); }
+  authority.retiredInventory(); authority.retiredReportProposal(); authority.retiredAcknowledgementProposal();
+  authority.prepareRetiredReport(receipt); authority.loadRetiredReport(receipt, receipt);
+  authority.prepareRetiredAcknowledgement(receipt, receipt, receipt);
+  authority.retiredJournalState(); authority.retiredSignerState(); authority.eraseRetiredJournal(receipt);
+  authority.prepareRetiredSignerErasure(receipt); authority.eraseRetiredSigner();
+ }
  public static void main(String[] args) {
   LocalTlsIdentity tls = new LocalTlsIdentity(new byte[]{1}, new byte[]{2}); tls.close();
   byte[] scope = new byte[32]; scope[0] = 1;

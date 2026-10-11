@@ -20,13 +20,13 @@ import java.lang.foreign.ValueLayout.JAVA_LONG
 internal object AccountAuthorityNative {
     private val options = struct("struct_size" to JAVA_INT, "identity" to array(32),
         "family" to array(32), "witness" to array(32), "public_key" to ADDRESS, "public_key_length" to JAVA_LONG)
-    private val checkpoint = struct("application" to array(32), "revision" to JAVA_LONG, "account" to array(32))
+    @get:JvmSynthetic internal val checkpoint = struct("application" to array(32), "revision" to JAVA_LONG, "account" to array(32))
     private val association = struct("struct_size" to JAVA_INT, "application" to array(32), "pin" to ADDRESS,
         "certificate" to ADDRESS, "certificate_length" to JAVA_LONG, "roster" to ADDRESS, "roster_length" to JAVA_LONG)
     private val selection = struct("struct_size" to JAVA_INT, "registry" to JAVA_LONG, "checkpoint" to checkpoint)
     private fun copy(target: MemorySegment, layout: MemoryLayout, name: String, bytes: ByteArray) =
         target.asSlice(offset(layout, name), bytes.size.toLong()).copyFrom(MemorySegment.ofArray(bytes))
-    private fun encode(target: MemorySegment, value: AccountAuthorityCheckpoint) {
+    @JvmSynthetic internal fun encode(target: MemorySegment, value: AccountAuthorityCheckpoint) {
         copy(target, checkpoint, "application", value.application.encoded())
         target.set(JAVA_LONG, offset(checkpoint, "revision"), value.revision.bits())
         copy(target, checkpoint, "account", value.account.encoded())
