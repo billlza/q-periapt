@@ -95,6 +95,11 @@ impl Owner {
         Ok(owner)
     }
 }
+pub(crate) struct View<'a> {
+    pub(crate) native: &'a mut p::RetiredDeviceEnrollment,
+    pub(crate) pin: &'a p::AnchorPin,
+    pub(crate) report: &'a mut Option<p::retired_device::Report>,
+}
 /// Canonical public inventory expectation; bytes alone do not grant authority.
 #[repr(C)]
 pub struct Inventory {
@@ -142,12 +147,15 @@ fn with_retired<T>(
     handle: u64,
     deadline: Instant,
     close_after: bool,
-    action: impl FnOnce(&mut Owner) -> Result<T>,
+    action: impl FnOnce(&mut View<'_>) -> Result<T>,
 ) -> Result<T> {
     with_entry(handle, deadline, |slot, entry| {
         match slot.as_ref() {
             None => return Err(failure(2)),
             Some(Owned::Retirement(_)) => {}
+            Some(Owned::RootReplacement(_)) => {
+                return root_replacement::cleanup_step(slot, entry, deadline, action);
+            }
             _ => return Err(failure(6)),
         }
         // Pre-cancellation leaves the original owner available for explicit close.
@@ -157,7 +165,11 @@ fn with_retired<T>(
         };
         // Once admitted, any native failure/late cancellation consumes the resource.
         // Its committed original intent remains recoverable through exact reopen.
-        let result = action(&mut owner)?;
+        let result = action(&mut View {
+            native: &mut owner.native,
+            pin: &owner.pin,
+            report: &mut owner.report,
+        })?;
         opening::check(&entry.cancel, deadline)?;
         if !close_after {
             *slot = Some(Owned::Retirement(owner));
@@ -169,7 +181,7 @@ unsafe fn scalar<T>(
     handle: u64,
     target: *mut T,
     error: *mut ErrorRecord,
-    action: impl FnOnce(&mut Owner) -> Result<T>,
+    action: impl FnOnce(&mut View<'_>) -> Result<T>,
 ) -> i32 {
     let run = |deadline| {
         output(target)?;
@@ -221,7 +233,7 @@ pub unsafe extern "C" fn qpc_retired_v1_prepare_report(
         let wire = unsafe { exact(receipt, length, INVENTORY_RECEIPT_BYTES) }?;
         let value = with_retired(handle, deadline, false, |o| {
             let child = o.native.installation()?;
-            let retained = child.verify_retained(&o.pin, &wire)?;
+            let retained = child.verify_retained(o.pin, &wire)?;
             Proposal::observed(Some(child.prepare_report(&retained)?))
         })?;
         unsafe { put(target, value) };
@@ -263,8 +275,8 @@ pub unsafe extern "C" fn qpc_retired_v1_load_report(
         let wire = unsafe { exact(receipt, receipt_length, REPORT_RECEIPT_BYTES) }?;
         let info = with_retired(handle, deadline, false, |o| {
             let child = o.native.installation()?;
-            let retained = child.verify_retained(&o.pin, &inventory)?;
-            let report = child.report(&retained, &o.pin, &wire)?;
+            let retained = child.verify_retained(o.pin, &inventory)?;
+            let report = child.report(&retained, o.pin, &wire)?;
             let info = ReportInfo {
                 length: report.as_bytes().len(),
                 views: u32::try_from(report.views().len()).map_err(|_| p::Error::Capacity)?,
@@ -274,7 +286,7 @@ pub unsafe extern "C" fn qpc_retired_v1_load_report(
             if info.length > REPORT_BYTES {
                 return Err(p::Error::Capacity.into());
             }
-            o.report = Some(report);
+            *o.report = Some(report);
             Ok(info)
         })?;
         unsafe { put(target, info) };
@@ -332,7 +344,7 @@ pub unsafe extern "C" fn qpc_retired_v1_prepare_acknowledgement(
         let recorded = unsafe { bytes(recorded, recorded_length, REPORT_BYTES) }?;
         let proposal = with_retired(handle, deadline, false, |o| {
             let child = o.native.installation()?;
-            let inventory = child.verify_retained(&o.pin, &inventory)?;
+            let inventory = child.verify_retained(o.pin, &inventory)?;
             let proposal = child.report_proposal()?.ok_or(p::DurableError::Suspended)?;
             let retained = o.pin.verify_retired_report(&inventory, &proposal, &wire)?;
             Proposal::observed(Some(
@@ -371,7 +383,7 @@ pub unsafe extern "C" fn qpc_retired_v1_journal_state(
     unsafe {
         scalar(handle, target, error, |o| {
             Ok(
-                match o.native.installation()?.journal_erasure_status(&o.pin)? {
+                match o.native.installation()?.journal_erasure_status(o.pin)? {
                     p::retired_device::JournalErasureState::Retained => 0,
                     p::retired_device::JournalErasureState::Erased => 1,
                 },
@@ -392,8 +404,8 @@ pub unsafe extern "C" fn qpc_retired_v1_erase_journal(
     let run = |deadline| {
         let wire = unsafe { exact(receipt, length, REPORT_RECEIPT_BYTES) }?;
         with_retired(handle, deadline, false, |o| {
-            o.native.installation()?.erase_journal(&o.pin, &wire)?;
-            o.report = None;
+            o.native.installation()?.erase_journal(o.pin, &wire)?;
+            *o.report = None;
             Ok(())
         })
     };
@@ -435,7 +447,8 @@ pub unsafe extern "C" fn qpc_retired_v1_signer_state(
         })
     }
 }
-/// Logically erase the exact prepared signer; consumes the resource even on success.
+/// Logically erase the exact prepared signer. A standalone retirement owner is
+/// consumed; a managed root controller retains successor authority on success.
 /// # Safety
 /// The diagnostic is a live aligned writable region.
 #[no_mangle]

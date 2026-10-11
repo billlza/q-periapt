@@ -284,6 +284,39 @@ impl Shared {
         Ok(result)
     }
 
+    // The caller already holds this handle's invocation scope in a paired call.
+    // Do not re-enter it. Closed fences idle peer references without masking a
+    // concurrent caller cancellation by cancelling the old token ourselves.
+    pub(crate) fn transfer_enrolled<T>(
+        &self,
+        deadline: Instant,
+        action: impl FnOnce(p::EnrolledDevice) -> Result<T>,
+    ) -> Result<T> {
+        if self.closed.load(Ordering::Acquire) {
+            return Err(failure(2));
+        }
+        opening::check(&self.cancel, deadline)?;
+        let mut locked = match self.device.try_lock() {
+            Ok(locked) => locked,
+            Err(TryLockError::WouldBlock) => return Err(failure(3)),
+            Err(TryLockError::Poisoned(error)) => {
+                self.closed.store(true, Ordering::Release);
+                self.cancel.cancel();
+                error.into_inner().take();
+                return Err(failure(5));
+            }
+        };
+        let device = locked.as_mut().ok_or_else(|| failure(2))?;
+        if !device.native.is_enrolled() {
+            return Err(failure(6));
+        }
+        opening::check(&self.cancel, deadline)?;
+        let native = device.native.take_enrolled()?;
+        self.closed.store(true, Ordering::Release);
+        locked.take();
+        action(native)
+    }
+
     pub(crate) fn close(&self) -> Result<bool> {
         let (mut locked, poisoned) = match self.device.try_lock() {
             Ok(locked) => (locked, false),

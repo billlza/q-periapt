@@ -61,8 +61,16 @@ class AdmissionTests(unittest.TestCase):
             "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
             "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
         ]
+        names += ["configuration::tests::account_authority::root_replacement::" + name for name in (
+            "alternatives::root_foreign_adoption_resumes_actual_winner_without_a_local_winner_plan",
+            "alternatives::root_foreign_transition_resumes_the_exact_independently_approved_next_plan",
+            "cancellation::root_foreign_either_handle_cancels_the_actual_successor_witness_call",
+            "cancellation::root_foreign_precancel_does_not_transfer_an_active_device",
+            "root_foreign_cleanup_failure_consumes_controller_and_revokes_successor",
+            "root_foreign_preflight_preserves_owners_then_transfer_fences_cached_device",
+            "root_foreign_resume_cleanup_keeps_successor_live_until_controller_close")]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,

@@ -421,3 +421,6 @@ fn configured_first_account_selects_registry_after_request_and_requires_it_on_re
         .is_empty());
     Ok(())
 }
+
+#[path = "account_authority/root_replacement.rs"]
+mod root_replacement;

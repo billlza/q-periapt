@@ -354,6 +354,42 @@ impl Owner {
         }
         Ok(result)
     }
+    pub(crate) fn activate_root(
+        mut self: Box<Self>,
+        root: &mut p::ManagedAccountRootReplacement,
+        pin: &p::AnchorPin,
+        entry: &Entry,
+        deadline: Instant,
+    ) -> Result<Arc<device::Shared>> {
+        self.ensure_policy(&entry.cancel, deadline)?;
+        let authority = self.authority.take().ok_or_else(|| failure(5))?;
+        let environment =
+            device::Environment::from_policy(&self.path, authority, &entry.cancel, deadline)?;
+        let configured = self
+            .witness
+            .as_ref()
+            .ok_or(p::DurableError::AnchorRequired)?;
+        let parameters =
+            configured.parameters(&self.path, entry.cancel.clone(), entry.invocation.clone())?;
+        if parameters.pin.binding() != pin.binding() {
+            return Err(p::Error::Scope.into());
+        }
+        opening::check(&entry.cancel, deadline)?;
+        let enrolled = root.activate_successor(
+            self.enrollment,
+            &environment.authority.policy,
+            owner::now().map_err(Failure::configuration)?,
+            parameters.transport,
+            parameters.timeout,
+        )?;
+        opening::check(&entry.cancel, deadline)?;
+        device::Shared::from_enrolled(
+            enrolled,
+            environment,
+            entry.cancel.clone(),
+            entry.invocation.clone(),
+        )
+    }
     fn activate(
         mut self: Box<Self>,
         entry: &Entry,

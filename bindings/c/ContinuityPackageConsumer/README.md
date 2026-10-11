@@ -1481,3 +1481,45 @@ activation permission. With the original registry and independently admitted pee
 renewal, the original message completes with host deduplication. Signed TCP and
 mutual TLS are separate cases. This C composition does not qualify the corresponding
 Swift/Kotlin credential flow, an independent engine, physical devices or a release.
+
+## Managed account-root controller
+
+`qpc_root_v1_begin` transfers the original registry and its enrolled device into
+one native managed root controller. The registry handle becomes that controller;
+close the consumed old device handle to release its slot. Existing idle peer
+references to the old device are fenced. Both owners must be idle; paired calls
+share one deadline and cancellation context, so either handle can interrupt a
+successor activation's actual witness transport.
+
+Retain the independently approved plan, original application checkpoint and
+witness pin outside replaceable journal backups. The control plane approves the
+successor and signs the freeze/retirement; these functions verify those decisions.
+Use `bind_freeze`, `retain_retirement`, then `activate_successor` on the exact
+configured target enrollment. The latter becomes an ordinary managed device
+handle, still requiring current policy, credentials and witness admission.
+
+An uncertain result must resume the same original storage and approvals. A
+separately approved next target after signed non-commit uses `transition` and
+`resume_transition`. An independently approved winner already committed elsewhere
+uses `adopt` and `resume_adoption`; it needs no invented local winner plan.
+Previously reserved target roots are not silently reused by a new preparation.
+Use explicit native adoption when its independently committed decision applies.
+
+The controller retains the registry while existing `qpc_retired_v1_*` reporting,
+independent host ACK and erasure operations clean up the original installation.
+They accept the committed root handle; `prepare_open` remains the separate
+standalone retirement constructor. Successful old-signer erasure leaves successor
+authority alive. A cleanup error or controller close revokes that authority.
+Logical erasure does not erase backups, retained pages or copied keys.
+
+Cancellation before dispatch returns the ordinary cancellation code. Once a
+witness request was processed, cancellation can return witness outcome unknown
+(218): preserve and reconcile the original operation. It cannot be reported as
+an absent operation or successful rollback. Header comments specify precise
+owner consumption, short-option reads and untouched-output contracts.
+
+The installed archive tests call these C entries with fresh signed accounts and
+an actual witness socket. The separate `root_contract_client.c` checks compiled
+C layouts and guarded-page short options only. Full compiled-C lifecycle/process
+qualification and Swift/Kotlin controller integration remain separate gates;
+this interface is still unpublished `qpc-owner/1`, outside product ABI 2.

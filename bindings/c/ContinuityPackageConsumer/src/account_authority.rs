@@ -18,9 +18,9 @@ pub struct Options {
     pub public_key_length: usize,
 }
 
-// Call only for the repr(C) options in this module, whose first field is u32.
+// Call only for repr(C) options, whose first field is u32.
 // No reference to the full object is formed until its declared size is checked.
-unsafe fn check_options<T>(pointer: *const T) -> Result<()> {
+pub(crate) unsafe fn check_options<T>(pointer: *const T) -> Result<()> {
     if pointer.is_null() || !pointer.is_aligned() {
         return Err(Failure::argument());
     }
@@ -70,6 +70,9 @@ pub(crate) struct Owner {
     store: p::AccountAuthorityStore,
 }
 impl Owner {
+    pub(crate) fn into_store(self: Box<Self>) -> p::AccountAuthorityStore {
+        self.store
+    }
     pub(crate) fn open(
         path: &Path,
         admission: Admission,
@@ -109,14 +112,14 @@ pub struct Checkpoint {
     pub account: [u8; 32],
 }
 impl Checkpoint {
-    fn native(&self) -> Result<p::AccountAuthorityCheckpoint> {
+    pub(crate) fn native(&self) -> Result<p::AccountAuthorityCheckpoint> {
         Ok(p::AccountAuthorityCheckpoint::from_trusted_state(
             p::ApplicationAccountId::from_trusted_state(self.application)?,
             self.revision,
             self.account,
         )?)
     }
-    fn observed(value: p::AccountAuthorityCheckpoint) -> Self {
+    pub(crate) fn observed(value: p::AccountAuthorityCheckpoint) -> Self {
         Self {
             application: *value.application().as_bytes(),
             revision: value.revision(),
@@ -138,9 +141,9 @@ impl Selection {
     }
     fn read(handle: u64, checkpoint: &Checkpoint, deadline: Instant) -> Result<Self> {
         let expected = checkpoint.native()?;
-        with_registry(handle, deadline, |owner| {
+        with_access(handle, deadline, |access| {
             let selection = Self {
-                access: owner.store.access()?,
+                access: access.clone(),
                 expected,
             };
             selection.admit()?;
@@ -149,6 +152,23 @@ impl Selection {
     }
 }
 
+fn with_access<T>(
+    handle: u64,
+    deadline: Instant,
+    action: impl FnOnce(&p::AccountAuthorityAccess) -> Result<T>,
+) -> Result<T> {
+    with_owned(handle, deadline, |owner, cancel| {
+        opening::check(cancel, deadline)?;
+        let access = match owner {
+            Owned::AccountAuthority(owner) => owner.store.access()?,
+            Owned::RootReplacement(owner) => owner.access(),
+            _ => return Err(failure(6)),
+        };
+        let value = action(&access)?;
+        opening::check(cancel, deadline)?;
+        Ok(value)
+    })
+}
 fn with_registry<T>(
     handle: u64,
     deadline: Instant,
@@ -269,10 +289,8 @@ pub unsafe extern "C" fn qpc_authority_v1_checkpoint(
         // SAFETY: caller supplies the exact immutable application identity.
         let application =
             p::ApplicationAccountId::from_trusted_state(unsafe { fixed(application) }?)?;
-        let result = with_registry(handle, deadline, |owner| {
-            Ok(Checkpoint::observed(
-                owner.store.access()?.current(application)?,
-            ))
+        let result = with_access(handle, deadline, |access| {
+            Ok(Checkpoint::observed(access.current(application)?))
         })?;
         // SAFETY: validated exclusive output.
         unsafe { put(checkpoint, result) };

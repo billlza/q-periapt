@@ -62,6 +62,9 @@ EXPORTS |= {"qpc_recovery_v1_" + name for name in ("select_account", "account_be
     "account_member", "account_reserved", "account_epoch", "account_unconfirmed", "account_delivery",
     "account_skipped", "account_acknowledge", "account_retire")}
 
+EXPORTS |= {"qpc_root_v1_" + name for name in (
+    "begin", "resume", "state", "bind_freeze", "retain_retirement", "retain_noncommit",
+    "activate_successor", "transition", "adopt", "resume_transition", "resume_adoption")}
 EXPORTS |= {"qpc_retired_v1_" + name for name in (
     "prepare_open", "inventory", "prepare_report", "report_proposal", "load_report", "copy_report",
     "prepare_acknowledgement", "acknowledgement_proposal", "journal_state", "erase_journal",
@@ -369,10 +372,18 @@ def verify_admission(stdout: bytes) -> None:
         "witness::tests::retained_tcp_endpoint_observes_each_invocations_cancellation",
         "witness::tests::retained_tls_endpoint_observes_each_invocations_cancellation",
     }
+    tests |= {"configuration::tests::account_authority::root_replacement::" + name for name in (
+        "alternatives::root_foreign_adoption_resumes_actual_winner_without_a_local_winner_plan",
+        "alternatives::root_foreign_transition_resumes_the_exact_independently_approved_next_plan",
+        "cancellation::root_foreign_either_handle_cancels_the_actual_successor_witness_call",
+        "cancellation::root_foreign_precancel_does_not_transfer_an_active_device",
+        "root_foreign_cleanup_failure_consumes_controller_and_revokes_successor",
+        "root_foreign_preflight_preserves_owners_then_transfer_fences_cached_device",
+        "root_foreign_resume_cleanup_keeps_successor_live_until_controller_close")}
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -506,6 +517,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        from continuity_c_root_contract import qualify as qualify_root_contract
+        result["execution"][profile]["root_contract"] = qualify_root_contract(
+            consumer, installed, cc, platform_flags, profile, run,
+            darwin=darwin, runtime=runtime, filename=filename)
         result["execution"][profile]["account_authority"] = authority.qualify(
             outside, consumer, installed, authority_fixture, cc, platform_flags, profile, run,
             darwin=darwin, runtime=runtime, filename=filename)

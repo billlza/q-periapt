@@ -19,6 +19,7 @@ mod peer_configuration;
 mod publication;
 mod recovery;
 mod retirement;
+mod root_replacement;
 mod server;
 mod setup;
 mod witness;
@@ -237,6 +238,7 @@ impl From<p::connection_transport::Error> for Failure {
 enum Owned {
     Opening(opening::Request),
     AccountAuthority(Box<account_authority::Owner>),
+    RootReplacement(Box<root_replacement::Owner>),
     Configuration(Box<configuration::Owner>),
     Operational(Box<owner::Owner>),
     Recovery(Box<recovery::Recovery>),

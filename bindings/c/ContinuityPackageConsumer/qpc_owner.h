@@ -544,6 +544,90 @@ int32_t qpc_authority_v1_select_enrollment(uint64_t enrollment,
     const qpc_authority_enrollment_selection_v1 *options, qpc_error_v1 *error);
 
 
+/* Managed account-root replacement (unpublished qpc-owner/1, not product ABI 2).
+ * The host independently approves and durably retains the original checkpoint,
+ * witness pin and canonical plan. Incoming receipts cannot select a new root.
+ * Size headers are read first; exact sizeof is required before the full object.
+ * Plans/receipts are bounded at 131072 bytes. All pointed-to regions must remain
+ * live, aligned as declared and nonoverlapping for each synchronous call.
+ *
+ * begin consumes the registered device and converts the SAME registry handle
+ * into the controller. Idle peer references to the old device become closed;
+ * an active device/peer call returns BUSY before transfer. The consumed device
+ * handle must still be closed to release its table slot. Before admission,
+ * malformed input, wrong owner kinds, BUSY and pre-cancellation preserve owners.
+ * After transfer, errors may follow commits and consume both resources.
+ *
+ * Keep the controller alive while the successor operates. Existing registry
+ * checkpoint/selection reads accept this handle; association mutations do not.
+ * close revokes delegated successor authority. cancel interrupts calls, including
+ * target activation through either handle; cancel, join, close, then resume with
+ * the SAME original registry, storage, intent and approvals. No resume operation
+ * creates missing state. Invalid receipt preflight preserves a live controller;
+ * admitted storage/recovery failures or late cancellation close it.
+ * State: 1 Preparing, 2 Pending, 3 Committed, 4 Closed. None grants traffic authority.
+ * activate_successor consumes a configured target enrollment into a device handle;
+ * current policy, credential, witness and registry checks remain mandatory.
+ * The two handles must differ. Admitted failures may consume both owners.
+ *
+ * All qpc_retired_v1 operations except prepare_open also accept a committed root
+ * controller. They reuse the original report/host-ACK/journal/signer sequence.
+ * Cleanup errors close the controller; premature cleanup is SUSPENDED and preserves
+ * it. Successful old-signer erasure keeps the controller/successor alive. Logical
+ * erasure does not erase retained pages, backups, copied keys or wrapping keys.
+ */
+typedef struct {
+    uint32_t struct_size;
+    qpc_authority_checkpoint_v1 checkpoint;
+    uint8_t witness[32];
+    const uint8_t *public_key;
+    size_t public_key_length;
+} qpc_root_scope_v1;
+/* transition: approved is the independently approved next PLAN and receipt its
+ * signed freeze. adopt: approved is the independently approved committed PROPOSAL
+ * and receipt its signed retirement. Both require original signed non-commit.
+ * Retain these exact inputs for the corresponding resume operation. */
+typedef struct {
+    uint32_t struct_size;
+    const uint8_t *original;
+    size_t original_length;
+    const uint8_t *approved;
+    size_t approved_length;
+    const uint8_t *noncommit;
+    size_t noncommit_length;
+    const uint8_t *receipt;
+    size_t receipt_length;
+} qpc_root_alternative_v1;
+enum { QPC_ROOT_PROPOSAL_CAPACITY = 65536 };
+int32_t qpc_root_v1_begin(uint64_t registry, uint64_t device,
+    const qpc_root_scope_v1 *scope, const uint8_t *plan, size_t length, qpc_error_v1 *error);
+int32_t qpc_root_v1_resume(uint64_t registry, const uint8_t *path, size_t path_length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_root_scope_v1 *scope,
+    const uint8_t *plan, size_t length, qpc_error_v1 *error);
+int32_t qpc_root_v1_state(uint64_t handle, uint32_t *state, qpc_error_v1 *error);
+/* Proposal output capacity must be >=65536 BEFORE any mutation; written becomes
+ * zero after output validation and contains the complete length only on success.
+ * Other outputs remain untouched on failure. Buffer bytes beyond written have
+ * no defined value. Allocate the buffer on the heap on small foreign stacks. */
+int32_t qpc_root_v1_bind_freeze(uint64_t handle, const uint8_t *receipt, size_t length,
+    uint8_t *buffer, size_t capacity, size_t *written, qpc_error_v1 *error);
+int32_t qpc_root_v1_retain_retirement(uint64_t handle, const uint8_t *receipt, size_t length,
+    qpc_authority_checkpoint_v1 *checkpoint, qpc_error_v1 *error);
+int32_t qpc_root_v1_retain_noncommit(uint64_t handle, const uint8_t *receipt, size_t length,
+    uint32_t *state, qpc_error_v1 *error);
+int32_t qpc_root_v1_activate_successor(uint64_t handle, uint64_t enrollment, qpc_error_v1 *error);
+int32_t qpc_root_v1_transition(uint64_t handle, const qpc_root_alternative_v1 *options,
+    uint8_t *buffer, size_t capacity, size_t *written, qpc_error_v1 *error);
+int32_t qpc_root_v1_adopt(uint64_t handle, const qpc_root_alternative_v1 *options,
+    qpc_authority_checkpoint_v1 *checkpoint, qpc_error_v1 *error);
+int32_t qpc_root_v1_resume_transition(uint64_t registry, const uint8_t *path, size_t path_length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_root_scope_v1 *scope,
+    const qpc_root_alternative_v1 *options, qpc_error_v1 *error);
+int32_t qpc_root_v1_resume_adoption(uint64_t registry, const uint8_t *path, size_t path_length,
+    const qpc_enrollment_intent_v1 *intent, const qpc_root_scope_v1 *scope,
+    const qpc_root_alternative_v1 *options, qpc_error_v1 *error);
+
+
 
 typedef struct {
     uint32_t phase;

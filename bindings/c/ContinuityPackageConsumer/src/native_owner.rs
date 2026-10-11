@@ -24,6 +24,18 @@ impl NativeOwner {
             active: Some(Kind::Enrolled(Box::new(owner))),
         }
     }
+    pub(crate) fn is_enrolled(&self) -> bool {
+        matches!(self.active, Some(Kind::Enrolled(_)))
+    }
+    pub(crate) fn take_enrolled(&mut self) -> Result<p::EnrolledDevice> {
+        if !self.is_enrolled() {
+            return Err(failure(6));
+        }
+        match self.active.take() {
+            Some(Kind::Enrolled(owner)) => Ok(*owner),
+            _ => Err(failure(5)),
+        }
+    }
     pub(crate) fn parts(&mut self) -> Result<(&mut p::DeviceService, &p::DeviceSigningKey)> {
         match self.active.as_mut().ok_or_else(|| failure(2))? {
             Kind::Installed(owner) => Ok((&mut owner.service, &owner.signer)),
