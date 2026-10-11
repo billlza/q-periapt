@@ -70,6 +70,14 @@ application accounts sharing its registry. A failure inside persistence or recov
 still consumes the owner and can follow commit; explicit close/drop also revokes
 registry access. Preserve the original inputs and reconcile after those failures.
 
+The [managed transition checkpoint](../sdk-alpha1/evidence/20261011-managed-root-transition/CHECKS.json)
+records 38 account-root tests on Rust 1.98.1 and 1.90.0, 17 focused Release tests,
+strict Clippy and the exact 14 new process-loss cuts in each tested profile. It
+retains failing regressions for unrelated-account revocation by invalid receipts
+and acceptance of a known closed next target. It also records the corrected test
+module path, child-fence selector and atomic checkpoint-publication race; earlier
+green counts that did not execute the intended cuts are not used as qualification.
+
 Managed committed-winner adoption, retired-message accounting/erasure, deployed
 control-plane transport, foreign adapters and supported platform qualification
 remain required. They must preserve original identities and approvals; they cannot
