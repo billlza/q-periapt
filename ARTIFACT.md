@@ -74,6 +74,11 @@ retain their detailed evaluator logs and command receipts. The bounded console
 capture is published only after the child exits; timeout diagnostics are in the
 evaluator logs. The experiment has no SARIF upload permission, never qualifies
 the current source, and does not change the production analysis or quality gate.
+The [first memory control](https://github.com/billlza/q-periapt/actions/runs/38138322247)
+timed out in both arms, with `SummaryStats` unfinished and native cache eviction
+still present. This does not justify a production configuration change. The
+[retained comparison](research/sdk-alpha1/evidence/20261011-codeql-memory-control/CHECKS.json)
+records the exact inputs, query hashes, failure receipts and limits of the comparison.
 
 Rust and Swift emit the pinned action's diagnostic artifacts, which can
 include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
