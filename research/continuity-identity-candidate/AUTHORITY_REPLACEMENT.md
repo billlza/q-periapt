@@ -78,10 +78,26 @@ and acceptance of a known closed next target. It also records the corrected test
 module path, child-fence selector and atomic checkpoint-publication race; earlier
 green counts that did not execute the intended cuts are not used as qualification.
 
-Managed committed-winner adoption, retired-message accounting/erasure, deployed
-control-plane transport, foreign adapters and supported platform qualification
-remain required. They must preserve original identities and approvals; they cannot
-reset Preparing/Pending or regenerate a root to recover availability.
+`ManagedAccountRootAdoption::verify` now combines the original signed non-commit
+with an independently approved exact winner and its signed retirement. The managed
+owner distinguishes prepared plans from adopted proposals; adoption does not invent
+a local preparation for an operation committed elsewhere. A losing unbound freeze
+may adopt a separately approved competing freeze. An already bound original must
+still satisfy the retained freeze scope.
+
+`adopt_committed_winner` first retains original non-commit, then checks the same
+prospective registry image used by native adoption before changing the parent.
+Cross-application root reuse is refused at that boundary. It reconciles the original
+parent/journal transition, retains retirement in child and parent, and only then
+selects the winner locally. `resume_adoption` repeats that original approved operation
+across partial commits without a new plan, key, database or revision. Current
+successor activation still verifies the exact target, credential/policy and witness;
+an expired credential cannot gain validity from the historical retirement.
+
+Retired-message accounting/erasure, deployed control-plane transport, foreign
+adapters and supported platform qualification remain required. They must preserve
+original identities and approvals; they cannot reset Preparing/Pending or regenerate
+a root to recover availability.
 
 ## Preserve the current identity meanings
 

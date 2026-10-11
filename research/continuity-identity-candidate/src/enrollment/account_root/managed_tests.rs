@@ -6,6 +6,8 @@ use crate::{
     AnchorAccountFreezeRequest, AnchorAccountReplacementPlan, ApplicationAccountId,
     JournalAccountAuthority, ManagedAccountRootReplacement as Managed,
 };
+#[path = "managed_tests/adoption.rs"]
+mod adoption;
 #[path = "managed_tests/process.rs"]
 mod process;
 #[path = "managed_tests/transition.rs"]

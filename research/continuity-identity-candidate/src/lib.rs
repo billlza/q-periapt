@@ -43,11 +43,12 @@ pub use durable::retired_report as retired_device;
 pub use enrollment::{
     AccountRootEnrollmentRecovery, AccountRootEnrollmentState, CredentialRenewalRequest,
     CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths,
-    EnrollmentStatus, ManagedAccountRootReplacement, ManagedAccountRootTransition,
-    PolicyRenewalAbandonment, PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment,
-    RosterRefreshOutcome, RosterRefreshResolution, SigningFileErasureState,
-    VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
-    WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress,
+    EnrollmentStatus, ManagedAccountRootAdoption, ManagedAccountRootReplacement,
+    ManagedAccountRootTransition, PolicyRenewalAbandonment, PolicyRenewalRequest,
+    PolicyRenewalStatus, RetiredDeviceEnrollment, RosterRefreshOutcome, RosterRefreshResolution,
+    SigningFileErasureState, VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition,
+    WitnessedPolicyRenewalProgress, WitnessedRosterRefreshDisposition,
+    WitnessedRosterRefreshProgress,
 };
 pub use installation::{
     BootstrapPeer, DeviceInstallation, DeviceService, InstallationAdmission, InstallationPaths,

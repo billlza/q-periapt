@@ -48,7 +48,8 @@ impl Owners {
         if retained != original
             || application != self.expected.application()
             || self.registry.operation_checkpoint(original.operation())? != self.expected
-            || (&self.plan != original && self.plan != transition.next)
+            || (!self.operation.matches_plan(original)
+                && !self.operation.matches_plan(&transition.next))
             || state == State::Committed
             || self.pin.binding() != transition.next.target().witness_binding()
         {
@@ -86,29 +87,10 @@ impl Owners {
             .bind_preparation(transition.next.operation(), &transition.frozen)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("next-binding");
-        match &mut self.recovery {
-            Some(recovery) => {
-                recovery.apply_managed_transition(&transition.journal)?;
-            }
-            None => {
-                self.recovery = Some(match self.enrollment.take() {
-                    Some(enrollment) => AccountRootEnrollmentRecovery::prepare_managed_transition(
-                        enrollment,
-                        self.pin.clone(),
-                        &transition.journal,
-                    )?,
-                    None => AccountRootEnrollmentRecovery::resume_managed_transition(
-                        self.paths.clone(),
-                        self.intent.clone(),
-                        self.pin.clone(),
-                        &transition.journal,
-                    )?,
-                });
-            }
-        }
+        self.advance_parent(&transition.journal)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("next-parent");
-        self.plan = transition.next.clone();
+        self.operation = Operation::Prepared(Box::new(transition.next.clone()));
         Ok(transition.journal.next_proposal().clone())
     }
 }
@@ -120,7 +102,7 @@ impl ManagedAccountRootReplacement {
         let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
         let closed = owners
             .pin
-            .verify_closed_account_preparation(&owners.plan, receipt)?;
+            .verify_closed_account_preparation(owners.operation.plan()?, receipt)?;
         if owners.state()? == State::Committed {
             return Err(DurableError::Conflict);
         }
@@ -161,7 +143,7 @@ impl ManagedAccountRootReplacement {
             enrollment: None,
             registry,
             expected,
-            plan: transition.closed.plan().clone(),
+            operation: Operation::Prepared(Box::new(transition.closed.plan().clone())),
             paths,
             intent,
             pin,

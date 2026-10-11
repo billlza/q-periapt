@@ -54,6 +54,26 @@ fn managed_root_process_child() {
     .expect("original registry");
     let expected = AccountAuthorityCheckpoint::from_trusted_state(application, revision, account)
         .expect("original checkpoint");
+    let adoption = if std::env::var_os("QPERIAPT_MANAGED_ROOT_ADOPTION").as_deref()
+        == Some(std::ffi::OsStr::new("1"))
+    {
+        let approved = Proposal::from_trusted_state(
+            &fs::read(path.join("managed-winner")).expect("independently approved winner"),
+        )
+        .expect("exact approved proposal");
+        Some(
+            crate::ManagedAccountRootAdoption::verify(
+                &pin,
+                &plan,
+                approved,
+                &fs::read(path.join("managed-noncommit")).expect("original non-commit"),
+                &fs::read(path.join("managed-receipt")).expect("signed winner retirement"),
+            )
+            .expect("pinned approved adoption"),
+        )
+    } else {
+        None
+    };
     let transition = if std::env::var_os("QPERIAPT_MANAGED_ROOT_TRANSITION").as_deref()
         == Some(std::ffi::OsStr::new("1"))
     {
@@ -76,6 +96,13 @@ fn managed_root_process_child() {
     };
     let mut managed = Managed::resume_original(registry, expected, plan, paths(&path), intent, pin)
         .expect("existing original preparation");
+    if let Some(adoption) = adoption {
+        managed
+            .adopt_committed_winner(&adoption)
+            .expect("ordered approved winner adoption");
+        fs::write(path.join("returned"), b"returned").expect("API return marker");
+        return;
+    }
     if let Some(transition) = transition {
         managed
             .transition_after_noncommit(&transition)

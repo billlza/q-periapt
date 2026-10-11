@@ -29,6 +29,36 @@ pub(super) struct RetryScope {
     request: Option<AnchorAccountFreezeRequest>,
     binding: Option<[u8; 32]>,
 }
+impl Image {
+    pub(super) fn commit_retirement(
+        &mut self,
+        retired: &AnchorRetiredAccount,
+    ) -> Result<(ApplicationAccountId, bool), DurableError> {
+        let original = self
+            .replacements
+            .iter_mut()
+            .find(|r| r.proposal.operation() == retired.proposal().operation())
+            .ok_or(DurableError::Absent)?;
+        if original.decision.closed() {
+            return Err(Error::Retired.into());
+        }
+        if original.state() == AccountAuthorityReplacementState::Preparing {
+            let plan = original.preparation.as_ref().ok_or(DurableError::Corrupt)?;
+            if !plan.check_retained(retired.proposal())? {
+                return Err(DurableError::Conflict);
+            }
+            original.proposal = retired.proposal().clone();
+        }
+        if &original.proposal != retired.proposal() {
+            return Err(DurableError::Conflict);
+        }
+        let changed = !original.decision.committed();
+        if changed {
+            original.decision = Decision::Committed;
+        }
+        Ok((original.application, changed))
+    }
+}
 impl Current {
     pub(super) fn admit_next(
         &self,
@@ -197,6 +227,27 @@ impl AccountAuthorityStore {
         approved: Proposal,
         retired: &AnchorRetiredAccount,
     ) -> Result<AccountAuthorityReplacementState, DurableError> {
+        let (image, changed) = self.adoption_image(expected, approved, retired)?;
+        if changed {
+            self.save(image, expected.application)?;
+        }
+        Ok(AccountAuthorityReplacementState::Committed)
+    }
+    pub(crate) fn validate_committed_adoption(
+        &self,
+        expected: AccountAuthorityCheckpoint,
+        approved: &Proposal,
+        retired: &AnchorRetiredAccount,
+    ) -> Result<(), DurableError> {
+        self.adoption_image(expected, approved.clone(), retired)
+            .map(|_| ())
+    }
+    fn adoption_image(
+        &self,
+        expected: AccountAuthorityCheckpoint,
+        approved: Proposal,
+        retired: &AnchorRetiredAccount,
+    ) -> Result<(Image, bool), DurableError> {
         if &approved != retired.proposal() || approved.previous_account() != expected.account {
             return Err(DurableError::Conflict);
         }
@@ -214,7 +265,9 @@ impl AccountAuthorityStore {
             if old.application != expected.application || old.revision != expected.revision {
                 return Err(DurableError::Conflict);
             }
-            return self.commit_replacement(retired);
+            let (_, changed) = image.commit_retirement(retired)?;
+            image.current(self.family, &self.pin)?;
+            return Ok((image, changed));
         }
         let current = image.current(self.family, &self.pin)?;
         let selected = current
@@ -234,7 +287,7 @@ impl AccountAuthorityStore {
             preparation: None,
             decision: Decision::Adopted,
         });
-        self.save(image, expected.application)?;
-        Ok(AccountAuthorityReplacementState::Committed)
+        image.current(self.family, &self.pin)?;
+        Ok((image, true))
     }
 }

@@ -394,30 +394,10 @@ impl AccountAuthorityStore {
             .ok_or(DurableError::Closed)?
             .image
             .clone();
-        let original = image
-            .replacements
-            .iter_mut()
-            .find(|r| r.proposal.operation() == retired.proposal().operation())
-            .ok_or(DurableError::Absent)?;
-        if original.decision.closed() {
-            return Err(Error::Retired.into());
+        let (application, changed) = image.commit_retirement(retired)?;
+        if changed {
+            self.save(image, application)?;
         }
-        if original.state() == AccountAuthorityReplacementState::Preparing {
-            let plan = original.preparation.as_ref().ok_or(DurableError::Corrupt)?;
-            if !plan.check_retained(retired.proposal())? {
-                return Err(DurableError::Conflict);
-            }
-            original.proposal = retired.proposal().clone();
-        }
-        if &original.proposal != retired.proposal() {
-            return Err(DurableError::Conflict);
-        }
-        if original.decision.committed() {
-            return Ok(AccountAuthorityReplacementState::Committed);
-        }
-        original.decision = Decision::Committed;
-        let application = original.application;
-        self.save(image, application)?;
         Ok(AccountAuthorityReplacementState::Committed)
     }
     /// Read the retained exact proposal. Preparing returns Suspended; recover its
