@@ -4,6 +4,8 @@
 mod fixture;
 #[path = "root/fixture.rs"]
 mod setup;
+#[path = "root/traffic.rs"]
+mod traffic;
 #[path = "common/witness.rs"]
 mod witness;
 use q_periapt_continuity_identity_candidate as p;
@@ -256,6 +258,13 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
         fixture::read(&case.public, "host-report", 8388608)?,
         recorded
     );
+    let lifecycle_end = case
+        .witness
+        .captured
+        .lock()
+        .map_err(|_| "witness boundary")?
+        .len();
+    processes.extend(traffic::exercise(&client, &case)?);
     case.witness.join()?;
     let captured = case
         .witness
@@ -277,19 +286,29 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
     let boundary = witness_start
         .checked_mul(1 + 3674 + 3659)
         .ok_or("transcript bound")?;
-    let (setup_trace, c_trace) = transcript.split_at(boundary);
+    let (lifecycle, traffic_trace) = transcript.split_at(
+        lifecycle_end
+            .checked_mul(1 + 3674 + 3659)
+            .ok_or("traffic boundary")?,
+    );
+    let (setup_trace, c_trace) = lifecycle.split_at(boundary);
     fixture::store(&case.public, "setup-witness-transcript", setup_trace)?;
     fixture::store(&case.public, "witness-transcript", c_trace)?;
+    fixture::store(
+        &case.public.join("traffic"),
+        "witness-transcript",
+        traffic_trace,
+    )?;
     fixture::store(
         &case.public,
         "witness-start",
         &u64::try_from(witness_start)?.to_be_bytes(),
     )?;
 
-    assert_eq!(processes.len(), 14);
+    assert_eq!(processes.len(), 26);
     let unique = processes.iter().collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(unique.len(), 14);
-    let result=b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=false\n";
+    assert_eq!(unique.len(), 26);
+    let result=b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=true\n";
     fixture::store(&case.public, "result", result)?;
     print!("{}", std::str::from_utf8(result)?);
     Ok(())

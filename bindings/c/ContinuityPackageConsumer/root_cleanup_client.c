@@ -13,7 +13,8 @@ static void cleanup(uint64_t root,root_inputs *in,const char *path,const char *m
     } else if(!strcmp(mode,"prepare-report")) {
         size_t n=receipt(in,path,"inventory-receipt",3690);qpc_retired_proposal_v1 proposal;
         require(qpc_retired_v1_prepare_report(root,in->receipt,n,&proposal,&error),&error);
-        if(proposal.present!=1) fail("report absent");save(path,"report-proposal",proposal.bytes,sizeof proposal.bytes);
+        if(proposal.present!=1) fail("report absent");
+        save(path,"report-proposal",proposal.bytes,sizeof proposal.bytes);
     } else if(!strcmp(mode,"report") || !strcmp(mode,"prepare-ack")) {
         uint8_t inventory[3690];if(fixed(path,"inventory-receipt",inventory,sizeof inventory)) fail("inventory receipt");
         size_t n=receipt(in,path,"report-receipt",3730);qpc_retired_report_info_v1 info;

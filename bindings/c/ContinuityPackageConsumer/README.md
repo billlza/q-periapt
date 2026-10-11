@@ -1527,6 +1527,22 @@ ACK and both erasures. Three same-engine native observers check the retained pla
 report and final state. The collector retains configured and observed stack sizes;
 it does not assume the reported stack excludes runtime TLS allocation.
 
+The same installed workload then runs seven successor-side C processes and five
+C peer processes. An unregistered peer root is rejected at child admission;
+the host explicitly associates the independently verified peer through
+`qpc_authority_v1_associate` before connecting. A signed bootstrap bundle does
+not grant this account-registry permission by itself.
+
+After cutover, the C peer exits after persisting an application effect and before
+returning from its callback. The sender retains an uncertain committed message,
+then receives SIGKILL. A new root controller reopens the original session and
+retries the original message ID: the peer's effect remains single, and the sender
+obtains acknowledgement. Further processes complete a network rekey to epoch 1
+and deliver a second message. The complete scenario has 26 C processes, nine
+SIGKILL cuts and two application records. Public readback verifies the complete
+four-subject witness history from genesis, including the earlier setup and
+cutover; an arbitrary intermediate head cannot substitute for that history.
+
 A default-stack Debug recovery exposed a stack-guard fault when large public-key
 approval/recovery values were copied through nested `FnOnce` and unwind frames.
 The adapter now owns these inputs in heap allocations and transfers the original
@@ -1534,7 +1550,7 @@ values only at the consuming native call. It preserves the validation and owner
 failure contracts. The regression uses the same failed durable state as well as
 fresh complete C process scenarios, with unchanged default thread settings.
 
-Compiled-C transition/adoption process variants, application traffic after root
+Compiled-C transition/adoption process variants, reverse application traffic after
 cutover, Swift/Kotlin controller integration, other hosts and physical devices
 remain separate gates. The SIGKILL cuts here follow public call returns; native
 in-commit storage cuts retain their separate qualification. This interface remains

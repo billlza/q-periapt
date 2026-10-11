@@ -5,14 +5,18 @@
 #endif
 #include "root_client.h"
 #include "root_cleanup_client.c"
+#include "root_traffic_client.c"
 
 static int execute(int argc,char **argv) {
-    if(argc!=7) fail("mode, public inputs, original, target, registry and witness required");
+    if(argc<2) fail("root mode required");
+    int traffic=!strncmp(argv[1],"traffic-",8);
+    if(argc!=(traffic ? 9 : 7)) fail("root inputs and optional traffic peer required");
     const char *mode=argv[1],*public=argv[2],*old=argv[3],*target=argv[4],*registry_path=argv[5];
     root_inputs *in=calloc(1,sizeof *in);if(!in) fail("bounded public input allocation");
     read_inputs(in,public,old,target);
     char marker[128];int n=snprintf(marker,sizeof marker,"process-%s",mode);
-    if(n<=0 || (size_t)n>=sizeof marker) fail("process label");save_number(public,marker,(uint64_t)getpid());
+    if(n<=0 || (size_t)n>=sizeof marker) fail("process label");
+    save_number(public,marker,(uint64_t)getpid());
 #ifdef __APPLE__
     n=snprintf(marker,sizeof marker,"stack-%s",mode);if(n<=0 || (size_t)n>=sizeof marker) fail("stack label");
     save_number(public,marker,(uint64_t)pthread_get_stacksize_np(pthread_self()));
@@ -23,6 +27,10 @@ static int execute(int argc,char **argv) {
     save_number(public,marker,(uint64_t)requested);
 #endif
     uint64_t root=open_registry(registry_path,in),device=0;qpc_error_v1 error;
+    if(!strcmp(mode,"traffic-authorize-peer")) {
+        root_authorize_peer(root,public,argv[7],in->registry.family);
+        close_owner(root);free(in);puts("root-stage-pass:traffic-authorize-peer");return 0;
+    }
     qpc_witness_v1 witness={(const uint8_t *)argv[6],strlen(argv[6]),3000};
     if(!strcmp(mode,"begin")) {
         device=open_enrollment(old,&in->original,&witness,in,root);
@@ -61,9 +69,12 @@ static int execute(int argc,char **argv) {
             puts("root-stage-pass:activation-unknown");return 0;
         }
         require(qpc_root_v1_activate_successor(root,device,&error),&error);
-        uint8_t before[32],after[32];active(device,before);
-        cleanup(root,in,public,mode);active(device,after);
-        if(memcmp(before,after,32)) fail("query or historical cleanup changed publication identity");
+        if(traffic) root_traffic(device,public,mode,argv[7],argv[8]);
+        else {
+            uint8_t before[32],after[32];active(device,before);
+            cleanup(root,in,public,mode);active(device,after);
+            if(memcmp(before,after,32)) fail("query or historical cleanup changed publication identity");
+        }
     }
     if(!strcmp(mode,"begin") || !strcmp(mode,"freeze") || !strcmp(mode,"retain") ||
        !strcmp(mode,"inventory") || !strcmp(mode,"report") || !strcmp(mode,"prepare-ack") ||

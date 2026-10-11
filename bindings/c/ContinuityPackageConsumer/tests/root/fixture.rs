@@ -12,12 +12,14 @@ pub(super) struct Account {
     pub(super) intent: p::EnrollmentIntent,
     pub(super) root: p::RootSigningKey,
     pub(super) credential: p::VerifiedDevice,
+    pub(super) certificate: Vec<u8>,
+    pub(super) roster: Vec<u8>,
     pub(super) genesis: p::AnchorGenesis,
 }
 pub(super) struct Case {
     pub(super) witness: witness::Witness,
-    pub(super) _reference: fixture::Setup,
-    pub(super) _sdk: q_periapt_host_store::PolicyStore,
+    pub(super) reference: fixture::Setup,
+    pub(super) sdk: q_periapt_host_store::PolicyStore,
     pub(super) policy: std::sync::Arc<p::VerifiedSessionPolicy>,
     pub(super) pin: p::AnchorPin,
     pub(super) old: Account,
@@ -119,8 +121,8 @@ impl Case {
         }
         Ok(Self {
             witness,
-            _reference: reference,
-            _sdk: sdk,
+            reference,
+            sdk,
             policy,
             pin,
             old,
@@ -231,6 +233,8 @@ fn account(
         intent,
         root,
         credential,
+        certificate,
+        roster: roster.as_bytes().to_vec(),
         genesis,
     })
 }

@@ -72,9 +72,20 @@ class ContinuityCWitnessTests(unittest.TestCase):
         self.assertEqual(len(result["lost_commands"]), 3)
         with self.assertRaises(ValueError):
             w.transcript(data, authority, expected_lost_advances=3, expected_subjects=1)
-        for count in (0, 4, True, None):
+        for count in (0, 5, True, None):
             with self.subTest(count=count), self.assertRaisesRegex(ValueError, "subject census"):
                 w.transcript(data, authority, expected_subjects=count)
+
+    def test_root_cutover_history_requires_all_four_genesis_heads(self):
+        authority, rows = fixture(4)
+        data = b"".join(rows)
+        result = w.transcript(data, authority, expected_lost_advances=4, expected_subjects=4)
+        self.assertEqual((result["subjects"], result["logical_advances"]), (4, 4))
+        with self.assertRaises(ValueError):
+            w.transcript(data, authority, expected_lost_advances=4, expected_subjects=3)
+        for incomplete in (rows[1:], [*rows[:-3], *rows[-2:]], [*rows, rows[0]]):
+            with self.subTest(records=len(incomplete)), self.assertRaises(ValueError):
+                w.transcript(b"".join(incomplete), authority, expected_lost_advances=4, expected_subjects=4)
 
     def test_single_setup_subject_requires_explicit_scope(self):
         authority, rows = fixture(1)

@@ -23,7 +23,11 @@ static void expect(int32_t code,int32_t wanted,const qpc_error_v1 *error) {
         fail("native outcome");
     }
 }
-static void require(int32_t code,const qpc_error_v1 *error) {expect(code,0,error);}
+static void require_at(int32_t code,const qpc_error_v1 *error,const char *file,int line) {
+    if(code) fprintf(stderr,"root C call failed at %s:%d\n",file,line);
+    expect(code,0,error);
+}
+#define require(code,error) require_at((code),(error),__FILE__,__LINE__)
 static void close_owner(uint64_t handle) {
     qpc_error_v1 error;require(qpc_owner_v1_close(handle,&error),&error);
 }

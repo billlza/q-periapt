@@ -4,6 +4,7 @@ import re
 
 import rust_sdk_profile as sdk
 from continuity_c_witness import RECORD_BYTES, commit, export_selected, transcript
+import continuity_c_root_traffic as traffic
 
 TEST = "installed_c_root_controller_recovers_original_state_and_erasure_after_process_loss"
 STAGES = ("begin", "preparing", "freeze", "freeze-retry", "retain", "retain-retry",
@@ -12,11 +13,13 @@ STAGES = ("begin", "preparing", "freeze", "freeze-retry", "retain", "retain-retr
 CUTS = frozenset(("begin", "freeze", "retain", "inventory", "report", "prepare-ack", "journal", "signer"))
 MARKER = (b"ROOT_C_LIFECYCLE processes=14 sigkill=8 witness_unknown=218 native_readbacks=3 "
           b"original_revision=2 report_preserved=true cleanup_keeps_successor=true "
-          b"close_revokes_successor=true application_traffic=false\n")
+          b"close_revokes_successor=true application_traffic=true\n")
 SCOPE = ("same-host installed compiled C root controller on default pthread attributes, "
-         "14 child processes and eight SIGKILL cuts after public calls; real signed-TCP witness "
-         "query loss; three same-engine native readbacks. Not in-commit storage fault injection, "
-         "application traffic, transition/adoption process variants, independent implementation or full release.")
+         "26 child processes and nine SIGKILL cuts after public calls; real signed-TCP witness "
+         "query loss; independent C peer-root association; post-cutover mutual TLS, original-message "
+         "recovery after peer effect persistence and sender loss, then rekey and another application message; "
+         "three same-engine native readbacks. Not in-commit storage fault injection, transition/adoption "
+         "process variants, independent implementation, cross-host/device or full release qualification.")
 
 
 def verify_execution(stdout: bytes, directory: Path, *, darwin: bool) -> dict:
@@ -88,9 +91,13 @@ def verify_execution(stdout: bytes, directory: Path, *, darwin: bool) -> dict:
                     "root original public proof is absent or truncated")
         headers = {"approved-plan": b"QPAFPL01", "bound-proposal": b"QPARPL02", "host-report": b"QPRDMD01"}
         sdk.require(name not in headers or wire.startswith(headers[name]), "root public proof grammar differs")
+    sdk.require(traffic.MARKER.decode().rstrip("\n") in text.splitlines(), "root traffic workload marker absent")
+    traffic_result = traffic.verify(directory, read, authority=authority, original=old, target=target,
+                                   history=setup + read("public/witness-transcript", RECORD_BYTES * 4096),
+                                   previous_pids=pids, darwin=darwin)
     return {"completed": True, "scope": SCOPE, "release_claim_eligible": False,
-            "processes": len(pids), "sigkill_cuts": len(CUTS), "native_readbacks": 3,
-            "application_traffic": False, "witness": observed, "default_thread_stacks": stacks,
+            "processes": len(pids) + 12, "sigkill_cuts": len(CUTS) + 1, "native_readbacks": 3,
+            "application_traffic": traffic_result, "witness": observed, "default_thread_stacks": stacks,
             "public_readbacks": public, "command_logs": logs}
 
 
@@ -113,9 +120,12 @@ def qualify(outside: Path, output: Path, consumer: Path, installed: Path, build:
     built = run([*cargo, "test", "--locked", "--offline", "--test", "root", "--no-run",
                  "--message-format=json", "-j", "2", *(["--release"] if profile == "release" else [])], "root-build-" + profile)
     helper = built_artifact(built, consumer, build, library=False, test_name="root")
-    identities = {path: sdk.snapshot(path, maximum=MAX_BINARY).sha256 for path in (helper, executable, installed / filename)}
+    peer_executable = installed / "qpc-c-client"
+    identities = {path: sdk.snapshot(path, maximum=MAX_BINARY).sha256
+                  for path in (helper, executable, peer_executable, installed / filename)}
     evidence = outside / ("c-" + profile + "-root-runtime")
-    selected = dict(runtime, QPC_ROOT_CLIENT=str(executable), QPC_ROOT_EVIDENCE=str(evidence))
+    selected = dict(runtime, QPC_ROOT_CLIENT=str(executable), QPC_ROOT_EVIDENCE=str(evidence),
+                    QPERIAPT_C_CLIENT=str(peer_executable))
     # The reference preconditioning owns a fresh temporary installation, not a
     # prior main-traffic fixture supplied by the enclosing package collector.
     selected.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None)
