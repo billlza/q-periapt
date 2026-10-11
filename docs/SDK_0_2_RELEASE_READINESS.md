@@ -216,6 +216,27 @@ verdict on the physical phone.
 
 ## Latest qualification checkpoints
 
+The [2026-10-11 Kotlin root lifecycle checkpoint](../research/sdk-alpha1/evidence/20261011-kotlin-root/CHECKS.json)
+adds original, transition and committed-winner adoption recovery to the existing
+Kotlin account-authority owner, with successor transfer and historical cleanup.
+Installed Maven consumers pass all four routes under Serial and G1 with current
+Debug/Release and minimum-Rust Debug native libraries: 24 workloads, 738 child
+processes and 240 SIGKILL cuts. Every route observes actual registry collection
+and refusal by its still-reachable successor. Each native profile passes 71
+Kotlin tests. The same new harness also passes all four C and Swift control routes.
+
+The first JVM process run exposed a test-host publication race: its cut marker
+could still have two hard links when the parent tried the strict private-file
+read. The parent now waits for an explicit flushed signal after the host record
+publisher finishes; the private-file checks remain intact. C/Swift continue to
+report pthread stack observations; Kotlin reports actual selected-collector
+progress and revocation, without claiming a measured JVM stack size. Archived
+captures replay and 32 altered captures are rejected. All 2,740 artifact tests
+pass in the standalone Git checkout, and the root harness passes strict Rust
+Clippy. The 151 native exports are unchanged. The earlier linked-worktree test
+attempt and its provenance/cache failures are retained with the successful
+standalone run. The hosted candidate remains subject to its own CI result.
+
 The [2026-10-11 minimum-Rust Swift CI regression](../research/sdk-alpha1/evidence/20261011-swift-root-minimum-ci/CHECKS.json)
 rebuilds the installed native engine with Rust 1.90.0, verifies the compiler and
 Cargo versions, and executes all four C and Swift root recovery routes on default
@@ -245,8 +266,7 @@ state and Swift binary pass with the repaired library at the same observed
 from visibility/comments. This is a stack-resource repair, not a latency or
 constant-time result. The hosted canonical Swift collector now runs the root
 matrix and retains its public captures. The minimum-Rust Swift lane is now
-configured as described above; the Kotlin root facade remains an integration
-task. Workflow lint adds no diagnostics; the two existing unsupported-runner-label
+configured as described above; the installed Kotlin root facade is covered by the checkpoint above. Workflow lint adds no diagnostics; the two existing unsupported-runner-label
 diagnostics remain.
 
 The [2026-10-11 Android physical acceptance](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json)

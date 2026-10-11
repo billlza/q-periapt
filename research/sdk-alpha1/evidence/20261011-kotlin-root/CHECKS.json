@@ -1,0 +1,460 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.installed_kotlin_root_lifecycle",
+  "implementation_commit": "62d98b87b2f78ca7ecec7c9ee8243849ebf4a822",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Installed Kotlin public root controller and C peer on the same host and shared Rust engine; original approvals, retired cleanup, signed witness query loss, mutual TLS, epoch-1 rekey and bidirectional original-message recovery. Bounded observed registry Cleaner revocation with a still-live successor under the selected Serial/G1 collector. JVM stack size is not measured or overridden. ROOT_C_* markers identify shared fixture wire formats. Not independent-implementation, all-JVM GC, automatic cancellation, power-loss or full release qualification.",
+  "profiles": {
+    "debug": {
+      "collectors": {
+        "Serial": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        },
+        "G1": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        }
+      },
+      "Kotlin_unit_tests": 71,
+      "library_sha256": "c92fe23322b82e4915e60a36ef626542c99bcd239f207e99434f0880ee7b76b4",
+      "package_sha256": "32b5b4e7758da1cbddd0a1ffe9e639902d3d534581f68a3bbe9d19ee36af332e"
+    },
+    "release": {
+      "collectors": {
+        "Serial": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        },
+        "G1": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        }
+      },
+      "Kotlin_unit_tests": 71,
+      "library_sha256": "aa6f6b79c377f8deef72166f304264ec5b8d993e8db929dda86db8a8e24e9609",
+      "package_sha256": "890ebe913f1cb3add73a28acdc0afa181fc51152621473fc19ef3e2b0998102c"
+    },
+    "msrv-debug": {
+      "collectors": {
+        "Serial": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 3,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        },
+        "G1": {
+          "original": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "transition": {
+            "processes": 31,
+            "sigkill_cuts": 10,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "bound-transition": {
+            "processes": 32,
+            "sigkill_cuts": 11,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          },
+          "adoption": {
+            "processes": 29,
+            "sigkill_cuts": 9,
+            "observed_collections": 2,
+            "final_cleaner_revokes_successor": true
+          }
+        }
+      },
+      "Kotlin_unit_tests": 71,
+      "library_sha256": "1603a5ee20898cba04b5ca6d8547a7adf66593f52c2607019b733600ed726810",
+      "package_sha256": "7a0df35ac3093e8cf3513b16c45588ee78c0bdb760bf84f3900b9f17f5b5645a"
+    }
+  },
+  "archive_replay": true,
+  "same_new_driver_controls": {
+    "C_routes": 4,
+    "Swift_routes": 4
+  },
+  "public_mutations_rejected": [
+    {
+      "route": "original",
+      "changed": "public/client-language",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "public/root-gc-collector",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "public/gc-revokes-successor",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "public/gc-collections",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "begin.stdout",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "traffic/sender-send-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "public/traffic/effect-reply-recover",
+      "rejected": true
+    },
+    {
+      "route": "original",
+      "changed": "traffic/root-receive-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "public/client-language",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "public/root-gc-collector",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "public/gc-revokes-successor",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "public/gc-collections",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "begin.stdout",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "traffic/sender-send-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "public/traffic/effect-reply-recover",
+      "rejected": true
+    },
+    {
+      "route": "transition",
+      "changed": "traffic/root-receive-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "public/client-language",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "public/root-gc-collector",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "public/gc-revokes-successor",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "public/gc-collections",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "begin.stdout",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "traffic/sender-send-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "public/traffic/effect-reply-recover",
+      "rejected": true
+    },
+    {
+      "route": "bound-transition",
+      "changed": "traffic/root-receive-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "public/client-language",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "public/root-gc-collector",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "public/gc-revokes-successor",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "public/gc-collections",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "begin.stdout",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "traffic/sender-send-cut.stdout",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "public/traffic/effect-reply-recover",
+      "rejected": true
+    },
+    {
+      "route": "adoption",
+      "changed": "traffic/root-receive-cut.stdout",
+      "rejected": true
+    }
+  ],
+  "local_checks": {
+    "implementation_commit": "62d98b87b2f78ca7ecec7c9ee8243849ebf4a822",
+    "all_artifact_tests": {
+      "tests": 2740,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 564.391,
+      "checkout": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source",
+      "standalone_git_directory": true
+    },
+    "Kotlin_tests_per_native_profile": 71,
+    "Kotlin_native_profiles": [
+      "debug",
+      "release",
+      "msrv-debug"
+    ],
+    "root_routes": 4,
+    "garbage_collectors": [
+      "Serial",
+      "G1"
+    ],
+    "root_process_workloads": 24,
+    "child_processes": 738,
+    "SIGKILL_cuts": 240,
+    "C_control_routes": 4,
+    "Swift_control_routes": 4,
+    "Rust_clippy": "1.98.1 root test target, -D warnings; passed",
+    "native_exports": 151,
+    "native_export_set_unchanged": true,
+    "prior_C_and_Swift_capture_replay": true,
+    "workflow_lint": {
+      "same_diagnostics_as_baseline": true,
+      "diagnostics": 2,
+      "baseline_commit": "1a5d750f3d697798c3c9671e0e5cc1eeed2c091c"
+    },
+    "maintenance": {
+      "file_lines": {
+        "Native.kt": 1648,
+        "AccountAuthority.kt": 119,
+        "RootReplacementNative.kt": 110,
+        "RootReplacementTypes.kt": 74
+      },
+      "native_file_previous_lines": 1637,
+      "reason": "Keep new root marshalling in a separate module, reuse owner transfer and retirement ABI operations. File length is not a runtime performance measurement.",
+      "native_export_set_changed": false
+    },
+    "earlier_full_worktree_attempt": "Failed on standalone .git prerequisites and an adjacent Python cache; unchanged full suite passed in the clean standalone mirror."
+  },
+  "archives": {
+    "DEBUG_CAPTURE.zip": {
+      "bytes": 30158535,
+      "members": 1291,
+      "sha256": "507fa2589caec30def18efb2d66084fd72091260db831a7528e581b2cdcc7b7d"
+    },
+    "RELEASE_CAPTURE.zip": {
+      "bytes": 30166901,
+      "members": 1291,
+      "sha256": "f822019a43014b8fe0e22ec2a0e8716683b0b163b6e296f47b6286b550644b29"
+    },
+    "MINIMUM_CAPTURE.zip": {
+      "bytes": 30176520,
+      "members": 1291,
+      "sha256": "5851b778b6358be34920c710dbdc78aae8c927712f5ecf5616c51ddd02727ae6"
+    },
+    "PACKAGES.zip": {
+      "bytes": 15267513,
+      "members": 3,
+      "sha256": "75815409aabad1c9b6941c96a7492810c08ba2eb777035f96052d803de3fdd89"
+    },
+    "DIAGNOSTICS.zip": {
+      "bytes": 197689,
+      "members": 88,
+      "sha256": "99c07b77a32e79e103aa4d3b2f7aaf1c0a1517d8d048ee314ed1ea1d550193a9"
+    },
+    "C_SWIFT_CONTROLS.zip": {
+      "bytes": 30184436,
+      "members": 1633,
+      "sha256": "10f2405fb24354ef13b792375ba5083f091388a7eb5caf3a8207cc3d6f0d18eb"
+    }
+  },
+  "publication_race": {
+    "observed_error": "PrivateFileError",
+    "stage": "begin",
+    "child_stderr_empty": true,
+    "same_inode_links": [
+      {
+        "name": "cut-begin",
+        "mode": "0o600",
+        "links": 2,
+        "bytes": 8
+      },
+      {
+        "name": ".cut-begin.2117850529347248127.tmp",
+        "mode": "0o600",
+        "links": 2,
+        "bytes": 8
+      }
+    ],
+    "cause": "Parent observed hard-link publication before the Java publisher removed its temporary link. Native private-file reads correctly reject multiple links.",
+    "fix": "Parent waits for explicit child stdout readiness after FixtureRecords.retain returns, then applies unchanged private-file validation."
+  },
+  "remaining": [
+    "Hosted CI result for this candidate",
+    "Android/WASM Continuity persistence and the broader release objective"
+  ]
+}

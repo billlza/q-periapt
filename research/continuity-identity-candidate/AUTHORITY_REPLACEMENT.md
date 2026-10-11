@@ -889,7 +889,7 @@ Debug native libraries each pass both C and Swift consumers, with full cleanup,
 mutual TLS, epoch-1 rekey and bidirectional original-message recovery. Swift also
 observes final ARC release and subsequent successor refusal. These processes
 share the native engine; this is not an independent implementation or power-loss
-claim. Kotlin root-controller integration remains open.
+claim. Installed Kotlin root-controller coverage is recorded below.
 
 The minimum-Rust Swift run exposed a stack-guard fault during transition resume.
 Verified alternative evidence was retained by value in the outer FFI frame while
@@ -908,3 +908,21 @@ toolchain and retains the resulting package and public captures. Compiler
 substitution, missing native root tests and omitted minimum-lane selection are
 rejected. Local execution and archive replay pass; hosted CI remains a separate
 result for the uploaded commit.
+
+The [installed Kotlin root checkpoint](../sdk-alpha1/evidence/20261011-kotlin-root/CHECKS.json)
+covers the same four routes through public Maven-package APIs with current
+Debug/Release and Rust 1.90 Debug native engines, under both Serial and G1. The
+original enrollment owner transfers only after native successor admission;
+its failed transfer keeps the one closable owner. Historical cleanup preserves
+the successor until controller close or observed Cleaner disposal, which revokes
+it. Each of the 24 workloads completes bidirectional original-message recovery
+after rekey. This is a bounded observation of the selected JDK, not a claim of
+prompt cleanup under every JVM or of automatic JVM cancellation.
+
+Root cut readiness now follows the JVM host's complete no-clobber record
+publication, including removal of its temporary hard link and directory sync.
+The shared driver waits for that explicit signal before applying unchanged
+single-link private-file checks and killing the child. Existing C/Swift cut
+formats remain unchanged and pass fresh control runs. Root marshalling resides
+in a separate Kotlin module; existing owner transfer and retirement operations
+are reused. This organization is a maintenance change, not a latency claim.
