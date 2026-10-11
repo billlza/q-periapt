@@ -127,7 +127,7 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
              run, *, receiver: Path, language: str, collector: str = "", managed: bool = False) -> dict:
     sdk.require(profile in {"debug", "release"} and ((language == "Kotlin" and collector in {"Serial", "G1"})
                 or (language in {"C", "Swift"} and not collector)), "configuration qualification profile differs")
-    sdk.require(not managed or language == "C", "managed configuration requires the C adapter")
+    sdk.require(not managed or language in {"C", "Swift"}, "managed configuration requires a qualified registry adapter")
     label = ("managed-configuration-" if managed else "configuration-") + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "")
     evidence = outside / label
     evidence.mkdir(mode=0o700)
@@ -206,5 +206,9 @@ def qualify_foreign(outside, output, profile, runtime, native, run, client, *, l
     sdk.require(receiver == native["binaries"]["C_client"]
                 and sdk.snapshot(Path(receiver["path"]), maximum=c.MAX_BINARY).sha256 == receiver["sha256"],
                 "configuration native receiver differs from the qualified C client")
-    return _qualify(outside, output, profile, runtime, Path(helper["path"]), client, run,
-                    receiver=Path(receiver["path"]), language=language, collector=collector)
+    checked = _qualify(outside, output, profile, runtime, Path(helper["path"]), client, run,
+                       receiver=Path(receiver["path"]), language=language, collector=collector)
+    if language == "Swift":
+        checked["managed_first_registration"] = _qualify(outside, output, profile, runtime, Path(helper["path"]),
+            client, run, receiver=Path(receiver["path"]), language=language, managed=True)
+    return checked

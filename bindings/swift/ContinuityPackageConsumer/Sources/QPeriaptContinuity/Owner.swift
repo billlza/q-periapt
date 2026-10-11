@@ -180,7 +180,7 @@ final class NativeOwner: Sendable {
 
     // Configuration preparation publishes exactly one owning registry handle.
     // Keep construction here so no facade can manufacture another destructor.
-    static func prepareConfiguration(_ body: (inout UInt64, inout qpc_error_v1) throws -> Int32) throws -> NativeOwner {
+    static func prepareOwned(_ body: (inout UInt64, inout qpc_error_v1) throws -> Int32) throws -> NativeOwner {
         var handle: UInt64 = 0
         var error = qpc_error_v1()
         let code = try body(&handle, &error)

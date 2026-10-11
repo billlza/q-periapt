@@ -9,8 +9,8 @@ import continuity_first_configuration as configuration
 from test_continuity_first_configuration import fixture as ordinary_fixture
 
 
-def fixture(root):
-    ordinary_fixture(root)
+def fixture(root, language="C"):
+    ordinary_fixture(root, language)
     for name in ("local-fixed", "local-recoverable"):
         shutil.rmtree(root / name)
     output = f"test {account.TEST} ...\n"
@@ -27,12 +27,17 @@ def fixture(root):
             "revision": (1).to_bytes(8, "big"),
         }.items():
             (folder / name).write_bytes(value)
-        for command, marker in account.COMMANDS.items():
+        commands = dict(account.COMMANDS)
+        if language == "Swift":
+            commands.update({"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"})
+            for name in ("registry-closed.bin", "registry-released.bin"):
+                (folder / name).write_bytes(data["request.bin"])
+        for command, marker in commands.items():
             (folder / (command + ".stdout")).write_text("QPC_CONFIGURATION_" + marker + "\n")
             (folder / (command + ".stderr")).write_bytes(b"")
         carrier, profile = folder.name.split("-")
-        output += configuration.connection_marker("C", carrier, profile) + "\n"
-        output += account.marker(carrier, profile) + "\n"
+        output += configuration.connection_marker(language, carrier, profile) + "\n"
+        output += account.marker(language, carrier, profile) + "\n"
     return (output + "ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;\n").encode()
 
 
@@ -50,6 +55,16 @@ class FirstAccountTests(unittest.TestCase):
                             output.replace(b"missing_registry=211", b"missing_registry=0")):
                 with self.assertRaises(ValueError):
                     account.verify_execution(changed, root, language="C")
+            with self.assertRaises(ValueError):
+                account.verify_execution(output, root, language="Kotlin")
+
+    def test_swift_requires_explicit_and_arc_registry_revocation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = fixture(root, "Swift")
+            result = account.verify_execution(output, root, language="Swift")
+            self.assertEqual(result["registry_lifetime_probes"], ["registry-closed", "registry-released"])
+            (root / "tls-fixed" / "registry-released.bin").write_bytes(b"another request")
             with self.assertRaises(ValueError):
                 account.verify_execution(output, root, language="Swift")
 

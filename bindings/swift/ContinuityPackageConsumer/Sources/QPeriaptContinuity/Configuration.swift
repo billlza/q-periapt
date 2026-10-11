@@ -165,7 +165,7 @@ public final class ContinuityConfiguration: Sendable {
     private init(_ native: NativeOwner) { reference = OwnerTransferReference(native, label: "configuration") }
     private static func initial(path: String, input: InstallationConfiguration, reconcile: Bool) throws -> Self {
         let path = try textBytes(path, maximum: 4096)
-        let native = try NativeOwner.prepareConfiguration { handle, error in
+        let native = try NativeOwner.prepareOwned { handle, error in
             try input.withNative { input in
                 path.withUnsafeBufferPointer {
                     if reconcile { return qpc_configuration_v1_prepare_reconcile($0.baseAddress, $0.count, input, &handle, &error) }
@@ -187,7 +187,7 @@ public final class ContinuityConfiguration: Sendable {
     /// metadata. Stored root files are not trust, and initial policy is not replayed.
     public static func prepareOpen(path: String, trust: SdkPolicyTrust, protocolPolicy: PolicyDocument) throws -> ContinuityConfiguration {
         let path = try textBytes(path, maximum: 4096)
-        let native = try NativeOwner.prepareConfiguration { handle, error in
+        let native = try NativeOwner.prepareOwned { handle, error in
             try configurationBlobs([trust.root, trust.recoveryRoot, protocolPolicy.root, protocolPolicy.wire]) { blobs in
                 var value = qpc_configuration_open_v1()
                 value.header = qpc_configuration_header_v1(struct_size: UInt32(MemoryLayout.size(ofValue: value)), version: 1)

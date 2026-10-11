@@ -205,6 +205,12 @@ public final class ContinuityEnrollment: Sendable {
         try owner.finishOpen()
         return owner
     }
+    /// Select the original live registry after independent approval of the first request.
+    /// This does not retain the registry object or turn its public checkpoint into authority.
+    public func selectAccountAuthority(_ registry: ContinuityAccountAuthority,
+                                       checkpoint: AccountAuthorityCheckpoint) throws {
+        try reference.call { try registry.select(enrollment: $0, checkpoint: checkpoint) }
+    }
     public func finishOpen() throws { try reference.call { try $0.finishOpen() } }
     public func cancel() throws { try reference.call(cancellation: true) { try $0.cancel() } }
     /// Successful transfer makes this harmless to the returned device. Before

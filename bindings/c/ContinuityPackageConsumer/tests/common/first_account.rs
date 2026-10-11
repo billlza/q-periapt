@@ -75,6 +75,7 @@ pub(crate) fn export_public(
     source: &Path,
     base: &Path,
     registry: &Path,
+    language: &str,
     profile: &str,
     carrier: &str,
 ) -> Result<()> {
@@ -113,7 +114,7 @@ pub(crate) fn export_public(
     ] {
         publish_private_bytes(&target.join(name), &fixture::read(registry, name, 1985)?)?;
     }
-    for name in [
+    let mut commands = vec![
         "request",
         "genesis",
         "missing",
@@ -124,13 +125,23 @@ pub(crate) fn export_public(
         "uncertain",
         "acknowledged",
         "after-traffic",
-    ] {
+    ];
+    if language == "Swift" {
+        for name in ["registry-closed", "registry-released"] {
+            commands.push(name);
+            publish_private_bytes(
+                &target.join(format!("{name}.bin")),
+                &fs::read(base.join(name))?,
+            )?;
+        }
+    }
+    for name in commands {
         for extension in ["stdout", "stderr"] {
             let name = format!("{name}.{extension}");
             publish_private_bytes(&target.join(&name), &fs::read(base.join(&name))?)?;
         }
     }
-    let metadata = format!("{{\"schema_version\":1,\"language\":\"C\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n");
+    let metadata = format!("{{\"schema_version\":1,\"language\":\"{language}\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n");
     publish_private_bytes(&target.join("manifest.json"), metadata.as_bytes())?;
     Ok(())
 }

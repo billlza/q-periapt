@@ -81,6 +81,28 @@ private func witness(_ source: URL, _ carrier: String?, wrong: Bool) throws -> C
         peerCertificate: load(source, "witness-tls-peer", 8192), serverName: name,
         localIdentity: LocalTlsIdentity(certificate: load(source, "witness-tls-cert", 8192), privateKey: load(source, "witness-tls-key", 8192)))
 }
+private func selectRegistry(_ path: String, source: URL, enrollment: ContinuityEnrollment,
+                            replayAssociation: Bool, retained: inout ContinuityAccountAuthority?) throws {
+    let input = URL(fileURLWithPath: path, isDirectory: true)
+    let trust = try AccountAuthorityTrust(identity: AccountAuthorityID(bytes: exact(input, "registry-id", 32)),
+        family: exact(input, "family", 32), witness: exact(input, "witness-id", 32), publicKey: exact(input, "witness-public", 1985))
+    let checkpoint = try AccountAuthorityCheckpoint(application: ApplicationAccountID(bytes: exact(input, "application", 32)),
+        revision: counter(exact(input, "revision", 8)[...]), account: AccountID(bytes: exact(input, "account", 32)))
+    let registry = try ContinuityAccountAuthority.prepareOpen(path: path, trust: trust)
+    retained = registry
+    try registry.finishOpen()
+    guard try registry.checkpoint(application: checkpoint.application) == checkpoint else { throw ClientError("original registry checkpoint") }
+    if replayAssociation {
+        let pin = try AccountPin(account: checkpoint.account, root: exact(source, "enrollment-root", 1985),
+            family: trust.family, checkpoint: RosterCheckpoint(version: counter(exact(source, "trusted-roster-version", 8)[...]),
+                                                               digest: exact(source, "trusted-roster-digest", 32)))
+        guard try registry.associate(application: checkpoint.application, pin: pin,
+            certificate: load(source, "grant-certificate", 8192), roster: load(source, "grant-roster", 65536)) == checkpoint else {
+            throw ClientError("original approved account association changed")
+        }
+    }
+    try enrollment.selectAccountAuthority(registry, checkpoint: checkpoint)
+}
 private func peerInput(_ source: URL) throws -> PeerConfiguration {
     let path = source.appendingPathComponent("peer", isDirectory: true)
     func device(_ prefix: String) throws -> PeerDeviceExpectation {
@@ -253,10 +275,14 @@ private struct Main {
     }
 
     static func run() throws {
-        let args = CommandLine.arguments
+        var args = CommandLine.arguments
+        var registryPath: String?
+        if args.count >= 3 && args[1] == "--registry" {
+            registryPath = args[2]; args.removeSubrange(1...2)
+        }
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -284,6 +310,11 @@ private struct Main {
         } else {
             configuration = try .prepareOpen(path: target, trust: trust(source, recoverable), protocolPolicy: policy(source))
         }
+        if mode == "activate-unmanaged" && registryPath != nil { throw ClientError("unmanaged probe selected a registry") }
+        if ["activate-closed-registry", "activate-released-registry"].contains(mode) && registryPath == nil {
+            throw ClientError("registry lifecycle probe requires the original registry")
+        }
+        var registry: ContinuityAccountAuthority?
         var registration: ContinuityEnrollment?
         var device: ContinuityDevice?
         var result: Result<String, Error>
@@ -313,6 +344,10 @@ private struct Main {
                 let owner = mode == "create" ? try configuration.createEnrollment(intent: intent, witness: selected)
                                              : try configuration.resumeEnrollment(intent: intent, witness: selected)
                 registration = owner
+                if let registryPath {
+                    try selectRegistry(registryPath, source: source, enrollment: owner,
+                                       replayAssociation: mode == "prepare", retained: &registry)
+                }
                 // A retained/transferred source must not close or pin the successor.
                 try configuration.close()
                 var bytes = try owner.request()
@@ -339,6 +374,17 @@ private struct Main {
                         bytes = [0, 0, 0, 2] + journal.bytes + genesis.subject + genesis.imageDigest
                         marker = "QPC_CONFIGURATION_GENESIS_PASS"
                     }
+                } else if mode == "activate-unmanaged" {
+                    try expect(211) { _ = try owner.activate() }
+                    marker = "QPC_CONFIGURATION_REGISTRY_REQUIRED"
+                } else if mode == "activate-closed-registry" || mode == "activate-released-registry" {
+                    if mode == "activate-closed-registry" {
+                        guard let selected = registry else { throw ClientError("registry owner missing") }
+                        try selected.close()
+                    }
+                    registry = nil
+                    try expect(202) { _ = try owner.activate() }
+                    marker = mode == "activate-closed-registry" ? "QPC_CONFIGURATION_REGISTRY_CLOSED" : "QPC_CONFIGURATION_REGISTRY_RELEASED"
                 } else if mode == "activate-expired" {
                     try expect(104) { _ = try owner.activate() }
                     try expect(2) { _ = try owner.status() }
@@ -368,6 +414,7 @@ private struct Main {
             { if let device { try device.close() } },
             { if let registration { try registration.close() } },
             { try configuration.close() },
+            { if let registry { try registry.close() } },
         ]
         for close in cleanup {
             do { try close() } catch {

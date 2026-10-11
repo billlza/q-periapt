@@ -166,11 +166,15 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("RetirementTests", "testRetirementLayoutsMatchTheNativeContract"),
                  ("RetirementTests", "testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust"),
                  ("RetirementTests", "testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity"),
-                 ("RetirementTests", "testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"))
+                 ("RetirementTests", "testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"),
+                 ("AccountAuthorityTests", "testAuthorityLayoutsAndCheckpointRejectMalformedOutput"),
+                 ("AccountAuthorityTests", "testAuthorityInputsOwnBytesAndRejectEmptyScope"),
+                 ("AccountAuthorityTests", "testPendingAuthorityUsesSharedCapacityAndPreservesCancellation"),
+                 ("AccountAuthorityTests", "testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease"))
         names += (("PeerConfigurationTests", "testCallerMutationCannotChangeStoredOrNativePeerInputs"),
                   ("PeerConfigurationTests", "testWidthsAndBoundsPrecedeNativeAdmission"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 62 tests, with 0 failures").encode()
+                  + "\nExecuted 66 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")
@@ -180,6 +184,8 @@ class SwiftConsumerTests(unittest.TestCase):
             swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"PolicyContinuationTests" not in line), b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"RetirementTests" not in line), b"")
+        with self.assertRaises(ValueError):
+            swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"AccountAuthorityTests" not in line), b"")
 
     def test_foreign_library_and_missing_installed_rpath_are_refused(self):
         dependencies = "client:\n\t@rpath/" + swift.LIBRARY + " (compatibility version 0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 0)\n"

@@ -103,7 +103,11 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "RetirementTests.testRetirementLayoutsMatchTheNativeContract",
              "RetirementTests.testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust",
              "RetirementTests.testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity",
-             "RetirementTests.testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID"}
+             "RetirementTests.testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID",
+             "AccountAuthorityTests.testAuthorityLayoutsAndCheckpointRejectMalformedOutput",
+             "AccountAuthorityTests.testAuthorityInputsOwnBytesAndRejectEmptyScope",
+             "AccountAuthorityTests.testPendingAuthorityUsesSharedCapacityAndPreservesCancellation",
+             "AccountAuthorityTests.testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease"}
     passed = [owner + "." + name for owner, name in re.findall(
         r"Test Case '-\[QPeriaptContinuityTests\.(\w+) (\w+)\]' passed", text)]
     sdk.require(len(passed) == len(tests) and set(passed) == tests

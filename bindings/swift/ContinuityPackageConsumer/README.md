@@ -694,7 +694,7 @@ report-retention signature cannot substitute for a host-accounted erasure ACK.
 Logical erasure says nothing about old pages, backups, wrapping keys or physical
 power-loss durability.
 
-The installed-package producer requires all 56 named tests and eight actual Swift
+The installed-package producer requires all 66 named tests and eight actual Swift
 cleanup processes, including three exits without completion and exact complete
 report readback. The replacement fixture also drives ten Swift processes through
 the existing enrollment API: generation-2 creation, original-request reopen,
@@ -737,3 +737,36 @@ to reclaim public history without revoking inventory. `abandonPublication` appli
 to the original reserved intent and retires fresh unshared members only. Neither
 API asserts remote publication or physical erasure. Existing parent cancellation,
 close and original-operation reconciliation rules apply unchanged.
+
+
+## Account registry during first registration
+
+`ContinuityAccountAuthority` owns the original host registry. Supply an independent
+`AccountAuthorityTrust` and use separate `prepareCreate`/`prepareOpen` and
+`finishOpen` phases. Wrapping-key provisioning is explicit. `associate` verifies
+the real credential and roster under an independently approved `AccountPin`;
+`checkpoint` returns an expected mapping, never self-contained permission.
+
+The first device obtains its original signed enrollment request before account
+association. Once the issuer approves that request and the control plane associates
+the actual account, call `ContinuityEnrollment.selectAccountAuthority(_:checkpoint:)`
+on the same enrollment owner. Continue acceptance, storage preparation, independent
+witness enrollment and activation through the existing methods. On reopening,
+supply the same original registry again; omitting it on activation is refused.
+
+Keep the registry alive through all child operations using an explicit close after
+those operations, or `withExtendedLifetime`. Children do not retain it through ARC.
+Closing or finally releasing the registry invalidates delegated native admission;
+opening another registry object does not revive already selected children. Registry
+cancellation stops its own calls and is separate from revocation by close.
+
+`FirstConfigurationClient --registry PATH ...` exercises this flow against the
+installed native library. Both build profiles cover fixed/recoverable SDK roots,
+signed TCP/mutual TLS witnesses, original-message retry after a receiver exit, and
+explicit-close/final-ARC-release refusal. The control plane uses the actual new
+request; no device identity or installation store is copied into the new path.
+The host deduplicates the repeated business callback by original message identity.
+These are same-host Swift/C endpoints sharing the native engine. Managed policy
+renewal, direct managed existing-owner constructors, Kotlin registry ownership,
+and the complete account replacement controller still need separate integration
+and qualification.

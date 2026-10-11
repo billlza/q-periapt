@@ -158,7 +158,7 @@ class FirstConfigurationTests(unittest.TestCase):
             self.assertEqual(list(previous.iterdir()), [])
 
     def test_foreign_receiver_must_match_native_baseline_and_remain_unchanged(self):
-        for mutation in ("none", "baseline", "before", "during"):
+        for mutation in ("none", "baseline", "before", "during", "managed-during"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory).resolve(); outside = root / "outside"; outside.mkdir()
                 output = root / "output"; output.mkdir()
@@ -175,8 +175,14 @@ class FirstConfigurationTests(unittest.TestCase):
                 def run(command, label, *, runtime):
                     calls.append(command)
                     self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
-                    data = fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]), "Swift")
-                    if mutation == "during": receiver.write_bytes(b"replaced during execution")
+                    managed = "QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE" in runtime
+                    if managed:
+                        from test_continuity_first_account import fixture as managed_fixture
+                        data = managed_fixture(Path(runtime["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"]), "Swift")
+                    else:
+                        data = fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]), "Swift")
+                    if mutation == "during" or (mutation == "managed-during" and managed):
+                        receiver.write_bytes(b"replaced during execution")
                     return data
                 def execute():
                     return configuration.qualify_foreign(outside, output, "debug",
@@ -185,9 +191,9 @@ class FirstConfigurationTests(unittest.TestCase):
                     result = execute()
                     self.assertEqual(result["binaries"]["receiver"], identity(receiver))
                 else:
-                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation == "during" else "native receiver differs"):
+                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation in ("during", "managed-during") else "native receiver differs"):
                         execute()
-                self.assertEqual(len(calls), 0 if mutation in ("baseline", "before") else 1)
+                self.assertEqual(len(calls), 0 if mutation in ("baseline", "before") else 1 if mutation == "during" else 2)
 
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()
@@ -197,6 +203,8 @@ class FirstConfigurationTests(unittest.TestCase):
         ):
             upload = workflow.split("- name: " + section + "\n", 1)[1].split("if-no-files-found:", 1)[0]
             self.assertIn(prefix + "configuration-public/**", upload)
+            self.assertIn(prefix + "managed-configuration-public/**", upload)
+            self.assertIn(prefix + "c-managed-public/**", upload)
 
     def test_each_scenario_requires_its_own_registration(self):
         with tempfile.TemporaryDirectory() as directory:

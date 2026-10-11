@@ -681,5 +681,7 @@ and recoverable SDK roots with signed TCP and mutual TLS witnesses, and checks
 that omitting the selected registry on activation returns `211`. Its control
 plane independently associates the issued account; it does not copy a device
 identity or installation store into the new installation. These same-host
-processes share the native engine. Other language adapters, managed policy
-renewal and the full account replacement controller require separate qualification.
+processes share the native engine. The Swift owner also exercises the same first-use
+flow, with explicit-close and final-ARC-release revocation checks. Kotlin registry
+ownership, managed policy renewal and the full account replacement controller
+require separate integration and qualification.

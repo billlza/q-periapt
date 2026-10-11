@@ -144,6 +144,8 @@ impl ConfigurationProcess<'_> {
             "prepare" => "QPC_CONFIGURATION_GENESIS_PASS\n",
             "activate" => "QPC_CONFIGURATION_ACTIVATION_PASS\n",
             "activate-unmanaged" => "QPC_CONFIGURATION_REGISTRY_REQUIRED\n",
+            "activate-closed-registry" => "QPC_CONFIGURATION_REGISTRY_CLOSED\n",
+            "activate-released-registry" => "QPC_CONFIGURATION_REGISTRY_RELEASED\n",
             "activate-expired" => "QPC_CONFIGURATION_POLICY_EXPIRED\n",
             "activate-missing" => "QPC_CONFIGURATION_WITNESS_REQUIRED\n",
             "activate-bad-receipt" => "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED\n",
@@ -543,14 +545,14 @@ fn independent_c_required_witness_registration_uses_original_host_trust() -> Res
 }
 
 #[test]
-fn managed_c_first_registration_preserves_identity_and_delivery() -> Result<()> {
+fn managed_first_registration_preserves_identity_and_delivery() -> Result<()> {
     witnessed_registration(true)
 }
 
 fn witnessed_registration(managed: bool) -> Result<()> {
     let language = client_language()?;
-    if managed && language != "C" {
-        return Err("managed first-use requires the C executable".into());
+    if managed && !matches!(language, "C" | "Swift") {
+        return Err("managed first-use requires a qualified registry adapter".into());
     }
     let client = PathBuf::from(
         std::env::var_os("QPC_CONFIGURATION_CLIENT").ok_or("explicit C client path")?,
@@ -811,6 +813,15 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                     Some(carrier),
                 )?;
                 assert_eq!(fs::read(base.join("registry-required"))?, request);
+                if language == "Swift" {
+                    for (mode, output) in [
+                        ("activate-closed-registry", "registry-closed"),
+                        ("activate-released-registry", "registry-released"),
+                    ] {
+                        process.run(mode, &base.join(output), Some(carrier))?;
+                        assert_eq!(fs::read(base.join(output))?, request);
+                    }
+                }
                 connection.run(&request)?;
             } else {
                 connection.run_with_policy(&request, &mut || {
@@ -851,8 +862,10 @@ fn witnessed_registration(managed: bool) -> Result<()> {
             }
             witness.join()?;
             if managed {
-                first_account::export_public(&source, &base, &registry, profile, carrier)?;
-                println!("\nMANAGED_CONFIGURATION_PASS carrier={carrier} profile={profile} request_before_association=true original_registry=true missing_registry=211 release_qualified=false");
+                first_account::export_public(
+                    &source, &base, &registry, language, profile, carrier,
+                )?;
+                println!("\nMANAGED_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} request_before_association=true original_registry=true missing_registry=211 release_qualified=false");
             } else {
                 export_public(&source, &base, language, profile, carrier)?;
                 println!("\nINDEPENDENT_WITNESS_CONFIGURATION_PASS language={language} carrier={carrier} profile={profile} remote_genesis_only=true original_request_replayed=true");
