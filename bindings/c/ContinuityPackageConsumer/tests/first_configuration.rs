@@ -212,72 +212,7 @@ fn export_public(
             &fs::read(base.join("genesis"))?,
         )?;
     }
-    for (name, path) in [
-        ("policy-request.bin", source.join("renewal-request")),
-        ("expired-activation.bin", base.join("expired-activation")),
-        ("expired-request.bin", base.join("expired-original-request")),
-        (
-            "expiry-observation.bin",
-            base.join("expired-policy-observation"),
-        ),
-        ("receiver-policy.bin", base.join("receiver-policy")),
-        (
-            "policy-request-replayed.bin",
-            base.join("renewal-request-replayed"),
-        ),
-        ("policy-approvals.bin", source.join("renewal-approvals")),
-        ("policy-statement.bin", base.join("renewal-statement")),
-        ("policy-root.bin", source.join("policy-root")),
-        ("original-policy.bin", source.join("protocol-policy")),
-        (
-            "target-policy.bin",
-            source.join("policy-target/protocol-policy"),
-        ),
-        (
-            "target-version.bin",
-            source.join("policy-target/policy-version"),
-        ),
-        (
-            "target-digest.bin",
-            source.join("policy-target/policy-digest"),
-        ),
-        ("policy-refused.bin", base.join("policy-refused")),
-        (
-            "policy-after-refusal.bin",
-            base.join("policy-after-refusal"),
-        ),
-        ("policy-staged.bin", base.join("policy-staged")),
-        (
-            "policy-stage-replayed.bin",
-            base.join("policy-stage-replayed"),
-        ),
-    ] {
-        publish_private_bytes(&target.join(name), &fs::read(path)?)?;
-    }
-    if carrier == "local" {
-        for name in ["policy-committed", "policy-commit-replayed"] {
-            publish_private_bytes(
-                &target.join(format!("{name}.bin")),
-                &fs::read(base.join(name))?,
-            )?;
-        }
-    } else {
-        publish_private_bytes(
-            &target.join("policy-proposal.bin"),
-            &fs::read(source.join("renewal-proposal"))?,
-        )?;
-        for name in [
-            "proposal-replayed",
-            "proposal-recovered",
-            "witness-applied",
-            "witness-reconciled",
-        ] {
-            publish_private_bytes(
-                &target.join(format!("{name}.bin")),
-                &fs::read(base.join(name))?,
-            )?;
-        }
-    }
+    first_policy::export_public(source, base, &target, carrier)?;
     // All interpolated values are selected from the closed test enums above.
     let metadata = format!(
         "{{\"schema_version\":1,\"language\":\"{language}\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n"
@@ -562,11 +497,7 @@ fn witnessed_registration(managed: bool) -> Result<()> {
         for recoverable in [false, true] {
             let profile = if recoverable { "recoverable" } else { "fixed" };
             let mut witness = witness::Witness::start()?;
-            let reference = if managed {
-                fixture::setup_with_witness(Some(&witness.configured))?
-            } else {
-                fixture::setup_expiring_policy(Some(&witness.configured))?
-            };
+            let reference = fixture::setup_expiring_policy(Some(&witness.configured))?;
             let witness_pin = witness
                 .configured
                 .store
@@ -756,14 +687,12 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                 language,
                 profile,
                 carrier: Some(carrier),
-                enrolled_receiver: !managed,
+                enrolled_receiver: true,
                 registry: selected_registry,
             };
             // Prepare responder prekeys before measuring TLS traffic. Its original
             // setup witness uses signed TCP; runtime traffic must use selected TLS.
-            if !managed {
-                first_expiry::prepare_receiver_metadata(&reference)?;
-            }
+            first_expiry::prepare_receiver_metadata(&reference)?;
             connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
             let mut tls = if carrier == "tls" {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
@@ -835,26 +764,24 @@ fn witnessed_registration(managed: bool) -> Result<()> {
                     assert!((1..=32).contains(&rounds));
                     assert_eq!(slots, 63);
                 }
-                connection.run(&request)?;
-            } else {
-                connection.run_with_policy(&request, &mut || {
-                    first_expiry::renew_receiver_before_expiry(
-                        &connection,
-                        &reference,
-                        Some(&witness.configured),
-                    )?;
-                    first_expiry::wait_and_refuse_expired(&connection, &request)?;
-                    first_policy::Renewal {
-                        account_root: &authority,
-                        policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
-                        certificate: &certificate,
-                        roster: &roster,
-                        reference: &reference.initiator,
-                        witness: Some(&witness.configured),
-                    }
-                    .run(&connection)
-                })?;
             }
+            connection.run_with_policy(&request, &mut || {
+                first_expiry::renew_receiver_before_expiry(
+                    &connection,
+                    &reference,
+                    Some(&witness.configured),
+                )?;
+                first_expiry::wait_and_refuse_expired(&connection, &request)?;
+                first_policy::Renewal {
+                    account_root: &authority,
+                    policy_root: reference.policy_issuer.as_ref().ok_or("policy issuer")?,
+                    certificate: &certificate,
+                    roster: &roster,
+                    reference: &reference.initiator,
+                    witness: Some(&witness.configured),
+                }
+                .run(&connection)
+            })?;
             if let Some(server) = &mut tls {
                 assert!(server.admitted.load(std::sync::atomic::Ordering::Acquire) >= 2);
                 assert_eq!(

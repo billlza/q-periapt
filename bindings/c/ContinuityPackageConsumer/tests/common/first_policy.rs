@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use crate::policy_request::read_request;
-use crate::{fixture, p, run, run_carrier, Result};
+use crate::{fixture, p, run, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs, os::unix::fs::DirBuilderExt, path::Path};
 
@@ -23,17 +23,7 @@ impl Renewal<'_> {
             witness,
         } = *self;
         let source = case.source;
-        let invoke = |mode: &str, output: &Path| {
-            run_carrier(
-                case.client,
-                mode,
-                case.profile,
-                source,
-                case.target,
-                output,
-                case.carrier,
-            )
-        };
+        let invoke = |mode: &str, output: &Path| case.invoke(mode, output);
         let operation = p::PolicyRenewalId::generate()?;
         publish_private_bytes(&source.join("renewal-operation"), operation.as_bytes())?;
         invoke("policy-request", &source.join("renewal-request"))?;
@@ -241,4 +231,79 @@ pub(crate) fn historical(path: &Path) -> Result<p::HistoricalSessionPolicy> {
         )?,
     )?;
     Ok(pin.verify_historical(&fixture::read(path, "protocol-policy", 8192)?)?)
+}
+
+pub(crate) fn export_public(
+    source: &Path,
+    base: &Path,
+    target: &Path,
+    carrier: &str,
+) -> Result<()> {
+    for (name, path) in [
+        ("policy-request.bin", source.join("renewal-request")),
+        ("expired-activation.bin", base.join("expired-activation")),
+        ("expired-request.bin", base.join("expired-original-request")),
+        (
+            "expiry-observation.bin",
+            base.join("expired-policy-observation"),
+        ),
+        ("receiver-policy.bin", base.join("receiver-policy")),
+        (
+            "policy-request-replayed.bin",
+            base.join("renewal-request-replayed"),
+        ),
+        ("policy-approvals.bin", source.join("renewal-approvals")),
+        ("policy-statement.bin", base.join("renewal-statement")),
+        ("policy-root.bin", source.join("policy-root")),
+        ("original-policy.bin", source.join("protocol-policy")),
+        (
+            "target-policy.bin",
+            source.join("policy-target/protocol-policy"),
+        ),
+        (
+            "target-version.bin",
+            source.join("policy-target/policy-version"),
+        ),
+        (
+            "target-digest.bin",
+            source.join("policy-target/policy-digest"),
+        ),
+        ("policy-refused.bin", base.join("policy-refused")),
+        (
+            "policy-after-refusal.bin",
+            base.join("policy-after-refusal"),
+        ),
+        ("policy-staged.bin", base.join("policy-staged")),
+        (
+            "policy-stage-replayed.bin",
+            base.join("policy-stage-replayed"),
+        ),
+    ] {
+        publish_private_bytes(&target.join(name), &fs::read(path)?)?;
+    }
+    if carrier == "local" {
+        for name in ["policy-committed", "policy-commit-replayed"] {
+            publish_private_bytes(
+                &target.join(format!("{name}.bin")),
+                &fs::read(base.join(name))?,
+            )?;
+        }
+    } else {
+        publish_private_bytes(
+            &target.join("policy-proposal.bin"),
+            &fs::read(source.join("renewal-proposal"))?,
+        )?;
+        for name in [
+            "proposal-replayed",
+            "proposal-recovered",
+            "witness-applied",
+            "witness-reconciled",
+        ] {
+            publish_private_bytes(
+                &target.join(format!("{name}.bin")),
+                &fs::read(base.join(name))?,
+            )?;
+        }
+    }
+    Ok(())
 }

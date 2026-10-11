@@ -1455,11 +1455,15 @@ The installed first-use workload exercises fixed/recoverable SDK roots with both
 signed TCP and mutual TLS witnesses. It starts from an absent installation
 directory, prepares storage, activates and reopens the original registration,
 refuses activation without its registry (`211`), and recovers the same message
-after the receiver exits after persisting its host effect. The registry owner
-stays alive until the registration/device owner closes.
+after the receiver exits after persisting its host effect. While that message is
+unacknowledged, the original protocol policy expires: old-policy activation is
+refused, independent account/policy approvals renew it, and the same session and
+message complete under the original registry. The receiver adopts the target
+policy before expiry. The registry owner stays alive until the registration/device
+owner closes in each process.
 
 These first-use cases reuse the existing enrollment/connection workload and
-public record verifier. They do not qualify managed policy renewal, account
-retirement or the complete account replacement controller; those compositions
-still require their own qualification. Swift and Kotlin adapters reuse this
-first-use workload and add their own ARC/Cleaner lifetime checks.
+public record verifier, including policy/approval linkage and actual-clock expiry.
+They do not qualify managed credential renewal, SDK policy replacement, account
+retirement or the complete account replacement controller. Swift and Kotlin
+adapters reuse this first-use workload and add their own ARC/Cleaner lifetime checks.

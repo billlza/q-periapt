@@ -4,13 +4,15 @@ import re
 from pathlib import Path
 
 import continuity_first_configuration as configuration
+import continuity_configuration_policy as policy
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 
 TEST = "managed_first_registration_preserves_identity_and_delivery"
 SCOPE = ("installed C/Swift/Kotlin first registration, account selection, witnessed activation and original-message "
          "recovery; fixed and recoverable SDK roots; signed TCP and mutual TLS witness; "
-         "same host and shared native engine; no managed policy renewal or independent implementation claim")
+         "real-clock protocol-policy expiry and independently approved renewal; same host and shared native engine; "
+         "no credential renewal or independent implementation claim")
 BASE = {"manifest.json", "request.bin", "replayed.bin", "root.bin", "intent.bin", "genesis.bin",
         "session.bin", "unknown.bin", "acknowledged.bin", "after-traffic.bin", "effect.bin",
         "registry-required.bin", "registry-id", "family", "witness-id", "witness-public",
@@ -35,8 +37,15 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     scenarios = [(c, p) for c in ("signed", "tls") for p in ("fixed", "recoverable")]
     expected = {marker(language, c, p) for c, p in scenarios} | {
         configuration.connection_marker(language, c, p) for c, p in scenarios}
+    expected |= {policy.marker(language, c, p) for c, p in scenarios}
+    expected |= {policy.expiry_marker(language, c, p) for c, p in scenarios}
     markers = re.findall(r"^(?:MANAGED_|INDEPENDENT_).*$", text, re.MULTILINE)
-    sdk.require(len(markers) == 8 and set(markers) == expected, "managed first registration matrix differs")
+    sdk.require(len(markers) == 16 and set(markers) == expected, "managed first registration matrix differs")
+    for carrier, profile in scenarios:
+        sdk.require(text.index(policy.expiry_marker(language, carrier, profile))
+                    < text.index(policy.marker(language, carrier, profile))
+                    < text.index(configuration.connection_marker(language, carrier, profile)),
+                    "managed configuration expiry/recovery phase order differs")
     directories = {f"{c}-{p}" for c, p in scenarios}
     sdk.require(not evidence.is_symlink() and {p.name for p in evidence.iterdir()} == directories,
                 "managed first registration scenarios differ")
@@ -45,7 +54,9 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
     commands.update(lifetime)
     names = BASE | {f"{name}.{extension}" for name in commands for extension in ("stdout", "stderr")} | {n + ".bin" for n in lifetime}
     if language == "Kotlin": names.add("registry-gc.bin")
+    names |= policy.names("signed") | policy.EXPIRY
     hashes, requests, registries, gc_observations = {}, set(), set(), {}
+    policy_operations, expiry_observations = set(), {}
     for carrier, profile in scenarios:
         name = f"{carrier}-{profile}"
         folder = evidence / name
@@ -56,7 +67,10 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         sdk.require(manifest == dict(schema_version=1, language=language, profile=profile, carrier=carrier,
                                     release_claim_eligible=False) and type(manifest["schema_version"]) is int
                     and manifest["release_claim_eligible"] is False, "managed first registration metadata differs")
-        account, family, _, digest = configuration.verify_original(data)
+        account, family, valid_until, digest = configuration.verify_original(data)
+        policy_operations.add(policy.verify(data, carrier=carrier, account=account, family=family))
+        expiry_observations[name] = policy.verify_expiry(
+            data, family=family, original_request=data["request.bin"], identity_until=valid_until)
         sdk.require(data["account"] == account and data["family"] == family
                     and data["revision"] == (1).to_bytes(8, "big")
                     and all(len(data[n]) == 32 and any(data[n]) for n in ("registry-id", "application", "witness-id"))
@@ -78,8 +92,11 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
         registries.add(data["registry-id"])
         hashes.update({name + "/" + leaf: hashlib.sha256(value).hexdigest() for leaf, value in data.items()})
     sdk.require(len(requests) == 4 and len(registries) == 4, "managed registration scenarios reused original identities")
+    sdk.require(len(policy_operations) == 4, "managed scenarios reused a policy renewal operation")
     return dict(completed=True, scope=SCOPE, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes, missing_registry=211,
                 original_message_recovered=True, host_effects_per_scenario=1,
                 registry_lifetime_probes=sorted(lifetime), gc_observations=gc_observations,
+                policy_renewal_composition=True, real_clock_policy_expiry=True,
+                expiry_observations=expiry_observations, credential_renewal_qualified=False,
                 signature_verification="shared native execution only")

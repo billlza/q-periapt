@@ -44,6 +44,9 @@ impl Case<'_> {
         Ok(())
     }
     fn sender(&self, mode: &str, output: &str) -> Result<()> {
+        self.invoke(mode, &self.base.join(output))
+    }
+    pub(crate) fn invoke(&self, mode: &str, output: &Path) -> Result<()> {
         ConfigurationProcess {
             client: self.client,
             profile: self.profile,
@@ -51,7 +54,7 @@ impl Case<'_> {
             target: self.target,
             registry: self.registry,
         }
-        .run(mode, &self.base.join(output), self.carrier)
+        .run(mode, output, self.carrier)
     }
     fn start(
         &self,
@@ -156,16 +159,6 @@ impl Case<'_> {
         original: &[u8],
         renew: &mut dyn FnMut() -> Result<()>,
     ) -> Result<()> {
-        self.run_lifecycle(original, Some(renew))
-    }
-    pub(crate) fn run(&self, original: &[u8]) -> Result<()> {
-        self.run_lifecycle(original, None)
-    }
-    fn run_lifecycle(
-        &self,
-        original: &[u8],
-        renewal: Option<&mut dyn FnMut() -> Result<()>>,
-    ) -> Result<()> {
         let initiation = p::InitiationId::generate()?;
         publish_private_bytes(
             &self.source.join("connection-initiation"),
@@ -196,20 +189,10 @@ impl Case<'_> {
             .join(format!("application-{}", fixture::hex(&message)));
         let effect = fs::read(&effect_path)?;
         publish_private_bytes(&self.base.join("effect-public"), &effect)?;
-        let policy_renewed = renewal.is_some();
-        if let Some(renew) = renewal {
-            renew()?;
-        }
+        renew()?;
         let (server, address) = self.start(83, "application", Some(session))?;
         fs::write(self.source.join("connection-address"), address.to_string())?;
-        self.sender(
-            if policy_renewed {
-                "retry-policy"
-            } else {
-                "retry-send"
-            },
-            "acknowledged",
-        )?;
+        self.sender("retry-policy", "acknowledged")?;
         self.finish(server, 0, Some((session, message)))?;
         assert_eq!(fs::read(self.base.join("acknowledged"))?, uncertain);
         assert_eq!(fs::read(&effect_path)?, effect);
@@ -232,9 +215,7 @@ impl Case<'_> {
         assert_eq!(effects, 1);
         self.sender("resume", "after-traffic.request")?;
         assert_eq!(fs::read(self.base.join("after-traffic.request"))?, original);
-        if policy_renewed {
-            println!("\nINDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
-        }
+        println!("\nINDEPENDENT_CONFIGURATION_POLICY_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);
         println!("\nINDEPENDENT_CONFIGURATION_CONNECTION_PASS language={} carrier={} profile={} fresh_installation=true original_registration=true explicit_peer=true original_session=true original_message=true receiver_exit_after_effect=true acknowledged=true effects=1",self.language,self.carrier.unwrap_or("local"),self.profile);
         Ok(())
     }

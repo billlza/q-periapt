@@ -147,6 +147,7 @@ pub(crate) fn export_public(
             publish_private_bytes(&target.join(&name), &fs::read(base.join(&name))?)?;
         }
     }
+    crate::first_policy::export_public(source, base, &target, carrier)?;
     let metadata = format!("{{\"schema_version\":1,\"language\":\"{language}\",\"profile\":\"{profile}\",\"carrier\":\"{carrier}\",\"release_claim_eligible\":false}}\n");
     publish_private_bytes(&target.join("manifest.json"), metadata.as_bytes())?;
     Ok(())

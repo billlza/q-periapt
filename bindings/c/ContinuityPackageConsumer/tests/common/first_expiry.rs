@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Real-clock expiry composition for independently configured consumers.
 use crate::first_policy::historical;
-use crate::{fixture, p, run, run_carrier, Result};
+use crate::{fixture, p, run, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs, os::unix::fs::DirBuilderExt};
 
@@ -19,26 +19,10 @@ pub(crate) fn wait_and_refuse_expired(
     }
     let at = fixture::now()?;
     let refused = case.base.join("expired-activation");
-    run_carrier(
-        case.client,
-        "activate-expired",
-        case.profile,
-        case.source,
-        case.target,
-        &refused,
-        case.carrier,
-    )?;
+    case.invoke("activate-expired", &refused)?;
     assert_eq!(fs::read(&refused)?, 104i32.to_ne_bytes());
     let replay = case.base.join("expired-original-request");
-    run_carrier(
-        case.client,
-        "resume",
-        case.profile,
-        case.source,
-        case.target,
-        &replay,
-        case.carrier,
-    )?;
+    case.invoke("resume", &replay)?;
     assert_eq!(fs::read(replay)?, original);
     let adopted = fixture::array::<8>(case.base, "receiver-policy-adopted")?;
     let mut observed = until.to_be_bytes().to_vec();

@@ -766,7 +766,11 @@ signed TCP/mutual TLS witnesses, original-message retry after a receiver exit, a
 explicit-close/final-ARC-release refusal. The control plane uses the actual new
 request; no device identity or installation store is copied into the new path.
 The host deduplicates the repeated business callback by original message identity.
-These are same-host Swift/C endpoints sharing the native engine. Managed policy
-renewal, direct managed existing-owner constructors,
+The same workload lets the protocol policy expire while the message is
+unacknowledged, refuses old-policy activation, obtains independent account/policy
+renewal approvals and recovers the original session/message with the original
+registry selected in every reopened process. The receiver adopts the target before
+expiry. These are same-host Swift/C endpoints sharing the native engine. Managed
+credential renewal, SDK policy replacement, direct managed existing-owner constructors,
 and the complete account replacement controller still need separate integration
 and qualification.

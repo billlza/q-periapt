@@ -873,6 +873,10 @@ recovery APIs or guarantees for all JVM implementations.
 
 The registry marshaller is separate from `Native.kt` and shares its existing ABI
 layout, symbol lookup and error decoder. Java can use the public input types;
-raw registry-owner construction remains private. Managed policy renewal, direct
-managed existing-owner constructors, complete account replacement, cross-host
+raw registry-owner construction remains private. The managed workload also covers
+real-clock protocol-policy expiry while a message is unacknowledged, old-policy
+activation refusal, independent account/policy renewal approvals and recovery of
+the original session/message. Each reopened process selects the original registry;
+the receiver adopts the target policy before expiry. Managed credential renewal,
+SDK policy replacement, direct managed existing-owner constructors, complete account replacement, cross-host
 interoperability and other platform contracts retain their separate gates.
