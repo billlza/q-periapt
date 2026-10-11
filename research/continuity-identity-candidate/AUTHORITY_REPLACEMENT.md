@@ -38,6 +38,14 @@ target. The controller must outlive returned operating owners;
 `successor_authority` supplies the same revocable registry descriptor for ordinary
 enrollment reopening and later lifecycle operations.
 
+The [native owner checkpoint](../sdk-alpha1/evidence/20261011-managed-root-owner/CHECKS.json)
+records 32 account-root tests on each of Rust 1.98.1 and 1.90.0, 11 focused Release
+tests, strict Clippy on both compilers, and seven actual process-loss cuts in each
+tested profile. The initial prototype's missing preparation lease is retained as
+a failing regression followed by the corrected result. These are controlled native
+fixtures on one macOS arm64 host, with real signatures and storage; they do not
+qualify deployed authority transport or installed foreign-language consumers.
+
 This is the initial native managed cutover. Managed orchestration of authenticated
 non-commit, approval of another target, committed-winner adoption, retired-message
 accounting/erasure, deployed control-plane transport, foreign adapters and supported
