@@ -199,7 +199,7 @@ verdict on the physical phone.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
-| Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. Physical Android evidence remains open; JVM Java-source owner construction is closed |
+| Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. The selected API 37 phone passes both SDK consumers at 24ecaf46, including cleanup and export; this completes the agreed Android physical gate. JVM Java-source owner construction is closed |
 | Rust compiler floor | Actual minimum-compiler build and public API execution from the same pinned packages; explicit development-toolchain scope | The current dependency contract selects Rust 1.90 and producer 1.98.1; see [dependency maintenance](SDK_DEPENDENCY_POLICY.md). Local candidate all-target compilation passes on 1.90. The older 1.85 package receipts remain historical evidence and cannot qualify the refreshed source. Current installed-package and target floors retain their own source-bound gates |
 | Immutable verified runtime | Actual signature/root/state validation; no raw decision constructor; policy epoch/revocation rules and persistence boundary | Prepare/persist/activate, one-winner revocation, disabled-policy recovery and later re-enabling implemented across all six surfaces; shared Rust/C/Swift persistent runtime has real-file/process recovery evidence. The 2026-10-08 installed macOS/Linux peers pass persistence and restart cases with separate stores in a local VM; independent physical-host qualification remains open |
 | Explicit expert access and named-purpose derivation | Separate APIs, specified formats/KDF/domain binding, rejection and interoperability evidence | Owned HKDF-SHA-256 purpose derivation and explicit expanded-key transfer implemented across all six surfaces; native integrity/PCT checks and foreign roundtrips pass locally; focused internal review remains required |
@@ -215,6 +215,20 @@ verdict on the physical phone.
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The [2026-10-11 Android physical acceptance](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json)
+completes the agreed single-phone SDK gate. The Samsung SM-S948U1 runs Android
+17 / API 37 with arm64 and 4-KiB pages. Both full and minimal installed, minified
+AGP consumers pass from the same hash-bound 0.2.0 AAR at `24ecaf46`. The three
+full workload groups cover owned keys and purpose derivation, expert access and
+cancellation/input snapshots, and signed-policy revocation/recovery; the minimal
+consumer proves its runtime JNI load. Both runs complete test-application
+cleanup, private ADB retirement and exported-profile re-verification. The 61
+admission/runtime/export tests pass. The final AAR build is free of warnings
+after fixing an isolated host-toolchain component omission. API 36 hardware and
+additional phone models are not outstanding acceptance requirements. Continuity
+Android persistence remains a separate implementation task, not a shortfall in
+this physical SDK result.
 
 The [2026-10-11 installed C root alternatives](../research/sdk-alpha1/evidence/20261011-c-root-alternatives/CHECKS.json)
 exercise original recovery, transition before and after the original freeze is

@@ -44,6 +44,14 @@ make this gate incomplete. The API 36 profile remains available for explicit
 future runs and historical proof replay. This device choice does not expand
 the workload into untested Continuity functionality.
 
+The [2026-10-11 physical acceptance](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json)
+passes both consumers at source `24ecaf46e65bbf7e35cd8d350f97b9df52a276b0`
+on the selected Samsung SM-S948U1 running Android 17 / API 37. The full consumer
+passes owned keys/purpose derivation, expert access/cancellation/input snapshot,
+and signed-policy revocation/recovery. The minimal consumer passes its JNI
+runtime-version load. Both complete application and private-ADB cleanup plus
+portable export and re-verification. The agreed physical SDK gate is complete.
+
 SDK build receipts use `qperiapt.android_sdk_agp_consumer_build`; runtime
 receipts use `qperiapt.android_sdk_agp_consumer_proof`. The old 0.1.5 profiles,
 receipt kinds and arm64 projection contract remain separate. Verification does
