@@ -349,6 +349,16 @@ prepared and logically erased. Missing originals, archives or receipts fail; no
 successor or fresh identity is created. Retained pages, wrapping keys, backups and
 previously copied signing owners remain outside this logical-erasure claim.
 
+The [native root-cleanup qualification](../sdk-alpha1/evidence/20261011-account-root-cleanup/CHECKS.json)
+retains 48 root-lifecycle tests on each of Rust 1.98.1 and 1.90, 36 historical
+retirement regressions, 19 witness-cleanup regressions, the actual unconfirmed
+traffic/pending-target test, six focused Release tests, and strict Clippy on both
+compilers. The new checks include four actual process-loss cuts and every observed
+pre/post-sync boundary of the parent inventory, journal erasure and signer-plan
+commits. All 2719 artifact tests pass without skips, and the 530-source readiness
+gate passes with `release_claim_eligible=false`. These are native component results;
+managed-controller, installed-language and physical-platform qualification remain open.
+
 ### Original enrollment parent transaction
 
 `EnrolledDevice::begin_account_root_replacement` consumes the old service and
