@@ -2,6 +2,8 @@
 //! One original-storage admission for all managed root recovery variants.
 use super::*;
 
+// Keep the public identity/trust payload out of repeated FnOnce/unwind stack
+// frames. The native consuming call receives the original values exactly once.
 pub(super) struct Recovery {
     pub(super) paths: p::EnrollmentPaths,
     pub(super) intent: p::EnrollmentIntent,
@@ -13,19 +15,22 @@ impl Recovery {
         length: usize,
         intent: *const enrollment::Intent,
         scope: *const Scope,
-    ) -> Result<Self> {
+    ) -> Result<Box<Self>> {
         let path = unsafe { text(path, length, 4096) }?;
-        Ok(Self {
+        Ok(Box::new(Self {
             paths: enrollment::paths(Path::new(&path))?,
             intent: unsafe { enrollment::Approved::read(intent) }?.into_native(),
             scope: unsafe { Approval::read(scope) }?,
-        })
+        }))
     }
     pub(super) fn resume(
-        self,
+        self: Box<Self>,
         registry: u64,
         deadline: Instant,
-        action: impl FnOnce(p::AccountAuthorityStore, Self) -> Result<p::ManagedAccountRootReplacement>,
+        action: impl FnOnce(
+            p::AccountAuthorityStore,
+            Box<Self>,
+        ) -> Result<p::ManagedAccountRootReplacement>,
     ) -> Result<()> {
         with_entry(registry, deadline, |slot, entry| {
             opening::check(&entry.cancel, deadline)?;

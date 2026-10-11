@@ -98,10 +98,14 @@ fn with_root<T>(
         Ok(result)
     })
 }
-unsafe fn plan(pointer: *const u8, length: usize) -> Result<p::AnchorAccountReplacementPlan> {
-    Ok(p::AnchorAccountReplacementPlan::from_trusted_state(
-        &unsafe { bytes(pointer, length, PLAN_BYTES) }?,
-    )?)
+unsafe fn plan(pointer: *const u8, length: usize) -> Result<Box<p::AnchorAccountReplacementPlan>> {
+    // Large public-key descriptors must not be copied through every admitted
+    // call and unwind frame on a foreign thread's default stack.
+    Ok(Box::new(
+        p::AnchorAccountReplacementPlan::from_trusted_state(&unsafe {
+            bytes(pointer, length, PLAN_BYTES)
+        }?)?,
+    ))
 }
 
 /// Convert the registry handle into a controller and consume the registered device.
@@ -141,7 +145,7 @@ pub unsafe extern "C" fn qpc_root_v1_begin(
                     let native = p::ManagedAccountRootReplacement::begin(
                         store,
                         scope.expected,
-                        plan,
+                        *plan,
                         original,
                         scope.pin.clone(),
                     )?;
@@ -181,7 +185,7 @@ pub unsafe extern "C" fn qpc_root_v1_resume(
             Ok(p::ManagedAccountRootReplacement::resume_original(
                 store,
                 recovery.scope.expected,
-                plan,
+                *plan,
                 recovery.paths,
                 recovery.intent,
                 recovery.scope.pin,

@@ -113,7 +113,7 @@ EXPORTS |= {"qpc_configuration_v1_" + name for name in (
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration", "managed"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration", "managed", "root"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -520,6 +520,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_c_root_contract import qualify as qualify_root_contract
         result["execution"][profile]["root_contract"] = qualify_root_contract(
             consumer, installed, cc, platform_flags, profile, run,
+            darwin=darwin, runtime=runtime, filename=filename)
+        from continuity_c_root import qualify as qualify_root
+        result["execution"][profile]["root_lifecycle"] = qualify_root(
+            outside, output, consumer, installed, build, cc, platform_flags, profile, cargo, run,
             darwin=darwin, runtime=runtime, filename=filename)
         result["execution"][profile]["account_authority"] = authority.qualify(
             outside, consumer, installed, authority_fixture, cc, platform_flags, profile, run,

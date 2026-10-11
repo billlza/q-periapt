@@ -17,7 +17,7 @@ pub struct Alternative {
     pub receipt_length: usize,
 }
 struct Evidence {
-    original: p::AnchorAccountReplacementPlan,
+    original: Box<p::AnchorAccountReplacementPlan>,
     approved: Vec<u8>,
     noncommit: Vec<u8>,
     receipt: Vec<u8>,

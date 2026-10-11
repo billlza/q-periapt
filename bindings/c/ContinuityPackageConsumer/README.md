@@ -1520,6 +1520,22 @@ owner consumption, short-option reads and untouched-output contracts.
 
 The installed archive tests call these C entries with fresh signed accounts and
 an actual witness socket. The separate `root_contract_client.c` checks compiled
-C layouts and guarded-page short options only. Full compiled-C lifecycle/process
-qualification and Swift/Kotlin controller integration remain separate gates;
-this interface is still unpublished `qpc-owner/1`, outside product ABI 2.
+C layouts and guarded-page short options. `root_client.c` runs on default pthread
+attributes through 14 child processes: eight SIGKILL cuts after public operations,
+a dropped processed witness query, exact original recovery, complete report/host
+ACK and both erasures. Three same-engine native observers check the retained plan,
+report and final state. The collector retains configured and observed stack sizes;
+it does not assume the reported stack excludes runtime TLS allocation.
+
+A default-stack Debug recovery exposed a stack-guard fault when large public-key
+approval/recovery values were copied through nested `FnOnce` and unwind frames.
+The adapter now owns these inputs in heap allocations and transfers the original
+values only at the consuming native call. It preserves the validation and owner
+failure contracts. The regression uses the same failed durable state as well as
+fresh complete C process scenarios, with unchanged default thread settings.
+
+Compiled-C transition/adoption process variants, application traffic after root
+cutover, Swift/Kotlin controller integration, other hosts and physical devices
+remain separate gates. The SIGKILL cuts here follow public call returns; native
+in-commit storage cuts retain their separate qualification. This interface remains
+unpublished `qpc-owner/1`, outside product ABI 2.
