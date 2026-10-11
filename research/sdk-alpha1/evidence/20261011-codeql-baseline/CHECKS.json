@@ -1,0 +1,56 @@
+{
+  "run_id": 38083326184,
+  "event": "pull_request",
+  "head_commit": "88f3a8e4d8a1646cfc88efe76e7300d1316b4752",
+  "tested_merge_commit": "6510288ad1387f4096717e190d43941ccd655547",
+  "merge_parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "88f3a8e4d8a1646cfc88efe76e7300d1316b4752"
+  ],
+  "run_conclusion": "success",
+  "rust_job_id": 114304566785,
+  "rust_job_conclusion": "success",
+  "gates": [
+    {
+      "name": "Analyze",
+      "conclusion": "success",
+      "started_at": "2026-10-10T20:28:17Z",
+      "completed_at": "2026-10-10T23:25:02Z"
+    },
+    {
+      "name": "Verify Rust CodeQL database quality",
+      "conclusion": "success",
+      "started_at": "2026-10-10T23:25:04Z",
+      "completed_at": "2026-10-10T23:31:54Z"
+    },
+    {
+      "name": "Upload quality-gated Rust CodeQL results",
+      "conclusion": "success",
+      "started_at": "2026-10-10T23:31:54Z",
+      "completed_at": "2026-10-10T23:32:13Z"
+    }
+  ],
+  "tracked_rust_sources": 509,
+  "quality_note": "Strict extraction, macro and format checks passed. Nonzero internal path/type consistency counts were emitted as telemetry; do not describe all analyzer consistency metrics as zero.",
+  "raw_log": {
+    "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/ci-88f3-current/codeql-rust-terminal.log",
+    "bytes": 725754991,
+    "sha256": "b59d9cb81bce2e7172c9a394db7eb413270f96f2f1adffb653d47cfb9a91060d"
+  },
+  "diagnostics_artifacts": [
+    {
+      "id": 11684814374,
+      "name": "codeql-rust-diagnostics-none-rust-ubuntu-latest",
+      "size_in_bytes": 480248388,
+      "digest": "sha256:1983347fe3364c0680569e7487267578c3cc2d5ebd898605a782443074ac7f5c"
+    },
+    {
+      "id": 11681721602,
+      "name": "codeql-swift-diagnostics-manual-swift-macos-latest",
+      "size_in_bytes": 16081534,
+      "digest": "sha256:a1755932ffe432f07a5df5b98ba7003233b968d13d734098514229eed20c74eb"
+    }
+  ],
+  "release_claim_eligible": false,
+  "scope": "CodeQL at the old PR merge only; no claim for later commits, runtime safety or complete 0.2.0 qualification."
+}
