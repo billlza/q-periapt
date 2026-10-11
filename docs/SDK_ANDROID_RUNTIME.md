@@ -279,6 +279,16 @@ The runtime fingerprint and reported 16-KiB page size remain recorded. The
 diagnostic archive is artifact `11210818387`. The matching PR workflow fails APK
 installation instead; neither failure is erased by earlier successful runs.
 
+The [2026-10-11 environment disposition](../research/sdk-alpha1/evidence/20261011-android-environment-disposition/CHECKS.json)
+retains another same-source success/failure pair: all three SDK tests passed in
+the failed PR run, but post-test APK ownership copies lost transport before any
+uninstall. A separate no-SDK Java control observed a `system_server` SIGSEGV.
+These different boots establish that system instability can occur without the
+SDK; they do not establish the cause of the PR failure. Extended emulator
+root-cause investigation is suspended as a known test-environment limitation.
+Failed jobs remain failed, and physical Android acceptance remains required.
+SDK failure/recovery contracts and product lifecycle work continue independently.
+
 Owned emulator launches also capture the guest kernel console through
 `-show-kernel` into the existing `emulator.log`, and guest logcat into a
 separate `emulator-guest-logcat.txt`. These streams do not require a functioning
