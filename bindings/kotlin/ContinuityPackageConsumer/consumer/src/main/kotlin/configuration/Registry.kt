@@ -9,11 +9,20 @@ import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.file.Path
 
+private fun registryTrust(input: Path) = AccountAuthorityTrust(AccountAuthorityID(exact(input, "registry-id", 32)),
+    exact(input, "family", 32), exact(input, "witness-id", 32), exact(input, "witness-public", 1985))
+
+internal fun withReopenedRegistry(path: String, action: () -> Unit) {
+    ContinuityAccountAuthority.prepareOpen(path, registryTrust(Path.of(path))).use { registry ->
+        registry.finishOpen()
+        action() // The new store is live; no selection is performed on the old child.
+    }
+}
+
 internal fun selectRegistry(path: String, source: Path, enrollment: ContinuityEnrollment,
                             replayAssociation: Boolean): ContinuityAccountAuthority {
     val input = Path.of(path)
-    val trust = AccountAuthorityTrust(AccountAuthorityID(exact(input, "registry-id", 32)),
-        exact(input, "family", 32), exact(input, "witness-id", 32), exact(input, "witness-public", 1985))
+    val trust = registryTrust(input)
     val checkpoint = AccountAuthorityCheckpoint(ApplicationAccountID(exact(input, "application", 32)),
         counter(exact(input, "revision", 8)), AccountID(exact(input, "account", 32)))
     val registry = ContinuityAccountAuthority.prepareOpen(path, trust)

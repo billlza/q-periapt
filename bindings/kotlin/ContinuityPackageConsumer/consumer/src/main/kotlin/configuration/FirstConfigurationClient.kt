@@ -298,13 +298,17 @@ fun main(arguments: Array<String>) {
                         }
                         "activate-closed-registry" -> {
                             checkNotNull(registry).close(); registry = null
-                            expect(202) { owner.activate().use { it.cancel() } }
+                            withReopenedRegistry(checkNotNull(registryPath)) {
+                                expect(202) { owner.activate().use { it.cancel() } }
+                            }
                             marker = "QPC_CONFIGURATION_REGISTRY_CLOSED"
                         }
                         "activate-released-registry" -> {
                             val observed = collectRegistry(checkNotNull(registryPath), source, owner)
                             write(observed, output + ".gc")
-                            expect(202) { owner.activate().use { it.cancel() } }
+                            withReopenedRegistry(checkNotNull(registryPath)) {
+                                expect(202) { owner.activate().use { it.cancel() } }
+                            }
                             marker = "QPC_CONFIGURATION_REGISTRY_RELEASED"
                         }
                         "activate-expired" -> {
