@@ -4,21 +4,25 @@ use super::{fixture, independent_inputs, issue_grant, p, run_foreign, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs, os::unix::fs::DirBuilderExt, path::PathBuf, sync::Arc};
 #[path = "witness.rs"]
-mod witness;
-#[path = "witness_tls.rs"]
-mod witness_tls;
+pub(crate) mod witness;
+use crate::{android_credential, witness_tls, witness_tls_faults};
 
 #[test]
 fn required_witness_registration() -> Result<()> {
-    registration(false)
+    registration(false, false)
 }
 
 #[test]
 fn managed_first_registration() -> Result<()> {
-    registration(true)
+    registration(true, false)
 }
 
-fn registration(managed: bool) -> Result<()> {
+#[test]
+fn managed_credential_renewal() -> Result<()> {
+    registration(true, true)
+}
+
+fn registration(managed: bool, renewal: bool) -> Result<()> {
     let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("case output")?);
     let client = PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("client driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;
@@ -122,9 +126,20 @@ fn registration(managed: bool) -> Result<()> {
                 .lock()
                 .map_err(|_| "witness store")?
                 .enroll(&genesis, &device, &policy, fixture::now()?)?;
-            policy.close();
-            sdk.close();
-            let mut tls = if carrier == "tls" {
+            let mut fault_tls = if carrier == "tls" && renewal {
+                publish_private_bytes(&inputs.join("witness-subject"), &subject.to_bytes())?;
+                let server = witness_tls_faults::FaultWitness::start(
+                    Arc::clone(&witness.configured.store),
+                    [inputs.as_path()],
+                    witness._directory.path().join("witness.redb"),
+                )?;
+                fs::write(inputs.join("witness-address"), server.address.to_string())?;
+                fs::write(inputs.join("witness-carrier"), b"tls")?;
+                Some(server)
+            } else {
+                None
+            };
+            let mut tls = if carrier == "tls" && !renewal {
                 publish_private_bytes(&inputs.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls::TlsWitness::start(
                     Arc::clone(&witness.configured.store),
@@ -133,9 +148,11 @@ fn registration(managed: bool) -> Result<()> {
                 fs::write(inputs.join("witness-address"), server.address.to_string())?;
                 fs::write(inputs.join("witness-carrier"), b"tls")?;
                 Some(server)
-            } else {
+            } else if carrier == "signed" {
                 witness.arm(2)?;
                 assert_eq!(run("witness-bad-receipt", "bad-receipt")?, original);
+                None
+            } else {
                 None
             };
             if managed {
@@ -153,9 +170,32 @@ fn registration(managed: bool) -> Result<()> {
                 run("witness-active-reopen", "active-reopened.request")?,
                 original
             );
+            if renewal {
+                let verified =
+                    p::VerifiedEnrollmentRequest::verify(&original, &intent, fixture::now()?)?;
+                android_credential::Renewal {
+                    root: &authority,
+                    original: &device,
+                    public_key: verified.public_key(),
+                    validity,
+                    certificate: &certificate,
+                    roster: &roster,
+                    policy: &policy,
+                    inputs: &inputs,
+                    base: &base,
+                    witness: &witness,
+                    tls: fault_tls.as_ref(),
+                }
+                .run(&run)?;
+                println!("qualified credential renewal {carrier}/{profile}: same identity and journal, original operation, lost committed reply, historical recovery, current authority activation");
+            }
+            policy.close();
+            sdk.close();
             if let Some(server) = tls.as_mut() {
                 assert!(server.finish()?.is_empty());
                 assert!(server.records.lock().map_err(|_| "TLS records")?.len() >= 2);
+            } else if let Some(server) = fault_tls.as_mut() {
+                server.finish()?;
             } else {
                 assert!(witness.captured.lock().map_err(|_| "capture")?.len() >= before + 2);
             }

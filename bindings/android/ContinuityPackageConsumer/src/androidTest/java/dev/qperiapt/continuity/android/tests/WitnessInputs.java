@@ -54,4 +54,11 @@ final class WitnessInputs {
         install(inputs, arguments, "authority-application", 32, 32, true);
         if (!operation.equals("authority-create")) install(inputs, arguments, "authority-checkpoint", 72, 72, true);
     }
+    static void installCredential(File inputs, Bundle arguments, String operation) throws Exception {
+        if (operation.equals("credential-identity") || operation.equals("credential-status")) return;
+        for (String name : new String[] {"credential-operation", "credential-statement", "renewal-digest"})
+            install(inputs, arguments, name, 32, 32, true);
+        install(inputs, arguments, "renewal-version", 8, 8, true);
+        install(inputs, arguments, "credential-renewal", 1, 65536, true);
+    }
 }

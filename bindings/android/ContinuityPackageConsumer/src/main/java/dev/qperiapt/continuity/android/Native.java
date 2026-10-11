@@ -41,6 +41,7 @@ final class Native {
     static native long prepareAuthority(byte[][] inputs, boolean create);
     static native byte[] authorityCommand(long handle, int operation, byte[][] inputs, long version);
     static native void selectAuthority(long enrollment, long registry, byte[][] checkpoint);
+    static native byte[] credentialCommand(long handle, int operation, byte[][] inputs, long version);
     static final class CommitInvocation {
         private final ApplicationCommit commit;
         Throwable failure;

@@ -42,6 +42,46 @@ public final class ContinuityEnrollment implements AutoCloseable {
     public void selectAccountAuthority(ContinuityAccountAuthority registry, AccountAuthorityCheckpoint checkpoint) {
         Objects.requireNonNull(registry, "account registry").select(owner, Objects.requireNonNull(checkpoint, "checkpoint"));
     }
+    /** Passive original-operation history; no current traffic permission is implied. */
+    public CredentialRenewalStatus credentialRenewalStatus() {
+        return owner.call(false, handle -> new CredentialRenewalStatus(Native.credentialCommand(handle, 1, new byte[0][], 0)));
+    }
+    /** Stage an independently approved same-key grant under the original policy.
+     * Close active devices first. Required-witness protection needs its explicit
+     * prepare/terminal workflow before the ordinary consuming activate call.
+     */
+    public CredentialRenewalStatus stageCredentialRenewal(byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
+        Objects.requireNonNull(independentPin, "independent account pin");
+        byte[][] pin = independentPin.snapshot();
+        byte[][] input = {ConfigurationInputs.copy(grant, 1, 65536, "credential grant"), pin[0], pin[1], pin[2], pin[3],
+            Objects.requireNonNull(original, "original renewal").encoded()};
+        return owner.call(false, handle -> new CredentialRenewalStatus(Native.credentialCommand(handle, 2, input, independentPin.version.bits)));
+    }
+    private CredentialRenewalStatus credentialPair(int command, Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        byte[][] input = {Objects.requireNonNull(original, "original renewal").encoded(), Objects.requireNonNull(statement, "original statement").encoded()};
+        return owner.call(false, handle -> new CredentialRenewalStatus(Native.credentialCommand(handle, command, input, 0)));
+    }
+    public CredentialRenewalStatus reconcileExpiredCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        return credentialPair(3, original, statement);
+    }
+    public CredentialRenewalProposal prepareWitnessedCredentialRenewal() {
+        return owner.call(false, handle -> new CredentialRenewalProposal(Native.credentialCommand(handle, 4, new byte[0][], 0)));
+    }
+    public CredentialRenewalCancellation prepareWitnessedCredentialCancellation() {
+        return owner.call(false, handle -> new CredentialRenewalCancellation(Native.credentialCommand(handle, 5, new byte[0][], 0)));
+    }
+    /** A new commit requires current authorization; terminal history releases no device. */
+    public CredentialRenewalStatus commitWitnessedCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        return credentialPair(6, original, statement);
+    }
+    /** Close can lose to Applied; that outcome remains Committed. */
+    public CredentialRenewalStatus closeWitnessedCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        return credentialPair(7, original, statement);
+    }
+    /** Sends neither Commit nor Close. Unavailable or failure never proves NoCommit. */
+    public CredentialRenewalStatus reconcileWitnessedCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        return credentialPair(8, original, statement);
+    }
     /** Missing required witness enrollment is an error, never a local-mode fallback. */
     public ContinuityDevice activate() {
         return owner.transfer(handle -> {

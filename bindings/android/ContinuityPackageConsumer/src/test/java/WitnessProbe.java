@@ -105,11 +105,8 @@ public final class WitnessProbe {
             }
         }
     }
-    public static void main(String[] args) throws Exception {
-        if (args.length != 5) throw new IllegalArgumentException("inputs installation profile mode result");
-        Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
-        boolean managed = args[3].startsWith("managed-");
-        String mode = managed ? args[3].substring(8) : args[3];
+    interface WitnessCall { void run(ConfigurationWitness witness) throws Exception; }
+    static void withWitness(Path inputs, String mode, WitnessCall action) throws Exception {
         String carrier = new String(read(inputs, "witness-carrier"), StandardCharsets.US_ASCII);
         if (carrier.equals("tls") && !mode.equals("witness-missing")) {
             try (ConfigurationInputs.LocalTlsIdentity tls = new ConfigurationInputs.LocalTlsIdentity(
@@ -118,9 +115,16 @@ public final class WitnessProbe {
                 ConfigurationWitness witness = ConfigurationWitness.mutualTls(id, read(inputs, "witness-public"),
                     new String(read(inputs, "witness-address"), StandardCharsets.US_ASCII), 3000, read(inputs, "witness-tls-peer"),
                     new String(read(inputs, "witness-tls-name"), StandardCharsets.US_ASCII), tls);
-                run(inputs, installation, output, args[2], mode, witness, managed);
+                action.run(witness);
             }
-        } else run(inputs, installation, output, args[2], mode, witness(inputs, mode), managed);
+        } else action.run(witness(inputs, mode));
+    }
+    public static void main(String[] args) throws Exception {
+        if (args.length != 5) throw new IllegalArgumentException("inputs installation profile mode result");
+        Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
+        boolean managed = args[3].startsWith("managed-");
+        String mode = managed ? args[3].substring(8) : args[3];
+        withWitness(inputs, mode, witness -> run(inputs, installation, output, args[2], mode, witness, managed));
         System.out.println(args[2] + ":" + args[3] + ":passed");
     }
 }

@@ -50,7 +50,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             boolean managed = operation.startsWith("managed-");
             String baseOperation = managed ? operation.substring(8) : operation;
             boolean authority = operation.startsWith("authority-");
-            boolean witnessed = operation.startsWith("witness-") || managed;
+            boolean credential = operation.startsWith("credential-");
+            boolean witnessed = operation.startsWith("witness-") || managed || credential;
             boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority;
             boolean peer = operation.startsWith("peer-");
             File base = new File(getTargetContext().getFilesDir().getCanonicalFile(), "continuity");
@@ -101,10 +102,13 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                     });
                 } else if (witnessed || authority) {
                     WitnessInputs.install(inputs, arguments);
-                    if (authority || (managed && !baseOperation.equals("witness-create")
+                    if (authority || credential || (managed && !baseOperation.equals("witness-create")
                             && !baseOperation.equals("witness-wrong") && !baseOperation.equals("witness-resume")))
                         WitnessInputs.installAuthority(inputs, arguments, operation);
-                    if (authority) AuthorityProbe.main(call); else WitnessProbe.main(call);
+                    if (credential) {
+                        WitnessInputs.installCredential(inputs, arguments, operation);
+                        CredentialProbe.main(call);
+                    } else if (authority) AuthorityProbe.main(call); else WitnessProbe.main(call);
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
                 if (bytes.length < 1 || bytes.length > 8192) throw new IllegalStateException("public result width");

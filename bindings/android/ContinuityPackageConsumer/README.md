@@ -6,7 +6,8 @@ surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
-first activation. Credential/roster renewal, device retirement and root replacement
+first activation and same-key credential renewal. Original-session traffic across
+credential renewal, roster renewal, device retirement and root replacement
 integration remain subsequent work. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate.
 
@@ -25,6 +26,25 @@ account issuer. Pass its certificate and roster to `accept`, with a separately
 retained `AccountPin`. `prepareStorage()` identifies either local preparation or
 the exact genesis that still requires witness enrollment. `activate()` applies
 native authorization and transfers ownership to the device facade.
+
+For same-key credential renewal, close active devices and resume the original
+enrollment. Retain the independently approved grant, target `AccountPin`, original
+`Ids.CredentialRenewal` and statement. `stageCredentialRenewal` preserves the
+signing identity and journal. Under required-witness protection, export
+`prepareWitnessedCredentialRenewal()` for independent witness approval before
+calling `commitWitnessedCredentialRenewal`. A missing reply can follow a durable
+commit: reopen the same enrollment and call `reconcileWitnessedCredentialRenewal`
+with the original operation and statement. This query emits neither Commit nor
+Close. `PENDING` does not establish that the operation is uncommitted; `COMMITTED`
+is historical evidence and grants no current traffic permission. Select the live
+account registry and use the ordinary `activate()` path for current authorization.
+
+`prepareWitnessedCredentialCancellation` exports the original target-free
+expectation for independent cancellation approval. `closeWitnessedCredentialRenewal`
+can lose to an already applied target and must report it as committed. The
+`reconcileExpiredCredentialRenewal` result is similarly an explicit native outcome;
+unavailability never establishes that no commit occurred. All reported checkpoint
+and operation values are immutable copies, with unsigned 64-bit counters preserved.
 
 Successful configuration-to-enrollment and enrollment-to-device transfers make
 the source facade unusable for operations. Closing that transferred source is a

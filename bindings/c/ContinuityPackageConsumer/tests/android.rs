@@ -21,6 +21,14 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 
 #[path = "common/android_witness.rs"]
 mod android_witness;
+#[path = "common/android_credential.rs"]
+mod android_credential;
+#[path = "common/witness_tls.rs"]
+mod witness_tls;
+#[path = "common/witness_tls_faults.rs"]
+mod witness_tls_faults;
+#[path = "common/witness_tls_relay.rs"]
+mod witness_tls_relay;
 
 fn independent_inputs(
     source: &Path,
