@@ -8,7 +8,7 @@ import Darwin
 import Glibc
 #endif
 
-private struct ClientError: Error, CustomStringConvertible {
+struct ClientError: Error, CustomStringConvertible {
     let description: String
     init(_ description: String) { self.description = description }
 }
@@ -23,7 +23,7 @@ private func withFile<T>(_ file: FileHandle, _ body: (FileHandle) throws -> T) t
     }
     return try result.get()
 }
-private func load(_ source: URL, _ name: String, _ maximum: Int) throws -> [UInt8] {
+func load(_ source: URL, _ name: String, _ maximum: Int) throws -> [UInt8] {
     try withFile(FileHandle(forReadingFrom: source.appendingPathComponent(name))) { file in
         var bytes = Data()
         while bytes.count <= maximum {
@@ -34,12 +34,12 @@ private func load(_ source: URL, _ name: String, _ maximum: Int) throws -> [UInt
         return Array(bytes)
     }
 }
-private func exact(_ source: URL, _ name: String, _ count: Int) throws -> [UInt8] {
+func exact(_ source: URL, _ name: String, _ count: Int) throws -> [UInt8] {
     let bytes = try load(source, name, count)
     guard bytes.count == count else { throw ClientError("exact input width: \(name)") }
     return bytes
 }
-private func counter(_ bytes: ArraySlice<UInt8>) throws -> UInt64 {
+func counter(_ bytes: ArraySlice<UInt8>) throws -> UInt64 {
     guard bytes.count == 8 else { throw ClientError("counter width") }
     return bytes.reduce(0) { ($0 << 8) | UInt64($1) }
 }
@@ -145,12 +145,12 @@ private func traffic(_ device: ContinuityDevice, source: URL, mode: String) thro
     }
     return try result.get()
 }
-private func expect(_ code: Int32, _ body: () throws -> Void) throws {
+func expect(_ code: Int32, _ body: () throws -> Void) throws {
     do { try body(); throw ClientError("expected native refusal \(code)") }
     catch let failure as ContinuityFailure { guard failure.code == code else { throw failure } }
 }
 
-private func hostNumber<T: FixedWidthInteger>(_ value: T) -> [UInt8] {
+func hostNumber<T: FixedWidthInteger>(_ value: T) -> [UInt8] {
     var value=value; return withUnsafeBytes(of: &value) { Array($0) }
 }
 private func policyStatusBytes(_ value: PolicyRenewalStatus) throws -> [UInt8] {
@@ -282,7 +282,7 @@ private struct Main {
         }
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode) || credentialModes.contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -310,7 +310,7 @@ private struct Main {
         } else {
             configuration = try .prepareOpen(path: target, trust: trust(source, recoverable), protocolPolicy: policy(source))
         }
-        if mode == "activate-unmanaged" && registryPath != nil { throw ClientError("unmanaged probe selected a registry") }
+        if ["activate-unmanaged", "credential-commit-unmanaged", "credential-activation-unmanaged"].contains(mode) && registryPath != nil { throw ClientError("unmanaged probe selected a registry") }
         if ["activate-closed-registry", "activate-released-registry"].contains(mode) && registryPath == nil {
             throw ClientError("registry lifecycle probe requires the original registry")
         }
@@ -350,9 +350,13 @@ private struct Main {
                 }
                 // A retained/transferred source must not close or pin the successor.
                 try configuration.close()
-                var bytes = try owner.request()
+                let credential = credentialModes.contains(mode) || mode == "retry-credential"
+                var bytes = credential ? try credentialIdentity(owner) : try owner.request()
                 var marker = "QPC_CONFIGURATION_REQUEST_PASS"
-                if mode.hasPrefix("policy-") {
+                if credentialModes.contains(mode) {
+                    bytes = try credentialOperation(owner, registry: &registry, device: &device, source: source, mode: mode)
+                    marker = "QPC_CONFIGURATION_CREDENTIAL_OPERATION"
+                } else if mode.hasPrefix("policy-") {
                     bytes=try policyOperation(owner,source:source,path:target,recoverable:recoverable,carrier:carrier,mode:mode)
                     marker="QPC_CONFIGURATION_POLICY_OPERATION"
                 } else if mode == "select-target" || mode == "select-target-reject" {
@@ -393,7 +397,7 @@ private struct Main {
                 } else if mode == "activate-missing" || mode == "activate-bad-receipt" {
                     try expect(mode == "activate-missing" ? 216 : 218) { _ = try owner.activate() }
                     marker = mode == "activate-missing" ? "QPC_CONFIGURATION_WITNESS_REQUIRED" : "QPC_CONFIGURATION_WITNESS_RECEIPT_REFUSED"
-                } else if ["connect", "uncertain-send", "retry-send", "retry-policy"].contains(mode) {
+                } else if ["connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential"].contains(mode) {
                     if mode == "retry-policy" { try selectPolicyTarget(owner,source:source,path:target,recoverable:recoverable) }
                     let active = mode == "retry-policy" ? try owner.activatePolicyRenewal() : try owner.activate(); device = active; try owner.close()
                     bytes = try traffic(active, source: source, mode: mode)

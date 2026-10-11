@@ -511,7 +511,7 @@ fn managed_first_credential_renewal_preserves_identity_and_delivery() -> Result<
 fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind) -> Result<()> {
     let credential = renewal == first_connection::RenewalKind::Credential;
     let language = client_language()?;
-    if credential && language != "C" {
+    if credential && !matches!(language, "C" | "Swift") {
         return Err("credential first-use adapter is not qualified for this language".into());
     }
     if managed && !matches!(language, "C" | "Swift" | "Kotlin") {

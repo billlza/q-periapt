@@ -32,7 +32,7 @@ def marker(language: str, carrier: str, profile: str, *, credential: bool = Fals
 
 
 def verify_execution(stdout: bytes, evidence: Path, *, language: str, credential: bool = False) -> dict:
-    sdk.require(not credential or language == "C", "managed credential adapter is not qualified for this language")
+    sdk.require(not credential or language in {"C", "Swift"}, "managed credential adapter is not qualified for this language")
     test = credentials.TEST if credential else TEST
     renewal = credentials if credential else policy
     text = stdout.decode()
@@ -104,8 +104,8 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str, credential
         hashes.update({name + "/" + leaf: hashlib.sha256(value).hexdigest() for leaf, value in data.items()})
     sdk.require(len(requests) == 4 and len(registries) == 4, "managed registration scenarios reused original identities")
     sdk.require(len(policy_operations) == 4, "managed scenarios reused a policy renewal operation")
-    scope = ("installed C managed first registration, real-clock credential expiry, unknown commit recovery and original-message delivery; "
-             "same host and native engine; no cross-language credential, independent implementation or release qualification") if credential else SCOPE
+    scope = (f"installed {language} managed first registration, real-clock credential expiry, unknown commit recovery and original-message delivery; "
+             "same host and native engine; no independent implementation, cross-platform or release qualification") if credential else SCOPE
     return dict(completed=True, scope=scope, language=language, release_claim_eligible=False,
                 scenarios=sorted(directories), public_readbacks=hashes, missing_registry=211,
                 original_message_recovered=True, host_effects_per_scenario=1,

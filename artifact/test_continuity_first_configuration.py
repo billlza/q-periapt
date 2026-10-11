@@ -158,7 +158,7 @@ class FirstConfigurationTests(unittest.TestCase):
             self.assertEqual(list(previous.iterdir()), [])
 
     def test_foreign_receiver_must_match_native_baseline_and_remain_unchanged(self):
-        for mutation in ("none", "baseline", "before", "during", "managed-during"):
+        for mutation in ("none", "baseline", "before", "during", "managed-during", "credential-during"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory).resolve(); outside = root / "outside"; outside.mkdir()
                 output = root / "output"; output.mkdir()
@@ -176,12 +176,17 @@ class FirstConfigurationTests(unittest.TestCase):
                     calls.append(command)
                     self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
                     managed = "QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE" in runtime
-                    if managed:
+                    credential = "managed_first_credential_renewal_preserves_identity_and_delivery" in command
+                    if credential:
+                        from test_continuity_configuration_credential import fixture as credential_fixture
+                        data = credential_fixture(Path(runtime["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"]), "Swift")
+                    elif managed:
                         from test_continuity_first_account import fixture as managed_fixture
                         data = managed_fixture(Path(runtime["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"]), "Swift")
                     else:
                         data = fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]), "Swift")
-                    if mutation == "during" or (mutation == "managed-during" and managed):
+                    if (mutation == "during" or (mutation == "managed-during" and managed)
+                            or (mutation == "credential-during" and credential)):
                         receiver.write_bytes(b"replaced during execution")
                     return data
                 def execute():
@@ -191,9 +196,9 @@ class FirstConfigurationTests(unittest.TestCase):
                     result = execute()
                     self.assertEqual(result["binaries"]["receiver"], identity(receiver))
                 else:
-                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation in ("during", "managed-during") else "native receiver differs"):
+                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation in ("during", "managed-during", "credential-during") else "native receiver differs"):
                         execute()
-                self.assertEqual(len(calls), 0 if mutation in ("baseline", "before") else 1 if mutation == "during" else 2)
+                self.assertEqual(len(calls), {"baseline": 0, "before": 0, "during": 1, "managed-during": 2}.get(mutation, 3))
 
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()

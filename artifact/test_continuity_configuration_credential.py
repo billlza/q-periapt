@@ -1,4 +1,4 @@
-"""Mutations of actual public C records; these tests do not verify signatures."""
+"""Mutations of actual public records; these tests do not verify signatures."""
 from pathlib import Path
 import hashlib
 import tempfile
@@ -9,12 +9,20 @@ import continuity_first_account as account
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures/first-credential-public-v1.zip"
 FIXTURE_SHA256 = "b4ff5b8aa153e50278579077556c818c977e0b5c83ab4a6618907d982ce0157d"
+SWIFT_FIXTURE_SHA256 = "fdfdb01b481793add0e1fe6689cf0fe04674b4c6307a11d4049599a4a9e70af4"
 
 
-def fixture(root):
-    if hashlib.sha256(FIXTURE.read_bytes()).hexdigest() != FIXTURE_SHA256:
+def fixture(root, language="C"):
+    if language == "C":
+        source, expected = FIXTURE, FIXTURE_SHA256
+    elif language == "Swift":
+        source = FIXTURE.with_name("first-credential-swift-public-v1.zip")
+        expected = SWIFT_FIXTURE_SHA256
+    else:
+        raise ValueError("no actual credential fixture for this language")
+    if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
         raise ValueError("credential public fixture identity differs")
-    with zipfile.ZipFile(FIXTURE) as archive:
+    with zipfile.ZipFile(source) as archive:
         for name in archive.namelist():
             if name.startswith("public/"):
                 parts = Path(name).parts
@@ -84,5 +92,21 @@ class FirstCredentialTests(unittest.TestCase):
     def test_c_execution_is_not_foreign_credential_qualification(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); output = fixture(root)
-            with self.assertRaisesRegex(ValueError, "not qualified"):
+            with self.assertRaisesRegex(ValueError, "matrix differs"):
                 account.verify_execution(output, root, language="Swift", credential=True)
+            with self.assertRaisesRegex(ValueError, "not qualified"):
+                account.verify_execution(output, root, language="Kotlin", credential=True)
+
+    def test_actual_swift_matrix_preserves_identity_and_registry_lifetime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); output = fixture(root, "Swift")
+            result = account.verify_execution(output, root, language="Swift", credential=True)
+            self.assertEqual(len(result["scenarios"]), 4)
+            self.assertEqual(result["registry_lifetime_probes"], ["registry-closed", "registry-released"])
+            self.assertTrue(result["credential_renewal_qualified"])
+            self.assertFalse(result["release_claim_eligible"])
+            for observation in result["expiry_observations"].values():
+                self.assertEqual(observation["new_commits"], 1)
+                self.assertEqual(observation["historical_new_commits"], 0)
+            with self.assertRaisesRegex(ValueError, "matrix differs"):
+                account.verify_execution(output, root, language="C", credential=True)
