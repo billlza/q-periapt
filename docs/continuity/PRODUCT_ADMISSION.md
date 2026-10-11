@@ -16,8 +16,11 @@ peers, bidirectional transport, original-ID retry, rekey and cancellation. Its
 actual AAR is consumed by a minified release app on the selected API 37 phone;
 [two trust profiles and 24 ART processes](../../research/sdk-alpha1/evidence/20261011-android-continuity/CHECKS.json)
 pass the implemented lifecycle. One phone satisfies the agreed device scope.
-Android account-wide lifecycle and required-witness network routes still require
-their own implementation and functional checks. The CI host JNI lane exercises
+The [signed-TCP and mutual-TLS required-witness registration routes](../../research/sdk-alpha1/evidence/20261011-android-witness/CHECKS.json)
+additionally pass in 30 ART processes on that same phone; missing/wrong trust and a corrupted
+signed reply are refused, and independent genesis enrollment enables activation
+and original-request reopen. Android account-wide lifecycle still requires its
+own implementation and functional checks. The CI host JNI lane exercises
 packaged Java classes against Debug/Release C libraries; it is distinct from
 the accepted physical ART run.
 

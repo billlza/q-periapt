@@ -122,9 +122,20 @@ The observer itself can win admission: the test retries only pre-I/O `Busy`, at
 most 64 times, and preserves every other failure. Both trust profiles pass these
 checks on the same API 37 phone and through the host JNI bridge.
 
+Required-witness registration now also runs through signed TCP and mutual TLS,
+under both fixed-root and recoverable-root trust. The independent operator checks
+the exported public genesis against the approved device and policy before enrolling
+it. Missing witness configuration and a wrong witness identity are refused without
+network traffic; a corrupted signed reply is refused. Correct activation and reopen
+preserve the original enrollment request even when unrelated witness sidecars are
+placed in the installation. These four routes pass in 30 distinct ART processes
+on the same API 37 phone, using the actual AAR and minified release APKs. Test TLS
+credentials are redacted from controller logs; device signing and wrapping keys
+stay on the device. All four test installations are removed.
+
 The native receiver and JNI consumer share the protocol engine; these runs do not
-establish interoperability with an independent protocol implementation. Required-witness
-network routes, Android account-wide lifecycle, broader
+establish interoperability with an independent protocol implementation. Android
+account-wide lifecycle, broader
 unknown-commit cuts and release/CI admission remain separate work.
 
 For repeatable host JNI qualification, add `--with-android-jni-consumer
@@ -134,7 +145,8 @@ For repeatable host JNI qualification, add `--with-android-jni-consumer
 lane selects these options on macOS arm64. It compiles the public classes for
 Java 11 into a JAR, compiles the probes for Java 17 against that JAR, and builds
 the real JNI bridge against each installed Debug/Release C library. Each profile
-runs the JNI malformed-input probe and both twelve-process lifecycle traces.
+runs the JNI malformed-input probe, both twelve-process lifecycle traces and the
+four required-witness routes (thirty additional foreign processes per profile).
 The result is `ANDROID_JNI_CONSUMER.json` with source, tool, JAR and binary hashes.
 This host lane complements the recorded actual-AAR/ART physical run; the JNI
 adapter remains an unpublished candidate.

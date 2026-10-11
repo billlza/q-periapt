@@ -12,39 +12,40 @@ import java.util.Arrays;
 /** Independent process consumer: the account issuer runs outside this process and device. */
 public final class EnrollmentProbe {
     private EnrollmentProbe() { }
-    private static byte[] read(Path root, String name) throws Exception { return Files.readAllBytes(root.resolve(name)); }
-    private static Counter64 counter(ByteBuffer input) { return new Counter64(Long.toUnsignedString(input.getLong())); }
-    private static void require(boolean ok, String reason) { if (!ok) throw new AssertionError(reason); }
-    private static void failed(int code, Runnable call) {
+    static byte[] read(Path root, String name) throws Exception { return Files.readAllBytes(root.resolve(name)); }
+    static Counter64 counter(ByteBuffer input) { return new Counter64(Long.toUnsignedString(input.getLong())); }
+    static void require(boolean ok, String reason) { if (!ok) throw new AssertionError(reason); }
+    static void failed(int code, Runnable call) {
         try { call.run(); }
         catch (ContinuityFailure failure) { require(failure.code() == code, "native " + failure.code() + ": " + failure); return; }
         throw new AssertionError("expected native " + code);
     }
-    private static void publish(Path target, byte[] bytes) throws Exception {
+    static void publish(Path target, byte[] bytes) throws Exception {
         try (FileChannel file = FileChannel.open(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             ByteBuffer remaining = ByteBuffer.wrap(bytes);
             while (remaining.hasRemaining()) file.write(remaining);
             file.force(true);
         }
     }
-    public static void main(String[] args) throws Exception {
-        if (args.length != 5) throw new IllegalArgumentException("inputs installation profile mode result");
-        Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
-        boolean recovery = args[2].equals("recoverable");
-        require(recovery || args[2].equals("fixed"), "profile");
+    static EnrollmentIntent intent(Path inputs) throws Exception {
+        return intent(inputs, false);
+    }
+    private static EnrollmentIntent intent(Path inputs, boolean foreignFamily) throws Exception {
         byte[] root = read(inputs, "enrollment-root");
         byte[] wire = read(inputs, "enrollment-intent"); require(wire.length == 72, "intent width");
         ByteBuffer reader = ByteBuffer.wrap(wire);
         byte[] device = new byte[16]; reader.get(device); Counter64 generation = counter(reader);
         byte[] family = new byte[32]; reader.get(family); Counter64 from = counter(reader), until = counter(reader);
-        EnrollmentIntent intent = new EnrollmentIntent(root, device, generation, family, from, until);
+        if (foreignFamily) family[0] ^= 1;
+        return new EnrollmentIntent(root, device, generation, family, from, until);
+    }
+    static ContinuityConfiguration configuration(Path inputs, Path installation, boolean recovery, boolean create) throws Exception {
         ConfigurationInputs.SdkTrust trust = recovery
             ? ConfigurationInputs.SdkTrust.recoverable(read(inputs, "recovery-scope"), read(inputs, "sdk-root"), read(inputs, "recovery-root"))
             : ConfigurationInputs.SdkTrust.fixed(read(inputs, "sdk-root"));
         ConfigurationInputs.ProtocolPolicy protocol = new ConfigurationInputs.ProtocolPolicy(read(inputs, "family"),
             read(inputs, "policy-root"), counter(ByteBuffer.wrap(read(inputs, "policy-version"))).toString(),
             read(inputs, "policy-digest"), read(inputs, "protocol-policy"));
-        boolean create = args[3].equals("enrollment-create");
         ContinuityConfiguration configuration;
         if (create) {
             try (ConfigurationInputs.LocalTlsIdentity tls = new ConfigurationInputs.LocalTlsIdentity(read(inputs, "tls-cert"), read(inputs, "tls-key"))) {
@@ -53,11 +54,21 @@ public final class EnrollmentProbe {
                 configuration = ContinuityConfiguration.prepareCreate(installation.toString(), initial);
             }
         } else configuration = ContinuityConfiguration.prepareOpen(installation.toString(), trust, protocol);
+        return configuration;
+    }
+    public static void main(String[] args) throws Exception {
+        if (args.length != 5) throw new IllegalArgumentException("inputs installation profile mode result");
+        Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
+        boolean recovery = args[2].equals("recoverable");
+        require(recovery || args[2].equals("fixed"), "profile");
+        byte[] root = read(inputs, "enrollment-root"), family = read(inputs, "family");
+        EnrollmentIntent intent = intent(inputs);
+        boolean create = args[3].equals("enrollment-create");
+        ContinuityConfiguration configuration = configuration(inputs, installation, recovery, create);
         try {
             configuration.finishOpen();
             if (create) {
-                byte[] wrong = family.clone(); wrong[0] ^= 1;
-                EnrollmentIntent foreign = new EnrollmentIntent(root, device, generation, wrong, from, until);
+                EnrollmentIntent foreign = intent(inputs, true);
                 failed(103, () -> configuration.createEnrollment(foreign, null));
             }
             ContinuityEnrollment enrollment = create ? configuration.createEnrollment(intent, null) : configuration.resumeEnrollment(intent, null);

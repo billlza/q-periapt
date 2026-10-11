@@ -47,7 +47,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             String profile = arguments.getString("profile"), operation = arguments.getString("operation");
             if (!("fixed".equals(profile) || "recoverable".equals(profile))) throw new IllegalArgumentException("profile");
             if (operation == null) throw new IllegalArgumentException("operation");
-            boolean enrollment = operation.startsWith("enrollment-");
+            boolean witnessed = operation.startsWith("witness-");
+            boolean enrollment = operation.startsWith("enrollment-") || witnessed;
             boolean peer = operation.startsWith("peer-");
             File base = new File(getTargetContext().getFilesDir().getCanonicalFile(), "continuity");
             try { android.system.Os.mkdir(base.getPath(), 0700); }
@@ -84,7 +85,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             if (enrollment || peer) {
                 String label = arguments.getString("label");
                 if (label == null || !label.matches("[a-z][a-z0-9.-]{0,63}")) throw new IllegalArgumentException("result label");
-                if ("enrollment-reject".equals(operation) || "enrollment-activate".equals(operation)) grantInputs(inputs);
+                if ("enrollment-reject".equals(operation) || "enrollment-activate".equals(operation) || "witness-prepare".equals(operation)) grantInputs(inputs);
                 File publicResult = new File(base, label);
                 String[] call = {inputs.getPath(), new File(base, leaf).getPath(), profile, operation, publicResult.getPath()};
                 if (peer) {
@@ -94,6 +95,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         ready.putString("apk_sha256", result.getString("apk_sha256")); ready.putString("stage", "peer-listening");
                         sendStatus(2, ready);
                     });
+                } else if (witnessed) {
+                    WitnessInputs.install(inputs, arguments); WitnessProbe.main(call);
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
                 if (bytes.length < 1 || bytes.length > 8192) throw new IllegalStateException("public result width");

@@ -205,8 +205,12 @@ lost-ACK retry after the native receiver's business write and exit, rekey,
 reverse callback commit uncertainty, child/parent cancellation and concurrent
 close. The installed R8 APK hashes and native library bytes are checked, and the
 test installations and port mappings are retired. This is accepted physical
-evidence for those implemented behaviors. Android account-wide lifecycle,
-required-witness networking and final candidate package admission remain work
+evidence for those implemented behaviors. [Required-witness signed TCP/mutual TLS
+registration](../research/sdk-alpha1/evidence/20261011-android-witness/CHECKS.json)
+additionally passes in thirty ART processes on the same phone,
+including independent genesis enrollment and refusal of missing/wrong witness
+trust or a corrupted signed receipt. Android account-wide lifecycle and final
+candidate package admission remain work
 on the software contract, not a requirement for another physical device.
 
 | Requirement | Required completion evidence | Current state |

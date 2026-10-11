@@ -2229,6 +2229,7 @@ jobs:
           path: |
             target/continuity-installed-swift/*.crate
             target/continuity-installed-swift/continuity-android-classes.jar
+            target/continuity-installed-swift/android-jni-*.public
             target/continuity-installed-swift/*.zip
             target/continuity-installed-swift/*.json
             target/continuity-installed-swift/*.stdout
