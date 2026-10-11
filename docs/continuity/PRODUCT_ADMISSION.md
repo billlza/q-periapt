@@ -35,8 +35,14 @@ peer registration enables communication, and the installed native C receiver
 persists one business effect before exiting with 77. After local renewal, Android
 reopens the original session and retries the original message; its acknowledgment
 returns without replacing or duplicating that effect. These routes run before
-original credential expiry. Android admission of a remote peer's renewal, expiry
-cleanup and independently approved cancellation remain separate software work, along with
+original credential expiry. Android's public device interface also now admits
+an independently approved remote credential grant. The
+[150-process ART route](../../research/sdk-alpha1/evidence/20261011-android-remote-credential/CHECKS.json)
+renews the installed C counterparty, rejects wrong pins/operations and local-identity
+misuse, refuses the superseded peer object, then reopens the original session.
+A fresh process retains the pending message and next slot; exact retry preserves
+the two distinct application effects. Expiry cleanup and independently approved
+cancellation remain separate software work, along with
 roster renewal, device retirement and root replacement. The CI host JNI lane exercises
 packaged Java classes against Debug/Release C libraries; it is distinct from
 the accepted physical ART run.

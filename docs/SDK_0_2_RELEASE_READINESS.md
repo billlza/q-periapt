@@ -219,7 +219,11 @@ and journal, while fresh activation still requires current registry authority.
 The [extended 130-process ART route](../research/sdk-alpha1/evidence/20261011-android-renewal-traffic/CHECKS.json)
 also preserves the original session, message and one durable receiver effect
 through local renewal and retry. It requires independent peer account association;
-unknown peers remain refused. Android admission of a remote peer's renewal, expiry/cancellation scenario checks,
+unknown peers remain refused. The
+[150-process remote-renewal route](../research/sdk-alpha1/evidence/20261011-android-remote-credential/CHECKS.json)
+additionally exercises the Android device admission API, stale-peer refusal,
+restart with the same pending message and next slot, and exact retry after the
+native C counterparty renews. Expiry/cancellation scenario checks,
 roster renewal, device retirement, root replacement and final candidate package admission remain work
 on the software contract, not a requirement for another physical device.
 
