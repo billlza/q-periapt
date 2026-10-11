@@ -94,6 +94,15 @@ across partial commits without a new plan, key, database or revision. Current
 successor activation still verifies the exact target, credential/policy and witness;
 an expired credential cannot gain validity from the historical retirement.
 
+The [managed adoption checkpoint](../sdk-alpha1/evidence/20261011-managed-root-adoption/CHECKS.json)
+records 58 related tests per current/minimum Rust compiler, 22 focused Release
+tests, strict Clippy and 18 actual adoption process-loss cuts in each tested profile.
+All existing 14 alternate-target and seven initial cutover cuts also run. Registry
+admission is checked against the same prospective image used for commitment, and
+the cross-application refusal test verifies that original parent rows stay unchanged.
+These native same-host checks do not qualify installed foreign adapters or physical
+platforms, and do not claim a new storage format or product C ABI.
+
 Retired-message accounting/erasure, deployed control-plane transport, foreign
 adapters and supported platform qualification remain required. They must preserve
 original identities and approvals; they cannot reset Preparing/Pending or regenerate
