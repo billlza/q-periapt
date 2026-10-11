@@ -190,6 +190,13 @@ failure and SIGABRT. API 35's full/minimal workloads also return their passing
 results, but the minimal run loses its device transport during cleanup. These
 are retained runtime failures; the version transition does not close them.
 
+The current Android physical-device acceptance scope is the selected API 37
+arm64 phone with 4-KiB pages. Both installed SDK consumer workloads on that
+phone are sufficient for this gate; API 36 hardware and additional models are
+not required. See [the explicit device scope](SDK_ANDROID_RUNTIME.md). The
+emulator investigation remains sealed; retained emulator failures are not a
+verdict on the physical phone.
+
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. Physical Android evidence remains open; JVM Java-source owner construction is closed |
@@ -208,6 +215,22 @@ are retained runtime failures; the version transition does not close them.
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
+
+The [2026-10-11 installed C root alternatives](../research/sdk-alpha1/evidence/20261011-c-root-alternatives/CHECKS.json)
+exercise original recovery, transition before and after the original freeze is
+bound, and adoption of an independently approved committed winner. Current
+Debug/Release and Rust 1.90 Debug each run all four routes: 123 child processes
+and 40 SIGKILL cuts per configuration, with signed witness observations, old-root
+cleanup, mutual TLS, epoch-1 rekey and application-effect deduplication in both
+directions. Adoption retains the winner without inventing a local preparation;
+transition retains a distinct approved target and original noncommit proof.
+All twelve exported route captures replay successfully; eleven mutated public
+captures are rejected. The 121 related artifact tests, current/minimum Clippy
+and GNU C 15 strict syntax checks pass. The route setup shares the existing
+cleanup and traffic workload instead of duplicating a second lifecycle driver.
+These are same-host C consumers of the same engine, with cuts after public calls
+and inside a persisted callback; they do not establish power-loss behavior,
+independent implementations or a performance improvement.
 
 At `a30b572c252da88a48750de4c9bcb9623c4ed08e`, the original local installed pipeline
 stopped during Kotlin plugin resolution after its C and Swift components completed.
