@@ -1563,9 +1563,25 @@ fn account_root_retirement_preserves_prior_device_cleanup_reports_and_acknowledg
             f.c.store
                 .retired_account_receipt(&p)
                 .expect("signed permanent account retirement");
-        f.c.pin
-            .verify_retired_account(&p, &proof)
-            .expect("authenticated exact account retirement");
+        let account_retired =
+            f.c.pin
+                .verify_retired_account(&p, &proof)
+                .expect("authenticated exact account retirement")
+                .retired_subject(original.subject())
+                .expect("same subject retired by its account root");
+        let root_inventory = Cleanup::from_journal(
+            account_retired,
+            report.inventory().stored_image_digest(),
+            report.inventory().pending_intent_digest(),
+        )
+        .expect("separate root-bound inventory");
+        assert!(
+            matches!(
+                f.c.store.retain_retired_cleanup(&root_inventory),
+                Err(DurableError::Conflict)
+            ),
+            "a later root retirement must not replace the first device-retirement inventory"
+        );
         let after = f.c.store.image().expect("authenticated witness image");
         let active = f.c.store.active.as_ref().expect("live witness owner");
         assert_eq!(

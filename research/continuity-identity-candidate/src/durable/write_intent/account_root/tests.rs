@@ -5,6 +5,8 @@ use std::{
     sync::atomic::Ordering,
     time::{Duration, Instant},
 };
+#[path = "tests/cleanup.rs"]
+mod cleanup;
 #[path = "tests/support.rs"]
 mod support;
 use support::*;

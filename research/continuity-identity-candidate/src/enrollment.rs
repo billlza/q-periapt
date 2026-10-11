@@ -1231,9 +1231,8 @@ fn read_snapshot(
         .map_err(storage)?
         .map(|row| account_root::State::decode(row.value(), key, binding))
         .transpose()?;
-    if (retirement.is_some() && root_replacement.is_some())
-        || table.len().map_err(storage)?
-            != 1 + u64::from(retirement.is_some()) + u64::from(root_replacement.is_some())
+    if table.len().map_err(storage)?
+        != 1 + u64::from(retirement.is_some()) + u64::from(root_replacement.is_some())
     {
         return Err(DurableError::Corrupt);
     }
@@ -1248,6 +1247,9 @@ fn read_snapshot(
     }
     if let Some(state) = &root_replacement {
         state.check_image(&image, wire)?;
+        if let Some(retirement) = &retirement {
+            retirement.check_account_retirement(state)?;
+        }
     }
     Ok(EnrollmentSnapshot {
         image,

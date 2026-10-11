@@ -62,6 +62,20 @@ impl AnchorRetiredCleanupProposal {
         }
         Ok(())
     }
+    pub(crate) fn check_account_proposal(
+        &self,
+        proposal: &crate::AnchorAccountReplacementProposal,
+    ) -> Result<(), Error> {
+        let frozen = proposal.predecessor_observation(self.subject)?;
+        if self.witness != proposal.witness_binding()
+            || self.replacement != proposal.binding()?
+            || self.state != frozen.state_commitment()
+            || self.head != frozen.observed_head()
+        {
+            return Err(Error::Scope);
+        }
+        Ok(())
+    }
     /// Restore the original canonical expectation from independently retained
     /// host state. Parsing alone never authorizes a controller or cleanup action.
     pub fn from_trusted_state(wire: &[u8]) -> Result<Self, Error> {
@@ -168,15 +182,11 @@ impl Image {
         proposal: &AnchorRetiredCleanupProposal,
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
-        let replacement = self
-            .replacements
-            .get(&proposal.replacement)
-            .ok_or(DurableError::Absent)?;
-        proposal.check_retirement(self.retired_observation(
-            replacement,
-            proposal.subject,
-            pin,
-        )?)?;
+        let retired = match self.replacements.get(&proposal.replacement) {
+            Some(replacement) => self.retired_observation(replacement, proposal.subject, pin)?,
+            None => self.account_cleanup_subject(proposal.subject, proposal.replacement, pin)?,
+        };
+        proposal.check_retirement(retired)?;
         Ok(())
     }
     pub(super) fn check_retired_cleanup(&self, pin: &AnchorPin) -> Result<(), DurableError> {

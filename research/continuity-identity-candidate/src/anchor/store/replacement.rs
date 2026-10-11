@@ -199,6 +199,32 @@ pub struct AnchorRetiredSubject {
     replacement: [u8; 32],
     successor: AnchorSubject,
 }
+impl crate::AnchorRetiredAccount {
+    /// Select a frozen subject from this verified account retirement for the
+    /// existing inventory/report/ACK protocol. The root replacement binding is
+    /// retained; no device-generation replacement or operating proof is created.
+    pub fn retired_subject(&self, subject: AnchorSubject) -> Result<AnchorRetiredSubject, Error> {
+        AnchorRetiredSubject::from_account_proposal(self.proposal(), subject)
+    }
+}
+impl AnchorRetiredSubject {
+    pub(super) fn from_account_proposal(
+        proposal: &crate::AnchorAccountReplacementProposal,
+        subject: AnchorSubject,
+    ) -> Result<Self, Error> {
+        let frozen = proposal.predecessor_observation(subject)?;
+        Ok(Self {
+            witness: proposal.witness_binding(),
+            subject,
+            head: frozen.observed_head(),
+            last: frozen.last_command_id(),
+            state: frozen.state_commitment(),
+            replacement: proposal.binding()?,
+            successor: proposal.successor(),
+        })
+    }
+}
+
 impl AnchorRetiredSubject {
     /// Original independently pinned witness instance and key binding.
     pub fn witness_binding(self) -> [u8; 32] {

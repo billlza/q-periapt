@@ -252,6 +252,31 @@ impl Image {
         }
         Ok(())
     }
+    pub(super) fn account_cleanup_subject(
+        &self,
+        subject: AnchorSubject,
+        binding: [u8; 32],
+        pin: &AnchorPin,
+    ) -> Result<AnchorRetiredSubject, DurableError> {
+        // Select by the original entry's account rather than serialize/hash every
+        // account proposal on every retained-inventory validation.
+        let account = self
+            .entries
+            .get(&subject.id(&pin.binding))
+            .and_then(|entry| entry.original_identity.as_ref())
+            .ok_or(DurableError::Absent)?
+            .account;
+        let proposal = self
+            .account_replacements
+            .get(&account)
+            .ok_or(DurableError::Absent)?;
+        if proposal.witness != pin.binding || proposal.binding()? != binding {
+            return Err(Error::Scope.into());
+        }
+        Ok(AnchorRetiredSubject::from_account_proposal(
+            proposal, subject,
+        )?)
+    }
     pub(super) fn account_retirement(&self, subject: AnchorSubject) -> bool {
         self.account_replacements
             .values()

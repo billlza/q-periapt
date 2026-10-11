@@ -63,7 +63,7 @@ fn snapshot(
 ) -> Result<(Image, Option<PendingIntent>, AnchorRetiredCleanupProposal), DurableError> {
     let (_, owner, _) = retired.subject().journal_parts();
     let (image, pending) =
-        load_pending_snapshot(db, key, owner, SnapshotAdmission::RetiredCleanup)?;
+        load_pending_snapshot(db, key, owner, SnapshotAdmission::RetiredCleanup(&retired))?;
     check_scope(&image, expected, retired)?;
     let current = image.protection.head(image.revision, image.digest)?;
     if current != retired.observed_head() {

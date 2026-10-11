@@ -103,8 +103,9 @@ the cross-application refusal test verifies that original parent rows stay uncha
 These native same-host checks do not qualify installed foreign adapters or physical
 platforms, and do not claim a new storage format or product C ABI.
 
-Retired-message accounting/erasure, deployed control-plane transport, foreign
-adapters and supported platform qualification remain required. They must preserve
+The native historical accounting/erasure component below is available. Its managed
+controller integration, deployed control-plane transport, foreign adapters and
+supported platform qualification remain required. They must preserve
 original identities and approvals; they cannot reset Preparing/Pending or regenerate
 a root to recover availability.
 
@@ -310,6 +311,43 @@ witness retirement, the same restored bytes cannot reopen a traffic journal. The
 fixture transport reports the witness's refusal as unavailability; a separate
 purpose-22 receipt supplies authenticated historical retirement. This does not
 test whole-host or witness rollback.
+
+### Original-account inventory, reporting and logical erasure
+
+A verified `AnchorRetiredAccount::retired_subject` selects only an original frozen
+subject. The existing inventory/report/host-ACK protocol retains the actual
+account-root proposal binding and its domain separation; it never fabricates a
+device-generation replacement. Witness inventory admission selects the root
+proposal by the subject's original account, without hashing every stored account
+proposal. An earlier retained device inventory remains authoritative: a different
+root-bound inventory for that same subject conflicts instead of overwriting it.
+
+After both original parent and journal retain purpose 22,
+`AccountRootEnrollmentRecovery::into_retired` transfers the still-held enrollment
+lease to `RetiredDeviceEnrollment`. It reuses the existing installation accounting
+and signer-erasure flow. Recovery uses `RetiredDeviceEnrollment::open` with the
+original paths, intent, witness pin and that same verified retired subject; ordinary
+root-replacement recovery cannot be used after the cleanup record is retained.
+Uncommitted, mismatched or competing local root operations refuse this transition.
+
+The root-replacement row and unchanged enrollment image remain in the parent beside
+the exact cleanup inventory. Both records must bind the same original subject and
+root operation, with a retained verified retirement receipt. This extends the
+permitted row combination in the candidate enrollment schema: older binaries reject
+such a parent; downgrade/recreation is not a supported recovery path. No product C
+ABI has been added. Managed-controller and installed foreign entry points still
+need to expose this complete sequence.
+
+Reporting authenticates the original source, pending intent, target and session
+archives. It preserves unconfirmed ciphertext identities and distinguishes an
+uncommitted target from a witness-committed target; root retirement supplies no
+message-consumption acknowledgement. The host must retain the full report and
+request separate purpose-21 acknowledgement before explicit journal erasure. The
+journal image, pending intent and exact root fence are then replaced atomically by
+the authenticated terminal record. Only afterwards can the original signer file be
+prepared and logically erased. Missing originals, archives or receipts fail; no
+successor or fresh identity is created. Retained pages, wrapping keys, backups and
+previously copied signing owners remain outside this logical-erasure claim.
 
 ### Original enrollment parent transaction
 

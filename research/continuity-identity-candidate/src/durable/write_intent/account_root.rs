@@ -197,6 +197,24 @@ pub(super) fn validate_fence_snapshot(
     Fence::decode(key, wire)?.check(key, image, pending)
 }
 
+pub(super) fn validate_retired_fence(
+    key: &JournalKey,
+    wire: &[u8],
+    retired: crate::AnchorRetiredSubject,
+) -> Result<(), DurableError> {
+    let fence = Fence::decode(key, wire)?;
+    let frozen = fence.proposal.predecessor_observation(retired.subject())?;
+    if fence.subject != retired.subject()
+        || fence.proposal.witness_binding() != retired.witness_binding()
+        || fence.proposal.binding()? != retired.replacement_binding()
+        || frozen.observed_head() != retired.observed_head()
+        || frozen.state_commitment() != retired.state_commitment()
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
 /// Original local fence state. Neither variant is permission to operate a successor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountRootJournalState {

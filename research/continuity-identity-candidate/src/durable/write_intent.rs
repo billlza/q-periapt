@@ -347,12 +347,12 @@ pub(super) fn load_snapshot(
     load_snapshot_as(db, key, owner, SnapshotAdmission::Ordinary)
 }
 
-enum SnapshotAdmission {
+enum SnapshotAdmission<'a> {
     Ordinary,
     CredentialRecovery,
     PolicyRecovery,
     RosterRecovery,
-    RetiredCleanup,
+    RetiredCleanup(&'a crate::AnchorRetiredSubject),
     AccountRootReplacement,
     AuthorityCheck,
 }
@@ -361,7 +361,7 @@ fn load_snapshot_as(
     db: &Database,
     key: &JournalKey,
     owner: [u8; 32],
-    admission: SnapshotAdmission,
+    admission: SnapshotAdmission<'_>,
 ) -> Result<(Image, Option<PendingWrite>), DurableError> {
     let (image, pending) = load_pending_snapshot(db, key, owner, admission)?;
     match pending {
@@ -375,7 +375,7 @@ fn load_pending_snapshot(
     db: &Database,
     key: &JournalKey,
     owner: [u8; 32],
-    admission: SnapshotAdmission,
+    admission: SnapshotAdmission<'_>,
 ) -> Result<(Image, Option<PendingIntent>), DurableError> {
     let read = db.begin_read().map_err(storage)?;
     let table = image_table(&read)?;
@@ -415,7 +415,7 @@ fn load_pending_snapshot(
                 SnapshotAdmission::RosterRecovery,
                 Some(BoundTransaction::Roster(_))
             ) | (
-                SnapshotAdmission::RetiredCleanup
+                SnapshotAdmission::RetiredCleanup(_)
                     | SnapshotAdmission::AccountRootReplacement
                     | SnapshotAdmission::AuthorityCheck,
                 Some(_)
@@ -429,8 +429,12 @@ fn load_pending_snapshot(
     }
     if let Some(fence) = root_fence {
         account_root::validate_fence_snapshot(key, &image, pending.as_ref(), fence.value())?;
-        if !matches!(admission, SnapshotAdmission::AccountRootReplacement) {
-            return Err(DurableError::Suspended);
+        match admission {
+            SnapshotAdmission::AccountRootReplacement => {}
+            SnapshotAdmission::RetiredCleanup(retired) => {
+                account_root::validate_retired_fence(key, fence.value(), *retired)?;
+            }
+            _ => return Err(DurableError::Suspended),
         }
     }
     Ok((image, pending))

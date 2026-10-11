@@ -92,6 +92,12 @@ impl State {
         }
         Ok(wire)
     }
+    pub(super) fn check_account_retirement(
+        &self,
+        root: &account_root::State,
+    ) -> Result<(), DurableError> {
+        root.check_retirement_inventory(&self.inventory)
+    }
     pub(super) fn check_image(&self, image: &Image, wire: &[u8]) -> Result<(), DurableError> {
         let Phase::Accepted { admission, .. } = &image.phase else {
             return Err(DurableError::Corrupt);
@@ -120,12 +126,34 @@ fn original_digest(enrollment: &DeviceEnrollment) -> Result<[u8; 32], DurableErr
         .ok_or(DurableError::Corrupt)?;
     Ok(enrollment_digest(row.value()))
 }
+fn read_retired_snapshot(
+    enrollment: &DeviceEnrollment,
+    pin: &AnchorPin,
+    retired: AnchorRetiredSubject,
+) -> Result<(Image, Option<State>), DurableError> {
+    let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
+    let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
+    if let Some(root) = &snapshot.root_replacement {
+        if root.retirement_subject(pin, retired.subject())? != retired {
+            return Err(DurableError::Conflict);
+        }
+    }
+    Ok((snapshot.image, snapshot.retirement))
+}
 fn save(
     enrollment: &DeviceEnrollment,
     old: Option<&State>,
     next: &State,
 ) -> Result<(), DurableError> {
     let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
+    let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
+    if snapshot.retirement.as_ref() != old {
+        return Err(DurableError::Conflict);
+    }
+    if let Some(root) = &snapshot.root_replacement {
+        next.check_account_retirement(root)?;
+    }
+    let root_rows = u64::from(snapshot.root_replacement.is_some());
     let wire = next.encode(&active.key, enrollment.binding)?;
     let expected = old
         .map(|s| s.encode(&active.key, enrollment.binding))
@@ -133,7 +161,7 @@ fn save(
     let tx = transaction(&active.database)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        if table.len().map_err(storage)? != if old.is_some() { 2 } else { 1 }
+        if table.len().map_err(storage)? != 1 + u64::from(old.is_some()) + root_rows
             || table
                 .get("retirement")
                 .map_err(storage)?
@@ -153,7 +181,16 @@ fn save(
             .insert("retirement", wire.as_slice())
             .map_err(storage)?;
     }
-    tx.commit().map_err(DurableError::CommitUncertain)
+    #[cfg(all(test, unix))]
+    if root_rows == 1 {
+        account_root::cleanup::at_boundary(false);
+    }
+    tx.commit().map_err(DurableError::CommitUncertain)?;
+    #[cfg(all(test, unix))]
+    if root_rows == 1 {
+        account_root::cleanup::at_boundary(true);
+    }
+    Ok(())
 }
 struct Owners {
     enrollment: DeviceEnrollment,
@@ -164,12 +201,7 @@ struct Owners {
 }
 impl Owners {
     fn read(&self) -> Result<(Image, State, VerifiedDevice), DurableError> {
-        let active = self
-            .enrollment
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?;
-        let (image, state) = load_snapshot(&active.database, &active.key, self.enrollment.binding)?;
+        let (image, state) = read_retired_snapshot(&self.enrollment, &self.pin, self.retired)?;
         let state = state.ok_or(DurableError::Conflict)?;
         if state != self.state {
             return Err(DurableError::Conflict);
@@ -240,7 +272,7 @@ fn check_original(
     Ok(())
 }
 
-/// Restricted original enrollment owner for permanent device retirement.
+/// Restricted original enrollment owner for permanent device or account retirement.
 /// Holds the enrollment lease across reporting and host acknowledgement; no signer,
 /// enrollment request or operational service is exposed. Historical metadata retains
 /// the original identity even after credential/policy expiry.
@@ -296,13 +328,12 @@ impl RetiredDeviceEnrollment {
             retired,
         )
     }
-    fn from_enrollment(
+    pub(super) fn from_enrollment(
         enrollment: DeviceEnrollment,
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
-        let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
-        let (image, saved) = load_snapshot(&active.database, &active.key, enrollment.binding)?;
+        let (image, saved) = read_retired_snapshot(&enrollment, &pin, retired)?;
         validate_metadata(&enrollment, &image)?;
         let original = enrollment.original_device_metadata(&image)?;
         check_original(&image, &original, retired, &pin)?;

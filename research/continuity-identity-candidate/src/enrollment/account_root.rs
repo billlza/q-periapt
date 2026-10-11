@@ -4,6 +4,7 @@ use super::*;
 use crate::durable::account_root_transfer::{self as transfer, ParentCheckpoint, Transfer};
 use crate::{AccountRootJournalRecovery, AnchorAccountReplacementProposal as Proposal};
 use redb::ReadableTable;
+pub(super) mod cleanup;
 mod transition;
 
 pub(super) const ROW: &str = "root-replacement";

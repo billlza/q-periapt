@@ -11,6 +11,8 @@ use std::{
     time::Instant,
 };
 
+#[path = "cleanup_tests.rs"]
+mod cleanup;
 #[path = "managed_tests.rs"]
 mod managed;
 #[path = "process.rs"]

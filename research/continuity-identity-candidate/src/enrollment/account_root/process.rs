@@ -2,12 +2,7 @@
 use super::*;
 use std::process::{Command, Stdio};
 
-#[test]
-fn account_root_enrollment_process_child() {
-    let Some(path) = std::env::var_os("QPERIAPT_ROOT_PARENT_DIR") else {
-        return;
-    };
-    let path = PathBuf::from(path);
+pub(super) fn read_inputs(path: &Path) -> (EnrollmentIntent, AnchorPin, Proposal) {
     let public = fs::read(path.join("independent-inputs")).expect("retained public inputs");
     let mut d = Decoder::new(&public);
     let root = PublicKey::decode(d.take(PUBLIC_KEY_BYTES).expect("root bytes")).expect("root");
@@ -39,6 +34,16 @@ fn account_root_enrollment_process_child() {
         Proposal::from_trusted_state(&fs::read(path.join("proposal")).expect("original proposal"))
             .expect("proposal");
     let pin = AnchorPin::new(identity, public);
+    (intent, pin, p)
+}
+
+#[test]
+fn account_root_enrollment_process_child() {
+    let Some(path) = std::env::var_os("QPERIAPT_ROOT_PARENT_DIR") else {
+        return;
+    };
+    let path = PathBuf::from(path);
+    let (intent, pin, p) = read_inputs(&path);
     let mut recovery =
         AccountRootEnrollmentRecovery::resume_original(paths(&path), intent, pin.clone(), p)
             .expect("original recovery");

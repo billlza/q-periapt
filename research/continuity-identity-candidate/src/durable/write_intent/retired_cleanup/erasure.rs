@@ -104,17 +104,24 @@ impl<'a> Scope<'a> {
                 .map_err(storage)?
                 .ok_or(DurableError::Corrupt)?;
             let pending = table.get("pending").map_err(storage)?;
+            let root_fence = table.get("account-root-fence").map_err(storage)?;
+            if let Some(fence) = &root_fence {
+                account_root::validate_retired_fence(self.key, fence.value(), self.retired)?;
+            }
             let pending_hash = pending
                 .as_ref()
                 .map(|p| digest(b"Q-PERIAPT-CONTINUITY-RETIRED-LOCAL-INTENT/v1", p.value()));
             if image_hash(image.value()) != inventory.stored_image_digest()
                 || pending_hash != inventory.pending_intent_digest()
-                || table.len().map_err(storage)? != if pending.is_some() { 2 } else { 1 }
+                || table.len().map_err(storage)?
+                    != 1 + u64::from(pending.is_some()) + u64::from(root_fence.is_some())
             {
                 return Err(DurableError::Conflict);
             }
             drop(image);
             drop(pending);
+            drop(root_fence);
+            table.remove("account-root-fence").map_err(storage)?;
             table.remove("image").map_err(storage)?;
             table.remove("pending").map_err(storage)?;
             table
