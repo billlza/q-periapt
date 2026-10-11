@@ -399,18 +399,26 @@ impl DeviceEnrollment {
     /// Reopen the original record, key, approved scope and paths. Never infer first
     /// use from missing, corrupt, busy, authentication or permission errors.
     pub fn open(paths: EnrollmentPaths, intent: EnrollmentIntent) -> Result<Self, DurableError> {
+        let mut owner = Self::open_original_storage(paths, intent)?;
+        owner.image()?;
+        Ok(owner)
+    }
+    // Storage admission only. Restricted callers must authenticate their own
+    // retained lifecycle state before returning an owner; never expose this raw open.
+    fn open_original_storage(
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+    ) -> Result<Self, DurableError> {
         let key = JournalKey::open(&paths.wrapping)?;
         let binding = paths.binding(&key, &intent)?;
         let database = open_private_database(&paths.configuration)?;
-        let mut owner = Self {
+        Ok(Self {
             active: Some(Active { database, key }),
             paths,
             intent,
             binding,
             account_authority: None,
-        };
-        owner.image()?;
-        Ok(owner)
+        })
     }
     /// Original request/signing-file identity, independent of network responses.
     pub fn identity(&mut self) -> Result<SigningKeyId, DurableError> {

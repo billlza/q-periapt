@@ -121,14 +121,6 @@ impl AccountRootEnrollmentRecovery {
     ) -> Result<Self, DurableError> {
         Self::open_transition(paths, intent, pin, transition, false)
     }
-    pub(in crate::enrollment) fn resume_managed_transition(
-        paths: EnrollmentPaths,
-        intent: EnrollmentIntent,
-        pin: AnchorPin,
-        transition: &AccountRootJournalTransition,
-    ) -> Result<Self, DurableError> {
-        Self::open_transition(paths, intent, pin, transition, true)
-    }
     fn open_transition(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
@@ -136,16 +128,7 @@ impl AccountRootEnrollmentRecovery {
         transition: &AccountRootJournalTransition,
         allow_initial: bool,
     ) -> Result<Self, DurableError> {
-        let key = JournalKey::open(&paths.wrapping)?;
-        let binding = paths.binding(&key, &intent)?;
-        let database = open_private_database(&paths.configuration)?;
-        let enrollment = DeviceEnrollment {
-            active: Some(Active { database, key }),
-            paths,
-            intent,
-            binding,
-            account_authority: None,
-        };
+        let enrollment = DeviceEnrollment::open_original_storage(paths, intent)?;
         Self::transition_owner(enrollment, pin, transition, allow_initial)
     }
     pub(in crate::enrollment) fn prepare_managed_transition(

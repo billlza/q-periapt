@@ -37,7 +37,10 @@ fn committed(f: &Fixture) -> (AccountRootEnrollmentRecovery, crate::AnchorRetire
         .expect("original frozen subject");
     (owner, retired)
 }
-fn account_report(f: &Fixture, owner: &mut RetiredDeviceEnrollment) -> (Vec<u8>, Vec<u8>) {
+pub(super) fn account_report(
+    f: &Fixture,
+    owner: &mut RetiredDeviceEnrollment,
+) -> (Vec<u8>, Vec<u8>) {
     let cleanup = owner.installation().expect("existing cleanup engine");
     let inventory = cleanup.proposal().expect("original inventory");
     let receipt = {

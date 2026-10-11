@@ -8,6 +8,8 @@ use crate::{
 };
 #[path = "managed_tests/adoption.rs"]
 mod adoption;
+#[path = "managed_tests/cleanup.rs"]
+mod cleanup;
 #[path = "managed_tests/process.rs"]
 mod process;
 #[path = "managed_tests/transition.rs"]

@@ -9,13 +9,15 @@ use crate::{
 mod adoption;
 pub use adoption::ManagedAccountRootAdoption;
 mod operation;
+mod original;
+use original::Original;
+mod cleanup;
 use operation::Operation;
 mod transition;
 pub use transition::ManagedAccountRootTransition;
 
 struct Owners {
-    recovery: Option<AccountRootEnrollmentRecovery>,
-    enrollment: Option<DeviceEnrollment>,
+    original: Option<Original>,
     registry: AccountAuthorityStore,
     expected: AccountAuthorityCheckpoint,
     operation: Operation,
@@ -33,86 +35,12 @@ impl Owners {
     fn state(&self) -> Result<State, DurableError> {
         self.operation.state(&self.registry, self.expected)
     }
-    fn reconcile(&mut self) -> Result<(), DurableError> {
-        let proposal = match self.state()? {
-            State::Preparing => None,
-            State::Closed => match self.registry.replacement(self.operation.id()) {
-                Ok((_, _, proposal)) => Some(proposal.clone()),
-                // A closed unbound plan has no journal proposal. This says
-                // nothing about missing files or an unavailable witness.
-                Err(DurableError::Suspended) => None,
-                Err(error) => return Err(error),
-            },
-            State::Pending | State::Committed => {
-                Some(self.registry.replacement(self.operation.id())?.2.clone())
-            }
-        };
-        match proposal {
-            None => {
-                if self.enrollment.is_none() {
-                    self.enrollment = Some(DeviceEnrollment::open(
-                        self.paths.clone(),
-                        self.intent.clone(),
-                    )?);
-                }
-                Ok(())
-            }
-            Some(proposal) => {
-                self.recovery = Some(match self.enrollment.take() {
-                    Some(enrollment) => AccountRootEnrollmentRecovery::prepare(
-                        enrollment,
-                        self.pin.clone(),
-                        proposal,
-                    )?,
-                    None => AccountRootEnrollmentRecovery::resume_original(
-                        self.paths.clone(),
-                        self.intent.clone(),
-                        self.pin.clone(),
-                        proposal,
-                    )?,
-                });
-                Ok(())
-            }
-        }
-    }
-    fn advance_parent(
-        &mut self,
-        transition: &crate::AccountRootJournalTransition,
-    ) -> Result<(), DurableError> {
-        match &mut self.recovery {
-            Some(recovery) => {
-                recovery.apply_managed_transition(transition)?;
-            }
-            None => {
-                self.recovery = Some(match self.enrollment.take() {
-                    Some(enrollment) => AccountRootEnrollmentRecovery::prepare_managed_transition(
-                        enrollment,
-                        self.pin.clone(),
-                        transition,
-                    )?,
-                    None => AccountRootEnrollmentRecovery::resume_managed_transition(
-                        self.paths.clone(),
-                        self.intent.clone(),
-                        self.pin.clone(),
-                        transition,
-                    )?,
-                });
-            }
-        }
-        Ok(())
-    }
     fn successor(&mut self) -> Result<(AccountAuthorityCheckpoint, Proposal), DurableError> {
-        if self.state()? != State::Committed
-            || self
-                .recovery
-                .as_mut()
-                .ok_or(DurableError::Suspended)?
-                .status()?
-                != AccountRootEnrollmentState::WitnessCommitted
-        {
+        if self.state()? != State::Committed {
             return Err(DurableError::Suspended);
         }
         let proposal = self.registry.replacement(self.operation.id())?.2.clone();
+        self.check_parent(&proposal, true)?;
         let checkpoint = self
             .registry
             .access()?
@@ -133,7 +61,8 @@ impl Owners {
 ///
 /// Keep this owner alive while a returned successor operates. Close/drop and
 /// failures during storage/recovery revoke registry access and release all leases.
-/// Invalid receipt bytes are refused before mutation and preserve the owner.
+/// Dedicated witness-receipt methods reject invalid bytes before mutation and
+/// preserve the owner. Cleanup callback errors follow that method's close contract.
 /// A storage/recovery error can follow a commit: reopen the original registry and use
 /// `resume_original` with the same retained inputs, then replay the same receipt.
 pub struct ManagedAccountRootReplacement {
@@ -176,8 +105,7 @@ impl ManagedAccountRootReplacement {
             return Err(DurableError::Conflict);
         }
         let mut owners = Owners {
-            recovery: None,
-            enrollment: None,
+            original: None,
             registry,
             expected,
             operation: Operation::Prepared(Box::new(plan)),
@@ -192,7 +120,7 @@ impl ManagedAccountRootReplacement {
         let original = *original.active.take().ok_or(DurableError::Closed)?;
         drop(original.service);
         drop(original.signer);
-        owners.enrollment = Some(original.enrollment);
+        owners.original = Some(Original::Preparing(Box::new(original.enrollment)));
         #[cfg(all(test, unix))]
         account_root::managed_boundary("preparation");
         owners.reconcile()?;
@@ -212,8 +140,7 @@ impl ManagedAccountRootReplacement {
         pin: AnchorPin,
     ) -> Result<Self, DurableError> {
         let mut owners = Owners {
-            recovery: None,
-            enrollment: None,
+            original: None,
             registry,
             expected,
             operation: Operation::Prepared(Box::new(plan)),
@@ -231,16 +158,14 @@ impl ManagedAccountRootReplacement {
         &mut self,
         action: impl FnOnce(&mut Owners) -> Result<T, DurableError>,
     ) -> Result<T, DurableError> {
-        let result = self
-            .active
-            .as_mut()
-            .ok_or(DurableError::Closed)
-            .and_then(|owners| action(owners));
-        if result.is_err() {
-            self.close();
-        }
-        result
+        // Own the controller across the operation. Errors and unwinding drop it
+        // before control escapes; only a successful result restores live access.
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        let result = action(&mut owners)?;
+        self.active = Some(owners);
+        Ok(result)
     }
+
     /// Durable registry progress, not current traffic permission or proof of a
     /// remote non-commit. Preparing/Pending remain suspended after transport loss.
     pub fn state(&mut self) -> Result<State, DurableError> {
@@ -263,14 +188,14 @@ impl ManagedAccountRootReplacement {
                 .bind_preparation(owners.operation.id(), &frozen)?;
             #[cfg(all(test, unix))]
             account_root::managed_boundary("binding");
-            if owners.recovery.is_none() {
-                owners.reconcile()?;
-            }
-            owners
-                .recovery
-                .as_mut()
-                .ok_or(DurableError::Suspended)?
-                .proposal()
+            owners.reconcile()?;
+            let proposal = owners
+                .registry
+                .replacement(owners.operation.id())?
+                .2
+                .clone();
+            owners.check_parent(&proposal, false)?;
+            Ok(proposal)
         })
     }
     /// Retain the exact signed retirement in child and parent before selecting
@@ -287,11 +212,7 @@ impl ManagedAccountRootReplacement {
         let proposal = owners.registry.replacement(owners.operation.id())?.2;
         let retired = owners.pin.verify_retired_account(proposal, receipt)?;
         self.run(|owners| {
-            owners
-                .recovery
-                .as_mut()
-                .ok_or(DurableError::Suspended)?
-                .retain_witness_retirement(receipt)?;
+            owners.retain_parent_retirement(retired.proposal(), receipt)?;
             #[cfg(all(test, unix))]
             account_root::managed_boundary("retirement");
             owners.registry.commit_replacement(&retired)?;

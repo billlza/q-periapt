@@ -335,3 +335,39 @@ fn managed_root_adoption_history_cannot_extend_an_expired_winner_credential() {
     managed.close();
     a.s.f.assert_fenced();
 }
+
+#[test]
+fn managed_root_cleanup_adopted_winner_resumes_after_original_journal_and_signer_erasure() {
+    for bound in [false, true] {
+        let (a, mut managed) = Adoption::new(bound, 200, false);
+        let checkpoint = managed
+            .adopt_committed_winner(&a.approved)
+            .expect("actual approved adoption");
+        let mut current = a
+            .activate(&mut managed, 150)
+            .expect("adopted actual successor");
+        super::cleanup::erase_original(&mut managed, &a.s.f, &mut current);
+        assert_eq!(
+            managed
+                .adopt_committed_winner(&a.approved)
+                .expect("same adoption after erasure"),
+            checkpoint
+        );
+        managed.close();
+        current.close();
+        let mut managed = a.resume();
+        super::cleanup::assert_erased(&mut managed);
+        assert_eq!(
+            managed
+                .retain_witness_retirement(&a.receipt)
+                .expect("same actual retirement"),
+            checkpoint
+        );
+        let mut current = a
+            .activate(&mut managed, 150)
+            .expect("adopted successor after restart");
+        current
+            .next_prekey_publication_id()
+            .expect("governed current owner");
+    }
+}

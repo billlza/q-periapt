@@ -28,6 +28,39 @@ impl State {
     }
 }
 
+impl DeviceEnrollment {
+    /// A retained combined parent, never absence inferred from a failed read.
+    pub(in crate::enrollment) fn retained_root_cleanup(
+        &self,
+        pin: &AnchorPin,
+        expected: &Proposal,
+    ) -> Result<Option<AnchorRetiredSubject>, DurableError> {
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let snapshot = read_snapshot(&active.database, &active.key, self.binding)?;
+        if snapshot.retirement.is_none() {
+            return Ok(None);
+        }
+        let root = snapshot.root_replacement.ok_or(DurableError::Conflict)?;
+        if &root.proposal != expected {
+            return Err(DurableError::Conflict);
+        }
+        let original = validate(self, &snapshot.image, pin, expected)?;
+        let Phase::Accepted { admission, .. } = snapshot.image.phase else {
+            return Err(DurableError::Conflict);
+        };
+        let scope = (
+            *admission.journal.as_bytes(),
+            crate::bootstrap::storage_owner(&original),
+            admission.policy,
+        );
+        let subject = expected
+            .predecessors()
+            .find(|s| s.journal_parts() == scope)
+            .ok_or(DurableError::Conflict)?;
+        Ok(Some(root.retirement_subject(pin, subject)?))
+    }
+}
+
 impl AccountRootEnrollmentRecovery {
     /// Consume the original fenced owner into inventory/report/host-ACK recovery.
     /// A retained purpose-22 commitment is required. The original enrollment lease

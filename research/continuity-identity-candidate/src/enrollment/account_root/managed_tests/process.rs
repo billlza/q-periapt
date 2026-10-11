@@ -94,8 +94,33 @@ fn managed_root_process_child() {
     } else {
         None
     };
-    let mut managed = Managed::resume_original(registry, expected, plan, paths(&path), intent, pin)
-        .expect("existing original preparation");
+    let mut managed =
+        Managed::resume_original(registry, expected, plan, paths(&path), intent, pin.clone())
+            .expect("existing original preparation");
+    if let Ok(action) = std::env::var("QPERIAPT_MANAGED_ROOT_CLEANUP_ACTION") {
+        match action.as_str() {
+            "inventory" => {
+                managed
+                    .with_retired_cleanup(|old| old.installation()?.proposal())
+                    .expect("original inventory");
+            }
+            "journal" => {
+                let ack = fs::read(path.join("managed-cleanup-ack"))
+                    .expect("original host acknowledgement");
+                managed
+                    .with_retired_cleanup(|old| old.installation()?.erase_journal(&pin, &ack))
+                    .expect("acknowledged journal erasure");
+            }
+            action => {
+                assert_eq!(action, "signer");
+                managed
+                    .with_retired_cleanup(|old| old.erase_signer())
+                    .expect("original signer erasure and restricted parent reopen");
+            }
+        }
+        fs::write(path.join("returned"), b"returned").expect("actual cleanup API return");
+        return;
+    }
     if let Some(adoption) = adoption {
         managed
             .adopt_committed_winner(&adoption)

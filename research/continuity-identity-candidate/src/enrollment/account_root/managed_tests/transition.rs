@@ -382,3 +382,53 @@ fn managed_root_closed_next_target_requires_another_independent_approval() {
         State::Closed
     );
 }
+
+#[test]
+fn managed_root_cleanup_alternate_target_resumes_after_original_journal_and_signer_erasure() {
+    for bound in [false, true] {
+        let (t, mut managed) = Transition::new(bound);
+        t.finish(&mut managed);
+        let mut managed = t.resume();
+        let enrollment = DeviceEnrollment::open(t.target.paths.clone(), t.target.intent.clone())
+            .expect("same next enrollment");
+        let mut current = managed
+            .activate_successor(
+                enrollment,
+                &t.s.f.policy,
+                170,
+                Box::new(CurrentCarrier(Arc::clone(&t.s.f.witness))),
+                Duration::from_secs(3),
+            )
+            .expect("actual current alternate target");
+        super::cleanup::erase_original(&mut managed, &t.s.f, &mut current);
+        assert_eq!(
+            managed
+                .transition_after_noncommit(&t.approved)
+                .expect("same completed transition")
+                .operation(),
+            t.next.operation()
+        );
+        managed.close();
+        current.close();
+        let mut managed = t.resume();
+        super::cleanup::assert_erased(&mut managed);
+        assert_eq!(
+            managed.state().expect("retained next commitment"),
+            State::Committed
+        );
+        let enrollment = DeviceEnrollment::open(t.target.paths.clone(), t.target.intent.clone())
+            .expect("same next enrollment");
+        let mut current = managed
+            .activate_successor(
+                enrollment,
+                &t.s.f.policy,
+                170,
+                Box::new(CurrentCarrier(Arc::clone(&t.s.f.witness))),
+                Duration::from_secs(3),
+            )
+            .expect("alternate target after restart");
+        current
+            .next_prekey_publication_id()
+            .expect("governed current owner");
+    }
+}

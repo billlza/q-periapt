@@ -57,9 +57,7 @@ impl Owners {
         &mut self,
         adoption: &ManagedAccountRootAdoption,
     ) -> Result<AccountAuthorityCheckpoint, DurableError> {
-        if let Some(recovery) = &mut self.recovery {
-            recovery.validate_managed_transition(&adoption.journal)?;
-        }
+        self.validate_parent_transition(&adoption.journal)?;
         self.registry.close_preparation(&adoption.closed)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("adoption-closure");
@@ -71,10 +69,7 @@ impl Owners {
         self.advance_parent(&adoption.journal)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("adoption-parent");
-        self.recovery
-            .as_mut()
-            .ok_or(DurableError::Suspended)?
-            .retain_witness_retirement(&adoption.receipt)?;
+        self.retain_parent_retirement(approved, &adoption.receipt)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("adoption-retirement");
         self.registry.adopt_committed_replacement(
@@ -114,8 +109,7 @@ impl ManagedAccountRootReplacement {
         adoption: &ManagedAccountRootAdoption,
     ) -> Result<Self, DurableError> {
         let mut owners = Owners {
-            recovery: None,
-            enrollment: None,
+            original: None,
             registry,
             expected,
             operation: Operation::Prepared(Box::new(adoption.closed.plan().clone())),

@@ -309,17 +309,8 @@ impl AccountRootEnrollmentRecovery {
         pin: AnchorPin,
         proposal: Proposal,
     ) -> Result<Self, DurableError> {
-        let key = JournalKey::open(&paths.wrapping)?;
-        let binding = paths.binding(&key, &intent)?;
-        let database = open_private_database(&paths.configuration)?;
         Self::prepare(
-            DeviceEnrollment {
-                active: Some(Active { database, key }),
-                paths,
-                intent,
-                binding,
-                account_authority: None,
-            },
+            DeviceEnrollment::open_original_storage(paths, intent)?,
             pin,
             proposal,
         )

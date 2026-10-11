@@ -103,11 +103,34 @@ the cross-application refusal test verifies that original parent rows stay uncha
 These native same-host checks do not qualify installed foreign adapters or physical
 platforms, and do not claim a new storage format or product C ABI.
 
-The native historical accounting/erasure component below is available. Its managed
-controller integration, deployed control-plane transport, foreign adapters and
-supported platform qualification remain required. They must preserve
-original identities and approvals; they cannot reset Preparing/Pending or regenerate
-a root to recover availability.
+The native controller also owns historical cleanup through `with_retired_cleanup`.
+Preparing/Pending are refused before invoking its callback. Once the registry and
+original parent have committed retirement, the existing inventory/report/host-ACK
+and erasure sequence runs under that same controller. The private original-owner
+state is exclusively preparing enrollment, fenced root recovery, or retired
+enrollment; the registry remains owned across each successful cleanup step.
+
+For example, `controller.with_retired_cleanup(|old| old.installation()?.proposal())`
+retains and returns the original inventory. Subsequent callbacks use the existing
+`RetiredDeviceEnrollment` operations for report retention, explicit durable host
+accounting, purpose-21 acknowledgement, journal erasure and separate signer erasure.
+No callback makes external host effects atomic. Callback/storage errors close the
+controller and revoke its delegated successor owners. An unwind does the same through
+owned scope destruction and still propagates to the caller. There is no catch-and-success
+path. Successful signer erasure closes its restricted native owner; the controller
+then reopens only that same historical parent, preserving the successor registry.
+
+Resume with the original preparation, approved alternate-target transition, or
+approved committed-winner adoption as appropriate. A retained combined retirement
+parent is admitted only under the same committed registry proposal/checkpoint,
+original paths, enrollment intent and witness pin. Missing state is never first use.
+Original receipt retries keep revision 2 and do not reopen old traffic or invent a
+preparation for an adopted winner. Historical cleanup does not extend an expired
+successor credential; successor activation still checks current authorization.
+
+Installed foreign adapters, deployed control-plane transport and supported-platform
+qualification remain required. They must preserve original identities and approvals;
+they cannot reset Preparing/Pending or regenerate a root to recover availability.
 
 ## Preserve the current identity meanings
 
@@ -335,8 +358,8 @@ the exact cleanup inventory. Both records must bind the same original subject an
 root operation, with a retained verified retirement receipt. This extends the
 permitted row combination in the candidate enrollment schema: older binaries reject
 such a parent; downgrade/recreation is not a supported recovery path. No product C
-ABI has been added. Managed-controller and installed foreign entry points still
-need to expose this complete sequence.
+ABI has been added. The managed controller now owns this sequence; installed foreign entry points
+still need to expose it.
 
 Reporting authenticates the original source, pending intent, target and session
 archives. It preserves unconfirmed ciphertext identities and distinguishes an
@@ -357,7 +380,8 @@ compilers. The new checks include four actual process-loss cuts and every observ
 pre/post-sync boundary of the parent inventory, journal erasure and signer-plan
 commits. All 2719 artifact tests pass without skips, and the 530-source readiness
 gate passes with `release_claim_eligible=false`. These are native component results;
-managed-controller, installed-language and physical-platform qualification remain open.
+installed-language and physical-platform qualification remain open. The later managed
+integration is qualified separately.
 
 ### Original enrollment parent transaction
 

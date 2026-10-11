@@ -294,17 +294,31 @@ impl RetiredDeviceEnrollment {
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
-        let key = JournalKey::open(&paths.wrapping)?;
-        let binding = paths.binding(&key, &intent)?;
-        let database = open_private_database(&paths.configuration)?;
-        let enrollment = DeviceEnrollment {
-            active: Some(Active { database, key }),
-            paths,
-            intent,
-            binding,
-            account_authority: None,
-        };
-        Self::from_enrollment(enrollment, pin, retired)
+        Self::from_enrollment(
+            DeviceEnrollment::open_original_storage(paths, intent)?,
+            pin,
+            retired,
+        )
+    }
+    pub(super) fn is_closed(&self) -> bool {
+        self.active.is_none()
+    }
+    pub(super) fn check_managed_scope(
+        &self,
+        paths: &EnrollmentPaths,
+        intent: &EnrollmentIntent,
+        pin: &AnchorPin,
+        proposal: &crate::AnchorAccountReplacementProposal,
+    ) -> Result<(), DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        owners.read()?;
+        if owners.pin.binding() != pin.binding()
+            || owners.enrollment.binding != paths.binding(&owners.enrollment.key()?, intent)?
+        {
+            return Err(DurableError::Conflict);
+        }
+        owners.state.inventory.check_account_proposal(proposal)?;
+        Ok(())
     }
     #[cfg(all(test, unix))]
     pub(crate) fn open_in_database(

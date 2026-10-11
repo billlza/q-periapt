@@ -73,9 +73,7 @@ impl Owners {
         &mut self,
         transition: &ManagedAccountRootTransition,
     ) -> Result<Proposal, DurableError> {
-        if let Some(recovery) = &mut self.recovery {
-            recovery.validate_managed_transition(&transition.journal)?;
-        }
+        self.validate_parent_transition(&transition.journal)?;
         self.registry.close_preparation(&transition.closed)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("noncommit");
@@ -139,8 +137,7 @@ impl ManagedAccountRootReplacement {
         transition: &ManagedAccountRootTransition,
     ) -> Result<Self, DurableError> {
         let mut owners = Owners {
-            recovery: None,
-            enrollment: None,
+            original: None,
             registry,
             expected,
             operation: Operation::Prepared(Box::new(transition.closed.plan().clone())),
