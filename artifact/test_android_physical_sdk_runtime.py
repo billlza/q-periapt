@@ -49,6 +49,35 @@ class PhysicalSDKAdmissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             profiles.owned_avd_profile("macos-account", "arm64-v8a", profiles.PHYSICAL_RUNTIME_PROFILE)
 
+    def test_api37_is_an_independent_physical_target_not_a_substitute_for_api36(self):
+        selected = "physical-api37-4k"
+        target = {"kind": "physical", "abi": "arm64-v8a", "sdk": 37, "page_size": 4096}
+        for name in contract.SDK_PROFILES:
+            value = projection(name)
+            value["runtime_target"] = target
+            expected = dict(expected_profile=name, expected_aar_sha256="b" * 64,
+                expected_aar_manifest_sha256="b" * 64, expected_source_commit="c" * 40,
+                expected_device_abi="arm64-v8a", expected_runtime_profile=selected)
+            self.assertEqual(contract.validate_profile_projection(value, **expected), value)
+            for other in ("physical-api36-4k", "api35-16k", "api23-4k"):
+                with self.subTest(profile=other), self.assertRaises(contract.AndroidAgpConsumerError):
+                    contract.validate_profile_projection(value, **{**expected, "expected_runtime_profile": other})
+        with self.assertRaises(ValueError):
+            profiles.runtime_profile(selected)
+        with self.assertRaises(ValueError):
+            profiles.owned_avd_profile("macos-account", "arm64-v8a", selected)
+        value = device_fixtures.AndroidDeviceProofProvenanceTests.physical_release_device_proof()
+        value["device"]["sdk"] = 37
+        expected = dict(expected_device_kind="physical", expected_device_abi="arm64-v8a",
+            expected_page_size=4096, expected_device_sdk=37, require_release_mode=True,
+            expected_runtime_profile=selected)
+        proof.verify_device_metadata(value, **expected)
+        for name, other in (("expected_runtime_profile", "physical-api36-4k"),
+                            ("expected_device_sdk", 36), ("expected_device_kind", "emulator"),
+                            ("expected_page_size", 16384), ("expected_device_abi", "x86_64")):
+            with self.subTest(expected=name), self.assertRaises(SystemExit):
+                proof.verify_device_metadata(value, **{**expected, name: other})
+
     def test_physical_metadata_requires_independent_exact_expectations(self):
         value = device_fixtures.AndroidDeviceProofProvenanceTests.physical_release_device_proof()
         expected = dict(expected_device_kind="physical", expected_device_abi="arm64-v8a",

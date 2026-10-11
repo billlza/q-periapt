@@ -46,6 +46,8 @@ CAPTURE_RUNTIME_PROFILES: Mapping[str, RuntimeProfile] = MappingProxyType({
     **RUNTIME_PROFILES,
     PHYSICAL_RUNTIME_PROFILE: RuntimeProfile(36, 4096, MappingProxyType({}),
         kind="physical", physical_abis=frozenset({"arm64-v8a"})),
+    "physical-api37-4k": RuntimeProfile(37, 4096, MappingProxyType({}),
+        kind="physical", physical_abis=frozenset({"arm64-v8a"})),
 })
 
 

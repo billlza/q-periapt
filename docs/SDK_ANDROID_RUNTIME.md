@@ -30,10 +30,19 @@ submitted proof:
 | `api35-16k` (default) | Owned API 35 emulator, 16-KiB pages | `arm64-v8a`, `x86_64` |
 | `api23-4k` | Owned API 23 emulator, 4-KiB pages | `x86_64` |
 | `physical-api36-4k` | Explicit USB physical device, API 36, 4-KiB pages | `arm64-v8a` |
+| `physical-api37-4k` | Explicit USB physical device, API 37, 4-KiB pages | `arm64-v8a` |
 
 Each target and architecture is a separate evidence scope. A profile's availability
 does not establish that it has executed. Physical-device results cannot replace
 the canonical 16-KiB or minimum-API emulator gates, or qualify an unexecuted ABI.
+
+For the current 0.2.0 Android physical acceptance, the selected API 37 arm64
+phone with 4-KiB pages is the complete device scope. Passing both SDK consumer
+workloads on that phone satisfies this physical-device gate. The phone was
+upgraded from API 36; absence of an API 36 phone or additional models does not
+make this gate incomplete. The API 36 profile remains available for explicit
+future runs and historical proof replay. This device choice does not expand
+the workload into untested Continuity functionality.
 
 SDK build receipts use `qperiapt.android_sdk_agp_consumer_build`; runtime
 receipts use `qperiapt.android_sdk_agp_consumer_proof`. The old 0.1.5 profiles,
@@ -80,9 +89,10 @@ On the canonical macOS lane, select `macos-account` and `arm64-v8a` instead.
 Use the SDK's registered AVD profile for that architecture. Missing or unsupported architecture selectors are rejected before acquiring
 the runtime lane.
 
-For a physical run, select `physical-api36-4k`, set `QPERIAPT_ANDROID_BOOT_AVD=0`,
+For a physical run, select `physical-api36-4k` or `physical-api37-4k` and set `QPERIAPT_ANDROID_BOOT_AVD=0`,
 `QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical`, `QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a`,
-`QPERIAPT_ANDROID_EXPECT_SDK=36` and `QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=4096`.
+`QPERIAPT_ANDROID_EXPECT_SDK=36` or `37` to match the independently selected profile,
+and `QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=4096`.
 Set `QPERIAPT_ANDROID_SERIAL` to the independently selected USB device and retain
 the same clean release mode, AAR/manifest hashes and both SDK consumer profiles.
 The collector rejects emulator boot selection and mismatched device properties
@@ -133,7 +143,8 @@ These expected values come from the independently selected build, not from
 untrusted fields in the proof being checked. `runtime_target` in the validated
 projection binds device kind, architecture, API level and page size.
 For a physical export, pass `--expected-device-abi arm64-v8a` and
-`--expected-runtime-profile physical-api36-4k`. Omitting the physical selector
+`--expected-runtime-profile physical-api36-4k` (or `physical-api37-4k` for the
+separately selected API 37 device). Omitting the physical selector
 retains the default emulator expectation and rejects the physical proof.
 
 CI uses the distinct `android-sdk-020-aar` raw-artifact intake contract,
