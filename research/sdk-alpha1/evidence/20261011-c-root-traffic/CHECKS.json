@@ -1,0 +1,413 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.installed_c_root_traffic_qualification",
+  "implementation_commit": "b1b325a8d23b5712c2b1857c5729b2e179295f9f",
+  "completed": true,
+  "release_claim_eligible": false,
+  "publication_performed": false,
+  "scope": "Same-host macOS arm64 installed C root controller and C peer, same native implementation. Original root retirement and cleanup precede a new post-cutover session, delivery uncertainty, sender process loss, original-message recovery, rekey and another outbound application message.",
+  "profiles": {
+    "debug": {
+      "completed": true,
+      "processes": 26,
+      "sigkill_cuts": 9,
+      "traffic": {
+        "after_rekey_message": "0000000000000001000000000000000009be024f6ab5932401a0fa359bd39d28",
+        "application_records": 2,
+        "completed": true,
+        "default_thread_stacks": {
+          "after-rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "authorize-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "connect": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "reject-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "send-cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "full_history_witness": {
+          "authority_observations": [
+            {
+              "authority": "72db2aaf1458ef1499db7a208c589e78409c79d1bce8ff7e30887e0af1fc68e0",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            },
+            {
+              "authority": "d590c54cbe687bf086429798dbe0f68cbe9b4c3b505eb36dbdb31636c2a761b5",
+              "outcome": 5
+            }
+          ],
+          "exchanges": 444,
+          "fresh_challenges": 444,
+          "logical_advances": 55,
+          "lost_commands": [],
+          "subjects": 4
+        },
+        "independent_peer_association": true,
+        "original_message": "000000000000000000000000000000005801902bd219d498bd16494a4dd6b428",
+        "peer_exit_after_effect": 77,
+        "peer_processes": 5,
+        "rekey_epoch": 1,
+        "release_claim_eligible": false,
+        "sender_processes": 7,
+        "sender_sigkill": 1,
+        "session": "08e64f4182055957efbbfbfa7ac11ffd8456c7735ecbac90e1f2cbe5aa6984fa",
+        "traffic_witness_exchanges": 301
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "67d0f84a02fc0273ccff7e961abfbfa84303e88c72f9de3b351f184d88b5aba2",
+        "qpc-c-client": "06b0f20fd06694082782f9e8cc7f9421f4e955c787d7f9dc3f3728f0e328b984",
+        "qpc-c-root-client": "c475188a6bd2fa755b01c9710ffb9a011c674b6f073f04df0a3e98240effae1f",
+        "root-3432ea88db7421c5": "822e75ca70556239ccd54029c71a7c0a4dea63075e170a23ded454c18102edd0"
+      },
+      "clippy_returncode": 0
+    },
+    "release": {
+      "completed": true,
+      "processes": 26,
+      "sigkill_cuts": 9,
+      "traffic": {
+        "after_rekey_message": "0000000000000001000000000000000074bf2dd84c034bfaf22642f18c4d2800",
+        "application_records": 2,
+        "completed": true,
+        "default_thread_stacks": {
+          "after-rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "authorize-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "connect": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "reject-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "send-cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "full_history_witness": {
+          "authority_observations": [
+            {
+              "authority": "be315fed379c578c7381a59bb5a964175c4112e7cdd53e4e386b5c9ebbc88deb",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            },
+            {
+              "authority": "dcbda23d2385a964e2b78d36fb89326493f7efb0b61e586f01324ce7ce120f60",
+              "outcome": 5
+            }
+          ],
+          "exchanges": 444,
+          "fresh_challenges": 444,
+          "logical_advances": 55,
+          "lost_commands": [],
+          "subjects": 4
+        },
+        "independent_peer_association": true,
+        "original_message": "0000000000000000000000000000000009f73d58b2d3ea489911cbe0eefd14cb",
+        "peer_exit_after_effect": 77,
+        "peer_processes": 5,
+        "rekey_epoch": 1,
+        "release_claim_eligible": false,
+        "sender_processes": 7,
+        "sender_sigkill": 1,
+        "session": "9290208d248964dab74c877e00470aabe92c0022b02dd7a96fcff87ef854eb7f",
+        "traffic_witness_exchanges": 301
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "78ebe3ca73d5bf05569ae21b4b7efeefcfe795b9be34f0d1fe5cd3fcdf0f65c0",
+        "qpc-c-client": "068a11e0ab210f058cac38ee2c329cd207b849b8e8f19e1549b91c1d14d58ee4",
+        "qpc-c-root-client": "861a0ea63c1df99dc6c4ba52f483d09981f247e94f2787d1964e324c182ef3d0",
+        "root-9b7064d6097bd46e": "ba51ad896a70f8127e49d38ea8ea44d956c038df4f9b7080774ffe64c8d37333"
+      },
+      "clippy_returncode": 0
+    },
+    "msrv-debug": {
+      "completed": true,
+      "processes": 26,
+      "sigkill_cuts": 9,
+      "traffic": {
+        "after_rekey_message": "000000000000000100000000000000002cc979df34e09868fbd73bd42796a92b",
+        "application_records": 2,
+        "completed": true,
+        "default_thread_stacks": {
+          "after-rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "authorize-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "connect": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "reject-peer": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "rekey": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "send-cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "full_history_witness": {
+          "authority_observations": [
+            {
+              "authority": "e153ec25b743fa38291ae1f615be52e0290b071f6743128c5ccbf8b63f2bc47a",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            },
+            {
+              "authority": "6cd4d60c4f4a689a69d32ab4dc971e99424400709752c91986394fb3b1c10226",
+              "outcome": 5
+            }
+          ],
+          "exchanges": 444,
+          "fresh_challenges": 444,
+          "logical_advances": 55,
+          "lost_commands": [],
+          "subjects": 4
+        },
+        "independent_peer_association": true,
+        "original_message": "00000000000000000000000000000000d63b2df500ed91af2fc32b55836d53e6",
+        "peer_exit_after_effect": 77,
+        "peer_processes": 5,
+        "rekey_epoch": 1,
+        "release_claim_eligible": false,
+        "sender_processes": 7,
+        "sender_sigkill": 1,
+        "session": "3bdeece6d395e481e353752d34e1ecdfbd972e42f0bca7b373e286af2ec935e6",
+        "traffic_witness_exchanges": 301
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "b2b0f46a99ba507feca3db9597b8fe2ea3c9f700de722fd4fcb1ed950829e77b",
+        "qpc-c-client": "646b05e9db2bbac3f3468561a1e6e37142fa3ef1a5b0b3a6995d93ddb8adb438",
+        "qpc-c-root-client": "aef95e3c0f1b1d00b44d832e975106f003f0d7079fcbd15d7a8ac3fdb464a98f",
+        "root-212af1521ec5445e": "a50e2c46e6188f2e656034e3dbc924a78aca04e7c728b46bd4d0683d6259e7b5"
+      },
+      "clippy_returncode": 0
+    }
+  },
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "7d51ab942d1b04ebe13d09790ef5a7e68c7365fbd53da33f2e9919f0e912f0c5",
+    "bytes": 9546265,
+    "members": 611
+  },
+  "source_matches_current_fixture": true,
+  "runtime_sources_unchanged": true,
+  "candidate_and_sdk_source_provenance": "Native candidate archive from 0e90df0c; SDK archives from 14dce089. No native or SDK source diff through the implementation commit. C adapter src files match the previously qualified installed library sources; only C workload/test and collector sources changed.",
+  "library_identity_source": "../20261011-c-root-process/CHECKS.json",
+  "adversarial_replays_rejected": 9,
+  "related_python_tests": 139,
+  "tracked_rust_sources": 548,
+  "gnu_c_red_green": {
+    "old": "5817276e produced the same two misleading-indentation errors as Linux CI",
+    "current": "GNU C 15 syntax check passes without disabling warnings",
+    "limit": "macOS arm64 compiler check; Linux rerun is still required"
+  },
+  "findings": [
+    {
+      "observation": "Peer admission returned 201 before registry association.",
+      "classification": "Expected independent-trust boundary, not a runtime defect. The qualified scenario retains this negative control, then uses the public C association API."
+    },
+    {
+      "observation": "A first effect readback attempted the installation directory instead of the peer application directory.",
+      "classification": "Fixture path error corrected; not a product recovery failure."
+    }
+  ],
+  "limits": [
+    "No independent implementation or cross-host/physical-device qualification.",
+    "Application traffic is successor-to-peer; reverse post-cutover application traffic remains open.",
+    "C transition/adoption process variants and Swift/Kotlin root-controller paths remain open.",
+    "SIGKILL cuts follow public call returns; peer exit occurs after host effect persistence inside the application callback. Native in-commit fault qualification is separate.",
+    "No post-compromise confidentiality proof, constant-time conclusion, latency distribution, allocation or energy measurement.",
+    "No complete 0.2.0 release claim or current-head hosted CI result."
+  ]
+}
