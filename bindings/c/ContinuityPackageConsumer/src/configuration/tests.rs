@@ -3,6 +3,8 @@ use crate::native_fixture as fixture;
 use q_periapt_host_store::{PolicyStore, StoreError};
 use std::{fs, os::unix::fs::PermissionsExt};
 
+mod roster_policy;
+
 type TestResult<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[test]
@@ -865,6 +867,7 @@ fn continue_policy(
             status.assume_init_ref().statement,
             approvals.statement_digest()
         );
+        roster_policy::stage(handle, &request, account_pin, account_root)?;
         checked(
             renewal::qpc_enrollment_v1_activate_policy_renewal(handle, &mut error),
             &error,

@@ -46,7 +46,7 @@ EXPORTS |= {"qpc_setup_v1_" + name for name in
             ("prepare_create", "prepare_resume", "status", "prepare_storage", "activate")}
 EXPORTS |= {"qpc_enrollment_v1_" + name for name in
             ("provision_wrapping_key", "prepare_create", "prepare_resume", "status", "request", "accept",
-             "prepare_storage", "refresh_roster", "activate", "credential_renewal_status",
+             "prepare_storage", "refresh_roster", "refresh_roster_with_policy", "activate", "credential_renewal_status",
              "stage_credential_renewal", "reconcile_expired_credential_renewal",
              "prepare_witnessed_credential_renewal", "prepare_witnessed_credential_cancellation",
              "commit_witnessed_credential_renewal",

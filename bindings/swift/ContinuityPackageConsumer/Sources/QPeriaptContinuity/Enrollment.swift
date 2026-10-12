@@ -729,13 +729,19 @@ public final class ContinuityEnrollment: Sendable {
     /// Persist one same-credential roster target. It cannot replace the root,
     /// credential, key or policy, and cannot renew an expired credential.
     public func refreshRoster(previous: RosterCheckpoint, roster: [UInt8], pin: AccountPin) throws -> EnrollmentStatus {
+        try refreshRoster(previous: previous, roster: roster, pin: pin, policySource: .original)
+    }
+    /// Use the explicitly selected, independently adopted policy after renewal.
+    /// Selection does not fall back to the original policy. Activate with the matching policy.
+    public func refreshRoster(previous: RosterCheckpoint, roster: [UInt8], pin: AccountPin,
+        policySource: RosterPolicySource) throws -> EnrollmentStatus {
         guard (1...8192).contains(roster.count) else { throw ContinuityBoundaryError.inputLength }
         return try reference.call { native in
             try native.call { handle in
                 var previous = previous.native(), raw = qpc_enrollment_status_v1(), error = qpc_error_v1()
                 let code = pin.withNative { pin in
                     roster.withUnsafeBufferPointer { roster in
-                        qpc_enrollment_v1_refresh_roster(handle, &previous, roster.baseAddress,
+                        qpc_enrollment_v1_refresh_roster_with_policy(handle, policySource.rawValue, &previous, roster.baseAddress,
                             roster.count, pin, &raw, &error)
                     }
                 }

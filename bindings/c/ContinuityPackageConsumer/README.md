@@ -144,6 +144,17 @@ parent, then restore the original peer/session and operation ID. This cannot
 replace a credential, policy, root or signer and is not a supported-version
 storage migration.
 
+After an independent policy renewal, select its current target with
+`qpc_configuration_v1_select_continued_policy` or the existing enrollment selection
+entry, then call `qpc_enrollment_v1_refresh_roster_with_policy` with
+`QPC_ROSTER_POLICY_SELECTED`. Complete through
+`qpc_enrollment_v1_activate_policy_renewal`; a Refreshing result records staging,
+not a committed roster. Missing target selection is an error. The original
+`refresh_roster` ABI remains fixed to `QPC_ROSTER_POLICY_ORIGINAL`, even when a
+new target has been selected, so callers must choose the authority explicitly.
+The selection does not itself authorize or adopt a policy. Required-witness
+installations continue to use the explicit witnessed roster coordination APIs.
+
 If that exact refresh cannot resume under current authority, call
 `qpc_enrollment_v1_resolve_roster_refresh` with its original predecessor and target
 checkpoints after reopening the original registration. This reads the authenticated

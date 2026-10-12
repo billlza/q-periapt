@@ -244,7 +244,7 @@ internal object ContinuityNative {
         "enrollment_request" to function("qpc_enrollment_v1_request", JAVA_LONG, ADDRESS, ADDRESS),
         "enrollment_accept" to function("qpc_enrollment_v1_accept", JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "enrollment_storage" to function("qpc_enrollment_v1_prepare_storage", JAVA_LONG, ADDRESS, ADDRESS),
-        "enrollment_refresh" to function("qpc_enrollment_v1_refresh_roster", JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "enrollment_refresh" to function("qpc_enrollment_v1_refresh_roster_with_policy", JAVA_LONG, JAVA_INT, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "resolve_roster_refresh" to function("qpc_enrollment_v1_resolve_roster_refresh", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "enrollment_activate" to function("qpc_enrollment_v1_activate", JAVA_LONG, ADDRESS),
         "credential_renewal_status" to function("qpc_enrollment_v1_credential_renewal_status", JAVA_LONG, ADDRESS, ADDRESS),
@@ -741,11 +741,11 @@ internal object ContinuityNative {
     @JvmSynthetic internal fun enrollmentStorage(handle: Long): InstallationPreparation = record(handle, "enrollment_storage", setupPreparationLayout) {
         decodeSetupPreparation(it.integer("protection"), it.bytes("journal", 32), it.bytes("subject", 96), it.bytes("image_digest", 32))
     }
-    @JvmSynthetic internal fun enrollmentRefresh(handle: Long, previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin): EnrollmentStatus {
+    @JvmSynthetic internal fun enrollmentRefresh(handle: Long, previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin, source: RosterPolicySource): EnrollmentStatus {
         require(roster.size in 1..8192) { "invalid enrollment roster length" }
         return Arena.ofConfined().use { arena ->
             val output = arena.allocate(enrollmentStatusLayout)
-            invoke(arena, "enrollment_refresh", handle, encodeCheckpoint(arena, previous), arena.bytes(roster),
+            invoke(arena, "enrollment_refresh", handle, source.code, encodeCheckpoint(arena, previous), arena.bytes(roster),
                    roster.size.toLong(), encodeAccountPin(arena, pin), output)
             decodeEnrollmentStatus(Fields(output, enrollmentStatusLayout))
         }

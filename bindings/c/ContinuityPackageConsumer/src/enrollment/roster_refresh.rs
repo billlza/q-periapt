@@ -181,6 +181,55 @@ impl Owner {
         }
     }
 }
+/// Stage a local same-credential roster under explicitly selected current authority.
+/// Selected requires a prior continued-policy selection and an adopted policy renewal;
+/// it never falls back to the original policy. Activation completes journal advancement.
+/// # Safety
+/// Previous checkpoint, pin/root and roster are immutable readable inputs;
+/// status/error are aligned writable outputs disjoint from each other and all inputs.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_refresh_roster_with_policy(
+    handle: u64,
+    policy_source: u32,
+    previous: *const Checkpoint,
+    roster: *const u8,
+    roster_length: usize,
+    pin: *const Pin,
+    status: *mut Status,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(status)?;
+        let source = PolicySource::read(policy_source)?;
+        if previous.is_null() || !previous.is_aligned() || roster_length == 0 {
+            return Err(Failure::argument());
+        }
+        // SAFETY: aligned original expectation and immutable supplied current authority bytes.
+        let (previous, roster, pin) = unsafe {
+            (
+                (&*previous).native()?,
+                bytes(roster, roster_length, 8192)?,
+                Pin::read(pin)?,
+            )
+        };
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let policy = owner.roster_policy(source, entry, deadline)?;
+            owner.enrollment.refresh_roster(
+                previous,
+                &roster,
+                &pin,
+                &policy,
+                owner::now().map_err(Failure::configuration)?,
+            )?;
+            owner.status()
+        })?;
+        // SAFETY: validated exclusive caller output.
+        unsafe { put(status, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostic.
+    unsafe { boundary(error, false, action) }
+}
 /// Prepare one original same-credential R using explicit current policy selection.
 /// This retains exact intent/proposal, but does not independently prepare the witness.
 /// # Safety

@@ -5,6 +5,7 @@ use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
 pub(crate) mod policy;
 mod roster_refresh;
+pub(crate) use roster_refresh::qpc_enrollment_v1_refresh_roster_with_policy;
 mod roster_resolution;
 
 #[repr(C)]
@@ -646,38 +647,19 @@ pub unsafe extern "C" fn qpc_enrollment_v1_refresh_roster(
     status: *mut Status,
     error: *mut ErrorRecord,
 ) -> i32 {
-    let action = |deadline| {
-        output(status)?;
-        if previous.is_null() || !previous.is_aligned() || roster_length == 0 {
-            return Err(Failure::argument());
-        }
-        // SAFETY: aligned original expectation and immutable supplied current authority bytes.
-        let (previous, roster, pin) = unsafe {
-            (
-                (&*previous).native()?,
-                bytes(roster, roster_length, 8192)?,
-                Pin::read(pin)?,
-            )
-        };
-        let result = with_owner(handle, deadline, |owner, entry| {
-            let cancel = &entry.cancel;
-            owner.ensure_policy(cancel, deadline)?;
-            let policy = Arc::clone(&owner.authority.as_ref().ok_or_else(|| failure(5))?.policy);
-            owner.enrollment.refresh_roster(
-                previous,
-                &roster,
-                &pin,
-                &policy,
-                owner::now().map_err(Failure::configuration)?,
-            )?;
-            owner.status()
-        })?;
-        // SAFETY: validated exclusive caller output.
-        unsafe { put(status, result) };
-        Ok(())
-    };
-    // SAFETY: forwarded invocation-local diagnostic.
-    unsafe { boundary(error, false, action) }
+    // SAFETY: preserve the original-policy ABI and forward its pointer contract.
+    unsafe {
+        qpc_enrollment_v1_refresh_roster_with_policy(
+            handle,
+            0,
+            previous,
+            roster,
+            roster_length,
+            pin,
+            status,
+            error,
+        )
+    }
 }
 
 /// Convert the same handle into a device parent retaining the complete EnrolledDevice.

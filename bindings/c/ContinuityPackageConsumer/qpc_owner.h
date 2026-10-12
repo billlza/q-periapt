@@ -690,6 +690,13 @@ int32_t qpc_enrollment_v1_prepare_storage(uint64_t handle,
 int32_t qpc_enrollment_v1_refresh_roster(uint64_t handle,
     const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
     const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
+/* Explicit local policy authority: ORIGINAL preserves refresh_roster behavior;
+ * SELECTED requires select_continued_policy and a completed independent policy
+ * renewal. It never falls back to ORIGINAL. Activate with the matching policy
+ * renewal entry after staging; REFRESHING is not a committed receipt. */
+int32_t qpc_enrollment_v1_refresh_roster_with_policy(uint64_t handle, uint32_t policy_source,
+    const qpc_roster_checkpoint_v1 *previous, const uint8_t *roster, size_t roster_length,
+    const qpc_account_pin_v1 *pin, qpc_enrollment_status_v1 *status, qpc_error_v1 *error);
 /* Local original-operation metadata only. Original signed policy files are
  * required; SDK/TLS files and private signer are not. A still-live target beyond
  * the actual head stays pending. A newer head never becomes proof of no commit.

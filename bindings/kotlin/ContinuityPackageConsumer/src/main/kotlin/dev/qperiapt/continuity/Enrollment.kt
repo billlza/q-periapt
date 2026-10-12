@@ -90,7 +90,12 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
         reference.call { owner -> owner.call { ContinuityNative.enrollmentAccept(it, certificate, roster, pin) } }
     fun prepareStorage(): InstallationPreparation = reference.call { owner -> owner.call { ContinuityNative.enrollmentStorage(it) } }
     fun refreshRoster(previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin): EnrollmentStatus =
-        reference.call { owner -> owner.call { ContinuityNative.enrollmentRefresh(it, previous, roster, pin) } }
+        refreshRoster(previous, roster, pin, RosterPolicySource.ORIGINAL)
+    /** Explicit current policy; SELECTED requires independent renewal and target selection.
+     * Staging is not a commit receipt. Complete through activation with the matching policy. */
+    fun refreshRoster(previous: RosterCheckpoint, roster: ByteArray, pin: AccountPin,
+        policySource: RosterPolicySource): EnrollmentStatus =
+        reference.call { owner -> owner.call { ContinuityNative.enrollmentRefresh(it, previous, roster, pin, policySource) } }
     /** Original metadata recovery without device transfer, runtime or private signer.
      * After an admitted failure, close/resume and retry the same checkpoint pair. */
     fun resolveRosterRefresh(previous: RosterCheckpoint, target: RosterCheckpoint): RosterRefreshResolution =
