@@ -1,0 +1,109 @@
+{
+  "completed": true,
+  "archive_members": 1235,
+  "routes": {
+    "host/debug/fixed": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "8ed8ca4919e63f771d6ba82633365b527f1397221f37c3da77db4bf9f9d8a477",
+      "report_id": "720e6f341ab74fe6c40108236feea1474f8e8a76c63c5f82a67a708937ccf44d",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    },
+    "host/debug/recoverable": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "81d156b7f92e762535899d9a8a94686ead6baaec8bf74a41dda7e8bc9d51efe2",
+      "report_id": "50e49b7988a2283415a7b76a885fd51f8477dd15afef49eb1c1696803fbeada8",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    },
+    "host/release/fixed": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "cbeb6d3e2b5983b3ceea8131b3f567d5b6bf51064c115578c3764b2eba9621a1",
+      "report_id": "3a6f64929b094c14d4ecea18de2eb4c42a047713992b46e3bbb3c69aaf602792",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    },
+    "host/release/recoverable": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "0f035d846ae46003c66879fcb8ad95f0a0b468f2d980f37d97c1332c0d05ac1d",
+      "report_id": "8d0fc846fea8b86144ab7a2acb7a11bbdb318c74435c0e99b4976bf167f09780",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    },
+    "art/fixed": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "c6b41e9f1d4c4f1d06c1bd32373c36abfaa6e42ecb443e4404474e3fda7a6150",
+      "report_id": "ee94fac2d7dd47f63657dc7f0ff24f54ec8c5390f40a0fed31b0ecbbb1224153",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    },
+    "art/recoverable": {
+      "processes": 21,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "a8b462f5cd5646e64e4e7ba8dd4abad21c749d38d8b16a73307e6fbf9f36696d",
+      "report_id": "62bddcb2246b7a71591cadd4a911f53c787852204a387f370f51aec407d41caa",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true
+    }
+  },
+  "host_processes": 84,
+  "host_process_cuts": 12,
+  "ART_processes": 42,
+  "ART_process_cuts": 6,
+  "agreed_physical_device_gate": "passed",
+  "additional_phone_required": false,
+  "scope": "Archived public framing and binding readback. Native runtime, not this reader, verifies signatures and secret report MAC. Fresh Android-created old identity; native successor activation; no fresh Android successor traffic or physical erasure claim.",
+  "negative_reader_checks": [
+    {
+      "changed": "retirement-verified",
+      "rejected": true,
+      "reason": "complete report changed across erasure"
+    },
+    {
+      "changed": "retirement-journal-unknown",
+      "rejected": true,
+      "reason": "cut report identity"
+    },
+    {
+      "changed": "retirement-tampered-report",
+      "rejected": true,
+      "reason": "refusal: tampered-report"
+    },
+    {
+      "changed": "retirement-wrong-purpose",
+      "rejected": true,
+      "reason": "refusal: wrong-purpose"
+    },
+    {
+      "changed": "inputs/retirement-ack",
+      "rejected": true,
+      "reason": "receipt binding: retirement-ack"
+    },
+    {
+      "changed": "retirement-effect-after",
+      "rejected": true,
+      "reason": "original business effect changed"
+    },
+    {
+      "changed": "process-count",
+      "rejected": true,
+      "reason": "process census"
+    },
+    {
+      "changed": "inputs/witness-public",
+      "rejected": true,
+      "reason": "replacement authority"
+    }
+  ]
+}

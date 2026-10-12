@@ -155,6 +155,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
         {"authorityCommand", "(JI[[BJ)[B", (void *)qpj_authority_command},
         {"selectAuthority", "(JJ[[B)V", (void *)qpj_select_authority},
         {"credentialCommand", "(JI[[BJ)[B", (void *)qpj_credential_command},
+        {"rosterCommand", "(JI[[B)[B", (void *)qpj_roster_command},
         {"policyCommand", "(JI[[B)[B", (void *)qpj_policy_command},
         {"selectPolicy", "(JJ)V", (void *)qpj_select_policy}
     };

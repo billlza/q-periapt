@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-12T06:27:46.248554+00:00",
+  "analysis_id": 1934170308,
+  "analysis_commit": "1e460e018b58e9203ede8178d5931cdb02a34399",
+  "comparison_head": "7c4d26fa31e9c465914b1f9dd06e648f03648dd8",
+  "equal_git_tree": "8014b43c05907201bfcb90aee0b090fb82506b9e",
+  "analysis_results": 4,
+  "dispositions": [
+    {
+      "sarif_index": 0,
+      "rule": "cpp/memset-may-be-deleted",
+      "location": {
+        "artifactLocation": {
+          "index": 0,
+          "uri": "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c"
+        },
+        "region": {
+          "endColumn": 11,
+          "endLine": 56,
+          "startColumn": 5,
+          "startLine": 56
+        }
+      },
+      "fingerprints": {
+        "primaryLocationLineHash": "6fe4b473e47672ea:1"
+      },
+      "classification": "public-input mutation, not secret erasure",
+      "reason": "The memset at line 56 overwrites a public session identifier and public peer-configuration structure before finish_open. The preceding roots, bundle, certificate and TLS name are also public. It tests caller-buffer ownership, not private-key erasure. In the retained macOS arm64 Release client, four bzero calls and zero-vector stores remain between prepare and finish_open. No claim is made for other compiler outputs.",
+      "supplied_code_flows": 0,
+      "supplied_flow_locations": 0
+    },
+    {
+      "sarif_index": 1,
+      "rule": "cpp/path-injection",
+      "location": {
+        "artifactLocation": {
+          "index": 1,
+          "uri": "bindings/c/ContinuityPackageConsumer/setup_client.c"
+        },
+        "region": {
+          "endColumn": 21,
+          "endLine": 19,
+          "startColumn": 17,
+          "startLine": 19
+        }
+      },
+      "fingerprints": {
+        "primaryLocationLineHash": "83527e0c702cb4e0:1"
+      },
+      "classification": "intentional operator-selected fault receipt path",
+      "reason": "The only setup_io_phase caller is the explicit setup-io-activate qualification command. Matrix clears inherited QPC_TEST_/loader values and supplies its own target and receipt paths. The receipt is opened append-only with O_NOFOLLOW and then checked as a same-user, mode-0600, single-link regular file. This test tool does not promise confinement against the local principal controlling its invocation.",
+      "supplied_code_flows": 2,
+      "supplied_flow_locations": 6
+    },
+    {
+      "sarif_index": 2,
+      "rule": "cpp/path-injection",
+      "location": {
+        "artifactLocation": {
+          "index": 2,
+          "uri": "bindings/c/ContinuityPackageConsumer/sync_probe.c"
+        },
+        "region": {
+          "endColumn": 21,
+          "endLine": 89,
+          "startColumn": 17,
+          "startLine": 89
+        }
+      },
+      "fingerprints": {
+        "primaryLocationLineHash": "452f0ff650049271:1"
+      },
+      "classification": "intentional operator-selected fault target",
+      "reason": "The separately built sync probe is explicitly loaded only into owned qualification processes through the selected loader environment. The harness supplies the test target. The probe opens it read-only/no-follow, checks owner, mode, link count and regular-file shape, then identifies subsequent sync calls by device/inode. No peer or SDK API supplies this environment path.",
+      "supplied_code_flows": 1,
+      "supplied_flow_locations": 3
+    },
+    {
+      "sarif_index": 3,
+      "rule": "cpp/path-injection",
+      "location": {
+        "artifactLocation": {
+          "index": 2,
+          "uri": "bindings/c/ContinuityPackageConsumer/sync_probe.c"
+        },
+        "region": {
+          "endColumn": 20,
+          "endLine": 95,
+          "startColumn": 17,
+          "startLine": 95
+        }
+      },
+      "fingerprints": {
+        "primaryLocationLineHash": "7e10f2b6ce03e985:1"
+      },
+      "classification": "intentional operator-selected exclusive receipt creation",
+      "reason": "The same owned fault harness supplies the receipt path. The test-only probe creates it with O_EXCL, O_NOFOLLOW, O_CLOEXEC and mode 0600. There is no privileged service or remote input at this boundary; explicitly requesting a path from a local test process is the intended interface.",
+      "supplied_code_flows": 1,
+      "supplied_flow_locations": 3
+    }
+  ],
+  "source_sha256": {
+    "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c": "f0995e6fe197634c25fe510fe0d09158dbbc93de5527dc6283f6c860815bc190",
+    "bindings/c/ContinuityPackageConsumer/setup_client.c": "b177a9f2248ef36d12637c3e296463e53b27886f681fe6b06aacab738270bece",
+    "bindings/c/ContinuityPackageConsumer/sync_probe.c": "30b6ee6b8129c43622f16c3d28c8d2d51ba1fa9b3f80486df04bbfac16f623e7",
+    "bindings/c/ContinuityPackageConsumer/client.c": "a200c555b0644a962d1f764dba4c96d7ba0d4b9a04751a78b0656a4e1fda1aab",
+    "bindings/c/ContinuityPackageConsumer/Cargo.toml": "041b61329672778b512cdea907063afdcaaf7ae932d9e6a67ec4912f6ba0d34d",
+    "artifact/continuity_c_faults.py": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8",
+    "artifact/continuity_setup_io.py": "da690e02cdeac2fc7b4f59c1bd94a0fe34774fd5c0c2cecceadf918903e2d95b",
+    "artifact/continuity_c_consumer.py": "47d3b857d1779f9b92fca57df27e03bc173d24f8f71dec8631dbef01329c0df5"
+  },
+  "release_binary_sha256": "068a11e0ab210f058cac38ee2c329cd207b849b8e8f19e1549b91c1d14d58ee4",
+  "capture_sha256": "751ef0bb05352946bbcb2c8245a222127688d19298bbf8b9dc72697376fc3bde",
+  "method": "Static review of all four supplied C/C++ results, all four supplied data flows, controlling callers, qualification environment construction and separate probe build; additional inspection of one retained release binary. No runtime rerun or remote dismissal.",
+  "remote_dismissal": false,
+  "query_suppression": false,
+  "other_language_alerts_resolved": false,
+  "release_claim_eligible": false
+}

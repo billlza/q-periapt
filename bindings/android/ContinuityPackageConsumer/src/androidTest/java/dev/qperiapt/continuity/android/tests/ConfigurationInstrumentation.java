@@ -51,9 +51,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             String baseOperation = managed ? operation.substring(8) : operation;
             boolean authority = operation.startsWith("authority-");
             boolean policy = operation.startsWith("policy-");
+            boolean roster = operation.startsWith("roster-");
             boolean credential = operation.startsWith("credential-");
             boolean witnessed = operation.startsWith("witness-") || managed || credential;
-            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority || policy;
+            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority || policy || roster;
             boolean peer = operation.startsWith("peer-");
             File base = new File(getTargetContext().getFilesDir().getCanonicalFile(), "continuity");
             try { android.system.Os.mkdir(base.getPath(), 0700); }
@@ -68,6 +69,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             File inputs = new File(base, "inputs");
             if (!inputs.isDirectory()) {
                 if (!inputs.mkdir()) throw new IllegalStateException("create input directory");
+                if (roster) throw new IllegalStateException("original enrollment inputs are absent");
                 if (policy) {
                     PolicyInputs.initial(inputs, arguments, profile);
                 } else {
@@ -101,6 +103,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 if (policy) {
                     PolicyInputs.install(inputs, arguments, operation, profile);
                     PolicyProbe.main(call);
+                } else if (roster) {
+                    RosterInputs.install(inputs,arguments,operation);
+                    if(operation.startsWith("roster-witness-"))RosterWitnessProbe.main(call);
+                    else RosterProbe.main(call);
                 } else if (peer) {
                     PeerInputs.install(inputs, arguments, operation);
                     PeerProbe.run(call, port -> {

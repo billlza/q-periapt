@@ -27,7 +27,7 @@ def fixture(root,profile):
             for name,mode in expiry.cases(applied):values[name+'.stdout']=f'{profile}:{mode}:passed\n'.encode();values[name+'.stderr']=b''
             for name,data in values.items():(base/name).write_bytes(data)
             lines.append(f'qualified policy expiry {carrier}/{profile}/{outcome}: 18 foreign processes; live SDK and target, expired P0, original history, no fresh commit or activation')
-    lines += ['test '+expiry.TESTS[profile]+' ... ok','test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;']
+    lines += ['test '+expiry.TESTS[profile]+' ... ok','test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out;']
     return ('\n'.join(lines)+'\n').encode()
 
 class PolicyExpiryReaderTests(unittest.TestCase):

@@ -20,6 +20,17 @@ public final class ContinuityDevice implements AutoCloseable {
             java.util.Objects.requireNonNull(original, "original renewal").encoded()};
         return owner.call(false, handle -> RosterCheckpoint.decode(Native.credentialCommand(handle, 9, input, independentPin.version.bits)));
     }
+    /** Admit the independently pinned roster for a known remote account. Exact retry
+     * still requires current local authority. Existing session operations check the
+     * installed membership: retaining a member preserves its session; removal denies
+     * further operations, including through existing children. After unknown results,
+     * reopen the original device and reconcile the same target.
+     */
+    public RosterCheckpoint admitPeerRoster(byte[] roster, AccountPin independentPin) {
+        byte[][] input = PolicyCodec.join(new byte[][] {ConfigurationInputs.copy(roster, 1, 65536, "peer roster")},
+            PolicyCodec.pin(independentPin));
+        return owner.call(false, handle -> RosterCheckpoint.decode(Native.rosterCommand(handle, Native.ROSTER_ADMIT_PEER, input)));
+    }
     private ContinuityPeer prepare(PeerConfiguration configuration, PeerConfiguration.Quality quality,
             PeerConfiguration.Role role, Ids.Session session) {
         java.util.Objects.requireNonNull(configuration, "peer configuration");

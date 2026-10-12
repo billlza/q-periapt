@@ -33,6 +33,14 @@ mod android_policy_expiry;
 mod android_policy_renewal;
 #[path = "common/android_remote_credential.rs"]
 mod android_remote_credential;
+#[path = "common/android_roster_local.rs"]
+mod android_roster_local;
+#[path = "common/android_roster_peer.rs"]
+mod android_roster_peer;
+#[path = "common/android_roster_traffic.rs"]
+mod android_roster_traffic;
+#[path = "common/android_roster_witness.rs"]
+mod android_roster_witness;
 #[path = "common/android_witness.rs"]
 mod android_witness;
 #[path = "common/policy_request.rs"]

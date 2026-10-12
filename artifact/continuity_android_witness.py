@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 TEST = "android_witness::required_witness_registration"
@@ -27,9 +28,7 @@ def cases(carrier: str, *, managed: bool = False) -> tuple:
 def verify_execution(stdout: bytes, directory: Path, *, managed: bool = False, test: str | None = None) -> dict:
     text = stdout.decode()
     test = test or ("android_witness::managed_first_registration" if managed else TEST)
-    sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE) == [test]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE)) == 1,
-                "Android required-witness test was not executed completely")
+    contract.verify_single(stdout, test)
     records = {}
     for carrier in ("signed", "tls"):
         for trust in ("fixed", "recoverable"):

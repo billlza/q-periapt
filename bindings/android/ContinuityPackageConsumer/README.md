@@ -6,9 +6,9 @@ surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
-first activation, same-key credential renewal and original-message retry across
-local credential renewal. Roster renewal, device retirement and root replacement
-integration remain subsequent work. The current extracted AAR has a
+first activation, same-key credential renewal, independent policy/roster renewal
+and original-message retry. Device retirement and root replacement integration
+remain subsequent work. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate.
 
 `ConfigurationInputs` copies independently supplied SDK trust, signed policies,
@@ -45,6 +45,26 @@ bootstrap bundle are valid. After local renewal, call `preparePeerReopen` with
 the original peer expectations and session ID, then retry the original message
 with the same payload and associated data. The counterparty must independently
 admit the renewal grant before reopening that session.
+
+For a local roster update, retain the previous checkpoint and independently pinned
+target roster. `refreshRoster` defaults to the original protocol policy. After an
+independently approved policy transition, select its configuration explicitly and
+pass `RosterPolicySource.SELECTED`; an expired or absent selection never falls back
+to the original policy. `resolveRosterRefresh` reconciles the original local update
+and cannot substitute for required-witness history.
+
+With a required witness, retain `Ids.RosterRefresh` and the exact proposal from
+`prepareWitnessedRosterRefresh`. Obtain independent witness approval before Commit.
+After an unknown result, reopen the original enrollment, recover retained preparation
+if necessary, and reconcile that same proposal. Applied/Closed are historical
+outcomes; activation separately checks current policy, membership and registry.
+Recovery must not invent a new operation or infer non-commit from unavailability.
+
+`ContinuityDevice.admitPeerRoster` admits an independently approved remote roster.
+Retaining the same member can preserve its original session and pending message;
+revocation refuses both retained-peer sends and reopening. A device-generation
+replacement needs explicit target-roster admission on the counterparty before a
+fresh session can be opened. Incoming bootstrap material cannot select this trust.
 
 For a remote peer's renewal, call `ContinuityDevice.admitPeerCredentialRenewal`
 with the signed grant, an independently retained target `AccountPin` and the

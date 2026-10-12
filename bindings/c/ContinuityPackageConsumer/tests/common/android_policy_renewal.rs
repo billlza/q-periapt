@@ -14,6 +14,10 @@ use std::{
 };
 #[path = "android_policy_renewal/flow.rs"]
 mod flow;
+#[path = "android_policy_renewal/local_roster.rs"]
+mod local_roster;
+#[path = "android_policy_renewal/roster.rs"]
+mod roster;
 #[path = "android_policy_renewal/traffic.rs"]
 mod traffic;
 
@@ -32,7 +36,7 @@ fn run_profile(profile: &str) -> Result<()> {
     let driver = PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("policy driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;
     for carrier in ["local", "signed", "tls"] {
-        exercise(&output, &driver, profile, carrier)?;
+        exercise(&output, &driver, profile, carrier, None)?;
     }
     Ok(())
 }
@@ -46,6 +50,7 @@ struct Case<'a> {
     root: &'a p::RootSigningKey,
     certificate: &'a [u8],
     roster: &'a p::IssuedRoster,
+    validity: p::Validity,
     policy: &'a p::VerifiedSessionPolicy,
     sdk: &'a q_periapt_host_store::PolicyStore,
     witness: Option<&'a witness::Witness>,
@@ -96,7 +101,13 @@ impl Case<'_> {
         }
     }
 }
-fn exercise(output: &Path, driver: &Path, profile: &str, carrier: &str) -> Result<()> {
+fn exercise(
+    output: &Path,
+    driver: &Path,
+    profile: &str,
+    carrier: &str,
+    roster_terminal: Option<bool>,
+) -> Result<()> {
     let base = output.join(format!("{carrier}-{profile}"));
     fs::DirBuilder::new().mode(0o700).create(&base)?;
     let inputs = base.join("inputs");
@@ -220,6 +231,7 @@ fn exercise(output: &Path, driver: &Path, profile: &str, carrier: &str) -> Resul
         root: &root,
         certificate: &certificate,
         roster: &roster,
+        validity,
         policy: &policy,
         sdk: &sdk,
         witness: if carrier == "local" {
@@ -240,6 +252,14 @@ fn exercise(output: &Path, driver: &Path, profile: &str, carrier: &str) -> Resul
     let traffic = traffic::Traffic::begin(&case)?;
     traffic.renew_receiver(&case)?;
     flow::renew(&case, &identity)?;
+    if let Some(closed) = roster_terminal {
+        if case.witness.is_some() {
+            roster::advance(&case, &identity, closed)?;
+        } else {
+            assert!(!closed);
+            local_roster::advance(&case, &identity)?;
+        }
+    }
     traffic.resume(&case)?;
     assert_eq!(case.run("policy-identity", "final.identity")?, identity);
     let calls = case.calls.get();
@@ -254,4 +274,57 @@ fn exercise(output: &Path, driver: &Path, profile: &str, carrier: &str) -> Resul
     }
     println!("qualified policy renewal {carrier}/{profile}: {calls} foreign processes; expired P0, independent P2, original identity session message and one effect");
     Ok(())
+}
+
+fn roster_profile(profile: &str, carrier: &str, closed: bool) -> Result<()> {
+    let parent = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("roster policy cases")?);
+    let output = parent.join(format!(
+        "{carrier}-{profile}-{}",
+        if closed { "closed" } else { "applied" }
+    ));
+    let driver =
+        PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("roster policy driver")?);
+    fs::DirBuilder::new().mode(0o700).create(&output)?;
+    exercise(&output, &driver, profile, carrier, Some(closed))
+}
+#[test]
+fn roster_signed_fixed_applied() -> Result<()> {
+    roster_profile("fixed", "signed", false)
+}
+#[test]
+fn roster_signed_fixed_closed() -> Result<()> {
+    roster_profile("fixed", "signed", true)
+}
+#[test]
+fn roster_tls_fixed_applied() -> Result<()> {
+    roster_profile("fixed", "tls", false)
+}
+#[test]
+fn roster_tls_fixed_closed() -> Result<()> {
+    roster_profile("fixed", "tls", true)
+}
+#[test]
+fn roster_signed_recoverable_applied() -> Result<()> {
+    roster_profile("recoverable", "signed", false)
+}
+#[test]
+fn roster_signed_recoverable_closed() -> Result<()> {
+    roster_profile("recoverable", "signed", true)
+}
+#[test]
+fn roster_tls_recoverable_applied() -> Result<()> {
+    roster_profile("recoverable", "tls", false)
+}
+#[test]
+fn roster_tls_recoverable_closed() -> Result<()> {
+    roster_profile("recoverable", "tls", true)
+}
+
+#[test]
+fn roster_local_fixed() -> Result<()> {
+    roster_profile("fixed", "local", false)
+}
+#[test]
+fn roster_local_recoverable() -> Result<()> {
+    roster_profile("recoverable", "local", false)
 }

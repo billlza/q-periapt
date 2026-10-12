@@ -183,6 +183,75 @@ public final class ContinuityEnrollment implements AutoCloseable {
             return successor;
         });
     }
+    private static byte[] rosterCheckpoint(RosterCheckpoint checkpoint) {
+        ByteBuffer bytes = ByteBuffer.allocate(40); PolicyCodec.checkpoint(bytes, Objects.requireNonNull(checkpoint, "roster checkpoint"));
+        return bytes.array();
+    }
+    private static byte[] rosterPolicy(RosterPolicySource selected) {
+        return ByteBuffer.allocate(4).putInt(Objects.requireNonNull(selected, "roster policy choice").code).array();
+    }
+    /** Stage local same-credential roster advancement. Activation performs current admission
+     * and completes advancement; REFRESHING is not a committed receipt. Retain the exact pair.
+     * Required-witness protection must use its explicit atomic R coordination instead.
+     */
+    public EnrollmentStatus refreshRoster(RosterCheckpoint previous, byte[] roster, AccountPin independentPin) {
+        byte[][] input = PolicyCodec.join(new byte[][] {rosterCheckpoint(previous), ConfigurationInputs.copy(roster, 1, 8192, "roster")},
+            PolicyCodec.pin(independentPin));
+        return owner.call(false, handle -> new EnrollmentStatus(Native.rosterCommand(handle, Native.ROSTER_REFRESH, input)));
+    }
+    /** Explicit local current policy. SELECTED requires prior selection and independent
+     * policy adoption; it never falls back. Complete through activatePolicyRenewal(). */
+    public EnrollmentStatus refreshRoster(RosterCheckpoint previous, byte[] roster, AccountPin independentPin,
+            RosterPolicySource policy) {
+        byte[][] input = PolicyCodec.join(new byte[][] {rosterCheckpoint(previous), rosterPolicy(policy),
+            ConfigurationInputs.copy(roster, 1, 8192, "roster")}, PolicyCodec.pin(independentPin));
+        return owner.call(false, handle -> new EnrollmentStatus(Native.rosterCommand(handle, Native.ROSTER_REFRESH_WITH_POLICY, input)));
+    }
+    /** Original local metadata only. A later head remains superseded-unknown, not no-commit.
+     * On admitted failure, close and resume the original enrollment and retry this same pair.
+     */
+    public RosterRefreshResolution resolveRosterRefresh(RosterCheckpoint previous, RosterCheckpoint target) {
+        byte[][] input = {rosterCheckpoint(previous), rosterCheckpoint(target)};
+        return owner.call(false, handle -> new RosterRefreshResolution(Native.rosterCommand(handle, Native.ROSTER_RESOLVE, input)));
+    }
+    /** Export the complete original proposal for independent witness approval. Current
+     * policy selection is explicit; SELECTED requires selectContinuedPolicy beforehand.
+     */
+    public RosterRefreshProposal prepareWitnessedRosterRefresh(Ids.RosterRefresh operation, RosterPolicySource policy,
+            byte[] certificate, byte[] roster, AccountPin independentPin) {
+        byte[][] input = PolicyCodec.join(new byte[][] {Objects.requireNonNull(operation, "roster operation").encoded(),
+            rosterPolicy(policy), ConfigurationInputs.copy(certificate, 1, 8192, "roster credential"),
+            ConfigurationInputs.copy(roster, 1, 8192, "roster")}, PolicyCodec.pin(independentPin));
+        return owner.call(false, handle -> RosterRefreshProposal.fromNative(Native.rosterCommand(handle, Native.ROSTER_PREPARE, input)));
+    }
+    /** Null is local preparation absence, never witness non-commit evidence. */
+    public RosterRefreshProposal recoverWitnessedRosterRefreshPreparation() {
+        return owner.call(false, handle -> RosterRefreshProposal.preparation(Native.rosterCommand(handle, Native.ROSTER_PREPARATION, new byte[0][])));
+    }
+    public RosterRefreshProgress witnessedRosterRefreshProgress() {
+        return owner.call(false, handle -> new RosterRefreshProgress(Native.rosterCommand(handle, Native.ROSTER_PROGRESS, new byte[0][])));
+    }
+    /** Local abandonment before proposal release, subject to original lease and pending-state checks. */
+    public RosterRefreshProgress abandonUnpreparedRosterRefresh(Ids.RosterRefresh operation) {
+        byte[][] input = {Objects.requireNonNull(operation, "roster operation").encoded()};
+        return owner.call(false, handle -> new RosterRefreshProgress(Native.rosterCommand(handle, Native.ROSTER_ABANDON, input)));
+    }
+    public RosterRefreshState commitWitnessedRosterRefresh(RosterRefreshProposal original, RosterPolicySource policy) {
+        byte[][] input = {Objects.requireNonNull(original, "original roster proposal").encoded(), rosterPolicy(policy)};
+        return owner.call(false, handle -> RosterRefreshState.fromNative(Native.rosterCommand(handle, Native.ROSTER_COMMIT, input)));
+    }
+    /** Exact original history; sends no new Commit or Close. */
+    public RosterRefreshState reconcileWitnessedRosterRefresh(RosterRefreshProposal original) {
+        return rosterHistory(Native.ROSTER_RECONCILE, original);
+    }
+    /** Explicit closure may lose to Applied. Neither result releases current traffic authority. */
+    public RosterRefreshState closeWitnessedRosterRefresh(RosterRefreshProposal original) {
+        return rosterHistory(Native.ROSTER_CLOSE, original);
+    }
+    private RosterRefreshState rosterHistory(int command, RosterRefreshProposal original) {
+        byte[][] input = {Objects.requireNonNull(original, "original roster proposal").encoded()};
+        return owner.call(false, handle -> RosterRefreshState.fromNative(Native.rosterCommand(handle, command, input)));
+    }
     /** Missing required witness enrollment is an error, never a local-mode fallback. */
     public ContinuityDevice activate() {
         return owner.transfer(handle -> {

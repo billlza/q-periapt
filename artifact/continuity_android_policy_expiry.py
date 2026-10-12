@@ -1,6 +1,6 @@
 """Read real expired-P0 outcomes without granting new operational authority."""
 from pathlib import Path
-import re
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 TESTS={profile:'android_policy_expiry::'+profile for profile in ('fixed','recoverable')}
@@ -25,8 +25,7 @@ def public(applied):
 
 def verify_execution(stdout:bytes,directory:Path,profile:str)->dict:
     sdk.require(profile in TESTS,'unknown expiry trust profile');text=stdout.decode();lines=text.splitlines()
-    sdk.require(re.findall(r'^test (\S+) \.\.\. ok$',text,re.M)==[TESTS[profile]]
-                and len(re.findall(r'^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;',text,re.M))==1,'expired-policy test was not executed completely')
+    contract.verify_single(stdout, TESTS[profile])
     results={}
     for carrier in ('signed','tls'):
         for outcome in ('closed','applied'):

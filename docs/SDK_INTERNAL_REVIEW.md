@@ -6,6 +6,48 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Isolated Android retirement adapter
+
+The isolated [Android retirement qualification](../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
+adds a cleanup-only owner rather than more operational enrollment dispatch. The
+Java owner is 76 lines and JNI adapter 150 lines; typed immutable report and
+inventory values handle framing separately. It delegates authorization and
+persistent state changes to the existing native engine. Output allocation precedes
+persistent mutation; complete report loading authenticates the original before
+allocating its bounded Java representation. The tested private-MAC and receipt-purpose
+refusals remain native. Debug/Release host calls and the installed ART consumer pass,
+including actual process interruption. This improves responsibility boundaries;
+no speedup or reduction of security work is claimed. Integration is still pending.
+
+The [Android-created successor extension](../research/sdk-alpha1/evidence/20261012-android-replacement/README.md)
+reuses the existing configuration, enrollment and peer APIs. Its first same-counterparty
+connection correctly fails with Checkpoint 105 until the test consumer explicitly
+admits the independently approved roster. The corrected host and ART routes preserve
+that requirement. Test publication now takes an explicit revision to generate
+separate prekey identifiers for the successor's fresh bootstrap; revision 2 preserves
+the original helper's identifiers and manifest version. No library or native engine
+change is needed for this extension.
+
+## Current C/C++ alert review
+
+The [four-result review](../research/sdk-alpha1/evidence/20261012-codeql-cpp-review/DISPOSITIONS.json)
+covers the complete C/C++ analysis `1934170308`. Its PR merge tree equals
+`7c4d26fa`; all eight inspected source files match that commit. Three path reports
+refer to the explicit fault-injection consumer and separately loaded sync probe.
+The harness removes inherited test/loader settings, supplies owned target and
+receipt paths, and the probe checks file shape and opens without following the
+final symlink. These are local operator-selected test inputs, not remote or
+privileged SDK requests; this does not claim general filesystem confinement.
+
+The fourth report concerns overwriting a public session identifier and peer
+configuration before `finish_open`, to expose borrowed-input defects. It is not
+private-key erasure. Inspection of the retained macOS arm64 Release client finds
+the buffer overwrites between preparation and finish; other compiler outputs are
+not inferred from this binary. The capture retains all four supplied data flows,
+source files, release assembly, symbol mapping and hashes. This static review
+adds no runtime rerun, query suppression, remote dismissal or resolution of the
+remaining language alerts.
+
 
 ## Explicit policy authority for local roster refresh
 

@@ -1,0 +1,46 @@
+{
+  "completed": true,
+  "archive_sha256": "ab154cc8d5e56699937a31ee53d348c393c9a3d8b5bdf4521da3c887579c6b9d",
+  "manifest_members_verified": 463,
+  "outcomes": {
+    "host": {
+      "fixed": {
+        "original_request_sha256": "74a9c035086cf8c9747c5294f5069e2bd2ba116cbff2fcfbcc391ebe8bd7d155",
+        "original_session": "072762800cdb66fb2dc7ad1761ba6f3a061d9a7fd96c1c00c8039cdc342c3612",
+        "original_message": "00000000000000000000000000000000e74776f7e75065858ee454eee1832cff",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "remote_roster": true
+      },
+      "recoverable": {
+        "original_request_sha256": "d4b83b6164e153f5df1269e23bf1bedd194b2c9969cbea39b64736c4cd8da78b",
+        "original_session": "9be43835897a0003ef7c1b58656666c8a470baa8b8aaeb8cfe2e40ee750b8907",
+        "original_message": "0000000000000000000000000000000092559edf6f3c862ec7c8fc16473f9218",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "remote_roster": true
+      }
+    },
+    "art": {
+      "fixed": {
+        "original_request_sha256": "b30a86906f47bcf96f34ac9bc64d5b26e0f5d1a8c1f08f8a7ae2aac5cce1b40b",
+        "original_session": "757bff73cd0c857184f4281cf1d64f7057b8c8a5d7ee2254a5766275ec06b396",
+        "original_message": "00000000000000000000000000000000e31e5c653d706c88007d1942aa6d9339",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "remote_roster": true
+      },
+      "recoverable": {
+        "original_request_sha256": "d72d269ac2605962464e9e2e99c974309757b623bb9b293705d12e596a9f3d83",
+        "original_session": "bb992ec39d0877ab6a75975832f058b3238219157a005511c3823ef4743c353f",
+        "original_message": "00000000000000000000000000000000aebd3ff5d2570da28589244f638a4cfa",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "remote_roster": true
+      }
+    }
+  },
+  "physical_device_gate": "passed",
+  "additional_hardware_required": false,
+  "scope": "Archive-only integrity and original-session/roster public linkage; native execution supplies signature validation."
+}

@@ -15,6 +15,7 @@ import zipfile
 
 import continuity_c_consumer as c
 from continuity_kotlin_consumer import tool_identity
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,9 +44,7 @@ def source_files() -> dict[str, bytes]:
 
 def verify_execution(stdout: bytes, cases: Path) -> dict:
     text = stdout.decode()
-    sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE) == ["android_lifecycle"]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE)) == 1,
-                "Android JNI lifecycle was not executed completely")
+    contract.verify_single(stdout, "android_lifecycle")
     records = {}
     for profile in ("fixed", "recoverable"):
         marker = f"qualified {profile}: 12 foreign processes; registration, original retry, rekey, reverse callback retry, cancellation and concurrent close"
@@ -80,7 +79,7 @@ def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path
     program = directory / "driver.py"
     program.write_text("import os, sys\n"
         "mode, profile, inputs, target, output = sys.argv[1:]\n"
-        "probe = 'PolicyProbe' if mode.startswith('policy-') else ('CredentialProbe' if mode.startswith('credential-') else ('AuthorityProbe' if mode.startswith('authority-') else ('WitnessProbe' if mode.startswith(('witness-', 'managed-')) else ('PeerProbe' if mode.startswith('peer-') else 'EnrollmentProbe'))))\n"
+        "probe = 'RosterWitnessProbe' if mode.startswith('roster-witness-') else ('RosterProbe' if mode.startswith('roster-') else ('PolicyProbe' if mode.startswith('policy-') else ('CredentialProbe' if mode.startswith('credential-') else ('AuthorityProbe' if mode.startswith('authority-') else ('WitnessProbe' if mode.startswith(('witness-', 'managed-')) else ('PeerProbe' if mode.startswith('peer-') else 'EnrollmentProbe'))))))\n"
         + "command = " + repr([str(java), "--enable-native-access=ALL-UNNAMED", "-Xcheck:jni",
             "-Djava.library.path=" + str(library), "-cp", str(jar) + os.pathsep + str(classes)]) + "\n"
         "command += ['dev.qperiapt.continuity.android.tests.' + probe, inputs, target, profile, mode, output]\n"
@@ -159,6 +158,8 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             built = run([cargo, "test", "--locked", "--offline", "--test", "android", "--no-run", "--message-format=json", "-j", "2", *extra],
                         profile + "-build", consumer)
             binary = c.built_artifact(built, consumer, target / profile, library=False, test_name="android")
+            catalog = run([str(binary), "--list"], profile + "-test-catalog", consumer)
+            contract.verify_catalog(catalog)
             driver = _driver(installed, java, jar, tests, installed)
             cases = installed / "cases"
             runtime = dict(env, QPC_ANDROID_CASES=str(cases), QPC_ANDROID_DRIVER=str(driver))
@@ -221,7 +222,11 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 for label in records:
                     for name in policy_renewal.public(label.split("-", 1)[0]):
                         sdk.copy(policy_cases / label / name, output / f"android-jni-{profile}-policy-renewal-{label}-{name}.public")
-            result["profiles"][profile] = {"policy_renewal_outcomes": policy_results,
+            import continuity_android_roster_qualification as roster_qualification
+            roster_results = roster_qualification.qualify(binary, consumer, installed, output, profile,
+                dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver),
+                     QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)), run)
+            result["profiles"][profile] = {"roster_outcomes": roster_results, "policy_renewal_outcomes": policy_results,
                 "policy_target_client_sha256": sdk.snapshot(target_client, maximum=c.MAX_BINARY).sha256,
                 "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,

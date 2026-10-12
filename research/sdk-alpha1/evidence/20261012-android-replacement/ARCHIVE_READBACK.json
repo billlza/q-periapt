@@ -1,0 +1,155 @@
+{
+  "completed": true,
+  "archive_members": 1968,
+  "routes": {
+    "host/debug/fixed": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "7dad45c0db97fb3aaee3c149dd57efb03da615f77b32d41bf8a3c822569f8677",
+      "report_id": "2562f4c070d3587bec71aa976debeec2dfed51ae97f275f0542bbcd5d6906530",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "557d5771a15d89b40b4b76f2cf82d30cbc909e9d787d6ac614c50721d026bffc",
+      "successor_message": "00000000000000000000000000000000dc040aa3c53402ac17fc4498e4ee6ba4",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    },
+    "host/debug/recoverable": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "6cba0425a1ca67461ca87c0e37b2be265e3606d889700ca47bcf9c5d30390e7f",
+      "report_id": "12d8f37156dd23667cad1da3443c4154fd3505352ad24182c8ea5cddd8b1b514",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "843722ff05fdbabf42c8f9bf6d632cd7e6ec03f8ccdb5ac3f65280aee829beab",
+      "successor_message": "000000000000000000000000000000007cf8325bc71c7654cbbe2abe4bf6492f",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    },
+    "host/release/fixed": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "33e2c18a038a12413a0573449feb900ccb6ba31da8e33ab8eba66f9cde256dda",
+      "report_id": "b46a0fe4b0d705d1500d7fa99696ebe134b202fe9c1b445fe75147f67db8aba9",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "0404c4bab9f28075216319d4f6b39b3837b98d719f4831fd27c87288ffc60011",
+      "successor_message": "0000000000000000000000000000000014fe2f4a2f9203dd2a56a7d846ed580f",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    },
+    "host/release/recoverable": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "39aa326b1c5caac9df1d71563d1fd6fc04c46392d835a638dbef17636d118841",
+      "report_id": "83a677f0fe7c26305e18ac61e11b3fa597cbb725e1f727374d3dd2fe791d7764",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "6ea4832667a49836f3391e3b21104a92d5b1277652ec25ac168719debe8a3677",
+      "successor_message": "000000000000000000000000000000008833d23d4df20ade53d2986146aa5376",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    },
+    "art/fixed": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "b9ad8bffc9fd52f66b578a3dda34f9c61a30d8a0852240c4791b283e8d281e60",
+      "report_id": "69737480a32ba7b9a27401a1ddaa02200883a9d55daea7fea2dcf0801431131d",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "d232aa20accd19a0d4db0ebbed92ea6f42876474255a732f49b59512d0dba9d3",
+      "successor_message": "00000000000000000000000000000000c7a2c016258c8646d15415ef902dc61c",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    },
+    "art/recoverable": {
+      "processes": 32,
+      "process_cuts": 3,
+      "report_bytes": 12943,
+      "report_sha256": "2780aa2c937c08fb93da560f6b730199acced24dd897f571753635a340fa5be2",
+      "report_id": "d92b585a6dd1b706af354e68e7959be0d610fcbab3ff59abea82c3c220a2e880",
+      "complete_report_preserved": true,
+      "old_business_effect_preserved": true,
+      "successor_processes": 11,
+      "successor_session": "177e29dc0864761718433c101ddc5d7e967f9527fe3bbf1a3e45707cf346a56f",
+      "successor_message": "00000000000000000000000000000000b90eb728fea613e73f64c1f24c19444c",
+      "successor_same_counterparty": true,
+      "fresh_successor_effects": 1,
+      "total_counterparty_effects": 2
+    }
+  },
+  "host_processes": 128,
+  "host_process_cuts": 12,
+  "ART_processes": 64,
+  "ART_process_cuts": 6,
+  "agreed_physical_device_gate": "passed",
+  "additional_phone_required": false,
+  "scope": "Public archived bindings. Native execution verifies signatures and secret MACs. Android API-created original and successor identities, independent native issuer, same native C counterparty, exact successor retry, original retirement cleanup. No physical erasure or independent protocol implementation claim.",
+  "negative_reader_checks": [
+    {
+      "changed": "successor/original.identity",
+      "rejected": true,
+      "reason": "successor identity or journal reused"
+    },
+    {
+      "changed": "successor/reopened.request",
+      "rejected": true,
+      "reason": "successor original request changed"
+    },
+    {
+      "changed": "successor/inputs/enrollment-intent",
+      "rejected": true,
+      "reason": "successor device generation scope"
+    },
+    {
+      "changed": "successor/peer-connected",
+      "rejected": true,
+      "reason": "successor traffic identities"
+    },
+    {
+      "changed": "successor/peer-acknowledged",
+      "rejected": true,
+      "reason": "successor retry changed original message"
+    },
+    {
+      "changed": "successor/effect-after",
+      "rejected": true,
+      "reason": "successor business effects"
+    },
+    {
+      "changed": "successor/effect-count",
+      "rejected": true,
+      "reason": "successor business effects"
+    },
+    {
+      "changed": "retirement-effect-after-successor",
+      "rejected": true,
+      "reason": "old effect changed"
+    },
+    {
+      "changed": "successor/roster-peer-admitted.stdout",
+      "rejected": true,
+      "reason": "explicit receiver roster admission"
+    },
+    {
+      "changed": "retirement-verified",
+      "rejected": true,
+      "reason": "complete report changed across erasure"
+    }
+  ]
+}

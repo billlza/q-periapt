@@ -13,10 +13,10 @@ public final class PeerRenewalProbe {
     private PeerRenewalProbe() { }
     private static final byte[] BODY = "persisted before process exit".getBytes(StandardCharsets.UTF_8);
     private static final byte[] AD = "configuration-v1".getBytes(StandardCharsets.UTF_8);
-    private static byte[] checkpoint(RosterCheckpoint value) {
+    static byte[] checkpoint(RosterCheckpoint value) {
         return ByteBuffer.allocate(40).putLong(Long.parseUnsignedLong(value.version().toString())).put(value.digest()).array();
     }
-    private static ContinuityPeer peer(ContinuityDevice device, PeerConfiguration configuration, Ids.Session session) {
+    static ContinuityPeer peer(ContinuityDevice device, PeerConfiguration configuration, Ids.Session session) {
         ContinuityPeer peer = device.preparePeerReopen(configuration, PeerConfiguration.Quality.ONE_TIME_BOTH, PeerConfiguration.Role.INITIATOR, session);
         try { peer.finishOpen(); return peer; }
         catch (Throwable failure) {

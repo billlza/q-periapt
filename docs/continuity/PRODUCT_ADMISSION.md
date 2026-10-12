@@ -103,6 +103,49 @@ identities before the remaining workload continued. SDK-authority expiry/revocat
 roster renewal, retirement and root replacement remain separate Android software
 work; the agreed physical-device gate remains complete.
 
+The [peer-roster continuation route](../../research/sdk-alpha1/evidence/20261012-android-peer-roster/CHECKS.json)
+passes 46 host Java calls and 46 ART calls on that same accepted phone. An
+independently approved R2 that retains the same member preserves the original
+session, pending message and next message slot. Exact retry after the receiver
+commits and exits before acknowledgment leaves one business effect. A subsequent
+empty R3 revokes the member: both sending through the retained peer object and
+reopening the peer fail with Scope 103. Malformed input, a wrong checkpoint and
+cancellation are rejected before admission. The initial test incorrectly expected
+every roster advance to invalidate old children; the retained failure and current
+membership checks explain the correction. No runtime authorization was relaxed.
+[Archive-only readback](../../research/sdk-alpha1/evidence/20261012-android-peer-roster/ARCHIVE_READBACK.json)
+verifies all 463 captured member hashes and both execution records. This completes
+that route's physical acceptance; API 36 hardware and a second phone are not
+required. The [complete Debug/Release integrated regression](../../research/sdk-alpha1/evidence/20261012-android-roster-integrated/README.md)
+now passes 3,442 Java processes: 1,720 lifecycle calls plus one JNI boundary process
+per profile. All 44 new roster export routes are independently reread from the
+capture, and source/package inputs remained unchanged throughout execution.
+
+The isolated [Android original-device retirement adapter](../../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
+passes 84 host Java calls and 42 ART calls on that accepted phone, including twelve
+host and six ART process cuts. Android creates and retains its original keys and
+journal locally. After independently authorized native generation replacement,
+the cleanup-only owner preserves the complete original report across host
+acknowledgement, journal erasure, signer erasure and reopening. The native runtime
+rejects a modified report, a receipt with the wrong purpose and ordinary enrollment
+resumption after retirement. The original peer business effect remains unchanged.
+Source/package-bound captures and archive-only public readback are retained.
+Main-binding integration remains pending after the completed roster regression;
+native successor activation does not establish fresh Android successor traffic.
+This is additional software coverage on the already sufficient physical device.
+
+The subsequent [Android-created replacement route](../../research/sdk-alpha1/evidence/20261012-android-replacement/README.md)
+closes that fresh-successor traffic gap in the isolated adapter. Both generations
+create their own keys and journals through Android APIs; the independent issuer
+receives only public enrollment material. The original C counterparty explicitly
+admits the signed new roster before accepting a new session. A lost acknowledgement
+and exact successor retry preserve one new effect and the previous device's original
+effect. Debug/Release host runs pass 128 Java calls; the accepted phone passes
+64 ART calls with six real process cuts and complete resource cleanup. The initial
+Checkpoint 105 refusal is retained and explained by the omitted peer-roster admission.
+The existing AAR/native engine is unchanged. Main integration, account-root replacement
+and independent protocol implementations remain separate work.
+
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
 [Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), and

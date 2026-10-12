@@ -47,6 +47,9 @@ final class Native {
         POLICY_RECONCILE = 4, POLICY_APPROVAL = 5, POLICY_PREPARE = 6, POLICY_PREPARATION = 7,
         POLICY_PROGRESS = 8, POLICY_COMMIT = 9, POLICY_WITNESS_RECONCILE = 10, POLICY_CLOSE = 11,
         POLICY_STAGE = 12, POLICY_RESOLVE = 13, POLICY_ACTIVATE = 14;
+    static final int ROSTER_REFRESH = 1, ROSTER_RESOLVE = 2, ROSTER_PREPARE = 3, ROSTER_PREPARATION = 4,
+        ROSTER_PROGRESS = 5, ROSTER_ABANDON = 6, ROSTER_COMMIT = 7, ROSTER_RECONCILE = 8, ROSTER_CLOSE = 9, ROSTER_ADMIT_PEER = 10, ROSTER_REFRESH_WITH_POLICY = 11;
+    static native byte[] rosterCommand(long handle, int operation, byte[][] inputs);
     static native byte[] policyCommand(long handle, int operation, byte[][] inputs);
     static native void selectPolicy(long configuration, long enrollment);
     static final class CommitInvocation {

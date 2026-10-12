@@ -1,9 +1,9 @@
 """Public policy-renewal linkage; executed native consumers verify signatures."""
 from pathlib import Path
-import re
 
 import continuity_configuration_policy as policy
 import continuity_first_configuration as first
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 TESTS = {profile: "android_policy_renewal::" + profile for profile in ("fixed", "recoverable")}
@@ -54,9 +54,7 @@ def public(carrier: str) -> tuple:
 def verify_execution(stdout: bytes, directory: Path, profile: str) -> dict:
     sdk.require(profile in TESTS, "policy renewal trust profile")
     text = stdout.decode(); lines = text.splitlines()
-    sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.M) == [TESTS[profile]]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.M)) == 1,
-                "policy renewal test did not execute completely")
+    contract.verify_single(stdout, TESTS[profile])
     result = {}
     for carrier in ("local", "signed", "tls"):
         count = len(cases(carrier))
@@ -66,13 +64,14 @@ def verify_execution(stdout: bytes, directory: Path, profile: str) -> dict:
     return result
 
 
-def verify_route(directory: Path, profile: str, carrier: str) -> dict:
+def verify_route(directory: Path, profile: str, carrier: str, *, with_roster: bool = False) -> dict:
     """Check one completed route; this alone does not qualify the complete profile."""
     sdk.require(profile in TESTS and carrier in {"local", "signed", "tls"}, "policy route scope")
     label = carrier + "-" + profile; base = directory / label
     def read(name): return sdk.snapshot(base / name).data
     steps = cases(carrier); count = len(steps)
     sdk.require(count == (31 if carrier == "local" else 43), "policy process census definition")
+    if with_roster: count += 12 if carrier == "local" else 25
     sdk.require(read("policy-process-count") == count.to_bytes(8, "big"), "policy process census differs")
     for name, mode in steps:
         sdk.require(read(name + ".stdout") == f"{profile}:{mode}:passed\n".encode() and read(name + ".stderr") == b"", "policy process outcome missing: " + name)

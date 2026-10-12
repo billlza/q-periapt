@@ -1582,6 +1582,12 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/local_roster.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/roster.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_local.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_peer.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_traffic.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_witness.rs',
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",

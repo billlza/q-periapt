@@ -19,7 +19,7 @@ public final class PolicyProbe {
             counter(ByteBuffer.wrap(read(inputs, "trusted-roster-version"))), read(inputs, "trusted-roster-digest"));
     }
     private static Path target(Path installation) { return Path.of(installation.toString() + ".policy-target"); }
-    private static void selectTarget(ContinuityEnrollment enrollment, Path inputs, Path installation, boolean recovery) throws Exception {
+    static void selectTarget(ContinuityEnrollment enrollment, Path inputs, Path installation, boolean recovery) throws Exception {
         try (ContinuityConfiguration configuration = configuration(inputs.resolve("policy-target"), target(installation), recovery, false)) {
             configuration.finishOpen(); configuration.selectContinuedPolicy(enrollment);
         }

@@ -58,6 +58,7 @@ public final class BridgeProbe {
         if (copy[1][0] != 2) throw new AssertionError("caller snapshot was not independent");
         java.util.Arrays.fill(copy[1], (byte) 0);
         PolicyBridgeProbe.run();
+        RosterBridgeProbe.run();
         System.out.println("configuration:bridge:passed");
     }
     private static void credentialCodecs() {

@@ -30,6 +30,7 @@ jlong qpj_prepare_authority(JNIEnv *, jclass, jobjectArray, jboolean);
 jbyteArray qpj_authority_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
 void qpj_select_authority(JNIEnv *, jclass, jlong, jlong, jobjectArray);
 jbyteArray qpj_credential_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
+jbyteArray qpj_roster_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
 jbyteArray qpj_policy_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
 void qpj_select_policy(JNIEnv *, jclass, jlong, jlong);
 #endif

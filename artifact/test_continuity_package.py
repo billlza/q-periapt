@@ -99,6 +99,20 @@ STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
 
 
 class ContinuityPackageTests(unittest.TestCase):
+    def test_android_roster_readers_are_bound_to_package_source(self):
+        import continuity_android_contract as contract
+        import continuity_android_roster as roster
+        import continuity_android_roster_witness as witnessed
+        import continuity_android_policy_roster as policy_roster
+        import continuity_android_roster_qualification as qualification
+        sources = package.source_inputs()['files']
+        for module in (contract, roster, witnessed, policy_roster, qualification):
+            path = Path(module.__file__).resolve()
+            relative = path.relative_to(package.ROOT).as_posix()
+            with self.subTest(reader=relative):
+                self.assertIn(relative, sources)
+                self.assertEqual(sources[relative], sdk.snapshot(path).sha256)
+
     def test_installed_execution_requires_device_replacement_readback(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
