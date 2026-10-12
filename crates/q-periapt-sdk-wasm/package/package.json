@@ -17,7 +17,8 @@
       "default": { "types": "./web/expert.d.ts", "default": "./web/expert.js" }
     },
     "./web": { "types": "./web/index.d.ts", "default": "./web/index.js" },
-    "./web/expert": { "types": "./web/expert.d.ts", "default": "./web/expert.js" }
+    "./web/expert": { "types": "./web/expert.d.ts", "default": "./web/expert.js" },
+    "./web/storage": { "types": "./web/storage.d.ts", "default": "./web/storage.js" }
   },
   "files": ["*.cjs", "*.cts", "node/", "web/", "LICENSE", "LICENSES/", "THIRD_PARTY/", "PACKAGE_CONTENTS.json"],
   "engines": { "node": ">=24" }

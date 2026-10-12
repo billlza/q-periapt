@@ -30,7 +30,9 @@ POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", 
 NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",
-                  "browser-suite.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts")
+                  "browser-suite.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts",
+                  "storage-browser.html", "storage-suite.mjs", "storage-worker.mjs", "storage-acceptance.js",
+                  "storage-quota-acceptance.js")
 NODE_TESTS = {
     "product.cjs": "WASM_PRODUCT_LIFECYCLE_POLICY_ROUNDTRIP_FAILURE_PASS",
     "installed.mjs": "WASM_INSTALLED_CJS_ESM_SINGLE_INSTANCE_PASS",

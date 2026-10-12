@@ -1,0 +1,18 @@
+{
+  "Chrome": "154.0.8037.99",
+  "Node": "v26.3.0",
+  "all_hashes_and_extracted_browser_records_replayed": true,
+  "archive_members": 160,
+  "capture_sha256": "2f134fa26bb9a58495be5ec37132cfa1c1c89fe3e67053abf55c409989a454ce",
+  "completed": true,
+  "isolated_quota_partitions": 2,
+  "manifest_sha256": "d7fcc389423d060863852128a90de8de16d4cdb3287c958606b64bf4122fd928",
+  "package_sha256": "d7472fff22e0d8cdf0028c7b04e6c38045027692e458e126ddf4d826f861f4c8",
+  "quota_reopen_old_new_observed": true,
+  "real_quota_failures": 3,
+  "release_claim_eligible": false,
+  "scope": "installed browser SDK policy owner; not Continuity journal, root-authority recovery or independent implementation",
+  "typescript": "7.0.2 strict NodeNext passed",
+  "window_and_worker": true,
+  "worker_terminations": 2
+}

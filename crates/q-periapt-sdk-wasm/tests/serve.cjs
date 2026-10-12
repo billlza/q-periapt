@@ -5,10 +5,11 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const files = new Map([
   ['/browser.html', 'text/html'],
-  ...['browser-suite.mjs', 'browser-worker.mjs'].map(name => [`/${name}`, 'application/javascript']),
+  ['/storage-browser.html', 'text/html'],
+  ...['browser-suite.mjs', 'browser-worker.mjs', 'storage-suite.mjs', 'storage-worker.mjs'].map(name => [`/${name}`, 'application/javascript']),
   ...['signed-policy-vectors', 'sdk-policy-revocation-vectors', 'sdk-policy-update-vectors']
     .map(name => [`/fixtures/${name}.json`, 'application/json']),
-  ...['index.js', 'expert.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm']
+  ...['index.js', 'expert.js', 'storage.js', 'policy-database.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm']
     .map(name => [`/node_modules/q-periapt-sdk-wasm/web/${name}`, name.endsWith('.wasm')
       ? 'application/wasm' : 'application/javascript'])
 ]);

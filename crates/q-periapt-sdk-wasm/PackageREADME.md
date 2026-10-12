@@ -72,3 +72,40 @@ distribution signatures are verified separately. `THIRD_PARTY/rust/INVENTORY.jso
 the target-filtered production dependency license closure. Current platform,
 security and release gates are documented in the repository's
 [release readiness ledger](https://github.com/billlza/q-periapt/blob/main/docs/SDK_0_2_RELEASE_READINESS.md).
+# Browser policy storage candidate
+
+`q-periapt-sdk-wasm/web/storage` provides `QPeriaptPolicyStore.create` and `open`.
+Supply a stable origin-local `name` and an independently retained policy `root`;
+creation also takes the signed `policy` and `signature`. Opening never creates a
+missing installation, and creation never replaces an existing one. This browser
+entry requires a secure context, IndexedDB with strict transaction durability and
+Web Locks. It returns `Unavailable` when a required capability is absent.
+
+The owner supplies `trustedState`, `isEnabled`, `generateKey` and `encapsulate`.
+It keeps the raw runtime and update authority private. Use
+`replacePolicy(expectedState, policy, signature)` to verify a strictly newer
+policy and atomically persist the complete signed image and trusted state before
+activation. An invalid signature or caller state leaves the current owner usable.
+An I/O, quota, commit or activation failure closes it. Reopen the same name and
+root to reconcile actual stored state; a rejected promise does not establish that
+a write was absent. No automatic reset, weaker persistence mode or signature
+fallback exists.
+Opening verifies and reasserts the original signed image in a strict transaction
+before exposing a runtime. This also recovers creation interrupted between its
+schema/image transaction and strict completion barrier.
+
+Call and await `close()` explicitly. It immediately revokes retained key/secret
+owners and releases its origin-wide lease after pending I/O settles. Closing
+during replacement prevents returning a new runtime; the signed policy may still
+have committed. Other tabs and Workers receive `Busy` while the lease is held.
+Garbage collection is not an owner-lifecycle API.
+
+This is origin-local policy storage, not a Continuity session journal or witness
+implementation. Web Locks coordinate cooperating SDK users; they do not isolate
+malicious same-origin code. Browser storage can be cleared or evicted, and there
+is no rollback guarantee against restoration of a complete old browser profile.
+Missing state must be recovered through the application's independently retained
+trust/history rather than silently recreated. IndexedDB `strict` requests the
+browser's strongest standard transaction durability; it is not a demonstrated
+native-filesystem or power-loss equivalence. The schema is explicitly versioned;
+unknown or malformed records are refused, not migrated by guesswork.

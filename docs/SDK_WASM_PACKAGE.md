@@ -4,6 +4,15 @@
 for 0.2.0. C remains ABI 2; WASM package entry points do not change the
 native ABI, its symbol identities or its existing status codes.
 
+The browser-only `/web/storage` entry now provides `QPeriaptPolicyStore`, an
+exclusive IndexedDB/Web Locks policy owner. It verifies and strictly commits the
+original signed image before exposing a runtime, including after uncertain
+creation. Updates preserve exact expected-state comparison and close the owner
+on storage failures. The [installed browser storage checkpoint](../research/sdk-alpha1/evidence/20261012-browser-policy-storage/README.md)
+records actual window/Worker, termination and quota tests. This is a foundation
+for browser persistence; Continuity journal, authority and transport integration
+remain separate work.
+
 The default Node CommonJS and ESM imports share the same instance and classes.
 The default browser entry and explicit `/web` entry use generated browser ESM,
 await one initialization promise and do not return raw WASM exports. The
@@ -50,14 +59,14 @@ tool bytes again after execution. A newer Node binary cannot satisfy an exact
 24.0.0 qualification. SDK tests must emit their expected completion records
 without diagnostics; the entropy-failure child must also finish without warnings.
 
-The current macOS ARM64 candidate was consumed successfully by both Node
+The September 27 primitive-owner candidate was consumed successfully by both Node
 **24.0.0 / npm 11.3.0** and **26.3.0 / npm 11.16.0**, including strict TypeScript
 5.9.3 checks. Both runs used archive SHA-256
 `6a75adb49acec798816be5731e9d4a98368ccd4942b444de13e658f5dba84b5c`
 and manifest SHA-256
 `f39fea44ce7d0bbf09352049815a6a37abc4e296e527843e3c183a60e8808c2d`.
 This candidate was rebuilt after removing the redundant prepared public-key
-cache; the [current checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-public-key-view/manifest.json)
+cache; the [primitive-owner checkpoint](../research/sdk-alpha1/evidence/20260927-sdk-public-key-view/manifest.json)
 retains both installed Node executions. The subsequent
 [browser checkpoint](../research/sdk-alpha1/evidence/20260927-wasm-public-view-browsers/manifest.json)
 executes this same archive in Chrome and Firefox windows and dedicated Workers.
@@ -115,8 +124,11 @@ in both window and dedicated module Worker in Chrome 153 and stock Firefox 156
 on macOS ARM64, with Firefox host diagnostics
 retained separately. Safari's automation setting is disabled; Safari/mobile and
 minimum browser versions, bundlers and other Worker types remain open. The browser path is
-synchronous after initialization; applications own durable policy storage,
-authenticated protocols and erasure of any explicitly exported JS bytes.
+synchronous after initialization. Applications using the raw runtime own its
+durable policy storage; `/web/storage` supplies the separate asynchronous browser
+owner. Applications still own authenticated protocols and erasure of any
+explicitly exported JS bytes. The older browser checkpoint does not qualify the
+new storage entry on Firefox, Safari or mobile browsers.
 
 Package resolution follows the primary
 [Node package exports contract](https://nodejs.org/api/packages.html#conditional-exports)

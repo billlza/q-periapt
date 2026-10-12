@@ -905,6 +905,17 @@ jobs:
         run: npm exec --yes --ignore-scripts --package typescript@7.0.2 -- tsc --version
       - name: Build and install product WASM package outside the checkout
         run: sh artifact/python-run.sh artifact/wasm_sdk_package.py --output target/sdk-wasm-package
+      - name: Install pinned browser acceptance driver
+        run: |
+          google-chrome --version
+          npm install --prefix "$RUNNER_TEMP/qperiapt-playwright" --ignore-scripts --no-fund @playwright/cli@0.1.22
+      - name: Exercise installed browser persistence and real quota failures
+        run: |
+          sh artifact/python-run.sh artifact/wasm_browser_storage.py \
+            --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json \
+            --output target/sdk-wasm-browser \
+            --node "$(command -v node)" \
+            --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
       - name: Select the exact minimum Node runtime
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -932,6 +943,9 @@ jobs:
             target/sdk-wasm-node24-minimum/*.json
             target/sdk-wasm-node24-minimum/*.stdout
             target/sdk-wasm-node24-minimum/*.stderr
+            target/sdk-wasm-browser/*.json
+            target/sdk-wasm-browser/*.stdout
+            target/sdk-wasm-browser/*.stderr
 
   # Bounded robustness fuzzing, using the actual detached crate and seeded inputs.
   # A crash, timeout, sanitizer error or missing execution statistics fails the job.
