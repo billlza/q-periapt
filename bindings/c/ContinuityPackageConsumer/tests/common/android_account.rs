@@ -3,9 +3,15 @@
 use crate::{fixture, independent_inputs, issue_grant, p, peer_bundle, run_foreign, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs, os::unix::fs::DirBuilderExt, path::PathBuf};
+#[path = "android_account_recovery.rs"]
+mod recovery;
 
 #[test]
 fn original_account_delivery() -> Result<()> {
+    run_profiles(false)
+}
+
+fn run_profiles(with_recovery: bool) -> Result<()> {
     let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("case output")?);
     let client = PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("client driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;
@@ -205,6 +211,10 @@ fn original_account_delivery() -> Result<()> {
             )?;
         }
         println!("qualified account {profile}: complete two-recipient original operation; receiver exit 77, exact retry, retained zero-exchange outcomes, omission and input conflict refused; active parent/member busy, member cancellation and original-operation recovery");
+        if with_recovery {
+            recovery::run(&base, &inputs, &run)?;
+            println!("qualified first-use recovery {profile}: original Java installation; complete results, full session reports, exact acknowledgement, authenticated archive/index restore and unchanged account position");
+        }
     }
     Ok(())
 }

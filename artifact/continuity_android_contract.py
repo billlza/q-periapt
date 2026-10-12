@@ -33,7 +33,8 @@ ROOT_BASE_TESTS = RETIREMENT_TESTS | {
     for route in ("original", "transition", "bound_transition", "adoption")
 }
 ROOT_TESTS = ROOT_BASE_TESTS | {"android_root_owned::noncommit_account_root_replacement"}
-TESTS = ROOT_TESTS | {"android_account::original_account_delivery"}
+ACCOUNT_TESTS = ROOT_TESTS | {"android_account::original_account_delivery"}
+TESTS = ACCOUNT_TESTS | {"android_account::recovery::first_use"}
 
 
 def verify_catalog(stdout: bytes) -> None:
@@ -47,7 +48,7 @@ def verify_catalog(stdout: bytes) -> None:
 def verify_single(stdout: bytes, test: str, *, catalog: frozenset[str] = TESTS) -> None:
     # Historical roster captures explicitly retain their previous complete catalog.
     # Live qualification always verifies TESTS first and uses this default.
-    sdk.require(catalog in (ROSTER_TESTS, RETIREMENT_TESTS, ROOT_BASE_TESTS, ROOT_TESTS, TESTS) and test in catalog, "unknown installed Android test/catalog")
+    sdk.require(catalog in (ROSTER_TESTS, RETIREMENT_TESTS, ROOT_BASE_TESTS, ROOT_TESTS, ACCOUNT_TESTS, TESTS) and test in catalog, "unknown installed Android test/catalog")
     text = stdout.decode()
     expected = f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(catalog)-1} filtered out;"
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.M) == [test]

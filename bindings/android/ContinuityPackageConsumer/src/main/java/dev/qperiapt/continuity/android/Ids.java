@@ -31,6 +31,8 @@ public final class Ids {
     public static final class ApplicationAccount extends Value { public ApplicationAccount(byte[] bytes) { super(bytes); } }
     public static final class AccountOperation extends Value { public AccountOperation(byte[] bytes) { super(bytes); } }
     public static final class AccountAbandonment extends Value { public AccountAbandonment(byte[] bytes) { super(bytes); } }
+    public static final class ClosureReport extends Value { public ClosureReport(byte[] bytes) { super(bytes); } }
+    public static final class ResolutionReport extends Value { public ResolutionReport(byte[] bytes) { super(bytes); } }
     public static final class Account extends Value { public Account(byte[] bytes) { super(bytes); } }
     public static final class RosterRefresh extends Value { public RosterRefresh(byte[] bytes) { super(bytes); } }
     public static final class Journal extends Value { public Journal(byte[] bytes) { super(bytes); } }

@@ -32,6 +32,7 @@ impl AccountResultClient {
                 let language = match language.to_str() {
                     Some("Swift") => "Swift",
                     Some("Kotlin") => "Kotlin",
+                    Some("Android") => "Android",
                     _ => return Err("unqualified account result language".into()),
                 };
                 Ok(Some(Self {
@@ -765,7 +766,12 @@ fn account_scenario_with_cut(
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
         if let Some(client) = &g.result_client {
-            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true foreign_registration=true native_authority_setup=true",
+            let foreign_registration = std::env::var_os("QPERIAPT_ENROLLMENT_LIFECYCLE_CLIENT")
+                .as_deref()
+                == Some(client.executable.as_os_str())
+                && std::env::var_os("QPERIAPT_ENROLLMENT_LIFECYCLE_LANGUAGE").as_deref()
+                    == Some(std::ffi::OsStr::new(client.language));
+            eprintln!("FOREIGN_ACCOUNT_RECONCILIATION language={} carrier={} cut={cut:?} members=2 original_ids=true complete_results=true consumed_vs_unknown=true durable_host_report=true retired=true foreign_member_closure=true foreign_registration={foreign_registration} native_authority_setup=true",
                 client.language, if tls { "mutual-TLS" } else { "signed-TCP" });
         }
     }

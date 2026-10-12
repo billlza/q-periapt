@@ -149,6 +149,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
         {"enrollmentAccept", "(J[[BJ)[B", (void *)qpj_enrollment_accept},
         {"preparePeer", "(J[[B[JIIZ)J", (void *)qpj_prepare_peer},
         {"accountCommand", "(JI[J[[BI)[B", (void *)qpj_account_command},
+        {"prepareRecovery", "([[BII)J", (void *)qpj_prepare_recovery},
+        {"recoveryCommand", "(JI[[BIII)[B", (void *)qpj_recovery_command},
         {"peerCommand", "(JI[[BJ)[B", (void *)qpj_peer_command},
         {"peerServer", "(JI[[BLjava/lang/Object;)[B", (void *)qpj_peer_server},
         {"provisionAuthority", "([[B)V", (void *)qpj_provision_authority},

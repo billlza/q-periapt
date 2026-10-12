@@ -1,0 +1,11 @@
+{
+  "completed": true,
+  "reader_tests": 61,
+  "new_recovery_reader_tests": 6,
+  "negative_mutations": 15,
+  "command": "QPERIAPT_PYTHON=/opt/homebrew/opt/python@3.14/bin/python3.14 PYTHONPATH=artifact sh artifact/python-run.sh -m unittest discover -s artifact -p test_continuity_android*.py -v",
+  "log_sha256": "54ae50b51fcca890cd72a99998955b3c645252ffe929832f6290c79cf171e910",
+  "capture_sha256": "b8dfebef7e6a1ae1515bdaf7da3e054ad565a18cbfe710a52d0be5e0ad7f1c30",
+  "scope": "retained evidence readers; not additional protocol execution",
+  "release_claim_eligible": false
+}

@@ -90,6 +90,20 @@ passes 108 independent Java processes across Debug/Release and fixed/recoverable
 trust. It is integrated into the existing host qualification; the earlier accepted
 physical Android AAR keeps its recorded artifact scope.
 
+`ContinuityRecovery` opens the original installation for cleanup without granting
+traffic permission. Prefer `beginAccountCleanupReport()` or
+`beginSessionCleanupReport()` to collect a complete immutable report. Durably
+record every field and original ID in the host transaction before acknowledging
+that report. `reconcileAccount()` keeps acknowledged and unknown member outcomes
+distinct; retirement requires settlement of all original members. Authenticated
+archive restoration restores catalogue metadata only. Follow the
+[recovery and host-accounting guide](../../../research/sdk-alpha1/ANDROID_RECOVERY.md)
+for witness selection, unknown outcomes and the exact acknowledgement order.
+The [recovery checkpoint](../../../research/sdk-alpha1/evidence/20261012-android-recovery/README.md)
+passes 292 host Java processes across Debug/Release, including first-use recovery,
+lost witness replies, complete account report comparison and original archive
+restoration. Its witness cases use C setup/traffic and Java recovery explicitly.
+
 For a remote peer's renewal, call `ContinuityDevice.admitPeerCredentialRenewal`
 with the signed grant, an independently retained target `AccountPin` and the
 original renewal ID. Keep the original device and registry alive. The returned

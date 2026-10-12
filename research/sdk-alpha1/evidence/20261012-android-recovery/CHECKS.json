@@ -1,0 +1,18 @@
+{
+  "completed": true,
+  "scope": "packaged Java/JNI recovery; C registration, policy/roster and operational traffic; native complete-report oracle; same host and engine; no ART or independent-implementation claim",
+  "Java_processes": 292,
+  "Java_first_use_processes": 168,
+  "Java_recovery_only_processes": 176,
+  "Debug_and_Release": true,
+  "complete_immutable_reports": true,
+  "archive_index_restore": true,
+  "mutated_archive_refused": 208,
+  "acknowledged_and_unknown_distinguished": true,
+  "witness_reply_losses_reconciled": true,
+  "original_source_rechecked": true,
+  "archive_members": 1916,
+  "all_archived_records_replayed": true,
+  "capture_sha256": "b8dfebef7e6a1ae1515bdaf7da3e054ad565a18cbfe710a52d0be5e0ad7f1c30",
+  "release_claim_eligible": false
+}

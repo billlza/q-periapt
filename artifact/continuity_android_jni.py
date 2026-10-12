@@ -77,7 +77,7 @@ def verify_execution(stdout: bytes, cases: Path) -> dict:
 
 def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path) -> Path:
     program = directory / "driver.py"
-    probes = (("account-", "AccountProbe"), ("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
+    probes = (("recovery-", "FirstUseRecoveryProbe"), ("account-", "AccountProbe"), ("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
               ("roster-", "RosterProbe"), ("policy-", "PolicyProbe"), ("credential-", "CredentialProbe"),
               ("authority-", "AuthorityProbe"), (("witness-", "managed-"), "WitnessProbe"), ("peer-", "PeerProbe"))
     program.write_text("import os, sys\n"
@@ -173,6 +173,9 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             for trust in account_results:
                 for name in account.PUBLIC:
                     sdk.copy(account_cases / trust / name, output / f"android-jni-{profile}-account-{trust}-{name}.public")
+            import continuity_android_recovery as recovery
+            recovery_results = recovery.qualify(consumer, installed, output, profile, environment, run,
+                java=java, jar=jar, tests=tests, android=binary, android_driver=driver, client=receiver)
             cases = installed / "cases"
             runtime = dict(env, QPC_ANDROID_CASES=str(cases), QPC_ANDROID_DRIVER=str(driver))
             checked = run([str(binary), "--exact", "android_lifecycle", "--nocapture"], profile + "-execution", consumer, runtime)
@@ -251,6 +254,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}
             result["profiles"][profile]["account_outcomes"] = account_results
+            result["profiles"][profile]["recovery_outcomes"] = recovery_results
         sdk.require(source_files() == source and tool_identity(java_home) == tools and sdk.snapshot(jar).sha256 == jar_hash,
                     "Android JNI source, JDK or packaged classes changed during qualification")
         result.update(completed=True, jar_sha256=jar_hash)

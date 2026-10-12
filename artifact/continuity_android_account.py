@@ -20,8 +20,9 @@ PUBLIC = tuple(name for name, _ in CASES) + ("effect-before-retry", "effect-0", 
     name + "." + suffix for name, _ in CASES for suffix in ("stdout", "stderr"))
 
 
-def verify_execution(stdout: bytes, cases: Path) -> dict:
-    contract.verify_single(stdout, TEST)
+def verify_execution(stdout: bytes, cases: Path, *, catalog=contract.TESTS, test=TEST) -> dict:
+    sdk.require(test in (TEST,"android_account::recovery::first_use"), "unknown account workload")
+    contract.verify_single(stdout, test, catalog=catalog)
     results = {}
     for trust in ("fixed", "recoverable"):
         sdk.require(stdout.decode().splitlines().count(f"qualified account {trust}: {MARKER}") == 1, "missing account workload")
