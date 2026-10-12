@@ -769,3 +769,43 @@ CoreDevice launch failure (10004, no process identifier before SDK work) remains
 in the archive; the retry adds a startup grace before SDK work and still requires
 exact receipts, markers and process exit 0. Replacement/root lifecycle,
 background/Data Protection and package work remain.
+
+
+The [physical iOS replacement checkpoint](../research/sdk-alpha1/evidence/20261012-ios-replacement/README.md)
+completes 64 calls with four phone-created identities under fixed/recoverable
+trust. Six explicit app exits occur before normal owner disposal after report
+retention, journal erasure and signer erasure. Run-bound receipts, device exit
+77 and host-driver exit 77 are checked; exact reports and logical terminal state
+survive reopening. Tampered private report MACs return 208, wrong-purpose erasure
+returns 102 and old operational reopening returns 215. The same C counterparty
+admits the successor roster, receives its new session, exits after its effect,
+and confirms the exact retried message. Both original and successor effects
+remain distinct and unchanged. Twelve altered captures are rejected. This keeps
+physical erasure, independent implementation and confidentiality-recovery claims
+separate; account-root, background/Data Protection and package admission remain.
+
+
+The subsequent [iPad root checkpoint](../research/sdk-alpha1/evidence/20261012-ipad-root/README.md)
+completes all five root routes with 362 Swift calls and 62 on-device process cuts.
+Typed public approvals and the unchanged native engine preserve exact proposals,
+reports and distinct business effects. Noncommit/cancellation and explicit
+controller-close revocation are checked. Ten capture mutations are refused.
+Qualification failures were localized rather than suppressed: a local test lease
+now owns one close attempt, and a Scene-based app with an explicit host startup
+acknowledgement replaces the short command-line entry. CoreDevice 10004 was
+observed before SDK dispatch; a separate platform trap named the missing Scene
+lifecycle. The earlier opaque exit remains recorded without assigning an
+unproved cause. All final calls have exact startup, result and exit evidence.
+
+
+The [installed iOS binary-package checkpoint](../research/sdk-alpha1/evidence/20261012-ios-binary-package/README.md)
+contains the 24 unchanged Swift library files, exact C header, 152-symbol device
+and arm64 simulator archives, dependency notices and standard-library licenses.
+After extraction, an application builds without manual SDK header/library search
+paths and runs the original root route on iPad: 68 calls and twelve process cuts.
+This checks package resolution/linkage against physical behavior, rather than
+using packaging success as a runtime result. Unused policy-fixture parsing was
+removed from the application's helper compilation; it is not a new SDK parser.
+All 503 compared compilable source files match main. Normalized manifest/release
+producer integration, simulator execution and background/Data Protection remain
+separate, as do independent implementation and performance qualification.

@@ -220,8 +220,31 @@ account and policy approvals authorize continuation. A modified approval returns
 102; repeated staging and recovery preserve the exact witness proposal. Applied
 reconciliation and retry retain the original session/message and one effect.
 Twelve public-record mutations are rejected; all 3,168 archived members are
-hash-checked and the public records reread. Replacement/root lifecycle,
-background/Data Protection behavior and package admission remain open. The existing one-phone Android gate
+hash-checked and the public records reread. The
+[iOS replacement/retirement checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-replacement/README.md)
+adds 64 Swift calls and six actual app exit-77 cuts across fixed/recoverable
+trust. Both generations create identities and journals on the phone; the
+independent issuer sees public requests only. Exact retirement reports survive
+report retention, journal and signer erasure; old operational reopening returns
+215. The original C peer explicitly admits the successor roster, and new-session
+retry preserves the original effect plus one successor effect. Twelve altered
+captures are refused and all 2,201 archive members are hash-checked and reread.
+The [iPad root checkpoint](../../research/sdk-alpha1/evidence/20261012-ipad-root/README.md)
+then completes all five root routes under both trust profiles: 362 Swift calls,
+62 actual app process cuts and 20 receiver cuts. Original proposals/reports and
+old/new business effects survive restart. Noncommit remains Closed; cancellation
+preserves the live successor until controller close, which revokes it with 202.
+All ten route exports and 16,334 archive hashes are reread. The Scene-based
+harness requires an exact host startup acknowledgement before SDK work; failed
+prior attempts are retained separately. The
+[installed iOS binary-package checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-binary-package/README.md)
+then qualifies an extracted Swift product and arm64 device/simulator XCFramework.
+Both consumers build without warnings or custom SDK search paths. Its installed
+iPad app completes the original root route with 68 calls and twelve app cuts;
+all startup/result/exit records and public exports are checked. The source
+comparison covers 503 current compilable inputs, and both slices expose exactly
+152 owner functions. Simulator execution, background/Data Protection and
+canonical release-pipeline integration remain open. The existing one-phone Android gate
 stays passed.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
@@ -313,7 +336,7 @@ exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
 binds each result to its source and carrier. Current-source registration package
-qualification, Android/WASM Continuity adapters, remaining root/witness-key
+qualification, Android/WASM whole-account adapters, remaining root/witness-key
 replacement and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
@@ -345,10 +368,10 @@ acceptance for those Android routes on the selected phone.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | C/Swift/Kotlin configuration owners admit explicit first-use inputs and generate the wrapping key; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Current-source archive/device qualification, Android/WASM persistence, deployed authority transport, broader creation faults and final product provisioning |
+| Explicit new lineage and exact restart | C/Swift/Kotlin/Android configuration owners admit explicit first-use inputs and generate the wrapping key; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Complete current-source archive/device qualification, WASM persistence, deployed authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
-| Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign replacement adapters, Android/WASM integration and current-source qualification on every supported platform |
+| Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign distribution qualification, remaining Android whole-account services, WASM authority/persistence integration and current-source qualification on every supported platform |
 | Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone | Complete current foreign distribution qualification, remaining foreign replacement authorization and WASM persistence |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 

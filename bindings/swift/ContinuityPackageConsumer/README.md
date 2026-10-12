@@ -20,8 +20,17 @@ performs no fresh commit, and fresh activation still requires the live registry.
 The [iOS policy checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-policy/README.md)
 adds real policy expiry, independent account/policy approvals and exact witnessed
 P0-to-P1 continuation across 122 app launches. Original message recovery retains
-one effect. Device/root replacement, background/Data Protection and package
-admission remain separate lifecycle work.
+one effect. The [iOS replacement checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-replacement/README.md)
+then creates both generations on the phone, completes approved retirement through
+six abrupt process exits, and verifies fresh successor traffic without changing
+the old business effect. The [iPad root checkpoint](../../../research/sdk-alpha1/evidence/20261012-ipad-root/README.md)
+covers all five independently authorized root-replacement routes, including
+noncommit/cancellation, with 362 calls and 62 process cuts. An
+[extracted binary-package checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-binary-package/README.md)
+now supplies the Swift product and device/simulator arm64 XCFramework without
+custom SDK search paths. Its installed iPad consumer passes 68 calls and twelve
+process cuts. Background/Data Protection, simulator execution and canonical
+release-pipeline admission remain separate work.
 
 On iOS, create an app-owned private directory with mode `0700`. Pass its absolute
 canonical path from `realpath`; Foundation can abbreviate `/private/var` back to
