@@ -520,24 +520,7 @@ fn open_private_leaf_with(
 pub fn refuse_unclean_foreign_redb(
     backend: &impl redb::StorageBackend,
 ) -> Result<(), PrivateFileError> {
-    const GOD_BYTE_OFFSET: u64 = 9;
-    const RECOVERY_REQUIRED: u8 = 2;
-    const TWO_PHASE_COMMIT: u8 = 4;
-
-    if backend.len().map_err(|_| PrivateFileError)? <= GOD_BYTE_OFFSET {
-        return Ok(());
-    }
-    let mut header = [0u8; 1];
-    backend
-        .read(GOD_BYTE_OFFSET, &mut header)
-        .map_err(|_| PrivateFileError)?;
-    let [god] = header;
-    let unclean = god & RECOVERY_REQUIRED != 0;
-    let two_phase = god & TWO_PHASE_COMMIT != 0;
-    if unclean && !two_phase {
-        return Err(PrivateFileError);
-    }
-    Ok(())
+    crate::database_format::refuse_unclean_foreign_redb(backend).map_err(|_| PrivateFileError)
 }
 
 #[cfg(not(any(unix, windows)))]

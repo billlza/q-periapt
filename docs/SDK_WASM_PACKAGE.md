@@ -13,6 +13,11 @@ records actual window/Worker, termination and quota tests. This is a foundation
 for browser persistence; Continuity journal, authority and transport integration
 remain separate work.
 
+An isolated [redb/OPFS experiment](../research/sdk-alpha1/evidence/20261012-browser-redb-opfs/README.md)
+also demonstrates native/browser database-format round trips and recovery after
+two-phase flush failures or Worker termination. It reuses the native recovery
+format rule; it is not an additional package entry or browser Continuity admission.
+
 The default Node CommonJS and ESM imports share the same instance and classes.
 The default browser entry and explicit `/web` entry use generated browser ESM,
 await one initialization promise and do not return raw WASM exports. The
