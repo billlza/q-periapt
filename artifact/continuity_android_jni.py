@@ -44,7 +44,7 @@ def source_files() -> dict[str, bytes]:
 def verify_execution(stdout: bytes, cases: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE) == ["android_lifecycle"]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE)) == 1,
+                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE)) == 1,
                 "Android JNI lifecycle was not executed completely")
     records = {}
     for profile in ("fixed", "recoverable"):
@@ -80,7 +80,7 @@ def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path
     program = directory / "driver.py"
     program.write_text("import os, sys\n"
         "mode, profile, inputs, target, output = sys.argv[1:]\n"
-        "probe = 'CredentialProbe' if mode.startswith('credential-') else ('AuthorityProbe' if mode.startswith('authority-') else ('WitnessProbe' if mode.startswith(('witness-', 'managed-')) else ('PeerProbe' if mode.startswith('peer-') else 'EnrollmentProbe')))\n"
+        "probe = 'PolicyProbe' if mode.startswith('policy-') else ('CredentialProbe' if mode.startswith('credential-') else ('AuthorityProbe' if mode.startswith('authority-') else ('WitnessProbe' if mode.startswith(('witness-', 'managed-')) else ('PeerProbe' if mode.startswith('peer-') else 'EnrollmentProbe'))))\n"
         + "command = " + repr([str(java), "--enable-native-access=ALL-UNNAMED", "-Xcheck:jni",
             "-Djava.library.path=" + str(library), "-cp", str(jar) + os.pathsep + str(classes)]) + "\n"
         "command += ['dev.qperiapt.continuity.android.tests.' + probe, inputs, target, profile, mode, output]\n"
@@ -205,7 +205,25 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 for label in records:
                     for name in expiry.public(label.endswith("-applied")):
                         sdk.copy(expiry_cases / label / name, output / f"android-jni-{profile}-policy-expiry-{label}-{name}.public")
-            result["profiles"][profile] = {"policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
+            import continuity_android_policy_renewal as policy_renewal
+            target_client = installed / "qpc-configuration-client"
+            run([str(clang), "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-isysroot", str(platform),
+                 str(consumer / "first_configuration_client.c"), "-I" + str(consumer), "-L" + str(installed),
+                 "-lq_periapt_continuity_c_consumer", "-Wl,-rpath,@loader_path", "-o", str(target_client)], profile + "-policy-target-client")
+            policy_results = {}
+            for trust, test in policy_renewal.TESTS.items():
+                policy_cases = installed / ("policy-renewal-" + trust + "-cases")
+                policy_runtime = dict(env, QPC_ANDROID_CASES=str(policy_cases), QPC_ANDROID_DRIVER=str(driver),
+                                      QPC_CONFIGURATION_TARGET_CLIENT=str(target_client), QPC_CONFIGURATION_RECEIVER=str(receiver))
+                policy_stdout = run([str(binary), "--exact", test, "--nocapture"], profile + "-policy-renewal-" + trust, consumer, policy_runtime)
+                records = policy_renewal.verify_execution(policy_stdout, policy_cases, trust)
+                policy_results.update(records)
+                for label in records:
+                    for name in policy_renewal.public(label.split("-", 1)[0]):
+                        sdk.copy(policy_cases / label / name, output / f"android-jni-{profile}-policy-renewal-{label}-{name}.public")
+            result["profiles"][profile] = {"policy_renewal_outcomes": policy_results,
+                "policy_target_client_sha256": sdk.snapshot(target_client, maximum=c.MAX_BINARY).sha256,
+                "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}

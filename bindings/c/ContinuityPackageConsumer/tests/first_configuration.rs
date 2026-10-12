@@ -29,6 +29,8 @@ mod fixture;
 mod peer_bundle;
 #[path = "common/policy_request.rs"]
 mod policy_request;
+#[path = "common/receiver_policy.rs"]
+mod receiver_policy;
 #[path = "common/receiver_process.rs"]
 mod receiver_process;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -246,7 +248,7 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
     );
     assert!(client.is_absolute() && client.is_file());
     for recoverable in [false, true] {
-        let reference = fixture::setup(fixture::enrollment::SetupKind::EnrolledExpiringPolicy)?;
+        let reference = fixture::setup(fixture::enrollment::SetupKind::EnrolledExpiringPolicy(60))?;
         let dir = tempfile::Builder::new()
             .permissions(fs::Permissions::from_mode(0o700))
             .tempdir()?;
@@ -510,7 +512,7 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
             let reference = if credential {
                 fixture::setup_with_witness(Some(&witness.configured))?
             } else {
-                fixture::setup_expiring_policy(Some(&witness.configured))?
+                fixture::setup_expiring_policy(Some(&witness.configured), 60)?
             };
             let witness_pin = witness
                 .configured

@@ -11,7 +11,7 @@ import java.util.Arrays;
 /** Test-only input transfer. TLS credentials stay inside the selected app's private directory. */
 final class WitnessInputs {
     private WitnessInputs() { }
-    private static byte[] decoded(Bundle arguments, String name, int minimum, int maximum) {
+    static byte[] decoded(Bundle arguments, String name, int minimum, int maximum) {
         String encoded = arguments.getString(name);
         if (encoded == null || encoded.length() > ((maximum + 2) / 3) * 4) throw new IllegalArgumentException("witness input " + name);
         byte[] bytes = android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP);
@@ -22,7 +22,7 @@ final class WitnessInputs {
         }
         return bytes;
     }
-    private static void install(File inputs, Bundle arguments, String name, int minimum, int maximum, boolean original) throws Exception {
+    static void install(File inputs, Bundle arguments, String name, int minimum, int maximum, boolean original) throws Exception {
         byte[] bytes = decoded(arguments, name, minimum, maximum);
         try {
             File path = new File(inputs, name);

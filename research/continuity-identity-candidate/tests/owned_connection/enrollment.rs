@@ -7,7 +7,7 @@ pub(crate) enum SetupKind {
     Installed,
     RosterRenewal,
     Enrolled,
-    EnrolledExpiringPolicy,
+    EnrolledExpiringPolicy(u64),
     DeviceReplacement,
     DeviceRetirement,
 }

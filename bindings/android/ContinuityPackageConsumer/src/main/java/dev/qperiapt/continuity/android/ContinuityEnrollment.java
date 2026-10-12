@@ -37,7 +37,9 @@ public final class ContinuityEnrollment implements AutoCloseable {
         return owner.call(false, handle -> new StoragePreparation(Native.enrollmentQuery(handle, 3)));
     }
     /** Select the original live registry after independent approval of this request.
-     * Keep the registry open throughout activation and use of its managed children.
+     * Managed journals require witness protection. Re-select this original registry
+     * after resume before journal-backed renewal requests or activation, and keep it
+     * open throughout those calls and use of managed children.
      */
     public void selectAccountAuthority(ContinuityAccountAuthority registry, AccountAuthorityCheckpoint checkpoint) {
         Objects.requireNonNull(registry, "account registry").select(owner, Objects.requireNonNull(checkpoint, "checkpoint"));
@@ -81,6 +83,105 @@ public final class ContinuityEnrollment implements AutoCloseable {
     /** Sends neither Commit nor Close. Unavailable or failure never proves NoCommit. */
     public CredentialRenewalStatus reconcileWitnessedCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
         return credentialPair(8, original, statement);
+    }
+    void selectPolicyFrom(Owner configuration) {
+        configuration.call(false, source -> owner.call(false, handle -> {
+            Native.selectPolicy(source, handle); return null;
+        }));
+    }
+    private PolicyRenewalRequest policyRequest(Ids.PolicyRenewal operation, int command) {
+        byte[][] input = {Objects.requireNonNull(operation, "original policy operation").encoded()};
+        return owner.call(false, handle -> PolicyRenewalRequest.fromNative(Native.policyCommand(handle, command, input)));
+    }
+    /** Actual signed historical P0 and original identity; reserves nothing.
+     * Retain the entire request and operation after an unknown submission result.
+     */
+    public PolicyRenewalRequest policyRenewalRequest(Ids.PolicyRenewal operation) {
+        return policyRequest(operation, Native.POLICY_REQUEST);
+    }
+    /** Required-witness counterpart. Missing witness is an error, never a local fallback. */
+    public PolicyRenewalRequest witnessedPolicyRenewalRequest(Ids.PolicyRenewal operation) {
+        return policyRequest(operation, Native.POLICY_WITNESSED_REQUEST);
+    }
+    public PolicyRenewalStatus policyRenewalStatus() {
+        return owner.call(false, handle -> new PolicyRenewalStatus(Native.policyCommand(handle, Native.POLICY_STATUS, new byte[0][])));
+    }
+    /** Select an independently trusted current target first. Both root approvals,
+     * original request and predecessor pins are reverified by the native coordinator.
+     * Admitted failures can consume the owner or follow commit; close and reopen the
+     * original enrollment, retaining these exact inputs instead of choosing new IDs.
+     */
+    public PolicyRenewalStatus stagePolicyRenewal(PolicyRenewalRequest request, AccountPin originalPin,
+            AccountPin currentPin, byte[] approvals, ConfigurationInputs.ProtocolPolicy previous) {
+        byte[][] input = PolicyCodec.join(new byte[][] {Objects.requireNonNull(request, "original policy request").nativeWire()},
+            PolicyCodec.pin(originalPin), PolicyCodec.pin(currentPin),
+            new byte[][] {ConfigurationInputs.copy(approvals, 7618, 7618, "policy approvals")}, PolicyCodec.document(previous));
+        return owner.call(false, handle -> new PolicyRenewalStatus(Native.policyCommand(handle, Native.POLICY_STAGE, input)));
+    }
+    public byte[] pendingPolicyRenewalApproval(Ids.PolicyRenewal operation) {
+        byte[][] input = {Objects.requireNonNull(operation, "original policy operation").encoded()};
+        return owner.call(false, handle -> {
+            byte[] wire = Native.policyCommand(handle, Native.POLICY_APPROVAL, input);
+            if (wire.length != 8196) throw new IllegalStateException("native policy approval width");
+            try {
+                byte[] approval = PolicyCodec.publicRecord(ByteBuffer.wrap(wire));
+                if (approval.length != 7618) throw new IllegalArgumentException("policy approval length");
+                return approval;
+            } catch (IllegalArgumentException failure) { throw new IllegalStateException("malformed native policy approval", failure); }
+        });
+    }
+    /** Resume original local policy advancement under the selected current target. */
+    public PolicyRenewalStatus reconcilePolicyRenewal() {
+        return owner.call(false, handle -> new PolicyRenewalStatus(Native.policyCommand(handle, Native.POLICY_RECONCILE, new byte[0][])));
+    }
+    /** Local-only exact historical result; selects no runtime and transfers no Device.
+     * Required-witness policies refuse this operation. Use their complete original
+     * proposal with reconcileWitnessedPolicyRenewal and witnessedPolicyRenewalProgress.
+     */
+    public PolicyRenewalStatus resolvePolicyRenewal(Ids.PolicyRenewal operation, Ids.PolicyStatement statement,
+            ConfigurationInputs.ProtocolPolicy target) {
+        byte[][] input = PolicyCodec.join(new byte[][] {Objects.requireNonNull(operation, "policy operation").encoded(),
+            Objects.requireNonNull(statement, "policy statement").encoded()}, PolicyCodec.document(target));
+        return owner.call(false, handle -> new PolicyRenewalStatus(Native.policyCommand(handle, Native.POLICY_RESOLVE, input)));
+    }
+    /** Requires selected current target. Retain the complete proposal for independent approval. */
+    public IndependentPolicyProposal prepareWitnessedPolicyRenewal(ConfigurationInputs.ProtocolPolicy previous) {
+        byte[][] input = PolicyCodec.document(previous);
+        return owner.call(false, handle -> IndependentPolicyProposal.fromNative(Native.policyCommand(handle, Native.POLICY_PREPARE, input)));
+    }
+    /** Null means local absence only; it does not prove witness non-commit. */
+    public IndependentPolicyProposal recoverWitnessedPolicyRenewalPreparation() {
+        return owner.call(false, handle -> IndependentPolicyProposal.preparation(
+            Native.policyCommand(handle, Native.POLICY_PREPARATION, new byte[0][])));
+    }
+    public IndependentPolicyProgress witnessedPolicyRenewalProgress() {
+        return owner.call(false, handle -> new IndependentPolicyProgress(
+            Native.policyCommand(handle, Native.POLICY_PROGRESS, new byte[0][])));
+    }
+    private IndependentPolicyState policyWitness(int command, IndependentPolicyProposal original) {
+        byte[][] input = {Objects.requireNonNull(original, "original policy proposal").encoded()};
+        return owner.call(false, handle -> IndependentPolicyState.fromNative(Native.policyCommand(handle, command, input)));
+    }
+    public IndependentPolicyState commitWitnessedPolicyRenewal(IndependentPolicyProposal original) {
+        return policyWitness(Native.POLICY_COMMIT, original);
+    }
+    /** Historical original transaction; sends no new Commit or Close. */
+    public IndependentPolicyState reconcileWitnessedPolicyRenewal(IndependentPolicyProposal original) {
+        return policyWitness(Native.POLICY_WITNESS_RECONCILE, original);
+    }
+    /** Explicit closure can lose to Applied; neither result grants current traffic authority. */
+    public IndependentPolicyState closeWitnessedPolicyRenewal(IndependentPolicyProposal original) {
+        return policyWitness(Native.POLICY_CLOSE, original);
+    }
+    /** Transfers the original native owner only after fresh target authorization,
+     * TLS configuration and any required witness retirement have completed.
+     */
+    public ContinuityDevice activatePolicyRenewal() {
+        return owner.transfer(handle -> {
+            ContinuityDevice successor = new ContinuityDevice(handle);
+            Native.policyCommand(handle, Native.POLICY_ACTIVATE, new byte[0][]);
+            return successor;
+        });
     }
     /** Missing required witness enrollment is an error, never a local-mode fallback. */
     public ContinuityDevice activate() {

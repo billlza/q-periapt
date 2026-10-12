@@ -27,7 +27,7 @@ def connection_marker(language: str, carrier: str, profile: str) -> str:
             "original_message=true receiver_exit_after_effect=true acknowledged=true effects=1")
 
 
-def verify_original(data: dict, *, after_traffic: str = "request") -> tuple:
+def verify_original(data: dict, *, after_traffic: str = "request", identity_journal: bytes | None = None) -> tuple:
     sdk.require(after_traffic in {"request", "identity"}, "configuration readback kind differs")
     request, intent, root = data["request.bin"], data["intent.bin"], data["root.bin"]
     sdk.require(len(root) == 1985 and len(intent) == 72 and any(root) and any(intent[:16]) and any(intent[24:56]),
@@ -54,7 +54,11 @@ def verify_original(data: dict, *, after_traffic: str = "request") -> tuple:
     if after_traffic == "request":
         sdk.require(data["after-traffic.bin"] == request, "configuration connection original request changed after traffic")
     else:
-        sdk.require("genesis.bin" in data and data["after-traffic.bin"] == body[8:40] + data["genesis.bin"][4:36],
+        if identity_journal is None:
+            sdk.require("genesis.bin" in data, "configuration identity lacks original journal evidence")
+            identity_journal = data["genesis.bin"][4:36]
+        sdk.require(len(identity_journal) == 32 and any(identity_journal)
+                    and data["after-traffic.bin"] == body[8:40] + identity_journal,
                     "configuration connection original signer or journal changed after traffic")
     if "genesis.bin" in data:
         genesis = data["genesis.bin"]

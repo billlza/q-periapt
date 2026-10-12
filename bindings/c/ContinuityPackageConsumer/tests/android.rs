@@ -29,10 +29,16 @@ mod android_credential_traffic;
 mod android_local_credential;
 #[path = "common/android_policy_expiry.rs"]
 mod android_policy_expiry;
+#[path = "common/android_policy_renewal.rs"]
+mod android_policy_renewal;
 #[path = "common/android_remote_credential.rs"]
 mod android_remote_credential;
 #[path = "common/android_witness.rs"]
 mod android_witness;
+#[path = "common/policy_request.rs"]
+mod policy_request;
+#[path = "common/receiver_policy.rs"]
+mod receiver_policy;
 #[path = "common/receiver_process.rs"]
 mod receiver_process;
 #[path = "common/witness_tls.rs"]

@@ -776,7 +776,8 @@ int32_t qpc_enrollment_v1_pending_policy_renewal_approval(uint64_t handle, const
     qpc_public_record_v1 *record, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_reconcile_policy_renewal(uint64_t handle,
     qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);
-/* Historical exact result, no target runtime selection or Device transfer. */
+/* Local-only historical exact result, no target runtime selection or Device transfer.
+ * Required-witness P uses its proposal-based reconciliation/progress below. */
 int32_t qpc_enrollment_v1_resolve_policy_renewal(uint64_t handle, const uint8_t operation[32],
     const uint8_t statement[32], const qpc_policy_document_v1 *target,
     qpc_policy_renewal_status_v1 *status, qpc_error_v1 *error);

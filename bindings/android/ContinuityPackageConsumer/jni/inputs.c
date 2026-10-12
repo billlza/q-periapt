@@ -4,7 +4,7 @@
 
 int qpj_copy_fields(JNIEnv *env, jobjectArray inputs, owned_bytes *values,
         const jsize *minimum, const jsize *maximum, size_t count) {
-    enum { LIMIT = 16 };
+    enum { LIMIT = QPJ_INPUT_FIELD_LIMIT };
     jbyteArray arrays[LIMIT] = {0};
     jsize lengths[LIMIT] = {0};
     int copied = 0;

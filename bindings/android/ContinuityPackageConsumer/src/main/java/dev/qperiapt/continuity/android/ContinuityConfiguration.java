@@ -41,6 +41,15 @@ public final class ContinuityConfiguration implements AutoCloseable {
         return own(Native.prepareConfiguration(inputs, 3, trust.mode, protocol.version));
     }
     public void finishOpen() { owner.action(1); }
+    /** Move this finished configuration's independently trusted target policy into the
+     * original enrollment. Selection alone approves or commits nothing. After success,
+     * close this configuration; its moved policy lease remains with the enrollment.
+     * An admitted error can consume both native owners: close and reopen the original
+     * inputs. Cancellation, Busy and preflight failures retain their normal contracts.
+     */
+    public void selectContinuedPolicy(ContinuityEnrollment enrollment) {
+        Objects.requireNonNull(enrollment, "original enrollment").selectPolicyFrom(owner);
+    }
     /** Concurrent, one-way cancellation. Join the working thread, close, then resume original state. */
     public void cancel() { owner.action(2); }
     /** Busy preserves ownership. Other native errors retain their original code and diagnostic. */

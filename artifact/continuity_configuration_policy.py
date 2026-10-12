@@ -1,7 +1,8 @@
 """Public linkage for first-use policy renewal; native execution checks signatures.
 
-Request/status records are native ABI readbacks from the collector's host. Signed
-policy/approval/proposal envelopes use their canonical big-endian wire format.
+Request/status records use the collector's declared byte order (native ABI by
+default, explicit big-endian fields for Android). Signed policy/approval/proposal
+envelopes always use their canonical big-endian wire format.
 """
 import hashlib
 import sys
@@ -46,25 +47,25 @@ def counter(data: bytes, order: str = sys.byteorder) -> int:
     return int.from_bytes(data, order)
 
 
-def _request(data: dict[str, bytes], account: bytes) -> bytes:
+def _request(data: dict[str, bytes], account: bytes, order: str) -> bytes:
     raw = data["policy-request.bin"]
     sdk.require(len(raw) == REQUEST_BYTES and raw == data["policy-request-replayed.bin"]
                 == data["policy-after-refusal.bin"], "configuration policy original request changed")
-    sdk.require(data["policy-refused.bin"] == (102).to_bytes(4, sys.byteorder),
+    sdk.require(data["policy-refused.bin"] == (102).to_bytes(4, order),
                 "configuration policy tampered approval was not refused")
     sdk.require(all(any(raw[start:start + 32]) for start in range(0, 160, 32))
                 and raw[96:128] == raw[128:160] and raw[280:320] == bytes(40)
                 and raw[320:352] == account, "configuration policy original scope differs")
     records = []
     for start in (392, 8588, 16784, 24980):
-        length = counter(raw[start:start + 4])
+        length = counter(raw[start:start + 4], order)
         record = raw[start + 4:start + 8196]
         sdk.require(0 < length <= 8192 and record[length:] == bytes(8192 - length),
                     "configuration policy public record length or padding differs")
         records.append(record[:length])
     sdk.require(records[0] == records[2] and records[1] == records[3]
                 and raw[160:200] == raw[352:392]
-                and 0 < counter(raw[160:168]) < 2**64 - 1 and any(raw[168:200]),
+                and 0 < counter(raw[160:168], order) < 2**64 - 1 and any(raw[168:200]),
                 "configuration policy changed credential or roster")
     return raw
 
@@ -81,9 +82,9 @@ def _checkpoint(wire: bytes, family: bytes) -> tuple[int, bytes, bytes]:
         b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1", body), body
 
 
-def verify_expiry(data: dict[str, bytes], *, family: bytes, original_request: bytes,
-                  identity_until: int) -> dict:
-    """Bind actual-clock expiry/refusal to P0 and the original retained request."""
+def verify_expiry_window(data: dict[str, bytes], *, family: bytes,
+                         identity_until: int, byteorder: str = sys.byteorder) -> dict:
+    """Bind real P0 expiry/refusal to a still-live credential, target and receiver."""
     _, _, original = _checkpoint(data["original-policy.bin"], family)
     target = _checkpoint(data["target-policy.bin"], family)
     receiver = _checkpoint(data["receiver-policy.bin"], family)
@@ -95,14 +96,21 @@ def verify_expiry(data: dict[str, bytes], *, family: bytes, original_request: by
                 == counter(original[56:64], "big") <= at < identity_until
                 and at < counter(target[2][56:64], "big"),
                 "configuration expiry did not observe expired P0 with live identity and target")
-    sdk.require(data["expired-activation.bin"] == (104).to_bytes(4, sys.byteorder)
-                and data["expired-request.bin"] == original_request,
-                "configuration expiry did not refuse activation and preserve original request")
+    sdk.require(data["expired-activation.bin"] == (104).to_bytes(4, byteorder),
+                "configuration expiry did not refuse activation")
     return dict(policy_until=until, observed_at=at, receiver_adopted_at=adopted)
 
 
+def verify_expiry(data: dict[str, bytes], *, family: bytes, original_request: bytes,
+                  identity_until: int, byteorder: str = sys.byteorder) -> dict:
+    """Require the original registration request after the observed real-clock expiry."""
+    result = verify_expiry_window(data, family=family, identity_until=identity_until, byteorder=byteorder)
+    sdk.require(data["expired-request.bin"] == original_request, "configuration expiry changed the original request")
+    return result
+
+
 def _approvals(data: dict[str, bytes], raw: bytes, family: bytes,
-               original: bytes, target: bytes) -> bytes:
+               original: bytes, target: bytes, order: str) -> bytes:
     approvals = data["policy-approvals.bin"]
     sdk.require(len(approvals) == 7618 and approvals[:8] == b"QPPRNB01",
                 "configuration policy approval container differs")
@@ -121,7 +129,7 @@ def _approvals(data: dict[str, bytes], raw: bytes, family: bytes,
     sdk.require(statements[1] == body and offset == len(approvals),
                 "configuration policy issuer statements differ")
     sdk.require(body[8:168] == raw[:160] and any(body[168:200]) and body[200:232] == family
-                and body[232:272] == counter(raw[160:168]).to_bytes(8, "big") + raw[168:200]
+                and body[232:272] == counter(raw[160:168], order).to_bytes(8, "big") + raw[168:200]
                 and body[272:312] == original and body[312:352] == original
                 and body[352:392] == target and body[392:] == bytes(33) + b"\x01",
                 "configuration policy approval scope or established-session restriction differs")
@@ -132,13 +140,13 @@ def _approvals(data: dict[str, bytes], raw: bytes, family: bytes,
 
 
 def _status(data: dict[str, bytes], name: str, phase: int,
-            raw: bytes, statement: bytes, target: bytes) -> None:
-    expected = (phase.to_bytes(4, sys.byteorder) + bytes(4) + raw[:32] + statement
-                + counter(target[:8], "big").to_bytes(8, sys.byteorder) + target[8:] + bytes(48))
+            raw: bytes, statement: bytes, target: bytes, order: str) -> None:
+    expected = (phase.to_bytes(4, order) + bytes(4) + raw[:32] + statement
+                + counter(target[:8], "big").to_bytes(8, order) + target[8:] + bytes(48))
     sdk.require(data[name] == expected, "configuration policy status differs: " + name)
 
 
-def _witness(data: dict[str, bytes], raw: bytes, statement: bytes) -> None:
+def _witness(data: dict[str, bytes], raw: bytes, statement: bytes, order: str) -> None:
     proposal, genesis = data["policy-proposal.bin"], data["genesis.bin"]
     sdk.require(len(genesis) == 164 and genesis[:4] == b"\x00\x00\x00\x02"
                 and genesis[4:36] == genesis[36:68]
@@ -157,12 +165,13 @@ def _witness(data: dict[str, bytes], raw: bytes, statement: bytes) -> None:
                 and proposal[216:248] != proposal[264:296],
                 "configuration policy witness original sealed target differs")
     sdk.require(data["witness-applied.bin"] == data["witness-reconciled.bin"]
-                == (2).to_bytes(4, sys.byteorder), "configuration policy witness did not reconcile Applied")
+                == (2).to_bytes(4, order), "configuration policy witness did not reconcile Applied")
 
 
-def verify(data: dict[str, bytes], *, carrier: str, account: bytes, family: bytes) -> str:
+def verify(data: dict[str, bytes], *, carrier: str, account: bytes, family: bytes, byteorder: str = sys.byteorder) -> str:
     """Require P0 -> P1 between original uncertain delivery and exact retry."""
-    raw = _request(data, account)
+    sdk.require(byteorder in {"little", "big"}, "configuration record byte order differs")
+    raw = _request(data, account, byteorder)
     root = data["policy-root.bin"]
     sdk.require(len(root) == 1985 and any(root) and family == digest(
         b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1", root),
@@ -175,18 +184,18 @@ def verify(data: dict[str, bytes], *, carrier: str, account: bytes, family: byte
                 "configuration policy renewal changed the SDK/suite/authority or expiry extension")
     original = old_version.to_bytes(8, "big") + old_digest
     target = new_version.to_bytes(8, "big") + new_digest
-    sdk.require(raw[200:240] == old_version.to_bytes(8, sys.byteorder) + old_digest
+    sdk.require(raw[200:240] == old_version.to_bytes(8, byteorder) + old_digest
                 and raw[240:280] == raw[200:240]
                 and data["target-version.bin"] == target[:8] and data["target-digest.bin"] == target[8:],
                 "configuration policy original/target checkpoint differs")
-    statement = _approvals(data, raw, family, original, target)
-    _status(data, "policy-staged.bin", 1, raw, statement, target)
+    statement = _approvals(data, raw, family, original, target, byteorder)
+    _status(data, "policy-staged.bin", 1, raw, statement, target, byteorder)
     sdk.require(data["policy-stage-replayed.bin"] == data["policy-staged.bin"],
                 "configuration policy stage replay changed")
     if carrier == "local":
-        _status(data, "policy-committed.bin", 2, raw, statement, target)
+        _status(data, "policy-committed.bin", 2, raw, statement, target, byteorder)
         sdk.require(data["policy-commit-replayed.bin"] == data["policy-committed.bin"],
                     "configuration policy commit replay changed")
     else:
-        _witness(data, raw, statement)
+        _witness(data, raw, statement, byteorder)
     return raw[:32].hex()

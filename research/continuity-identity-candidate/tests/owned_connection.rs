@@ -414,7 +414,9 @@ impl Drop for Setup {
 pub(crate) fn setup(kind: enrollment::SetupKind) -> Result<Setup> {
     match kind {
         enrollment::SetupKind::Installed => setup_with_witness(None),
-        enrollment::SetupKind::EnrolledExpiringPolicy => setup_expiring_policy(None),
+        enrollment::SetupKind::EnrolledExpiringPolicy(seconds) => {
+            setup_expiring_policy(None, seconds)
+        }
         enrollment::SetupKind::Enrolled => setup_enrolled_with_witness(None),
         enrollment::SetupKind::DeviceReplacement => {
             Ok(setup_devices_for(None, None, None, false, false, true, kind)?.0)
@@ -455,7 +457,14 @@ impl WitnessFixture {
         )?)
     }
 }
-pub(crate) fn setup_expiring_policy(witness: Option<&WitnessFixture>) -> Result<Setup> {
+/// Explicit real-clock window for a foreign consumer's setup. Old traces retain 60 seconds.
+pub(crate) fn setup_expiring_policy(
+    witness: Option<&WitnessFixture>,
+    seconds: u64,
+) -> Result<Setup> {
+    if seconds == 0 || seconds > 3600 {
+        return Err("policy lifetime exceeds fixture credential".into());
+    }
     Ok(setup_devices_for(
         witness,
         None,
@@ -463,7 +472,7 @@ pub(crate) fn setup_expiring_policy(witness: Option<&WitnessFixture>) -> Result<
         false,
         false,
         true,
-        enrollment::SetupKind::EnrolledExpiringPolicy,
+        enrollment::SetupKind::EnrolledExpiringPolicy(seconds),
     )?
     .0)
 }
@@ -531,7 +540,7 @@ fn setup_devices_for(
     let enrolled = matches!(
         kind,
         enrollment::SetupKind::Enrolled
-            | enrollment::SetupKind::EnrolledExpiringPolicy
+            | enrollment::SetupKind::EnrolledExpiringPolicy(_)
             | enrollment::SetupKind::DeviceReplacement
             | enrollment::SetupKind::DeviceRetirement
     );
@@ -606,11 +615,12 @@ fn setup_devices_for(
         time.saturating_sub(1),
         time.checked_add(3600).ok_or("clock overflow")?,
     )?;
-    let effective_advertisement_seconds = if kind == enrollment::SetupKind::EnrolledExpiringPolicy {
-        Some(advertisement_seconds.unwrap_or(60).min(60))
-    } else {
-        advertisement_seconds
-    };
+    let effective_advertisement_seconds =
+        if let enrollment::SetupKind::EnrolledExpiringPolicy(seconds) = kind {
+            Some(advertisement_seconds.unwrap_or(seconds).min(seconds))
+        } else {
+            advertisement_seconds
+        };
     let advertisement = match effective_advertisement_seconds {
         Some(seconds) => p::Validity::new(
             validity.from(),
@@ -627,10 +637,10 @@ fn setup_devices_for(
         &sdk,
         p::SessionPolicyParameters::new(
             1,
-            if kind == enrollment::SetupKind::EnrolledExpiringPolicy {
+            if let enrollment::SetupKind::EnrolledExpiringPolicy(seconds) = kind {
                 p::Validity::new(
                     validity.from(),
-                    time.checked_add(60).ok_or("policy expiry")?,
+                    time.checked_add(seconds).ok_or("policy expiry")?,
                 )?
             } else {
                 validity

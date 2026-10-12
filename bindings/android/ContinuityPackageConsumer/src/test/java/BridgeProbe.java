@@ -57,6 +57,7 @@ public final class BridgeProbe {
         rejected(IllegalStateException.class, tls::snapshot);
         if (copy[1][0] != 2) throw new AssertionError("caller snapshot was not independent");
         java.util.Arrays.fill(copy[1], (byte) 0);
+        PolicyBridgeProbe.run();
         System.out.println("configuration:bridge:passed");
     }
     private static void credentialCodecs() {

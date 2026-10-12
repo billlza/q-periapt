@@ -231,3 +231,28 @@ lost; an uncommitted prepared proposal can be explicitly Closed. Exact proposal
 and terminal retries preserve their identities. Expired P0 still refuses staging
 a new grant, dispatching a new Commit and activating an operational device.
 This path is distinct from expiry or revocation of the underlying SDK authority.
+
+Independent protocol-policy renewal uses `PolicyRenewalRequest` and distinct
+policy operation/statement IDs. Retain the complete request fields and the first
+account-root plus policy-root approvals across process restarts. After opening a
+separately provisioned target `ContinuityConfiguration`, call
+`selectContinuedPolicy(originalEnrollment)`; close that configuration after the
+selection. The original enrollment retains the moved target lease. Selection
+itself neither approves nor commits an update.
+
+Local-only journals use `policyRenewalRequest`, `stagePolicyRenewal`,
+`reconcilePolicyRenewal` and `activatePolicyRenewal`. Required-witness journals use
+the independently typed request, complete `IndependentPolicyProposal`, explicit
+witness approval, commit and historical reconciliation. Keep the complete proposal;
+`Unavailable` is not proof of non-commit. `resolvePolicyRenewal` is local-only and
+refuses witness-protected policies; use their proposal-based reconciliation and
+progress APIs. A managed journal requires witness protection and its original
+live account registry selected again after each resume, including before a
+journal-backed renewal request. No API automatically falls back to local mode.
+
+The JNI layer copies and bounds every input before native admission. Request and
+approval output records are heap allocated; its 17-field stage shape is checked
+against the shared field bound at compile time. Public request/status framing is
+explicit big endian, not a Java view over native struct memory. These new methods
+are under active host and ART qualification; they do not change the completed
+single-phone physical-device acceptance scope.

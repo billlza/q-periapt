@@ -28,7 +28,7 @@ def verify_execution(stdout: bytes, directory: Path, *, managed: bool = False, t
     text = stdout.decode()
     test = test or ("android_witness::managed_first_registration" if managed else TEST)
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE) == [test]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE)) == 1,
+                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.MULTILINE)) == 1,
                 "Android required-witness test was not executed completely")
     records = {}
     for carrier in ("signed", "tls"):

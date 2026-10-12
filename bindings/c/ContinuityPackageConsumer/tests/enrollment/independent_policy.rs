@@ -25,7 +25,7 @@ fn run_policy_transport(path: &Path, label: &str, args: &[OsString]) -> Result<S
 
 use crate::policy_request::Request;
 fn read_request(path: &Path) -> Result<Request> {
-    crate::policy_request::read_request(&path.join("independent-request"))
+    crate::policy_request::read_request(&path.join("independent-request"), false)
 }
 fn invoke(c: &Registered, label: &str, mode: &str) -> Result<String> {
     let args = c.arguments(command(&c.path, &format!("independent-policy-{mode}")));

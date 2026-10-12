@@ -5,6 +5,8 @@
 #include "qpc_owner.h"
 
 typedef struct { uint8_t *data; size_t length; } owned_bytes;
+/* Largest admitted shape: request, two account pins, approvals and previous policy. */
+enum { QPJ_INPUT_FIELD_LIMIT = 17 };
 void qpj_wipe(void *pointer, size_t length);
 void qpj_throw_class(JNIEnv *env, const char *name, const char *message);
 void qpj_throw_error(JNIEnv *env, const char *operation, int32_t code, const qpc_error_v1 *error);
@@ -28,4 +30,6 @@ jlong qpj_prepare_authority(JNIEnv *, jclass, jobjectArray, jboolean);
 jbyteArray qpj_authority_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
 void qpj_select_authority(JNIEnv *, jclass, jlong, jlong, jobjectArray);
 jbyteArray qpj_credential_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
+jbyteArray qpj_policy_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
+void qpj_select_policy(JNIEnv *, jclass, jlong, jlong);
 #endif

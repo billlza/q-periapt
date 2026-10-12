@@ -5,6 +5,7 @@ use std::{fs, path::Path};
 struct Input<'a> {
     bytes: &'a [u8],
     offset: usize,
+    big_endian: bool,
 }
 impl Input<'_> {
     fn array<const N: usize>(&mut self) -> Result<[u8; N]> {
@@ -18,10 +19,20 @@ impl Input<'_> {
         Ok(value)
     }
     fn u64(&mut self) -> Result<u64> {
-        Ok(u64::from_ne_bytes(self.array()?))
+        let bytes = self.array()?;
+        Ok(if self.big_endian {
+            u64::from_be_bytes(bytes)
+        } else {
+            u64::from_ne_bytes(bytes)
+        })
     }
     fn u32(&mut self) -> Result<u32> {
-        Ok(u32::from_ne_bytes(self.array()?))
+        let bytes = self.array()?;
+        Ok(if self.big_endian {
+            u32::from_be_bytes(bytes)
+        } else {
+            u32::from_ne_bytes(bytes)
+        })
     }
     fn roster(&mut self) -> Result<p::RosterCheckpoint> {
         Ok(p::RosterCheckpoint::from_trusted_state(
@@ -53,12 +64,14 @@ pub(crate) struct Request {
     pub(crate) current_c: Vec<u8>,
     pub(crate) current_r: Vec<u8>,
 }
-pub(crate) fn read_request(path: &Path) -> Result<Request> {
+/// Android exports explicit big-endian public fields; existing C/Swift/JVM probes use native ABI order.
+pub(crate) fn read_request(path: &Path, big_endian: bool) -> Result<Request> {
     let bytes = fs::read(path)?;
     assert_eq!(bytes.len(), 33176);
     let mut r = Input {
         bytes: &bytes,
         offset: 0,
+        big_endian,
     };
     let operation = p::PolicyRenewalId::from_trusted_state(r.array()?)?;
     let journal = p::JournalIdentity::from_trusted_state(r.array()?)?;

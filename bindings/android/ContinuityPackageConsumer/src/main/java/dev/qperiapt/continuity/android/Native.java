@@ -42,6 +42,13 @@ final class Native {
     static native byte[] authorityCommand(long handle, int operation, byte[][] inputs, long version);
     static native void selectAuthority(long enrollment, long registry, byte[][] checkpoint);
     static native byte[] credentialCommand(long handle, int operation, byte[][] inputs, long version);
+    // Private JNI selectors; independent policy operations never use credential grammar.
+    static final int POLICY_REQUEST = 1, POLICY_WITNESSED_REQUEST = 2, POLICY_STATUS = 3,
+        POLICY_RECONCILE = 4, POLICY_APPROVAL = 5, POLICY_PREPARE = 6, POLICY_PREPARATION = 7,
+        POLICY_PROGRESS = 8, POLICY_COMMIT = 9, POLICY_WITNESS_RECONCILE = 10, POLICY_CLOSE = 11,
+        POLICY_STAGE = 12, POLICY_RESOLVE = 13, POLICY_ACTIVATE = 14;
+    static native byte[] policyCommand(long handle, int operation, byte[][] inputs);
+    static native void selectPolicy(long configuration, long enrollment);
     static final class CommitInvocation {
         private final ApplicationCommit commit;
         Throwable failure;

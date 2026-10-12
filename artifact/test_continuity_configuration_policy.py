@@ -5,7 +5,7 @@ import unittest
 import continuity_configuration_policy as policy
 
 
-def fixture_values(index, account, carrier):
+def fixture_values(index, account, carrier, byteorder=sys.byteorder):
     root = bytes([index + 40]) * 1985
     family = policy.digest(b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1", root)
     policies = []
@@ -17,23 +17,23 @@ def fixture_values(index, account, carrier):
         checkpoints.append(version.to_bytes(8, "big") + policy.digest(
             b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1", body))
     original, target = checkpoints
-    native_pin = (1).to_bytes(8, sys.byteorder) + original[8:]
-    roster = (1).to_bytes(8, sys.byteorder) + bytes([index + 50]) * 32
+    native_pin = (1).to_bytes(8, byteorder) + original[8:]
+    roster = (1).to_bytes(8, byteorder) + bytes([index + 50]) * 32
     operation = bytes([index + 60]) * 32
     journal = bytes([5]) * 32
     raw = (operation + journal + bytes([index + 70]) * 32 + bytes([index + 80]) * 64
            + roster + native_pin * 2 + bytes(40) + account + roster)
     for record in (b"public certificate", b"public roster") * 2:
-        raw += len(record).to_bytes(4, sys.byteorder) + record + bytes(8192 - len(record))
+        raw += len(record).to_bytes(4, byteorder) + record + bytes(8192 - len(record))
     body = (b"QPPRNW01" + raw[:160] + bytes([index + 90]) * 32 + family
             + (1).to_bytes(8, "big") + roster[8:] + original * 2 + target + bytes(33) + b"\x01")
     approval = len(body).to_bytes(4, "big") + body + bytes(3373)
     statement = policy.digest(b"Q-PERIAPT-POLICY-RENEWAL-CANDIDATE/v1", body)
     def status(phase):
-        return (phase.to_bytes(4, sys.byteorder) + bytes(4) + operation + statement
-                + (2).to_bytes(8, sys.byteorder) + target[8:] + bytes(48))
+        return (phase.to_bytes(4, byteorder) + bytes(4) + operation + statement
+                + (2).to_bytes(8, byteorder) + target[8:] + bytes(48))
     values = {"policy-request.bin": raw, "policy-request-replayed.bin": raw,
-              "policy-after-refusal.bin": raw, "policy-refused.bin": (102).to_bytes(4, sys.byteorder),
+              "policy-after-refusal.bin": raw, "policy-refused.bin": (102).to_bytes(4, byteorder),
               "policy-root.bin": root, "original-policy.bin": policies[0], "target-policy.bin": policies[1],
               "target-version.bin": target[:8], "target-digest.bin": target[8:],
               "policy-approvals.bin": b"QPPRNB01" + (len(approval).to_bytes(2, "big") + approval) * 2,
@@ -48,12 +48,22 @@ def fixture_values(index, account, carrier):
                     + (1).to_bytes(8, "big") + (2).to_bytes(8, "big") + bytes([index + 120]) * 32)
         values.update({"genesis.bin": genesis, "policy-proposal.bin": proposal,
                        "proposal-replayed.bin": proposal, "proposal-recovered.bin": proposal,
-                       "witness-applied.bin": (2).to_bytes(4, sys.byteorder),
-                       "witness-reconciled.bin": (2).to_bytes(4, sys.byteorder)})
+                       "witness-applied.bin": (2).to_bytes(4, byteorder),
+                       "witness-reconciled.bin": (2).to_bytes(4, byteorder)})
     return family, values
 
 
 class ConfigurationPolicyTests(unittest.TestCase):
+    def test_explicit_byte_order_cannot_be_silently_reinterpreted(self):
+        account = bytes([1]) * 32
+        for order in ("little", "big"):
+            for carrier in ("local", "signed", "tls"):
+                with self.subTest(order=order, carrier=carrier):
+                    family, data = fixture_values(0, account, carrier, byteorder=order)
+                    self.assertEqual(policy.verify(data, carrier=carrier, account=account, family=family, byteorder=order), data["policy-request.bin"][:32].hex())
+                    with self.assertRaises(ValueError):
+                        policy.verify(data, carrier=carrier, account=account, family=family, byteorder="big" if order == "little" else "little")
+
     def test_every_policy_record_is_bounded_and_bound_to_the_original_operation(self):
         account = bytes([1]) * 32
         for carrier in ("local", "signed", "tls"):

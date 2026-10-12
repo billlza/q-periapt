@@ -50,9 +50,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             boolean managed = operation.startsWith("managed-");
             String baseOperation = managed ? operation.substring(8) : operation;
             boolean authority = operation.startsWith("authority-");
+            boolean policy = operation.startsWith("policy-");
             boolean credential = operation.startsWith("credential-");
             boolean witnessed = operation.startsWith("witness-") || managed || credential;
-            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority;
+            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority || policy;
             boolean peer = operation.startsWith("peer-");
             File base = new File(getTargetContext().getFilesDir().getCanonicalFile(), "continuity");
             try { android.system.Os.mkdir(base.getPath(), 0700); }
@@ -67,6 +68,9 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             File inputs = new File(base, "inputs");
             if (!inputs.isDirectory()) {
                 if (!inputs.mkdir()) throw new IllegalStateException("create input directory");
+                if (policy) {
+                    PolicyInputs.initial(inputs, arguments, profile);
+                } else {
                 java.util.List<String> names = new java.util.ArrayList<>(java.util.Arrays.asList("sdk-policy", "sdk-signature", "sdk-root", "family", "policy-root",
                         "policy-version", "policy-digest", "protocol-policy", "tls-cert", "tls-key",
                         "recovery-scope", "recovery-root", "recovery-enrollment"));
@@ -82,6 +86,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         } finally { java.util.Arrays.fill(buffer, (byte) 0); }
                     }
                 }
+                }
             }
             boolean isolated = "capacity".equals(operation) || "cancel".equals(operation) || "absent".equals(operation)
                 || "symlink-parent".equals(operation) || "permission-parent".equals(operation);
@@ -90,10 +95,13 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 String label = arguments.getString("label");
                 if (label == null || !label.matches("[a-z][a-z0-9.-]{0,63}")) throw new IllegalArgumentException("result label");
                 if ("enrollment-reject".equals(operation) || "enrollment-activate".equals(operation)
-                        || "witness-prepare".equals(baseOperation) || "authority-create".equals(operation)) grantInputs(inputs);
+                        || "witness-prepare".equals(baseOperation) || "authority-create".equals(operation) || "policy-prepare".equals(operation)) grantInputs(inputs);
                 File publicResult = new File(base, label);
                 String[] call = {inputs.getPath(), new File(base, leaf).getPath(), profile, operation, publicResult.getPath()};
-                if (peer) {
+                if (policy) {
+                    PolicyInputs.install(inputs, arguments, operation, profile);
+                    PolicyProbe.main(call);
+                } else if (peer) {
                     PeerInputs.install(inputs, arguments, operation);
                     PeerProbe.run(call, port -> {
                         Bundle ready = new Bundle(); ready.putInt("port", port); ready.putInt("pid", android.os.Process.myPid());
@@ -127,7 +135,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                     } else WitnessProbe.main(call);
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
-                if (bytes.length < 1 || bytes.length > 8192) throw new IllegalStateException("public result width");
+                if (operation.equals("policy-request") ? bytes.length != 33176 : bytes.length < 1 || bytes.length > 8192)
+                    throw new IllegalStateException("public result width");
                 result.putString("result_payload", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
                 result.putString("result", profile + ":" + operation + ":passed");
             } else {

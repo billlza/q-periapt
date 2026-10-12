@@ -36,7 +36,7 @@ impl Renewal<'_> {
             fs::read(case.base.join("renewal-request-replayed"))?,
             original_request
         );
-        let request = read_request(&source.join("renewal-request"))?;
+        let request = read_request(&source.join("renewal-request"), false)?;
         assert_eq!(request.scope.operation, operation);
         assert_eq!(request.account, account_root.account_id()?);
         assert_eq!(request.original_checkpoint, roster.checkpoint());
@@ -221,17 +221,7 @@ impl Renewal<'_> {
     }
 }
 
-pub(crate) fn historical(path: &Path) -> Result<p::HistoricalSessionPolicy> {
-    let pin = p::PolicyPin::new(
-        fixture::array(path, "family")?,
-        p::PublicKey::decode(&fixture::read(path, "policy-root", 8192)?)?,
-        p::PolicyCheckpoint::from_trusted_state(
-            u64::from_be_bytes(fixture::array(path, "policy-version")?),
-            fixture::array(path, "policy-digest")?,
-        )?,
-    )?;
-    Ok(pin.verify_historical(&fixture::read(path, "protocol-policy", 8192)?)?)
-}
+pub(crate) use crate::receiver_policy::historical;
 
 pub(crate) fn export_public(
     source: &Path,
