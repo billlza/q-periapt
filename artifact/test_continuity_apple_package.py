@@ -73,6 +73,17 @@ class ApplePackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "wrong native target"):
                 apple.verify_xcframework(root, binaries, b"public header")
 
+    def test_xcode_inventory_order_is_canonical_without_deduplication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); rows, _ = self.fixture(root)
+            a = plistlib.dumps({"AvailableLibraries": rows, "XCFrameworkFormatVersion": "1.0"})
+            b = plistlib.dumps({"XCFrameworkFormatVersion": "1.0", "AvailableLibraries": list(reversed(rows))}, sort_keys=False)
+            self.assertNotEqual(a, b)
+            self.assertEqual(apple.canonical_xcframework_info(a), apple.canonical_xcframework_info(b))
+            for altered in [rows[:-1], [rows[0], rows[0], rows[2]]]:
+                with self.assertRaises(ValueError):
+                    apple.canonical_xcframework_info(plistlib.dumps({"AvailableLibraries": altered}))
+
     def test_headers_and_modules_must_match_the_owned_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); rows, binaries = self.fixture(root)

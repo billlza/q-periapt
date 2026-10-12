@@ -99,6 +99,19 @@ def relative_path(value: object) -> str:
     return value
 
 
+def canonical_xcframework_info(data: bytes) -> bytes:
+    info = plistlib.loads(data)
+    rows = info.get("AvailableLibraries")
+    sdk.require(isinstance(rows, list) and len(rows) == len(TARGETS)
+                and all(isinstance(row, dict) for row in rows), "XCFramework slice inventory differs")
+    identifiers = [relative_path(row.get("LibraryIdentifier")) for row in rows]
+    sdk.require(len(set(identifiers)) == len(identifiers), "XCFramework slice identifiers are duplicated")
+    # Xcode emits this semantically unordered inventory in varying order. Sort
+    # metadata only; every native archive/header is still verified byte-for-byte.
+    info["AvailableLibraries"] = sorted(rows, key=lambda row: row["LibraryIdentifier"])
+    return plistlib.dumps(info, fmt=plistlib.FMT_XML, sort_keys=True)
+
+
 def verify_xcframework(root: Path, binaries: dict, header: bytes) -> None:
     info = plistlib.loads(sdk.snapshot(root / "Info.plist").data)
     rows = info.get("AvailableLibraries")
@@ -188,6 +201,8 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
             notice_root.mkdir(parents=True)
             licenses.collect(consumer, notice_root, target, root_package=c.NAME, resolved_metadata=metadata)
         run([*arguments, "-output", str(staging / "CQPCOwner.xcframework")], "xcframework")
+        info = staging / "CQPCOwner.xcframework/Info.plist"
+        info.write_bytes(canonical_xcframework_info(sdk.snapshot(info).data))
         write(staging / "Package.swift", MANIFEST)
         swift = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
         for path in (swift / "Sources/QPeriaptContinuity").rglob("*"):
