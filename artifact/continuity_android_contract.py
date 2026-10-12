@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import rust_sdk_profile as sdk
 
-TESTS = frozenset({
+ROSTER_TESTS = frozenset({
     "android_lifecycle",
     "android_roster_local::original_roster_advance",
     "android_roster_local::remote_roster_advance",
@@ -27,6 +27,7 @@ TESTS = frozenset({
     for carrier in ("signed", "tls") for profile in ("fixed", "recoverable")
     for outcome in ("applied", "closed")
 })
+TESTS = ROSTER_TESTS | {"android_retirement::original_android_retirement"}
 
 
 def verify_catalog(stdout: bytes) -> None:
@@ -37,10 +38,12 @@ def verify_catalog(stdout: bytes) -> None:
                 "installed Android harness test inventory differs")
 
 
-def verify_single(stdout: bytes, test: str) -> None:
-    sdk.require(test in TESTS, "unknown installed Android test")
+def verify_single(stdout: bytes, test: str, *, catalog: frozenset[str] = TESTS) -> None:
+    # Historical roster captures explicitly retain their previous complete catalog.
+    # Live qualification always verifies TESTS first and uses this default.
+    sdk.require(catalog in (ROSTER_TESTS, TESTS) and test in catalog, "unknown installed Android test/catalog")
     text = stdout.decode()
-    expected = f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(TESTS)-1} filtered out;"
+    expected = f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(catalog)-1} filtered out;"
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.M) == [test]
                 and len(re.findall("^" + re.escape(expected), text, re.M)) == 1,
                 "installed Android test did not execute completely")

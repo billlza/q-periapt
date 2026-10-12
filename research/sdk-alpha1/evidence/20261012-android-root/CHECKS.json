@@ -1,0 +1,22 @@
+{
+  "completed_checkpoint": true,
+  "main_product_integration": false,
+  "host_calls": 560,
+  "host_process_cuts": 96,
+  "ART_calls": 280,
+  "ART_process_cuts": 48,
+  "host_routes": 16,
+  "ART_routes": 8,
+  "agreed_physical_device_gate": "passed; same selected API37 phone is sufficient",
+  "library_source_matches_host": true,
+  "native_engine_changed": false,
+  "source_HEAD": "44c38d6cca331363ea2aa621c3f019aba317c6fe",
+  "scope": "Isolated Android account-root adapter; four approved original/transition/bound-transition/adoption routes. Current main retirement integration qualifier remains separate and live.",
+  "release_claim_eligible": false,
+  "private_keys_or_journals_archived": false,
+  "archives": {
+    "HOST_CAPTURE.zip": "dea9414597d10c943085252e638b6d7acc1b3e8985def2156e1d45050a108651",
+    "ART_CAPTURE.zip": "4f86dae015d86e0eb03c730823812b74d19a326e82bf10d8fc187396a6d6a824",
+    "FAILURES.zip": "e24dff7eb4d776c00bccb000ed7640f5795dcec7495f9d97602de8649329747a"
+  }
+}

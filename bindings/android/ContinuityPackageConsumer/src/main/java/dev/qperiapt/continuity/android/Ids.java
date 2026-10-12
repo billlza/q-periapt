@@ -32,6 +32,7 @@ public final class Ids {
     public static final class Account extends Value { public Account(byte[] bytes) { super(bytes); } }
     public static final class RosterRefresh extends Value { public RosterRefresh(byte[] bytes) { super(bytes); } }
     public static final class Journal extends Value { public Journal(byte[] bytes) { super(bytes); } }
+    public static final class RetiredReport extends Value { public RetiredReport(byte[] bytes) { super(bytes); } }
     public static final class PolicyRenewal extends Value { public PolicyRenewal(byte[] bytes) { super(bytes); } }
     public static final class PolicyStatement extends Value { public PolicyStatement(byte[] bytes) { super(bytes); } }
     public static final class PolicyAuthorization extends Value { public PolicyAuthorization(byte[] bytes) { super(bytes); } }

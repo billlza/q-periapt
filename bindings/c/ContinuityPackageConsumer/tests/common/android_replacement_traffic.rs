@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Fresh successor session with the original receiver, retaining its prior effect.
+use crate::{
+    android_credential_traffic, android_roster_traffic::Case, fixture, p, peer_bundle,
+    receiver_process, Result,
+};
+use q_periapt_host_store::filesystem::publish_private_bytes;
+use std::{ffi::OsString, fs, net::SocketAddr};
+
+fn receiver(
+    case: &Case<'_>,
+    mode: &str,
+    session: Option<[u8; 32]>,
+) -> Result<(receiver_process::Server, SocketAddr)> {
+    let remote = case.reference.responder.as_path();
+    let mut args: Vec<OsString> = vec![
+        "--witness".into(),
+        fs::read_to_string(case.inputs.join("witness-address"))?.into(),
+        "--enrollment-parent".into(),
+        remote.as_os_str().into(),
+        "2".into(),
+    ];
+    if let Some(session) = session {
+        args.extend(["--session".into(), fixture::hex(&session).into()]);
+    }
+    args.extend(["serve".into(), remote.as_os_str().into(), mode.into()]);
+    receiver_process::start_selected(
+        &android_credential_traffic::executable()?,
+        None,
+        case.base,
+        &format!("successor-{mode}"),
+        &args,
+    )
+}
+
+pub(crate) fn exercise(
+    case: &Case<'_>,
+    root: &p::RootSigningKey,
+    certificate: &[u8],
+    roster: &p::IssuedRoster,
+    run: &impl Fn(&str, &str) -> Result<Vec<u8>>,
+) -> Result<()> {
+    let inputs = case.inputs;
+    let old_inputs = case.base.parent().ok_or("original case")?.join("inputs");
+    let old_session = fixture::array::<32>(&old_inputs, "connection-session")?;
+    let old_message = fixture::array::<32>(&old_inputs, "connection-message")?;
+    peer_bundle::peer_bundle_at_revision(
+        &case.reference.responder,
+        &inputs.join("peer"),
+        root,
+        certificate,
+        roster,
+        case.witness,
+        3,
+    )?;
+    assert_eq!(
+        run("roster-witness-peer-unassociated", "peer-unassociated")?,
+        201u32.to_be_bytes()
+    );
+    publish_private_bytes(&inputs.join("authority-peer-application"), &[143; 32])?;
+    for (target, name) in [
+        ("approved-certificate", "local-certificate"),
+        ("approved-roster", "local-roster"),
+    ] {
+        publish_private_bytes(
+            &inputs.join("peer").join(target),
+            &fixture::read(&case.reference.responder, name, 65536)?,
+        )?;
+    }
+    let association = run("authority-peer-associate", "peer-associated")?;
+    assert_eq!(association.len(), 72);
+    assert_eq!(association.get(..32).ok_or("peer application")?, [143; 32]);
+    assert_eq!(
+        association.get(32..40).ok_or("peer revision")?,
+        1u64.to_be_bytes()
+    );
+    publish_private_bytes(
+        &inputs.join("connection-initiation"),
+        p::InitiationId::generate()?.as_bytes(),
+    )?;
+    crate::android_roster_traffic::admit_peer(case, root, roster, false)?;
+    let (server, address) = receiver(case, "bootstrap", None)?;
+    publish_private_bytes(
+        &inputs.join("connection-address"),
+        address.to_string().as_bytes(),
+    )?;
+    let session: [u8; 32] = run("roster-witness-peer-connect", "peer-connected")?
+        .try_into()
+        .map_err(|_| "session width")?;
+    android_credential_traffic::received(server, 0, Some((session, [0; 32])))?;
+    assert_ne!(session, old_session);
+    publish_private_bytes(&inputs.join("connection-session"), &session)?;
+    let (server, address) = receiver(case, "crash-after", Some(session))?;
+    fs::write(inputs.join("connection-address"), address.to_string())?;
+    let unknown = run("roster-witness-peer-uncertain", "peer-unknown")?;
+    android_credential_traffic::received(server, 77, None)?;
+    assert_eq!(unknown.len(), 64);
+    assert_eq!(unknown.get(..32).ok_or("pending session")?, session);
+    let message: [u8; 32] = unknown.get(32..).ok_or("pending message")?.try_into()?;
+    assert_ne!(message, old_message);
+    publish_private_bytes(&inputs.join("connection-message"), &message)?;
+    let effect_path = case
+        .reference
+        .responder
+        .join(format!("application-{}", fixture::hex(&message)));
+    let before = fs::read(&effect_path)?;
+    assert_eq!(
+        before,
+        [unknown.as_slice(), b"persisted before process exit"].concat()
+    );
+    publish_private_bytes(&case.base.join("effect-before"), &before)?;
+    let (server, address) = receiver(case, "message", Some(session))?;
+    fs::write(inputs.join("connection-address"), address.to_string())?;
+    assert_eq!(
+        run("roster-witness-peer-retry", "peer-acknowledged")?,
+        unknown
+    );
+    android_credential_traffic::received(server, 0, Some((session, message)))?;
+    let after = fs::read(effect_path)?;
+    assert_eq!(after, before);
+    publish_private_bytes(&case.base.join("effect-after"), &after)?;
+    let effects = fs::read_dir(&case.reference.responder)?
+        .collect::<std::io::Result<Vec<_>>>()?
+        .iter()
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("application-")
+        })
+        .count();
+    assert_eq!(effects, 2);
+    publish_private_bytes(&case.base.join("effect-count"), &2u64.to_be_bytes())?;
+    Ok(())
+}

@@ -157,7 +157,9 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
         {"credentialCommand", "(JI[[BJ)[B", (void *)qpj_credential_command},
         {"rosterCommand", "(JI[[B)[B", (void *)qpj_roster_command},
         {"policyCommand", "(JI[[B)[B", (void *)qpj_policy_command},
-        {"selectPolicy", "(JJ)V", (void *)qpj_select_policy}
+        {"selectPolicy", "(JJ)V", (void *)qpj_select_policy},
+        {"prepareRetired", "([[B[J)J", (void *)qpj_prepare_retired},
+        {"retiredCommand", "(JI[[B)[B", (void *)qpj_retired_command}
     };
     jint result = (*env)->RegisterNatives(env, local, methods, (jint)(sizeof(methods) / sizeof(methods[0])));
     (*env)->DeleteLocalRef(env, local);

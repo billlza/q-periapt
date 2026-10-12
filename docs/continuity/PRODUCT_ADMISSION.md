@@ -8,6 +8,13 @@ candidate interface and protocol are not frozen or admitted for publication.
 Product ABI major 2 and the existing KEM/KAT contracts remain unchanged.
 The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
 
+The agreed Android physical-device acceptance scope is the single selected phone,
+now running API 37 after its system upgrade. That device gate is satisfied by the
+retained successful acceptance runs. An API 36 phone, a second device or a stable
+emulator is not required, and their absence does not make those results
+insufficient or untrustworthy. Subsequent software changes use the same phone for
+relevant regression checks; those checks do not reopen a hardware-count gate.
+
 ## What the installed consumers currently establish
 
 The unpublished [Android JNI adapter](../../bindings/android/ContinuityPackageConsumer/README.md)
@@ -121,7 +128,7 @@ now passes 3,442 Java processes: 1,720 lifecycle calls plus one JNI boundary pro
 per profile. All 44 new roster export routes are independently reread from the
 capture, and source/package inputs remained unchanged throughout execution.
 
-The isolated [Android original-device retirement adapter](../../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
+The [Android original-device retirement adapter](../../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
 passes 84 host Java calls and 42 ART calls on that accepted phone, including twelve
 host and six ART process cuts. Android creates and retains its original keys and
 journal locally. After independently authorized native generation replacement,
@@ -130,12 +137,12 @@ acknowledgement, journal erasure, signer erasure and reopening. The native runti
 rejects a modified report, a receipt with the wrong purpose and ordinary enrollment
 resumption after retirement. The original peer business effect remains unchanged.
 Source/package-bound captures and archive-only public readback are retained.
-Main-binding integration remains pending after the completed roster regression;
-native successor activation does not establish fresh Android successor traffic.
+The original capture uses native successor activation; that alone does not
+establish fresh Android successor traffic.
 This is additional software coverage on the already sufficient physical device.
 
 The subsequent [Android-created replacement route](../../research/sdk-alpha1/evidence/20261012-android-replacement/README.md)
-closes that fresh-successor traffic gap in the isolated adapter. Both generations
+closes that fresh-successor traffic gap. Both generations
 create their own keys and journals through Android APIs; the independent issuer
 receives only public enrollment material. The original C counterparty explicitly
 admits the signed new roster before accepting a new session. A lost acknowledgement
@@ -143,8 +150,33 @@ and exact successor retry preserve one new effect and the previous device's orig
 effect. Debug/Release host runs pass 128 Java calls; the accepted phone passes
 64 ART calls with six real process cuts and complete resource cleanup. The initial
 Checkpoint 105 refusal is retained and explained by the omitted peer-roster admission.
-The existing AAR/native engine is unchanged. Main integration, account-root replacement
-and independent protocol implementations remain separate work.
+The existing AAR/native engine is unchanged. The public adapter and complete
+replacement test are now integrated into the main sources. All 60 library/JNI
+source inputs match the accepted AAR; its physical acceptance remains valid.
+The normal installed-package qualifier now requires the replacement/retirement
+case and rereads its bounded public export. The
+[complete integrated Debug/Release run](../../research/sdk-alpha1/evidence/20261012-android-retirement-integrated/README.md)
+passes 3,570 Java processes with unchanged compiled inputs and archive-only
+readback. Account-root integration and independent protocol implementations remain
+separate work.
+
+The isolated [Android account-root replacement checkpoint](../../research/sdk-alpha1/evidence/20261012-android-root/README.md)
+now passes the original target, transition to another approved target, transition
+after binding, and adoption of an already committed competing replacement. Both
+original and successor identities are generated through Android APIs. Debug/Release
+host runs cover 560 Java calls and 96 process cuts; the same accepted phone covers
+280 ART calls and 48 cuts. Original reports and message identities survive restart,
+unknown activation reconciles, invalid receipts are rejected, successor traffic
+preserves distinct application effects, and controller close revokes its successor.
+All library class members are identical between the qualified host JAR and AAR.
+Public archive readback covers sixteen host and eight ART routes, and the phone's
+test installations and owned port mappings are removed. The subsequent
+[direct noncommit and cancellation checkpoint](../../research/sdk-alpha1/evidence/20261012-android-root-controls/README.md)
+adds 164 host calls and 82 ART calls with the unchanged AAR. A signed noncommit
+remains Closed across restart and refuses the old freeze; idle cancellation stops
+controller calls while its active successor remains usable until controller close.
+Main-source and package-gate integration remain separate software work.
+This does not reopen the already satisfied physical-device gate.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
@@ -261,8 +293,9 @@ The subsequent [foreign successor checkpoint](../../research/sdk-alpha1/evidence
 also exercises original generation-2 creation, resume, activation and fresh TLS
 through C/Swift/Kotlin owners. Replacement authorization and witness decisions
 still use the native authority controller. Complete current-source distributions,
-physical erasure, independent implementations and physical-device coverage remain
-separate requirements.
+physical erasure and independent implementations remain separate requirements.
+The later Android retirement/replacement runs above satisfy the agreed physical
+acceptance for those Android routes on the selected phone.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
@@ -270,7 +303,7 @@ separate requirements.
 | Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
 | Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
 | Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign replacement adapters, Android/WASM integration and current-source qualification on every supported platform |
-| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority | Complete current foreign distribution qualification, foreign replacement authorization, Android/WASM persistence and physical-device evidence |
+| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone | Complete current foreign distribution qualification, remaining foreign replacement authorization and WASM persistence |
 | Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
 
 The native fanout methods are in

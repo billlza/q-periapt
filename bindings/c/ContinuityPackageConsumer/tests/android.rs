@@ -350,3 +350,12 @@ fn android_lifecycle() -> Result<()> {
     }
     Ok(())
 }
+
+#[path = "common/android_retirement.rs"]
+mod android_retirement;
+
+#[path = "common/android_retirement_android.rs"]
+mod android_retirement_android;
+
+#[path = "common/android_replacement_traffic.rs"]
+mod android_replacement_traffic;

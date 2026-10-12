@@ -1,0 +1,13 @@
+{
+  "baseline_passed": true,
+  "mutation_controls": {
+    "root-preparation-cancelled": "rejected",
+    "root-successor-cancelled": "rejected",
+    "root-bad-noncommit": "rejected",
+    "root-noncommit-retained": "rejected",
+    "root-noncommit-replayed": "rejected",
+    "root-retained": "rejected",
+    "root-complete-report": "rejected"
+  },
+  "scope": "Public state/linkage only; native execution authenticates receipts and private report MAC."
+}

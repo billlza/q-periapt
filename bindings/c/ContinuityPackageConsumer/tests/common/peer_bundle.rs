@@ -17,6 +17,18 @@ pub(crate) fn peer_bundle_at(
     roster: &p::IssuedRoster,
     witness: Option<&fixture::WitnessFixture>,
 ) -> Result<PathBuf> {
+    peer_bundle_at_revision(remote, peer, root, certificate, roster, witness, 2)
+}
+
+pub(crate) fn peer_bundle_at_revision(
+    remote: &Path,
+    peer: &Path,
+    root: &p::RootSigningKey,
+    certificate: &[u8],
+    roster: &p::IssuedRoster,
+    witness: Option<&fixture::WitnessFixture>,
+    revision: u64,
+) -> Result<PathBuf> {
     let family = fixture::array(remote, "family")?;
     let pin = p::AccountPin::new(
         root.account_id()?,
@@ -34,7 +46,8 @@ pub(crate) fn peer_bundle_at(
     let at = fixture::now()?;
     let validity = p::Validity::new(
         at.saturating_sub(1),
-        at.checked_add(600).ok_or("clock overflow")?
+        at.checked_add(600)
+            .ok_or("clock overflow")?
             .min(context.current_policy()?.validity().until()),
     )?;
     let mut leaves = Vec::new();
@@ -47,19 +60,30 @@ pub(crate) fn peer_bundle_at(
     .into_iter()
     .enumerate()
     {
-        leaves.push(server.service.stores()?.0.generate_prekey(
-            context.current_policy()?,
-            device,
-            p::PrekeyId::from_trusted_state([u8::try_from(index + 71)?; 32])?,
-            kind,
-            validity,
-            at,
-        )?);
+        leaves.push(
+            server.service.stores()?.0.generate_prekey(
+                context.current_policy()?,
+                device,
+                p::PrekeyId::from_trusted_state(
+                    [u8::try_from(
+                        revision
+                            .checked_mul(32)
+                            .and_then(|v| v.checked_add(7))
+                            .ok_or("prekey namespace")?,
+                    )?
+                    .checked_add(u8::try_from(index)?)
+                    .ok_or("prekey index")?; 32],
+                )?,
+                kind,
+                validity,
+                at,
+            )?,
+        );
     }
     let manifest = server.service.parts()?.1.issue_manifest(
         device,
         p::ManifestContext::new(
-            2,
+            revision,
             policy_digest,
             p::bootstrap_suite_digest(),
             [99; 32],

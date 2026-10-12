@@ -72,8 +72,8 @@ def verify_peer(base: Path) -> None:
                 "remote roster advancement/revocation linkage differs")
 
 
-def verify_local(stdout: bytes, directory: Path, *, remote: bool = False) -> dict:
-    contract.verify_single(stdout, PEER_TEST if remote else LOCAL_TEST)
+def verify_local(stdout: bytes, directory: Path, *, remote: bool = False, catalog=contract.TESTS) -> dict:
+    contract.verify_single(stdout, PEER_TEST if remote else LOCAL_TEST, catalog=catalog)
     steps = local_cases(remote); count = 23 if remote else 16
     sdk.require(len(steps) == count, "local roster census definition")
     results = {}

@@ -7,8 +7,8 @@ inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
 first activation, same-key credential renewal, independent policy/roster renewal
-and original-message retry. Device retirement and root replacement integration
-remain subsequent work. The current extracted AAR has a
+and original-message retry, device replacement and restricted old-device retirement.
+Account-root replacement integration remains subsequent work. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate.
 
 `ConfigurationInputs` copies independently supplied SDK trust, signed policies,
@@ -119,6 +119,30 @@ creation, signature refusal, exact association replay, reopen, forged revision
 refusal and these cancel/close boundaries pass through the actual AAR in fifty
 ART processes on the same API 37 phone, across both witness carriers and both
 root trust profiles.
+
+After independently authorized generation replacement, use
+`ContinuityRetiredEnrollment.prepareOpen` with the original private installation,
+original `EnrollmentIntent` and `RetiredEnrollmentAuthority`. `finishOpen` opens
+existing state only. This owner cannot create a device, send traffic or expose a
+signer. Retain the exact `inventory` and obtain the witness's matching inventory
+receipt before `prepareReport`. Obtain its report receipt before `loadReport`.
+
+The host must durably retain and account for the complete `canonicalBytes()` report,
+including uncertain deliveries. Pass those exact bytes to `prepareAcknowledgement`;
+native verification checks the private MAC and original inventory. Then obtain the
+independent witness's host-acknowledgement receipt. A report receipt alone cannot
+authorize erasure. Call `eraseJournal`, `prepareSignerErasure` and `eraseSigner` with
+that original authority; the last operation consumes the cleanup resource even on
+success. Close its handle afterwards. On an unknown result, reopen the same original
+inputs, inspect `journalState`/`signerState`, and reconcile the same report and receipt.
+These operations provide logical erasure, not a claim about old flash pages/backups.
+
+A replacement installation creates its own keys and journal through the ordinary
+configuration/enrollment APIs, with the independently approved next generation.
+The issuer verifies its public request and authorizes the witness's generation
+replacement. Keep device private state local. The existing counterparty must
+explicitly admit the signed target roster before opening a fresh session; copying
+new bootstrap bytes is insufficient. The old installation remains cleanup-only.
 
 `ContinuityDevice.preparePeer` copies an independently supplied
 `PeerConfiguration`; bundle contents cannot select its account, device, directory
@@ -273,6 +297,8 @@ journal-backed renewal request. No API automatically falls back to local mode.
 The JNI layer copies and bounds every input before native admission. Request and
 approval output records are heap allocated; its 17-field stage shape is checked
 against the shared field bound at compile time. Public request/status framing is
-explicit big endian, not a Java view over native struct memory. These new methods
-are under active host and ART qualification; they do not change the completed
-single-phone physical-device acceptance scope.
+explicit big endian, not a Java view over native struct memory. Policy renewal
+passes the retained host and ART routes. The complete integrated retirement
+qualifier now passes 3,570 Debug/Release host calls, with source-bound public
+readback. The accepted single phone remains sufficient; the independently
+qualified account-root adapter is still being integrated into this package.

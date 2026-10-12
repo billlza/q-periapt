@@ -27,7 +27,7 @@ def extract(archive: Path, prefix: str, target: Path) -> None:
 class InventoryTests(unittest.TestCase):
     def test_exact_catalog_and_missing_replaced_duplicate_tests(self):
         names = sorted(contract.TESTS)
-        encode = lambda rows: ("\n".join(name + ": test" for name in rows) + "\n\n24 tests, 0 benchmarks\n").encode()
+        encode = lambda rows: ("\n".join(name + ": test" for name in rows) + "\n\n25 tests, 0 benchmarks\n").encode()
         contract.verify_catalog(encode(names))
         for rows in (names[:-1], names[:-1] + ["replacement"], names[:-1] + [names[0]]):
             with self.assertRaises(ValueError): contract.verify_catalog(encode(rows))
@@ -35,7 +35,7 @@ class InventoryTests(unittest.TestCase):
     def test_batch_requires_every_named_test_and_no_ignored_case(self):
         names = sorted(policy_roster.TESTS)
         text = "\n".join("test " + name + " ... ok" for name in names)
-        text += "\ntest result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out;\n"
+        text += "\ntest result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out;\n"
         contract.verify_batch(text.encode(), policy_roster.TESTS)
         for changed in (text.replace(names[0], "replacement"), text.replace("10 passed", "9 passed"), text.replace("0 ignored", "1 ignored")):
             with self.assertRaises(ValueError): contract.verify_batch(changed.encode(), policy_roster.TESTS)
@@ -54,21 +54,21 @@ class PublicRosterTests(unittest.TestCase):
 
     def test_real_peer_admission_revocation_and_export(self):
         stdout = self.peer()
-        records = roster.verify_local(stdout, self.base, remote=True)
+        records = roster.verify_local(stdout, self.base, remote=True, catalog=contract.ROSTER_TESTS)
         self.assertEqual(sum(row["foreign_processes"] for row in records.values()), 46)
         export = self.base / "public"
         for profile in records:
             for name in roster.local_public(True):
                 path = export / profile / name; path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes((self.base / profile / name).read_bytes())
-        self.assertEqual(roster.verify_local(stdout, export, remote=True), records)
+        self.assertEqual(roster.verify_local(stdout, export, remote=True, catalog=contract.ROSTER_TESTS), records)
 
     def test_mutated_remote_slot_and_revocation_are_rejected(self):
         stdout = self.peer()
         for name in ("remote-roster-reopened", "remote-roster-revoked", "roster-effect-after", "pending-resolution"):
             path = self.base / "fixed" / name; original = path.read_bytes()
             changed = bytearray(original); changed[-1] ^= 1; path.write_bytes(changed)
-            with self.assertRaises(ValueError): roster.verify_local(stdout, self.base, remote=True)
+            with self.assertRaises(ValueError): roster.verify_local(stdout, self.base, remote=True, catalog=contract.ROSTER_TESTS)
             path.write_bytes(original)
 
     def test_real_selected_local_policy_staging_and_mutations(self):

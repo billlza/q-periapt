@@ -59,6 +59,7 @@ public final class BridgeProbe {
         java.util.Arrays.fill(copy[1], (byte) 0);
         PolicyBridgeProbe.run();
         RosterBridgeProbe.run();
+        RetiredBridgeProbe.run();
         System.out.println("configuration:bridge:passed");
     }
     private static void credentialCodecs() {

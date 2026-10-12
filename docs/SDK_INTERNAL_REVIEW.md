@@ -6,7 +6,7 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
-## Isolated Android retirement adapter
+## Android retirement adapter
 
 The isolated [Android retirement qualification](../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
 adds a cleanup-only owner rather than more operational enrollment dispatch. The
@@ -17,7 +17,14 @@ persistent mutation; complete report loading authenticates the original before
 allocating its bounded Java representation. The tested private-MAC and receipt-purpose
 refusals remain native. Debug/Release host calls and the installed ART consumer pass,
 including actual process interruption. This improves responsibility boundaries;
-no speedup or reduction of security work is claimed. Integration is still pending.
+no speedup or reduction of security work is claimed. The adapter and replacement
+consumer are now in the main sources. All 60 library/JNI inputs match the physically
+accepted AAR. The shared qualifier adds the exact 25th test, checks original and
+successor process outcomes, and rereads its public export. The
+[complete integrated qualification](../research/sdk-alpha1/evidence/20261012-android-retirement-integrated/README.md)
+passes 3,570 Java processes under Debug/Release, including 128 replacement/retirement
+calls and twelve process cuts. All 13,407 captured member hashes and exported
+retirement/roster records were reread after terminal completion.
 
 The [Android-created successor extension](../research/sdk-alpha1/evidence/20261012-android-replacement/README.md)
 reuses the existing configuration, enrollment and peer APIs. Its first same-counterparty
@@ -27,6 +34,16 @@ that requirement. Test publication now takes an explicit revision to generate
 separate prekey identifiers for the successor's fresh bootstrap; revision 2 preserves
 the original helper's identifiers and manifest version. No library or native engine
 change is needed for this extension.
+
+The package reader checks the signed report body's framing and purpose; it cannot
+authenticate a modified signature or secret MAC. Its negative controls therefore
+change original bindings, report bodies, process outcomes and counterparty effects.
+Native executed refusals cover receipt-purpose misuse and private report-MAC
+admission; signature verification also remains native. Historical roster captures retain an explicitly named 24-test catalog;
+current qualification requires the complete 25-test catalog and cannot use that
+historical census by default. The process driver now uses an ordered prefix table
+instead of an expanding nested conditional, preserving dispatch order and native
+failure behavior.
 
 ## Current C/C++ alert review
 

@@ -105,8 +105,9 @@ class ContinuityPackageTests(unittest.TestCase):
         import continuity_android_roster_witness as witnessed
         import continuity_android_policy_roster as policy_roster
         import continuity_android_roster_qualification as qualification
+        import continuity_android_retirement as retirement
         sources = package.source_inputs()['files']
-        for module in (contract, roster, witnessed, policy_roster, qualification):
+        for module in (contract, roster, witnessed, policy_roster, qualification, retirement):
             path = Path(module.__file__).resolve()
             relative = path.relative_to(package.ROOT).as_posix()
             with self.subTest(reader=relative):
