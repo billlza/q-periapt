@@ -75,9 +75,33 @@ activation, and captured post-expiry recovery sends no Commit. The complete
 Debug/Release host regression passes 1,014 Java processes; 28 reader tests,
 59 package/source-inventory tests and strict Clippy also pass. Production AAR and
 native engine bytes are unchanged from the preceding qualification; its 909 native
-tests were not rerun for this test-only addition. SDK-runtime expiry/revocation,
-policy and roster renewal, device retirement and root replacement remain software
-scenarios to complete. No additional Android device is required.
+tests were not rerun for this test-only addition. That checkpoint did not cover
+SDK-runtime expiry/revocation, independent policy/roster renewal, device retirement
+or root replacement. No additional Android device is required.
+
+
+The [independent protocol-policy renewal route](../../research/sdk-alpha1/evidence/20261012-android-policy-renewal/CHECKS.json)
+now adds the Android public adapter at `b8c8226c`: 234 ART calls on the same
+accepted phone, with fixed/recoverable SDK trust and local, signed-TCP and mutual-TLS
+storage coordination. After real P0 expiry, independently retained target inputs
+and both account-root and policy-root approvals authorize P2. The original signer,
+journal, session and uncertain message survive, with exactly one observed business
+effect. The outer SDK policy and device credential remain live in this scenario.
+Required-witness Commit really applies before its reply is lost; exact history
+recovers Applied and completes retirement without another policy Commit or Close.
+Missing current-target selection and missing required registry remain explicit
+failures. Local resolution is not substituted for required-witness recovery.
+
+Complete Debug/Release qualification passes 1,482 host Java processes, 35 reader
+checks, 27 package/first-configuration checks, 81 source-inventory checks and strict
+Clippy. The existing C first-configuration regression also passes after sharing
+receiver-policy setup. Native engine bytes and runtime sources are unchanged from
+the preceding 909-test native qualification. Captures retain the JNI field-count
+failure, checked test-slice repairs and an export-list error. Exact successful
+commands preceding that export error were reverified against source/tool/package
+identities before the remaining workload continued. SDK-authority expiry/revocation,
+roster renewal, retirement and root replacement remain separate Android software
+work; the agreed physical-device gate remains complete.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),

@@ -6,6 +6,36 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+
+## Android independent-policy adapter and shared fixture review
+
+Source `b8c8226c` adds explicit Java values and big-endian JNI framing for the
+existing native independent-policy contract. The 33 KiB request is heap allocated,
+and Java/C result allocation precedes operations that may mutate or transfer an
+owner. Native admission still checks the independently selected target, original
+request, root approvals and required registry. The prior helper accepted at most
+16 fields while policy staging needs 17; an actual JNI failure led to one shared
+bounded capacity and a compile-time shape check. The
+[retained qualification](../research/sdk-alpha1/evidence/20261012-android-policy-renewal/CHECKS.json)
+includes the failing and passing boundary runs, 234 ART calls and 1,482 host Java
+calls, with malformed-input and original-operation checks.
+
+The policy JNI dispatcher is 164 lines and its codec 81; the Java enrollment
+facade is 194 lines at this source. Shared receiver-policy setup is 254 lines,
+while the expiry-specific caller is 62. This separates public encoding, native
+operations and test timing, and reuses receiver setup across C and Android tests.
+The existing C first-configuration flows pass after extraction. These changes
+reduce duplicated review work; line counts alone establish no runtime speedup.
+No end-to-end performance claim is added.
+
+The public export list originally named a file the C target-creation command does
+not emit. A copy-and-reverify regression fails on that list and passes after the
+correction; the complete real ART export is reread. Host recovery is limited to
+successful commands with exact identities and unchanged source/tool/package
+bytes. It neither treats the failed export as success nor substitutes a prior
+result for a failed runtime command. These observations do not dispose existing
+CodeQL alerts or qualify untested lifecycle combinations.
+
 ## Retained CodeQL inventories and scoped reviews
 
 The [policy-receipt review](../research/sdk-alpha1/evidence/20261010-policy-receipt-codeql/DISPOSITIONS.json)

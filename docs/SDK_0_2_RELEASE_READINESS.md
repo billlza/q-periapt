@@ -256,10 +256,35 @@ Clippy pass. Production Android classes/JNI and native engine bytes are unchange
 the previous 909-test native result retains its original scope. Captures retain
 the initial harness/type and reader-width corrections, the worktree provenance
 refusal followed by a passing standalone-clone suite, and the unchanged fixture
-formatting diagnostic. SDK-runtime expiry/revocation, independent policy/roster
-renewal, device retirement, root replacement and final candidate package admission
-remain software work. The agreed one-phone Android physical gate is complete;
+formatting diagnostic. That checkpoint did not cover SDK-runtime expiry/revocation,
+independent policy/roster renewal, retirement, root replacement or final candidate
+package admission. The agreed one-phone Android physical gate is complete;
 API 36 hardware or another phone is not required.
+
+
+The [independent protocol-policy renewal checkpoint](../research/sdk-alpha1/evidence/20261012-android-policy-renewal/README.md)
+adds source `b8c8226c64ed8ab928c36bd303f3a3fb96bde5d0`. Its Android adapter
+completes 234 ART calls on the same accepted API 37 phone: fixed/recoverable SDK
+trust across local, signed-TCP and mutual-TLS coordination. Actual protocol P0
+expiry is followed by independently selected P2 and two root approvals. Original
+identity, journal, session and message are retained; retry produces no second
+business effect. The outer SDK policy and original credential remain live. A real
+witness Commit with a lost reply recovers its exact Applied result and retirement;
+current target/registry admission remains separate from historical state.
+
+Both native profiles complete the full host JNI workload: 741 Java processes each,
+1,482 total. Related validation includes 35 reader tests, 27 package/first-use
+tests, 81 source-inventory tests, strict Clippy, changed-file rustfmt and the
+existing C local/signed/TLS first-configuration regression. Native runtime sources
+and engine bytes retain the preceding 909-test scope. Evidence includes actual
+JNI red/green diagnostics and the export closure regression. After an export-only
+failure, the bounded recovery reused only exact successful command records whose
+source, tools, native libraries and packaged Java bytes matched; all remaining
+commands ran normally. The exact-commit source gate passes with 254 current and
+249 historical proof inputs and `release_claim_eligible=false`. The overall
+0.2.0 release remains open, including Android SDK-authority expiry/revocation,
+roster/retirement/root replacement and final package/CI admission. No additional
+phone or API 36 hardware is required for the agreed physical acceptance.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
