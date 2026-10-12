@@ -564,3 +564,28 @@ Index rollback/loss still affects discovery and availability, and the original
 archive backup is needed when the index is gone. This adds no hardware erasure,
 new anti-rollback anchor or operational context reconstruction. Installed service
 initialization, authoritative device lineage and binding integration remain open.
+
+## Lifecycle module size and fanout cost (2026-10-12)
+
+This targeted source inspection uses `deaf34d5`; it is not a full performance
+profile. Native enrollment (1,486 lines), credential renewal (1,430 lines) and the
+C enrollment adapter (1,123 lines) combine multiple lifecycle responsibilities.
+Their length raises review and change-locality costs, but does not itself establish
+runtime overhead. In particular, the C adapter already shares the
+`witnessed_renewal` boundary across Commit, Close and Reconcile. A split must retain
+its historical reconciliation before any fresh-policy admission; duplicating those
+branches into independent wrappers would make that security boundary harder to audit.
+The renewal codec and its version flags are a reasonable later extraction boundary,
+provided encoded bytes, old-state acceptance and invalid-state rejection stay exact.
+
+There is a concrete cost candidate in
+`durable/messages/fanout.rs::send_account_message`: each selected recipient gets a
+separate zeroizing plaintext vector and associated-data vector, then its complete
+state is serialized into the reserved journal image. `resume_account_message`
+reloads that image, computes every recipient and persists the aggregate before
+releasing output. The direct input copies therefore grow with recipient count and
+payload size; their share of total latency, peak memory and storage cost has not
+been measured by this inspection. Sharing persisted input is a format/recovery
+change, not a harmless removal of `clone()`. Measure those costs under equal
+recipient counts and payloads before changing the representation; preserve whole
+batch commit, original-intent checks and zeroization. No speedup is claimed here.

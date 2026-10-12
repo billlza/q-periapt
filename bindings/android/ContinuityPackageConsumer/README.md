@@ -224,3 +224,10 @@ authorize activation: a separate independently approved successor must first
 be staged and activated. The peer explicitly admits that successor, and the
 same identity, journal, original session and next message slot resume communication.
 Required-witness expiry retains its distinct Pending/Closed workflow.
+
+Expired protocol-policy cleanup retains the original signed P0 snapshot for
+history only. A pre-expiry Applied outcome can be recovered after its reply was
+lost; an uncommitted prepared proposal can be explicitly Closed. Exact proposal
+and terminal retries preserve their identities. Expired P0 still refuses staging
+a new grant, dispatching a new Commit and activating an operational device.
+This path is distinct from expiry or revocation of the underlying SDK authority.

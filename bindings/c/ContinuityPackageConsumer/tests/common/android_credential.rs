@@ -241,7 +241,7 @@ impl Renewal<'_> {
         Ok(())
     }
 }
-fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Result<()> {
+pub(crate) fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Result<()> {
     assert_eq!(bytes.len(), 116);
     assert_eq!(bytes.get(..4), Some(phase.to_be_bytes().as_slice()));
     assert_eq!(
@@ -268,7 +268,7 @@ fn no_commit(records: &[witness::Capture]) -> Result<()> {
     }
     Ok(())
 }
-fn write_exchanges(path: &Path, records: &[witness::Capture]) -> Result<()> {
+pub(crate) fn write_exchanges(path: &Path, records: &[witness::Capture]) -> Result<()> {
     if records.len() > 128 {
         return Err("credential exchange capture bound".into());
     }

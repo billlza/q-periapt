@@ -44,7 +44,7 @@ def source_files() -> dict[str, bytes]:
 def verify_execution(stdout: bytes, cases: Path) -> dict:
     text = stdout.decode()
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE) == ["android_lifecycle"]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;", text, re.MULTILINE)) == 1,
+                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;", text, re.MULTILINE)) == 1,
                 "Android JNI lifecycle was not executed completely")
     records = {}
     for profile in ("fixed", "recoverable"):
@@ -194,7 +194,18 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                     public += [name + "." + suffix for name, _ in witnessed.cases(carrier, managed=managed) for suffix in ("stdout", "stderr")]
                     for name in public:
                         sdk.copy(witness_cases / label / name, output / f"android-jni-{profile}-{lane}-{label}-{name}.public")
-            result["profiles"][profile] = {"credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
+            import continuity_android_policy_expiry as expiry
+            expiry_results = {}
+            for trust, test in expiry.TESTS.items():
+                expiry_cases = installed / ("policy-expiry-" + trust + "-cases")
+                expiry_runtime = dict(env, QPC_ANDROID_CASES=str(expiry_cases), QPC_ANDROID_DRIVER=str(driver))
+                expiry_stdout = run([str(binary), "--exact", test, "--nocapture"], profile + "-policy-expiry-" + trust, consumer, expiry_runtime)
+                records = expiry.verify_execution(expiry_stdout, expiry_cases, trust)
+                expiry_results.update(records)
+                for label in records:
+                    for name in expiry.public(label.endswith("-applied")):
+                        sdk.copy(expiry_cases / label / name, output / f"android-jni-{profile}-policy-expiry-{label}-{name}.public")
+            result["profiles"][profile] = {"policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}
