@@ -1421,6 +1421,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             tracked,
         )
         for sdk_source in (
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests/roster_policy.rs",
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
             "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
             "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
