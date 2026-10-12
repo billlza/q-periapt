@@ -1,0 +1,107 @@
+{
+  "completed": true,
+  "base_head": "956ecc85a966e1c02e58cf0aa1ca48abeab5be62",
+  "code_sha256": {
+    "artifact/continuity_c_consumer.py": "47d3b857d1779f9b92fca57df27e03bc173d24f8f71dec8631dbef01329c0df5",
+    "bindings/c/ContinuityPackageConsumer/README.md": "03fdefb0e09be12566c19aa3cb83927890cd7a7d9fb57bfaf3875f335afbb2bb",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "1d5c1b5528d686fd063e10db62453d70e0770214e279bb8509b66a6b9cdd710c",
+    "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs": "f4a3a5571a2e1f959544719923d8b95c50526e968e2078cddddaa9c34b72a9e8",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment.rs": "44e6291ac60af9ee8c2db6a830d46211d800348cd4407479af875e18beec2998",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/roster_refresh.rs": "2b6f84c674fa043bb218ca5c74eef12c658ca0b36db559140f484c01c425f844",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "ed46bdb0b5ef1e9b26a6513cc1e1eb7ea39463dc64afd7f17993e6dea258a02a",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "c174ccd22df2007939e323709f91c050b4b8e82867ea1823cd066da697cff7f4",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Enrollment.swift": "0c0667acc1efd071a5cdb645469a461921c6085085729dbfa44c901fbf135f50",
+    "docs/continuity/PRODUCT_ADMISSION.md": "084f13bebd0728b86b77e13322cebb819ceb393d9d2badd6c55a103bee20616c",
+    "bindings/c/ContinuityPackageConsumer/src/configuration/tests/roster_policy.rs": "557b54973aab4f670d97b0638dcafc2090bdf4753eb75ab325bae64f1fe8cd83"
+  },
+  "native_c_tests": 55,
+  "swift_tests": 69,
+  "kotlin_tests": 71,
+  "package_tests": 58,
+  "source_proof_tests": 70,
+  "strict_clippy": true,
+  "native_exports": 152,
+  "host": {
+    "debug-fixed": {
+      "completed": true,
+      "host_java_processes": 43,
+      "new_native_sha256": "9c34cdfa6033cedc96601ec9bfe22c0bc13a96efbbb54d570b5b214ed22b2f90",
+      "profile": "debug",
+      "scope": "Actual P0 expiry, independent P2 adoption, explicit SELECTED local R2 refresh and activation, original lost-ACK message retry with one effect.",
+      "trust": "fixed"
+    },
+    "debug-recoverable": {
+      "completed": true,
+      "host_java_processes": 43,
+      "new_native_sha256": "9c34cdfa6033cedc96601ec9bfe22c0bc13a96efbbb54d570b5b214ed22b2f90",
+      "profile": "debug",
+      "scope": "Actual P0 expiry, independent P2 adoption, explicit SELECTED local R2 refresh and activation, original lost-ACK message retry with one effect.",
+      "trust": "recoverable"
+    },
+    "release-fixed": {
+      "completed": true,
+      "host_java_processes": 43,
+      "new_native_sha256": "4286dab8acda54e101ec8f9b0478ecfeaaa204dbee11b09023d34028e312c717",
+      "profile": "release",
+      "scope": "Actual P0 expiry, independent P2 adoption, explicit SELECTED local R2 refresh and activation, original lost-ACK message retry with one effect.",
+      "trust": "fixed"
+    },
+    "release-recoverable": {
+      "completed": true,
+      "host_java_processes": 43,
+      "new_native_sha256": "4286dab8acda54e101ec8f9b0478ecfeaaa204dbee11b09023d34028e312c717",
+      "profile": "release",
+      "scope": "Actual P0 expiry, independent P2 adoption, explicit SELECTED local R2 refresh and activation, original lost-ACK message retry with one effect.",
+      "trust": "recoverable"
+    }
+  },
+  "art": {
+    "additional_api36_hardware_required": false,
+    "art_processes": 86,
+    "completed": true,
+    "profiles": {
+      "roster_local_fixed": {
+        "aar_sha256": "3fdf37e4a58464f389605931371b938174dd5456e4044a8cf6ace82bf108b559",
+        "apk_sha256": "486c9f795b151f54149724d81035881cda6bffe2701fed02eb4a89eed5c06ceb",
+        "business_effects": 1,
+        "case": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-local-policy-roster-device/cases-roster_local_fixed/local-fixed",
+        "device_label": "local-fixed",
+        "foreign_processes": 43,
+        "installation_retired": true,
+        "original_message": "000000000000000000000000000000009cda317d781995624af50ec772749736",
+        "original_session": "2ebd705e7ac5a755677170ae2b45ef01ed1f81a9348e89a1797bd02487a8e5af",
+        "trust": "fixed"
+      },
+      "roster_local_recoverable": {
+        "aar_sha256": "3fdf37e4a58464f389605931371b938174dd5456e4044a8cf6ace82bf108b559",
+        "apk_sha256": "486c9f795b151f54149724d81035881cda6bffe2701fed02eb4a89eed5c06ceb",
+        "business_effects": 1,
+        "case": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-local-policy-roster-device/cases-roster_local_recoverable/local-recoverable",
+        "device_label": "local-recoverable",
+        "foreign_processes": 43,
+        "installation_retired": true,
+        "original_message": "00000000000000000000000000000000df39c0a9e39b6492dbbcd99b8871d942",
+        "original_session": "0abd5969590a6c88ae2c28e3024e632cecf1ef70c77bc09cc26ec93e61caabe2",
+        "trust": "recoverable"
+      }
+    },
+    "same_phone_accepted": true,
+    "scope": "Actual expired P0, independently adopted P2, explicit local policy selection, local R2 staging and activation, original-message recovery with fixed and recoverable roots."
+  },
+  "legacy_host_regression_calls": 304,
+  "capture": {
+    "sha256": "b46dbf1d99602fa349e916bff5c2c77468cabb9257b33447c7d62e71eae1b8ec",
+    "members": 1224,
+    "bytes": 1280980
+  },
+  "scope": "Explicit ORIGINAL/SELECTED local roster authority in C/Swift/Kotlin and isolated Android adapter; expired P0, adopted independent P2, R2 staging/activation and original-message retry. One physical phone accepted. Android roster integration and full installed Swift/Kotlin lifecycle validation remain open.",
+  "release_claim_eligible": false,
+  "code_commit": "b8372b1b572de3cea2a3e0db0e432a66cfe74616",
+  "archive_readback_completed": true,
+  "source_gate": {
+    "passed": true,
+    "current_proof_inputs": 254,
+    "historical_proof_inputs": 249,
+    "release_claim_eligible": false
+  }
+}

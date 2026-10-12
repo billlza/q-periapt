@@ -286,6 +286,19 @@ commands ran normally. The exact-commit source gate passes with 254 current and
 roster/retirement/root replacement and final package/CI admission. No additional
 phone or API 36 hardware is required for the agreed physical acceptance.
 
+The [local current-policy roster qualification](../research/sdk-alpha1/evidence/20261012-local-policy-roster/CHECKS.json)
+adds an explicit C policy selector while retaining the original ABI's P0 behavior.
+Swift/Kotlin expose typed overloads; the isolated Android roster adapter uses the
+same native operation. Real P0 expiry, independently adopted P2, local R2 staging
+and activation, and original lost-ACK message recovery pass in 172 host calls
+(Debug/Release, fixed/recoverable roots) and 86 ART calls on the accepted phone.
+The new libraries also pass 304 original-policy roster regression calls, 55 C
+boundary tests, 69 Swift and 71 Kotlin owner tests, strict Clippy and 58 package
+checks. All three native libraries have exactly 152 expected unpublished exports.
+Six archived runtime captures are independently reread. Android roster integration
+and installed Swift/Kotlin lifecycle qualification of the new selector remain
+open; the agreed physical-device gate remains complete.
+
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
 | Controlled hybrid owners in Rust/C/Swift/Kotlin/Android/WASM | Real calls with owned PQ/traditional keys, paired public keys, no default private getters, close/concurrency/cancellation tests | Implemented across all six surfaces; extracted Swift/macOS, C, Rust, product WASM and JVM packages have real external consumers. Hosted 2493ffe completes both Android full/minimal ART, cleanup and export gates on API 35 / 16 KiB / x86_64. The selected API 37 phone passes both SDK consumers at 24ecaf46, including cleanup and export; this completes the agreed Android physical gate. JVM Java-source owner construction is closed |

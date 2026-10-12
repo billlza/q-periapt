@@ -7,6 +7,21 @@ below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
 
+## Explicit policy authority for local roster refresh
+
+Source `b8372b1b` closes a binding gap: native Rust already allowed roster refresh
+after policy adoption, but the C entry always loaded the original policy. The old
+entry retains that behavior; the new selector uses the existing current-target
+admission and never falls back. Both routes share the existing durable operation.
+A separately selected policy does not itself grant renewal authority. Swift and
+Kotlin preserve their original methods and add explicit overloads. The
+[local qualification](../research/sdk-alpha1/evidence/20261012-local-policy-roster/CHECKS.json)
+covers actual old-policy expiry, missing selection, bad signatures, cancellation,
+staging before activation and original-message recovery. Runtime and signature
+verification are preserved; no performance improvement is claimed from this
+interface change. Full Android integration and the new installed Swift/Kotlin
+lifecycle route remain separate work.
+
 ## Android independent-policy adapter and shared fixture review
 
 Source `b8c8226c` adds explicit Java values and big-endian JNI framing for the
