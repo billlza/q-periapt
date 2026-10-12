@@ -37,6 +37,18 @@ protection of successfully closed local-profile owners. Live-owner/background
 transaction handling, simulator execution and canonical release-pipeline admission
 remain separate work.
 
+The installed native qualification now accepts `--with-apple-package` alongside
+`--with-c-consumer`. It builds `QPeriaptContinuity-Apple-candidate.zip` from the
+same admitted C source and normalized dependency graph, with macOS arm64, iOS
+arm64 and arm64 simulator static slices. The existing Swift CI job selects this
+step. Each slice must expose the exact owner functions, and target-specific
+third-party notices accompany the deterministic archive. A consumer outside the
+checkout uses only the extracted package; its link maps and copied libraries
+must identify the exact packaged slice. The macOS consumer executes native
+cancellation and closed-owner refusals; the iOS consumers are built for device
+and simulator. These checks do not imply a physical-device or simulator runtime
+result for the newly built package, and do not publish a release.
+
 On iOS, create an app-owned private directory with mode `0700`. Pass its absolute
 canonical path from `realpath`; Foundation can abbreviate `/private/var` back to
 `/var`, which the native no-symlink boundary deliberately refuses. Resolve only

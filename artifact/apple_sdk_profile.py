@@ -134,8 +134,11 @@ def verify_apple_exports(library: Path, llvm_nm: Path) -> dict:
             "static_archive_sha256": snapshot.sha256, "status": "pass"}
 
 
-def verify_link_map(path: Path, library: Path, probe: Path, architecture: str) -> dict:
+def verify_link_map(path: Path, library: Path, probe: Path, architecture: str, *,
+                    archive_basename: str = "libq_periapt_ffi_abi2.a") -> dict:
     """Bind the final linker input to the slice selected and compared by the gate."""
+    if archive_basename != library.name or not archive_basename.endswith(".a"):
+        raise ValueError("SDK link map archive basename differs")
     snapshot = read_regular_snapshot(path, maximum=16 * 1024 * 1024, label="SDK consumer link map")
     # Later literal-symbol names may contain raw non-UTF-8 bytes. The object
     # inventory itself is text; do not silently replace invalid path bytes.
@@ -154,7 +157,7 @@ def verify_link_map(path: Path, library: Path, probe: Path, architecture: str) -
         if row is None or len(row[1]) > 8 or int(row[1]) in ids:
             raise ValueError("SDK link map has malformed/duplicate object rows")
         ids.add(int(row[1]))
-        if "libq_periapt_ffi_abi2.a" in row[2]:
+        if archive_basename in row[2]:
             if not row[2].startswith(prefix) or not row[2].endswith(")") or len(row[2]) <= len(prefix) + 1:
                 raise ValueError("SDK link map selects a different Q-Periapt archive")
             linked += 1

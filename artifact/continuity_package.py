@@ -48,7 +48,10 @@ def source_inputs() -> dict:
         "artifact/continuity_android_contract.py", "artifact/continuity_android_roster.py",
         "artifact/continuity_android_roster_witness.py", "artifact/continuity_android_policy_roster.py",
         "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py",
-        "artifact/continuity_android_root.py"))
+        "artifact/continuity_android_root.py", "artifact/continuity_apple_package.py",
+        "artifact/continuity_apple_consumer.py", "artifact/apple_sdk_profile.py",
+        "artifact/deterministic_archive.py"))
+    files.extend((ROOT / "bindings/swift/ContinuityBinaryConsumer").rglob("*"))
     from continuity_android_jni import source_files as android_source_files
     files.extend(ROOT / "bindings/android/ContinuityPackageConsumer" / name for name in android_source_files())
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))
@@ -240,6 +243,8 @@ def validate_swift_minimum(selected: bool, toolchain: Path | None) -> None:
 
 def qualify(args: argparse.Namespace) -> dict:
     validate_swift_minimum(args.with_swift_consumer, args.swift_minimum_toolchain_root)
+    sdk.require(not args.with_apple_package or (args.with_c_consumer and os.uname().sysname == "Darwin"
+                and os.uname().machine == "arm64"), "Apple package requires installed C qualification on macOS arm64")
     sdk.require(not args.with_swift_consumer or (args.with_c_consumer and os.uname().sysname == "Darwin"),
                 "Swift qualification requires the installed C consumer on macOS")
     sdk.require(not args.with_kotlin_consumer or
@@ -275,7 +280,7 @@ def qualify(args: argparse.Namespace) -> dict:
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
               "requested_consumers": (["Rust", "C"] if args.with_c_consumer else ["Rust"])
-                                     + (["Swift"] if args.with_swift_consumer else [])
+                                     + (["Swift"] if args.with_swift_consumer or args.with_apple_package else [])
                                      + (["Kotlin"] if args.with_kotlin_consumer else []),
               "release_claim_eligible": False, "publication_performed": False,
               "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification"}
@@ -406,6 +411,9 @@ def qualify(args: argparse.Namespace) -> dict:
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
                                "and C client/server/recovery with local, signed-TCP and mutual-TLS witness profiles; "
                                "no independent witness engine, other foreign bindings or cross-host qualification")
+        if args.with_apple_package:
+            from continuity_apple_package import qualify_apple
+            result["apple_package"] = qualify_apple(outside, output, environment)
         if args.with_swift_consumer:
             from continuity_swift_consumer import qualify_swift
             result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment, args.swift_minimum_toolchain_root)
@@ -428,6 +436,8 @@ def qualify(args: argparse.Namespace) -> dict:
                                "other JVM implementations and automatic JVM cancellation qualification remain separate")
         if args.with_android_jni_consumer:
             result["scope"] += "; Android adapter packaged Java/JNI host lifecycle and cancellation; physical ART/AAR acceptance recorded separately"
+        if args.with_apple_package:
+            result["scope"] += "; extracted macOS/iOS arm64 Swift binary package with actual linked-archive checks and a macOS native owner probe; device/simulator execution separate"
         sdk.require(sdk.snapshot(consumer / "Cargo.lock").sha256 == lock.sha256, "consumer lock changed")
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
@@ -454,6 +464,8 @@ def main() -> None:
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--with-c-consumer", action="store_true",
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
+    parser.add_argument("--with-apple-package", action="store_true",
+                        help="build and consume the macOS/iOS/arm64-simulator static Swift binary package")
     parser.add_argument("--with-swift-consumer", action="store_true",
                         help="also package and execute the Swift owner with the installed C engine on macOS")
     parser.add_argument("--swift-minimum-toolchain-root", type=Path,
@@ -469,7 +481,7 @@ def main() -> None:
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
-                                                  "c_consumer", "swift_consumer", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
+                                                  "c_consumer", "swift_consumer", "apple_package", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":
