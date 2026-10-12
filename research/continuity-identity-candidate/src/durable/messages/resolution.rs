@@ -291,18 +291,22 @@ impl Traffic {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Irreversibly freeze a closed old epoch and commit its exact unresolved-outcome
     /// report before release. Repeated calls recover that report after restart.
     /// Call only when the application chooses explicit resolution over old delivery.
-    pub fn begin_closed_epoch_resolution(
+    pub async fn begin_closed_epoch_resolution(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         epoch: u64,
         now: u64,
     ) -> Result<ClosedEpochResolution, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if epoch >= state.send_epoch || epoch >= state.receive_epoch {
             return Err(Error::State.into());
@@ -318,21 +322,22 @@ impl DeviceJournal {
             getrandom::fill(report_key.as_mut_bytes()).map_err(|_| Error::Entropy)?;
             traffic.resolution_key = Some(report_key);
             traffic.resolution = EpochResolutionStatus::Pending(traffic.resolution_id()?);
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("epoch-resolution-frozen");
         }
         if state.traffic(epoch)?.resolution.acknowledged() {
             return Err(Error::Retired.into());
         }
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(state.traffic(epoch)?.resolution_report()?)
     }
 
     /// Record the application's durable accounting of this exact report and erase
     /// its old secret/data owners. This reports no successful delivery. The host's
     /// external transaction must already be durable and deduplicated by report ID.
-    pub fn acknowledge_closed_epoch_resolution(
+    pub async fn acknowledge_closed_epoch_resolution(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -340,7 +345,7 @@ impl DeviceJournal {
         id: EpochResolutionId,
         now: u64,
     ) -> Result<(), DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let traffic = state.traffic_mut(epoch)?;
         match traffic.resolution {
@@ -362,24 +367,25 @@ impl DeviceJournal {
                 traffic.receive_ack = ZeroizingBytes::zeroed();
                 traffic.resolution_key = None;
                 traffic.resolution = EpochResolutionStatus::Acknowledged(id);
-                self.store_message_state(&mut image, &state)?;
+                self.store_message_state(&mut image, &state).await?;
                 #[cfg(all(test, unix))]
                 super::tests::after_stage("epoch-resolution-acknowledged");
             }
         }
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(())
     }
 
     /// Query authenticated local accounting state without releasing plaintext or
     /// granting authority after policy close, expiry or revocation.
-    pub fn closed_epoch_resolution_status(
+    pub async fn closed_epoch_resolution_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         epoch: u64,
     ) -> Result<EpochResolutionStatus, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(state.traffic(epoch)?.resolution)
     }
 }

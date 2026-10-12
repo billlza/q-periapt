@@ -79,6 +79,10 @@ pub struct SessionArchiveStore {
     active: Option<Database>,
     journal: JournalIdentity,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl SessionArchiveStore {
     /// Explicitly create and sync a new empty index for an independently retained
     /// journal identity. Existing paths are never replaced or treated as first use.
@@ -165,9 +169,9 @@ impl SessionArchiveStore {
     /// live policy/context or new operational authority is reconstructed. Open the
     /// cleanup owner from independently retained archive bytes first. Conflicting
     /// rows are never overwritten, and unknown commits require exact reopen/retry.
-    pub fn restore(&mut self, owner: &mut SessionClosureJournal) -> Result<(), DurableError> {
+    pub async fn restore(&mut self, owner: &mut SessionClosureJournal) -> Result<(), DurableError> {
         self.active.as_ref().ok_or(DurableError::Closed)?;
-        let (session, archive) = owner.index_material(self.journal, None)?;
+        let (session, archive) = owner.index_material(self.journal, None).await?;
         self.retain_exact(session, &archive)
     }
     /// Retire only the exact index row for a session whose complete host loss
@@ -176,13 +180,13 @@ impl SessionArchiveStore {
     /// false means a fresh validated lookup found it already absent. Both require
     /// current original-witness admission. Journal tombstones, claims, counters and
     /// capacity are unchanged; this cannot retire reserved aggregate members.
-    pub fn retire_closed(
+    pub async fn retire_closed(
         &mut self,
         owner: &mut SessionClosureJournal,
         report: SessionClosureId,
     ) -> Result<bool, DurableError> {
         self.active.as_ref().ok_or(DurableError::Closed)?;
-        let (session, archive) = owner.index_material(self.journal, Some(report))?;
+        let (session, archive) = owner.index_material(self.journal, Some(report)).await?;
         let result = (|| {
             let db = self.active.as_ref().ok_or(DurableError::Closed)?;
             let records = load(db, self.journal)?;

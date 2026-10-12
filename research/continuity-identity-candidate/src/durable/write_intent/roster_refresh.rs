@@ -58,6 +58,10 @@ pub(in crate::durable) fn reserve_roster_refresh(
     }
     readback.roster_proposal(&current)
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Read original authenticated R preparation before or after target installation.
     /// None means local absence only. This sends nothing, reseals nothing and does
@@ -86,7 +90,7 @@ impl DeviceJournal {
     /// Only a fresh exact original R Applied may install the saved sealed target.
     /// Pending is retained even after installation. This sends no Commit/Close/ACK,
     /// grants no live owner and never treats Unavailable as no-commit.
-    pub fn recover_roster_refresh(
+    pub async fn recover_roster_refresh(
         path: &Path,
         key: JournalKey,
         original: &VerifiedDevice,
@@ -97,8 +101,9 @@ impl DeviceJournal {
     ) -> Result<State, DurableError> {
         let db = open_private_database(path)?;
         Self::recover_roster_refresh_in_database(&db, &key, original, policy, id, proposal, client)
+            .await
     }
-    pub(crate) fn recover_roster_refresh_in_database(
+    pub(crate) async fn recover_roster_refresh_in_database(
         db: &Database,
         key: &JournalKey,
         original: &VerifiedDevice,
@@ -128,10 +133,12 @@ impl DeviceJournal {
         {
             return Err(Error::Scope.into());
         }
-        let reply = client.exchange(
-            proposal.subject(),
-            AnchorOperation::roster_refresh_status(&proposal),
-        )?;
+        let reply = client
+            .exchange(
+                proposal.subject(),
+                AnchorOperation::roster_refresh_status(&proposal),
+            )
+            .await?;
         let state = reply.roster_refresh_state(&proposal)?;
         match state {
             State::Applied => {
@@ -157,8 +164,12 @@ impl DeviceJournal {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    pub(crate) fn retire_roster_refresh(
+    pub(crate) async fn retire_roster_refresh(
         path: &Path,
         key: JournalKey,
         original: &VerifiedDevice,
@@ -169,8 +180,9 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         let db = open_private_database(path)?;
         Self::retire_roster_refresh_in_database(&db, &key, original, policy, id, terminal, client)
+            .await
     }
-    pub(crate) fn retire_roster_refresh_in_database(
+    pub(crate) async fn retire_roster_refresh_in_database(
         db: &Database,
         key: &JournalKey,
         original: &VerifiedDevice,
@@ -210,10 +222,12 @@ impl DeviceJournal {
         {
             return Err(Error::Scope.into());
         }
-        let reply = client.exchange(
-            proposal.subject(),
-            AnchorOperation::acknowledge_roster_refresh(&proposal),
-        )?;
+        let reply = client
+            .exchange(
+                proposal.subject(),
+                AnchorOperation::acknowledge_roster_refresh(&proposal),
+            )
+            .await?;
         if reply.observed_head() != expected
             || !matches!(
                 reply.roster_refresh_state(&proposal)?,

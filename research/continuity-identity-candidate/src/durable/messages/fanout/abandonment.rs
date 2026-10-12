@@ -204,6 +204,10 @@ fn report(image: &Image, batch: &Batch) -> Result<FanoutAbandonment, DurableErro
     })
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // Only exact previously admitted context/owner bindings. Cleanup can use
     // this after revocation; operational callers MUST also authorize every
@@ -261,17 +265,17 @@ impl DeviceJournal {
     /// be released from those sessions, even before the final acknowledgement.
     /// Revoked or expired contexts may be used only for this metadata-only cleanup.
     /// Existing required-witness policy is enforced at commit and report release.
-    pub fn begin_fanout_abandonment(
+    pub async fn begin_fanout_abandonment(
         &mut self,
         id: FanoutId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<FanoutAbandonment, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let batch = codec::get(&image, id)?;
         self.check_fanout_bindings(&image, &batch, targets)?;
-        self.begin_fanout_cleanup(image, batch)
+        self.begin_fanout_cleanup(image, batch).await
     }
-    pub(in crate::durable::messages::fanout) fn begin_fanout_cleanup(
+    pub(in crate::durable::messages::fanout) async fn begin_fanout_cleanup(
         &mut self,
         mut image: Image,
         mut batch: Batch,
@@ -301,7 +305,7 @@ impl DeviceJournal {
                 image
                     .records
                     .insert(batch_key(id), batch.record(image.local_account));
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
                 #[cfg(all(test, unix))]
                 tests::after_stage("fanout-abandoning");
             }
@@ -310,25 +314,25 @@ impl DeviceJournal {
             BatchState::Committed(_) => return Err(DurableError::Conflict),
         }
         let report = report(&image, &batch)?;
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         Ok(report)
     }
     /// After the host durably accounts for the exact report, replace all member
     /// sessions with keyless terminal records in one transaction. This erases
     /// logical owners, not historical disk blocks, backups or caller copies.
     /// Repeating the exact acknowledgement is idempotent; outcomes never become ACKs.
-    pub fn acknowledge_fanout_abandonment(
+    pub async fn acknowledge_fanout_abandonment(
         &mut self,
         id: FanoutId,
         report: FanoutAbandonmentId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<(), DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let batch = codec::get(&image, id)?;
         self.check_fanout_bindings(&image, &batch, targets)?;
-        self.acknowledge_fanout_cleanup(image, batch, report)
+        self.acknowledge_fanout_cleanup(image, batch, report).await
     }
-    pub(in crate::durable::messages::fanout) fn acknowledge_fanout_cleanup(
+    pub(in crate::durable::messages::fanout) async fn acknowledge_fanout_cleanup(
         &mut self,
         mut image: Image,
         mut batch: Batch,
@@ -356,13 +360,13 @@ impl DeviceJournal {
                 image
                     .records
                     .insert(batch_key(id), batch.record(image.local_account));
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
                 #[cfg(all(test, unix))]
                 tests::after_stage("fanout-abandoned");
             }
             _ => return Err(DurableError::Conflict),
         }
-        self.check_release(&image)
+        self.check_release(&image).await
     }
 }
 

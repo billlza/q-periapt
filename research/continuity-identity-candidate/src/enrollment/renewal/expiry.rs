@@ -25,6 +25,10 @@ impl ExpiryPolicy<'_> {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     /// Resolve an exact pending renewal whose target expired before recovery.
     /// A journal-committed target is reported as Committed, even after revocation;
@@ -35,15 +39,16 @@ impl DeviceEnrollment {
     /// abandonment or a later renewal completes; its time floor remains thereafter.
     /// Persist caller-known outcomes if a longer history is needed. An old/foreign request that is no
     /// longer retained is rejected, never inferred to have been uncommitted.
-    pub fn reconcile_expired_credential_renewal(
+    pub async fn reconcile_expired_credential_renewal(
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let result =
-            self.reconcile_expired(operation, statement, ExpiryPolicy::Original(policy), now);
+        let result = self
+            .reconcile_expired(operation, statement, ExpiryPolicy::Original(policy), now)
+            .await;
         if result.is_err() {
             self.close();
         }
@@ -60,7 +65,7 @@ impl DeviceEnrollment {
     /// metadata, not a live runtime or private signer, and never returns an
     /// operational owner. Exact retained outcome retries remain historical even
     /// if a later policy has been adopted; unknown or forgotten IDs are refused.
-    pub fn reconcile_expired_policy_credential(
+    pub async fn reconcile_expired_policy_credential(
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
@@ -68,21 +73,23 @@ impl DeviceEnrollment {
         policy: &crate::HistoricalSessionPolicy,
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let result = self.reconcile_expired(
-            operation,
-            statement,
-            ExpiryPolicy::Independent {
-                original: original_policy,
-                target: policy,
-            },
-            now,
-        );
+        let result = self
+            .reconcile_expired(
+                operation,
+                statement,
+                ExpiryPolicy::Independent {
+                    original: original_policy,
+                    target: policy,
+                },
+                now,
+            )
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
-    fn reconcile_expired(
+    async fn reconcile_expired(
         &mut self,
         operation: CredentialRenewalId,
         statement: [u8; 32],
@@ -134,12 +141,14 @@ impl DeviceEnrollment {
                     && renewal.pending.is_none()
                     && renewal.expired.is_none()
                 {
-                    return self.recover_historical_policy_credential(
-                        operation,
-                        statement,
-                        policy.original(),
-                        policy.target(),
-                    );
+                    return self
+                        .recover_historical_policy_credential(
+                            operation,
+                            statement,
+                            policy.original(),
+                            policy.target(),
+                        )
+                        .await;
                 }
                 return Ok(CredentialRenewalStatus::Committed {
                     operation,
@@ -183,7 +192,9 @@ impl DeviceEnrollment {
         grant.resolve_established(&original, admission.policy)?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, policy.original());
-        let mut service = self.reconcile_installation(&original, policy.original(), None)?;
+        let mut service = self
+            .reconcile_installation(&original, policy.original(), None)
+            .await?;
         let journal = service.stores()?.0;
         if journal.identity()? != journal_id {
             return Err(DurableError::Conflict);
@@ -194,24 +205,28 @@ impl DeviceEnrollment {
             policy_renewal: independent.as_ref().map(|p| (p, &original)),
         };
         let resolution = if let Some(approval) = &independent {
-            let receipt = journal.inspect_policy_credential_authorization(approval, &original)?;
-            journal.acknowledge_local_policy_renewal(&authority, &receipt)?;
-            journal.reconcile_prior_local_target(
-                &authority,
-                &target,
-                renewal.completed.as_ref(),
-            )?;
-            journal.inspect_local_renewal_target(&authority, &target, policy.target())?
+            let receipt = journal
+                .inspect_policy_credential_authorization(approval, &original)
+                .await?;
+            journal
+                .acknowledge_local_policy_renewal(&authority, &receipt)
+                .await?;
+            journal
+                .reconcile_prior_local_target(&authority, &target, renewal.completed.as_ref())
+                .await?;
+            journal
+                .inspect_local_renewal_target(&authority, &target, policy.target())
+                .await?
         } else {
             let ExpiryPolicy::Original(current) = policy else {
                 return Err(DurableError::Corrupt);
             };
-            journal.reconcile_prior_local_renewal(
-                &authority,
-                &grant,
-                renewal.completed.as_ref(),
-            )?;
-            journal.inspect_local_credential_renewal(&authority, &grant, current)?
+            journal
+                .reconcile_prior_local_renewal(&authority, &grant, renewal.completed.as_ref())
+                .await?;
+            journal
+                .inspect_local_credential_renewal(&authority, &grant, current)
+                .await?
         };
         match resolution {
             LocalRenewalResolution::Committed(commit) => {
@@ -223,7 +238,9 @@ impl DeviceEnrollment {
                     .as_ref()
                     .and_then(|r| r.completed.as_ref())
                     .ok_or(DurableError::Corrupt)?;
-                journal.acknowledge_local_credential_renewal(&authority, completed)?;
+                journal
+                    .acknowledge_local_credential_renewal(&authority, completed)
+                    .await?;
             }
             LocalRenewalResolution::Uncommitted(observed_head) => {
                 // Either signed target can expire while the exact journal history

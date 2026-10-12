@@ -599,21 +599,25 @@ struct Active {
 pub struct DeviceJournal {
     active: Option<Active>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    pub(crate) fn check_installation_state(
+    pub(crate) async fn check_installation_state(
         &mut self,
         device: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         require_genesis: bool,
     ) -> Result<(), DurableError> {
         self.check_policy(policy)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         if image.owner != bootstrap::storage_owner(device)
             || (require_genesis && (image.revision != 1 || !rosters::is_genesis(&image, device)?))
         {
             return Err(DurableError::Conflict);
         }
-        self.check_release(&image)
+        self.check_release(&image).await
     }
     /// Explicitly provision a new empty journal for the independently verified local device.
     /// The caller must durably retain this fresh identity before calling. After an
@@ -762,45 +766,49 @@ impl DeviceJournal {
         )?)
     }
 
-    fn image(&mut self) -> Result<Image, DurableError> {
+    async fn image(&mut self) -> Result<Image, DurableError> {
+        let result = self.image_attempt().await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn image_attempt(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-        let result = load(&active.db, &active.key, active.owner).and_then(|mut image| {
-            if image.id == active.id && image.protection == active.protection {
-                active.attach_account_authority(&mut image)?;
-                active.check_current(&image)?;
-                active.check_account_authority(&image)?;
-                if let Some(completion) = &active.enrollment_completion {
-                    rosters::check_enrollment_policy_completion(&image, completion)?;
-                    image.enrollment_completion = Some(std::sync::Arc::clone(completion));
-                }
-                Ok(image)
-            } else {
-                Err(DurableError::Conflict)
+        let mut image = load(&active.db, &active.key, active.owner)?;
+        if image.id == active.id && image.protection == active.protection {
+            active.attach_account_authority(&mut image)?;
+            active.check_current(&image).await?;
+            active.check_account_authority(&image)?;
+            if let Some(completion) = &active.enrollment_completion {
+                rosters::check_enrollment_policy_completion(&image, completion)?;
+                image.enrollment_completion = Some(std::sync::Arc::clone(completion));
             }
-        });
+            Ok(image)
+        } else {
+            Err(DurableError::Conflict)
+        }
+    }
+    async fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
+        let result = self.persist_attempt(image).await;
         if result.is_err() {
             self.close();
         }
         result
     }
-    fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
-        let result = (|| {
-            let sealed = self.seal_next_image(image)?;
-            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            active.check_account_authority(image)?;
-            write_intent::commit(active, image, &sealed)?;
-            image.digest = image_hash(&sealed);
-            active.check_current(image)?;
-            active.check_account_authority(image)?;
-            #[cfg(all(test, unix))]
-            tests::after_commit(image);
-            Ok(())
-        })();
-        if result.is_err() {
-            self.close();
-        }
-        result
+    async fn persist_attempt(&mut self, image: &mut Image) -> Result<(), DurableError> {
+        let sealed = self.seal_next_image(image)?;
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+        active.check_account_authority(image)?;
+        write_intent::commit(active, image, &sealed).await?;
+        image.digest = image_hash(&sealed);
+        active.check_current(image).await?;
+        active.check_account_authority(image)?;
+        #[cfg(all(test, unix))]
+        tests::after_commit(image);
+        Ok(())
     }
+
     fn seal_next_image(&self, image: &mut Image) -> Result<Vec<u8>, DurableError> {
         cancellation::validate_image(image)?;
         prekeys::validate_image(image)?;
@@ -841,7 +849,7 @@ impl DeviceJournal {
         Ok(operation_id(&context.digest(), initial))
     }
     /// Linearizable exact-input query after authenticated database readback.
-    pub fn status(
+    pub async fn status(
         &mut self,
         context: &BootstrapContext,
         initial: &[u8],
@@ -854,7 +862,7 @@ impl DeviceJournal {
             return Err(Error::Scope.into());
         }
         let id = self.query_id(context, initial)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         if let Some(record) = image.records.get(&id) {
             record.check_request(context, initial)?;
         }
@@ -863,7 +871,7 @@ impl DeviceJournal {
             .get(&id)
             .map_or(DurableStatus::Absent, |r| r.phase))
     }
-    fn release_prepared(
+    async fn release_prepared(
         &mut self,
         image: &mut Image,
         id: [u8; 32],
@@ -891,10 +899,10 @@ impl DeviceJournal {
                 .get_mut(&id)
                 .ok_or(DurableError::Corrupt)?
                 .phase = DurableStatus::AwaitingFinal;
-            self.persist(image)?;
+            self.persist(image).await?;
         }
         context.check(now)?;
-        self.check_context_release(image, &context, now)?;
+        self.check_context_release(image, &context, now).await?;
         Ok(reply)
     }
     fn restore_record(
@@ -912,22 +920,22 @@ impl DeviceJournal {
     }
     /// Resume a pinned/committed response without a signing owner or prekey secret.
     /// Pending plans require their original signer; Executing also needs its prekeys.
-    pub fn resume(
+    pub async fn resume(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let id = self.admission(&context, initial, now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         if let Some(record) = image.records.get(&id) {
             record.check_request(&context, initial)?;
         }
-        self.release_prepared(&mut image, id, context, now)
+        self.release_prepared(&mut image, id, context, now).await
     }
     /// Authenticate final confirmation and durably install completion before
     /// returning the public session identity. Replays must use the exact final bytes.
-    pub fn finish(
+    pub async fn finish(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
@@ -935,7 +943,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<[u8; 32], DurableError> {
         let id = self.admission(&context, initial, now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         messages::require_live_source(&image, &id)?;
         rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get_mut(&id).ok_or(DurableError::Absent)?;
@@ -951,10 +959,10 @@ impl DeviceJournal {
         if record.phase == DurableStatus::AwaitingFinal {
             record.payload = operation.checkpoint()?;
             record.phase = DurableStatus::Complete;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         context.check(now)?;
-        self.check_context_release(&image, &context, now)?;
+        self.check_context_release(&image, &context, now).await?;
         Ok(session)
     }
 }

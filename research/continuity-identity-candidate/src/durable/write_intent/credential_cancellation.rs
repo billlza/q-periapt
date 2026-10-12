@@ -176,6 +176,10 @@ pub(super) fn check_scope(
     Ok(())
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // Only the original enrollment may supply the authenticated prior completion.
     // The database lease spans validation, reservation and exact readback.
@@ -283,7 +287,7 @@ impl DeviceJournal {
         }
         Ok(cancellation)
     }
-    pub(crate) fn recover_witnessed_credential_intent(
+    pub(crate) async fn recover_witnessed_credential_intent(
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
@@ -294,5 +298,6 @@ impl DeviceJournal {
     ) -> Result<State, DurableError> {
         let db = open_private_database(path)?;
         super::recover_witnessed_credential_intent(&db, &key, original, policy, id, intent, client)
+            .await
     }
 }

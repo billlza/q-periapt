@@ -290,6 +290,10 @@ pub struct DeviceInstallation {
     key_binding: [u8; 32],
     scope: Vec<u8>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceInstallation {
     /// Durably retain a fresh journal ID and exact key/device/policy/path bindings
     /// before any journal creation. Existing child paths cannot be adopted.
@@ -435,81 +439,90 @@ impl DeviceInstallation {
     /// can create missing children. Existing partial/wrong/advanced files fail;
     /// no file is deleted, repaired or overwritten. Required-witness preparation
     /// returns only the original genesis for explicit independent enrollment.
-    pub fn prepare(
+    pub async fn prepare(
         &mut self,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<InstallationPreparation, DurableError> {
-        let result = (|| {
-            self.check(&key, device, policy, now)?;
-            if self.status()? != InstallationStatus::Creating {
-                return Err(DurableError::Conflict);
-            }
-            let anchored = policy.anchor_requirement().binding().is_some();
-            let prepared = if missing(&self.paths.journal)? {
-                let mut journal = if anchored {
-                    DeviceJournal::provision_anchored(
-                        &self.paths.journal,
-                        key,
-                        device,
-                        policy,
-                        self.identity,
-                        now,
-                    )?
-                } else {
-                    DeviceJournal::provision(&self.paths.journal, key, device, self.identity)?
-                };
-                if anchored {
-                    InstallationPreparation::RequiresEnrollment(
-                        journal.anchor_genesis(device, policy)?,
-                    )
-                } else {
-                    journal.check_installation_state(device, policy, true)?;
-                    InstallationPreparation::Local
-                }
-            } else if anchored {
-                InstallationPreparation::RequiresEnrollment(DeviceJournal::recover_anchor_genesis(
-                    &self.paths.journal,
-                    key,
-                    device,
-                    policy,
-                    self.identity,
-                )?)
-            } else {
-                let mut journal =
-                    DeviceJournal::open(&self.paths.journal, key, device, self.identity)?;
-                journal.check_installation_state(device, policy, true)?;
-                InstallationPreparation::Local
-            };
-            #[cfg(all(test, unix))]
-            tests::at_boundary("journal");
-            let mut archives = if missing(&self.paths.archives)? {
-                SessionArchiveStore::provision(&self.paths.archives, self.identity)?
-            } else {
-                SessionArchiveStore::open(&self.paths.archives, self.identity)?
-            };
-            if !archives.session_ids()?.is_empty() {
-                return Err(DurableError::Conflict);
-            }
-            #[cfg(all(test, unix))]
-            tests::at_boundary("archives");
-            admit(device, policy, now)?;
-            Ok(prepared)
-        })();
+        let result = self.prepare_attempt(key, device, policy, now).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn prepare_attempt(
+        &mut self,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<InstallationPreparation, DurableError> {
+        self.check(&key, device, policy, now)?;
+        if self.status()? != InstallationStatus::Creating {
+            return Err(DurableError::Conflict);
+        }
+        let anchored = policy.anchor_requirement().binding().is_some();
+        let prepared = if missing(&self.paths.journal)? {
+            let mut journal = if anchored {
+                DeviceJournal::provision_anchored(
+                    &self.paths.journal,
+                    key,
+                    device,
+                    policy,
+                    self.identity,
+                    now,
+                )?
+            } else {
+                DeviceJournal::provision(&self.paths.journal, key, device, self.identity)?
+            };
+            if anchored {
+                InstallationPreparation::RequiresEnrollment(journal.anchor_genesis(device, policy)?)
+            } else {
+                journal
+                    .check_installation_state(device, policy, true)
+                    .await?;
+                InstallationPreparation::Local
+            }
+        } else if anchored {
+            InstallationPreparation::RequiresEnrollment(DeviceJournal::recover_anchor_genesis(
+                &self.paths.journal,
+                key,
+                device,
+                policy,
+                self.identity,
+            )?)
+        } else {
+            let mut journal = DeviceJournal::open(&self.paths.journal, key, device, self.identity)?;
+            journal
+                .check_installation_state(device, policy, true)
+                .await?;
+            InstallationPreparation::Local
+        };
+        #[cfg(all(test, unix))]
+        tests::at_boundary("journal");
+        let mut archives = if missing(&self.paths.archives)? {
+            SessionArchiveStore::provision(&self.paths.archives, self.identity)?
+        } else {
+            SessionArchiveStore::open(&self.paths.archives, self.identity)?
+        };
+        if !archives.session_ids()?.is_empty() {
+            return Err(DurableError::Conflict);
+        }
+        #[cfg(all(test, unix))]
+        tests::at_boundary("archives");
+        admit(device, policy, now)?;
+        Ok(prepared)
+    }
+
     /// Open prepared/existing children, freshly admit the original required
     /// witness, then durably record Active before releasing any operational owner.
     /// None is permitted only for an originally local-only policy. Unknown commits
     /// return no service; reopen the original configuration to reconcile its phase.
     /// Managed journals require their original [`InstallationAdmission`], which
     /// also permits explicit initial binding after genesis validation.
-    pub fn activate(
+    pub async fn activate(
         self,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -518,8 +531,9 @@ impl DeviceInstallation {
         admission: impl Into<InstallationAdmission>,
     ) -> Result<DeviceService, DurableError> {
         self.activate_admitted(key, device, policy, now, admission.into())
+            .await
     }
-    pub(crate) fn activate_admitted(
+    pub(crate) async fn activate_admitted(
         mut self,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -533,10 +547,13 @@ impl DeviceInstallation {
             Some(authority) => AccountAuthorityOpen::Bind(authority.clone()),
             None => AccountAuthorityOpen::Existing(None),
         };
-        let (mut journal, mut archives) =
-            self.open_children(key, device, policy, admission.anchor, mode)?;
+        let (mut journal, mut archives) = self
+            .open_children(key, device, policy, admission.anchor, mode)
+            .await?;
         if phase == InstallationStatus::Creating {
-            journal.check_installation_state(device, policy, true)?;
+            journal
+                .check_installation_state(device, policy, true)
+                .await?;
             if !archives.session_ids()?.is_empty() {
                 return Err(DurableError::Conflict);
             }
@@ -557,10 +574,12 @@ impl DeviceInstallation {
             }
         }
         if let Some(authority) = admission.account {
-            journal.adopt_account_authority(authority)?;
+            journal.adopt_account_authority(authority).await?;
         }
         admit(device, policy, now)?;
-        journal.check_installation_state(device, policy, false)?;
+        journal
+            .check_installation_state(device, policy, false)
+            .await?;
         admit(device, policy, now)?;
         Ok(DeviceService {
             active: Some(Box::new(ServiceOwners {
@@ -575,7 +594,7 @@ impl DeviceInstallation {
             })),
         })
     }
-    pub(crate) fn reconcile_original_enrollment(
+    pub(crate) async fn reconcile_original_enrollment(
         paths: InstallationPaths,
         key: JournalKey,
         original: &VerifiedDevice,
@@ -595,14 +614,18 @@ impl DeviceInstallation {
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        let (mut journal, archives) = installation.open_children(
-            key,
-            original,
-            policy,
-            anchor,
-            AccountAuthorityOpen::Existing(admission.account),
-        )?;
-        journal.check_installation_state(original, policy, false)?;
+        let (mut journal, archives) = installation
+            .open_children(
+                key,
+                original,
+                policy,
+                anchor,
+                AccountAuthorityOpen::Existing(admission.account),
+            )
+            .await?;
+        journal
+            .check_installation_state(original, policy, false)
+            .await?;
         Ok(DeviceService {
             active: Some(Box::new(ServiceOwners {
                 original_device: original.clone(),
@@ -616,7 +639,7 @@ impl DeviceInstallation {
             })),
         })
     }
-    fn open_children(
+    async fn open_children(
         &self,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -629,15 +652,18 @@ impl DeviceInstallation {
             (None, None, AccountAuthorityOpen::Existing(None)) => {
                 DeviceJournal::open(&self.paths.journal, key, device, self.identity)?
             }
-            (Some(_), Some(client), account) => DeviceJournal::open_anchored_admitted(
-                &self.paths.journal,
-                key,
-                device,
-                policy,
-                self.identity,
-                client,
-                account,
-            )?,
+            (Some(_), Some(client), account) => {
+                DeviceJournal::open_anchored_admitted(
+                    &self.paths.journal,
+                    key,
+                    device,
+                    policy,
+                    self.identity,
+                    client,
+                    account,
+                )
+                .await?
+            }
             (_, None, _) => return Err(DurableError::AnchorRequired),
             (None, Some(_), _) => return Err(DurableError::Conflict),
         };
@@ -683,6 +709,10 @@ pub struct DeviceService {
     // admission frame, exhausting ordinary foreign worker stacks in Debug.
     active: Option<Box<ServiceOwners>>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceService {
     /// Borrow the existing protocol engines together; no key material is exported.
     pub fn stores(
@@ -699,7 +729,7 @@ impl DeviceService {
     /// Read the original inventory operation through this installation, even if
     /// the current credential was revoked or its renewal grant was superseded.
     /// This metadata operation grants no fresh key or traffic authority.
-    pub fn prekey_status(
+    pub async fn prekey_status(
         &mut self,
         policy: &VerifiedSessionPolicy,
         request: crate::PrekeyId,
@@ -711,10 +741,11 @@ impl DeviceService {
         owners
             .journal
             .installation_prekey_status(&owners.authority, policy, request)
+            .await
     }
     /// Retire an original inventory operation without restoring permission or
     /// clearing a one-time consumption tombstone. Pending responses still block.
-    pub fn retire_prekey(
+    pub async fn retire_prekey(
         &mut self,
         policy: &VerifiedSessionPolicy,
         request: crate::PrekeyId,
@@ -726,6 +757,7 @@ impl DeviceService {
         owners
             .journal
             .retire_installation_prekey(&owners.authority, policy, request)
+            .await
     }
     /// Shut down this service owner and retain its Active initialization record.
     pub fn close(&mut self) {

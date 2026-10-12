@@ -1063,8 +1063,12 @@ pub(super) fn admit_context(
     authorize_context(image, context, now)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    pub(crate) fn admit_continued_local_device(
+    pub(crate) async fn admit_continued_local_device(
         &mut self,
         scope: &crate::installation::PolicyScope<'_>,
         current: &VerifiedDevice,
@@ -1072,7 +1076,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<VerifiedDevice, DurableError> {
         self.check_policy(scope.original_policy)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         if authorize_continued_installation(&image, scope, policy, now)?
             != current.credential_digest()
             || (current.account_id(), current.device_id()) != scope.local_identity()
@@ -1082,13 +1086,13 @@ impl DeviceJournal {
         let refreshed = get(&image, &image.local_account)?
             .roster
             .refresh_device(current, now)?;
-        self.check_operational_release(&image, policy, now)?;
+        self.check_operational_release(&image, policy, now).await?;
         Ok(refreshed)
     }
     // Only an owning installation may bind this mutation to its exact policy.
     // Local enrollment has a separate durable configuration transaction; the
     // public owning-service entry currently permits only another peer identity.
-    pub(crate) fn install_peer_credential_renewal(
+    pub(crate) async fn install_peer_credential_renewal(
         &mut self,
         scope: &crate::installation::PolicyScope<'_>,
         renewal: &VerifiedCredentialRenewal,
@@ -1107,9 +1111,9 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         crate::installation::admit(renewal.successor_device(), policy, now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         authorize_peer_installation(&image, scope, policy, now)?;
-        self.check_operational_release(&image, policy, now)?;
+        self.check_operational_release(&image, policy, now).await?;
         let successor = renewal.successor_device();
         image.check_account_authorities(&[successor.account_id()])?;
         let saved = get(&image, &successor.account_id())?;
@@ -1129,7 +1133,7 @@ impl DeviceJournal {
             }
             saved.roster.authorize_device(successor, now)?;
             authorize_peer_installation(&image, scope, policy, now)?;
-            self.check_operational_release(&image, policy, now)?;
+            self.check_operational_release(&image, policy, now).await?;
             image.check_account_authorities(&[successor.account_id()])?;
             return Ok(target);
         }
@@ -1140,14 +1144,14 @@ impl DeviceJournal {
         // A valid root-signed successor roster may revoke this local member.
         // Retain that observed authority change durably, then withhold success
         // if local permission is gone; refusal must not silently undo revocation.
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         authorize_peer_installation(&image, scope, policy, now)?;
         crate::installation::admit(successor, policy, now)?;
-        self.check_operational_release(&image, policy, now)?;
+        self.check_operational_release(&image, policy, now).await?;
         image.check_account_authorities(&[successor.account_id()])?;
         Ok(target)
     }
-    pub(crate) fn prepare_bootstrap_context(
+    pub(crate) async fn prepare_bootstrap_context(
         &mut self,
         context: std::sync::Arc<BootstrapContext>,
         role: crate::BootstrapRole,
@@ -1157,7 +1161,7 @@ impl DeviceJournal {
         self.check_policy(context.original_policy())?;
         // One authenticated image and one final release fence cover both the
         // private local mapping and peer preview. Neither preview mutates state.
-        let image = self.image()?;
+        let image = self.image().await?;
         context.check_storage_binding(image.id, image.owner, Some(role))?;
         authorize_local_device(&image, context.device(role), context.current_policy()?, now)?;
         let context = if bootstrap::storage_owner(context.device(role)) != image.owner {
@@ -1170,7 +1174,7 @@ impl DeviceJournal {
             crate::BootstrapRole::Responder => crate::BootstrapRole::Initiator,
         };
         authorize_bootstrap_peer(&image, context.device(remote), now)?;
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         image.check_context_authorities(&context)?;
         context.check(now)?;
         Ok(context)
@@ -1179,13 +1183,13 @@ impl DeviceJournal {
     /// Commit an independently authenticated account head. Older and forked heads
     /// fail; the same canonical head does not rewrite its retained signature bytes.
     /// Unknown outcomes close the journal and require exact write-intent recovery.
-    pub fn install_roster(
+    pub async fn install_roster(
         &mut self,
         roster: &VerifiedRoster,
         now: u64,
     ) -> Result<RosterCheckpoint, DurableError> {
         roster.check_time(now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         image.check_account_authorities(&[roster.account_id()])?;
         let key = id(&roster.account_id());
         let updated = if let Some(saved) = image.records.get(&key) {
@@ -1202,7 +1206,7 @@ impl DeviceJournal {
                 return Err(Error::Checkpoint.into());
             }
             if new == old {
-                self.check_release(&image)?;
+                self.check_release(&image).await?;
                 image.check_account_authorities(&[roster.account_id()])?;
                 return Ok(old);
             }
@@ -1220,46 +1224,46 @@ impl DeviceJournal {
             Stored::initial(roster)
         };
         image.records.insert(key, updated.record()?);
-        self.persist(&mut image)?;
-        self.check_release(&image)?;
+        self.persist(&mut image).await?;
+        self.check_release(&image).await?;
         image.check_account_authorities(&[roster.account_id()])?;
         Ok(roster.checkpoint())
     }
     /// Read-only head reconciliation. This grants no message or dispatch authority.
-    pub(crate) fn local_roster_for_reconciliation(
+    pub(crate) async fn local_roster_for_reconciliation(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,
     ) -> Result<VerifiedRoster, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         if image.protection != Protection::Local {
             return Err(DurableError::AnchorRequired);
         }
         authority.check(image.owner, None)?;
         let roster = get(&image, &image.local_account)?.roster;
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         Ok(roster)
     }
     /// Read-only head reconciliation. This grants no message or dispatch authority.
-    pub fn roster_checkpoint(
+    pub async fn roster_checkpoint(
         &mut self,
         account: [u8; 32],
     ) -> Result<RosterCheckpoint, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let checkpoint = get(&image, &account)?.roster.checkpoint();
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         Ok(checkpoint)
     }
-    pub(super) fn check_context_release(
+    pub(super) async fn check_context_release(
         &mut self,
         image: &Image,
         context: &BootstrapContext,
         now: u64,
     ) -> Result<(), DurableError> {
         authorize_context(image, context, now)?;
-        self.check_release(image)?;
+        self.check_release(image).await?;
         image.check_context_authorities(context)
     }
-    pub(super) fn check_session_context_release(
+    pub(super) async fn check_session_context_release(
         &mut self,
         image: &Image,
         context: &BootstrapContext,
@@ -1267,7 +1271,8 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         self.check_policy(context.original_policy())?;
         authorize_session_context(image, context, now)?;
-        self.check_operational_release(image, context.current_policy()?, now)?;
+        self.check_operational_release(image, context.current_policy()?, now)
+            .await?;
         image.check_context_authorities(context)
     }
 }

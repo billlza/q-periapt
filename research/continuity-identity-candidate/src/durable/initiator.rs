@@ -127,6 +127,10 @@ fn is_plan(phase: DurableStatus) -> bool {
     )
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     pub(super) fn initiation_query(
         &self,
@@ -142,7 +146,7 @@ impl DeviceJournal {
         Ok(operation_id(request))
     }
     /// Read-only exact-request reconciliation remains available after policy close/expiry.
-    pub fn initiation_status(
+    pub async fn initiation_status(
         &mut self,
         context: &BootstrapContext,
         request: InitiationId,
@@ -153,7 +157,7 @@ impl DeviceJournal {
             return Err(Error::Scope.into());
         }
         let id = self.initiation_query(context, request)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         match image.records.get(&id) {
             None => Ok(DurableStatus::Absent),
             Some(record) => {
@@ -164,7 +168,7 @@ impl DeviceJournal {
     }
     /// Reserve before creating an initial flight; commit its exact private reply
     /// state and public outbox before returning bytes. Keep the request ID for recovery.
-    pub fn initiate(
+    pub async fn initiate(
         &mut self,
         context: Arc<BootstrapContext>,
         request: InitiationId,
@@ -173,13 +177,13 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let new_operation = !image.records.contains_key(&id);
         rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&id) {
             check_request(record, &context, request)?;
             if !is_plan(record.phase) {
-                return self.release_initial(&mut image, id, context, now);
+                return self.release_initial(&mut image, id, context, now).await;
             }
         } else if image.operation_count() >= MAX_RECORDS {
             return Err(DurableError::Capacity);
@@ -223,7 +227,7 @@ impl DeviceJournal {
                     payload: pack(request, &plan.encode()),
                 },
             );
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             plan
         };
         // There are exactly two unsigned stages. Each next command's randomness
@@ -237,19 +241,19 @@ impl DeviceJournal {
             let effect = plan.phase();
             plan = match plan.advance(&context, &scope, &recovery) {
                 Ok(plan) => plan,
-                Err(error) => return self.initial_failure(&mut image, id, request, error),
+                Err(error) => return self.initial_failure(&mut image, id, request, error).await,
             };
             #[cfg(all(test, unix))]
             tests::after_effect(effect, &plan.public_effect()?);
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::decode(plan.phase())?;
             record.payload = pack(request, &plan.encode());
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         context.check(now)?;
         let operation = match plan.complete(Arc::clone(&context), &scope, &recovery, signer) {
             Ok(operation) => operation,
-            Err(error) => return self.initial_failure(&mut image, id, request, error),
+            Err(error) => return self.initial_failure(&mut image, id, request, error).await,
         };
         #[cfg(all(test, unix))]
         tests::after_effect(
@@ -258,16 +262,16 @@ impl DeviceJournal {
         );
         let private = match operation.checkpoint() {
             Ok(private) => private,
-            Err(error) => return self.initial_failure(&mut image, id, request, error),
+            Err(error) => return self.initial_failure(&mut image, id, request, error).await,
         };
         context.check(now)?;
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.payload = pack(request, &private);
         record.phase = DurableStatus::Prepared;
-        self.persist(&mut image)?;
-        self.release_initial(&mut image, id, context, now)
+        self.persist(&mut image).await?;
+        self.release_initial(&mut image, id, context, now).await
     }
-    fn initial_failure(
+    async fn initial_failure(
         &mut self,
         image: &mut Image,
         id: [u8; 32],
@@ -278,7 +282,7 @@ impl DeviceJournal {
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.payload = Zeroizing::new(request.0.to_vec());
             record.phase = DurableStatus::Rejected;
-            self.persist(image)?;
+            self.persist(image).await?;
         } else if matches!(
             error,
             Error::Encoding
@@ -293,7 +297,7 @@ impl DeviceJournal {
         // Local/transient failure preserves the selected, sealed computation.
         Err(DurableError::Protocol(error))
     }
-    fn release_initial(
+    async fn release_initial(
         &mut self,
         image: &mut Image,
         id: [u8; 32],
@@ -315,15 +319,15 @@ impl DeviceJournal {
                 .get_mut(&id)
                 .ok_or(DurableError::Corrupt)?
                 .phase = DurableStatus::AwaitingReply;
-            self.persist(image)?;
+            self.persist(image).await?;
         }
         context.check(now)?;
-        self.check_context_release(image, &context, now)?;
+        self.check_context_release(image, &context, now).await?;
         Ok(wire)
     }
     /// Replay a pinned/committed initial without key import, signing or new KEM
     /// randomness. A reservation with no pinned result remains suspended.
-    pub fn resume_initial(
+    pub async fn resume_initial(
         &mut self,
         context: Arc<BootstrapContext>,
         request: InitiationId,
@@ -331,10 +335,10 @@ impl DeviceJournal {
     ) -> Result<Vec<u8>, DurableError> {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         check_request(record, &context, request)?;
-        self.release_initial(&mut image, id, context, now)
+        self.release_initial(&mut image, id, context, now).await
     }
     pub(super) fn restore_initiator(
         &mut self,
@@ -358,7 +362,7 @@ impl DeviceJournal {
     }
     /// Persist one exact signed reply before deterministic confirmation processing.
     /// Its result and final outbox/root commit before success is exposed.
-    pub fn accept_reply(
+    pub async fn accept_reply(
         &mut self,
         context: Arc<BootstrapContext>,
         request: InitiationId,
@@ -367,7 +371,7 @@ impl DeviceJournal {
     ) -> Result<CommittedInitiation, DurableError> {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         messages::require_live_source(&image, &id)?;
 
         if !image.records.contains_key(&id) {
@@ -381,7 +385,7 @@ impl DeviceJournal {
                 context.validate_reply_signature(initial(record)?, reply)?;
                 record.payload.extend_from_slice(reply);
                 record.phase = DurableStatus::ProcessingReply;
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
             }
             DurableStatus::ProcessingReply
             | DurableStatus::FinalPrepared
@@ -415,7 +419,7 @@ impl DeviceJournal {
                     // A local/transient error preserves the exact selected reply.
                     record.payload.truncate(32 + WAITING);
                     record.phase = DurableStatus::AwaitingReply;
-                    self.persist(&mut image)?;
+                    self.persist(&mut image).await?;
                 }
                 return Err(DurableError::Protocol(error));
             }
@@ -427,7 +431,7 @@ impl DeviceJournal {
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.payload = pack(request, &private);
             record.phase = DurableStatus::FinalPrepared;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         if image.records.get(&id).ok_or(DurableError::Corrupt)?.phase
             == DurableStatus::FinalPrepared
@@ -438,14 +442,14 @@ impl DeviceJournal {
                 .get_mut(&id)
                 .ok_or(DurableError::Corrupt)?
                 .phase = DurableStatus::FinalCommitted;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         context.check(now)?;
-        self.check_context_release(&image, &context, now)?;
+        self.check_context_release(&image, &context, now).await?;
         Ok(result)
     }
     /// Continue the already-selected reply/result, with no caller replacement input.
-    pub fn resume_reply(
+    pub async fn resume_reply(
         &mut self,
         context: Arc<BootstrapContext>,
         request: InitiationId,
@@ -453,7 +457,7 @@ impl DeviceJournal {
     ) -> Result<CommittedInitiation, DurableError> {
         context.check(now)?;
         let id = self.initiation_query(&context, request)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         messages::require_live_source(&image, &id)?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         check_request(record, &context, request)?;
@@ -468,7 +472,7 @@ impl DeviceJournal {
         }
         let reply = selected_reply(record)?.to_vec();
         drop(image);
-        self.accept_reply(context, request, &reply, now)
+        self.accept_reply(context, request, &reply, now).await
     }
 }
 

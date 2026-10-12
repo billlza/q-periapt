@@ -182,6 +182,10 @@ enum Action<'a> {
     },
     Close,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(super) fn validate_witness_roster(&self, image: &Image) -> Result<(), DurableError> {
         let Some(r) = &image.roster_witness else {
@@ -253,7 +257,7 @@ impl DeviceEnrollment {
     /// Retain and seal one root-approved same-credential roster target. Exact retries
     /// preserve the original sealed bytes. The journal's actual predecessor must
     /// match the original enrollment; an old split authority state is not repaired.
-    pub fn prepare_witnessed_roster_refresh(
+    pub async fn prepare_witnessed_roster_refresh(
         &mut self,
         operation: RosterRefreshId,
         original_policy: &HistoricalSessionPolicy,
@@ -262,90 +266,116 @@ impl DeviceEnrollment {
         now: u64,
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            image.check_time_floor(now)?;
-            let (original, id) = self.roster_witness_scope(&image, original_policy)?;
-            self.intent.verify_device(target)?;
-            if target.credential_digest() != original.credential_digest()
-                || target.key != original.key
+        let result = self
+            .prepare_witnessed_roster_refresh_attempt(
+                operation,
+                original_policy,
+                policy,
+                target,
+                now,
+                client,
+            )
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn prepare_witnessed_roster_refresh_attempt(
+        &mut self,
+        operation: RosterRefreshId,
+        original_policy: &HistoricalSessionPolicy,
+        policy: &VerifiedSessionPolicy,
+        target: &VerifiedDevice,
+        now: u64,
+        client: AnchorClient,
+    ) -> Result<Proposal, DurableError> {
+        let mut image = self.image()?;
+        image.check_time_floor(now)?;
+        let (original, id) = self.roster_witness_scope(&image, original_policy)?;
+        self.intent.verify_device(target)?;
+        if target.credential_digest() != original.credential_digest() || target.key != original.key
+        {
+            return Err(DurableError::Conflict);
+        }
+        admit(target, policy, now)?;
+        let completion = self.policy_enrollment_completion(&image, original_policy)?;
+        let authorization = match &completion {
+            Some(c) => {
+                c.approval().check_context_policy(original_policy, policy)?;
+                Some(c.approval().statement_digest())
+            }
+            None if policy.checkpoint() == original_policy.checkpoint() => None,
+            _ => return Err(DurableError::Conflict),
+        };
+        let Phase::Accepted { admission, .. } = &image.phase else {
+            return Err(DurableError::Corrupt);
+        };
+        let existing = image.roster_witness.as_ref();
+        if existing.is_some_and(|r| r.scope.operation == operation) {
+            let r = existing.ok_or(DurableError::Conflict)?;
+            if r.scope.target != target.roster().checkpoint()
+                || r.scope.policy != policy.checkpoint()
+                || r.scope.policy_authorization != authorization
+                || r.retired()
             {
                 return Err(DurableError::Conflict);
             }
-            admit(target, policy, now)?;
-            let completion = self.policy_enrollment_completion(&image, original_policy)?;
-            let authorization = match &completion {
-                Some(c) => {
-                    c.approval().check_context_policy(original_policy, policy)?;
-                    Some(c.approval().statement_digest())
-                }
-                None if policy.checkpoint() == original_policy.checkpoint() => None,
-                _ => return Err(DurableError::Conflict),
+        } else {
+            image.require_roster_retired()?;
+            if existing
+                .is_some_and(|r| target.roster().checkpoint().version() <= r.scope.target.version())
+            {
+                return Err(Error::Checkpoint.into());
+            }
+            let scope = RosterRefreshScope {
+                operation,
+                previous: admission.checkpoint,
+                target: target.roster().checkpoint(),
+                policy: policy.checkpoint(),
+                policy_authorization: authorization,
             };
-            let Phase::Accepted { admission, .. } = &image.phase else {
-                return Err(DurableError::Corrupt);
-            };
-            let existing = image.roster_witness.as_ref();
-            if existing.is_some_and(|r| r.scope.operation == operation) {
-                let r = existing.ok_or(DurableError::Conflict)?;
-                if r.scope.target != target.roster().checkpoint()
-                    || r.scope.policy != policy.checkpoint()
-                    || r.scope.policy_authorization != authorization
-                    || r.retired()
+            if scope.target.version() <= scope.previous.version() {
+                return Err(Error::Checkpoint.into());
+            }
+            image.roster_witness = Some(WitnessRoster {
+                scope,
+                roster: target.roster().as_bytes().to_vec(),
+                coordination: None,
+                abandoned: false,
+            });
+            self.validate_witness_roster(&image)?;
+            self.save(&image)?;
+            image = self.image()?;
+        }
+        let lease = self.witness_lease(&original, original_policy, id)?;
+        let path = self.paths.installation.files()[1];
+        let proposal = match DeviceJournal::inspect_roster_refresh_preparation(
+            path,
+            self.key()?,
+            &original,
+            original_policy,
+            id,
+        )? {
+            Some(p) => p,
+            None => {
+                if image
+                    .roster_witness
+                    .as_ref()
+                    .is_none_or(|r| r.coordination.is_some())
                 {
                     return Err(DurableError::Conflict);
                 }
-            } else {
-                image.require_roster_retired()?;
-                if existing.is_some_and(|r| {
-                    target.roster().checkpoint().version() <= r.scope.target.version()
-                }) {
-                    return Err(Error::Checkpoint.into());
+                let mut journal = self
+                    .open_original_journal(&original, original_policy, id, client)
+                    .await?;
+                if let Some(completion) = completion {
+                    journal
+                        .retain_enrollment_policy_completion(completion)
+                        .await?;
                 }
-                let scope = RosterRefreshScope {
-                    operation,
-                    previous: admission.checkpoint,
-                    target: target.roster().checkpoint(),
-                    policy: policy.checkpoint(),
-                    policy_authorization: authorization,
-                };
-                if scope.target.version() <= scope.previous.version() {
-                    return Err(Error::Checkpoint.into());
-                }
-                image.roster_witness = Some(WitnessRoster {
-                    scope,
-                    roster: target.roster().as_bytes().to_vec(),
-                    coordination: None,
-                    abandoned: false,
-                });
-                self.validate_witness_roster(&image)?;
-                self.save(&image)?;
-                image = self.image()?;
-            }
-            let lease = self.witness_lease(&original, original_policy, id)?;
-            let path = self.paths.installation.files()[1];
-            let proposal = match DeviceJournal::inspect_roster_refresh_preparation(
-                path,
-                self.key()?,
-                &original,
-                original_policy,
-                id,
-            )? {
-                Some(p) => p,
-                None => {
-                    if image
-                        .roster_witness
-                        .as_ref()
-                        .is_none_or(|r| r.coordination.is_some())
-                    {
-                        return Err(DurableError::Conflict);
-                    }
-                    let mut journal =
-                        self.open_original_journal(&original, original_policy, id, client)?;
-                    if let Some(completion) = completion {
-                        journal.retain_enrollment_policy_completion(completion)?;
-                    }
-                    journal.prepare_roster_refresh(
+                journal
+                    .prepare_roster_refresh(
                         operation,
                         &RosterRefreshMaterials {
                             original: &original,
@@ -354,18 +384,15 @@ impl DeviceEnrollment {
                             target,
                         },
                         now,
-                    )?
-                }
-            };
-            self.retain_roster_proposal(image, original_policy, proposal)?;
-            drop(lease);
-            Ok(proposal)
-        })();
-        if result.is_err() {
-            self.close();
-        }
-        result
+                    )
+                    .await?
+            }
+        };
+        self.retain_roster_proposal(image, original_policy, proposal)?;
+        drop(lease);
+        Ok(proposal)
     }
+
     fn retain_roster_proposal(
         &mut self,
         mut image: Image,
@@ -527,16 +554,17 @@ impl DeviceEnrollment {
     }
     /// Fresh exact R status, historical installation, original terminal, ACK and
     /// pending cleanup in that order. Recovery may finish after runtime expiry.
-    pub fn reconcile_witnessed_roster_refresh(
+    pub async fn reconcile_witnessed_roster_refresh(
         &mut self,
         proposal: &Proposal,
         original_policy: &HistoricalSessionPolicy,
         client: &mut AnchorClient,
     ) -> Result<State, DurableError> {
         self.run_witnessed_roster(proposal, original_policy, client, Action::Status)
+            .await
     }
     /// Commit only this independently prepared original target under live current P.
-    pub fn commit_witnessed_roster_refresh(
+    pub async fn commit_witnessed_roster_refresh(
         &mut self,
         proposal: &Proposal,
         original_policy: &HistoricalSessionPolicy,
@@ -550,185 +578,198 @@ impl DeviceEnrollment {
             client,
             Action::Commit { policy, now },
         )
+        .await
     }
     /// Close the original R target. If already committed, its result remains Applied.
-    pub fn close_witnessed_roster_refresh(
+    pub async fn close_witnessed_roster_refresh(
         &mut self,
         proposal: &Proposal,
         original_policy: &HistoricalSessionPolicy,
         client: &mut AnchorClient,
     ) -> Result<State, DurableError> {
         self.run_witnessed_roster(proposal, original_policy, client, Action::Close)
+            .await
     }
-    fn run_witnessed_roster(
+    async fn run_witnessed_roster(
         &mut self,
         proposal: &Proposal,
         policy: &HistoricalSessionPolicy,
         client: &mut AnchorClient,
         action: Action<'_>,
     ) -> Result<State, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            let (original, id) = self.roster_witness_scope(&image, policy)?;
-            let r = image
-                .roster_witness
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            if proposal.scope() != &r.scope {
+        let result = self
+            .run_witnessed_roster_attempt(proposal, policy, client, action)
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn run_witnessed_roster_attempt(
+        &mut self,
+        proposal: &Proposal,
+        policy: &HistoricalSessionPolicy,
+        client: &mut AnchorClient,
+        action: Action<'_>,
+    ) -> Result<State, DurableError> {
+        let mut image = self.image()?;
+        let (original, id) = self.roster_witness_scope(&image, policy)?;
+        let r = image
+            .roster_witness
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        if proposal.scope() != &r.scope {
+            return Err(DurableError::Conflict);
+        }
+        if r.coordination.is_none() {
+            self.recover_witnessed_roster_refresh_preparation(policy)?
+                .ok_or(DurableError::Suspended)?;
+            image = self.image()?;
+        }
+        let r = image
+            .roster_witness
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        let mut c = r.coordination.ok_or(DurableError::Conflict)?;
+        if c.proposal != *proposal || client.pin().binding() != proposal.witness_binding() {
+            return Err(DurableError::Conflict);
+        }
+        if let Action::Commit {
+            policy: current, ..
+        } = action
+        {
+            if current.checkpoint() != r.scope.policy {
                 return Err(DurableError::Conflict);
             }
-            if r.coordination.is_none() {
-                self.recover_witnessed_roster_refresh_preparation(policy)?
-                    .ok_or(DurableError::Suspended)?;
-                image = self.image()?;
-            }
-            let r = image
-                .roster_witness
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            let mut c = r.coordination.ok_or(DurableError::Conflict)?;
-            if c.proposal != *proposal || client.pin().binding() != proposal.witness_binding() {
-                return Err(DurableError::Conflict);
-            }
-            if let Action::Commit {
-                policy: current, ..
-            } = action
-            {
-                if current.checkpoint() != r.scope.policy {
-                    return Err(DurableError::Conflict);
-                }
-            }
-            client.check_device(&original)?;
-            policy.check_external_signer(client.pin().public_key())?;
-            if client
-                .pin()
-                .public_key()
-                .shares_component(&original.authority_key)
-            {
-                return Err(Error::Scope.into());
-            }
-            let lease = self.witness_lease(&original, policy, id)?;
-            if c.retired {
-                return Ok(c.terminal.ok_or(DurableError::Corrupt)?.state());
-            }
-            if c.terminal.is_none() {
-                match action {
-                    Action::Status => {}
-                    Action::Commit {
-                        policy: current,
-                        now,
-                    } => {
-                        self.authorize_journal_commit(&original, id)?;
-                        image.check_time_floor(now)?;
-                        let Phase::Accepted { admission, .. } = &image.phase else {
-                            return Err(DurableError::Corrupt);
-                        };
-                        let target = self.historical_device_metadata(
-                            &admission.certificate,
-                            &r.roster,
-                            r.scope.target,
-                        )?;
-                        admit(&target, current, now)?;
-                        client
-                            .exchange(
-                                proposal.subject(),
-                                AnchorOperation::commit_roster_refresh(proposal),
-                            )?
-                            .roster_refresh_state(proposal)?;
-                    }
-                    Action::Close => {
-                        client
-                            .exchange(
-                                proposal.subject(),
-                                AnchorOperation::close_roster_refresh(proposal),
-                            )?
-                            .roster_refresh_state(proposal)?;
-                    }
-                }
-                let observed = DeviceJournal::recover_roster_refresh(
-                    self.paths.installation.files()[1],
-                    self.key()?,
-                    &original,
-                    policy,
-                    id,
-                    *proposal,
-                    client,
-                )?;
-                #[cfg(all(test, unix))]
-                tests::renewal::boundary("independent-roster-observed");
-                let disposition = match observed {
-                    State::Applied => WitnessedRosterRefreshDisposition::Applied,
-                    State::Closed => WitnessedRosterRefreshDisposition::Closed,
-                    State::Prepared | State::Unavailable => return Ok(observed),
-                    State::Acknowledged => return Err(DurableError::Conflict),
-                };
-                if disposition == WitnessedRosterRefreshDisposition::Applied {
-                    let Phase::Accepted { admission, .. } = &mut image.phase else {
+        }
+        client.check_device(&original)?;
+        policy.check_external_signer(client.pin().public_key())?;
+        if client
+            .pin()
+            .public_key()
+            .shares_component(&original.authority_key)
+        {
+            return Err(Error::Scope.into());
+        }
+        let lease = self.witness_lease(&original, policy, id)?;
+        if c.retired {
+            return Ok(c.terminal.ok_or(DurableError::Corrupt)?.state());
+        }
+        if c.terminal.is_none() {
+            match action {
+                Action::Status => {}
+                Action::Commit {
+                    policy: current,
+                    now,
+                } => {
+                    self.authorize_journal_commit(&original, id)?;
+                    image.check_time_floor(now)?;
+                    let Phase::Accepted { admission, .. } = &image.phase else {
                         return Err(DurableError::Corrupt);
                     };
-                    admission.roster = r.roster.clone();
-                    admission.checkpoint = r.scope.target;
-                    if image.policy_completed.is_some() {
-                        image.policy_device_binding = PolicyDeviceBinding::MonotonicRoster;
-                    }
+                    let target = self.historical_device_metadata(
+                        &admission.certificate,
+                        &r.roster,
+                        r.scope.target,
+                    )?;
+                    admit(&target, current, now)?;
+                    client
+                        .exchange(
+                            proposal.subject(),
+                            AnchorOperation::commit_roster_refresh(proposal),
+                        )
+                        .await?
+                        .roster_refresh_state(proposal)?;
                 }
-                c.terminal = Some(disposition);
-                image
-                    .roster_witness
-                    .as_mut()
-                    .ok_or(DurableError::Corrupt)?
-                    .coordination = Some(c);
-                self.validate_policy_pending(&image)?;
-                self.validate_witness_roster(&image)?;
-                self.save(&image)?;
+                Action::Close => {
+                    client
+                        .exchange(
+                            proposal.subject(),
+                            AnchorOperation::close_roster_refresh(proposal),
+                        )
+                        .await?
+                        .roster_refresh_state(proposal)?;
+                }
             }
-            let terminal = self.persisted_roster_terminal(policy)?;
-            #[cfg(all(test, unix))]
-            tests::renewal::boundary("independent-roster-terminal");
-            DeviceJournal::retire_roster_refresh(
+            let observed = DeviceJournal::recover_roster_refresh(
                 self.paths.installation.files()[1],
                 self.key()?,
                 &original,
                 policy,
                 id,
-                &terminal,
+                *proposal,
                 client,
-            )?;
+            )
+            .await?;
             #[cfg(all(test, unix))]
-            tests::renewal::boundary("independent-roster-retired");
-            image = self.image()?;
-            let r = image.roster_witness.as_mut().ok_or(DurableError::Corrupt)?;
-            let current = r.coordination.ok_or(DurableError::Corrupt)?;
-            if current.proposal != terminal.proposal
-                || current.terminal != Some(terminal.disposition)
-            {
-                return Err(DurableError::Conflict);
+            tests::renewal::boundary("independent-roster-observed");
+            let disposition = match observed {
+                State::Applied => WitnessedRosterRefreshDisposition::Applied,
+                State::Closed => WitnessedRosterRefreshDisposition::Closed,
+                State::Prepared | State::Unavailable => return Ok(observed),
+                State::Acknowledged => return Err(DurableError::Conflict),
+            };
+            if disposition == WitnessedRosterRefreshDisposition::Applied {
+                let Phase::Accepted { admission, .. } = &mut image.phase else {
+                    return Err(DurableError::Corrupt);
+                };
+                admission.roster = r.roster.clone();
+                admission.checkpoint = r.scope.target;
+                if image.policy_completed.is_some() {
+                    image.policy_device_binding = PolicyDeviceBinding::MonotonicRoster;
+                }
             }
-            r.coordination = Some(Coordination {
+            c.terminal = Some(disposition);
+            image
+                .roster_witness
+                .as_mut()
+                .ok_or(DurableError::Corrupt)?
+                .coordination = Some(c);
+            self.validate_policy_pending(&image)?;
+            self.validate_witness_roster(&image)?;
+            self.save(&image)?;
+        }
+        let terminal = self.persisted_roster_terminal(policy)?;
+        #[cfg(all(test, unix))]
+        tests::renewal::boundary("independent-roster-terminal");
+        DeviceJournal::retire_roster_refresh(
+            self.paths.installation.files()[1],
+            self.key()?,
+            &original,
+            policy,
+            id,
+            &terminal,
+            client,
+        )
+        .await?;
+        #[cfg(all(test, unix))]
+        tests::renewal::boundary("independent-roster-retired");
+        image = self.image()?;
+        let r = image.roster_witness.as_mut().ok_or(DurableError::Corrupt)?;
+        let current = r.coordination.ok_or(DurableError::Corrupt)?;
+        if current.proposal != terminal.proposal || current.terminal != Some(terminal.disposition) {
+            return Err(DurableError::Conflict);
+        }
+        r.coordination = Some(Coordination {
+            retired: true,
+            ..current
+        });
+        self.save(&image)?;
+        if self
+            .image()?
+            .roster_witness
+            .as_ref()
+            .and_then(|r| r.coordination)
+            != Some(Coordination {
                 retired: true,
                 ..current
-            });
-            self.save(&image)?;
-            if self
-                .image()?
-                .roster_witness
-                .as_ref()
-                .and_then(|r| r.coordination)
-                != Some(Coordination {
-                    retired: true,
-                    ..current
-                })
-            {
-                return Err(DurableError::Conflict);
-            }
-            #[cfg(all(test, unix))]
-            tests::renewal::boundary("independent-roster-complete");
-            drop(lease);
-            Ok(terminal.disposition.state())
-        })();
-        if result.is_err() {
-            self.close();
+            })
+        {
+            return Err(DurableError::Conflict);
         }
-        result
+        #[cfg(all(test, unix))]
+        tests::renewal::boundary("independent-roster-complete");
+        drop(lease);
+        Ok(terminal.disposition.state())
     }
 }

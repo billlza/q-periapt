@@ -15,6 +15,7 @@ resolver = "2"
 members = ["."]
 
 [dependencies]
+maybe-async = "=0.2.11"
 q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
 q-periapt-core = { version = "=0.2.0", path = "../../crates/q-periapt-core" }
 q-periapt-backends = { version = "=0.2.0", path = "../../crates/q-periapt-backends" }
@@ -38,6 +39,7 @@ mio = { version = "=1.2.3", default-features = false, features = ["net", "os-pol
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 web-time = "=1.1.0"
+async-trait = "=0.1.92"
 
 [features]
 # Explicit standard TLS carrier; no plaintext or classic-only fallback.

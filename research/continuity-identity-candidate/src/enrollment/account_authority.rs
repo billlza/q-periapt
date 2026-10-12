@@ -13,6 +13,10 @@ impl EnrollmentIntent {
         )
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     /// Check the selected registry and approved intent before creating the
     /// original registration record. A later error can still follow I/O (for
@@ -48,7 +52,7 @@ impl DeviceEnrollment {
             self.account_authority.as_ref(),
         )
     }
-    pub(super) fn open_original_journal(
+    pub(super) async fn open_original_journal(
         &self,
         original: &VerifiedDevice,
         policy: &crate::HistoricalSessionPolicy,
@@ -64,6 +68,7 @@ impl DeviceEnrollment {
             client,
             crate::durable::AccountAuthorityOpen::Existing(self.account_authority.clone()),
         )
+        .await
     }
     /// Supply the independently retained application/registry descriptor for this
     /// original enrollment. Activation durably binds an unbound witnessed journal
@@ -97,7 +102,7 @@ impl DeviceEnrollment {
         self.account_authority = Some(authority);
         Ok(())
     }
-    pub(super) fn reconcile_installation(
+    pub(super) async fn reconcile_installation(
         &self,
         original: &VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
@@ -113,5 +118,6 @@ impl DeviceEnrollment {
                 account: self.account_authority.clone(),
             },
         )
+        .await
     }
 }

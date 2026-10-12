@@ -225,6 +225,10 @@ enum Action<'a> {
     Close,
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(super) fn begin_witness_policy(
         &self,
@@ -401,34 +405,52 @@ impl DeviceEnrollment {
     }
     /// Read issuer materials from the original required journal under its service
     /// lease and fresh witness head. No policy/credential/runtime permission is granted.
-    pub fn witnessed_policy_renewal_request(
+    pub async fn witnessed_policy_renewal_request(
         &mut self,
         operation: PolicyRenewalId,
         original_policy: &HistoricalSessionPolicy,
         client: AnchorClient,
     ) -> Result<crate::PolicyRenewalRequest, DurableError> {
-        let result = (|| {
-            let image = self.image()?;
-            image.require_roster_retired()?;
-            let (original, id) = self.policy_witness_scope(&image, original_policy)?;
-            if image.policy_pending.is_some()
-                || image
-                    .policy_witness
-                    .as_ref()
-                    .and_then(|w| w.coordination)
-                    .is_some_and(|c| !c.retired || c.proposal.operation() == operation)
-            {
-                return Err(DurableError::Suspended);
-            }
-            let lease = self.witness_lease(&original, original_policy, id)?;
-            let mut journal = self.open_original_journal(&original, original_policy, id, client)?;
-            if let Some(completed) = self.policy_enrollment_completion(&image, original_policy)? {
-                journal.retain_enrollment_policy_completion(completed)?;
-            }
-            let authority =
-                RetainedInstallationAuthority::active_installation(&original, original_policy);
-            let completed = self.completed_policy_approval(&image)?;
-            let scope = journal.policy_renewal_request_scope(
+        let result = self
+            .witnessed_policy_renewal_request_attempt(operation, original_policy, client)
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn witnessed_policy_renewal_request_attempt(
+        &mut self,
+        operation: PolicyRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+        client: AnchorClient,
+    ) -> Result<crate::PolicyRenewalRequest, DurableError> {
+        let image = self.image()?;
+        image.require_roster_retired()?;
+        let (original, id) = self.policy_witness_scope(&image, original_policy)?;
+        if image.policy_pending.is_some()
+            || image
+                .policy_witness
+                .as_ref()
+                .and_then(|w| w.coordination)
+                .is_some_and(|c| !c.retired || c.proposal.operation() == operation)
+        {
+            return Err(DurableError::Suspended);
+        }
+        let lease = self.witness_lease(&original, original_policy, id)?;
+        let mut journal = self
+            .open_original_journal(&original, original_policy, id, client)
+            .await?;
+        if let Some(completed) = self.policy_enrollment_completion(&image, original_policy)? {
+            journal
+                .retain_enrollment_policy_completion(completed)
+                .await?;
+        }
+        let authority =
+            RetainedInstallationAuthority::active_installation(&original, original_policy);
+        let completed = self.completed_policy_approval(&image)?;
+        let scope = journal
+            .policy_renewal_request_scope(
                 &crate::installation::PolicyScope {
                     authority: &authority,
                     original_policy,
@@ -438,26 +460,23 @@ impl DeviceEnrollment {
                 operation,
                 completed.as_ref(),
                 None,
-            )?;
-            let Phase::Accepted { admission, .. } = &image.phase else {
-                return Err(DurableError::Corrupt);
-            };
-            let request = crate::PolicyRenewalRequest::new(
-                scope,
-                original.clone(),
-                original,
-                admission.certificate.clone(),
-                admission.certificate.clone(),
-            );
-            journal.close();
-            drop(lease);
-            Ok(request)
-        })();
-        if result.is_err() {
-            self.close();
-        }
-        result
+            )
+            .await?;
+        let Phase::Accepted { admission, .. } = &image.phase else {
+            return Err(DurableError::Corrupt);
+        };
+        let request = crate::PolicyRenewalRequest::new(
+            scope,
+            original.clone(),
+            original,
+            admission.certificate.clone(),
+            admission.certificate.clone(),
+        );
+        journal.close();
+        drop(lease);
+        Ok(request)
     }
+
     fn retain_policy_proposal(
         &mut self,
         mut image: Image,
@@ -549,7 +568,7 @@ impl DeviceEnrollment {
     }
     /// Seal/recover the exact staged P target and retain its proposal before any
     /// independent witness preparation. Exact retries never reseal a saved target.
-    pub fn prepare_witnessed_policy_renewal(
+    pub async fn prepare_witnessed_policy_renewal(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         previous_policy: &HistoricalSessionPolicy,
@@ -557,66 +576,88 @@ impl DeviceEnrollment {
         now: u64,
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
-        let result = (|| {
-            let image = self.image()?;
-            image.check_time_floor(now)?;
-            let (original, id) = self.policy_witness_scope(&image, original_policy)?;
-            let pending = image
-                .policy_pending
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            let retained = self.authenticated_policy_record(pending)?;
-            let materials = PolicyRenewalMaterials {
-                original: original_policy,
-                previous: previous_policy,
-                target,
-                original_device: &original,
-                current_device: &original,
-            };
-            let approval = VerifiedPolicyRenewal::from_bytes(
-                retained.as_bytes(),
-                retained.scope(),
-                &materials,
-                now,
-            )?;
-            let lease = self.witness_lease(&original, original_policy, id)?;
-            let path = self.paths.installation.files()[1];
-            let proposal = match DeviceJournal::inspect_policy_renewal_preparation(
-                path,
-                self.key()?,
-                &original,
+        let result = self
+            .prepare_witnessed_policy_renewal_attempt(
                 original_policy,
-                id,
-            )? {
-                Some(p) => p,
-                None => {
-                    if image
-                        .policy_witness
-                        .as_ref()
-                        .and_then(|w| w.coordination)
-                        .is_some()
-                    {
-                        return Err(DurableError::Conflict);
-                    }
-                    let mut journal =
-                        self.open_original_journal(&original, original_policy, id, client)?;
-                    if let Some(completed) =
-                        self.policy_enrollment_completion(&image, original_policy)?
-                    {
-                        journal.retain_enrollment_policy_completion(completed)?;
-                    }
-                    journal.prepare_policy_renewal(&approval, &materials, now)?
-                }
-            };
-            let result = self.retain_policy_proposal(image, original_policy, proposal)?;
-            drop(lease);
-            Ok(result)
-        })();
+                previous_policy,
+                target,
+                now,
+                client,
+            )
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn prepare_witnessed_policy_renewal_attempt(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+        previous_policy: &HistoricalSessionPolicy,
+        target: &VerifiedSessionPolicy,
+        now: u64,
+        client: AnchorClient,
+    ) -> Result<Proposal, DurableError> {
+        let image = self.image()?;
+        image.check_time_floor(now)?;
+        let (original, id) = self.policy_witness_scope(&image, original_policy)?;
+        let pending = image
+            .policy_pending
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        let retained = self.authenticated_policy_record(pending)?;
+        let materials = PolicyRenewalMaterials {
+            original: original_policy,
+            previous: previous_policy,
+            target,
+            original_device: &original,
+            current_device: &original,
+        };
+        let approval = VerifiedPolicyRenewal::from_bytes(
+            retained.as_bytes(),
+            retained.scope(),
+            &materials,
+            now,
+        )?;
+        let lease = self.witness_lease(&original, original_policy, id)?;
+        let path = self.paths.installation.files()[1];
+        let proposal = match DeviceJournal::inspect_policy_renewal_preparation(
+            path,
+            self.key()?,
+            &original,
+            original_policy,
+            id,
+        )? {
+            Some(p) => p,
+            None => {
+                if image
+                    .policy_witness
+                    .as_ref()
+                    .and_then(|w| w.coordination)
+                    .is_some()
+                {
+                    return Err(DurableError::Conflict);
+                }
+                let mut journal = self
+                    .open_original_journal(&original, original_policy, id, client)
+                    .await?;
+                if let Some(completed) =
+                    self.policy_enrollment_completion(&image, original_policy)?
+                {
+                    journal
+                        .retain_enrollment_policy_completion(completed)
+                        .await?;
+                }
+                journal
+                    .prepare_policy_renewal(&approval, &materials, now)
+                    .await?
+            }
+        };
+        let result = self.retain_policy_proposal(image, original_policy, proposal)?;
+        drop(lease);
+        Ok(result)
+    }
+
     /// Read only this enrollment's retained proposal/terminal. None means the
     /// proposal has not been retained here, not that the witness did not commit.
     pub fn witnessed_policy_renewal_progress(
@@ -683,7 +724,7 @@ impl DeviceEnrollment {
     }
     /// Query, persist the original terminal, then ACK and clear only its pending
     /// intent. Historical completion never releases an operational owner.
-    pub fn reconcile_witnessed_policy_renewal(
+    pub async fn reconcile_witnessed_policy_renewal(
         &mut self,
         operation: PolicyRenewalId,
         statement: [u8; 32],
@@ -697,10 +738,11 @@ impl DeviceEnrollment {
             client,
             Action::Status,
         )
+        .await
     }
     /// Commit the exact already independently prepared target while its current
     /// policy and identity remain live. Lost replies require original reconciliation.
-    pub fn commit_witnessed_policy_renewal(
+    pub async fn commit_witnessed_policy_renewal(
         &mut self,
         proposal: &Proposal,
         original_policy: &HistoricalSessionPolicy,
@@ -719,10 +761,11 @@ impl DeviceEnrollment {
                 now,
             },
         )
+        .await
     }
     /// Close an exact witness preparation; an already applied target remains Applied.
     /// This does not invent a target when no local sealed proposal exists.
-    pub fn close_witnessed_policy_renewal(
+    pub async fn close_witnessed_policy_renewal(
         &mut self,
         operation: PolicyRenewalId,
         statement: [u8; 32],
@@ -730,8 +773,9 @@ impl DeviceEnrollment {
         client: &mut AnchorClient,
     ) -> Result<State, DurableError> {
         self.run_witnessed_policy(operation, statement, original_policy, client, Action::Close)
+            .await
     }
-    fn run_witnessed_policy(
+    async fn run_witnessed_policy(
         &mut self,
         operation: PolicyRenewalId,
         statement: [u8; 32],
@@ -739,169 +783,181 @@ impl DeviceEnrollment {
         client: &mut AnchorClient,
         action: Action<'_>,
     ) -> Result<State, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            let (original, id) = self.policy_witness_scope(&image, policy)?;
-            if image
-                .policy_witness
+        let result = self
+            .run_witnessed_policy_attempt(operation, statement, policy, client, action)
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn run_witnessed_policy_attempt(
+        &mut self,
+        operation: PolicyRenewalId,
+        statement: [u8; 32],
+        policy: &HistoricalSessionPolicy,
+        client: &mut AnchorClient,
+        action: Action<'_>,
+    ) -> Result<State, DurableError> {
+        let mut image = self.image()?;
+        let (original, id) = self.policy_witness_scope(&image, policy)?;
+        if image
+            .policy_witness
+            .as_ref()
+            .and_then(|w| w.coordination)
+            .is_none()
+        {
+            let pending = image
+                .policy_pending
                 .as_ref()
-                .and_then(|w| w.coordination)
-                .is_none()
-            {
-                let pending = image
-                    .policy_pending
-                    .as_ref()
-                    .ok_or(DurableError::Conflict)?;
-                if pending.operation != operation || pending.statement != statement {
-                    return Err(DurableError::Conflict);
-                }
-                self.recover_witnessed_policy_renewal_preparation(policy)?
-                    .ok_or(DurableError::Suspended)?;
-                image = self.image()?;
-            }
-            let mut c = image
-                .policy_witness
-                .as_ref()
-                .and_then(|w| w.coordination)
-                .ok_or(DurableError::Suspended)?;
-            if c.proposal.operation() != operation
-                || c.proposal.statement() != statement
-                || client.pin().binding() != c.proposal.witness_binding()
-            {
+                .ok_or(DurableError::Conflict)?;
+            if pending.operation != operation || pending.statement != statement {
                 return Err(DurableError::Conflict);
             }
-            if let Action::Commit {
-                proposal, target, ..
-            } = action
-            {
-                if c.proposal != *proposal {
-                    return Err(DurableError::Conflict);
-                }
-                let record = match c.terminal {
-                    None => image.policy_pending.as_ref(),
-                    Some(WitnessedPolicyRenewalDisposition::Applied) => {
-                        image.policy_completed.as_ref()
-                    }
-                    Some(WitnessedPolicyRenewalDisposition::Closed) => image
-                        .policy_witness
-                        .as_ref()
-                        .and_then(|w| w.closed.as_ref()),
-                }
-                .ok_or(DurableError::Conflict)?;
-                self.authenticated_policy_record(record)?
-                    .check_context_policy(policy, target)?;
+            self.recover_witnessed_policy_renewal_preparation(policy)?
+                .ok_or(DurableError::Suspended)?;
+            image = self.image()?;
+        }
+        let mut c = image
+            .policy_witness
+            .as_ref()
+            .and_then(|w| w.coordination)
+            .ok_or(DurableError::Suspended)?;
+        if c.proposal.operation() != operation
+            || c.proposal.statement() != statement
+            || client.pin().binding() != c.proposal.witness_binding()
+        {
+            return Err(DurableError::Conflict);
+        }
+        if let Action::Commit {
+            proposal, target, ..
+        } = action
+        {
+            if c.proposal != *proposal {
+                return Err(DurableError::Conflict);
             }
-            client.check_device(&original)?;
-            let lease = self.witness_lease(&original, policy, id)?;
-            if let Some(state) = c.terminal {
-                if c.retired {
-                    return Ok(state.state());
-                }
+            let record = match c.terminal {
+                None => image.policy_pending.as_ref(),
+                Some(WitnessedPolicyRenewalDisposition::Applied) => image.policy_completed.as_ref(),
+                Some(WitnessedPolicyRenewalDisposition::Closed) => image
+                    .policy_witness
+                    .as_ref()
+                    .and_then(|w| w.closed.as_ref()),
             }
-            if c.terminal.is_none() {
-                match action {
-                    Action::Status => {}
-                    Action::Commit { target, now, .. } => {
-                        self.authorize_journal_commit(&original, id)?;
-                        image.check_time_floor(now)?;
-                        admit(&original, target, now)?;
-                        let reply = client.exchange(
+            .ok_or(DurableError::Conflict)?;
+            self.authenticated_policy_record(record)?
+                .check_context_policy(policy, target)?;
+        }
+        client.check_device(&original)?;
+        let lease = self.witness_lease(&original, policy, id)?;
+        if let Some(state) = c.terminal {
+            if c.retired {
+                return Ok(state.state());
+            }
+        }
+        if c.terminal.is_none() {
+            match action {
+                Action::Status => {}
+                Action::Commit { target, now, .. } => {
+                    self.authorize_journal_commit(&original, id)?;
+                    image.check_time_floor(now)?;
+                    admit(&original, target, now)?;
+                    let reply = client
+                        .exchange(
                             c.proposal.subject(),
                             AnchorOperation::commit_policy_renewal(&c.proposal),
-                        )?;
-                        reply.policy_renewal_state(&c.proposal)?;
-                    }
-                    Action::Close => {
-                        let reply = client.exchange(
+                        )
+                        .await?;
+                    reply.policy_renewal_state(&c.proposal)?;
+                }
+                Action::Close => {
+                    let reply = client
+                        .exchange(
                             c.proposal.subject(),
                             AnchorOperation::close_policy_renewal(&c.proposal),
-                        )?;
-                        reply.policy_renewal_state(&c.proposal)?;
-                    }
+                        )
+                        .await?;
+                    reply.policy_renewal_state(&c.proposal)?;
                 }
-                let observed = DeviceJournal::recover_policy_renewal(
-                    self.paths.installation.files()[1],
-                    self.key()?,
-                    &original,
-                    policy,
-                    id,
-                    c.proposal,
-                    client,
-                )?;
-                #[cfg(all(test, unix))]
-                super::super::tests::renewal::boundary("independent-policy-observed");
-                let disposition = match observed {
-                    State::Applied => WitnessedPolicyRenewalDisposition::Applied,
-                    State::Closed => WitnessedPolicyRenewalDisposition::Closed,
-                    State::Prepared | State::Unavailable => return Ok(observed),
-                    State::Acknowledged => return Err(DurableError::Conflict),
-                };
-                let pending = image.policy_pending.take().ok_or(DurableError::Conflict)?;
-                match disposition {
-                    WitnessedPolicyRenewalDisposition::Applied => {
-                        image.policy_completed = Some(pending)
-                    }
-                    WitnessedPolicyRenewalDisposition::Closed => {
-                        image
-                            .policy_witness
-                            .as_mut()
-                            .ok_or(DurableError::Corrupt)?
-                            .closed = Some(pending)
-                    }
-                }
-                c.terminal = Some(disposition);
-                image
-                    .policy_witness
-                    .as_mut()
-                    .ok_or(DurableError::Corrupt)?
-                    .coordination = Some(c);
-                self.save(&image)?;
             }
-            let terminal = self.persisted_policy_terminal(policy)?;
-            #[cfg(all(test, unix))]
-            super::super::tests::renewal::boundary("independent-policy-terminal");
-            DeviceJournal::retire_policy_renewal(
+            let observed = DeviceJournal::recover_policy_renewal(
                 self.paths.installation.files()[1],
                 self.key()?,
                 &original,
                 policy,
                 id,
-                &terminal,
+                c.proposal,
                 client,
-            )?;
+            )
+            .await?;
             #[cfg(all(test, unix))]
-            super::super::tests::renewal::boundary("independent-policy-retired");
-            image = self.image()?;
-            let current = image.policy_witness.as_mut().ok_or(DurableError::Corrupt)?;
-            let original_coord = current.coordination.ok_or(DurableError::Corrupt)?;
-            if original_coord.proposal != terminal.proposal
-                || original_coord.terminal != Some(terminal.disposition)
-            {
-                return Err(DurableError::Conflict);
+            super::super::tests::renewal::boundary("independent-policy-observed");
+            let disposition = match observed {
+                State::Applied => WitnessedPolicyRenewalDisposition::Applied,
+                State::Closed => WitnessedPolicyRenewalDisposition::Closed,
+                State::Prepared | State::Unavailable => return Ok(observed),
+                State::Acknowledged => return Err(DurableError::Conflict),
+            };
+            let pending = image.policy_pending.take().ok_or(DurableError::Conflict)?;
+            match disposition {
+                WitnessedPolicyRenewalDisposition::Applied => {
+                    image.policy_completed = Some(pending)
+                }
+                WitnessedPolicyRenewalDisposition::Closed => {
+                    image
+                        .policy_witness
+                        .as_mut()
+                        .ok_or(DurableError::Corrupt)?
+                        .closed = Some(pending)
+                }
             }
-            if terminal.disposition == WitnessedPolicyRenewalDisposition::Applied {
-                current.completed = Some(terminal.proposal);
-            }
-            current.coordination = Some(Coordination {
-                retired: true,
-                ..original_coord
-            });
+            c.terminal = Some(disposition);
+            image
+                .policy_witness
+                .as_mut()
+                .ok_or(DurableError::Corrupt)?
+                .coordination = Some(c);
             self.save(&image)?;
-            let readback = self.persisted_policy_terminal(policy)?;
-            if readback.proposal != terminal.proposal
-                || readback.disposition != terminal.disposition
-            {
-                return Err(DurableError::Conflict);
-            }
-            #[cfg(all(test, unix))]
-            super::super::tests::renewal::boundary("independent-policy-complete");
-            drop(lease);
-            Ok(terminal.disposition.state())
-        })();
-        if result.is_err() {
-            self.close();
         }
-        result
+        let terminal = self.persisted_policy_terminal(policy)?;
+        #[cfg(all(test, unix))]
+        super::super::tests::renewal::boundary("independent-policy-terminal");
+        DeviceJournal::retire_policy_renewal(
+            self.paths.installation.files()[1],
+            self.key()?,
+            &original,
+            policy,
+            id,
+            &terminal,
+            client,
+        )
+        .await?;
+        #[cfg(all(test, unix))]
+        super::super::tests::renewal::boundary("independent-policy-retired");
+        image = self.image()?;
+        let current = image.policy_witness.as_mut().ok_or(DurableError::Corrupt)?;
+        let original_coord = current.coordination.ok_or(DurableError::Corrupt)?;
+        if original_coord.proposal != terminal.proposal
+            || original_coord.terminal != Some(terminal.disposition)
+        {
+            return Err(DurableError::Conflict);
+        }
+        if terminal.disposition == WitnessedPolicyRenewalDisposition::Applied {
+            current.completed = Some(terminal.proposal);
+        }
+        current.coordination = Some(Coordination {
+            retired: true,
+            ..original_coord
+        });
+        self.save(&image)?;
+        let readback = self.persisted_policy_terminal(policy)?;
+        if readback.proposal != terminal.proposal || readback.disposition != terminal.disposition {
+            return Err(DurableError::Conflict);
+        }
+        #[cfg(all(test, unix))]
+        super::super::tests::renewal::boundary("independent-policy-complete");
+        drop(lease);
+        Ok(terminal.disposition.state())
     }
 }
 

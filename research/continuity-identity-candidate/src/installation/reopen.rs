@@ -83,6 +83,10 @@ impl ServiceOwners {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceService {
     /// Durably adopt an independently approved, authenticated retirement of a
     /// known peer account at this installation's pinned witness. Verification of
@@ -94,7 +98,7 @@ impl DeviceService {
     /// failure can follow commit. A conflicting original operation is refused.
     /// This does not activate the successor, select an application-account mapping,
     /// retire the local account or transfer trust to another witness.
-    pub fn retire_peer_account(
+    pub async fn retire_peer_account(
         &mut self,
         retirement: &crate::AnchorRetiredAccount,
         policy: &crate::VerifiedSessionPolicy,
@@ -104,16 +108,19 @@ impl DeviceService {
         if owners.installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        owners.journal.retire_peer_account(
-            &PolicyScope {
-                authority: &owners.authority,
-                original_policy: &owners.original_policy,
-                original_device: &owners.original_device,
-            },
-            retirement,
-            policy,
-            now,
-        )
+        owners
+            .journal
+            .retire_peer_account(
+                &PolicyScope {
+                    authority: &owners.authority,
+                    original_policy: &owners.original_policy,
+                    original_device: &owners.original_device,
+                },
+                retirement,
+                policy,
+                now,
+            )
+            .await
     }
 
     /// Install an independently authenticated monotonic roster for a known remote
@@ -130,7 +137,7 @@ impl DeviceService {
     /// the target is currently installed, not that this invocation first wrote it.
     /// Revoked/expired local authority cannot use a cached identical target. No
     /// session, batch or message authority is returned by this operation.
-    pub fn admit_peer_roster(
+    pub async fn admit_peer_roster(
         &mut self,
         roster: &crate::VerifiedRoster,
         policy: &crate::VerifiedSessionPolicy,
@@ -142,16 +149,19 @@ impl DeviceService {
         {
             return Err(DurableError::Conflict);
         }
-        owners.journal.install_peer_roster(
-            &PolicyScope {
-                authority: &owners.authority,
-                original_policy: &owners.original_policy,
-                original_device: &owners.original_device,
-            },
-            roster,
-            policy,
-            now,
-        )
+        owners
+            .journal
+            .install_peer_roster(
+                &PolicyScope {
+                    authority: &owners.authority,
+                    original_policy: &owners.original_policy,
+                    original_device: &owners.original_device,
+                },
+                roster,
+                policy,
+                now,
+            )
+            .await
     }
 
     /// Atomically admit an independently verified peer credential renewal bound
@@ -165,7 +175,7 @@ impl DeviceService {
     /// observed checkpoint remains committed even if the final local admission
     /// then fails. Query original durable progress; an error does not mean NoCommit.
     /// It does not by itself produce a continued peer or release application data.
-    pub fn admit_peer_credential_renewal(
+    pub async fn admit_peer_credential_renewal(
         &mut self,
         renewal: &crate::VerifiedCredentialRenewal,
         operation: crate::CredentialRenewalId,
@@ -179,17 +189,20 @@ impl DeviceService {
         {
             return Err(DurableError::Conflict);
         }
-        owners.journal.install_peer_credential_renewal(
-            &PolicyScope {
-                authority: &owners.authority,
-                original_policy: &owners.original_policy,
-                original_device: &owners.original_device,
-            },
-            renewal,
-            operation,
-            policy,
-            now,
-        )
+        owners
+            .journal
+            .install_peer_credential_renewal(
+                &PolicyScope {
+                    authority: &owners.authority,
+                    original_policy: &owners.original_policy,
+                    original_device: &owners.original_device,
+                },
+                renewal,
+                operation,
+                policy,
+                now,
+            )
+            .await
     }
     /// Admit a freshly verified public context under this original active service.
     /// The caller verifies its bundle against independently retained pins first.
@@ -198,7 +211,7 @@ impl DeviceService {
     /// only for this preview. No roster is installed or advanced, and no session,
     /// prekey or operation is reserved. The original witness must freshly admit
     /// the unchanged journal. A later bootstrap repeats all operation-time checks.
-    pub fn admit_peer(
+    pub async fn admit_peer(
         &mut self,
         context: Arc<BootstrapContext>,
         role: BootstrapRole,
@@ -207,7 +220,8 @@ impl DeviceService {
         let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
         let context = owners
             .journal
-            .prepare_bootstrap_context(context, role, now)?;
+            .prepare_bootstrap_context(context, role, now)
+            .await?;
         owners.check_peer_binding(&context, role)?;
         context.check(now)?;
         Ok(BootstrapPeer { context, role })
@@ -218,7 +232,7 @@ impl DeviceService {
     /// a current root renewal grant already committed in the original journal.
     /// Original independent pins, policy owner, local installation and archive
     /// remain mandatory. A returned context cannot bootstrap another session.
-    pub fn reopen_peer_bundle(
+    pub async fn reopen_peer_bundle(
         &mut self,
         bundle: &crate::BootstrapBundle,
         policy: Arc<crate::VerifiedSessionPolicy>,
@@ -228,7 +242,7 @@ impl DeviceService {
         now: u64,
     ) -> Result<ReopenedPeer, DurableError> {
         let request = bundle.historical_reopen(policy, required, role, session, now)?;
-        self.reopen_peer(request, now)
+        self.reopen_peer(request, now).await
     }
 
     /// Restore another existing peer under this service's original installation,
@@ -237,7 +251,7 @@ impl DeviceService {
     /// current identity, rosters, send budget and witness are rechecked.
     /// This does not create a peer session or admit a fresh bootstrap. A later
     /// operation must recheck authority; retaining this descriptor is not a grant.
-    pub fn reopen_peer(
+    pub async fn reopen_peer(
         &mut self,
         request: SessionReopenRequest,
         now: u64,
@@ -250,14 +264,15 @@ impl DeviceService {
         } = request;
         let context = owners
             .journal
-            .prepare_reopened_context(context, session, role, now)?;
-        Self::finish_peer_reopen(owners, context, role, session, now)
+            .prepare_reopened_context(context, session, role, now)
+            .await?;
+        Self::finish_peer_reopen(owners, context, role, session, now).await
     }
     /// Restore only the selected original established session under current P1
     /// and the exact joint or policy-only authorization completed in this journal.
     /// The caller independently verifies P1. No caller-supplied T or owner hash
     /// overrides durable state. New bootstrap/prekey permission is not granted.
-    pub fn reopen_continued_peer(
+    pub async fn reopen_continued_peer(
         &mut self,
         request: SessionReopenRequest,
         policy: Arc<crate::VerifiedSessionPolicy>,
@@ -271,10 +286,11 @@ impl DeviceService {
         } = request;
         let context = owners
             .journal
-            .prepare_continued_context(context, session, role, policy, now)?;
-        Self::finish_peer_reopen(owners, context, role, session, now)
+            .prepare_continued_context(context, session, role, policy, now)
+            .await?;
+        Self::finish_peer_reopen(owners, context, role, session, now).await
     }
-    fn finish_peer_reopen(
+    async fn finish_peer_reopen(
         owners: &mut ServiceOwners,
         context: Arc<BootstrapContext>,
         role: BootstrapRole,
@@ -287,7 +303,8 @@ impl DeviceService {
             .require(&owners.journal, &context, session)?;
         owners
             .journal
-            .check_reopened_session(&context, session, role, now)?;
+            .check_reopened_session(&context, session, role, now)
+            .await?;
         context.check_session_identity(now)?;
         Ok(ReopenedPeer {
             context,
@@ -319,6 +336,10 @@ impl ReopenedSession {
         (self.service, self.context)
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceInstallation {
     /// Open the same Active installation and original archive under completed
     /// policy continuation. Historical P0 authenticates storage; P1
@@ -327,7 +348,7 @@ impl DeviceInstallation {
     /// Required protection additionally needs the original witness carrier and
     /// fresh exact G/T admission. This never falls back to local protection.
     /// A managed journal also requires its original [`InstallationAdmission`].
-    pub fn reopen_continued_session(
+    pub async fn reopen_continued_session(
         paths: InstallationPaths,
         key: JournalKey,
         request: SessionReopenRequest,
@@ -341,8 +362,9 @@ impl DeviceInstallation {
             request.context.device(request.role),
             request.context.original_policy(),
             admission,
-        )?;
-        let peer = service.reopen_continued_peer(request, policy, now)?;
+        )
+        .await?;
+        let peer = service.reopen_continued_peer(request, policy, now).await?;
         Ok(ReopenedSession {
             service,
             context: peer.context,
@@ -356,7 +378,7 @@ impl DeviceInstallation {
     /// This entry never provisions, activates Creating state or replaces an archive.
     /// A managed journal also requires its original [`InstallationAdmission`];
     /// this route cannot bind an otherwise unmanaged journal.
-    pub fn reopen_session(
+    pub async fn reopen_session(
         paths: InstallationPaths,
         key: JournalKey,
         request: SessionReopenRequest,
@@ -376,13 +398,15 @@ impl DeviceInstallation {
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
-        let (journal, archives) = installation.open_children(
-            key,
-            device,
-            policy,
-            admission.anchor,
-            AccountAuthorityOpen::Existing(admission.account),
-        )?;
+        let (journal, archives) = installation
+            .open_children(
+                key,
+                device,
+                policy,
+                admission.anchor,
+                AccountAuthorityOpen::Existing(admission.account),
+            )
+            .await?;
         let mut service = DeviceService {
             active: Some(Box::new(ServiceOwners {
                 original_device: device.clone(),
@@ -395,14 +419,16 @@ impl DeviceInstallation {
                 installation,
             })),
         };
-        let peer = service.reopen_peer(
-            SessionReopenRequest {
-                context,
-                role,
-                session,
-            },
-            now,
-        )?;
+        let peer = service
+            .reopen_peer(
+                SessionReopenRequest {
+                    context,
+                    role,
+                    session,
+                },
+                now,
+            )
+            .await?;
         Ok(ReopenedSession {
             service,
             context: peer.context,

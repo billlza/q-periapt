@@ -68,6 +68,10 @@ impl Owners {
 pub struct ManagedAccountRootReplacement {
     active: Option<Box<Owners>>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl ManagedAccountRootReplacement {
     fn check_inputs(owners: &Owners) -> Result<(), DurableError> {
         if owners.operation.expectation().previous_account() != owners.expected.account()
@@ -224,39 +228,60 @@ impl ManagedAccountRootReplacement {
     /// Activate only the exact independently enrolled successor after retained
     /// retirement. Current credential/policy, fresh witness admission and durable
     /// registry binding remain required. Retain this controller for its lifetime.
-    pub fn activate_successor(
+    pub async fn activate_successor(
         &mut self,
+        enrollment: DeviceEnrollment,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<EnrolledDevice, DurableError> {
+        // As in run(), the operation owns the controller until success. Future
+        // drop also revokes every delegated owner through Owners::drop.
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        let result = Self::activate_successor_owned(
+            &mut owners,
+            enrollment,
+            policy,
+            now,
+            transport,
+            timeout,
+        )
+        .await?;
+        self.active = Some(owners);
+        Ok(result)
+    }
+    async fn activate_successor_owned(
+        owners: &mut Owners,
         mut enrollment: DeviceEnrollment,
         policy: &VerifiedSessionPolicy,
         now: u64,
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<EnrolledDevice, DurableError> {
-        self.run(|owners| {
-            let (checkpoint, proposal) = owners.successor()?;
-            let image = enrollment.image_without_policy_renewal()?;
-            let device = enrollment.admitted(&image, policy, now)?;
-            let Phase::Accepted { admission, .. } = &image.phase else {
-                return Err(DurableError::Suspended);
-            };
-            if device.account_id() != proposal.successor_account()
-                || proposal.successor().journal_parts()
-                    != (
-                        *admission.journal.as_bytes(),
-                        crate::bootstrap::storage_owner(&device),
-                        admission.policy,
-                    )
-            {
-                return Err(DurableError::Conflict);
-            }
-            enrollment.select_account_authority(JournalAccountAuthority::new(
-                owners.registry.access()?,
-                checkpoint,
-            )?)?;
-            let client =
-                enrollment.anchor_client(policy, now, owners.pin.clone(), transport, timeout)?;
-            enrollment.activate(policy, now, Some(client))
-        })
+        let (checkpoint, proposal) = owners.successor()?;
+        let image = enrollment.image_without_policy_renewal()?;
+        let device = enrollment.admitted(&image, policy, now)?;
+        let Phase::Accepted { admission, .. } = &image.phase else {
+            return Err(DurableError::Suspended);
+        };
+        if device.account_id() != proposal.successor_account()
+            || proposal.successor().journal_parts()
+                != (
+                    *admission.journal.as_bytes(),
+                    crate::bootstrap::storage_owner(&device),
+                    admission.policy,
+                )
+        {
+            return Err(DurableError::Conflict);
+        }
+        enrollment.select_account_authority(JournalAccountAuthority::new(
+            owners.registry.access()?,
+            checkpoint,
+        )?)?;
+        let client =
+            enrollment.anchor_client(policy, now, owners.pin.clone(), transport, timeout)?;
+        enrollment.activate(policy, now, Some(client)).await
     }
     /// Obtain the committed successor's original registry admission for ordinary
     /// enrollment reopening and later credential/policy maintenance. This read

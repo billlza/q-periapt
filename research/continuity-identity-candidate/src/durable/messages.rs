@@ -413,8 +413,12 @@ impl State {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    fn store_message_state(
+    async fn store_message_state(
         &mut self,
         image: &mut Image,
         state: &State,
@@ -424,11 +428,11 @@ impl DeviceJournal {
             .get_mut(&record_id(&state.session))
             .ok_or(DurableError::Corrupt)?
             .payload = state.encode();
-        self.persist(image)
+        self.persist(image).await
     }
     /// Transfer a committed initiator bootstrap root into durable message chains.
     /// Dispatch its already committed final flight before application frames.
-    pub fn activate_initiator_messages(
+    pub async fn activate_initiator_messages(
         &mut self,
         context: Arc<BootstrapContext>,
         request: InitiationId,
@@ -436,12 +440,12 @@ impl DeviceJournal {
     ) -> Result<[u8; 32], DurableError> {
         context.check_session_identity(now)?;
         let op = self.initiation_query(&context, request)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         require_live_source(&image, &op)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         initiator::check_request(record, &context, request)?;
         if record.phase == DurableStatus::Messages {
-            return self.existing_messages(&image, &op, &context, now);
+            return self.existing_messages(&image, &op, &context, now).await;
         }
         rosters::authorize_context(&image, &context, now)?;
         if record.phase != DurableStatus::FinalCommitted {
@@ -455,9 +459,10 @@ impl DeviceJournal {
         record.payload = initiator::pack(request, &operation.checkpoint()?);
         record.phase = DurableStatus::Messages;
         self.install_messages(&mut image, state, &context, now)
+            .await
     }
     /// Transfer a responder root only after its final confirmation is committed.
-    pub fn activate_responder_messages(
+    pub async fn activate_responder_messages(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
@@ -465,12 +470,12 @@ impl DeviceJournal {
     ) -> Result<[u8; 32], DurableError> {
         context.check_session_identity(now)?;
         let op = self.query_id(&context, initial)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         require_live_source(&image, &op)?;
         let record = image.records.get(&op).ok_or(DurableError::Absent)?;
         record.check_request(&context, initial)?;
         if record.phase == DurableStatus::Messages {
-            return self.existing_messages(&image, &op, &context, now);
+            return self.existing_messages(&image, &op, &context, now).await;
         }
         rosters::authorize_context(&image, &context, now)?;
         if record.phase != DurableStatus::Complete {
@@ -483,8 +488,9 @@ impl DeviceJournal {
         record.payload = operation.checkpoint()?;
         record.phase = DurableStatus::Messages;
         self.install_messages(&mut image, state, &context, now)
+            .await
     }
-    fn existing_messages(
+    async fn existing_messages(
         &mut self,
         image: &Image,
         op: &[u8; 32],
@@ -500,13 +506,14 @@ impl DeviceJournal {
             if state.source == *op {
                 self.message_state(image, context, &state.session, now)?;
                 context.check_session_identity(now)?;
-                self.check_session_context_release(image, context, now)?;
+                self.check_session_context_release(image, context, now)
+                    .await?;
                 return Ok(state.session);
             }
         }
         Err(DurableError::Corrupt)
     }
-    fn install_messages(
+    async fn install_messages(
         &mut self,
         image: &mut Image,
         state: State,
@@ -534,11 +541,12 @@ impl DeviceJournal {
                 payload: state.encode(),
             },
         );
-        self.persist(image)?;
+        self.persist(image).await?;
         #[cfg(all(test, unix))]
         tests::after_stage("activation");
         context.check_session_identity(now)?;
-        self.check_session_context_release(image, context, now)?;
+        self.check_session_context_release(image, context, now)
+            .await?;
         Ok(state.session)
     }
     fn message_state(
@@ -600,18 +608,19 @@ impl DeviceJournal {
     }
     // Historical context bytes become usable only through this exact original
     // established record. Archive and installation ownership are service duties.
-    pub(crate) fn prepare_reopened_context(
+    pub(crate) async fn prepare_reopened_context(
         &mut self,
         context: Arc<BootstrapContext>,
         session: [u8; 32],
         role: crate::BootstrapRole,
         now: u64,
     ) -> Result<Arc<BootstrapContext>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         rosters::require_original_operational_policy(&image)?;
         self.prepare_existing_context(&image, context, session, role, now, None)
+            .await
     }
-    pub(crate) fn prepare_continued_context(
+    pub(crate) async fn prepare_continued_context(
         &mut self,
         context: Arc<BootstrapContext>,
         session: [u8; 32],
@@ -619,7 +628,7 @@ impl DeviceJournal {
         policy: Arc<crate::VerifiedSessionPolicy>,
         now: u64,
     ) -> Result<Arc<BootstrapContext>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let statement = rosters::bind_policy_continuation(&image, &context, role, &policy)?;
         self.prepare_existing_context(
             &image,
@@ -629,8 +638,9 @@ impl DeviceJournal {
             now,
             Some((policy, statement)),
         )
+        .await
     }
-    fn prepare_existing_context(
+    async fn prepare_existing_context(
         &mut self,
         image: &Image,
         context: Arc<BootstrapContext>,
@@ -656,17 +666,18 @@ impl DeviceJournal {
             context
         };
         self.message_state(image, &context, &session, now)?;
-        self.check_session_context_release(image, &context, now)?;
+        self.check_session_context_release(image, &context, now)
+            .await?;
         Ok(context)
     }
-    pub(crate) fn check_reopened_session(
+    pub(crate) async fn check_reopened_session(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         role: crate::BootstrapRole,
         now: u64,
     ) -> Result<(), DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         let expected_role = match role {
             crate::BootstrapRole::Initiator => 1,
@@ -677,16 +688,17 @@ impl DeviceJournal {
         }
         context.check_session_identity(now)?;
         self.check_session_context_release(&image, context, now)
+            .await
     }
     /// Read the current send slot before submitting input. Retain this ID across
     /// retries. Concurrent readers may see the same slot; differing inputs conflict.
-    pub fn next_message_id(
+    pub async fn next_message_id(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         now: u64,
     ) -> Result<MessageId, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         if state.control.send_fenced() {
             return Err(DurableError::Suspended);
@@ -703,12 +715,13 @@ impl DeviceJournal {
         )?;
         fanout::require_individual(&image, session, id)?;
         context.check_session_identity(now)?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(id)
     }
     /// Commit the next chain state and exact ciphertext outbox together before
     /// returning dispatchable bytes. An exact repeated ID/input replays its outbox.
-    pub fn send_message(
+    pub async fn send_message(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -717,7 +730,7 @@ impl DeviceJournal {
         associated_data: &[u8],
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         fanout::require_individual(&image, session, id)?;
         if plaintext.len() > MAX_PLAINTEXT || associated_data.len() > MAX_AD {
@@ -766,7 +779,7 @@ impl DeviceJournal {
                     .get_mut(&record_id(&session))
                     .ok_or(DurableError::Corrupt)?
                     .payload = state.encode();
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
                 #[cfg(all(test, unix))]
                 tests::after_stage("reserved");
             }
@@ -781,23 +794,24 @@ impl DeviceJournal {
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
                 .payload = state.encode();
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("sent");
         }
         context.check_session_identity(now)?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
     /// Inspect an authenticated outgoing record without executing or releasing it.
     /// Policy close/expiry does not turn a read-only query into message permission.
-    pub fn message_status(
+    pub async fn message_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         id: MessageId,
     ) -> Result<MessageStatus, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let record = self.message_record_for_status(&image, context, session)?;
         if matches!(
             record.phase,
@@ -855,12 +869,12 @@ impl DeviceJournal {
         )?;
         Ok(record)
     }
-    fn message_state_for_status(
+    async fn message_state_for_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<State, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let record = self.message_record_for_status(&image, context, session)?;
         if matches!(
             record.phase,
@@ -875,14 +889,14 @@ impl DeviceJournal {
     }
     /// Continue only the sealed pending input or replay its committed outbox.
     /// No replacement plaintext or fresh message ID is accepted by this method.
-    pub fn resume_message(
+    pub async fn resume_message(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         id: MessageId,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         fanout::require_individual(&image, session, id)?;
         let index = id.check(&session, state.role)?;
@@ -893,7 +907,8 @@ impl DeviceJournal {
         }
         if let Some(saved) = traffic.outgoing.get(&id) {
             context.check_session_identity(now)?;
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(saved.wire.clone());
         }
         let plan = traffic
@@ -903,10 +918,11 @@ impl DeviceJournal {
             .ok_or(DurableError::Absent)?;
         drop(image);
         self.send_message(context, session, id, &plan.plaintext, &plan.ad, now)
+            .await
     }
     /// Authenticate on transaction-private state, then commit the consumed key,
     /// skipped keys and sealed inbox together before returning plaintext.
-    pub fn receive_message(
+    pub async fn receive_message(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -914,7 +930,7 @@ impl DeviceJournal {
         associated_data: &[u8],
         now: u64,
     ) -> Result<CommittedPlaintext, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let header = Header::decode(wire)?;
         if header.index
@@ -941,12 +957,13 @@ impl DeviceJournal {
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
                 .payload = state.encode();
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("received");
         }
         context.check_session_identity(now)?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(plaintext)
     }
 }

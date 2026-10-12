@@ -64,6 +64,10 @@ pub(in crate::durable) fn reserve_policy_renewal(
     }
     readback.policy_proposal(&current)
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Read the exact original authenticated P preparation without signing,
     /// dispatching, resealing or releasing an owner. None is only local absence;
@@ -93,7 +97,7 @@ impl DeviceJournal {
     /// original witness. Only exact Applied installs the already sealed bytes.
     /// Original intent remains even after local installation. This never sends
     /// Commit, Close or ACK, removes intent, or returns an operational owner.
-    pub fn recover_policy_renewal(
+    pub async fn recover_policy_renewal(
         path: &Path,
         key: JournalKey,
         original: &VerifiedDevice,
@@ -103,10 +107,14 @@ impl DeviceJournal {
         client: &mut crate::AnchorClient,
     ) -> Result<State, DurableError> {
         let db = open_private_database(path)?;
-        recover_policy_renewal(&db, &key, original, policy, id, proposal, client)
+        recover_policy_renewal(&db, &key, original, policy, id, proposal, client).await
     }
 }
-pub(in crate::durable) fn recover_policy_renewal(
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+pub(in crate::durable) async fn recover_policy_renewal(
     db: &Database,
     key: &JournalKey,
     original: &VerifiedDevice,
@@ -136,10 +144,12 @@ pub(in crate::durable) fn recover_policy_renewal(
     {
         return Err(Error::Scope.into());
     }
-    let reply = client.exchange(
-        proposal.subject(),
-        AnchorOperation::policy_renewal_status(&proposal),
-    )?;
+    let reply = client
+        .exchange(
+            proposal.subject(),
+            AnchorOperation::policy_renewal_status(&proposal),
+        )
+        .await?;
     let state = reply.policy_renewal_state(&proposal)?;
     match state {
         State::Applied => {
@@ -163,10 +173,14 @@ pub(in crate::durable) fn recover_policy_renewal(
     Ok(state)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // Only a read-back authenticated original enrollment terminal can grant ACK
     // authority. Keep the original pending bytes until that exact ACK is observed.
-    pub(crate) fn retire_policy_renewal(
+    pub(crate) async fn retire_policy_renewal(
         path: &Path,
         key: JournalKey,
         original: &VerifiedDevice,
@@ -177,8 +191,9 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         let db = open_private_database(path)?;
         Self::retire_policy_renewal_in_database(&db, &key, original, policy, id, terminal, client)
+            .await
     }
-    pub(crate) fn retire_policy_renewal_in_database(
+    pub(crate) async fn retire_policy_renewal_in_database(
         db: &Database,
         key: &JournalKey,
         original: &VerifiedDevice,
@@ -219,10 +234,12 @@ impl DeviceJournal {
         {
             return Err(Error::Scope.into());
         }
-        let reply = client.exchange(
-            proposal.subject(),
-            AnchorOperation::acknowledge_policy_renewal(&proposal),
-        )?;
+        let reply = client
+            .exchange(
+                proposal.subject(),
+                AnchorOperation::acknowledge_policy_renewal(&proposal),
+            )
+            .await?;
         if reply.observed_head() != expected
             || !matches!(
                 reply.policy_renewal_state(&proposal)?,

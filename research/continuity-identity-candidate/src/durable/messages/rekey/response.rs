@@ -172,11 +172,15 @@ pub(super) fn check_body(
         .map_err(|_| Error::Authentication)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Authenticate a peer offer, durably reserve its hybrid encapsulation and
     /// signing plan, and return only the exact committed response. This does not
     /// install traffic keys or report the target epoch as confirmed.
-    pub fn respond_rekey_offer(
+    pub async fn respond_rekey_offer(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -184,12 +188,13 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if let Some(last) = &state.control.last {
             if last.offer == offer && state.role == 3 - proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(last.response.clone());
             }
         }
@@ -203,7 +208,8 @@ impl DeviceJournal {
             if saved_offer != offer {
                 return Err(DurableError::Conflict);
             }
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(saved_response.to_vec());
         }
         if let Some(super::Plan::Response(saved)) = &state.control.plan {
@@ -220,7 +226,8 @@ impl DeviceJournal {
                     self.close();
                     return Err(DurableError::InvalidCheckpoint(error));
                 }
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(wire.clone());
             }
         }
@@ -261,7 +268,7 @@ impl DeviceJournal {
                 offer: offer.to_vec(),
                 stage: Stage::Encapsulation(reservation),
             }));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-kem-reserved");
         }
@@ -320,7 +327,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-response-signature-reserved");
         }
@@ -356,10 +363,11 @@ impl DeviceJournal {
                 root,
             },
         }));
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-response-committed");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
     pub(super) fn rekey_recovery_key(&self) -> Result<RecoveryKey, DurableError> {
@@ -375,12 +383,12 @@ impl DeviceJournal {
     }
     /// Inspect the authenticated pending response after failure or revocation;
     /// this grants no permission to release bytes or advance the epoch.
-    pub fn rekey_response_status(
+    pub async fn rekey_response_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyResponseStatus, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(match state.control.plan {
             Some(super::Plan::Response(response)) => response.status(),
             Some(super::Plan::Completing(plan)) => plan.response_status(),

@@ -31,8 +31,12 @@ pub(super) fn authorize(
     Ok(())
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    pub(crate) fn install_peer_roster(
+    pub(crate) async fn install_peer_roster(
         &mut self,
         scope: &crate::installation::PolicyScope<'_>,
         roster: &VerifiedRoster,
@@ -46,7 +50,7 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         roster.check_time(now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         image.check_account_authorities(&[roster.account_id()])?;
         authorize(&image, scope, policy, now)?;
         // Initial peer trust is admitted only by the original bootstrap. An
@@ -69,7 +73,7 @@ impl DeviceJournal {
         } else {
             Some(saved.advance(roster)?)
         };
-        self.check_operational_release(&image, policy, now)?;
+        self.check_operational_release(&image, policy, now).await?;
         // A runtime may close during witness I/O. Do not commit or return a
         // cached success after losing the exact local/current-policy authority.
         authorize(&image, scope, policy, now)?;
@@ -78,8 +82,8 @@ impl DeviceJournal {
             image
                 .records
                 .insert(id(&roster.account_id()), updated.record()?);
-            self.persist(&mut image)?;
-            self.check_operational_release(&image, policy, now)?;
+            self.persist(&mut image).await?;
+            self.check_operational_release(&image, policy, now).await?;
             authorize(&image, scope, policy, now)?;
         }
         image.check_account_authorities(&[roster.account_id()])?;

@@ -2,6 +2,10 @@
 //! A real credential grant may carry an already adopted independent policy.
 use super::*;
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(in crate::enrollment) fn completed_policy_approval(
         &self,
@@ -52,51 +56,67 @@ impl DeviceEnrollment {
     /// the caller's original G operation/statement are required. No live runtime
     /// or private signer is borrowed, and no absent target or owner is created.
     /// An uncommitted original intent remains Pending/Suspended.
-    pub fn recover_historical_policy_credential(
+    pub async fn recover_historical_policy_credential(
         &mut self,
         operation: crate::CredentialRenewalId,
         statement: [u8; 32],
         original_policy: &HistoricalSessionPolicy,
         policy: &HistoricalSessionPolicy,
     ) -> Result<crate::CredentialRenewalStatus, DurableError> {
-        let result = (|| {
-            let image = self.image()?;
-            if image.policy_device_binding != PolicyDeviceBinding::CredentialRenewal
-                || image.policy_pending.is_some()
-                || image.policy_completed.is_none()
-            {
-                return Err(DurableError::Conflict);
+        let result = self
+            .recover_historical_policy_credential_attempt(
+                operation,
+                statement,
+                original_policy,
+                policy,
+            )
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn recover_historical_policy_credential_attempt(
+        &mut self,
+        operation: crate::CredentialRenewalId,
+        statement: [u8; 32],
+        original_policy: &HistoricalSessionPolicy,
+        policy: &HistoricalSessionPolicy,
+    ) -> Result<crate::CredentialRenewalStatus, DurableError> {
+        let image = self.image()?;
+        if image.policy_device_binding != PolicyDeviceBinding::CredentialRenewal
+            || image.policy_pending.is_some()
+            || image.policy_completed.is_none()
+        {
+            return Err(DurableError::Conflict);
+        }
+        let renewal = image.renewal.as_ref().ok_or(DurableError::Conflict)?;
+        match renewal.status()? {
+            crate::CredentialRenewalStatus::Pending {
+                operation: expected,
+                statement: digest,
             }
-            let renewal = image.renewal.as_ref().ok_or(DurableError::Conflict)?;
-            match renewal.status()? {
-                crate::CredentialRenewalStatus::Pending {
-                    operation: expected,
-                    statement: digest,
-                }
-                | crate::CredentialRenewalStatus::Committed {
-                    operation: expected,
-                    statement: digest,
-                    ..
-                } if operation == expected && statement == digest => {}
-                _ => return Err(DurableError::Conflict),
-            }
-            let (image, mut service) = self.reconcile_local_renewal(
+            | crate::CredentialRenewalStatus::Committed {
+                operation: expected,
+                statement: digest,
+                ..
+            } if operation == expected && statement == digest => {}
+            _ => return Err(DurableError::Conflict),
+        }
+        let (image, mut service) = self
+            .reconcile_local_renewal(
                 image,
                 original_policy,
                 super::super::renewal::LocalRenewalPolicy::Historical(policy),
                 0,
                 None,
-            )?;
-            service.close();
-            image
-                .renewal
-                .as_ref()
-                .ok_or(DurableError::Conflict)?
-                .status()
-        })();
-        if result.is_err() {
-            self.close();
-        }
-        result
+            )
+            .await?;
+        service.close();
+        image
+            .renewal
+            .as_ref()
+            .ok_or(DurableError::Conflict)?
+            .status()
     }
 }

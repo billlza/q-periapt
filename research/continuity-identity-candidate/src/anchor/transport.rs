@@ -12,6 +12,13 @@ pub use tcp::AnchorTcpTransport;
 
 /// Untrusted byte carrier. Implementations must honor the absolute deadline;
 /// journal authority comes only from verification of the complete signed reply.
+/// On `wasm32-unknown-unknown`, exchange is asynchronous. Native carriers retain
+/// their synchronous API. Suspending a request never establishes non-commit.
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+#[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), async_trait::async_trait(?Send))]
 pub trait AnchorTransport: Send {
     /// Optionally narrow an attempt to an enclosing caller's absolute deadline.
     /// The client never accepts an extension of its own attempt budget. Failure
@@ -22,7 +29,7 @@ pub trait AnchorTransport: Send {
     }
     /// Exchange one bounded signed request. Transport failure says nothing about
     /// whether the witness committed; never report a fabricated reply or absence.
-    fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>>;
+    async fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>>;
 }
 
 fn remaining(deadline: Instant) -> io::Result<Duration> {
@@ -72,12 +79,20 @@ impl From<Error> for AnchorClientError {
 
 /// Owned pinned witness connection and device signer. The journal consumes this
 /// owner; byte transports cannot manufacture authenticated advancement evidence.
+/// A failed exchange, or dropping an exchange future after its first poll, closes
+/// its signing owner. Reopen the original journal and reconcile its retained
+/// intent with a fresh owner; do not substitute a new command. An unpolled future
+/// has not dispatched or moved the signing owner.
 pub struct AnchorClient {
     pin: AnchorPin,
-    signer: DeviceSigningKey,
+    signer: Option<DeviceSigningKey>,
     transport: Box<dyn AnchorTransport>,
     timeout: Duration,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl AnchorClient {
     /// Require a finite nonzero attempt budget of at most 60 seconds.
     pub fn new(
@@ -96,7 +111,7 @@ impl AnchorClient {
         }
         Ok(Self {
             pin,
-            signer,
+            signer: Some(signer),
             transport,
             timeout,
         })
@@ -105,16 +120,23 @@ impl AnchorClient {
         &self.pin
     }
     pub(crate) fn check_device(&self, device: &VerifiedDevice) -> Result<(), Error> {
-        self.signer.check_device(device)
+        self.signer
+            .as_ref()
+            .ok_or(Error::Closed)?
+            .check_device(device)
     }
     pub(crate) fn signer_public_key(&self) -> Result<PublicKey, Error> {
-        self.signer.public_key()
+        self.signer.as_ref().ok_or(Error::Closed)?.public_key()
     }
-    pub(crate) fn exchange(
+    pub(crate) async fn exchange(
         &mut self,
         subject: AnchorSubject,
         operation: AnchorOperation,
     ) -> Result<AnchorReply, AnchorClientError> {
+        // A dropped asynchronous exchange must not leave its signer usable.
+        // The in-flight future owns it; only a fully verified, timely reply
+        // returns it to this client. Error or future drop erases that owner.
+        let signer = self.signer.take().ok_or(Error::Closed)?;
         let deadline = Instant::now()
             .checked_add(self.timeout)
             .ok_or_else(|| AnchorClientError::Transport(io::ErrorKind::InvalidInput.into()))?;
@@ -124,15 +146,17 @@ impl AnchorClient {
             .map_err(AnchorClientError::Transport)?
             .min(deadline);
         remaining(deadline).map_err(AnchorClientError::Transport)?;
-        let request = AnchorRequest::new(&self.pin, subject, operation, &self.signer)?;
+        let request = AnchorRequest::new(&self.pin, subject, operation, &signer)?;
         remaining(deadline).map_err(AnchorClientError::Transport)?;
         let wire = self
             .transport
             .exchange(request.as_bytes(), deadline)
+            .await
             .map_err(AnchorClientError::Transport)?;
         remaining(deadline).map_err(AnchorClientError::Transport)?;
         let reply = self.pin.verify_reply(&request, &wire)?;
         remaining(deadline).map_err(AnchorClientError::Transport)?;
+        self.signer = Some(signer);
         Ok(reply)
     }
 }

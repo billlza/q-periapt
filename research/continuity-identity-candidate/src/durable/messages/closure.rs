@@ -200,6 +200,10 @@ fn report(binding: &Binding, state: &State) -> Result<SessionClosure, Error> {
         epochs: fanout::epoch_accounting(state),
     })
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     fn closure_binding(
         &self,
@@ -247,16 +251,16 @@ impl DeviceJournal {
     }
     /// Inspect independent local closure after policy close, expiry or revocation.
     /// Sessions in reserved-fanout abandonment must use the aggregate API instead.
-    pub fn session_closure_status(
+    pub async fn session_closure_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<SessionClosureStatus, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let binding = self.closure_binding(&image, context, session)?;
-        self.closure_status(image, &binding)
+        self.closure_status(image, &binding).await
     }
-    fn closure_status(
+    async fn closure_status(
         &mut self,
         image: Image,
         binding: &Binding,
@@ -279,23 +283,23 @@ impl DeviceJournal {
             }
             _ => return Err(DurableError::Corrupt),
         };
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         Ok(status)
     }
     /// Permanently freeze an independent session and return all retained loss metadata.
     /// Existing peer authority may be expired/revoked; only original owner, context
     /// and storage protection are required. No dummy send or budget slot is consumed.
     /// A reserved fanout must use `begin_fanout_abandonment` for its complete set.
-    pub fn begin_session_closure(
+    pub async fn begin_session_closure(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<SessionClosure, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let binding = self.closure_binding(&image, context, session)?;
-        self.begin_closure(image, &binding)
+        self.begin_closure(image, &binding).await
     }
-    fn begin_closure(
+    async fn begin_closure(
         &mut self,
         mut image: Image,
         binding: &Binding,
@@ -331,29 +335,29 @@ impl DeviceJournal {
                 .ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::MessagesClosing;
             record.payload = payload;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("session-closing");
         }
         let report = report(binding, &state)?;
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         Ok(report)
     }
     /// After durable, deduplicated host accounting of the complete report, erase
     /// logical private session state. Unknown outcomes do not become acknowledgements.
     /// Exact repeated acknowledgement is idempotent. Historical disk/backups are
     /// outside this logical-erasure contract; source/session tombstones remain.
-    pub fn acknowledge_session_closure(
+    pub async fn acknowledge_session_closure(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         report: SessionClosureId,
     ) -> Result<(), DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let binding = self.closure_binding(&image, context, session)?;
-        self.acknowledge_closure(image, &binding, report)
+        self.acknowledge_closure(image, &binding, report).await
     }
-    fn acknowledge_closure(
+    async fn acknowledge_closure(
         &mut self,
         mut image: Image,
         binding: &Binding,
@@ -383,13 +387,13 @@ impl DeviceJournal {
                     .ok_or(DurableError::Corrupt)?;
                 record.payload = payload;
                 record.phase = DurableStatus::MessagesClosed;
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
                 #[cfg(all(test, unix))]
                 tests::after_stage("session-closed");
             }
             _ => return Err(DurableError::Conflict),
         }
-        self.check_release(&image)
+        self.check_release(&image).await
     }
 }
 

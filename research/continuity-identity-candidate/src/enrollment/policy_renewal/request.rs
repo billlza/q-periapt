@@ -76,20 +76,24 @@ impl PolicyRenewalRequest {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     /// Prepare the exact original/current signed identity materials together with
     /// the actual policy-only scope. This is the same read-only admission as
     /// `policy_renewal_scope`, with no fabricated credential operation, issuer
     /// authorization, private signer, runtime lease or durable reservation.
     /// After any admitted error, close and resume this original enrollment.
-    pub fn policy_renewal_request(
+    pub async fn policy_renewal_request(
         &mut self,
         operation: PolicyRenewalId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<PolicyRenewalRequest, DurableError> {
         let result = self
-            .prepare_renewal_request(original_policy)
-            .and_then(|prepared| prepared.policy_request(operation, original_policy));
+            .policy_renewal_request_attempt(operation, original_policy)
+            .await;
         if result.is_err() {
             self.close();
         }
@@ -106,18 +110,33 @@ impl DeviceEnrollment {
     /// must be reconciled first. If the actual roster has advanced, refresh the
     /// original enrollment before requesting a scope. Required-witness policy
     /// renewal is not supported by this local-only entry point.
-    pub fn policy_renewal_scope(
+    pub async fn policy_renewal_scope(
         &mut self,
         operation: PolicyRenewalId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<crate::PolicyRenewalScope, DurableError> {
-        let result = (|| {
-            let mut prepared = self.prepare_renewal_request(original_policy)?;
-            prepared.policy_scope(operation, original_policy)
-        })();
+        let result = self
+            .policy_renewal_scope_attempt(operation, original_policy)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn policy_renewal_request_attempt(
+        &mut self,
+        operation: PolicyRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<PolicyRenewalRequest, DurableError> {
+        let prepared = self.prepare_renewal_request(original_policy).await?;
+        prepared.policy_request(operation, original_policy).await
+    }
+    async fn policy_renewal_scope_attempt(
+        &mut self,
+        operation: PolicyRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<crate::PolicyRenewalScope, DurableError> {
+        let mut prepared = self.prepare_renewal_request(original_policy).await?;
+        prepared.policy_scope(operation, original_policy).await
     }
 }

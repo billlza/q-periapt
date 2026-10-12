@@ -64,15 +64,19 @@ impl State {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Inspect the exact send window without releasing data or granting authority.
     /// Reconciliation remains possible after policy expiry/close or roster removal.
-    pub fn application_send_progress(
+    pub async fn application_send_progress(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<SendProgress, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(state.send_progress(context.original_policy().application_send_budget())?)
     }
 }

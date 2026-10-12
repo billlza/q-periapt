@@ -54,76 +54,88 @@ pub(in crate::durable) fn check_roster_refresh_intent(
     }
     Ok(())
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Reserve the exact sealed same-credential roster/head target in this
     /// original journal. This neither prepares nor commits the witness and
     /// releases no operational owner. The journal closes on success or error;
     /// inspect the original preparation after any uncertain return before retrying.
-    pub fn prepare_roster_refresh(
+    pub async fn prepare_roster_refresh(
         &mut self,
         operation: RosterRefreshId,
         materials: &RosterRefreshMaterials<'_>,
         now: u64,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
-        let result = (|| {
-            let m = materials;
-            let mut image = self.image()?;
-            image.protection.check_policy(m.original_policy)?;
-            let saved = get(&image, &image.local_account)?;
-            supported(&image, &saved)?;
-            if image.owner != bootstrap::storage_owner(m.original)
-                || image.owner != bootstrap::storage_owner(m.target)
-                || image.local_account != m.original.account_id()
-                || m.target.credential_digest() != m.original.credential_digest()
-                || m.target.key != m.original.key
-                || !saved.roster.same_authority(m.target.roster())
-                || saved.history.get(&m.original.device_id())
-                    != Some(&(m.original.generation(), m.original.credential_digest()))
-            {
-                return Err(DurableError::Conflict);
-            }
-            let historical = m
-                .original
-                .description
-                .validity
-                .from()
-                .max(saved.roster.validity().from());
-            saved.roster.refresh_device(m.original, historical)?;
-            let policy_authorization = if saved.policy_renewal.is_some() {
-                let approval = policy_renewal::adopted(&image, &saved)?;
-                approval.check_context_policy(m.original_policy, m.policy)?;
-                approval.check_credential_lineage(m.original, m.original)?;
-                Some(approval.statement_digest())
-            } else {
-                if m.original_policy.checkpoint() != m.policy.checkpoint() {
-                    return Err(DurableError::Conflict);
-                }
-                None
-            };
-            crate::installation::admit(m.target, m.policy, now)?;
-            let scope = RosterRefreshScope {
-                operation,
-                previous: saved.roster.checkpoint(),
-                target: m.target.roster().checkpoint(),
-                policy: m.policy.checkpoint(),
-                policy_authorization,
-            };
-            if scope.target.version() <= scope.previous.version() {
-                return Err(Error::Checkpoint.into());
-            }
-            self.check_release(&image)?;
-            let updated = saved.advance(m.target.roster())?;
-            image
-                .records
-                .insert(id(&image.local_account), updated.record()?);
-            let sealed = self.seal_next_image(&mut image)?;
-            let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let proposal = write_intent::reserve_roster_refresh(active, &image, &sealed, scope)?;
-            crate::installation::admit(m.target, m.policy, now)?;
-            Ok(proposal)
-        })();
+        let result = self
+            .prepare_roster_refresh_attempt(operation, materials, now)
+            .await;
         self.close();
         result
+    }
+    async fn prepare_roster_refresh_attempt(
+        &mut self,
+        operation: RosterRefreshId,
+        materials: &RosterRefreshMaterials<'_>,
+        now: u64,
+    ) -> Result<AnchorRosterRefreshProposal, DurableError> {
+        let m = materials;
+        let mut image = self.image().await?;
+        image.protection.check_policy(m.original_policy)?;
+        let saved = get(&image, &image.local_account)?;
+        supported(&image, &saved)?;
+        if image.owner != bootstrap::storage_owner(m.original)
+            || image.owner != bootstrap::storage_owner(m.target)
+            || image.local_account != m.original.account_id()
+            || m.target.credential_digest() != m.original.credential_digest()
+            || m.target.key != m.original.key
+            || !saved.roster.same_authority(m.target.roster())
+            || saved.history.get(&m.original.device_id())
+                != Some(&(m.original.generation(), m.original.credential_digest()))
+        {
+            return Err(DurableError::Conflict);
+        }
+        let historical = m
+            .original
+            .description
+            .validity
+            .from()
+            .max(saved.roster.validity().from());
+        saved.roster.refresh_device(m.original, historical)?;
+        let policy_authorization = if saved.policy_renewal.is_some() {
+            let approval = policy_renewal::adopted(&image, &saved)?;
+            approval.check_context_policy(m.original_policy, m.policy)?;
+            approval.check_credential_lineage(m.original, m.original)?;
+            Some(approval.statement_digest())
+        } else {
+            if m.original_policy.checkpoint() != m.policy.checkpoint() {
+                return Err(DurableError::Conflict);
+            }
+            None
+        };
+        crate::installation::admit(m.target, m.policy, now)?;
+        let scope = RosterRefreshScope {
+            operation,
+            previous: saved.roster.checkpoint(),
+            target: m.target.roster().checkpoint(),
+            policy: m.policy.checkpoint(),
+            policy_authorization,
+        };
+        if scope.target.version() <= scope.previous.version() {
+            return Err(Error::Checkpoint.into());
+        }
+        self.check_release(&image).await?;
+        let updated = saved.advance(m.target.roster())?;
+        image
+            .records
+            .insert(id(&image.local_account), updated.record()?);
+        let sealed = self.seal_next_image(&mut image)?;
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let proposal = write_intent::reserve_roster_refresh(active, &image, &sealed, scope)?;
+        crate::installation::admit(m.target, m.policy, now)?;
+        Ok(proposal)
     }
 }
 

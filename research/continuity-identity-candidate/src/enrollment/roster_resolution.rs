@@ -209,6 +209,10 @@ impl Image {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(super) fn validate_roster_resolution(&self, image: &Image) -> Result<(), DurableError> {
         validate_phase(image)?;
@@ -235,153 +239,162 @@ impl DeviceEnrollment {
     /// from the actual head. A still-live target beyond the current head
     /// remains pending. The journal is never changed by this resolver.
     /// A retained exact result stays queryable until another refresh resolution.
-    pub fn resolve_roster_refresh(
+    pub async fn resolve_roster_refresh(
         &mut self,
         previous: RosterCheckpoint,
         target: RosterCheckpoint,
         original_policy: &HistoricalSessionPolicy,
         now: u64,
     ) -> Result<RosterRefreshResolution, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            let Phase::Accepted {
-                admission, stage, ..
-            } = &image.phase
-            else {
-                return Err(Error::State.into());
-            };
-            if original_policy.anchor_requirement().binding().is_some() {
-                return Err(DurableError::AnchorRequired);
-            }
-            if admission.policy != original_policy.checkpoint().digest() {
-                return Err(DurableError::Conflict);
-            }
-            if let Some(record) = &image.roster_resolution {
-                if record.result.previous == previous && record.result.target == target {
-                    return Ok(record.result);
-                }
-            }
-            if *stage != (AdmissionPhase::Refreshing { previous }) || admission.checkpoint != target
-            {
-                return Err(DurableError::Conflict);
-            }
-            if image.policy_pending.is_some()
-                || image
-                    .renewal
-                    .as_ref()
-                    .is_some_and(LocalRenewal::has_pending_credential)
-            {
-                return Err(DurableError::Suspended);
-            }
-            image.check_time_floor(now)?;
-            let original = self.original_device_metadata(&image)?;
-            let current =
-                self.historical_device_metadata(&admission.certificate, &admission.roster, target)?;
-            let authority =
-                RetainedInstallationAuthority::active_installation(&original, original_policy);
-            let mut service = self.reconcile_installation(&original, original_policy, None)?;
-            let journal = service.stores()?.0;
-            if journal.identity()? != admission.journal {
-                return Err(DurableError::Conflict);
-            }
-            let observed = journal.local_roster_for_reconciliation(&authority)?;
-            let head = observed.checkpoint();
-            if !observed.same_authority(current.roster())
-                || head.version() < previous.version()
-                || (head.version() == previous.version() && head != previous)
-            {
-                return Err(DurableError::Conflict);
-            }
-            if now == 0
-                || now
-                    < current
-                        .roster_validity
-                        .from()
-                        .max(observed.validity().from())
-            {
-                return Err(Error::Validity.into());
-            }
-            let outcome = if head == target {
-                RosterRefreshOutcome::Committed
-            } else if head.version() == target.version() {
-                RosterRefreshOutcome::SupersededUncommitted
-            } else if head.version() > target.version() {
-                RosterRefreshOutcome::SupersededUnknown
-            } else if current.roster_validity.until() <= now {
-                RosterRefreshOutcome::ExpiredUncommitted
-            } else {
-                return Err(DurableError::Suspended);
-            };
-            let expected = RosterRefreshResolution {
-                journal: admission.journal,
-                previous,
-                target,
-                outcome,
-                observed: head,
-                observed_at: now,
-            };
-            let can_rebind = observed.contains_member(
-                current.device_id(),
-                current.generation(),
-                current.credential_digest(),
-            ) && current
-                .description
-                .validity
-                .from()
-                .max(observed.validity().from())
-                < current
-                    .description
-                    .validity
-                    .until()
-                    .min(observed.validity().until());
-            if can_rebind {
-                self.historical_device_metadata(&admission.certificate, observed.as_bytes(), head)?;
-            }
-            image.roster_resolution = Some(RetainedRosterResolution {
-                result: expected,
-                target: current.roster().clone(),
-                observed,
-            });
-            let Phase::Accepted {
-                admission, stage, ..
-            } = &mut image.phase
-            else {
-                return Err(DurableError::Corrupt);
-            };
-            if outcome == RosterRefreshOutcome::Committed {
-                *stage = AdmissionPhase::Active;
-            } else if can_rebind {
-                admission.roster = image
-                    .roster_resolution
-                    .as_ref()
-                    .ok_or(DurableError::Corrupt)?
-                    .observed
-                    .as_bytes()
-                    .to_vec();
-                admission.checkpoint = head;
-                *stage = AdmissionPhase::Active;
-            } else {
-                *stage = AdmissionPhase::RosterResolved { observed: head };
-            }
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("roster-resolution-before-save");
-            self.save(&image)?;
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("roster-resolution-after-save");
-            let readback = self.image()?;
-            let record = readback
-                .roster_resolution
-                .as_ref()
-                .ok_or(DurableError::Corrupt)?;
-            if record.result != expected || record.target.as_bytes() != current.roster().as_bytes()
-            {
-                return Err(DurableError::Conflict);
-            }
-            Ok(record.result)
-        })();
+        let result = self
+            .resolve_roster_refresh_attempt(previous, target, original_policy, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn resolve_roster_refresh_attempt(
+        &mut self,
+        previous: RosterCheckpoint,
+        target: RosterCheckpoint,
+        original_policy: &HistoricalSessionPolicy,
+        now: u64,
+    ) -> Result<RosterRefreshResolution, DurableError> {
+        let mut image = self.image()?;
+        let Phase::Accepted {
+            admission, stage, ..
+        } = &image.phase
+        else {
+            return Err(Error::State.into());
+        };
+        if original_policy.anchor_requirement().binding().is_some() {
+            return Err(DurableError::AnchorRequired);
+        }
+        if admission.policy != original_policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        if let Some(record) = &image.roster_resolution {
+            if record.result.previous == previous && record.result.target == target {
+                return Ok(record.result);
+            }
+        }
+        if *stage != (AdmissionPhase::Refreshing { previous }) || admission.checkpoint != target {
+            return Err(DurableError::Conflict);
+        }
+        if image.policy_pending.is_some()
+            || image
+                .renewal
+                .as_ref()
+                .is_some_and(LocalRenewal::has_pending_credential)
+        {
+            return Err(DurableError::Suspended);
+        }
+        image.check_time_floor(now)?;
+        let original = self.original_device_metadata(&image)?;
+        let current =
+            self.historical_device_metadata(&admission.certificate, &admission.roster, target)?;
+        let authority =
+            RetainedInstallationAuthority::active_installation(&original, original_policy);
+        let mut service = self
+            .reconcile_installation(&original, original_policy, None)
+            .await?;
+        let journal = service.stores()?.0;
+        if journal.identity()? != admission.journal {
+            return Err(DurableError::Conflict);
+        }
+        let observed = journal.local_roster_for_reconciliation(&authority).await?;
+        let head = observed.checkpoint();
+        if !observed.same_authority(current.roster())
+            || head.version() < previous.version()
+            || (head.version() == previous.version() && head != previous)
+        {
+            return Err(DurableError::Conflict);
+        }
+        if now == 0
+            || now
+                < current
+                    .roster_validity
+                    .from()
+                    .max(observed.validity().from())
+        {
+            return Err(Error::Validity.into());
+        }
+        let outcome = if head == target {
+            RosterRefreshOutcome::Committed
+        } else if head.version() == target.version() {
+            RosterRefreshOutcome::SupersededUncommitted
+        } else if head.version() > target.version() {
+            RosterRefreshOutcome::SupersededUnknown
+        } else if current.roster_validity.until() <= now {
+            RosterRefreshOutcome::ExpiredUncommitted
+        } else {
+            return Err(DurableError::Suspended);
+        };
+        let expected = RosterRefreshResolution {
+            journal: admission.journal,
+            previous,
+            target,
+            outcome,
+            observed: head,
+            observed_at: now,
+        };
+        let can_rebind = observed.contains_member(
+            current.device_id(),
+            current.generation(),
+            current.credential_digest(),
+        ) && current
+            .description
+            .validity
+            .from()
+            .max(observed.validity().from())
+            < current
+                .description
+                .validity
+                .until()
+                .min(observed.validity().until());
+        if can_rebind {
+            self.historical_device_metadata(&admission.certificate, observed.as_bytes(), head)?;
+        }
+        image.roster_resolution = Some(RetainedRosterResolution {
+            result: expected,
+            target: current.roster().clone(),
+            observed,
+        });
+        let Phase::Accepted {
+            admission, stage, ..
+        } = &mut image.phase
+        else {
+            return Err(DurableError::Corrupt);
+        };
+        if outcome == RosterRefreshOutcome::Committed {
+            *stage = AdmissionPhase::Active;
+        } else if can_rebind {
+            admission.roster = image
+                .roster_resolution
+                .as_ref()
+                .ok_or(DurableError::Corrupt)?
+                .observed
+                .as_bytes()
+                .to_vec();
+            admission.checkpoint = head;
+            *stage = AdmissionPhase::Active;
+        } else {
+            *stage = AdmissionPhase::RosterResolved { observed: head };
+        }
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("roster-resolution-before-save");
+        self.save(&image)?;
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("roster-resolution-after-save");
+        let readback = self.image()?;
+        let record = readback
+            .roster_resolution
+            .as_ref()
+            .ok_or(DurableError::Corrupt)?;
+        if record.result != expected || record.target.as_bytes() != current.roster().as_bytes() {
+            return Err(DurableError::Conflict);
+        }
+        Ok(record.result)
     }
 }

@@ -118,21 +118,25 @@ pub struct FanoutAbandonmentJournal {
     journal: DeviceJournal,
     binding: Binding,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl FanoutAbandonmentJournal {
     /// Reopen a local-only batch using its independently retained journal and batch
     /// identities plus the original archive index. Missing/invalid state fails.
-    pub fn open(
+    pub async fn open(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
         batch: FanoutId,
         archives: &mut SessionArchiveStore,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, batch, archives, None, None)
+        Self::open_inner(path, key, expected, batch, archives, None, None).await
     }
     /// Reopen with the original pinned witness and enrolled signing owner. Local
     /// policy expiry does not weaken witness enrollment or permit a local fallback.
-    pub fn open_anchored(
+    pub async fn open_anchored(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -140,12 +144,12 @@ impl FanoutAbandonmentJournal {
         archives: &mut SessionArchiveStore,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, batch, archives, Some(client), None)
+        Self::open_inner(path, key, expected, batch, archives, Some(client), None).await
     }
     // Standalone callers above already supply their independent journal identity
     // and key. An installation owner additionally checks every authenticated
     // archive against its retained authority BEFORE any pending write is resolved.
-    pub(crate) fn open_installed(
+    pub(crate) async fn open_installed(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -154,9 +158,9 @@ impl FanoutAbandonmentJournal {
         client: Option<AnchorClient>,
         authority: &crate::RetainedInstallationAuthority,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, id, archives, client, Some(authority))
+        Self::open_inner(path, key, expected, id, archives, client, Some(authority)).await
     }
-    fn open_inner(
+    async fn open_inner(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -229,7 +233,7 @@ impl FanoutAbandonmentJournal {
                 }
                 // These are affirmative lifecycle dispositions: stale local state
                 // alone must not report absence/retirement under required protection.
-                active.check_current(&image)?;
+                active.check_current(&image).await?;
                 return Err(error);
             }
             Err(error) => return Err(error),
@@ -244,11 +248,11 @@ impl FanoutAbandonmentJournal {
         }
         // All exact membership/archive checks precede any recovery write.
         if let Some(pending) = pending {
-            write_intent::reconcile(&mut active, &pending)?;
+            write_intent::reconcile(&mut active, &pending).await?;
         }
         let current = load(&active.db, &active.key, active.owner)?;
         binding.check(&current, &active.key)?;
-        active.check_current(&current)?;
+        active.check_current(&current).await?;
         Ok(Self {
             journal: DeviceJournal {
                 active: Some(active),
@@ -256,8 +260,8 @@ impl FanoutAbandonmentJournal {
             binding,
         })
     }
-    fn current(&mut self) -> Result<(Image, Option<Batch>), DurableError> {
-        let image = self.journal.image()?;
+    async fn current(&mut self) -> Result<(Image, Option<Batch>), DurableError> {
+        let image = self.journal.image().await?;
         let key = &self
             .journal
             .active
@@ -268,18 +272,18 @@ impl FanoutAbandonmentJournal {
         Ok((image, batch))
     }
     /// Query local aggregate state; commitment does not imply peer consumption.
-    pub fn status(&mut self) -> Result<FanoutStatus, DurableError> {
-        let (_, batch) = self.current()?;
+    pub async fn status(&mut self) -> Result<FanoutStatus, DurableError> {
+        let (_, batch) = self.current().await?;
         Ok(batch.map_or(FanoutStatus::Retired, |batch| batch.status()))
     }
     /// Read every original committed or accounted-abandoned member through the
     /// retained batch/archive binding. This needs no current traffic authority
     /// and releases no ciphertext. Reserved or unacknowledged abandonment uses
     /// its complete loss-report path instead; retired metadata is explicit.
-    pub fn reconcile_members(&mut self) -> Result<FanoutReconciliation, DurableError> {
-        let (image, batch) = self.current()?;
+    pub async fn reconcile_members(&mut self) -> Result<FanoutReconciliation, DurableError> {
+        let (image, batch) = self.current().await?;
         let Some(batch) = batch else {
-            self.journal.check_release(&image)?;
+            self.journal.check_release(&image).await?;
             return Err(Error::Retired.into());
         };
         if !matches!(
@@ -308,7 +312,7 @@ impl FanoutAbandonmentJournal {
                 })
             })
             .collect::<Result<Vec<_>, DurableError>>()?;
-        self.journal.check_release(&image)?;
+        self.journal.check_release(&image).await?;
         Ok(FanoutReconciliation {
             batch: batch.id,
             members,
@@ -316,24 +320,26 @@ impl FanoutAbandonmentJournal {
     }
     /// Irreversibly freeze every member and return the complete immutable loss
     /// report. Committed batches cannot be reclassified as reserved abandonment.
-    pub fn begin(&mut self) -> Result<FanoutAbandonment, DurableError> {
-        let (image, batch) = self.current()?;
+    pub async fn begin(&mut self) -> Result<FanoutAbandonment, DurableError> {
+        let (image, batch) = self.current().await?;
         self.journal
             .begin_fanout_cleanup(image, batch.ok_or(Error::Retired)?)
+            .await
     }
     /// Only after durable, deduplicated host accounting of the complete report,
     /// erase every member's logical private state in one aggregate transition.
-    pub fn acknowledge(&mut self, report: FanoutAbandonmentId) -> Result<(), DurableError> {
-        let (image, batch) = self.current()?;
+    pub async fn acknowledge(&mut self, report: FanoutAbandonmentId) -> Result<(), DurableError> {
+        let (image, batch) = self.current().await?;
         self.journal
             .acknowledge_fanout_cleanup(image, batch.ok_or(Error::Retired)?, report)
+            .await
     }
     /// Retire only metadata once every original member is separately settled, or
     /// the complete reserved abandonment has been acknowledged. Original sessions,
     /// bootstrap/one-time claims and the monotonic counter remain. An unknown
     /// commit requires reopening; an authenticated Retired result proves retirement.
-    pub fn retire_metadata(&mut self) -> Result<(), DurableError> {
-        let (image, batch) = self.current()?;
+    pub async fn retire_metadata(&mut self) -> Result<(), DurableError> {
+        let (image, batch) = self.current().await?;
         if let Some(batch) = batch {
             if !matches!(
                 batch.state,
@@ -341,12 +347,12 @@ impl FanoutAbandonmentJournal {
             ) {
                 return Err(DurableError::Suspended);
             }
-            self.journal.retire_fanout_cleanup(image, batch)?;
+            self.journal.retire_fanout_cleanup(image, batch).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("fanout-archive-retired");
             Ok(())
         } else {
-            self.journal.check_release(&image)
+            self.journal.check_release(&image).await
         }
     }
     /// Drop the private-key owner, database lease and witness client. Index

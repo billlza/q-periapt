@@ -328,29 +328,35 @@ impl From<io::Error> for PrekeyPublicationError {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Observe the next deterministic publication ID. Only the first exact intent wins.
-    pub fn next_prekey_publication_id(&mut self) -> Result<PrekeyPublicationId, DurableError> {
-        let image = self.image()?;
-        self.check_release(&image)?;
+    pub async fn next_prekey_publication_id(
+        &mut self,
+    ) -> Result<PrekeyPublicationId, DurableError> {
+        let image = self.image().await?;
+        self.check_release(&image).await?;
         Ok(PrekeyPublicationId::at(
             &image.id,
             Registry::load(&image)?.next,
         )?)
     }
     /// Read authenticated local history without generating or releasing any key.
-    pub fn prekey_publication_status(
+    pub async fn prekey_publication_status(
         &mut self,
         id: PrekeyPublicationId,
     ) -> Result<PrekeyPublicationStatus, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         Registry::load(&image)?.status(id.check(&image.id)?)
     }
     /// Reserve all fresh inventory members and output space in one transaction,
     /// then recover generation and the exact committed signed artifact. `clock`
     /// must return current trusted time on every call, including after blocking I/O.
     /// No local result asserts remote directory publication or physical erasure.
-    pub fn prepare_prekey_publication(
+    pub async fn prepare_prekey_publication(
         &mut self,
         request: PrekeyPublicationRequest<'_>,
         run: PrekeyPublicationRun<'_>,
@@ -358,7 +364,7 @@ impl DeviceJournal {
     ) -> Result<PreparedPrekeyPublication, PrekeyPublicationError> {
         run.check()?;
         let at = clock()?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let ordinal = request.id.check(&image.id)?;
         let mut registry = Registry::load(&image)?;
         let expected = Entry::new(&request, ordinal)?;
@@ -387,7 +393,7 @@ impl DeviceJournal {
                     if key.reuse.is_some() {
                         // Reuse must name an already available member, not reserve
                         // an absent arbitrary ID or borrow another unfinished plan.
-                        let original = self.image()?;
+                        let original = self.image().await?;
                         prekeys::require_available(&original, id, request.policy)?;
                     }
                 }
@@ -399,11 +405,11 @@ impl DeviceJournal {
                 self.publication_capacity(&image)?;
                 run.check()?;
                 self.publication_admit(&image, &request, clock()?)?;
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
             }
         }
         run.check()?;
-        let entry = Registry::load(&self.image()?)?
+        let entry = Registry::load(&self.image().await?)?
             .entries
             .remove(&ordinal)
             .ok_or(DurableError::Corrupt)?;
@@ -412,21 +418,24 @@ impl DeviceJournal {
             let mut leaves = Vec::with_capacity(ids.len());
             for (key, id) in request.plan.keys.iter().zip(ids) {
                 run.check()?;
-                leaves.push(self.generate_prekey(
-                    request.policy,
-                    request.device,
-                    id,
-                    key.kind,
-                    key.validity,
-                    clock()?,
-                )?);
+                leaves.push(
+                    self.generate_prekey(
+                        request.policy,
+                        request.device,
+                        id,
+                        key.kind,
+                        key.validity,
+                        clock()?,
+                    )
+                    .await?,
+                );
             }
             run.check()?;
             let context = entry.context()?;
             let manifest = request
                 .signer
                 .issue_manifest(request.device, context, &leaves)?;
-            let mut image = self.image()?;
+            let mut image = self.image().await?;
             self.publication_admit(&image, &request, clock()?)?;
             let mut registry = Registry::load(&image)?;
             let saved = registry
@@ -439,10 +448,10 @@ impl DeviceJournal {
             saved.complete(&manifest, &leaves)?;
             registry.store(&mut image)?;
             run.check()?;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         run.check()?;
-        let image = self.image()?;
+        let image = self.image().await?;
         self.publication_admit(&image, &request, clock()?)?;
         let mut registry = Registry::load(&image)?;
         let saved = registry
@@ -454,9 +463,10 @@ impl DeviceJournal {
         let public = public_artifact(request.id, &saved, &manifest, &requests)?;
         for id in request.plan.requests(request.id)? {
             run.check()?;
-            self.prekey_leaf(request.policy, request.device, id, clock()?)?;
+            self.prekey_leaf(request.policy, request.device, id, clock()?)
+                .await?;
         }
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         run.check()?;
         self.publication_admit(&image, &request, clock()?)?;
         request
@@ -535,12 +545,12 @@ impl DeviceJournal {
     }
     /// Retire a prepared public artifact after the host acknowledges its exact
     /// digest. This is local cache retirement, not remote revocation or key erasure.
-    pub fn retire_prekey_publication(
+    pub async fn retire_prekey_publication(
         &mut self,
         id: PrekeyPublicationId,
         artifact: [u8; 32],
     ) -> Result<PrekeyPublicationStatus, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let ordinal = id.check(&image.id)?;
         let mut registry = Registry::load(&image)?;
         if registry.status(ordinal)? == PrekeyPublicationStatus::Retired {
@@ -552,18 +562,18 @@ impl DeviceJournal {
         }
         registry.entries.remove(&ordinal);
         registry.store(&mut image)?;
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         Ok(PrekeyPublicationStatus::Retired)
     }
     /// Abandon one still-reserved original intent. Fresh unshared members retire
     /// atomically; reused keys and consumption tombstones remain unchanged.
-    pub fn abandon_prekey_publication(
+    pub async fn abandon_prekey_publication(
         &mut self,
         id: PrekeyPublicationId,
         intent: [u8; 32],
         policy: &VerifiedSessionPolicy,
     ) -> Result<PrekeyPublicationStatus, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let ordinal = id.check(&image.id)?;
         let mut registry = Registry::load(&image)?;
         if registry.status(ordinal)? == PrekeyPublicationStatus::Retired {
@@ -591,7 +601,7 @@ impl DeviceJournal {
             }
         }
         registry.store(&mut image)?;
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         Ok(PrekeyPublicationStatus::Retired)
     }
 }

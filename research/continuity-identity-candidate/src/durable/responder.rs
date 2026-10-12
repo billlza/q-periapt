@@ -75,12 +75,16 @@ pub(super) fn validate_record(
     Ok(())
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Reserve before authentication, seal the admitted contribution and exact
     /// KEM/signing plans before execution, and commit the immutable response before
     /// returning it. Executing recovery requires the original selected prekeys;
     /// after their authenticated contribution is pinned, they are not used again.
-    pub fn respond(
+    pub async fn respond(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
@@ -90,13 +94,13 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let id = self.admission(&context, initial, now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let new_operation = !image.records.contains_key(&id);
         rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&id) {
             record.check_request(&context, initial)?;
             if record.phase != DurableStatus::Executing {
-                return self.drive_response(image, id, context, signer, now);
+                return self.drive_response(image, id, context, signer, now).await;
             }
         }
         ResponsePlan::check_signer(&context, signer)?;
@@ -126,7 +130,7 @@ impl DeviceJournal {
                     payload: Zeroizing::new(initial.to_vec()),
                 },
             );
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         let recovery = self.response_recovery_key()?;
         let scope = scope(&image.id, &context.digest(), &id);
@@ -137,7 +141,7 @@ impl DeviceJournal {
                     error,
                     Error::Authentication | Error::Runtime(q_periapt_sdk::Error::InvalidKeyShare)
                 ) {
-                    self.reject_response(&mut image, id, initial)?;
+                    self.reject_response(&mut image, id, initial).await?;
                 }
                 return Err(DurableError::Protocol(error));
             }
@@ -145,13 +149,13 @@ impl DeviceJournal {
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.phase = DurableStatus::ResponseKemReserved;
         record.payload = plan.encode();
-        self.persist(&mut image)?;
-        self.drive_response(image, id, context, signer, now)
+        self.persist(&mut image).await?;
+        self.drive_response(image, id, context, signer, now).await
     }
     /// Continue a committed responder contribution with its original signing
     /// owner, without the original prekeys. Executing has no saved contribution
     /// yet and requires `respond` with the exact selected prekeys instead.
-    pub fn resume_response(
+    pub async fn resume_response(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
@@ -159,13 +163,13 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let id = self.admission(&context, initial, now)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         image
             .records
             .get(&id)
             .ok_or(DurableError::Absent)?
             .check_request(&context, initial)?;
-        self.drive_response(image, id, context, signer, now)
+        self.drive_response(image, id, context, signer, now).await
     }
     fn response_recovery_key(&self) -> Result<RecoveryKey, DurableError> {
         RecoveryKey::from_host_key(
@@ -178,7 +182,7 @@ impl DeviceJournal {
         )
         .map_err(|error| DurableError::Protocol(error.into()))
     }
-    fn reject_response(
+    async fn reject_response(
         &mut self,
         image: &mut Image,
         id: [u8; 32],
@@ -189,9 +193,9 @@ impl DeviceJournal {
         record.keys.clear();
         record.prekeys.clear();
         record.payload = Zeroizing::new(initial.to_vec());
-        self.persist(image)
+        self.persist(image).await
     }
-    fn drive_response(
+    async fn drive_response(
         &mut self,
         mut image: Image,
         id: [u8; 32],
@@ -202,7 +206,7 @@ impl DeviceJournal {
         rosters::authorize_context(&image, &context, now)?;
         let record = image.records.get(&id).ok_or(DurableError::Absent)?;
         if !is_plan(record.phase) {
-            return self.release_prepared(&mut image, id, context, now);
+            return self.release_prepared(&mut image, id, context, now).await;
         }
         ResponsePlan::check_signer(&context, signer)?;
         let scope = scope(&image.id, &context.digest(), &id);
@@ -223,19 +227,19 @@ impl DeviceJournal {
             context.check(now)?;
             plan = match plan.advance(&context, &scope, &recovery) {
                 Ok(plan) => plan,
-                Err(error) => return self.response_failure(&mut image, id, error),
+                Err(error) => return self.response_failure(&mut image, id, error).await,
             };
             #[cfg(all(test, unix))]
             tests::after_response_effect(response_staged::KEM_RESERVED, plan.public_effect()?);
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::ResponseSignatureReserved;
             record.payload = plan.encode();
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         context.check(now)?;
         let operation = match plan.complete(Arc::clone(&context), &scope, &recovery, signer) {
             Ok(operation) => operation,
-            Err(error) => return self.response_failure(&mut image, id, error),
+            Err(error) => return self.response_failure(&mut image, id, error).await,
         };
         #[cfg(all(test, unix))]
         tests::after_response_effect(
@@ -247,10 +251,10 @@ impl DeviceJournal {
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.phase = DurableStatus::Prepared;
         record.payload = private;
-        self.persist(&mut image)?;
-        self.release_prepared(&mut image, id, context, now)
+        self.persist(&mut image).await?;
+        self.release_prepared(&mut image, id, context, now).await
     }
-    fn response_failure(
+    async fn response_failure(
         &mut self,
         image: &mut Image,
         id: [u8; 32],
@@ -259,7 +263,7 @@ impl DeviceJournal {
         if error == Error::Runtime(q_periapt_sdk::Error::InvalidKeyShare) {
             let record = image.records.get(&id).ok_or(DurableError::Corrupt)?;
             let initial = initial_bytes(record.phase, &record.payload)?.to_vec();
-            self.reject_response(image, id, &initial)?;
+            self.reject_response(image, id, &initial).await?;
         } else if matches!(
             error,
             Error::Encoding

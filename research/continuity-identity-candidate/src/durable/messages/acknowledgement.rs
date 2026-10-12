@@ -113,18 +113,22 @@ impl Traffic {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Commit the application's consumption of an authenticated inbox delivery.
     /// This erases its retained plaintext and advances only the contiguous consumed
     /// prefix. External application effects must be durably deduplicated separately.
-    pub fn consume_message(
+    pub async fn consume_message(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         id: MessageId,
         now: u64,
     ) -> Result<u64, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let epoch = id.epoch()?;
         if state.traffic_mut(epoch)?.consume(id)? {
@@ -133,57 +137,60 @@ impl DeviceJournal {
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
                 .payload = state.encode();
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("consumed");
         }
         context.check_session_identity(now)?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(state.traffic(epoch)?.receive_floor)
     }
     /// Return a MAC of the currently committed contiguous application-consumed
     /// prefix. Recompute after loss/restart; no message key or nonce is consumed.
-    pub fn message_acknowledgement(
+    pub async fn message_acknowledgement(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         let wire = state.traffic(state.receive_epoch)?.acknowledgement()?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
     /// Recompute the exact epoch's committed consumption acknowledgement. Old
     /// ACKs retain authority only over that old epoch's outboxes.
-    pub fn message_acknowledgement_for_epoch(
+    pub async fn message_acknowledgement_for_epoch(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         epoch: u64,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         if epoch > state.receive_epoch {
             return Err(DurableError::Suspended);
         }
         let wire = state.traffic(epoch)?.acknowledgement()?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
     /// Verify the peer's cumulative application-consumption acknowledgement and
     /// atomically retire corresponding outboxes. Old acknowledgements cannot
     /// regress the floor; retired message IDs never become new send requests.
-    pub fn accept_message_acknowledgement(
+    pub async fn accept_message_acknowledgement(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         wire: &[u8],
         now: u64,
     ) -> Result<u64, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         let epoch = wire_epoch(wire)?;
         if epoch > state.send_epoch {
@@ -195,12 +202,13 @@ impl DeviceJournal {
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
                 .payload = state.encode();
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("acknowledged");
         }
         context.check_session_identity(now)?;
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(state.traffic(epoch)?.send_floor)
     }
 }

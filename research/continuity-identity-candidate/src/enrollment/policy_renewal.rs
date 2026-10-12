@@ -146,6 +146,10 @@ impl RetainedPolicyRenewal {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     /// Complete the original local policy-only transaction and return its same
     /// enrollment, signer and installation owners only after current admission.
@@ -155,16 +159,18 @@ impl DeviceEnrollment {
     /// prekey permission is granted. Required-witness renewal remains separate.
     /// Completion may persist even when current admission fails; reopen this
     /// enrollment and query the original operation after any error.
-    pub fn activate_policy_renewal(
+    pub async fn activate_policy_renewal(
         mut self,
         original_policy: &HistoricalSessionPolicy,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<EnrolledDevice, DurableError> {
-        let (_, mut service) = self.reconcile_policy_renewal_service(
-            original_policy,
-            Reconciliation::Current { policy, now },
-        )?;
+        let (_, mut service) = self
+            .reconcile_policy_renewal_service(
+                original_policy,
+                Reconciliation::Current { policy, now },
+            )
+            .await?;
         let image = self.image()?;
         if image.policy_pending.is_some() {
             return Err(DurableError::Suspended);
@@ -199,24 +205,30 @@ impl DeviceEnrollment {
                 .as_ref()
                 .and_then(LocalRenewal::policy_prior_credential_completion)
                 .ok_or(DurableError::Conflict)?;
-            journal.check_policy_credential_completion(&approval, &original, completed)?;
+            journal
+                .check_policy_credential_completion(&approval, &original, completed)
+                .await?;
         }
-        journal.inspect_local_policy_renewal(&LocalPolicyRenewalTarget {
-            approval: &approval,
-            original: &original,
-            current: &retained,
-            original_policy,
-        })?;
-        let current = journal.admit_continued_local_device(
-            &crate::installation::PolicyScope {
-                authority: &authority,
+        journal
+            .inspect_local_policy_renewal(&LocalPolicyRenewalTarget {
+                approval: &approval,
+                original: &original,
+                current: &retained,
                 original_policy,
-                original_device: &original,
-            },
-            &retained,
-            policy,
-            now,
-        )?;
+            })
+            .await?;
+        let current = journal
+            .admit_continued_local_device(
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy,
+                    original_device: &original,
+                },
+                &retained,
+                policy,
+                now,
+            )
+            .await?;
         let signer = self.signer(image.identity, false)?;
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
@@ -234,7 +246,7 @@ impl DeviceEnrollment {
     /// adopted policy-only authorization. Original bundle, role, transcript,
     /// journal and archive bindings remain mandatory. Current peer credentials
     /// must already be admitted; use the installation owner to renew peers first.
-    pub fn activate_policy_renewed_session(
+    pub async fn activate_policy_renewed_session(
         mut self,
         request: crate::SessionReopenRequest,
         policy: std::sync::Arc<VerifiedSessionPolicy>,
@@ -246,10 +258,11 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        let mut active =
-            self.activate_policy_renewal(request.context.original_policy(), &policy, now)?;
+        let mut active = self
+            .activate_policy_renewal(request.context.original_policy(), &policy, now)
+            .await?;
         let (service, _, current) = active.parts()?;
-        let peer = service.reopen_continued_peer(request, policy, now)?;
+        let peer = service.reopen_continued_peer(request, policy, now).await?;
         if peer
             .context()
             .session_device(peer.role())
@@ -264,18 +277,19 @@ impl DeviceEnrollment {
     /// original journal. An absent commit requires current C/R/Pnext/runtime;
     /// an exact existing commit can finish after expiry. Completion grants no
     /// operational owner. Required-witness policy-only coordination is separate.
-    pub fn reconcile_policy_renewal(
+    pub async fn reconcile_policy_renewal(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<PolicyRenewalStatus, DurableError> {
         self.coordinate_policy_renewal(original_policy, Reconciliation::Current { policy, now })
+            .await
     }
     /// Finish only the caller's exact already-committed policy-only operation.
     /// No live runtime, private signer or unexpired policy is needed for this
     /// historical acknowledgement. An absent commit remains Pending/Suspended.
-    pub fn recover_historical_policy_renewal(
+    pub async fn recover_historical_policy_renewal(
         &mut self,
         operation: PolicyRenewalId,
         statement: [u8; 32],
@@ -288,175 +302,193 @@ impl DeviceEnrollment {
                 statement,
             },
         )
+        .await
     }
-    fn coordinate_policy_renewal(
+    async fn coordinate_policy_renewal(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         mode: Reconciliation<'_>,
     ) -> Result<PolicyRenewalStatus, DurableError> {
-        let (status, mut service) = self.reconcile_policy_renewal_service(original_policy, mode)?;
+        let (status, mut service) = self
+            .reconcile_policy_renewal_service(original_policy, mode)
+            .await?;
         service.close();
         Ok(status)
     }
-    fn reconcile_policy_renewal_service(
+    async fn reconcile_policy_renewal_service(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         mode: Reconciliation<'_>,
     ) -> Result<(PolicyRenewalStatus, DeviceService), DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            if let Reconciliation::Current { now, .. } = mode {
-                image.check_time_floor(now)?;
-            }
-            if image.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
-                && image.policy_pending.is_none()
-                && matches!(
-                    image.phase,
-                    Phase::Accepted {
-                        stage: AdmissionPhase::Active,
-                        ..
-                    }
-                )
-            {
-                if let Reconciliation::Current { policy, now } = mode {
-                    let (image, service) = self.reconcile_local_renewal(
-                        image,
-                        original_policy,
-                        super::renewal::LocalRenewalPolicy::Current(policy),
-                        now,
-                        None,
-                    )?;
-                    return Ok((
-                        image
-                            .policy_completed
-                            .as_ref()
-                            .ok_or(DurableError::Conflict)?
-                            .committed_status(),
-                        service,
-                    ));
-                }
-                if image
-                    .renewal
-                    .as_ref()
-                    .is_some_and(LocalRenewal::has_pending_credential)
-                {
-                    return Err(DurableError::Suspended);
-                }
-            }
-            let retained = image
-                .policy_pending
-                .as_ref()
-                .or(image.policy_completed.as_ref())
-                .ok_or(DurableError::Conflict)?;
-            let approval = self.authenticated_policy_record(retained)?;
-            if let Reconciliation::Historical {
-                operation,
-                statement,
-            } = mode
-            {
-                if operation != approval.scope().operation
-                    || statement != approval.statement_digest()
-                {
-                    return Err(DurableError::Conflict);
-                }
-            }
-            if original_policy.anchor_requirement().binding().is_some() {
-                return Err(DurableError::AnchorRequired);
-            }
-            let Phase::Accepted {
-                admission,
-                stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
-                ..
-            } = &image.phase
-            else {
-                return Err(DurableError::Suspended);
-            };
-            if admission.policy != original_policy.checkpoint().digest() {
-                return Err(DurableError::Conflict);
-            }
-            let original = self.original_device_metadata(&image)?;
-            let current = self.historical_device_metadata(
-                &admission.certificate,
-                &admission.roster,
-                admission.checkpoint,
-            )?;
-            let target = LocalPolicyRenewalTarget {
-                approval: &approval,
-                original: &original,
-                current: &current,
-                original_policy,
-            };
-            let authority = crate::RetainedInstallationAuthority::active_installation(
-                &original,
-                original_policy,
-            );
-            let mut service = self.reconcile_installation(&original, original_policy, None)?;
-            let journal = service.stores()?.0;
-            if journal.identity()? != admission.journal {
-                return Err(DurableError::Conflict);
-            }
-            self.reconcile_policy_roster(&mut image, journal, &target, &authority, &mode)?;
-            let previous = image
-                .policy_completed
-                .as_ref()
-                .map(|c| {
-                    self.authenticated_policy_record(c)
-                        .map(|a| LocalPolicyRenewalCommit::for_approval(&a))
-                })
-                .transpose()?;
-            let receipt = match mode {
-                Reconciliation::Historical { .. } => {
-                    journal.inspect_local_policy_renewal(&target)?
-                }
-                Reconciliation::Current { policy, now } => {
-                    if image.policy_pending.is_some() {
-                        if let Some(completed) = image
-                            .renewal
-                            .as_ref()
-                            .and_then(LocalRenewal::policy_prior_credential_completion)
-                        {
-                            journal.acknowledge_local_credential_renewal(&authority, completed)?;
-                        }
-                    }
-                    journal.commit_local_policy_renewal(&target, policy, now, previous.as_ref())?
-                }
-            };
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("policy-only-journal");
-            if receipt != LocalPolicyRenewalCommit::for_approval(&approval) {
-                return Err(DurableError::Conflict);
-            }
-            if let Some(pending) = image.policy_pending.take() {
-                image.policy_completed = Some(pending);
-                image.policy_device_binding = PolicyDeviceBinding::Exact;
-                if let Some(resolution) = &mut image.policy_resolution {
-                    resolution.clear_abandoned();
-                }
-                self.save(&image)?;
-            }
-            let readback = self.image()?;
-            let completed = readback
-                .policy_completed
-                .as_ref()
-                .ok_or(DurableError::Corrupt)?;
-            if readback.policy_pending.is_some()
-                || self.authenticated_policy_record(completed)?.journal_bytes()
-                    != approval.journal_bytes()
-            {
-                return Err(DurableError::Conflict);
-            }
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("policy-only-completion");
-            journal.acknowledge_local_policy_renewal(&authority, &receipt)?;
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("policy-only-acknowledgement");
-            Ok((completed.committed_status(), service))
-        })();
+        let result = self
+            .reconcile_policy_renewal_service_attempt(original_policy, mode)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn reconcile_policy_renewal_service_attempt(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+        mode: Reconciliation<'_>,
+    ) -> Result<(PolicyRenewalStatus, DeviceService), DurableError> {
+        let mut image = self.image()?;
+        if let Reconciliation::Current { now, .. } = mode {
+            image.check_time_floor(now)?;
+        }
+        if image.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
+            && image.policy_pending.is_none()
+            && matches!(
+                image.phase,
+                Phase::Accepted {
+                    stage: AdmissionPhase::Active,
+                    ..
+                }
+            )
+        {
+            if let Reconciliation::Current { policy, now } = mode {
+                let (image, service) = self
+                    .reconcile_local_renewal(
+                        image,
+                        original_policy,
+                        super::renewal::LocalRenewalPolicy::Current(policy),
+                        now,
+                        None,
+                    )
+                    .await?;
+                return Ok((
+                    image
+                        .policy_completed
+                        .as_ref()
+                        .ok_or(DurableError::Conflict)?
+                        .committed_status(),
+                    service,
+                ));
+            }
+            if image
+                .renewal
+                .as_ref()
+                .is_some_and(LocalRenewal::has_pending_credential)
+            {
+                return Err(DurableError::Suspended);
+            }
+        }
+        let retained = image
+            .policy_pending
+            .as_ref()
+            .or(image.policy_completed.as_ref())
+            .ok_or(DurableError::Conflict)?;
+        let approval = self.authenticated_policy_record(retained)?;
+        if let Reconciliation::Historical {
+            operation,
+            statement,
+        } = mode
+        {
+            if operation != approval.scope().operation || statement != approval.statement_digest() {
+                return Err(DurableError::Conflict);
+            }
+        }
+        if original_policy.anchor_requirement().binding().is_some() {
+            return Err(DurableError::AnchorRequired);
+        }
+        let Phase::Accepted {
+            admission,
+            stage: AdmissionPhase::Active | AdmissionPhase::Refreshing { .. },
+            ..
+        } = &image.phase
+        else {
+            return Err(DurableError::Suspended);
+        };
+        if admission.policy != original_policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        let original = self.original_device_metadata(&image)?;
+        let current = self.historical_device_metadata(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+        )?;
+        let target = LocalPolicyRenewalTarget {
+            approval: &approval,
+            original: &original,
+            current: &current,
+            original_policy,
+        };
+        let authority =
+            crate::RetainedInstallationAuthority::active_installation(&original, original_policy);
+        let mut service = self
+            .reconcile_installation(&original, original_policy, None)
+            .await?;
+        let journal = service.stores()?.0;
+        if journal.identity()? != admission.journal {
+            return Err(DurableError::Conflict);
+        }
+        self.reconcile_policy_roster(&mut image, journal, &target, &authority, &mode)
+            .await?;
+        let previous = image
+            .policy_completed
+            .as_ref()
+            .map(|c| {
+                self.authenticated_policy_record(c)
+                    .map(|a| LocalPolicyRenewalCommit::for_approval(&a))
+            })
+            .transpose()?;
+        let receipt = match mode {
+            Reconciliation::Historical { .. } => {
+                journal.inspect_local_policy_renewal(&target).await?
+            }
+            Reconciliation::Current { policy, now } => {
+                if image.policy_pending.is_some() {
+                    if let Some(completed) = image
+                        .renewal
+                        .as_ref()
+                        .and_then(LocalRenewal::policy_prior_credential_completion)
+                    {
+                        journal
+                            .acknowledge_local_credential_renewal(&authority, completed)
+                            .await?;
+                    }
+                }
+                journal
+                    .commit_local_policy_renewal(&target, policy, now, previous.as_ref())
+                    .await?
+            }
+        };
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("policy-only-journal");
+        if receipt != LocalPolicyRenewalCommit::for_approval(&approval) {
+            return Err(DurableError::Conflict);
+        }
+        if let Some(pending) = image.policy_pending.take() {
+            image.policy_completed = Some(pending);
+            image.policy_device_binding = PolicyDeviceBinding::Exact;
+            if let Some(resolution) = &mut image.policy_resolution {
+                resolution.clear_abandoned();
+            }
+            self.save(&image)?;
+        }
+        let readback = self.image()?;
+        let completed = readback
+            .policy_completed
+            .as_ref()
+            .ok_or(DurableError::Corrupt)?;
+        if readback.policy_pending.is_some()
+            || self.authenticated_policy_record(completed)?.journal_bytes()
+                != approval.journal_bytes()
+        {
+            return Err(DurableError::Conflict);
+        }
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("policy-only-completion");
+        journal
+            .acknowledge_local_policy_renewal(&authority, &receipt)
+            .await?;
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("policy-only-acknowledgement");
+        Ok((completed.committed_status(), service))
+    }
+
     fn check_policy_predecessor(
         &self,
         image: &Image,

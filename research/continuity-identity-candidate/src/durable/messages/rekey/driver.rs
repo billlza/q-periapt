@@ -48,6 +48,10 @@ enum Work {
     Request,
     Receive(Vec<u8>),
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     #[cfg(feature = "control-tls")]
     pub(crate) fn start_control_delivery(
@@ -118,7 +122,7 @@ impl DeviceJournal {
     /// one bounded output. The host bounds transport retries and deadlines; it
     /// keeps servicing incoming control after local completion. Cancellation stops
     /// dispatch, never resets a pending target, and recovery uses this same target.
-    pub fn advance_rekey_control(
+    pub async fn advance_rekey_control(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -126,13 +130,14 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<RekeyControlStep, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         crate::codec::generation(target)?;
         if target == state.control.epoch {
             let last = state.control.last.as_ref().ok_or(Error::State)?;
             self.check_completed(context, last)?;
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(RekeyControlStep::LocallyConfirmed(target));
         }
         if target != state.control.target()? {
@@ -151,16 +156,25 @@ impl DeviceJournal {
             None => Work::Request,
         };
         match work {
-            Work::Offer => output(self.prepare_rekey_offer(context, session, signer, now)?),
-            Work::Request => output(self.prepare_rekey_request(context, session, signer, now)?),
-            Work::Receive(wire) => self.receive_rekey_control(context, session, &wire, signer, now),
+            Work::Offer => output(
+                self.prepare_rekey_offer(context, session, signer, now)
+                    .await?,
+            ),
+            Work::Request => output(
+                self.prepare_rekey_request(context, session, signer, now)
+                    .await?,
+            ),
+            Work::Receive(wire) => {
+                self.receive_rekey_control(context, session, &wire, signer, now)
+                    .await
+            }
         }
     }
 
     /// Authenticate and process one independent control input using the existing
     /// exact-flight transactions. Unknown tags, invalid signatures and stale
     /// authority fail explicitly; an accepted receipt produces no extra flight.
-    pub fn receive_rekey_control(
+    pub async fn receive_rekey_control(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -171,16 +185,29 @@ impl DeviceJournal {
         let (body, _) = open_envelope(wire)?;
         let tag = body.get(..8).ok_or(Error::Encoding)?;
         if tag == request::TAG {
-            output(self.respond_rekey_request(context, session, wire, signer, now)?)
+            output(
+                self.respond_rekey_request(context, session, wire, signer, now)
+                    .await?,
+            )
         } else if tag == TAG {
-            output(self.respond_rekey_offer(context, session, wire, signer, now)?)
+            output(
+                self.respond_rekey_offer(context, session, wire, signer, now)
+                    .await?,
+            )
         } else if tag == response::TAG {
-            output(self.accept_rekey_response(context, session, wire, signer, now)?)
+            output(
+                self.accept_rekey_response(context, session, wire, signer, now)
+                    .await?,
+            )
         } else if tag == completion::FINAL_TAG {
-            output(self.finish_rekey(context, session, wire, signer, now)?)
+            output(
+                self.finish_rekey(context, session, wire, signer, now)
+                    .await?,
+            )
         } else if tag == completion::RECEIPT_TAG {
             Ok(RekeyControlStep::LocallyConfirmed(
-                self.accept_rekey_receipt(context, session, wire, now)?,
+                self.accept_rekey_receipt(context, session, wire, now)
+                    .await?,
             ))
         } else {
             Err(Error::Encoding.into())

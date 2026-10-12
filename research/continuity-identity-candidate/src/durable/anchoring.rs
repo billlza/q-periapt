@@ -85,6 +85,10 @@ pub(super) fn cleanup_signer_binding(key: &crate::PublicKey) -> [u8; 32] {
         &key.encode(),
     )
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Active {
     // Only an authenticated local archive may supply this original signer binding.
     // This attaches the unchanged witness subject, not renewed session authority.
@@ -148,7 +152,7 @@ impl Active {
         self.anchor = Some(AttachedAnchor { client, subject });
         Ok(())
     }
-    pub(super) fn check_current(&mut self, image: &Image) -> Result<(), DurableError> {
+    pub(super) async fn check_current(&mut self, image: &Image) -> Result<(), DurableError> {
         if self.protection == Protection::Local {
             return Ok(());
         }
@@ -156,13 +160,14 @@ impl Active {
         let anchor = self.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
         let reply = anchor
             .client
-            .exchange(anchor.subject, AnchorOperation::query())?;
+            .exchange(anchor.subject, AnchorOperation::query())
+            .await?;
         if reply.outcome() != AnchorOutcome::Current || reply.observed_head() != expected {
             return Err(AnchorClientError::Conflict.into());
         }
         Ok(())
     }
-    pub(super) fn advance_anchor(
+    pub(super) async fn advance_anchor(
         &mut self,
         revision: u64,
         digest: [u8; 32],
@@ -178,7 +183,7 @@ impl Active {
         )?;
         let operation = AnchorOperation::advance(expected, next_digest)?;
         let anchor = self.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
-        let reply = anchor.client.exchange(anchor.subject, operation)?;
+        let reply = anchor.client.exchange(anchor.subject, operation).await?;
         // Verification already binds the complete request and exact command ID.
         if !matches!(
             reply.outcome(),
@@ -191,64 +196,76 @@ impl Active {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // Fresh G/T or independent-P admission is an operational release fence. Historical queries,
     // terminal reconciliation and metadata cleanup deliberately keep check_release.
-    pub(super) fn check_operational_release(
+    pub(super) async fn check_operational_release(
         &mut self,
         image: &Image,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<(), DurableError> {
-        let result = (|| {
-            self.active
-                .as_ref()
-                .ok_or(DurableError::Closed)?
-                .check_account_authority(image)?;
-            let Some((operation, current)) =
-                rosters::continued_witness_admission(image, policy, now)?
-            else {
-                return self.check_release(image);
-            };
-            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            let expected = active.protection.head(image.revision, image.digest)?;
-            let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
-            let reply = anchor.client.exchange(anchor.subject, operation)?;
-            if reply.observed_head() != expected {
-                return Err(AnchorClientError::Conflict.into());
-            }
-            match reply.outcome() {
-                AnchorOutcome::AuthorityCurrent => {}
-                AnchorOutcome::AuthorityDenied => {
-                    return Err(AnchorClientError::AuthorityDenied.into())
-                }
-                _ => return Err(Error::State.into()),
-            }
-            policy.check_device(&current, now)?;
-            crate::installation::admit_policy(policy, now)?;
-            self.active
-                .as_ref()
-                .ok_or(DurableError::Closed)?
-                .check_account_authority(image)?;
-            Ok(())
-        })();
+        let result = self
+            .check_operational_release_attempt(image, policy, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
-    pub(super) fn check_release(&mut self, image: &Image) -> Result<(), DurableError> {
-        let result = (|| {
-            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            active.check_account_authority(image)?;
-            active.check_current(image)?;
-            active.check_account_authority(image)
-        })();
+    async fn check_operational_release_attempt(
+        &mut self,
+        image: &Image,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        self.active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .check_account_authority(image)?;
+        let Some((operation, current)) = rosters::continued_witness_admission(image, policy, now)?
+        else {
+            return self.check_release(image).await;
+        };
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+        let expected = active.protection.head(image.revision, image.digest)?;
+        let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
+        let reply = anchor.client.exchange(anchor.subject, operation).await?;
+        if reply.observed_head() != expected {
+            return Err(AnchorClientError::Conflict.into());
+        }
+        match reply.outcome() {
+            AnchorOutcome::AuthorityCurrent => {}
+            AnchorOutcome::AuthorityDenied => return Err(AnchorClientError::AuthorityDenied.into()),
+            _ => return Err(Error::State.into()),
+        }
+        policy.check_device(&current, now)?;
+        crate::installation::admit_policy(policy, now)?;
+        self.active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .check_account_authority(image)?;
+        Ok(())
+    }
+
+    pub(super) async fn check_release(&mut self, image: &Image) -> Result<(), DurableError> {
+        let result = self.check_release_attempt(image).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn check_release_attempt(&mut self, image: &Image) -> Result<(), DurableError> {
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+        active.check_account_authority(image)?;
+        active.check_current(image).await?;
+        active.check_account_authority(image)
+    }
+
     pub(super) fn check_policy(
         &self,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
@@ -346,84 +363,103 @@ impl DeviceJournal {
     }
     /// Activate only the exact enrolled genesis using a fresh authenticated query.
     /// Enrollment and signer provisioning remain explicit independent actions.
-    pub fn activate_anchor(
+    pub async fn activate_anchor(
         &mut self,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         client: AnchorClient,
     ) -> Result<(), DurableError> {
-        let result = (|| {
-            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            let image = load(&active.db, &active.key, active.owner)?;
-            if image.id != active.id
-                || image.protection != active.protection
-                || image.revision != 1
-                || !rosters::is_genesis(&image, device)?
-                || active.anchor.is_some()
-            {
-                return Err(DurableError::Conflict);
-            }
-            active.attach(device, policy, client)?;
-            active.check_current(&image)
-        })();
+        let result = self.activate_anchor_attempt(device, policy, client).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn activate_anchor_attempt(
+        &mut self,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        client: AnchorClient,
+    ) -> Result<(), DurableError> {
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+        let image = load(&active.db, &active.key, active.owner)?;
+        if image.id != active.id
+            || image.protection != active.protection
+            || image.revision != 1
+            || !rosters::is_genesis(&image, device)?
+            || active.anchor.is_some()
+        {
+            return Err(DurableError::Conflict);
+        }
+        active.attach(device, policy, client)?;
+        active.check_current(&image).await
+    }
+
     // Enrollment release requires more than a head query: an exact signed
     // observation that the witness has independently adopted this current roster.
     // Cleanup and historical intent reconciliation retain their separate queries.
-    pub(crate) fn check_enrollment_authority(
+    pub(crate) async fn check_enrollment_authority(
         &mut self,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<(), DurableError> {
-        let result = (|| {
-            self.check_policy(policy)?;
-            policy.check_device(device, now)?;
-            let image = self.image()?;
-            rosters::authorize_device(&image, device, now)?;
-            if rosters::current(&image, &device.account_id())?.checkpoint()
-                != device.roster().checkpoint()
-            {
-                return Err(DurableError::Conflict);
-            }
-            let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-            if active.protection != Protection::Local {
-                let expected = active.protection.head(image.revision, image.digest)?;
-                let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
-                let reply = anchor.client.exchange(
-                    anchor.subject,
-                    AnchorOperation::admit_authority(device.authority_binding())?,
-                )?;
-                if reply.observed_head() != expected {
-                    return Err(AnchorClientError::Conflict.into());
-                }
-                match reply.outcome() {
-                    AnchorOutcome::AuthorityCurrent => {}
-                    AnchorOutcome::AuthorityDenied => {
-                        return Err(AnchorClientError::AuthorityDenied.into())
-                    }
-                    _ => return Err(Error::State.into()),
-                }
-            }
-            policy.check_device(device, now)?;
-            self.active
-                .as_ref()
-                .ok_or(DurableError::Closed)?
-                .check_account_authority(&image)?;
-            Ok(())
-        })();
+        let result = self
+            .check_enrollment_authority_attempt(device, policy, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn check_enrollment_authority_attempt(
+        &mut self,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(), DurableError> {
+        self.check_policy(policy)?;
+        policy.check_device(device, now)?;
+        let image = self.image().await?;
+        rosters::authorize_device(&image, device, now)?;
+        if rosters::current(&image, &device.account_id())?.checkpoint()
+            != device.roster().checkpoint()
+        {
+            return Err(DurableError::Conflict);
+        }
+        let active = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if active.protection != Protection::Local {
+            let expected = active.protection.head(image.revision, image.digest)?;
+            let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
+            let reply = anchor
+                .client
+                .exchange(
+                    anchor.subject,
+                    AnchorOperation::admit_authority(device.authority_binding())?,
+                )
+                .await?;
+            if reply.observed_head() != expected {
+                return Err(AnchorClientError::Conflict.into());
+            }
+            match reply.outcome() {
+                AnchorOutcome::AuthorityCurrent => {}
+                AnchorOutcome::AuthorityDenied => {
+                    return Err(AnchorClientError::AuthorityDenied.into())
+                }
+                _ => return Err(Error::State.into()),
+            }
+        }
+        policy.check_device(device, now)?;
+        self.active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .check_account_authority(&image)?;
+        Ok(())
+    }
+
     /// Reconcile only the saved command against the independently pinned witness.
     /// A different head or writer fence never authorizes local recovery or output.
-    pub fn open_anchored(
+    pub async fn open_anchored(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -432,8 +468,9 @@ impl DeviceJournal {
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
         Self::open_anchored_retained(path, key, device, policy.historical(), expected_id, client)
+            .await
     }
-    pub(crate) fn open_anchored_retained(
+    pub(crate) async fn open_anchored_retained(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -450,8 +487,9 @@ impl DeviceJournal {
             client,
             AccountAuthorityOpen::Existing(None),
         )
+        .await
     }
-    pub(crate) fn open_anchored_admitted(
+    pub(crate) async fn open_anchored_admitted(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -461,6 +499,30 @@ impl DeviceJournal {
         admission: AccountAuthorityOpen,
     ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
+        Self::open_anchored_database_admitted(
+            db,
+            key,
+            device,
+            policy,
+            expected_id,
+            client,
+            admission,
+        )
+        .await
+    }
+    // Platform admission must already own this database. The shared recovery
+    // authenticates the original image/intent before any witness reconciliation.
+    // Keep the seam private: arbitrary public StorageBackend injection would
+    // bypass the platform's durability and exclusive-owner requirements.
+    pub(crate) async fn open_anchored_database_admitted(
+        db: Database,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        expected_id: JournalIdentity,
+        client: AnchorClient,
+        admission: AccountAuthorityOpen,
+    ) -> Result<Self, DurableError> {
         let owner = bootstrap::storage_owner(device);
         let (image, pending) = write_intent::load_snapshot(&db, &key, owner)?;
         if image.id != expected_id.0 || image.local_account != device.account_id() {
@@ -479,10 +541,10 @@ impl DeviceJournal {
         };
         active.attach(device, policy, client)?;
         if let Some(pending) = pending {
-            write_intent::reconcile(&mut active, &pending)?;
+            write_intent::reconcile(&mut active, &pending).await?;
         }
         let current = load(&active.db, &active.key, owner)?;
-        active.check_current(&current)?;
+        active.check_current(&current).await?;
         active.check_account_authority(&current)?;
         Ok(Self {
             active: Some(active),

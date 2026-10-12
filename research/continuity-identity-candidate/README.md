@@ -14,8 +14,16 @@ browser journal/installation owners or witness and peer transports.
 The following [OPFS journal recovery checkpoint](../sdk-alpha1/evidence/20261012-browser-journal-recovery/README.md)
 uses the original encrypted journal and write-intent recovery in a dedicated
 Worker, including failure cuts and native recovery of the same pending file.
-It remains isolated qualification of local journal semantics; browser key,
-installation and asynchronous witness owners still require integration.
+That checkpoint qualifies local journal semantics. The subsequent
+[asynchronous witness/journal checkpoint](../sdk-alpha1/evidence/20261012-browser-witness-journal/README.md)
+uses real browser Fetch, OPFS and a separate durable native witness, preserving
+the original intent after missing replies, cancellation and Worker termination.
+Shared witness calls are asynchronous on `wasm32-unknown-unknown`; pinned
+`maybe-async` removes async/await for the native synchronous API. Named operation
+helpers preserve error-cleanup boundaries in both forms. A polled exchange owns
+its signer until a timely verified reply; failure or future drop closes it.
+Browser installation/key provisioning and public transport/owner packaging
+remain integration work; the fixture adapter is not a product API.
 
 The consolidated [wire contract](../../docs/continuity/WIRE_V1.md) covers the exact
 current public record/carrier grammars, domains and verification boundaries.

@@ -480,7 +480,11 @@ fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
     tx.commit().map_err(DurableError::CommitUncertain)
 }
 
-pub(super) fn commit(
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+pub(super) async fn commit(
     active: &mut Active,
     image: &Image,
     target: &[u8],
@@ -489,21 +493,30 @@ pub(super) fn commit(
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     tests::after_intent(&pending, image);
-    reconcile(active, &pending)
+    reconcile(active, &pending).await
 }
 
-pub(super) fn reconcile(active: &mut Active, pending: &PendingWrite) -> Result<(), DurableError> {
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+pub(super) async fn reconcile(
+    active: &mut Active,
+    pending: &PendingWrite,
+) -> Result<(), DurableError> {
     if pending.binding.is_some() {
         return Err(DurableError::Suspended);
     }
     if pending.protection != active.protection {
         return Err(DurableError::Conflict);
     }
-    active.advance_anchor(
-        pending.expected_revision,
-        pending.expected_digest,
-        pending.next_digest,
-    )?;
+    active
+        .advance_anchor(
+            pending.expected_revision,
+            pending.expected_digest,
+            pending.next_digest,
+        )
+        .await?;
     apply(&active.db, pending)
 }
 
@@ -533,6 +546,10 @@ pub(super) fn reserve_credential_renewal(
     readback.credential_proposal(&current)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Read original authenticated preparation metadata without applying its
     /// target, dispatching to a witness, or claiming current authority. `None`
@@ -577,7 +594,7 @@ impl DeviceJournal {
     /// proposal, erases local intent, or releases an operational journal owner.
     /// Unavailable is an unresolved witness observation, never NoCommit. Original
     /// enrollment must durably retain the terminal before later acknowledgement.
-    pub fn recover_credential_renewal(
+    pub async fn recover_credential_renewal(
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
@@ -588,11 +605,15 @@ impl DeviceJournal {
     ) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
         let policy = policy.as_ref();
         let db = open_private_database(path)?;
-        recover_credential_renewal(&db, &key, original, policy, expected_id, proposal, client)
+        recover_credential_renewal(&db, &key, original, policy, expected_id, proposal, client).await
     }
 }
 
-pub(super) fn recover_credential_renewal(
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+pub(super) async fn recover_credential_renewal(
     db: &Database,
     key: &JournalKey,
     original: &crate::VerifiedDevice,
@@ -610,9 +631,14 @@ pub(super) fn recover_credential_renewal(
         WitnessedCredentialIntent::Proposal(proposal),
         client,
     )
+    .await
 }
 
-pub(super) fn recover_witnessed_credential_intent(
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+pub(super) async fn recover_witnessed_credential_intent(
     db: &Database,
     key: &JournalKey,
     original: &crate::VerifiedDevice,
@@ -645,7 +671,9 @@ pub(super) fn recover_witnessed_credential_intent(
     {
         return Err(Error::Scope.into());
     }
-    let reply = client.exchange(proposal.subject(), proposal.status_operation())?;
+    let reply = client
+        .exchange(proposal.subject(), proposal.status_operation())
+        .await?;
     let observed = proposal.interpret(&reply)?;
     match observed {
         State::Applied => {
@@ -673,10 +701,14 @@ pub(super) fn recover_witnessed_credential_intent(
     Ok(observed)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // Original enrollment calls this only after authenticated terminal readback.
     // Terminal metadata is historical and never supplies current authority.
-    pub(crate) fn retire_witnessed_credential_intent(
+    pub(crate) async fn retire_witnessed_credential_intent(
         path: &Path,
         key: JournalKey,
         original: &crate::VerifiedDevice,
@@ -696,8 +728,9 @@ impl DeviceJournal {
             terminal,
             client,
         )
+        .await
     }
-    pub(crate) fn retire_witnessed_credential_intent_in_database(
+    pub(crate) async fn retire_witnessed_credential_intent_in_database(
         db: &Database,
         key: &JournalKey,
         original: &crate::VerifiedDevice,
@@ -743,7 +776,9 @@ impl DeviceJournal {
         {
             return Err(Error::Scope.into());
         }
-        let reply = client.exchange(proposal.subject(), proposal.acknowledge_operation())?;
+        let reply = client
+            .exchange(proposal.subject(), proposal.acknowledge_operation())
+            .await?;
         match proposal.interpret(&reply)? {
             State::Acknowledged | State::Unavailable => {}
             _ => return Err(DurableError::Conflict),

@@ -365,39 +365,43 @@ pub(super) fn metadata(
         values,
     })
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Permanently cancel an existing initiation, including after policy close.
     /// Established message sessions require their separate closure protocol.
-    pub fn cancel_initiation(
+    pub async fn cancel_initiation(
         &mut self,
         context: &BootstrapContext,
         request: InitiationId,
     ) -> Result<BootstrapCancellation, DurableError> {
         let op = self.initiation_query(context, request)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         initiator::check_request(
             image.records.get(&op).ok_or(DurableError::Absent)?,
             context,
             request,
         )?;
-        self.cancel_bootstrap(image, op, context.digest())
+        self.cancel_bootstrap(image, op, context.digest()).await
     }
     /// Permanently cancel an existing response without refunding one-time claims.
-    pub fn cancel_response(
+    pub async fn cancel_response(
         &mut self,
         context: &BootstrapContext,
         initial: &[u8],
     ) -> Result<BootstrapCancellation, DurableError> {
         let op = self.query_id(context, initial)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         image
             .records
             .get(&op)
             .ok_or(DurableError::Absent)?
             .check_request(context, initial)?;
-        self.cancel_bootstrap(image, op, context.digest())
+        self.cancel_bootstrap(image, op, context.digest()).await
     }
-    fn cancel_bootstrap(
+    async fn cancel_bootstrap(
         &mut self,
         mut image: Image,
         op: [u8; 32],
@@ -430,7 +434,7 @@ impl DeviceJournal {
         r.payload = Zeroizing::new(public);
         r.phase = DurableStatus::BootstrapCancelled;
         r.cancellation = Some(m);
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         report(&image, op)
     }
 }
@@ -441,26 +445,30 @@ impl DeviceJournal {
 pub struct BootstrapCancellationJournal {
     journal: DeviceJournal,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl BootstrapCancellationJournal {
     /// Open local-only storage. Missing/corrupt/required-witness storage fails.
-    pub fn open(
+    pub async fn open(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, None)
+        Self::open_inner(path, key, expected, None).await
     }
     /// Reopen with the original pinned witness. The witness must authenticate the
     /// original enrolled signer; expiry/refusal never enables a local fallback.
-    pub fn open_anchored(
+    pub async fn open_anchored(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, Some(client))
+        Self::open_inner(path, key, expected, Some(client)).await
     }
-    fn open_inner(
+    async fn open_inner(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -488,10 +496,10 @@ impl BootstrapCancellationJournal {
             active.attach_retained_cleanup_subject(client)?;
         }
         if let Some(pending) = pending {
-            write_intent::reconcile(&mut active, &pending)?;
+            write_intent::reconcile(&mut active, &pending).await?;
         }
         let current = load(&active.db, &active.key, owner)?;
-        active.check_current(&current)?;
+        active.check_current(&current).await?;
         Ok(Self {
             journal: DeviceJournal {
                 active: Some(active),
@@ -499,8 +507,8 @@ impl BootstrapCancellationJournal {
         })
     }
     /// List only public bootstrap correlation and phase metadata.
-    pub fn entries(&mut self) -> Result<Vec<BootstrapEntry>, DurableError> {
-        let image = self.journal.image()?;
+    pub async fn entries(&mut self) -> Result<Vec<BootstrapEntry>, DurableError> {
+        let image = self.journal.image().await?;
         image
             .records
             .iter()
@@ -510,13 +518,15 @@ impl BootstrapCancellationJournal {
     }
     /// Cancel one exact retained context and operation, or return its exact receipt.
     /// A sealed prior activation may reconcile during open; it then requires session closure.
-    pub fn cancel(
+    pub async fn cancel(
         &mut self,
         context: [u8; 32],
         operation: BootstrapOperationId,
     ) -> Result<BootstrapCancellation, DurableError> {
-        let image = self.journal.image()?;
-        self.journal.cancel_bootstrap(image, operation.0, context)
+        let image = self.journal.image().await?;
+        self.journal
+            .cancel_bootstrap(image, operation.0, context)
+            .await
     }
     /// Drop the wrapping-key owner, database lease and witness client.
     pub fn close(&mut self) {

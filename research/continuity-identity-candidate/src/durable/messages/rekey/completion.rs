@@ -709,6 +709,10 @@ impl State {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     pub(super) fn check_completed(
         &mut self,
@@ -754,7 +758,7 @@ impl DeviceJournal {
     /// Validate the signed response and real decapsulation confirmation, then
     /// commit the signed final and new sending epoch atomically. Dispatch this
     /// final before new-epoch application traffic; receive cutover awaits receipt.
-    pub fn accept_rekey_response(
+    pub async fn accept_rekey_response(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -762,12 +766,13 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if let Some(last) = &state.control.last {
             if last.response == reply && state.role == proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(last.final_wire.clone());
             }
         }
@@ -781,7 +786,8 @@ impl DeviceJournal {
             }
             if let Step::FinalReady { wire } = &plan.step {
                 self.check_cached_wire(context, target, RekeyFlight::Final, wire)?;
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(wire.clone());
             }
         }
@@ -877,7 +883,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-final-reserved");
         }
@@ -923,16 +929,17 @@ impl DeviceJournal {
             response,
             step: Step::FinalReady { wire: wire.clone() },
         }));
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-final-committed");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
 
     /// Authenticate the final proposer proof, commit both new traffic directions
     /// and the signed completion receipt atomically, and return only that outbox.
-    pub fn finish_rekey(
+    pub async fn finish_rekey(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -940,12 +947,13 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if let Some(last) = &state.control.last {
             if last.final_wire == final_wire && state.role == 3 - proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(last.receipt.clone());
             }
         }
@@ -1013,7 +1021,7 @@ impl DeviceJournal {
                     signing,
                 },
             }));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-receipt-reserved");
         }
@@ -1076,28 +1084,30 @@ impl DeviceJournal {
             final_wire,
             receipt: wire.clone(),
         })?;
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-committed");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
 
     /// Authenticate the responder's completion receipt and atomically enable the
     /// new receiving epoch. Duplicate receipts cannot advance another epoch.
-    pub fn accept_rekey_receipt(
+    pub async fn accept_rekey_receipt(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         receipt: &[u8],
         now: u64,
     ) -> Result<u64, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if let Some(last) = &state.control.last {
             if last.receipt == receipt && state.role == proposer(state.control.epoch)? {
                 self.check_completed(context, last)?;
-                self.check_session_context_release(&image, context, now)?;
+                self.check_session_context_release(&image, context, now)
+                    .await?;
                 return Ok(state.control.epoch);
             }
         }
@@ -1138,20 +1148,21 @@ impl DeviceJournal {
             final_wire: wire,
             receipt: receipt.to_vec(),
         })?;
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-receipt-accepted");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(target)
     }
 
     /// Query authenticated local progress without granting output permission.
-    pub fn rekey_progress(
+    pub async fn rekey_progress(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyProgress, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(RekeyProgress {
             confirmed_epoch: state.control.epoch,
             sending_epoch: state.send_epoch,
@@ -1161,7 +1172,7 @@ impl DeviceJournal {
     }
     /// Release one exact committed control flight for the explicit target epoch,
     /// after current policy, roster and witness checks. Unsigned stages suspend.
-    pub fn rekey_outbox(
+    pub async fn rekey_outbox(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -1169,7 +1180,7 @@ impl DeviceJournal {
         flight: RekeyFlight,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         let wire = if epoch == state.control.epoch {
             state
@@ -1204,7 +1215,8 @@ impl DeviceJournal {
             self.close();
             return Err(DurableError::InvalidCheckpoint(error));
         }
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire.to_vec())
     }
 }

@@ -83,17 +83,21 @@ fn prefix(offer: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(body)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Commit the non-proposer's identity-authenticated request for this exact
     /// next epoch. It consumes no application slot and installs no key material.
-    pub fn prepare_rekey_request(
+    pub async fn prepare_rekey_request(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if state.role == proposer(state.control.target()?)? {
             return Err(Error::State.into());
@@ -106,7 +110,8 @@ impl DeviceJournal {
                 self.close();
                 return Err(DurableError::InvalidCheckpoint(error));
             }
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(wire.clone());
         }
         if signer.public_key()? != *key {
@@ -124,7 +129,7 @@ impl DeviceJournal {
                 Purpose::RekeyRequest,
                 &body,
             )?));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::super::tests::after_stage("rekey-request-reserved");
         }
@@ -144,16 +149,17 @@ impl DeviceJournal {
         #[cfg(all(test, unix))]
         after_effect("rekey-request-computed", &wire);
         state.control.request = Some(Plan::Ready(wire.clone()));
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::super::tests::after_stage("rekey-request-committed");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
 
     /// Authenticate before any local reservation, then prepare/replay the one
     /// designated offer. A retained completed target only replays its old offer.
-    pub fn respond_rekey_request(
+    pub async fn respond_rekey_request(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -161,7 +167,7 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         let (body, signature) = open_envelope(request)?;
         if body.len() != BODY_LEN || body.get(..8) != Some(TAG.as_slice()) {
@@ -192,18 +198,21 @@ impl DeviceJournal {
         if target == state.control.epoch
             || matches!(state.control.plan, Some(super::Plan::Completing(_)))
         {
-            return self.rekey_outbox(context, session, target, RekeyFlight::Offer, now);
+            return self
+                .rekey_outbox(context, session, target, RekeyFlight::Offer, now)
+                .await;
         }
         self.prepare_rekey_offer(context, session, signer, now)
+            .await
     }
 
     /// Inspect retained request state even after authority loss; grants no release.
-    pub fn rekey_request_status(
+    pub async fn rekey_request_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyRequestStatus, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(match state.control.request {
             None => RekeyRequestStatus::Absent,
             Some(Plan::Signing(_)) => RekeyRequestStatus::SignatureReserved,

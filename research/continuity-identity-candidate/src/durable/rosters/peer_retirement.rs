@@ -68,8 +68,12 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
     Ok(())
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
-    pub(crate) fn retire_peer_account(
+    pub(crate) async fn retire_peer_account(
         &mut self,
         scope: &crate::installation::PolicyScope<'_>,
         retirement: &crate::AnchorRetiredAccount,
@@ -81,7 +85,7 @@ impl DeviceJournal {
         if proposal.previous_account() == scope.local_identity().0 {
             return Err(DurableError::Conflict);
         }
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         peer_roster::authorize(&image, scope, policy, now)?;
         match image.protection {
             Protection::Required { witness, .. } if witness == proposal.witness_binding() => {}
@@ -96,17 +100,17 @@ impl DeviceJournal {
             None => {
                 saved.peer_retirement = Some(expected);
                 check_scope(&image, &saved)?;
-                self.check_operational_release(&image, policy, now)?;
+                self.check_operational_release(&image, policy, now).await?;
                 peer_roster::authorize(&image, scope, policy, now)?;
                 image
                     .records
                     .insert(id(&proposal.previous_account()), saved.record()?);
                 // The ordinary encrypted-image/witness-head transaction makes the
                 // peer floor part of this sender's rollback-protected journal.
-                self.persist(&mut image)?;
+                self.persist(&mut image).await?;
             }
         }
-        self.check_operational_release(&image, policy, now)?;
+        self.check_operational_release(&image, policy, now).await?;
         peer_roster::authorize(&image, scope, policy, now)?;
         Ok(())
     }

@@ -171,17 +171,21 @@ struct Selected<'a> {
     context: &'a BootstrapContext,
     local: &'a VerifiedDevice,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Read the next aggregate ID. Concurrent readers can see the same ID;
     /// only the first exact reservation wins, and different input conflicts.
-    pub fn next_fanout_id(&mut self) -> Result<FanoutId, DurableError> {
-        let image = self.image()?;
-        self.check_release(&image)?;
+    pub async fn next_fanout_id(&mut self) -> Result<FanoutId, DurableError> {
+        let image = self.image().await?;
+        self.check_release(&image).await?;
         Ok(FanoutId::at(&image.id, image.next_fanout)?)
     }
     /// Query local commit state without releasing bytes or granting authority.
-    pub fn fanout_status(&mut self, id: FanoutId) -> Result<FanoutStatus, DurableError> {
-        let image = self.image()?;
+    pub async fn fanout_status(&mut self, id: FanoutId) -> Result<FanoutStatus, DurableError> {
+        let image = self.image().await?;
         let ordinal = id.check(&image.id)?;
         if ordinal > image.next_fanout {
             return Err(DurableError::Conflict);
@@ -192,7 +196,7 @@ impl DeviceJournal {
             None => Ok(FanoutStatus::Retired),
         }
     }
-    fn select_fanout<'a>(
+    async fn select_fanout<'a>(
         &mut self,
         image: &Image,
         account: [u8; 32],
@@ -207,7 +211,10 @@ impl DeviceJournal {
         for target in targets {
             let state = match now {
                 Some(now) => self.message_state(image, target.context, &target.session, now)?,
-                None => self.message_state_for_status(target.context, target.session)?,
+                None => {
+                    self.message_state_for_status(target.context, target.session)
+                        .await?
+                }
             };
             let (local, peer) = match state.role {
                 1 => (
@@ -260,7 +267,7 @@ impl DeviceJournal {
         }
         Ok(selected)
     }
-    fn authorize_fanout(
+    async fn authorize_fanout(
         &mut self,
         image: &Image,
         account: [u8; 32],
@@ -289,7 +296,7 @@ impl DeviceJournal {
             .ok_or(DurableError::Capacity)?
             .context
             .current_policy()?;
-        self.check_operational_release(image, policy, now)?;
+        self.check_operational_release(image, policy, now).await?;
         for selected in selected {
             rosters::authorize_session_context(image, selected.context, now)?;
         }
@@ -299,7 +306,7 @@ impl DeviceJournal {
     /// Atomically reserve every required input, then atomically commit every
     /// chain/outbox before releasing any bytes. Cancellation stops dispatch; it
     /// cannot clear or replace an uncertain aggregate reservation.
-    pub fn send_account_message(
+    pub async fn send_account_message(
         &mut self,
         input: FanoutInput<'_>,
         now: u64,
@@ -307,7 +314,7 @@ impl DeviceJournal {
         if input.plaintext.len() > MAX_PLAINTEXT || input.associated_data.len() > MAX_AD {
             return Err(DurableError::Capacity);
         }
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let ordinal = input.id.check(&image.id)?;
         if let Some(record) = image.records.get(&batch_key(input.id)) {
             let batch = Batch::decode(&image, &batch_key(input.id), record)?;
@@ -317,7 +324,9 @@ impl DeviceJournal {
             {
                 return Err(DurableError::Conflict);
             }
-            return self.resume_account_message(input.id, input.targets, now);
+            return self
+                .resume_account_message(input.id, input.targets, now)
+                .await;
         }
         if ordinal < image.next_fanout {
             return Err(Error::Retired.into());
@@ -335,8 +344,12 @@ impl DeviceJournal {
         {
             return Err(DurableError::Capacity);
         }
-        let mut selected = self.select_fanout(&image, input.account, input.targets, Some(now))?;
-        let roster = self.authorize_fanout(&image, input.account, &selected, now)?;
+        let mut selected = self
+            .select_fanout(&image, input.account, input.targets, Some(now))
+            .await?;
+        let roster = self
+            .authorize_fanout(&image, input.account, &selected, now)
+            .await?;
         for item in &mut selected {
             if item.state.control.send_fenced() {
                 return Err(DurableError::Suspended);
@@ -388,29 +401,38 @@ impl DeviceJournal {
         image
             .records
             .insert(batch_key(input.id), batch.record(image.local_account));
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         #[cfg(all(test, unix))]
         tests::after_stage("fanout-reserved");
         self.resume_account_message(input.id, input.targets, now)
+            .await
     }
     /// Resume only the complete saved recipient set and exact reserved inputs.
     /// A changed installed roster suspends this aggregate instead of dropping or
     /// adding a recipient. Existing ordinary message/epoch accounting is retained.
-    pub fn resume_account_message(
+    pub async fn resume_account_message(
         &mut self,
         id: FanoutId,
         targets: &[FanoutTarget<'_>],
         now: u64,
     ) -> Result<Vec<FanoutMember>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut batch = codec::get(&image, id)?;
         batch.intent()?;
         if !batch.reserved() {
-            return self.replay_committed_fanout(&image, &batch, targets, now);
+            return self
+                .replay_committed_fanout(&image, &batch, targets, now)
+                .await;
         }
-        let mut selected = self.select_fanout(&image, batch.account, targets, Some(now))?;
+        let mut selected = self
+            .select_fanout(&image, batch.account, targets, Some(now))
+            .await?;
         batch.match_targets(&selected)?;
-        if self.authorize_fanout(&image, batch.account, &selected, now)? != batch.roster {
+        if self
+            .authorize_fanout(&image, batch.account, &selected, now)
+            .await?
+            != batch.roster
+        {
             return Err(Error::Checkpoint.into());
         }
         for (member, item) in batch.members.iter().zip(&mut selected) {
@@ -440,15 +462,16 @@ impl DeviceJournal {
         image
             .records
             .insert(batch_key(id), batch.record(image.local_account));
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         #[cfg(all(test, unix))]
         tests::after_stage("fanout-committed");
         self.replay_committed_fanout(&image, &batch, targets, now)
+            .await
     }
     // A settled member may have a terminal session record while another member
     // is still dispatchable. Retain the complete binding and current authority
     // checks without demanding an erased live ratchet from that terminal member.
-    fn replay_committed_fanout(
+    async fn replay_committed_fanout(
         &mut self,
         image: &Image,
         batch: &Batch,
@@ -525,7 +548,8 @@ impl DeviceJournal {
                 })
             })
             .collect::<Result<Vec<_>, DurableError>>()?;
-        self.check_operational_release(image, context.current_policy()?, now)?;
+        self.check_operational_release(image, context.current_policy()?, now)
+            .await?;
         // The carrier can close a retained runtime during the final query.
         // Recheck every member, including valid terminal members, without
         // requiring their retired live ratchets to exist again.
@@ -542,12 +566,12 @@ impl DeviceJournal {
     /// Retire aggregate metadata only when every member has separate authenticated
     /// acknowledgement or completed epoch accounting. The monotonic ID is never
     /// reused. A reserved aggregate cannot be abandoned through this method.
-    pub fn retire_fanout(
+    pub async fn retire_fanout(
         &mut self,
         id: FanoutId,
         targets: &[FanoutTarget<'_>],
     ) -> Result<(), DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let batch = codec::get(&image, id)?;
         if matches!(
             batch.state,
@@ -556,9 +580,9 @@ impl DeviceJournal {
             return Err(DurableError::Suspended);
         }
         self.check_fanout_bindings(&image, &batch, targets)?;
-        self.retire_fanout_cleanup(image, batch)
+        self.retire_fanout_cleanup(image, batch).await
     }
-    fn retire_fanout_cleanup(
+    async fn retire_fanout_cleanup(
         &mut self,
         mut image: Image,
         batch: Batch,
@@ -582,8 +606,8 @@ impl DeviceJournal {
             .records
             .remove(&batch_key(id))
             .ok_or(DurableError::Corrupt)?;
-        self.persist(&mut image)?;
-        self.check_release(&image)
+        self.persist(&mut image).await?;
+        self.check_release(&image).await
     }
 }
 

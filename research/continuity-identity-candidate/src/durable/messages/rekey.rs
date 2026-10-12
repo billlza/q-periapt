@@ -310,18 +310,22 @@ fn after_effect(stage: &str, public: &[u8]) {
     super::tests::after_stage(stage);
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Prepare and commit the exact identity-signed first rekey flight. This
     /// reserves randomness before computation and replays the same bytes after
     /// restart. It does not install traffic keys or report a confirmed epoch.
-    pub fn prepare_rekey_offer(
+    pub async fn prepare_rekey_offer(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let mut state = self.message_state(&image, context, &session, now)?;
         if state.role != proposer(state.control.target()?)? {
             return Err(Error::State.into());
@@ -334,7 +338,8 @@ impl DeviceJournal {
                 self.close();
                 return Err(DurableError::InvalidCheckpoint(error));
             }
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(wire.clone());
         }
         if signer.public_key()? != device(context, state.role)?.key {
@@ -360,7 +365,7 @@ impl DeviceJournal {
                 .reserve_key(&context.current_policy()?.runtime, &key_scope)
                 .map_err(Error::from)?;
             state.control.plan = Some(Plan::Key(key));
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-key-reserved");
         }
@@ -404,7 +409,7 @@ impl DeviceJournal {
                 body: body.clone(),
                 signing,
             });
-            self.store_message_state(&mut image, &state)?;
+            self.store_message_state(&mut image, &state).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("rekey-signature-reserved");
         }
@@ -439,20 +444,21 @@ impl DeviceJournal {
             key,
             wire: wire.clone(),
         });
-        self.store_message_state(&mut image, &state)?;
+        self.store_message_state(&mut image, &state).await?;
         #[cfg(all(test, unix))]
         super::tests::after_stage("rekey-offer-committed");
-        self.check_session_context_release(&image, context, now)?;
+        self.check_session_context_release(&image, context, now)
+            .await?;
         Ok(wire)
     }
     /// Inspect the authenticated offer phase after failure or revocation. This
     /// grants no permission to generate, sign, dispatch or advance an epoch.
-    pub fn rekey_offer_status(
+    pub async fn rekey_offer_status(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<RekeyOfferStatus, DurableError> {
-        let state = self.message_state_for_status(context, session)?;
+        let state = self.message_state_for_status(context, session).await?;
         Ok(state
             .control
             .plan

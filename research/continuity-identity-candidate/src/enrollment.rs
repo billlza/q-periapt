@@ -351,6 +351,10 @@ pub struct DeviceEnrollment {
     binding: [u8; 32],
     account_authority: Option<crate::JournalAccountAuthority>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     /// Commit original intent before dependent signer creation or request release.
     /// Existing signer or installation children cannot be adopted as a new intent.
@@ -778,31 +782,38 @@ impl DeviceEnrollment {
     }
     /// Prepare original empty children through the existing installation contract.
     /// Required-witness genesis is returned for explicit independent enrollment.
-    pub fn prepare(
+    pub async fn prepare(
         &mut self,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<InstallationPreparation, DurableError> {
-        let result = (|| {
-            let image = self.image_without_policy_renewal()?;
-            if !matches!(
-                image.phase,
-                Phase::Accepted {
-                    stage: AdmissionPhase::Accepted,
-                    ..
-                }
-            ) {
-                return Err(Error::State.into());
-            }
-            let device = self.admitted(&image, policy, now)?;
-            self.installation(&image, &device, policy, now, true)?
-                .prepare(self.key()?, &device, policy, now)
-        })();
+        let result = self.prepare_attempt(policy, now).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn prepare_attempt(
+        &mut self,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<InstallationPreparation, DurableError> {
+        let image = self.image_without_policy_renewal()?;
+        if !matches!(
+            image.phase,
+            Phase::Accepted {
+                stage: AdmissionPhase::Accepted,
+                ..
+            }
+        ) {
+            return Err(Error::State.into());
+        }
+        let device = self.admitted(&image, policy, now)?;
+        self.installation(&image, &device, policy, now, true)?
+            .prepare(self.key()?, &device, policy, now)
+            .await
+    }
+
     /// Construct the required witness client from the original controlled signer,
     /// using the independently pinned witness and explicit carrier. The admitted
     /// policy must require this exact pin; a local-only or changed pin is refused.
@@ -833,7 +844,7 @@ impl DeviceEnrollment {
     /// Activate/reopen the original prepared installation. Persist Active before
     /// releasing the service/signing owners. Missing required witness never falls
     /// back to local protection. Unknown results require original enrollment open.
-    pub fn activate(
+    pub async fn activate(
         mut self,
         policy: &VerifiedSessionPolicy,
         now: u64,
@@ -841,7 +852,7 @@ impl DeviceEnrollment {
     ) -> Result<EnrolledDevice, DurableError> {
         let mut image = self.image_without_policy_renewal()?;
         if image.renewal.is_some() {
-            return self.activate_renewed(image, policy, now, anchor);
+            return self.activate_renewed(image, policy, now, anchor).await;
         }
         let device = self.admitted(&image, policy, now)?;
         let signer = self.signer(image.identity, false)?;
@@ -867,16 +878,18 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        let mut service = installation.activate_admitted(
-            self.key()?,
-            &device,
-            policy,
-            now,
-            crate::installation::InstallationAdmission {
-                anchor,
-                account: self.account_authority.clone(),
-            },
-        )?;
+        let mut service = installation
+            .activate_admitted(
+                self.key()?,
+                &device,
+                policy,
+                now,
+                crate::installation::InstallationAdmission {
+                    anchor,
+                    account: self.account_authority.clone(),
+                },
+            )
+            .await?;
         let Phase::Accepted {
             stage, admission, ..
         } = &mut image.phase
@@ -886,12 +899,12 @@ impl DeviceEnrollment {
         // Opening an anchored journal first reconciles its ORIGINAL pending
         // command. Compare the resulting checkpoint, not a pre-recovery snapshot.
         let journal = service.stores()?.0;
-        let current = journal.roster_checkpoint(device.account_id())?;
+        let current = journal.roster_checkpoint(device.account_id()).await?;
         if let AdmissionPhase::Refreshing { previous } = *stage {
             if current != admission.checkpoint && current != previous {
                 return Err(DurableError::Conflict);
             }
-            let installed = journal.install_roster(device.roster(), now)?;
+            let installed = journal.install_roster(device.roster(), now).await?;
             if installed != admission.checkpoint {
                 return Err(DurableError::Conflict);
             }
@@ -909,7 +922,8 @@ impl DeviceEnrollment {
         service
             .stores()?
             .0
-            .check_enrollment_authority(&device, policy, now)?;
+            .check_enrollment_authority(&device, policy, now)
+            .await?;
         admit(&device, policy, now)?;
         Ok(EnrolledDevice {
             active: Some(Box::new(EnrolledOwners {
@@ -936,6 +950,10 @@ pub struct EnrolledDevice {
     // service, signer and verified identity into each caller's stack frame.
     active: Option<Box<EnrolledOwners>>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl EnrolledDevice {
     /// Borrow the existing service, original signer and verified local identity.
     /// Peer preparation, current roster/policy and durable traffic checks still apply.
@@ -952,22 +970,32 @@ impl EnrolledDevice {
         Ok((&mut active.service, &active.signer, &active.device))
     }
     /// Observe the next original publication ID through this registered owner.
-    pub fn next_prekey_publication_id(
+    pub async fn next_prekey_publication_id(
         &mut self,
     ) -> Result<crate::PrekeyPublicationId, DurableError> {
-        self.parts()?.0.stores()?.0.next_prekey_publication_id()
+        self.parts()?
+            .0
+            .stores()?
+            .0
+            .next_prekey_publication_id()
+            .await
     }
     /// Read original publication metadata; this does not release public keys.
-    pub fn prekey_publication_status(
+    pub async fn prekey_publication_status(
         &mut self,
         id: crate::PrekeyPublicationId,
     ) -> Result<crate::PrekeyPublicationStatus, DurableError> {
-        self.parts()?.0.stores()?.0.prekey_publication_status(id)
+        self.parts()?
+            .0
+            .stores()?
+            .0
+            .prekey_publication_status(id)
+            .await
     }
     /// Prepare/recover one advertisement without borrowing the controlled signer
     /// or composing inventory steps. The verified policy and current trusted
     /// clock are still required; the journal rechecks all durable authority.
-    pub fn prepare_prekey_publication(
+    pub async fn prepare_prekey_publication(
         &mut self,
         id: crate::PrekeyPublicationId,
         plan: &crate::PrekeyPublicationPlan,
@@ -976,20 +1004,24 @@ impl EnrolledDevice {
         clock: impl FnMut() -> std::io::Result<u64>,
     ) -> Result<crate::PreparedPrekeyPublication, crate::PrekeyPublicationError> {
         let (service, signer, device) = self.parts()?;
-        service.stores()?.0.prepare_prekey_publication(
-            crate::PrekeyPublicationRequest {
-                id,
-                plan,
-                policy,
-                device,
-                signer,
-            },
-            run,
-            clock,
-        )
+        service
+            .stores()?
+            .0
+            .prepare_prekey_publication(
+                crate::PrekeyPublicationRequest {
+                    id,
+                    plan,
+                    policy,
+                    device,
+                    signer,
+                },
+                run,
+                clock,
+            )
+            .await
     }
     /// Acknowledge local public-artifact retirement, without revoking inventory.
-    pub fn retire_prekey_publication(
+    pub async fn retire_prekey_publication(
         &mut self,
         id: crate::PrekeyPublicationId,
         artifact: [u8; 32],
@@ -999,9 +1031,10 @@ impl EnrolledDevice {
             .stores()?
             .0
             .retire_prekey_publication(id, artifact)
+            .await
     }
     /// Abandon a still-reserved original intent without retiring reused members.
-    pub fn abandon_prekey_publication(
+    pub async fn abandon_prekey_publication(
         &mut self,
         id: crate::PrekeyPublicationId,
         intent: [u8; 32],
@@ -1012,6 +1045,7 @@ impl EnrolledDevice {
             .stores()?
             .0
             .abandon_prekey_publication(id, intent, policy)
+            .await
     }
     /// Close service, signing key and enrollment lease. Repeated close is valid.
     pub fn close(&mut self) {

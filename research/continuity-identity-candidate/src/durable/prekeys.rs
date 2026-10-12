@@ -267,6 +267,10 @@ fn public_component(key: &HybridKey, kind: LeafKind) -> Result<Vec<u8>, Error> {
     Ok(bytes.to_vec())
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     pub(super) fn inventory_owner(
         &self,
@@ -277,7 +281,7 @@ impl DeviceJournal {
         self.check_policy(policy)?;
         rosters::check_local_device_scope(image, device, policy)
     }
-    fn check_prekey_release(
+    async fn check_prekey_release(
         &mut self,
         image: &Image,
         policy: &VerifiedSessionPolicy,
@@ -288,7 +292,7 @@ impl DeviceJournal {
         self.check_policy(policy)?;
         admission(policy, device, kind, now)?;
         rosters::authorize_local_device(image, device, policy, now)?;
-        self.check_release(image)?;
+        self.check_release(image).await?;
         // Persistence and witness admission may block while the policy closes.
         admission(policy, device, kind, now)?;
         Ok(())
@@ -389,13 +393,13 @@ impl DeviceJournal {
         .map_err(|error| DurableError::Protocol(error.into()))
     }
     /// Reconcile the exact inventory request even after policy close/expiry.
-    pub fn prekey_status(
+    pub async fn prekey_status(
         &mut self,
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         self.inventory_owner(&image, policy, device)?;
         self.inventory_status(&image, policy, request)
     }
@@ -420,7 +424,7 @@ impl DeviceJournal {
     /// Reserve platform randomness, generate an owned key internally, and commit
     /// its public leaf before returning it. The same request cannot change its role,
     /// SDK policy or validity, and no private key/token leaves this service.
-    pub fn generate_prekey(
+    pub async fn generate_prekey(
         &mut self,
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
@@ -437,7 +441,7 @@ impl DeviceJournal {
         {
             return Err(Error::Validity.into());
         }
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         self.inventory_owner(&image, policy, device)?;
         rosters::authorize_local_device(&image, device, policy, now)?;
         let op = id(request);
@@ -456,12 +460,13 @@ impl DeviceJournal {
                 (request, kind, validity),
                 now,
             )?;
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
             self.inventory_entry(&image, policy, request)?
         };
         match image.records.get(&op).ok_or(DurableError::Absent)?.phase {
             DurableStatus::PrekeyAvailable => {
-                self.check_prekey_release(&image, policy, device, entry.kind, now)?;
+                self.check_prekey_release(&image, policy, device, entry.kind, now)
+                    .await?;
                 return entry.leaf();
             }
             DurableStatus::PrekeyConsumed | DurableStatus::PrekeyAbandoned => {
@@ -498,22 +503,23 @@ impl DeviceJournal {
         let record = image.records.get_mut(&op).ok_or(DurableError::Corrupt)?;
         record.phase = DurableStatus::PrekeyAvailable;
         record.payload = entry.encode();
-        self.persist(&mut image)?;
+        self.persist(&mut image).await?;
         #[cfg(all(test, unix))]
         tests::after_publication();
-        self.check_prekey_release(&image, policy, device, entry.kind, now)?;
+        self.check_prekey_release(&image, policy, device, entry.kind, now)
+            .await?;
         Ok(leaf)
     }
     /// Retrieve only a currently usable committed public leaf. Reserved, consumed
     /// and retired entries cannot be republished through this method.
-    pub fn prekey_leaf(
+    pub async fn prekey_leaf(
         &mut self,
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
         request: PrekeyId,
         now: u64,
     ) -> Result<PrekeyLeaf, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         self.inventory_owner(&image, policy, device)?;
         rosters::authorize_device(&image, device, now)?;
         let entry = self.inventory_entry(&image, policy, request)?;
@@ -526,7 +532,8 @@ impl DeviceJournal {
             .phase
         {
             DurableStatus::PrekeyAvailable => {
-                self.check_prekey_release(&image, policy, device, entry.kind, now)?;
+                self.check_prekey_release(&image, policy, device, entry.kind, now)
+                    .await?;
                 entry.leaf()
             }
             DurableStatus::PrekeyReserved => Err(DurableError::Suspended),
@@ -540,17 +547,17 @@ impl DeviceJournal {
     /// Remove a logical recovery token without reactivating its ID. A pending
     /// response reference blocks retirement. This is not cryptographic erasure of
     /// old pages/backups; consumed entries retain their consumption tombstone.
-    pub fn retire_prekey(
+    pub async fn retire_prekey(
         &mut self,
         policy: &VerifiedSessionPolicy,
         device: &VerifiedDevice,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         self.inventory_owner(&image, policy, device)?;
-        self.retire_inventory_entry(image, policy, request)
+        self.retire_inventory_entry(image, policy, request).await
     }
-    fn retire_inventory_entry(
+    async fn retire_inventory_entry(
         &mut self,
         mut image: Image,
         policy: &VerifiedSessionPolicy,
@@ -558,7 +565,7 @@ impl DeviceJournal {
     ) -> Result<PrekeyStatus, DurableError> {
         let (status, changed) = self.retire_inventory_in_image(&mut image, policy, request)?;
         if changed {
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         Ok(status)
     }
@@ -595,13 +602,13 @@ impl DeviceJournal {
         record.payload = entry.encode();
         Ok((PrekeyStatus::Retired, true))
     }
-    fn installation_inventory(
+    async fn installation_inventory(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,
         policy: &VerifiedSessionPolicy,
     ) -> Result<Image, DurableError> {
         self.check_policy(policy)?;
-        let image = self.image()?;
+        let image = self.image().await?;
         authority.check(
             image.owner,
             policy
@@ -614,23 +621,23 @@ impl DeviceJournal {
         }
         Ok(image)
     }
-    pub(crate) fn installation_prekey_status(
+    pub(crate) async fn installation_prekey_status(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,
         policy: &VerifiedSessionPolicy,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        let image = self.installation_inventory(authority, policy)?;
+        let image = self.installation_inventory(authority, policy).await?;
         self.inventory_status(&image, policy, request)
     }
-    pub(crate) fn retire_installation_prekey(
+    pub(crate) async fn retire_installation_prekey(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,
         policy: &VerifiedSessionPolicy,
         request: PrekeyId,
     ) -> Result<PrekeyStatus, DurableError> {
-        let image = self.installation_inventory(authority, policy)?;
-        self.retire_inventory_entry(image, policy, request)
+        let image = self.installation_inventory(authority, policy).await?;
+        self.retire_inventory_entry(image, policy, request).await
     }
     fn restore_inventory_key(
         &mut self,
@@ -672,7 +679,7 @@ impl DeviceJournal {
     /// only its committed keys. The response reservation references both inventory
     /// entries before restoration, preventing concurrent retirement. One-time
     /// tokens disappear in the same transaction that commits the response outbox.
-    pub fn respond_from_inventory(
+    pub async fn respond_from_inventory(
         &mut self,
         context: Arc<BootstrapContext>,
         initial: &[u8],
@@ -680,13 +687,13 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<Vec<u8>, DurableError> {
         let op = self.admission(&context, initial, now)?;
-        let mut image = self.image()?;
+        let mut image = self.image().await?;
         let new_operation = !image.records.contains_key(&op);
         rosters::admit_context(&mut image, &context, new_operation, now)?;
         if let Some(record) = image.records.get(&op) {
             record.check_request(&context, initial)?;
             if record.phase != DurableStatus::Executing {
-                return self.resume_response(context, initial, signer, now);
+                return self.resume_response(context, initial, signer, now).await;
             }
         }
         crate::bootstrap::response_staged::ResponsePlan::check_signer(&context, signer)?;
@@ -725,7 +732,7 @@ impl DeviceJournal {
                     payload: Zeroizing::new(initial.to_vec()),
                 },
             );
-            self.persist(&mut image)?;
+            self.persist(&mut image).await?;
         }
         let [pq_ref, classical_ref] = refs;
         let pq = self.restore_inventory_key(&image, policy, &pq_ref)?;
@@ -738,6 +745,7 @@ impl DeviceJournal {
             TraditionalKeySource::from_key(&classical),
             now,
         )
+        .await
     }
 }
 

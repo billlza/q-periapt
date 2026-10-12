@@ -116,6 +116,10 @@ impl RetainedPolicyResolution {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(in crate::enrollment) fn validate_policy_resolution(
         &self,
@@ -158,7 +162,7 @@ impl DeviceEnrollment {
     /// are required. This uses no live runtime/private signer and returns no
     /// owner. A last abandoned outcome is retained until another abandonment or
     /// a later policy completion; its time floor remains after retirement.
-    pub fn resolve_policy_renewal(
+    pub async fn resolve_policy_renewal(
         &mut self,
         operation: PolicyRenewalId,
         statement: [u8; 32],
@@ -166,170 +170,189 @@ impl DeviceEnrollment {
         target_policy: &HistoricalSessionPolicy,
         now: u64,
     ) -> Result<PolicyRenewalStatus, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            let Phase::Accepted {
-                admission, stage, ..
-            } = &image.phase
-            else {
-                return Err(Error::State.into());
-            };
-            if original_policy.anchor_requirement().binding().is_some()
-                || target_policy.anchor_requirement().binding().is_some()
-            {
-                return Err(DurableError::AnchorRequired);
-            }
-            if admission.policy != original_policy.checkpoint().digest() {
-                return Err(DurableError::Conflict);
-            }
-            if let Some(resolution) = &image.policy_resolution {
-                if let Some(r) = &resolution.abandoned {
-                    if r.record.operation == operation {
-                        if r.record.statement != statement {
-                            return Err(DurableError::Conflict);
-                        }
-                        self.authenticated_policy_record(&r.record)?
-                            .check_target(target_policy)?;
-                        return resolution.status().ok_or(DurableError::Corrupt);
-                    }
-                }
-            }
-            if image.policy_pending.is_none()
-                && image
-                    .policy_completed
-                    .as_ref()
-                    .is_some_and(|r| r.operation == operation && r.statement == statement)
-            {
-                self.completed_policy_approval(&image)?
-                    .ok_or(DurableError::Conflict)?
-                    .check_target(target_policy)?;
-                return self.recover_historical_policy_renewal(
-                    operation,
-                    statement,
-                    original_policy,
-                );
-            }
-            if *stage != AdmissionPhase::Active {
-                return Err(DurableError::Suspended);
-            }
-            let pending = image
-                .policy_pending
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            if pending.operation != operation || pending.statement != statement {
-                return Err(DurableError::Conflict);
-            }
-            let approval = self.authenticated_policy_record(pending)?;
-            approval.check_target(target_policy)?;
-            let original = self.original_device_metadata(&image)?;
-            let current = self.historical_device_metadata(
-                &admission.certificate,
-                &admission.roster,
-                admission.checkpoint,
-            )?;
-            let target = LocalPolicyRenewalTarget {
-                approval: &approval,
-                original: &original,
-                current: &current,
+        let result = self
+            .resolve_policy_renewal_attempt(
+                operation,
+                statement,
                 original_policy,
-            };
-            let completed = self
-                .completed_policy_approval(&image)?
-                .as_ref()
-                .map(LocalPolicyRenewalCommit::for_approval);
-            let authority = crate::RetainedInstallationAuthority::active_installation(
-                &original,
-                original_policy,
-            );
-            let mut service = self.reconcile_installation(&original, original_policy, None)?;
-            let journal = service.stores()?.0;
-            if journal.identity()? != admission.journal {
-                return Err(DurableError::Conflict);
-            }
-            match journal.inspect_policy_renewal_outcome(&target, completed.as_ref())? {
-                LocalPolicyRenewalResolution::Committed(receipt) => {
-                    image.policy_completed = image.policy_pending.take();
-                    image.policy_device_binding = PolicyDeviceBinding::Exact;
-                    if let Some(r) = &mut image.policy_resolution {
-                        r.clear_abandoned();
-                    }
-                    self.save(&image)?;
-                    let readback = self.image()?;
-                    let actual = readback
-                        .policy_completed
-                        .as_ref()
-                        .ok_or(DurableError::Corrupt)?;
-                    if readback.policy_pending.is_some()
-                        || self.authenticated_policy_record(actual)?.journal_bytes()
-                            != approval.journal_bytes()
-                    {
-                        return Err(DurableError::Conflict);
-                    }
-                    #[cfg(all(test, unix))]
-                    super::super::tests::renewal::boundary("policy-resolution-completion");
-                    journal.acknowledge_local_policy_renewal(&authority, &receipt)?;
-                    Ok(actual.committed_status())
-                }
-                LocalPolicyRenewalResolution::Uncommitted(head) => {
-                    image.check_time_floor(now)?;
-                    let from = current
-                        .description
-                        .validity
-                        .from()
-                        .max(current.roster_validity.from())
-                        .max(target_policy.validity().from());
-                    if now < from || now == 0 {
-                        return Err(Error::Validity.into());
-                    }
-                    let expired_at = current
-                        .description
-                        .validity
-                        .until()
-                        .min(current.roster_validity.until())
-                        .min(target_policy.validity().until());
-                    let (reason, expired_at) = if expired_at <= now {
-                        (PolicyRenewalAbandonment::Expired, expired_at)
-                    } else if head.version() > approval.scope().current_roster.version() {
-                        (PolicyRenewalAbandonment::RosterAdvanced, 0)
-                    } else {
-                        return Err(DurableError::Suspended);
-                    };
-                    image.policy_resolution = Some(RetainedPolicyResolution {
-                        floor: now,
-                        abandoned: Some(AbandonedPolicy {
-                            record: image.policy_pending.take().ok_or(DurableError::Corrupt)?,
-                            reason,
-                            observed_roster: head,
-                            expired_at,
-                            observed_at: now,
-                        }),
-                    });
-                    let expected = image
-                        .policy_resolution
-                        .as_ref()
-                        .and_then(RetainedPolicyResolution::status)
-                        .ok_or(DurableError::Corrupt)?;
-                    #[cfg(all(test, unix))]
-                    super::super::tests::renewal::boundary("policy-resolution-before-save");
-                    self.save(&image)?;
-                    #[cfg(all(test, unix))]
-                    super::super::tests::renewal::boundary("policy-resolution-after-save");
-                    let readback = self.image()?;
-                    let actual = readback
-                        .policy_resolution
-                        .as_ref()
-                        .and_then(RetainedPolicyResolution::status)
-                        .ok_or(DurableError::Corrupt)?;
-                    if readback.policy_pending.is_some() || actual != expected {
-                        return Err(DurableError::Conflict);
-                    }
-                    Ok(actual)
-                }
-            }
-        })();
+                target_policy,
+                now,
+            )
+            .await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn resolve_policy_renewal_attempt(
+        &mut self,
+        operation: PolicyRenewalId,
+        statement: [u8; 32],
+        original_policy: &HistoricalSessionPolicy,
+        target_policy: &HistoricalSessionPolicy,
+        now: u64,
+    ) -> Result<PolicyRenewalStatus, DurableError> {
+        let mut image = self.image()?;
+        let Phase::Accepted {
+            admission, stage, ..
+        } = &image.phase
+        else {
+            return Err(Error::State.into());
+        };
+        if original_policy.anchor_requirement().binding().is_some()
+            || target_policy.anchor_requirement().binding().is_some()
+        {
+            return Err(DurableError::AnchorRequired);
+        }
+        if admission.policy != original_policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        if let Some(resolution) = &image.policy_resolution {
+            if let Some(r) = &resolution.abandoned {
+                if r.record.operation == operation {
+                    if r.record.statement != statement {
+                        return Err(DurableError::Conflict);
+                    }
+                    self.authenticated_policy_record(&r.record)?
+                        .check_target(target_policy)?;
+                    return resolution.status().ok_or(DurableError::Corrupt);
+                }
+            }
+        }
+        if image.policy_pending.is_none()
+            && image
+                .policy_completed
+                .as_ref()
+                .is_some_and(|r| r.operation == operation && r.statement == statement)
+        {
+            self.completed_policy_approval(&image)?
+                .ok_or(DurableError::Conflict)?
+                .check_target(target_policy)?;
+            return self
+                .recover_historical_policy_renewal(operation, statement, original_policy)
+                .await;
+        }
+        if *stage != AdmissionPhase::Active {
+            return Err(DurableError::Suspended);
+        }
+        let pending = image
+            .policy_pending
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        if pending.operation != operation || pending.statement != statement {
+            return Err(DurableError::Conflict);
+        }
+        let approval = self.authenticated_policy_record(pending)?;
+        approval.check_target(target_policy)?;
+        let original = self.original_device_metadata(&image)?;
+        let current = self.historical_device_metadata(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+        )?;
+        let target = LocalPolicyRenewalTarget {
+            approval: &approval,
+            original: &original,
+            current: &current,
+            original_policy,
+        };
+        let completed = self
+            .completed_policy_approval(&image)?
+            .as_ref()
+            .map(LocalPolicyRenewalCommit::for_approval);
+        let authority =
+            crate::RetainedInstallationAuthority::active_installation(&original, original_policy);
+        let mut service = self
+            .reconcile_installation(&original, original_policy, None)
+            .await?;
+        let journal = service.stores()?.0;
+        if journal.identity()? != admission.journal {
+            return Err(DurableError::Conflict);
+        }
+        match journal
+            .inspect_policy_renewal_outcome(&target, completed.as_ref())
+            .await?
+        {
+            LocalPolicyRenewalResolution::Committed(receipt) => {
+                image.policy_completed = image.policy_pending.take();
+                image.policy_device_binding = PolicyDeviceBinding::Exact;
+                if let Some(r) = &mut image.policy_resolution {
+                    r.clear_abandoned();
+                }
+                self.save(&image)?;
+                let readback = self.image()?;
+                let actual = readback
+                    .policy_completed
+                    .as_ref()
+                    .ok_or(DurableError::Corrupt)?;
+                if readback.policy_pending.is_some()
+                    || self.authenticated_policy_record(actual)?.journal_bytes()
+                        != approval.journal_bytes()
+                {
+                    return Err(DurableError::Conflict);
+                }
+                #[cfg(all(test, unix))]
+                super::super::tests::renewal::boundary("policy-resolution-completion");
+                journal
+                    .acknowledge_local_policy_renewal(&authority, &receipt)
+                    .await?;
+                Ok(actual.committed_status())
+            }
+            LocalPolicyRenewalResolution::Uncommitted(head) => {
+                image.check_time_floor(now)?;
+                let from = current
+                    .description
+                    .validity
+                    .from()
+                    .max(current.roster_validity.from())
+                    .max(target_policy.validity().from());
+                if now < from || now == 0 {
+                    return Err(Error::Validity.into());
+                }
+                let expired_at = current
+                    .description
+                    .validity
+                    .until()
+                    .min(current.roster_validity.until())
+                    .min(target_policy.validity().until());
+                let (reason, expired_at) = if expired_at <= now {
+                    (PolicyRenewalAbandonment::Expired, expired_at)
+                } else if head.version() > approval.scope().current_roster.version() {
+                    (PolicyRenewalAbandonment::RosterAdvanced, 0)
+                } else {
+                    return Err(DurableError::Suspended);
+                };
+                image.policy_resolution = Some(RetainedPolicyResolution {
+                    floor: now,
+                    abandoned: Some(AbandonedPolicy {
+                        record: image.policy_pending.take().ok_or(DurableError::Corrupt)?,
+                        reason,
+                        observed_roster: head,
+                        expired_at,
+                        observed_at: now,
+                    }),
+                });
+                let expected = image
+                    .policy_resolution
+                    .as_ref()
+                    .and_then(RetainedPolicyResolution::status)
+                    .ok_or(DurableError::Corrupt)?;
+                #[cfg(all(test, unix))]
+                super::super::tests::renewal::boundary("policy-resolution-before-save");
+                self.save(&image)?;
+                #[cfg(all(test, unix))]
+                super::super::tests::renewal::boundary("policy-resolution-after-save");
+                let readback = self.image()?;
+                let actual = readback
+                    .policy_resolution
+                    .as_ref()
+                    .and_then(RetainedPolicyResolution::status)
+                    .ok_or(DurableError::Corrupt)?;
+                if readback.policy_pending.is_some() || actual != expected {
+                    return Err(DurableError::Conflict);
+                }
+                Ok(actual)
+            }
+        }
     }
 }

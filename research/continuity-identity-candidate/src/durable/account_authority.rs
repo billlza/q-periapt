@@ -194,42 +194,51 @@ impl AccountAuthorityOpen {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     /// Persist the original registry binding through the existing witnessed image
     /// transaction. The registry must independently associate local and peer roots.
     /// A failure can follow commit; retain this exact descriptor and journal identity.
     /// Already bound journals accept only the original descriptor, with fresh admission.
-    pub fn adopt_account_authority(
+    pub async fn adopt_account_authority(
         &mut self,
         authority: JournalAccountAuthority,
     ) -> Result<(), DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            authority.check_original_scope(&image)?;
-            if let Some(scope) = image.account_authority {
-                if scope != authority.scope {
-                    return Err(DurableError::Conflict);
-                }
-                return self.check_release(&image);
-            }
-            image.account_authority = Some(authority.scope);
-            image.authority_access = Some(authority.access.clone());
-            self.active
-                .as_mut()
-                .ok_or(DurableError::Closed)?
-                .account_authority = Some(authority);
-            self.persist(&mut image)?;
-            self.check_release(&image)
-        })();
+        let result = self.adopt_account_authority_attempt(authority).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn adopt_account_authority_attempt(
+        &mut self,
+        authority: JournalAccountAuthority,
+    ) -> Result<(), DurableError> {
+        let mut image = self.image().await?;
+        authority.check_original_scope(&image)?;
+        if let Some(scope) = image.account_authority {
+            if scope != authority.scope {
+                return Err(DurableError::Conflict);
+            }
+            return self.check_release(&image).await;
+        }
+        image.account_authority = Some(authority.scope);
+        image.authority_access = Some(authority.access.clone());
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .account_authority = Some(authority);
+        self.persist(&mut image).await?;
+        self.check_release(&image).await
+    }
+
     /// Reopen only a journal already bound to this original registry, or reconcile
     /// its original pending adoption. Missing or different binding is a conflict;
     /// this never silently adopts an unbound image or provisions missing storage.
-    pub fn open_anchored_with_account_authority(
+    pub async fn open_anchored_with_account_authority(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -247,5 +256,6 @@ impl DeviceJournal {
             client,
             AccountAuthorityOpen::Existing(Some(authority)),
         )
+        .await
     }
 }

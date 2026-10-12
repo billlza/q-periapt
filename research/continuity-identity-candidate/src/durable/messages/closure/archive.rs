@@ -211,6 +211,10 @@ impl SessionClosureArchive {
         Ok(scope)
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     pub(crate) fn verify_closure_archive(
         &self,
@@ -237,12 +241,12 @@ impl DeviceJournal {
     /// still requires that exact session in authenticated storage or its already
     /// sealed write intent. Export after policy close is allowed; no new operational
     /// authority results, and required witness checks still apply.
-    pub fn archive_session_closure(
+    pub async fn archive_session_closure(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
     ) -> Result<SessionClosureArchive, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let binding = self.closure_archive_binding(&image, context, session)?;
         let devices = context.devices();
         let device = if binding.role == 1 {
@@ -256,7 +260,7 @@ impl DeviceJournal {
             protection: image.protection,
             signer: cleanup_signer_binding(&device.key),
         };
-        self.check_release(&image)?;
+        self.check_release(&image).await?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         scope.archive(&active.key)
     }
@@ -271,8 +275,12 @@ pub struct SessionClosureJournal {
     journal: DeviceJournal,
     scope: Scope,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl SessionClosureJournal {
-    pub(crate) fn index_material(
+    pub(crate) async fn index_material(
         &mut self,
         expected: JournalIdentity,
         terminal: Option<SessionClosureId>,
@@ -280,12 +288,15 @@ impl SessionClosureJournal {
         if self.scope.journal != *expected.as_bytes() {
             return Err(DurableError::Conflict);
         }
-        let image = self.journal.image()?;
+        let image = self.journal.image().await?;
         self.scope.check(&image)?;
         // This checks the original witness again even for an already closed
         // session or an eventual absent index row. No cached disposition is enough.
         if let Some(expected) = terminal {
-            let status = self.journal.closure_status(image, &self.scope.binding)?;
+            let status = self
+                .journal
+                .closure_status(image, &self.scope.binding)
+                .await?;
             match status {
                 SessionClosureStatus::Closed(actual) if actual == expected => {}
                 SessionClosureStatus::Closed(_) => return Err(DurableError::Conflict),
@@ -295,34 +306,34 @@ impl SessionClosureJournal {
             // Public metadata is also needed to resume whole-batch cleanup after
             // a member becomes Abandoning/Abandoned. Its original binding and
             // fresh witness head suffice; independent closure remains forbidden.
-            self.journal.check_release(&image)?;
+            self.journal.check_release(&image).await?;
         }
         let active = self.journal.active.as_ref().ok_or(DurableError::Closed)?;
         Ok((self.scope.binding.session, self.scope.archive(&active.key)?))
     }
     /// Reopen an existing local-only journal using an authenticated cleanup archive.
     /// Missing/invalid storage fails; required-witness journals cannot use this path.
-    pub fn open(
+    pub async fn open(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
         archive: &SessionClosureArchive,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, archive, None)
+        Self::open_inner(path, key, expected, archive, None).await
     }
     /// Reopen with the original pinned witness and exact device signer. Their
     /// availability remains required after local policy expiry or revocation.
     /// A witness refusal never authorizes a local-only fallback.
-    pub fn open_anchored(
+    pub async fn open_anchored(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
         archive: &SessionClosureArchive,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, archive, Some(client))
+        Self::open_inner(path, key, expected, archive, Some(client)).await
     }
-    fn open_inner(
+    async fn open_inner(
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -366,11 +377,11 @@ impl SessionClosureJournal {
             active.attach_closure_archive(client, scope.signer)?;
         }
         if let Some(pending) = pending {
-            write_intent::reconcile(&mut active, &pending)?;
+            write_intent::reconcile(&mut active, &pending).await?;
         }
         let current = load(&active.db, &active.key, active.owner)?;
         scope.check(&current)?;
-        active.check_current(&current)?;
+        active.check_current(&current).await?;
         Ok(Self {
             journal: DeviceJournal {
                 active: Some(active),
@@ -379,25 +390,28 @@ impl SessionClosureJournal {
         })
     }
     /// Inspect only the retained session's local closure status.
-    pub fn status(&mut self) -> Result<SessionClosureStatus, DurableError> {
-        let image = self.journal.image()?;
+    pub async fn status(&mut self) -> Result<SessionClosureStatus, DurableError> {
+        let image = self.journal.image().await?;
         self.scope.check(&image)?;
-        self.journal.closure_status(image, &self.scope.binding)
+        self.journal
+            .closure_status(image, &self.scope.binding)
+            .await
     }
     /// Permanently freeze the session and return its complete immutable loss report.
     /// A still-reserved fanout cannot be split through this independent API.
-    pub fn begin(&mut self) -> Result<SessionClosure, DurableError> {
-        let image = self.journal.image()?;
+    pub async fn begin(&mut self) -> Result<SessionClosure, DurableError> {
+        let image = self.journal.image().await?;
         self.scope.check(&image)?;
-        self.journal.begin_closure(image, &self.scope.binding)
+        self.journal.begin_closure(image, &self.scope.binding).await
     }
     /// Erase logical private state only after durable host accounting of the exact
     /// complete report. Unknown effects require reconciliation under the same ID.
-    pub fn acknowledge(&mut self, report: SessionClosureId) -> Result<(), DurableError> {
-        let image = self.journal.image()?;
+    pub async fn acknowledge(&mut self, report: SessionClosureId) -> Result<(), DurableError> {
+        let image = self.journal.image().await?;
         self.scope.check(&image)?;
         self.journal
             .acknowledge_closure(image, &self.scope.binding, report)
+            .await
     }
     /// Drop the exclusive lease, wrapping key and attached witness signing owner.
     /// This owner shutdown does not itself freeze or terminalize the session.

@@ -104,30 +104,38 @@ pub(in crate::enrollment) struct PreparedRenewalRequest {
     authority: RetainedInstallationAuthority,
     service: DeviceService,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl PreparedRenewalRequest {
-    pub(in crate::enrollment) fn policy_scope(
+    pub(in crate::enrollment) async fn policy_scope(
         &mut self,
         operation: PolicyRenewalId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<PolicyRenewalScope, DurableError> {
-        self.service.stores()?.0.policy_renewal_request_scope(
-            &crate::installation::PolicyScope {
-                authority: &self.authority,
-                original_policy,
-                original_device: &self.original,
-            },
-            &self.current,
-            operation,
-            self.completed.as_ref(),
-            self.joint.as_ref(),
-        )
+        self.service
+            .stores()?
+            .0
+            .policy_renewal_request_scope(
+                &crate::installation::PolicyScope {
+                    authority: &self.authority,
+                    original_policy,
+                    original_device: &self.original,
+                },
+                &self.current,
+                operation,
+                self.completed.as_ref(),
+                self.joint.as_ref(),
+            )
+            .await
     }
-    pub(in crate::enrollment) fn policy_request(
+    pub(in crate::enrollment) async fn policy_request(
         mut self,
         operation: PolicyRenewalId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<crate::PolicyRenewalRequest, DurableError> {
-        let scope = self.policy_scope(operation, original_policy)?;
+        let scope = self.policy_scope(operation, original_policy).await?;
         let Phase::Accepted { admission, .. } = &self.image.phase else {
             return Err(DurableError::Corrupt);
         };
@@ -145,25 +153,33 @@ impl PreparedRenewalRequest {
             admission.certificate.clone(),
         ))
     }
-    fn credential_snapshot(
+    async fn credential_snapshot(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<RenewalRequestSnapshot, DurableError> {
-        self.service.stores()?.0.renewal_request_snapshot(
-            &crate::installation::PolicyScope {
-                authority: &self.authority,
-                original_policy,
-                original_device: &self.original,
-            },
-            &self.current,
-            self.completed.as_ref(),
-            self.joint.as_ref(),
-        )
+        self.service
+            .stores()?
+            .0
+            .renewal_request_snapshot(
+                &crate::installation::PolicyScope {
+                    authority: &self.authority,
+                    original_policy,
+                    original_device: &self.original,
+                },
+                &self.current,
+                self.completed.as_ref(),
+                self.joint.as_ref(),
+            )
+            .await
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
-    pub(in crate::enrollment) fn prepare_renewal_request(
+    pub(in crate::enrollment) async fn prepare_renewal_request(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<PreparedRenewalRequest, DurableError> {
@@ -205,7 +221,9 @@ impl DeviceEnrollment {
             .transpose()?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
-        let mut service = self.reconcile_installation(&original, original_policy, None)?;
+        let mut service = self
+            .reconcile_installation(&original, original_policy, None)
+            .await?;
         if service.stores()?.0.identity()? != admission.journal {
             return Err(DurableError::Conflict);
         }
@@ -231,45 +249,52 @@ impl DeviceEnrollment {
     /// so expired credentials do not need a live-C roster refresh before renewal.
     /// It does not reserve or sign anything. Independent issuer approval,
     /// exact retry/dedup and current staging/commit checks remain mandatory.
-    pub fn credential_renewal_request(
+    pub async fn credential_renewal_request(
         &mut self,
         operation: CredentialRenewalId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<CredentialRenewalRequest, DurableError> {
-        let result = (|| {
-            let mut prepared = self.prepare_renewal_request(original_policy)?;
-            if prepared.image.renewal.as_ref().is_some_and(|r| {
-                r.completed
-                    .as_ref()
-                    .is_some_and(|c| c.operation == operation)
-                    || r.expired.as_ref().is_some_and(|e| e.operation == operation)
-            }) {
-                return Err(DurableError::Conflict);
-            }
-            let snapshot = prepared.credential_snapshot(original_policy)?;
-            let Phase::Accepted { admission, .. } = &prepared.image.phase else {
-                return Err(DurableError::Corrupt);
-            };
-            let original_credential = prepared
-                .image
-                .renewal
-                .as_ref()
-                .map_or(&admission.certificate, |r| &r.origin.certificate)
-                .clone();
-            let previous_credential = admission.certificate.clone();
-            let previous_roster = snapshot.current_device.roster().as_bytes().to_vec();
-            Ok(CredentialRenewalRequest {
-                operation,
-                snapshot,
-                original_credential,
-                previous_credential,
-                previous_roster,
-                original_device: prepared.original,
-            })
-        })();
+        let result = self
+            .credential_renewal_request_attempt(operation, original_policy)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn credential_renewal_request_attempt(
+        &mut self,
+        operation: CredentialRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<CredentialRenewalRequest, DurableError> {
+        let mut prepared = self.prepare_renewal_request(original_policy).await?;
+        if prepared.image.renewal.as_ref().is_some_and(|r| {
+            r.completed
+                .as_ref()
+                .is_some_and(|c| c.operation == operation)
+                || r.expired.as_ref().is_some_and(|e| e.operation == operation)
+        }) {
+            return Err(DurableError::Conflict);
+        }
+        let snapshot = prepared.credential_snapshot(original_policy).await?;
+        let Phase::Accepted { admission, .. } = &prepared.image.phase else {
+            return Err(DurableError::Corrupt);
+        };
+        let original_credential = prepared
+            .image
+            .renewal
+            .as_ref()
+            .map_or(&admission.certificate, |r| &r.origin.certificate)
+            .clone();
+        let previous_credential = admission.certificate.clone();
+        let previous_roster = snapshot.current_device.roster().as_bytes().to_vec();
+        Ok(CredentialRenewalRequest {
+            operation,
+            snapshot,
+            original_credential,
+            previous_credential,
+            previous_roster,
+            original_device: prepared.original,
+        })
     }
 }

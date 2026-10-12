@@ -49,6 +49,10 @@ struct RecoveryOwners {
 pub struct InstallationRecovery {
     active: Option<RecoveryOwners>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl InstallationRecovery {
     /// Open existing Active configuration and archive index using the independently
     /// retained original key and exact paths. Missing/Creating/partial configuration
@@ -96,18 +100,18 @@ impl InstallationRecovery {
     /// Select an existing indexed archive. Consumes discovery ownership and opens
     /// only the existing cleanup journal, retaining all three database leases.
     /// Missing index rows fail; they do not select a different session or archive.
-    pub fn open_session(
+    pub async fn open_session(
         self,
         session: [u8; 32],
         anchor: Option<AnchorClient>,
     ) -> Result<InstalledSessionRecovery, DurableError> {
-        self.select(anchor, |index| index.get(session))
+        self.select(anchor, |index| index.get(session)).await
     }
     /// Explicitly select independently retained original archive bytes when the
     /// index row is lost. The existing index must still be valid. This does not
     /// restore a row or infer absence; use the existing index restore operation
     /// only after this owner authenticates the exact archive and original journal.
-    pub fn open_session_from_archive(
+    pub async fn open_session_from_archive(
         self,
         archive: &SessionClosureArchive,
         anchor: Option<AnchorClient>,
@@ -115,6 +119,7 @@ impl InstallationRecovery {
         self.select(anchor, |_| {
             SessionClosureArchive::from_bytes(archive.as_bytes())
         })
+        .await
     }
     /// Select one independently retained account operation. The authenticated
     /// journal chooses every member; the caller supplies no recipient subset.
@@ -122,7 +127,7 @@ impl InstallationRecovery {
     /// All member archives must match the retained authority before reconciliation
     /// can write. Missing state or the original required witness never provisions,
     /// retries under different defaults, or restores operational authority.
-    pub fn open_account(
+    pub async fn open_account(
         mut self,
         id: FanoutId,
         anchor: Option<AnchorClient>,
@@ -150,7 +155,8 @@ impl InstallationRecovery {
             &mut archives,
             anchor,
             &authority,
-        )?;
+        )
+        .await?;
         Ok(InstalledAccountRecovery {
             active: Some(AccountOwners {
                 journal,
@@ -159,7 +165,7 @@ impl InstallationRecovery {
             }),
         })
     }
-    fn select(
+    async fn select(
         mut self,
         anchor: Option<AnchorClient>,
         archive: impl FnOnce(&mut SessionArchiveStore) -> Result<SessionClosureArchive, DurableError>,
@@ -182,19 +188,25 @@ impl InstallationRecovery {
             authority.witness,
         )?;
         let journal = match (authority.witness, anchor) {
-            (None, None) => SessionClosureJournal::open(
-                &installation.paths.journal,
-                key,
-                installation.identity,
-                &archive,
-            )?,
-            (Some(_), Some(client)) => SessionClosureJournal::open_anchored(
-                &installation.paths.journal,
-                key,
-                installation.identity,
-                &archive,
-                client,
-            )?,
+            (None, None) => {
+                SessionClosureJournal::open(
+                    &installation.paths.journal,
+                    key,
+                    installation.identity,
+                    &archive,
+                )
+                .await?
+            }
+            (Some(_), Some(client)) => {
+                SessionClosureJournal::open_anchored(
+                    &installation.paths.journal,
+                    key,
+                    installation.identity,
+                    &archive,
+                    client,
+                )
+                .await?
+            }
             (Some(_), None) => return Err(DurableError::AnchorRequired),
             (None, Some(_)) => return Err(DurableError::Conflict),
         };

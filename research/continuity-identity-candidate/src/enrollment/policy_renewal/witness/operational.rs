@@ -21,6 +21,10 @@ impl EnrollmentPolicyCompletion {
         &self.original
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceEnrollment {
     pub(in crate::enrollment) fn policy_enrollment_completion(
         &self,
@@ -56,7 +60,7 @@ impl DeviceEnrollment {
     /// completion, witness retirement and fresh independent-P admission. The
     /// journal receipt remains bound to that retained enrollment owner; no new
     /// metadata head advance is needed merely to acknowledge historical completion.
-    pub fn activate_witnessed_policy_renewal(
+    pub async fn activate_witnessed_policy_renewal(
         mut self,
         original_policy: &HistoricalSessionPolicy,
         policy: &VerifiedSessionPolicy,
@@ -82,24 +86,30 @@ impl DeviceEnrollment {
         completed
             .approval
             .check_context_policy(original_policy, policy)?;
-        let mut service = self.reconcile_installation(&original, original_policy, Some(client))?;
+        let mut service = self
+            .reconcile_installation(&original, original_policy, Some(client))
+            .await?;
         let journal = service.stores()?.0;
         if journal.identity()? != id {
             return Err(DurableError::Conflict);
         }
-        journal.retain_enrollment_policy_completion(completed)?;
+        journal
+            .retain_enrollment_policy_completion(completed)
+            .await?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
-        let current = journal.admit_continued_local_device(
-            &crate::installation::PolicyScope {
-                authority: &authority,
-                original_policy,
-                original_device: &original,
-            },
-            &original,
-            policy,
-            now,
-        )?;
+        let current = journal
+            .admit_continued_local_device(
+                &crate::installation::PolicyScope {
+                    authority: &authority,
+                    original_policy,
+                    original_device: &original,
+                },
+                &original,
+                policy,
+                now,
+            )
+            .await?;
         let signer = self.signer(image.identity, false)?;
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
@@ -114,7 +124,7 @@ impl DeviceEnrollment {
     }
     /// Restore the original established session while retaining its registration,
     /// service and signer owners. Every traffic release checks current independent P.
-    pub fn activate_witnessed_policy_renewed_session(
+    pub async fn activate_witnessed_policy_renewed_session(
         mut self,
         request: crate::SessionReopenRequest,
         policy: Arc<VerifiedSessionPolicy>,
@@ -127,14 +137,16 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        let mut active = self.activate_witnessed_policy_renewal(
-            request.context.original_policy(),
-            &policy,
-            now,
-            client,
-        )?;
+        let mut active = self
+            .activate_witnessed_policy_renewal(
+                request.context.original_policy(),
+                &policy,
+                now,
+                client,
+            )
+            .await?;
         let (service, _, current) = active.parts()?;
-        let peer = service.reopen_continued_peer(request, policy, now)?;
+        let peer = service.reopen_continued_peer(request, policy, now).await?;
         if peer
             .context()
             .session_device(peer.role())
