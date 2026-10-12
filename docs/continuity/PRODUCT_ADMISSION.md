@@ -243,8 +243,14 @@ Both consumers build without warnings or custom SDK search paths. Its installed
 iPad app completes the original root route with 68 calls and twelve app cuts;
 all startup/result/exit records and public exports are checked. The source
 comparison covers 503 current compilable inputs, and both slices expose exactly
-152 owner functions. Simulator execution, background/Data Protection and
-canonical release-pipeline integration remain open. The existing one-phone Android gate
+152 owner functions. The [iPad Complete-protection checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-data-protection/README.md)
+adds five installed-package launches with two independently verified on-device
+identities: actual protected-data unavailability, sentinel EPERM and exact 702
+refusals, unchanged original file inventory, and successful original-identity /
+journal / publication recovery and activation after unlock. Its scope is
+successfully closed local-profile owners with host-applied Complete protection.
+Live-owner/background transaction handling, simulator execution and canonical
+release-pipeline integration remain open. The existing one-phone Android gate
 stays passed.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:

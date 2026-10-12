@@ -29,8 +29,13 @@ noncommit/cancellation, with 362 calls and 62 process cuts. An
 [extracted binary-package checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-binary-package/README.md)
 now supplies the Swift product and device/simulator arm64 XCFramework without
 custom SDK search paths. Its installed iPad consumer passes 68 calls and twelve
-process cuts. Background/Data Protection, simulator execution and canonical
-release-pipeline admission remain separate work.
+process cuts. The [iPad Data Protection checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-data-protection/README.md)
+then closes both trust profiles, observes actual protected-data unavailability
+and private-file refusal 702 while locked, and restores the original identities,
+journals and publication IDs after unlock. This covers host-applied Complete
+protection of successfully closed local-profile owners. Live-owner/background
+transaction handling, simulator execution and canonical release-pipeline admission
+remain separate work.
 
 On iOS, create an app-owned private directory with mode `0700`. Pass its absolute
 canonical path from `realpath`; Foundation can abbreviate `/private/var` back to
@@ -261,6 +266,15 @@ to reconcile unknown work. ARC releases an idle owner; unexpected destructor
 failure is logged by status without private paths. Applications use explicit
 throwing close when they need its result. There is no automatic background task
 or implicit retry in the library.
+
+On iOS, the host chooses its Data Protection class and coordinates lifecycle
+notifications with active work. The physical checkpoint applies Complete
+protection after all owners close and verifies it before locking. If protected
+files are unavailable, current-open fails explicitly; it must not fall back to
+creation. After availability returns, reopen the original path and reconcile its
+original operation. Error 702 denotes the host-store private-file boundary, not
+an exclusive or automatically retryable lock-screen condition. This checkpoint
+does not establish removal of secrets from still-live owner memory.
 
 Initiation, session and message IDs have distinct Swift types. The caller retains
 the original initiation/message ID across retries. `committed`, `acknowledged`,

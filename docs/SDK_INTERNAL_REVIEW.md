@@ -809,3 +809,25 @@ removed from the application's helper compilation; it is not a new SDK parser.
 All 503 compared compilable source files match main. Normalized manifest/release
 producer integration, simulator execution and background/Data Protection remain
 separate, as do independent implementation and performance qualification.
+
+
+### 2026-10-12 iPad Complete-protection checkpoint
+
+The [physical Data Protection capture](../research/sdk-alpha1/evidence/20261012-ios-data-protection/README.md)
+uses the already extracted Swift binary candidate. Both fixed and recoverable
+trust profiles close their owners before the host applies Complete protection to
+40 private-tree entries. During an actual protected-data-unavailable interval,
+the public control file returns EPERM and both SDK current-open attempts return
+702. After unlock, namespace/file metadata remain unchanged and both profiles
+reactivate with the original request, signing ID, journal and next publication
+ID. The native issuer verifies both original request signatures independently.
+All five launch admissions, terminal exits and receipts pass; 178 archive member
+hashes and extracted public records are reread. The run-owned app is removed.
+
+The first trial correctly refused a harness call on an enrollment whose owner
+had transferred at activation (code 2); its source and logs are retained. The
+successful test reads enrollment metadata before transfer. No SDK behavior was
+relaxed. This closes the stated closed-owner lock/unlock storage check; live-owner
+memory erasure, in-flight transaction suspension, restart/power-loss behavior and
+an automatic host lifecycle manager are not asserted. Simulator execution and
+canonical release-pipeline integration remain open, as do the other 0.2.0 gates.
