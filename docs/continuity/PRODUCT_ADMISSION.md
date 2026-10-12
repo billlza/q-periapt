@@ -253,6 +253,16 @@ Live-owner/background transaction handling, simulator execution and canonical
 release-pipeline integration remain open. The existing one-phone Android gate
 stays passed.
 
+The [canonical Apple producer checkpoint](../../research/sdk-alpha1/evidence/20261012-apple-package-producer/README.md)
+adds a reproducible three-slice arm64 Swift package to the existing installed
+qualification and Swift CI job. Sixty relevant checks, all 686 package members,
+three exact native export sets and the final consumer link maps pass locally.
+The macOS and iOS 27 simulator cancellation/close probes execute the packaged
+native owner. Xcode's varying slice order is canonicalized; a fresh producer run
+matches the expected archive hash from two earlier native builds. Hosted CI and
+physical execution of this exact new archive remain separate; the simulator
+probe does not replace the earlier full physical lifecycle records.
+
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
 [Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), and

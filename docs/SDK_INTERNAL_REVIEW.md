@@ -831,3 +831,23 @@ relaxed. This closes the stated closed-owner lock/unlock storage check; live-own
 memory erasure, in-flight transaction suspension, restart/power-loss behavior and
 an automatic host lifecycle manager are not asserted. Simulator execution and
 canonical release-pipeline integration remain open, as do the other 0.2.0 gates.
+
+
+### 2026-10-12 canonical Apple binary-package producer
+
+The [Apple package producer capture](../research/sdk-alpha1/evidence/20261012-apple-package-producer/README.md)
+records the new `--with-apple-package` path from admitted C source to an extracted
+Swift product with macOS/iOS/device-simulator arm64 slices. It reuses the existing
+archive, license and link-map verification machinery. Sixty relevant checks and
+a complete local producer invocation pass. Every selected native archive is
+bound to the final consumer executable, with cancellation/close probes running
+on macOS and an owned iOS 27 simulator. All 686 package files and 120 evidence
+members are checked; the simulator is removed.
+
+Distinct native builds yielded identical libraries but varying Xcode slice
+inventory order. Canonicalizing only that metadata produces matching archives;
+the final full invocation matches the expected SHA-256. Target-specific link
+maps fix a real consumer build collision; filesystem alias validation preserves
+exact selected-file identity. The CI entry point retains the full parent Rust/C
+qualification. Its hosted outcome and physical execution of this exact new ZIP
+remain open; the local simulator probe has no full-lifecycle or PCS scope.

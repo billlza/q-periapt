@@ -48,6 +48,12 @@ must identify the exact packaged slice. The macOS consumer executes native
 cancellation and closed-owner refusals; the iOS consumers are built for device
 and simulator. These checks do not imply a physical-device or simulator runtime
 result for the newly built package, and do not publish a release.
+The [canonical Apple package checkpoint](../../../research/sdk-alpha1/evidence/20261012-apple-package-producer/README.md)
+records a full local producer run, matching canonical archive bytes across native
+builds, and a separate installed iOS 27 simulator cancellation/close probe.
+Physical execution of that exact new archive and the hosted CI result remain
+separate from the earlier device-qualified candidate.
+
 
 On iOS, create an app-owned private directory with mode `0700`. Pass its absolute
 canonical path from `realpath`; Foundation can abbreviate `/private/var` back to
