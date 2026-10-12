@@ -240,10 +240,26 @@ identity, journal, next message and prior business effects. The preceding
 credential and original policy remain live in this scenario. The updated native
 engine passes all 909 library tests, strict Clippy and the complete 726-process
 Debug/Release host JNI run; 24 related reader checks pass, with the three affected
-local-reader checks rerun after the final assertions. Cleanup after original-policy/
-runtime expiry, roster renewal, device retirement, root replacement and final
-candidate package admission remain software work; the agreed one-phone Android
-physical gate is complete.
+local-reader checks rerun after the final assertions.
+
+The [144-process original-policy expiry ART route](../research/sdk-alpha1/evidence/20261012-android-policy-expiry/CHECKS.json)
+now completes on the same phone at code `4c60faa4`. Real P0 expiry occurs while the
+SDK policy and successor credential/roster remain live. Fixed/recoverable trust
+and signed TCP/mutual TLS each cover prepared-uncommitted and pre-expiry Applied
+with a lost reply. Original proposal replay, reconciliation and explicit closure
+preserve identity, journal and the actual Closed/Committed terminal; no historical
+recovery transcript issues a new Commit. Expired P0 still rejects staging, a fresh
+Commit and activation. All eight installations and their owned ADB mappings are
+retired. Complete Debug/Release JNI qualification passes 1,014 Java processes;
+28 reader tests, 59 package/source-inventory tests, changed-file rustfmt and strict
+Clippy pass. Production Android classes/JNI and native engine bytes are unchanged;
+the previous 909-test native result retains its original scope. Captures retain
+the initial harness/type and reader-width corrections, the worktree provenance
+refusal followed by a passing standalone-clone suite, and the unchanged fixture
+formatting diagnostic. SDK-runtime expiry/revocation, independent policy/roster
+renewal, device retirement, root replacement and final candidate package admission
+remain software work. The agreed one-phone Android physical gate is complete;
+API 36 hardware or another phone is not required.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |

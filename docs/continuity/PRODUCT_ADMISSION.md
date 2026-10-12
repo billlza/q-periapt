@@ -62,9 +62,22 @@ journal and next message slot deliver one new effect without duplicating the old
 one. The old implementation's failure and the stale-context rejection are retained.
 The corrected native engine passes 909 library tests and strict Clippy; the full
 Debug/Release host JNI run passes 726 Java processes, including the existing
-required-witness routes. Cleanup after original-policy/runtime expiry, roster
-renewal, device retirement and root replacement remain software scenarios to
-complete. No additional Android device is required.
+required-witness routes.
+
+The [original-policy expiry route](../../research/sdk-alpha1/evidence/20261012-android-policy-expiry/CHECKS.json)
+adds 144 ART processes on that same accepted phone. Real P0 expiry leaves the SDK
+policy and target credential/roster live. Fixed and recoverable trust each cover
+signed TCP and mutual TLS, with both an uncommitted prepared target and an actual
+pre-expiry Commit whose reply was lost. Historical proposal replay and explicit
+Close preserve the original identity, journal and terminal history; a competing
+Applied result remains Committed. Expired P0 refuses staging, a new Commit and
+activation, and captured post-expiry recovery sends no Commit. The complete
+Debug/Release host regression passes 1,014 Java processes; 28 reader tests,
+59 package/source-inventory tests and strict Clippy also pass. Production AAR and
+native engine bytes are unchanged from the preceding qualification; its 909 native
+tests were not rerun for this test-only addition. SDK-runtime expiry/revocation,
+policy and roster renewal, device retirement and root replacement remain software
+scenarios to complete. No additional Android device is required.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
