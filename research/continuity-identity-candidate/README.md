@@ -11,6 +11,11 @@ verification and monotonic deadlines in real window/Worker realms. Native TCP
 is target-specific; `MonotonicInstant` remains `std::time::Instant` on native
 targets and uses the browser performance clock on the web. This does not admit
 browser journal/installation owners or witness and peer transports.
+The following [OPFS journal recovery checkpoint](../sdk-alpha1/evidence/20261012-browser-journal-recovery/README.md)
+uses the original encrypted journal and write-intent recovery in a dedicated
+Worker, including failure cuts and native recovery of the same pending file.
+It remains isolated qualification of local journal semantics; browser key,
+installation and asynchronous witness owners still require integration.
 
 The consolidated [wire contract](../../docs/continuity/WIRE_V1.md) covers the exact
 current public record/carrier grammars, domains and verification boundaries.

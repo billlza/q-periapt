@@ -693,6 +693,18 @@ impl DeviceJournal {
         expected_id: JournalIdentity,
     ) -> Result<Self, DurableError> {
         let db = open_private_database(path)?;
+        Self::open_database(db, key, device, expected_id)
+    }
+
+    // Database admission is platform-specific; authenticated journal recovery is
+    // shared. Keep this seam private so callers cannot substitute an arbitrary
+    // backend for a durable journal owner.
+    fn open_database(
+        db: Database,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        expected_id: JournalIdentity,
+    ) -> Result<Self, DurableError> {
         let owner = bootstrap::storage_owner(device);
         let image = write_intent::recover(&db, &key, owner, expected_id)?;
         if image.local_account != device.account_id() {
