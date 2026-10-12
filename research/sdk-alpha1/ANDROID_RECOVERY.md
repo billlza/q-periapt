@@ -73,5 +73,9 @@ Debug/Release host Java/JNI process validation, native report comparisons and
 rejection controls. The first-use lane starts with a Java-created installation;
 the required-witness lane uses C registration and operational traffic with Java
 recovery. These share the native protocol engine and do not constitute independent
-implementations. Physical Android acceptance retains its previously recorded
-single-phone scope; this checkpoint does not claim a new ART/AAR run.
+implementations. The [physical first-use recovery checkpoint](evidence/20261013-android-recovery-device/README.md)
+adds 84 SDK calls on the accepted API 37 phone using a current Release AAR/APK,
+including original account delivery, process restart, full report retention,
+authenticated archive restoration and retirement refusal. Required-witness
+recovery retains its separate host evidence. This one phone remains sufficient
+for the agreed physical-device scope.

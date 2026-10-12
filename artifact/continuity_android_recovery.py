@@ -52,6 +52,13 @@ def qualify(consumer: Path, installed: Path, output: Path, profile: str, environ
     try:
         runtime_root=Path(tempfile.mkdtemp(prefix='jni-recovery-',dir=installed)).resolve()
         result['runtime_directory']=str(runtime_root)
+        retained=run([str(java),'-cp',str(jar)+os.pathsep+str(tests),
+                      'dev.qperiapt.continuity.android.tests.RecoveryProbeFilesChecks'],
+                     prefix+'-host-records',consumer,env)
+        sdk.require(retained==b'host-record-retention:passed\n' and
+                    sdk.snapshot(output/('android-jni-'+prefix+'-host-records.stderr')).data==b'',
+                    'host report retention or writer exclusion failed')
+        result['host_record_retention']=True
         first=runtime_root/'first-use'
         stdout=run([str(android),'--exact',records.FIRST_USE_TEST,'--nocapture'],prefix+'-first-use',consumer,
                    dict(env,QPC_ANDROID_CASES=str(first),QPC_ANDROID_DRIVER=str(android_driver)))
