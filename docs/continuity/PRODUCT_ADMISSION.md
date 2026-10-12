@@ -49,12 +49,22 @@ until independently authorized Closed; a lost cleanup acknowledgment preserves
 that decision across restart. Recovery dispatches no new Commit or Close and
 restores the preceding authority, original identity, journal and session; a new
 third message produces exactly one additional business effect. Already committed
-renewals remain Committed under close and expiry reconciliation. Local-only
-ExpiredUncommitted, cleanup after original-policy/runtime expiry, roster renewal,
-device retirement and root replacement remain software scenarios to complete.
-The CI host JNI lane exercises packaged Java classes against Debug/Release C
-libraries; its 654-process complete local run is distinct from the accepted
-physical ART run. No additional Android device is required.
+renewals remain Committed under close and expiry reconciliation.
+
+The [local-only expiry route](../../research/sdk-alpha1/evidence/20261012-local-roster-expiry/CHECKS.json)
+passes 60 ART processes on the same phone. It exposed and fixed a shared native
+recovery gap: an expired target roster blocked activation, but cleanup previously
+waited for credential expiry. Exact predecessor history now permits
+ExpiredUncommitted when either signed target expires. This terminal still refuses
+activation until a separate independently approved grant is staged and committed.
+After explicit peer admission and original-session restoration, the same identity,
+journal and next message slot deliver one new effect without duplicating the old
+one. The old implementation's failure and the stale-context rejection are retained.
+The corrected native engine passes 909 library tests and strict Clippy; the full
+Debug/Release host JNI run passes 726 Java processes, including the existing
+required-witness routes. Cleanup after original-policy/runtime expiry, roster
+renewal, device retirement and root replacement remain software scenarios to
+complete. No additional Android device is required.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),

@@ -230,12 +230,20 @@ cleanup-ACK recovery and exact replay. The target credential and original policy
 remain live in this case. Cancellation never treats expiry or an unavailable witness
 as proof of non-commit; existing committed outcomes remain Committed. Restoring
 the preceding authority preserves the same signing identity, journal and session,
-and the next new message creates one additional receiver effect. Debug/Release
-host JNI validation also passes all 654 Java processes, with 80 focused reader
-and source checks plus strict Clippy. Local-only ExpiredUncommitted, cleanup
-after original-policy/runtime expiry, roster renewal, device retirement, root
-replacement and final candidate package admission remain software work; the
-agreed one-phone Android physical gate is complete.
+and the next new message creates one additional receiver effect.
+The [60-process local-only ART route](../research/sdk-alpha1/evidence/20261012-local-roster-expiry/CHECKS.json)
+also passes on that phone with the corrected native engine. The fix permits
+explicit ExpiredUncommitted classification after target-roster expiry, once exact
+predecessor history proves no commit. Activation still requires a new independent
+grant. Explicit peer admission and original-session restoration then preserve
+identity, journal, next message and prior business effects. The preceding
+credential and original policy remain live in this scenario. The updated native
+engine passes all 909 library tests, strict Clippy and the complete 726-process
+Debug/Release host JNI run; 24 related reader checks pass, with the three affected
+local-reader checks rerun after the final assertions. Cleanup after original-policy/
+runtime expiry, roster renewal, device retirement, root replacement and final
+candidate package admission remain software work; the agreed one-phone Android
+physical gate is complete.
 
 | Requirement | Required completion evidence | Current state |
 | --- | --- | --- |
