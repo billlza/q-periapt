@@ -81,4 +81,14 @@ final class WitnessInputs {
             install(inputs,arguments,"terminal-digest",32,32,true);
         }
     }
+    static void installLocalCredential(File inputs, Bundle arguments, String operation) throws Exception {
+        if(operation.equals("credential-local-active") || operation.equals("credential-local-send")) install(inputs,arguments,"local-next-message",32,32,true);
+        if(operation.equals("credential-local-stage") || operation.equals("credential-local-rejected") || operation.equals("credential-local-next-stage") || operation.equals("credential-local-next-stage-blocked")) {
+            String prefix=operation.startsWith("credential-local-next-")?"local-second-":"local-first-";
+            for(String name:new String[]{"operation","statement","digest"}) install(inputs,arguments,prefix+name,32,32,true);
+            install(inputs,arguments,prefix+"version",8,8,true);
+            install(inputs,arguments,prefix+"grant",1,65536,true);
+        }
+    }
+
 }

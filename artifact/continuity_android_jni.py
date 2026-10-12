@@ -163,7 +163,11 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             cases = installed / "cases"
             runtime = dict(env, QPC_ANDROID_CASES=str(cases), QPC_ANDROID_DRIVER=str(driver))
             checked = run([str(binary), "--exact", "android_lifecycle", "--nocapture"], profile + "-execution", consumer, runtime)
-            outcomes = verify_execution(checked, cases)
+            import continuity_android_local_credential as local_credential
+            outcomes = local_credential.verify_execution(checked, cases)
+            for trust in outcomes:
+                for name in local_credential.PUBLIC:
+                    sdk.copy(cases / trust / name, output / f"android-jni-{profile}-{trust}-{name}.public")
             for trust in outcomes:
                 for label, _ in CASES:
                     for suffix in ("stdout", "stderr"):

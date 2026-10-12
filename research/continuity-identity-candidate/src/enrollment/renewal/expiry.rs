@@ -226,11 +226,17 @@ impl DeviceEnrollment {
                 journal.acknowledge_local_credential_renewal(&authority, completed)?;
             }
             LocalRenewalResolution::Uncommitted(observed_head) => {
-                let mut expired_at = grant.successor_device().description.validity.until();
+                // Either signed target can expire while the exact journal history
+                // still proves no commit. A live credential cannot revive its
+                // expired roster authorization.
+                let mut expired_at = grant
+                    .successor_device()
+                    .description
+                    .validity
+                    .until()
+                    .min(grant.successor_device().roster_validity.until());
                 if independent.is_some() {
-                    expired_at = expired_at
-                        .min(grant.successor_device().roster_validity.until())
-                        .min(policy.target().validity().until());
+                    expired_at = expired_at.min(policy.target().validity().until());
                 }
                 if expired_at > now {
                     return Err(Error::Validity.into());

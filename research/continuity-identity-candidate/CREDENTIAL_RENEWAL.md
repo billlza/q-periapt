@@ -318,14 +318,20 @@ Successor or higher-generation history, older/forked heads and conflicting recei
 remain unresolved errors. Restoring an older Pending configuration after a target
 was installed cannot manufacture `ExpiredUncommitted`.
 
-Only an actually expired target may be abandoned. The durable terminal records the
+Only an actually expired target may be abandoned. For the original local policy,
+either the signed successor credential or its signed target roster must have
+expired; a still-live credential does not revive an expired roster authorization.
+This is checked only after the exact predecessor history proves no commit.
+The durable terminal records the
 operation, statement, observed head and observation time. A monotonic trusted-time
 floor prevents backdating to reactivate an abandoned target. The last abandonment
 is retained until another abandonment or a later successful completion replaces it;
 the floor persists thereafter. Older unavailable terminal outcomes are rejected,
 not inferred. Applications retaining a longer audit history must keep their results.
 
-A separate new grant still has to name the journal's exact current predecessor.
+An `ExpiredUncommitted` terminal does not authorize activation, even if the
+preceding credential remains live. A separate new grant still has to name the
+journal's exact current predecessor.
 Historical NoCommit classification does not re-add a revoked device or loosen new
 commit admission. The local-only profile does not detect whole-database rollback.
 

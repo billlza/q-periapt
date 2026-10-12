@@ -100,6 +100,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         ready.putString("apk_sha256", result.getString("apk_sha256")); ready.putString("stage", "peer-listening");
                         sendStatus(2, ready);
                     });
+                } else if (operation.startsWith("credential-local-")) {
+                    WitnessInputs.installLocalCredential(inputs,arguments,operation);
+                    if(operation.equals("credential-local-identity") || operation.equals("credential-local-active") || operation.equals("credential-local-send")) PeerInputs.install(inputs,arguments,"peer-retry");
+                    CredentialLocalProbe.main(call);
                 } else if (witnessed || authority) {
                     WitnessInputs.install(inputs, arguments);
                     if (authority || credential || (managed && !baseOperation.equals("witness-create")

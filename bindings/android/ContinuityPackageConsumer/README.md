@@ -216,3 +216,11 @@ and four managed registry routes (fifty additional processes per profile).
 The result is `ANDROID_JNI_CONSUMER.json` with source, tool, JAR and binary hashes.
 This host lane complements the recorded actual-AAR/ART physical run; the JNI
 adapter remains an unpublished candidate.
+
+Local-only credential renewal has a separate real-clock qualification. Expiry
+leaves the original intent Pending until explicit reconciliation records
+ExpiredUncommitted against the preceding roster head. This fact does not
+authorize activation: a separate independently approved successor must first
+be staged and activated. The peer explicitly admits that successor, and the
+same identity, journal, original session and next message slot resume communication.
+Required-witness expiry retains its distinct Pending/Closed workflow.

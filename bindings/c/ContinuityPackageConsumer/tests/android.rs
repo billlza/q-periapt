@@ -25,6 +25,8 @@ mod android_credential;
 mod android_credential_terminal;
 #[path = "common/android_credential_traffic.rs"]
 mod android_credential_traffic;
+#[path = "common/android_local_credential.rs"]
+mod android_local_credential;
 #[path = "common/android_remote_credential.rs"]
 mod android_remote_credential;
 #[path = "common/android_witness.rs"]
@@ -112,11 +114,13 @@ fn run_foreign(
         std::thread::sleep(Duration::from_millis(10));
     };
     let diagnostic = fs::read(&stderr)?;
-    assert!(
-        status.success() && diagnostic.is_empty(),
-        "{profile}/{label}: {status}; {}",
-        String::from_utf8_lossy(&diagnostic)
-    );
+    if !status.success() || !diagnostic.is_empty() {
+        return Err(format!(
+            "{profile}/{label}: {status}; {}",
+            String::from_utf8_lossy(&diagnostic)
+        )
+        .into());
+    }
     assert_eq!(
         fs::read_to_string(stdout)?.trim(),
         format!("{profile}:{mode}:passed")
@@ -301,6 +305,32 @@ fn android_lifecycle() -> Result<()> {
         assert_eq!(fs::read(reverse)?, expected);
         assert_eq!(run("peer-cancel", "cancelled")?, vec![1]);
         println!("qualified {profile}: 12 foreign processes; registration, original retry, rekey, reverse callback retry, cancellation and concurrent close");
+        let account = p::AccountPin::new(
+            authority.account_id()?,
+            authority.public_key()?,
+            roster.checkpoint(),
+            fixture::array(&inputs, "family")?,
+        )?;
+        let device = account.verify_device(&certificate, roster.as_bytes(), fixture::now()?)?;
+        let request = p::VerifiedEnrollmentRequest::verify(&original, &intent, fixture::now()?)?;
+        let mut sdk = fixture::sdk(&reference.initiator)?;
+        let policy = fixture::protocol_policy(&reference.initiator, &sdk)?;
+        android_local_credential::Case {
+            root: &authority,
+            original: &request,
+            device: &device,
+            certificate: &certificate,
+            roster: &roster,
+            policy: &policy,
+            validity,
+            base: &base,
+            inputs: &inputs,
+            responder: &reference.responder,
+        }
+        .run(&run)?;
+        policy.close();
+        sdk.close();
+        println!("qualified local credential {profile}: 18 foreign processes; real target-roster expiry, explicit non-commit, retained terminal, original traffic and independent successor");
     }
     Ok(())
 }

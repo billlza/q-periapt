@@ -96,6 +96,7 @@ public final class CredentialProbe {
     }
     public static void main(String[] args) throws Exception {
         if (args.length != 5) throw new IllegalArgumentException("inputs installation profile mode result");
+        if (args[3].startsWith("credential-local-")) { CredentialLocalProbe.main(args); return; }
         Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
         WitnessProbe.withWitness(inputs, args[3], witness -> run(inputs, installation, output, args[2], args[3], witness));
         System.out.println(args[2] + ":" + args[3] + ":passed");

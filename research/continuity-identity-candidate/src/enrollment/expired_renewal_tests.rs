@@ -608,3 +608,116 @@ fn old_pending_config_with_pruned_receipt_never_turns_installed_target_history_i
         );
     }
 }
+
+#[test]
+fn expired_successor_roster_with_live_credential_resolves_exact_local_intent() {
+    for committed_first in [false, true] {
+        let (c, _, original, _) = local();
+        let original_wire = c
+            .root
+            .issue_device(original.description.clone(), original.key.clone())
+            .expect("original credential");
+        let mut description = original.description.clone();
+        description.validity = Validity::new(100, 250).expect("live successor credential");
+        let successor = c
+            .root
+            .issue_device(description, original.key.clone())
+            .expect("successor");
+        let roster = c
+            .root
+            .issue_roster(
+                2,
+                Validity::new(100, 180).expect("short target roster"),
+                &[c.root.roster_entry(&successor).expect("successor entry")],
+            )
+            .expect("target roster");
+        let pin = AccountPin::new(
+            c.root.account_id().expect("account"),
+            c.root.public_key().expect("root"),
+            roster.checkpoint(),
+            original.description.family,
+        )
+        .expect("independent target");
+        let issued = c
+            .root
+            .issue_credential_renewal(
+                crate::CredentialRenewalMaterials {
+                    original_credential: &original_wire,
+                    previous_credential: &original_wire,
+                    successor_credential: &successor,
+                    previous_roster: original.roster().as_bytes(),
+                    successor_roster: roster.as_bytes(),
+                },
+                &crate::CredentialRenewalAuthorization {
+                    operation: CredentialRenewalId::from_trusted_state([229; 32])
+                        .expect("operation"),
+                    previous: original.roster().checkpoint(),
+                    policy_digest: c.policy.checkpoint().digest(),
+                },
+                &pin,
+                170,
+            )
+            .expect("approved grant");
+        let proof = VerifiedCredentialRenewal::verify(
+            issued.as_bytes(),
+            &pin,
+            c.policy.checkpoint().digest(),
+            170,
+        )
+        .expect("live grant");
+        stage(&c, &proof);
+        if committed_first {
+            open(&c)
+                .activate(&c.policy, 175, None)
+                .expect("prior committed target")
+                .close();
+            assert_eq!(
+                reconcile(&c, &proof, 185).expect("commit wins after roster expiry"),
+                committed(&proof)
+            );
+        } else {
+            assert!(
+                matches!(
+                    reconcile(&c, &proof, 179),
+                    Err(DurableError::Protocol(Error::Validity))
+                ),
+                "a live roster must not be abandoned"
+            );
+            assert_eq!(
+                open(&c)
+                    .credential_renewal_status()
+                    .expect("retained pending"),
+                pending(&proof)
+            );
+            assert!(proof
+                .successor_device()
+                .description
+                .validity
+                .check(185)
+                .is_ok());
+            assert!(proof.successor_device().roster_validity.check(185).is_err());
+            assert_eq!(
+                reconcile(&c, &proof, 185)
+                    .expect("expired roster is sufficient after exact no-commit proof"),
+                abandoned(&proof, 185)
+            );
+            assert_eq!(
+                reconcile(&c, &proof, 190).expect("original terminal replay"),
+                abandoned(&proof, 185)
+            );
+            let next = grant(&c, &original, &original, 3, 260);
+            assert!(
+                open(&c)
+                    .stage_credential_renewal(&next, next.operation(), &c.policy, 184)
+                    .is_err(),
+                "durable time floor rejects backdating"
+            );
+            assert_eq!(
+                open(&c)
+                    .stage_credential_renewal(&next, next.operation(), &c.policy, 185)
+                    .expect("new independently approved target"),
+                pending(&next)
+            );
+        }
+    }
+}
