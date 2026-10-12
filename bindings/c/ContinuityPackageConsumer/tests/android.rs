@@ -359,3 +359,14 @@ mod android_retirement_android;
 
 #[path = "common/android_replacement_traffic.rs"]
 mod android_replacement_traffic;
+
+#[path = "common/android_root_owned.rs"]
+mod android_root_owned;
+
+#[path = "common/android_root_traffic.rs"]
+mod android_root_traffic;
+
+#[path = "common/android_root_alternatives.rs"]
+mod android_root_alternatives;
+#[path = "common/android_root_target.rs"]
+mod android_root_target;

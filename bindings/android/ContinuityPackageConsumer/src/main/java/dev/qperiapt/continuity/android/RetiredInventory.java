@@ -5,7 +5,7 @@ package dev.qperiapt.continuity.android;
 public final class RetiredInventory {
     private final byte[] bytes;
     RetiredInventory(byte[] bytes) {
-        if (bytes.length != 313 || !RetiredReportProposal.magic(bytes, "QPRCLP01"))
+        if (bytes.length != 313 || !WireHeader.matches(bytes, "QPRCLP01"))
             throw new IllegalStateException("native retirement inventory");
         this.bytes = bytes.clone();
     }

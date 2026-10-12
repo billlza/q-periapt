@@ -296,10 +296,12 @@ on storage. Async close completes even when its caller is already cancelled.
 The module reuses the policy agent's descriptor-relative private filesystem
 implementation, now shared from this crate. Every absolute directory component
 is opened without following symlinks. The final directory must be owned by the
-effective user with exact mode 0700; state files require exact 0600. macOS
-extended ACLs are rejected through the existing narrow descriptor-ACL adapter.
-Linux's mode/ACL mask correspondence is used. Other host platform permission
-models are not implemented; they fail closed. File hard links are refused by
+effective user with exact mode 0700; state files require exact 0600. macOS/iOS
+extended ACLs are rejected through the narrow descriptor-ACL adapter.
+Linux/Android mode/ACL mask correspondence is used. Android uses `O_PATH` and
+iOS uses `O_SEARCH` for intermediate ancestors that permit traversal but not
+listing. Final directory descriptors remain readable and fully validated.
+Other host platform permission models are not implemented; they fail closed. File hard links are refused by
 the policy store.
 
 The pinned redb 4.3.0 backend is wrapped by `LockedFileBackend`, which takes a nonblocking exclusive whole-file lock for the
@@ -350,8 +352,12 @@ and unwind after commit. Three Swift tests cover lifecycle, worker cancellation
 after an actual commit, and a child retaining the store lease until disposal.
 The macOS test fixture had to use its canonical `/private/var` path: Foundation's
 URL normalization retained the `/var` symlink. The store's no-symlink checks
-were retained. iOS compilation and four NDK C layout checks pass; neither is a
-platform runtime or package qualification.
+were retained. The later [iOS storage checkpoint](../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md)
+executes the integrated store on the offered physical iPhone, including two fresh
+identity/registration routes, exact reopening and eight symlink/mode refusals.
+Its app uses raw `realpath` for its own container directory. This is scoped
+runtime evidence; it does not qualify every recovery API or the release package.
+The four NDK C layout checks remain compile-time ABI evidence.
 
 The actual Swift/Rust socket diagnostic passes twelve cases with persistent
 state on both peers. Each peer explicitly provisions once and subsequently

@@ -24,7 +24,7 @@ def fixture(root: Path) -> bytes:
             (base / name).write_bytes(session + b"m" * 32)
         (base / "reverse.result").write_bytes(session + b"n" * 32 + b"reverse delivery after rekey")
         output.append(f"qualified {profile}: 12 foreign processes; registration, original retry, rekey, reverse callback retry, cancellation and concurrent close")
-    output += ["test android_lifecycle ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out;"]
+    output += ["test android_lifecycle ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out;"]
     return ("\n".join(output) + "\n").encode()
 
 

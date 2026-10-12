@@ -9,6 +9,13 @@ import java.util.Objects;
 public final class ContinuityEnrollment implements AutoCloseable {
     private final Owner owner;
     ContinuityEnrollment(long handle) { owner = new Owner(handle); }
+    ContinuityDevice activateRootSuccessor(long registry) {
+        return owner.transfer(handle -> {
+            ContinuityDevice successor = new ContinuityDevice(handle);
+            RootOperations.empty(Native.rootCommand(registry, handle, Native.ROOT_ACTIVATE, new byte[0][], new long[0]));
+            return successor;
+        });
+    }
     public void cancel() { owner.action(2); }
     @Override public void close() { owner.close(); }
     public EnrollmentStatus status() { return owner.call(false, handle -> new EnrollmentStatus(Native.enrollmentQuery(handle, 1))); }

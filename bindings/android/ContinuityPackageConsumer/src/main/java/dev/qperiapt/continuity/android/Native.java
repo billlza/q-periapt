@@ -10,6 +10,10 @@ import java.nio.charset.StandardCharsets;
 /** Internal JNI marshalling only. This process-lifetime bridge requires deterministic owner close. */
 final class Native {
     static { System.loadLibrary("qperiapt_continuity_jni"); }
+    static final int ROOT_BEGIN=1, ROOT_RESUME=2, ROOT_STATE=3, ROOT_BIND_FREEZE=4,
+        ROOT_RETAIN_RETIREMENT=5, ROOT_RETAIN_NONCOMMIT=6, ROOT_ACTIVATE=7,
+        ROOT_TRANSITION=8, ROOT_ADOPT=9, ROOT_RESUME_TRANSITION=10, ROOT_RESUME_ADOPTION=11;
+    static native byte[] rootCommand(long registry, long other, int operation, byte[][] inputs, long[] counters);
     private Native() { }
     static byte[] path(String value) {
         if (value == null) throw new NullPointerException("path");

@@ -7,9 +7,12 @@ inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
 first activation, same-key credential renewal, independent policy/roster renewal
-and original-message retry, device replacement and restricted old-device retirement.
-Account-root replacement integration remains subsequent work. The current extracted AAR has a
-minified AGP consumer; it is still an unpublished candidate.
+and original-message retry, device replacement, restricted old-device retirement
+and independently authorized account-root replacement. The current extracted AAR has a
+minified AGP consumer; it is still an unpublished candidate. The
+[integrated Debug/Release checkpoint](../../../research/sdk-alpha1/evidence/20261012-android-root-integrated/README.md)
+passes 4,294 Java calls, including all five root routes and 124 root process cuts.
+The accepted single-phone AAR evidence remains valid.
 
 `ConfigurationInputs` copies independently supplied SDK trust, signed policies,
 protocol checkpoints and the local TLS identity. `prepareCreate`,
@@ -299,6 +302,38 @@ approval output records are heap allocated; its 17-field stage shape is checked
 against the shared field bound at compile time. Public request/status framing is
 explicit big endian, not a Java view over native struct memory. Policy renewal
 passes the retained host and ART routes. The complete integrated retirement
-qualifier now passes 3,570 Debug/Release host calls, with source-bound public
-readback. The accepted single phone remains sufficient; the independently
-qualified account-root adapter is still being integrated into this package.
+qualifier passes 3,570 Debug/Release host calls at the retirement checkpoint, with
+source-bound public readback. The accepted single phone remains sufficient.
+
+## Account-root replacement
+
+`ContinuityAccountAuthority` now owns the independently authorized account-root
+replacement flow. Keep the original registry, installation path, enrollment intent,
+checkpoint, pinned witness and approved `RootReplacementPlan`. Constructing a Java
+plan/proposal value checks framing; native operations authenticate its authority.
+Create the successor through its own configuration and enrollment, without copying
+the original device's private state.
+
+Use `beginRootReplacement`, `bindRootFreeze`, `retainRootRetirement` and
+`activateRootSuccessor` for the original approved target. Beginning consumes the
+old device's operational resource; close its facade and keep the replacement
+controller open while its successor operates. Resume the exact original inputs
+with `resumeRootReplacement`; an unknown activation result may follow commit and
+consumes the attempted controller/enrollment handles.
+
+`RootReplacementTransition` carries signed original noncommit plus a separately
+approved next plan and freeze. `RootReplacementAdoption` carries a separately
+approved committed winner, its retirement receipt and original noncommit. Use the
+matching transition/adoption and resume methods. `retainRootNoncommit` keeps the
+old plan Closed; it does not unfreeze it or authorize an arbitrary new target.
+
+The controller delegates original-device report, acknowledgement and erasure
+through its retired methods. Erasing the old signer preserves this controller and
+successor. Idle cancellation stops controller calls; closing it revokes managed
+successor operations. Historical state is not current traffic authorization.
+
+All five routes pass 724 host calls and 362 ART calls on the same accepted phone,
+including 124 host and 62 ART process cuts. The shared package qualifier now
+requires the complete 30-test catalog and all five bounded public exports; its
+combined current-source run is a separate integration check. The interface remains
+an unpublished candidate.

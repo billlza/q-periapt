@@ -10,7 +10,7 @@ import continuity_android_policy_roster as policy_roster
 import continuity_android_policy_renewal as policy
 import continuity_android_roster_witness as witness
 
-ROOT = Path(__file__).resolve().parent.parent
+from rust_sdk_profile import ROOT
 
 
 def extract(archive: Path, prefix: str, target: Path) -> None:
@@ -27,7 +27,7 @@ def extract(archive: Path, prefix: str, target: Path) -> None:
 class InventoryTests(unittest.TestCase):
     def test_exact_catalog_and_missing_replaced_duplicate_tests(self):
         names = sorted(contract.TESTS)
-        encode = lambda rows: ("\n".join(name + ": test" for name in rows) + "\n\n25 tests, 0 benchmarks\n").encode()
+        encode = lambda rows: ("\n".join(name + ": test" for name in rows) + "\n\n30 tests, 0 benchmarks\n").encode()
         contract.verify_catalog(encode(names))
         for rows in (names[:-1], names[:-1] + ["replacement"], names[:-1] + [names[0]]):
             with self.assertRaises(ValueError): contract.verify_catalog(encode(rows))
@@ -35,7 +35,7 @@ class InventoryTests(unittest.TestCase):
     def test_batch_requires_every_named_test_and_no_ignored_case(self):
         names = sorted(policy_roster.TESTS)
         text = "\n".join("test " + name + " ... ok" for name in names)
-        text += "\ntest result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out;\n"
+        text += "\ntest result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out;\n"
         contract.verify_batch(text.encode(), policy_roster.TESTS)
         for changed in (text.replace(names[0], "replacement"), text.replace("10 passed", "9 passed"), text.replace("0 ignored", "1 ignored")):
             with self.assertRaises(ValueError): contract.verify_batch(changed.encode(), policy_roster.TESTS)

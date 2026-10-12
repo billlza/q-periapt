@@ -3,9 +3,33 @@
 This unpublished Swift package uses the existing `qpc-owner/1` owner and shared
 Rust Continuity engine. It adds no ratchet, KDF, credential parser or private-key
 export. It is a language-admission step toward 0.2.0, not a frozen product package
-or an addition to ABI 2. The manifest declares a macOS 13 source floor; execution
-qualifies only the actual host. Minimum OS, iOS and Linux runtime coverage need
-their own results.
+or an addition to ABI 2. The manifest declares macOS 13 and iOS 16 source floors;
+execution records identify the actual OS. The initial iOS storage and identity
+route has [physical iPhone evidence](../../../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md).
+It covers creation, registration, process reopening and private-path refusals.
+The subsequent [physical connection checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-network/README.md)
+adds iPhone-to-Mac TLS, receiver exit after its business effect, and original
+session/message retry with one unchanged effect. The subsequent
+[managed witness checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-managed-witness/README.md)
+creates the account registry on the iPhone and repeats recovery under signed TCP
+and mutual TLS witnesses, including missing-authority and closed-parent refusals.
+The [iOS credential checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-credential/README.md)
+then waits for real credential expiry, renews the existing signing identity and
+recovers a witness commit after a truncated reply. Historical reconciliation
+performs no fresh commit, and fresh activation still requires the live registry.
+The [iOS policy checkpoint](../../../research/sdk-alpha1/evidence/20261012-ios-policy/README.md)
+adds real policy expiry, independent account/policy approvals and exact witnessed
+P0-to-P1 continuation across 122 app launches. Original message recovery retains
+one effect. Device/root replacement, background/Data Protection and package
+admission remain separate lifecycle work.
+
+On iOS, create an app-owned private directory with mode `0700`. Pass its absolute
+canonical path from `realpath`; Foundation can abbreviate `/private/var` back to
+`/var`, which the native no-symlink boundary deliberately refuses. Resolve only
+the host-selected container directory before creating SDK state; do not resolve
+arbitrary incoming paths to bypass a refusal. The store uses search-only access
+for sandbox ancestors and retains readable, owner/mode/ACL-checked final directory
+descriptors for storage and synchronization.
 
 For a new installation, use `ContinuityConfiguration.prepareCreate(path:input:)`
 with `InstallationConfiguration`: an explicit `SdkPolicyTrust`, exact

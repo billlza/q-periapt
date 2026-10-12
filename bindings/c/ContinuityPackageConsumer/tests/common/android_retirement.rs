@@ -305,7 +305,7 @@ fn route(out: &Path, driver: &Path, profile: &str, carrier: &str) -> Result<()> 
     Ok(())
 }
 
-fn interrupted(
+pub(crate) fn interrupted(
     driver: &Path,
     profile: &str,
     inputs: &Path,

@@ -10,17 +10,12 @@ public final class RetiredReportProposal {
     private final RetiredInventory inventory;
     private final Ids.RetiredReport report;
     private RetiredReportProposal(byte[] bytes) {
-        if (bytes.length != 353 || !magic(bytes, "QPRRPT01")
+        if (bytes.length != 353 || !WireHeader.matches(bytes, "QPRRPT01")
                 || !EnrollmentIntent.nonzero(Arrays.copyOfRange(bytes, 321, 353)))
             throw new IllegalStateException("native retirement proposal");
         inventory = new RetiredInventory(Arrays.copyOfRange(bytes, 8, 321));
         report = new Ids.RetiredReport(Arrays.copyOfRange(bytes, 321, 353));
         this.bytes = bytes.clone();
-    }
-    static boolean magic(byte[] bytes, String expected) {
-        if (bytes.length < expected.length()) return false;
-        for (int i = 0; i < expected.length(); ++i) if (bytes[i] != (byte)expected.charAt(i)) return false;
-        return true;
     }
     static RetiredReportProposal decode(byte[] wire, boolean required) {
         if (wire.length != 360 || wire[357] != 0 || wire[358] != 0 || wire[359] != 0)

@@ -34,5 +34,6 @@ jbyteArray qpj_roster_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
 jbyteArray qpj_policy_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
 void qpj_select_policy(JNIEnv *, jclass, jlong, jlong);
 jlong qpj_prepare_retired(JNIEnv *, jclass, jobjectArray, jlongArray);
+jbyteArray qpj_root_command(JNIEnv *, jclass, jlong, jlong, jint, jobjectArray, jlongArray);
 jbyteArray qpj_retired_command(JNIEnv *, jclass, jlong, jint, jobjectArray);
 #endif

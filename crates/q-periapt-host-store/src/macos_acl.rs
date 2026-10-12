@@ -1,6 +1,6 @@
-//! Narrow descriptor-based adapter for the macOS extended-ACL boundary.
+//! Narrow descriptor-based adapter for the macOS/iOS extended-ACL boundary.
 //!
-//! macOS can grant access through an extended ACL without changing the POSIX
+//! Apple platforms can grant access through an extended ACL without changing the POSIX
 //! mode reported by `fstat`. The platform has no safe standard-library or
 //! rustix wrapper for `acl_get_fd_np`, so the native calls are quarantined here.
 
@@ -24,10 +24,10 @@ unsafe extern "C" {
     fn acl_free(object: *mut c_void) -> c_int;
 }
 
-/// Report whether an already-open file or directory has a macOS extended ACL.
+/// Report whether an already-open file or directory has an Apple extended ACL.
 pub(crate) fn extended_acl_present(file: BorrowedFd<'_>) -> io::Result<bool> {
     // SAFETY: `file` remains live for the call and `ACL_TYPE_EXTENDED` is the
-    // value defined by macOS `<sys/acl.h>`.
+    // value defined by macOS/iOS `<sys/acl.h>`.
     let acl = unsafe { acl_get_fd_np(file.as_raw_fd(), ACL_TYPE_EXTENDED) };
     if acl.is_null() {
         let error = io::Error::last_os_error();

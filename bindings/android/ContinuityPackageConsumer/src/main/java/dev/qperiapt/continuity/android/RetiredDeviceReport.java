@@ -21,7 +21,7 @@ public final class RetiredDeviceReport {
         if (length != wire.length - 48 || views < 1 || views > 2 || reserved != 0 || !EnrollmentIntent.nonzero(id))
             throw new IllegalStateException("native retirement report metadata");
         canonical = Arrays.copyOfRange(wire, 48, wire.length);
-        if (!RetiredReportProposal.magic(canonical, "QPRDMD01") && !RetiredReportProposal.magic(canonical, "QPRDMD02"))
+        if (!WireHeader.matches(canonical, "QPRDMD01") && !WireHeader.matches(canonical, "QPRDMD02"))
             throw new IllegalStateException("native retirement report encoding");
         report = new Ids.RetiredReport(id);
     }

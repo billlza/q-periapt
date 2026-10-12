@@ -60,6 +60,7 @@ public final class BridgeProbe {
         PolicyBridgeProbe.run();
         RosterBridgeProbe.run();
         RetiredBridgeProbe.run();
+        RootBridgeProbe.run();
         System.out.println("configuration:bridge:passed");
     }
     private static void credentialCodecs() {

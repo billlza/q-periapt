@@ -4,7 +4,7 @@ Unpublished Rust host persistence for the owned SDK. `PolicyStore` verifies and
 durably stores an exact signed policy/state before exposing its runtime, holds
 an exclusive lifetime file lock, and closes retained runtime aliases on failure
 or disposal. Its private filesystem implementation is shared with the existing
-policy agent. The reviewed host boundary is macOS/Linux. Database genesis is committed in a private staging inode and published through
+policy agent. The private boundary supports macOS, Linux, Android and iOS; platform execution is recorded separately. Database genesis is committed in a private staging inode and published through
 file sync, NOREPLACE rename and pinned-parent sync before owner release. One
 Database and exclusive lock remain alive throughout. Failed attempts never delete
 formal or staging files. Previously published state must be reopened with original
@@ -24,7 +24,7 @@ share this implementation. Installed packages and Linux runtime qualification
 remain release gates.
 
 `filesystem::publish_private_bytes` publishes complete immutable key images on
-macOS/Linux: private staging write, file sync, NOREPLACE rename, published-inode
+macOS/Linux/Android/iOS: private staging write, file sync, NOREPLACE rename, published-inode
 validation, parent sync. Existing destinations are never replaced or deleted on
 failure. Errors retain the original operation and attempted staging name. Failed attempts
 and process crashes can leave unpublished private staging orphans; automatic selection,
@@ -42,3 +42,11 @@ replacements. V1 files and C/Swift constructors are unchanged and do not implici
 acquire this authority. See the detailed contract above for wire, trust, storage
 and integration limits; this is not full Continuity root migration or restored
 message-confidentiality evidence.
+
+The iOS path uses the existing Apple descriptor-ACL check and search-only access
+to intermediate sandbox directories. The final directory must still be readable,
+owned by the current user and exactly `0700`; private files remain `0600`.
+Callers supply the canonical app-owned path, without Foundation path abbreviation.
+The [initial physical iOS checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md)
+covers identity creation and process reopening, including symlink and loose-mode
+refusals. It does not qualify every policy-recovery or Continuity lifecycle route.

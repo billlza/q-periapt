@@ -47,7 +47,8 @@ def source_inputs() -> dict:
         "artifact/continuity_android_policy_expiry.py", "artifact/continuity_android_policy_renewal.py",
         "artifact/continuity_android_contract.py", "artifact/continuity_android_roster.py",
         "artifact/continuity_android_roster_witness.py", "artifact/continuity_android_policy_roster.py",
-        "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py"))
+        "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py",
+        "artifact/continuity_android_root.py"))
     from continuity_android_jni import source_files as android_source_files
     files.extend(ROOT / "bindings/android/ContinuityPackageConsumer" / name for name in android_source_files())
     files.extend((ROOT / "bindings/c/ContinuityPackageConsumer").rglob("*"))

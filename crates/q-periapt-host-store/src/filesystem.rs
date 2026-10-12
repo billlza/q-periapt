@@ -190,13 +190,23 @@ impl redb::StorageBackend for BoundedBackend {
     fn sync_data(&self) -> std::io::Result<()> {
         #[cfg(all(
             test,
-            any(target_os = "macos", target_os = "linux", target_os = "android")
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "linux",
+                target_os = "android"
+            )
         ))]
         publication::database_tests::at_database_sync(false)?;
         self.0.sync_data()?;
         #[cfg(all(
             test,
-            any(target_os = "macos", target_os = "linux", target_os = "android")
+            any(
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "linux",
+                target_os = "android"
+            )
         ))]
         publication::database_tests::at_database_sync(true)?;
         Ok(())
@@ -272,11 +282,21 @@ pub fn provision_private_database<E>(
 where
     E: From<PrivateDatabaseError>,
 {
-    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    ))]
     {
         publication::provision_database(path, initialize)
     }
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    )))]
     {
         let _ = (path, initialize);
         Err(E::from(PrivateDatabaseError::File))
@@ -760,7 +780,16 @@ fn open_directory(path: &Path) -> Result<std::os::fd::OwnedFd, PrivateFileError>
     // readable so its owner-only admission and directory fsync are unchanged.
     #[cfg(target_os = "android")]
     let traversal_flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
-    #[cfg(not(target_os = "android"))]
+    // iOS permits searching sandbox ancestors without granting directory listings.
+    // Darwin <sys/fcntl.h> defines O_SEARCH as O_EXEC (0x40000000) | O_DIRECTORY.
+    // rustix 1.1.5 does not yet name O_SEARCH; preserve its kernel-defined bit.
+    // Final-directory read access, mode, owner and ACL validation stay unchanged.
+    #[cfg(target_os = "ios")]
+    let traversal_flags = OFlags::from_bits_retain(0x40000000)
+        | OFlags::DIRECTORY
+        | OFlags::CLOEXEC
+        | OFlags::NOFOLLOW;
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let traversal_flags = directory_flags;
     let initial_flags = if components.peek().is_some() {
         traversal_flags
@@ -825,7 +854,7 @@ fn validate_private_directory(descriptor: &std::os::fd::OwnedFd) -> Result<(), P
     require_no_extended_acl(descriptor)
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 fn require_no_extended_acl(descriptor: &std::os::fd::OwnedFd) -> Result<(), PrivateFileError> {
     use std::os::fd::AsFd;
 
@@ -844,7 +873,12 @@ fn require_no_extended_acl(_: &std::os::fd::OwnedFd) -> Result<(), PrivateFileEr
 
 #[cfg(all(
     unix,
-    not(any(target_os = "linux", target_os = "macos", target_os = "android"))
+    not(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+    ))
 ))]
 fn require_no_extended_acl(_: &std::os::fd::OwnedFd) -> Result<(), PrivateFileError> {
     // Other Unix ACL models have not been reviewed for an exact correspondence

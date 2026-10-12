@@ -77,7 +77,7 @@ def verify_execution(stdout: bytes, cases: Path) -> dict:
 
 def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path) -> Path:
     program = directory / "driver.py"
-    probes = (("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
+    probes = (("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
               ("roster-", "RosterProbe"), ("policy-", "PolicyProbe"), ("credential-", "CredentialProbe"),
               ("authority-", "AuthorityProbe"), (("witness-", "managed-"), "WitnessProbe"), ("peer-", "PeerProbe"))
     program.write_text("import os, sys\n"
@@ -180,6 +180,9 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             import continuity_android_retirement as retirement
             retirement_results = retirement.qualify(binary, consumer, installed, output, profile,
                 dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver)), run)
+            import continuity_android_root as root_qualification
+            root_results = root_qualification.qualify(binary, consumer, installed, output, profile,
+                dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver)), run)
             import continuity_android_witness as witnessed
             import continuity_android_credential as credential
             import continuity_android_remote_credential as remote_credential
@@ -233,7 +236,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             roster_results = roster_qualification.qualify(binary, consumer, installed, output, profile,
                 dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver),
                      QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)), run)
-            result["profiles"][profile] = {"retirement_outcomes": retirement_results, "roster_outcomes": roster_results, "policy_renewal_outcomes": policy_results,
+            result["profiles"][profile] = {"root_outcomes": root_results, "retirement_outcomes": retirement_results, "roster_outcomes": roster_results, "policy_renewal_outcomes": policy_results,
                 "policy_target_client_sha256": sdk.snapshot(target_client, maximum=c.MAX_BINARY).sha256,
                 "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,

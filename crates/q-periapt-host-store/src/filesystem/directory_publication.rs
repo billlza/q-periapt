@@ -23,11 +23,21 @@ pub fn publish_private_directory<T, E>(
 where
     E: From<PrivatePublicationError>,
 {
-    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    ))]
     {
         publish_with(path, initialize, |_, _| Ok(()))
     }
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    )))]
     {
         let _ = (path, initialize);
         Err(E::from(PrivatePublicationError::from(io::Error::new(
@@ -37,12 +47,27 @@ where
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 use super::{open_private_parent, validate_private_directory, OwnedPrivateDirectory};
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 use std::{ffi::OsStr, path::PathBuf};
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Step {
     Created,
@@ -55,7 +80,12 @@ enum Step {
     ParentSynced,
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 fn admission() -> io::Error {
     io::Error::new(
         io::ErrorKind::PermissionDenied,
@@ -63,7 +93,12 @@ fn admission() -> io::Error {
     )
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 struct Staging {
     parent: OwnedPrivateDirectory,
     directory: OwnedPrivateDirectory,
@@ -72,7 +107,12 @@ struct Staging {
     path: PathBuf,
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 impl Staging {
     fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
         use rustix::fs::{mkdirat, openat, statat, AtFlags, Mode, OFlags};
@@ -139,7 +179,12 @@ impl Staging {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
 fn publish_with<T, E>(
     path: &Path,
     initialize: impl FnOnce(&Path) -> Result<T, E>,
@@ -182,6 +227,11 @@ where
 
 #[cfg(all(
     test,
-    any(target_os = "macos", target_os = "linux", target_os = "android")
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    )
 ))]
 mod tests;

@@ -157,8 +157,8 @@ The normal installed-package qualifier now requires the replacement/retirement
 case and rereads its bounded public export. The
 [complete integrated Debug/Release run](../../research/sdk-alpha1/evidence/20261012-android-retirement-integrated/README.md)
 passes 3,570 Java processes with unchanged compiled inputs and archive-only
-readback. Account-root integration and independent protocol implementations remain
-separate work.
+readback. The following root checkpoint extends this integration; independent
+protocol implementations remain separate work.
 
 The isolated [Android account-root replacement checkpoint](../../research/sdk-alpha1/evidence/20261012-android-root/README.md)
 now passes the original target, transition to another approved target, transition
@@ -175,8 +175,54 @@ test installations and owned port mappings are removed. The subsequent
 adds 164 host calls and 82 ART calls with the unchanged AAR. A signed noncommit
 remains Closed across restart and refuses the old freeze; idle cancellation stops
 controller calls while its active successor remains usable until controller close.
-Main-source and package-gate integration remain separate software work.
+The adapter and all five routes are now in the main sources. The normal package
+qualifier requires the complete 30-test catalog and rereads each bounded export.
+The [combined current-source Debug/Release integration](../../research/sdk-alpha1/evidence/20261012-android-root-integrated/README.md)
+now completes 4,294 Java calls, including 724 root calls and 124 root cuts. All
+15,965 captured member hashes and root/retirement/roster exports were reread.
 This does not reopen the already satisfied physical-device gate.
+
+The [integrated iOS store checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md)
+adds physical execution on the offered USB-connected iPhone 16 Pro with iOS 27.0.
+It creates two fresh identities under fixed/recoverable SDK trust, verifies the
+registration signatures at the host, activates the independently issued grants,
+and reopens exact original state. Eight private-path probes refuse symlinks and
+0755 directories with code 203; all 57 host-store unit tests and Clippy also pass.
+The [subsequent USB connection route](../../research/sdk-alpha1/evidence/20261012-ios-network/README.md)
+uses 20 application launches and six actual TLS exchanges. For each trust profile,
+the C receiver exits with 77 after its business effect and the iPhone reopens and
+retries the same session/message; one unchanged effect is retained. The transport
+relay copies opaque TLS bytes only. This is Swift/iOS to C/macOS execution with
+the shared engine. The subsequent [managed iOS witness checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-managed-witness/README.md)
+adds four on-device registries and four independently verified device identities
+across fixed/recoverable trust and signed TCP/mTLS witness runtime. All 66 app
+launches pass, including missing witness (216), wrong witness (103), preparation
+cancellation (302), malformed signed receipt (218), absent registry (211), and
+closed/finally released registry (202). Twelve peer TLS and 486 phone-witness
+exchanges preserve the original session/message and one effect through four
+receiver exit-77 cuts. Twenty-eight actual refused reconnections are retained as
+failures. TLS runtime does not fall back to signed TCP. The app is removed.
+The [iOS credential renewal checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-credential/README.md)
+adds 130 successful launches across the same four trust/carrier combinations.
+Each waits for actual credential expiry and observes 104 for old activation and
+a fresh request. An independently approved same-key renewal is staged exactly,
+committed once at the witness, and reported as unknown 218 after reply truncation.
+Historical reconciliation/replay works without new account authority and dispatches
+no fresh commit; new activation without the registry still returns 211. The
+original signer, journal, session/message and one peer effect remain unchanged.
+Twelve peer TLS and 542 witness streams are retained with 28 refused retries;
+twelve altered public/execution captures are rejected. This is credential renewal,
+not signer replacement or post-compromise recovery. The test app is removed.
+The [iOS policy checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-policy/README.md)
+completes another 122 app launches in four scenarios. The receiver adopts P1
+before real P0 expiry; the phone then refuses old activation with 104. Independent
+account and policy approvals authorize continuation. A modified approval returns
+102; repeated staging and recovery preserve the exact witness proposal. Applied
+reconciliation and retry retain the original session/message and one effect.
+Twelve public-record mutations are rejected; all 3,168 archived members are
+hash-checked and the public records reread. Replacement/root lifecycle,
+background/Data Protection behavior and package admission remain open. The existing one-phone Android gate
+stays passed.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),

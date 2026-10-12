@@ -155,8 +155,8 @@ def verify_records(directory: Path, profile: str) -> dict:
     return result
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
-    contract.verify_single(stdout, TEST)
+def verify_execution(stdout: bytes, directory: Path, *, catalog=contract.TESTS) -> dict:
+    contract.verify_single(stdout, TEST, catalog=catalog)
     results = {}
     for profile in ("fixed", "recoverable"):
         marker = (f"qualified Android-owned retirement signed-{profile}: 32 Java processes; "

@@ -6,6 +6,27 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Android account-root integration
+
+The account-root adapter is now in the main sources. JNI dispatch is 126 lines;
+`RootOperations` and shared `RetiredOperations` are 36 and 51 lines. The public
+controller carries typed immutable approvals and delegates persistent decisions
+to the existing native owner. Standalone retired-owner signer erasure consumes
+that owner; controller cleanup preserves the active successor until controller
+close. Neither the code split nor these line counts establish a performance gain.
+
+The [root lifecycle](../research/sdk-alpha1/evidence/20261012-android-root/README.md)
+and [noncommit/cancellation](../research/sdk-alpha1/evidence/20261012-android-root-controls/README.md)
+checkpoints cover 724 host calls and 362 ART calls, with 124/62 actual cuts.
+All 69 main library/JNI inputs match the accepted AAR. The normal qualifier now
+requires all five routes in the exact 30-test catalog and rechecks original
+journals, reports, successor traffic, expected cuts and diagnostics. Historical
+24/25/29-test catalogs are accepted only when explicitly selected for their old
+archives. The [combined current-source qualification](../research/sdk-alpha1/evidence/20261012-android-root-integrated/README.md)
+now passes 4,294 Debug/Release Java calls. All 15,965 archive member hashes,
+20 root exports, four retirement exports and 44 roster exports were reread after
+terminal completion. The existing single-phone AAR acceptance remains passed.
+
 ## Android retirement adapter
 
 The isolated [Android retirement qualification](../research/sdk-alpha1/evidence/20261012-android-retirement/README.md)
@@ -693,3 +714,58 @@ been measured by this inspection. Sharing persisted input is a format/recovery
 change, not a harmless removal of `clone()`. Measure those costs under equal
 recipient counts and payloads before changing the representation; preserve whole
 batch commit, original-intent checks and zeroization. No speedup is claimed here.
+
+## Physical iOS storage and connection integration (2026-10-12)
+
+The offered iPhone exposed a real source gap: publication and ACL adapters did
+not admit iOS. Enabling the Apple boundary then exposed Foundation's `/var`
+abbreviation and sandbox denial of ancestor directory reads. The integrated fix
+uses the raw canonical app-owned path and iOS `O_SEARCH` for intermediate
+components. Final directory ownership, mode, ACL, no-follow, no-replace and sync
+checks remain in force. The warning-clean Release app passes two fresh identity
+routes and eight exact 203 path/mode refusals; the Main host-store suite passes
+57 tests and Clippy. Source and device receipts are retained in the
+[iOS Main checkpoint](../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md).
+
+The [USB connection checkpoint](../research/sdk-alpha1/evidence/20261012-ios-network/README.md)
+adds two original-session/message recovery routes across a real iPhone and Mac.
+The C receiver exits after the durable effect and before ACK; the iPhone closes,
+relaunches and retries the original message. Effect bytes and count remain exact.
+Twenty app launches and six TLS exchanges pass; the app is removed afterward.
+The USB relay is a bounded qualification transport outside product code, and the
+wrappers share the Rust engine. This does not close independent implementation,
+iOS witnessed lifecycle, release-package or physical power-loss requirements.
+
+The next [iOS managed witness checkpoint](../research/sdk-alpha1/evidence/20261012-ios-managed-witness/README.md)
+uses device-generated authority wrapping keys and registries, not copied host
+stores. Four fixed/recoverable and signed TCP/mTLS cases complete 66 launches,
+12 peer TLS exchanges and 486 device-witness exchanges. Exact refusals cover
+missing/wrong witness, cancellation, bad signed receipt, absent registry and
+closed/released registry. Each receiver exits after one effect; exact retry keeps
+that effect once. The multi-connection USB harness records 28 refused retries
+instead of calling them successful streams. Eight public-capture mutations fail
+readback. Signatures remain native execution evidence, not a second crypto engine.
+Expiry/renewal, replacement/root, background/Data Protection and package admission
+are not closed by this checkpoint.
+
+The subsequent [physical iOS credential checkpoint](../research/sdk-alpha1/evidence/20261012-ios-credential/README.md)
+completes 130 app launches under four trust/witness combinations. Real clock
+expiry refuses old activation and fresh requests with 104. After the witness
+commits once and truncates its response, 218 preserves the unknown result;
+historical reconcile/replay does not dispatch another commit. It can read that
+original terminal result without a live registry, while fresh activation remains
+blocked with 211. Original signing identity, journal, session/message and one
+business effect survive the sequence. Twelve capture mutations are refused and
+raw iOS execution identity is checked directly. This is same-key credential
+renewal, not key replacement or a confidentiality-recovery claim.
+
+The [physical iOS policy checkpoint](../research/sdk-alpha1/evidence/20261012-ios-policy/README.md)
+then completes 122 launches under the same four combinations. It waits for real
+P0 expiry after the receiver has adopted P1, refuses old activation with 104, and
+requires independent account/policy approvals. Tampering returns 102; exact
+staging, proposal recovery and Applied reconciliation retain the original
+session/message and one effect. Twelve altered captures are rejected. A prior
+CoreDevice launch failure (10004, no process identifier before SDK work) remains
+in the archive; the retry adds a startup grace before SDK work and still requires
+exact receipts, markers and process exit 0. Replacement/root lifecycle,
+background/Data Protection and package work remain.

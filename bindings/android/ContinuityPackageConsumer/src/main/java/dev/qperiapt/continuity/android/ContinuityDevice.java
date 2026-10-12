@@ -5,6 +5,7 @@ package dev.qperiapt.continuity.android;
 public final class ContinuityDevice implements AutoCloseable {
     private final Owner owner;
     ContinuityDevice(long handle) { owner = new Owner(handle); }
+    <T> T withOwner(Owner.Call<T> call) { return owner.call(false, call); }
     public void cancel() { owner.action(2); }
     @Override public void close() { owner.close(); }
     /** Admit an independently approved remote grant on this original device.

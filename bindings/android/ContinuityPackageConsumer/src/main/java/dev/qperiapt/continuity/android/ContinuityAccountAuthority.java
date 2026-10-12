@@ -9,7 +9,8 @@ import java.util.Objects;
  */
 public final class ContinuityAccountAuthority implements AutoCloseable {
     private final Owner owner;
-    private ContinuityAccountAuthority(long handle) { owner = new Owner(handle); }
+    private final RetiredOperations retired;
+    private ContinuityAccountAuthority(long handle) { owner = new Owner(handle); retired = new RetiredOperations(owner); }
     private static ContinuityAccountAuthority own(long handle) {
         try { return new ContinuityAccountAuthority(handle); }
         catch (Throwable failure) {
@@ -49,4 +50,64 @@ public final class ContinuityAccountAuthority implements AutoCloseable {
             Native.selectAuthority(handle, registry, input); return null;
         }));
     }
+    /** Converts this registry into the controller; old device aliases lose operational authority.
+     * Close the consumed device's table slot. Keep this controller alive while the successor operates. */
+    public void beginRootReplacement(ContinuityDevice device, RootReplacementScope scope, RootReplacementPlan plan) {
+        RootOperations.begin(owner, device, scope, plan);
+    }
+    /** Reopen the same original inputs; missing state is never recreated. */
+    public void resumeRootReplacement(String path, EnrollmentIntent intent, RootReplacementScope scope, RootReplacementPlan plan) {
+        RootOperations.resume(owner, Native.ROOT_RESUME, path, intent, scope,
+            new byte[][] {Objects.requireNonNull(plan, "original plan").encoded()});
+    }
+    public RootReplacementState rootReplacementState() {
+        return RootReplacementState.decode(RootOperations.call(owner, Native.ROOT_STATE, new byte[0][]));
+    }
+    public RootReplacementProposal bindRootFreeze(byte[] receipt) {
+        return RootReplacementProposal.fromNative(RootOperations.call(owner, Native.ROOT_BIND_FREEZE,
+            new byte[][] {RootOperations.receipt(receipt, 1, 131072)}));
+    }
+    public AccountAuthorityCheckpoint retainRootRetirement(byte[] receipt) {
+        return AccountAuthorityCheckpoint.fromWire(RootOperations.call(owner, Native.ROOT_RETAIN_RETIREMENT,
+            new byte[][] {RootOperations.receipt(receipt, 3449, 3449)}));
+    }
+    /** Signed noncommit preserves suspension; it does not authorize another target. */
+    public RootReplacementState retainRootNoncommit(byte[] receipt) {
+        return RootReplacementState.decode(RootOperations.call(owner, Native.ROOT_RETAIN_NONCOMMIT,
+            new byte[][] {RootOperations.receipt(receipt, 3449, 3449)}));
+    }
+    public ContinuityDevice activateRootSuccessor(ContinuityEnrollment enrollment) {
+        Objects.requireNonNull(enrollment, "successor enrollment");
+        return owner.call(false, enrollment::activateRootSuccessor);
+    }
+    public RootReplacementProposal transitionRoot(RootReplacementTransition approval) {
+        return RootReplacementProposal.fromNative(RootOperations.call(owner, Native.ROOT_TRANSITION,
+            Objects.requireNonNull(approval, "independent transition approval").snapshot()));
+    }
+    public AccountAuthorityCheckpoint adoptRoot(RootReplacementAdoption approval) {
+        return AccountAuthorityCheckpoint.fromWire(RootOperations.call(owner, Native.ROOT_ADOPT,
+            Objects.requireNonNull(approval, "independent adoption approval").snapshot()));
+    }
+    public void resumeRootTransition(String path, EnrollmentIntent intent, RootReplacementScope scope, RootReplacementTransition approval) {
+        RootOperations.resume(owner, Native.ROOT_RESUME_TRANSITION, path, intent, scope,
+            Objects.requireNonNull(approval, "original transition approval").snapshot());
+    }
+    public void resumeRootAdoption(String path, EnrollmentIntent intent, RootReplacementScope scope, RootReplacementAdoption approval) {
+        RootOperations.resume(owner, Native.ROOT_RESUME_ADOPTION, path, intent, scope,
+            Objects.requireNonNull(approval, "original adoption approval").snapshot());
+    }
+    public RetiredInventory retiredInventory() { return retired.inventory(); }
+    public RetiredReportProposal prepareRetiredReport(byte[] inventory) { return retired.prepareReport(inventory); }
+    public RetiredReportProposal retiredReportProposal() { return retired.reportProposal(); }
+    public RetiredReportProposal retiredAcknowledgementProposal() { return retired.acknowledgementProposal(); }
+    public RetiredDeviceReport loadRetiredReport(byte[] inventory, byte[] report) { return retired.loadReport(inventory, report); }
+    public RetiredReportProposal prepareRetiredAcknowledgement(byte[] inventory, byte[] report, byte[] recordedReport) {
+        return retired.prepareAcknowledgement(inventory, report, recordedReport);
+    }
+    public RetiredErasureState retiredJournalState() { return retired.journalState(); }
+    public RetiredErasureState retiredSignerState() { return retired.signerState(); }
+    public void eraseRetiredJournal(byte[] acknowledgement) { retired.eraseJournal(acknowledgement); }
+    public void prepareRetiredSignerErasure(byte[] acknowledgement) { retired.prepareSignerErasure(acknowledgement); }
+    /** Preserves this controller and its successor after erasing the historical signer. */
+    public void eraseRetiredSigner() { retired.eraseSigner(); }
 }
