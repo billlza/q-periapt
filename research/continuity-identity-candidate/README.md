@@ -5,6 +5,13 @@ shared engine and exercises the public connection/recovery trace through exact
 crate archives outside the checkout. It retains the unpublished candidate boundary;
 foreign bindings and the product protocol freeze remain separate release work.
 
+The [browser portability checkpoint](../sdk-alpha1/evidence/20261012-browser-engine-portability/README.md)
+compiles the same engine to WebAssembly and executes dual-signature identity
+verification and monotonic deadlines in real window/Worker realms. Native TCP
+is target-specific; `MonotonicInstant` remains `std::time::Instant` on native
+targets and uses the browser performance clock on the web. This does not admit
+browser journal/installation owners or witness and peer transports.
+
 The consolidated [wire contract](../../docs/continuity/WIRE_V1.md) covers the exact
 current public record/carrier grammars, domains and verification boundaries.
 `contract` exposes the resource constants consumed by the real codecs and journal;

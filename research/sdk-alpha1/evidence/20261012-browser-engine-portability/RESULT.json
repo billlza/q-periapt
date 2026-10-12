@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "version": "154.0.8037.99",
+  "rows": [
+    {
+      "status": "passed",
+      "realm": "window",
+      "clock": {
+        "expired": true,
+        "elapsedMs": 252.4
+      },
+      "signatureRefusals": 2,
+      "credentialBytes": 5474,
+      "rosterBytes": 3499
+    },
+    {
+      "status": "passed",
+      "realm": "worker",
+      "clock": {
+        "expired": true,
+        "elapsedMs": 260.40000000000003
+      },
+      "signatureRefusals": 2,
+      "credentialBytes": 5474,
+      "rosterBytes": 3499
+    }
+  ],
+  "pageErrors": []
+}

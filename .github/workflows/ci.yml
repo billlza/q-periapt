@@ -897,6 +897,8 @@ jobs:
         run: wasm-pack test --node crates/q-periapt-wasm
       - name: Test signed-policy WebAssembly face on Node
         run: wasm-pack test --node crates/q-periapt-wasm --features signed-policy
+      - name: Check shared Continuity engine for the browser target
+        run: cargo +1.98.1 check --locked --manifest-path research/continuity-identity-candidate/Cargo.toml --lib --target wasm32-unknown-unknown
       - name: Install pinned SDK npm producer in a private tool directory
         run: |
           npm install --prefix "$RUNNER_TEMP/qperiapt-npm" --ignore-scripts --no-fund npm@12.1.0

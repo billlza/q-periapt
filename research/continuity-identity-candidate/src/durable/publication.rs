@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! One recoverable local advertisement; directory distribution remains external.
 use super::*;
+use crate::MonotonicInstant as Instant;
 use crate::{
     Cancellation, IssuedManifest, LeafKind, ManifestContext, PrekeyLeaf, Validity,
     VerifiedSessionPolicy,
 };
-use std::time::Instant;
 
 mod codec;
 use codec::{Entry, Registry};

@@ -27,7 +27,9 @@ pub use store::{
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
-pub use transport::{AnchorClient, AnchorClientError, AnchorTcpTransport, AnchorTransport};
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use transport::AnchorTcpTransport;
+pub use transport::{AnchorClient, AnchorClientError, AnchorTransport};
 #[cfg(feature = "anchor-tls")]
 pub mod tls;
 

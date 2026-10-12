@@ -7,12 +7,23 @@
 //! Account enrollment must independently pin the intended account and roster head.
 //! No production crate, C ABI, or language binding depends on this candidate.
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use anchor::AnchorTcpTransport;
+/// Monotonic deadline clock. Native targets retain `std::time::Instant`; browser
+/// targets use the platform performance clock. This is not credential wall time.
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use std::time::Instant as MonotonicInstant;
+/// Monotonic deadline clock backed by the browser performance clock.
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use web_time::Instant as MonotonicInstant;
+
 mod account_authority;
 mod anchor;
 mod bootstrap;
 mod bootstrap_bundle;
 mod cancellation;
 mod codec;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod connect;
 #[cfg(feature = "connection-tls")]
 pub mod connection_transport;
@@ -112,7 +123,7 @@ pub use anchor::{
     AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject,
     AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore, AnchorSubject,
-    AnchorTcpTransport, AnchorTransport, RosterRefreshId, RosterRefreshScope,
+    AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,
