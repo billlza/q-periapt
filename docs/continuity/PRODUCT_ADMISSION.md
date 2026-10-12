@@ -259,9 +259,14 @@ qualification and Swift CI job. Sixty relevant checks, all 686 package members,
 three exact native export sets and the final consumer link maps pass locally.
 The macOS and iOS 27 simulator cancellation/close probes execute the packaged
 native owner. Xcode's varying slice order is canonicalized; a fresh producer run
-matches the expected archive hash from two earlier native builds. Hosted CI and
-physical execution of this exact new archive remain separate; the simulator
-probe does not replace the earlier full physical lifecycle records.
+matches the expected archive hash from two earlier native builds. The subsequent
+[physical iPad checkpoint](../../research/sdk-alpha1/evidence/20261012-canonical-apple-device/README.md)
+executes this exact canonical archive through all five account-root routes under
+fixed/recoverable trust: 362 app calls, 62 app exit cuts and 20 receiver exit cuts.
+The package, selected native slice and executable identities are rechecked; all
+startup admissions and public records pass, and the run-owned app is removed.
+Hosted CI remains separate. Earlier Data Protection evidence keeps its original
+artifact scope; neither cohort asserts live-owner background recovery or PCS.
 
 New C, Swift and Kotlin/JVM integrations use explicit first-use configuration:
 [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),

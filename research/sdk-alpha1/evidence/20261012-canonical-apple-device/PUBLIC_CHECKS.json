@@ -1,0 +1,14 @@
+{
+  "rejected": [
+    "root-verified",
+    "root-close-revoked",
+    "root-activation-unknown",
+    "root-retained",
+    "root-acknowledged",
+    "root-effect-count",
+    "root-original-effect-after",
+    "root-report-unknown.stdout",
+    "native execution identity",
+    "native execution identity"
+  ]
+}

@@ -51,8 +51,12 @@ result for the newly built package, and do not publish a release.
 The [canonical Apple package checkpoint](../../../research/sdk-alpha1/evidence/20261012-apple-package-producer/README.md)
 records a full local producer run, matching canonical archive bytes across native
 builds, and a separate installed iOS 27 simulator cancellation/close probe.
-Physical execution of that exact new archive and the hosted CI result remain
-separate from the earlier device-qualified candidate.
+The same canonical archive subsequently passes the
+[physical iPad account-root lifecycle](../../../research/sdk-alpha1/evidence/20261012-canonical-apple-device/README.md):
+five routes, both SDK trust profiles, 362 app calls and 62 app exit/reopen cuts.
+The app links the exact extracted iOS slice and is removed after verification.
+The hosted CI result and earlier device/Data Protection artifact scopes remain
+separate.
 
 
 On iOS, create an app-owned private directory with mode `0700`. Pass its absolute

@@ -851,3 +851,16 @@ maps fix a real consumer build collision; filesystem alias validation preserves
 exact selected-file identity. The CI entry point retains the full parent Rust/C
 qualification. Its hosted outcome and physical execution of this exact new ZIP
 remain open; the local simulator probe has no full-lifecycle or PCS scope.
+
+### 2026-10-12 canonical Apple package physical lifecycle
+
+The subsequent [physical iPad capture](../research/sdk-alpha1/evidence/20261012-canonical-apple-device/README.md)
+closes account-root lifecycle acceptance for that exact canonical ZIP. The
+extracted-package Release consumer completes five routes with fixed/recoverable
+trust: 362 calls/startup admissions, 62 app exits, 20 receiver exits and 28
+on-device identities. Link-map, native-slice, app and package hashes are rechecked.
+All 8,203 capture members are hashed and reread; ten altered records are refused.
+The app is uninstalled and absence queried. No private device state is exported.
+Hosted package CI, live-owner background handling and the remaining product and
+research gates stay separate; this does not extend earlier lock/unlock evidence
+to the new archive or claim independent implementation/PCS.

@@ -82,7 +82,9 @@ The newly wired hosted CI run remains a separate gate until it completes.
 
 The simulator runtime result is a cancellation/close/native-link probe, not a
 complete enrollment, network or persistence lifecycle trace. This exact new
-archive has not yet run on a physical iOS device. Earlier physical iPhone/iPad
+archive had not yet run on a physical iOS device at this checkpoint. The subsequent
+[physical iPad checkpoint](../20261012-canonical-apple-device/README.md) runs its
+exact bytes through all five account-root routes. Earlier physical iPhone/iPad
 lifecycle and Complete-protection records keep their exact package/binary scope.
 The `qpc-owner/1` interface and protocol remain candidates, separate from ABI 2.
 No release, registry publication or broader 0.2.0 completion is asserted.
