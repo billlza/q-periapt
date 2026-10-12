@@ -20,7 +20,7 @@ class AndroidRootTests(unittest.TestCase):
         cls.cases = {}
         for name, routes, catalog in (
             ("20261012-android-root", ("original", "transition", "bound-transition", "adoption"), contract.ROOT_BASE_TESTS),
-            ("20261012-android-root-controls", ("noncommit",), contract.TESTS),
+            ("20261012-android-root-controls", ("noncommit",), contract.ROOT_TESTS),
         ):
             archive = sdk.ROOT / "research/sdk-alpha1/evidence" / name / "HOST_CAPTURE.zip"
             with zipfile.ZipFile(archive) as bundle:

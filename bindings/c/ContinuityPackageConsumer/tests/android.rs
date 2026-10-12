@@ -19,6 +19,9 @@ mod recovery_inputs;
 use recovery_inputs::install_recovery;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+#[path = "common/android_account.rs"]
+mod android_account;
+
 #[path = "common/android_credential.rs"]
 mod android_credential;
 #[path = "common/android_credential_terminal.rs"]

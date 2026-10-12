@@ -39,6 +39,7 @@ final class Native {
     static native byte[] enrollmentQuery(long handle, int operation);
     static native byte[] enrollmentAccept(long handle, byte[][] inputs, long version);
     static native long preparePeer(long parent, byte[][] inputs, long[] counters, int quality, int role, boolean reopen);
+    static native byte[] accountCommand(long parent, int operation, long[] peers, byte[][] inputs, int selected);
     static native byte[] peerCommand(long handle, int operation, byte[][] inputs, long target);
     static native byte[] peerServer(long handle, int operation, byte[][] inputs, Object callback);
     static native void provisionAuthority(byte[][] inputs);

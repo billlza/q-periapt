@@ -26,7 +26,7 @@ def fixture(root: Path, *, managed: bool = False) -> bytes:
             else:
                 lines.append(f"qualified witness {carrier}/{trust}: original registration, independent genesis, refused missing or wrong trust, authenticated activation and reopen")
     test = "android_witness::managed_first_registration" if managed else witness.TEST
-    lines += ["test " + test + " ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out;"]
+    lines += ["test " + test + " ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out;"]
     return ("\n".join(lines) + "\n").encode()
 
 

@@ -52,6 +52,7 @@ public final class ContinuityPeer implements AutoCloseable {
         if (bytes.length > 128) throw new IllegalArgumentException("socket address width");
         return bytes;
     }
+    <T> T withOwner(Owner.Call<T> call) { return owner.call(false, call); }
     public void finishOpen() { owner.action(1); }
     public void cancel() { owner.action(2); }
     @Override public void close() { owner.close(); }

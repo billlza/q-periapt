@@ -21,6 +21,7 @@ void qpj_begin_enrollment(JNIEnv *, jclass, jlong, jobjectArray, jlongArray, jin
 jbyteArray qpj_enrollment_query(JNIEnv *, jclass, jlong, jint);
 jbyteArray qpj_enrollment_accept(JNIEnv *, jclass, jlong, jobjectArray, jlong);
 jlong qpj_prepare_peer(JNIEnv *, jclass, jlong, jobjectArray, jlongArray, jint, jint, jboolean);
+jbyteArray qpj_account_command(JNIEnv *, jclass, jlong, jint, jlongArray, jobjectArray, jint);
 jbyteArray qpj_peer_command(JNIEnv *, jclass, jlong, jint, jobjectArray, jlong);
 jbyteArray qpj_peer_server(JNIEnv *, jclass, jlong, jint, jobjectArray, jobject);
 jboolean qpj_valid_commit(JNIEnv *, jobject);

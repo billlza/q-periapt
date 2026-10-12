@@ -69,6 +69,27 @@ revocation refuses both retained-peer sends and reopening. A device-generation
 replacement needs explicit target-roster admission on the counterparty before a
 fresh session can be opened. Incoming bootstrap material cannot select this trust.
 
+For one operation addressed to every current device in an account, retain
+`nextAccountOperation()` before dispatch. Build the complete `AccountTarget[]`
+from the independently approved roster and the original peer/session owners,
+then call `sendAccountMember` once for each selected member with that same
+operation, account, full target set, payload and associated data. The native
+journal admits the complete transaction before delivering any selected member;
+omitting a recipient or changing a retained input is refused. This API does not
+turn remote business effects into an atomic transaction.
+
+`accountStatus` reports local aggregate state. `COMMITTED` does not assert remote
+consumption. `AccountDelivery` distinguishes confirmed, pending, unknown, retired
+and abandoned results; zero exchanges describes a retained result, not necessarily
+success. A failed or cancelled call may have committed. Close/reopen the original
+owners and reconcile the same operation and inputs. Concurrent member close or
+ordinary operations return Busy while the whole set is admitted; member cancellation
+can interrupt the aggregate without permanently cancelling other peers.
+The [focused host JNI checkpoint](../../../research/sdk-alpha1/evidence/20261012-android-account/README.md)
+passes 108 independent Java processes across Debug/Release and fixed/recoverable
+trust. It is integrated into the existing host qualification; the earlier accepted
+physical Android AAR keeps its recorded artifact scope.
+
 For a remote peer's renewal, call `ContinuityDevice.admitPeerCredentialRenewal`
 with the signed grant, an independently retained target `AccountPin` and the
 original renewal ID. Keep the original device and registry alive. The returned

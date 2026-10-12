@@ -32,6 +32,59 @@ public final class ContinuityDevice implements AutoCloseable {
             PolicyCodec.pin(independentPin));
         return owner.call(false, handle -> RosterCheckpoint.decode(Native.rosterCommand(handle, Native.ROSTER_ADMIT_PEER, input)));
     }
+    /** Read and retain before submitting; this does not reserve or dispatch work. */
+    public Ids.AccountOperation nextAccountOperation() {
+        return owner.call(false, handle -> new Ids.AccountOperation(
+            Native.accountCommand(handle, 1, new long[0], new byte[0][], 0)));
+    }
+    public AccountStatus accountStatus(Ids.AccountOperation original) {
+        byte[][] input = {java.util.Objects.requireNonNull(original, "original operation").encoded()};
+        return owner.call(false, handle -> new AccountStatus(Native.accountCommand(handle, 2, new long[0], input, 0)));
+    }
+    private interface TargetCall<T> { T run(); }
+    private static <T> T borrowTargets(AccountTarget[] targets, long[] handles, int index, TargetCall<T> operation) {
+        if (index == targets.length) return operation.run();
+        return targets[index].peer().withOwner(handle -> {
+            handles[index] = handle;
+            return borrowTargets(targets, handles, index + 1, operation);
+        });
+    }
+    /** Admit the COMPLETE original target set and input, then deliver one member.
+     * This is one native journal transaction, not a loop of individual sends.
+     * Retain the same operation, account, targets and payload across retries and
+     * members. Failure/cancellation may follow commitment. Remote effects are not
+     * atomic, and local COMMITTED does not assert consumption by every recipient.
+     * All target owners remain borrowed until return; native admission governs
+     * concurrent close/cancel and requires live children of this exact device.
+     */
+    public AccountDelivery sendAccountMember(Ids.AccountOperation original, Ids.Account account,
+            AccountTarget[] targets, int selected, String endpoint, byte[] plaintext, byte[] associatedData) {
+        java.util.Objects.requireNonNull(targets, "complete target set");
+        if (targets.length < 1 || targets.length > 32 || selected < 0 || selected >= targets.length)
+            throw new IllegalArgumentException("account target count or selection");
+        AccountTarget[] retained = targets.clone();
+        byte[] sessions = new byte[retained.length * 32];
+        for (int i = 0; i < retained.length; ++i) {
+            java.util.Objects.requireNonNull(retained[i], "account target");
+            System.arraycopy(retained[i].session().encoded(), 0, sessions, i * 32, 32);
+        }
+        byte[] operation = java.util.Objects.requireNonNull(original, "original operation").encoded();
+        byte[] accountId = java.util.Objects.requireNonNull(account, "account").encoded();
+        byte[] address = Native.path(endpoint);
+        if (address.length > 128) throw new IllegalArgumentException("socket address width");
+        java.util.Objects.requireNonNull(plaintext, "plaintext"); java.util.Objects.requireNonNull(associatedData, "associated data");
+        if (plaintext.length > 16384 || associatedData.length > 1024) throw new IllegalArgumentException("message bound");
+        byte[] payload = plaintext.clone();
+        try {
+            byte[] ad = associatedData.clone();
+            try {
+                long[] handles = new long[retained.length];
+                byte[][] input = {operation, accountId, address, payload, ad, sessions};
+                return owner.call(false, parent -> borrowTargets(retained, handles, 0, () ->
+                    new AccountDelivery(Native.accountCommand(parent, 3, handles, input, selected), retained[selected].session())));
+            } finally { java.util.Arrays.fill(ad, (byte)0); }
+        } finally { java.util.Arrays.fill(payload, (byte)0); }
+    }
     private ContinuityPeer prepare(PeerConfiguration configuration, PeerConfiguration.Quality quality,
             PeerConfiguration.Role role, Ids.Session session) {
         java.util.Objects.requireNonNull(configuration, "peer configuration");

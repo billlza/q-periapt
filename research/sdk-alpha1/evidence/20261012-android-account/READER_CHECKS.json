@@ -1,0 +1,18 @@
+{
+  "completed": true,
+  "tests": 55,
+  "altered_account_records_refused": 14,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "artifact",
+    "-p",
+    "test_continuity_android*.py"
+  ],
+  "stderr_sha256": "33737389a2022015c8eadbfea011e5fba2ab35bcc84bc0461b76427209447444",
+  "synthetic_or_mutated_reader_controls_are_not_cryptographic_proof": true
+}

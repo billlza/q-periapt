@@ -77,7 +77,7 @@ def verify_execution(stdout: bytes, cases: Path) -> dict:
 
 def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path) -> Path:
     program = directory / "driver.py"
-    probes = (("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
+    probes = (("account-", "AccountProbe"), ("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
               ("roster-", "RosterProbe"), ("policy-", "PolicyProbe"), ("credential-", "CredentialProbe"),
               ("authority-", "AuthorityProbe"), (("witness-", "managed-"), "WitnessProbe"), ("peer-", "PeerProbe"))
     program.write_text("import os, sys\n"
@@ -165,6 +165,14 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             catalog = run([str(binary), "--list"], profile + "-test-catalog", consumer)
             contract.verify_catalog(catalog)
             driver = _driver(installed, java, jar, tests, installed)
+            import continuity_android_account as account
+            account_cases = installed / "account-cases"
+            account_runtime = dict(env, QPC_ANDROID_CASES=str(account_cases), QPC_ANDROID_DRIVER=str(driver))
+            account_stdout = run([str(binary), "--exact", account.TEST, "--nocapture"], profile + "-account", consumer, account_runtime)
+            account_results = account.verify_execution(account_stdout, account_cases)
+            for trust in account_results:
+                for name in account.PUBLIC:
+                    sdk.copy(account_cases / trust / name, output / f"android-jni-{profile}-account-{trust}-{name}.public")
             cases = installed / "cases"
             runtime = dict(env, QPC_ANDROID_CASES=str(cases), QPC_ANDROID_DRIVER=str(driver))
             checked = run([str(binary), "--exact", "android_lifecycle", "--nocapture"], profile + "-execution", consumer, runtime)
@@ -242,6 +250,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}
+            result["profiles"][profile]["account_outcomes"] = account_results
         sdk.require(source_files() == source and tool_identity(java_home) == tools and sdk.snapshot(jar).sha256 == jar_hash,
                     "Android JNI source, JDK or packaged classes changed during qualification")
         result.update(completed=True, jar_sha256=jar_hash)
