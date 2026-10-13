@@ -408,12 +408,14 @@ impl DeviceEnrollment {
         id: JournalIdentity,
     ) -> Result<DeviceInstallation, DurableError> {
         let policy = policy.as_ref();
-        let mut owner = DeviceInstallation::open_bound(
+        let mut owner = DeviceInstallation::open_bound_with_storage(
+            self.storage.clone(),
             self.paths.installation.clone(),
             &self.key().await?,
             original,
             policy,
-        )?;
+        )
+        .await?;
         if owner.identity()? != id || owner.status()? != crate::InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }

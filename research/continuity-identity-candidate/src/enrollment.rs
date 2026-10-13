@@ -4,7 +4,7 @@ use crate::{
     codec::Decoder,
     crypto::{digest, envelope, open_envelope, Purpose},
     durable::{storage, transaction},
-    installation::{admit, missing, validate_paths},
+    installation::{admit, validate_paths},
     AccountPin, AnchorClient, AnchorPin, AnchorTransport, DeviceDescription, DeviceInstallation,
     DeviceService, DeviceSigningKey, DurableError, Error, InstallationPaths,
     InstallationPreparation, JournalIdentity, JournalKey, PublicKey, RootSigningKey,
@@ -833,17 +833,30 @@ impl DeviceEnrollment {
             .first()
             .copied()
             .ok_or(DurableError::Corrupt)?;
-        let owner = if create && *stage == AdmissionPhase::Accepted && missing(config)? {
+        let owner = if create
+            && *stage == AdmissionPhase::Accepted
+            && self.storage.missing(config).await?
+        {
             DeviceInstallation::provision_with_identity(
+                self.storage.clone(),
                 paths,
                 &key,
                 device,
                 policy,
                 now,
                 admission.journal,
-            )?
+            )
+            .await?
         } else {
-            DeviceInstallation::open(paths, &key, device, policy, now)?
+            DeviceInstallation::open_with_storage(
+                self.storage.clone(),
+                paths,
+                &key,
+                device,
+                policy,
+                now,
+            )
+            .await?
         };
         if owner.identity()? != admission.journal {
             return Err(DurableError::Conflict);
@@ -953,7 +966,7 @@ impl DeviceEnrollment {
                 return Err(DurableError::Conflict);
             }
             for path in self.paths.installation.files().into_iter().skip(1) {
-                if missing(path)? {
+                if self.storage.missing(path).await? {
                     return Err(Error::State.into());
                 }
             }

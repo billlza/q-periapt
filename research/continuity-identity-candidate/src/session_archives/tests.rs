@@ -5,7 +5,7 @@ use crate::{
     durable::tests::{assert_sync_failure, directory, fault_database_path, new_store},
     PrekeyQuality,
 };
-use q_periapt_host_store::filesystem::PrivateDatabaseError;
+use q_periapt_host_store::filesystem::{open_private_database, PrivateDatabaseError};
 use std::{fs, sync::atomic::Ordering};
 
 #[test]

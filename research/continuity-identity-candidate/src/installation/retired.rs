@@ -55,6 +55,10 @@ struct Owners {
 pub struct RetiredInstallationRecovery {
     active: Option<Owners>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl RetiredInstallationRecovery {
     /// Capture and durably retain the original complete inventory before returning
     /// a dispatchable request. This requires an existing Active installation, its
@@ -170,61 +174,65 @@ impl RetiredInstallationRecovery {
     /// Prepare the complete report, then retain its exact expectation in the independent
     /// installation before returning a dispatchable proposal. An existing request is
     /// recovered without rereading a backup; full report release still requires all data.
-    pub fn prepare_report(
+    pub async fn prepare_report(
         &mut self,
         retained: &AnchorRetiredCleanup,
     ) -> Result<crate::AnchorRetiredReportProposal, DurableError> {
-        let result = (|| {
-            if self.proposal()? != *retained.proposal() {
-                return Err(DurableError::Conflict);
-            }
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let saved = read_configuration(&owners.configuration)?;
-            if let Some(proposal) = saved.retired_report {
-                return Ok(proposal);
-            }
-            let mut archives =
-                crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity)?;
-            let report = DeviceJournal::retired_report(
-                &owners.paths.journal,
-                &owners.key,
-                saved.identity,
-                owners.retired,
-                retained,
-                &mut archives,
-            )?;
-            let proposal = report.proposal().clone();
-            let tx = transaction(&owners.configuration)?;
-            {
-                let mut table = tx.open_table(TABLE).map_err(storage)?;
-                let mut expected = REQUEST_TAG.to_vec();
-                expected.extend_from_slice(&owners.proposal.to_bytes());
-                if table.len().map_err(storage)? != 2
-                    || table
-                        .get("retired-cleanup")
-                        .map_err(storage)?
-                        .as_ref()
-                        .map(|v| v.value())
-                        != Some(expected.as_slice())
-                    || table.get("retired-report").map_err(storage)?.is_some()
-                {
-                    return Err(DurableError::Conflict);
-                }
-                table
-                    .insert("retired-report", proposal.to_bytes().as_slice())
-                    .map_err(storage)?;
-            }
-            #[cfg(all(test, unix))]
-            super::tests::at_boundary("retired-report-before-commit");
-            tx.commit().map_err(DurableError::CommitUncertain)?;
-            #[cfg(all(test, unix))]
-            super::tests::at_boundary("retired-report-after-commit");
-            Ok(proposal)
-        })();
+        let result = self.prepare_report_attempt(retained).await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn prepare_report_attempt(
+        &mut self,
+        retained: &AnchorRetiredCleanup,
+    ) -> Result<crate::AnchorRetiredReportProposal, DurableError> {
+        if self.proposal()? != *retained.proposal() {
+            return Err(DurableError::Conflict);
+        }
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let saved = read_configuration(&owners.configuration)?;
+        if let Some(proposal) = saved.retired_report {
+            return Ok(proposal);
+        }
+        let mut archives =
+            crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity).await?;
+        let report = DeviceJournal::retired_report(
+            &owners.paths.journal,
+            &owners.key,
+            saved.identity,
+            owners.retired,
+            retained,
+            &mut archives,
+        )?;
+        let proposal = report.proposal().clone();
+        let tx = transaction(&owners.configuration)?;
+        {
+            let mut table = tx.open_table(TABLE).map_err(storage)?;
+            let mut expected = REQUEST_TAG.to_vec();
+            expected.extend_from_slice(&owners.proposal.to_bytes());
+            if table.len().map_err(storage)? != 2
+                || table
+                    .get("retired-cleanup")
+                    .map_err(storage)?
+                    .as_ref()
+                    .map(|v| v.value())
+                    != Some(expected.as_slice())
+                || table.get("retired-report").map_err(storage)?.is_some()
+            {
+                return Err(DurableError::Conflict);
+            }
+            table
+                .insert("retired-report", proposal.to_bytes().as_slice())
+                .map_err(storage)?;
+        }
+        #[cfg(all(test, unix))]
+        super::tests::at_boundary("retired-report-before-commit");
+        tx.commit().map_err(DurableError::CommitUncertain)?;
+        #[cfg(all(test, unix))]
+        super::tests::at_boundary("retired-report-after-commit");
+        Ok(proposal)
     }
     /// Read only the original independently saved report request, including after data loss.
     /// None means no saved request in this configuration, never witness non-commit.
@@ -244,46 +252,52 @@ impl RetiredInstallationRecovery {
     /// Release the complete metadata only after verifying independent retention of this
     /// exact saved report. Missing archives/data or changed inventory fails explicitly.
     /// This never acknowledges host effects or authorizes logical erasure.
-    pub fn report(
+    pub async fn report(
         &mut self,
         retained: &AnchorRetiredCleanup,
         pin: &AnchorPin,
         receipt: &[u8],
     ) -> Result<crate::retired_device::Report, DurableError> {
-        let result = (|| {
-            let proposal = self.report_proposal()?.ok_or(DurableError::Suspended)?;
-            pin.verify_retired_report(retained, &proposal, receipt)?;
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let saved = read_configuration(&owners.configuration)?;
-            if DeviceJournal::retired_journal_has_terminal(
-                &owners.paths.journal,
-                &owners.key,
-                saved.identity,
-                owners.retired,
-                pin,
-                &proposal,
-            )? {
-                return Err(Error::Retired.into());
-            }
-            let mut archives =
-                crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity)?;
-            let report = DeviceJournal::retired_report(
-                &owners.paths.journal,
-                &owners.key,
-                saved.identity,
-                owners.retired,
-                retained,
-                &mut archives,
-            )?;
-            if report.proposal() != &proposal {
-                return Err(DurableError::Conflict);
-            }
-            Ok(report)
-        })();
+        let result = self.report_attempt(retained, pin, receipt).await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn report_attempt(
+        &mut self,
+        retained: &AnchorRetiredCleanup,
+        pin: &AnchorPin,
+        receipt: &[u8],
+    ) -> Result<crate::retired_device::Report, DurableError> {
+        let proposal = self.report_proposal()?.ok_or(DurableError::Suspended)?;
+        pin.verify_retired_report(retained, &proposal, receipt)?;
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let saved = read_configuration(&owners.configuration)?;
+        if DeviceJournal::retired_journal_has_terminal(
+            &owners.paths.journal,
+            &owners.key,
+            saved.identity,
+            owners.retired,
+            pin,
+            &proposal,
+        )? {
+            return Err(Error::Retired.into());
+        }
+        let mut archives =
+            crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity).await?;
+        let report = DeviceJournal::retired_report(
+            &owners.paths.journal,
+            &owners.key,
+            saved.identity,
+            owners.retired,
+            retained,
+            &mut archives,
+        )?;
+        if report.proposal() != &proposal {
+            return Err(DurableError::Conflict);
+        }
+        Ok(report)
     }
     /// Persist an explicit host-accounted intent AFTER the host has durably retained
     /// the complete report and deduplicated its effects by this report ID. This never

@@ -281,7 +281,27 @@ impl DeviceJournal {
     /// explicit trusted enrollment, then activate before performing any work.
     /// Durably retain the fresh journal identity before this call, just as for
     /// local provisioning; an unknown creation result never authorizes replacement.
-    pub fn provision_anchored(
+    pub async fn provision_anchored(
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        identity: JournalIdentity,
+        now: u64,
+    ) -> Result<Self, DurableError> {
+        Self::provision_anchored_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            device,
+            policy,
+            identity,
+            now,
+        )
+        .await
+    }
+    pub(crate) async fn provision_anchored_with_storage(
+        store: crate::storage::Storage,
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -306,6 +326,7 @@ impl DeviceJournal {
             .binding()
             .ok_or(DurableError::AnchorRequired)?;
         let journal = Self::provision_with_protection(
+            store,
             path,
             key,
             device,
@@ -315,7 +336,8 @@ impl DeviceJournal {
                 witness,
                 fence: 1,
             },
-        )?;
+        )
+        .await?;
         // Publication adds durable I/O after initial admission. A close during
         // that work withholds the new owner but retains its original genesis.
         policy.check_device(device, now)?;
@@ -328,14 +350,32 @@ impl DeviceJournal {
     /// image with no pending intent. It never applies a journal transition, returns an operational
     /// journal, or proves enrollment/currentness; enroll this exact genesis explicitly,
     /// then use `open_anchored` with the original witness for fresh admission.
-    pub fn recover_anchor_genesis(
+    pub async fn recover_anchor_genesis(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
         policy: &VerifiedSessionPolicy,
         expected_id: JournalIdentity,
     ) -> Result<crate::AnchorGenesis, DurableError> {
-        let db = open_private_database(path)?;
+        Self::recover_anchor_genesis_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            device,
+            policy,
+            expected_id,
+        )
+        .await
+    }
+    pub(crate) async fn recover_anchor_genesis_with_storage(
+        store: crate::storage::Storage,
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        expected_id: JournalIdentity,
+    ) -> Result<crate::AnchorGenesis, DurableError> {
+        let db = store.open_database(path).await?;
         let image = load(&db, &key, bootstrap::storage_owner(device))?;
         let witness = policy
             .anchor_requirement()
@@ -498,7 +538,9 @@ impl DeviceJournal {
         client: AnchorClient,
         admission: AccountAuthorityOpen,
     ) -> Result<Self, DurableError> {
-        let db = open_private_database(path)?;
+        let db = crate::storage::Storage::native()?
+            .open_database(path)
+            .await?;
         Self::open_anchored_database_admitted(
             db,
             key,

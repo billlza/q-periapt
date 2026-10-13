@@ -59,7 +59,7 @@ impl InstallationRecovery {
     /// and invalid indices fail without provisioning or repair. Journal existence
     /// and authenticity are checked on session selection. Configuration remains
     /// trusted host state outside journal backups, not a rollback witness.
-    pub fn open(paths: InstallationPaths, key: JournalKey) -> Result<Self, DurableError> {
+    pub async fn open(paths: InstallationPaths, key: JournalKey) -> Result<Self, DurableError> {
         let db = open_private_database(&paths.configuration)?;
         let (identity, saved, phase) = read(&db)?;
         if phase != InstallationStatus::Active {
@@ -67,12 +67,13 @@ impl InstallationRecovery {
         }
         let authority = Authority::retained(&saved, &paths, identity, &key)?;
         let key_binding = key.installation_binding();
-        let archives = SessionArchiveStore::open(&paths.archives, identity)?;
+        let archives = SessionArchiveStore::open(&paths.archives, identity).await?;
         Ok(Self {
             active: Some(RecoveryOwners {
                 archives,
                 key,
                 installation: DeviceInstallation {
+                    storage: crate::storage::Storage::native()?,
                     active: Some(db),
                     paths,
                     identity,

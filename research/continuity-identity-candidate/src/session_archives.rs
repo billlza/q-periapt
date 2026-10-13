@@ -5,7 +5,6 @@ use crate::{
     BootstrapContext, DeviceJournal, DurableError, JournalIdentity, SessionClosureArchive,
     SessionClosureId, SessionClosureJournal,
 };
-use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{
     Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
 };
@@ -86,17 +85,26 @@ pub struct SessionArchiveStore {
 impl SessionArchiveStore {
     /// Explicitly create and sync a new empty index for an independently retained
     /// journal identity. Existing paths are never replaced or treated as first use.
-    pub fn provision(path: &Path, journal: JournalIdentity) -> Result<Self, DurableError> {
-        let db = provision_private_database(path, |db| {
-            let tx = transaction(db)?;
-            tx.open_table(TABLE)
-                .map_err(storage)?
-                .insert(&HEADER, header(journal).as_slice())
-                .map_err(storage)?;
-            tx.commit().map_err(DurableError::CommitUncertain)?;
-            load(db, journal)?;
-            Ok::<_, DurableError>(())
-        })?;
+    pub async fn provision(path: &Path, journal: JournalIdentity) -> Result<Self, DurableError> {
+        Self::provision_with_storage(crate::storage::Storage::native()?, path, journal).await
+    }
+    pub(crate) async fn provision_with_storage(
+        store: crate::storage::Storage,
+        path: &Path,
+        journal: JournalIdentity,
+    ) -> Result<Self, DurableError> {
+        let db = store
+            .provision_database(path, |db| {
+                let tx = transaction(db)?;
+                tx.open_table(TABLE)
+                    .map_err(storage)?
+                    .insert(&HEADER, header(journal).as_slice())
+                    .map_err(storage)?;
+                tx.commit().map_err(DurableError::CommitUncertain)?;
+                load(db, journal)?;
+                Ok::<_, DurableError>(())
+            })
+            .await?;
         Ok(Self {
             active: Some(db),
             journal,
@@ -104,8 +112,15 @@ impl SessionArchiveStore {
     }
     /// Acquire the existing exclusive lease and validate exact schema, pinned
     /// journal identity and every bounded index/record scope. No repair/reset occurs.
-    pub fn open(path: &Path, journal: JournalIdentity) -> Result<Self, DurableError> {
-        let db = open_private_database(path)?;
+    pub async fn open(path: &Path, journal: JournalIdentity) -> Result<Self, DurableError> {
+        Self::open_with_storage(crate::storage::Storage::native()?, path, journal).await
+    }
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
+        path: &Path,
+        journal: JournalIdentity,
+    ) -> Result<Self, DurableError> {
+        let db = store.open_database(path).await?;
         load(&db, journal)?;
         Ok(Self {
             active: Some(db),

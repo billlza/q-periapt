@@ -12,8 +12,7 @@ use q_periapt_host_store::filesystem::open_private_file;
 #[cfg(unix)]
 use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::{
-    open_private_database, provision_private_database, publish_private_bytes, PrivateDatabaseError,
-    PrivatePublicationError,
+    open_private_database, publish_private_bytes, PrivateDatabaseError, PrivatePublicationError,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use redb::{
@@ -633,15 +632,32 @@ impl DeviceJournal {
     /// unknown published result, reopen this exact path/key/device/identity. Only the
     /// original never-active first-use intent can retry absent unpublished genesis;
     /// never replace a missing or malformed journal that may have been active.
-    pub fn provision(
+    pub async fn provision(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
         identity: JournalIdentity,
     ) -> Result<Self, DurableError> {
-        Self::provision_with_protection(path, key, device, identity, Protection::Local)
+        Self::provision_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            device,
+            identity,
+        )
+        .await
     }
-    fn provision_with_protection(
+    pub(crate) async fn provision_with_storage(
+        store: crate::storage::Storage,
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        identity: JournalIdentity,
+    ) -> Result<Self, DurableError> {
+        Self::provision_with_protection(store, path, key, device, identity, Protection::Local).await
+    }
+    async fn provision_with_protection(
+        store: crate::storage::Storage,
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
@@ -664,24 +680,26 @@ impl DeviceJournal {
             enrollment_completion: None,
         };
         let sealed = seal(&key, &image)?;
-        let db = provision_private_database(path, |db| {
-            let transaction = transaction(db)?;
-            {
+        let db = store
+            .provision_database(path, |db| {
+                let transaction = transaction(db)?;
+                {
+                    transaction
+                        .open_table(TABLE)
+                        .map_err(storage)?
+                        .insert("image", sealed.as_slice())
+                        .map_err(storage)?;
+                }
+                #[cfg(all(test, unix))]
+                tests::provisioning::genesis_boundary("before-commit", &id, image_hash(&sealed));
                 transaction
-                    .open_table(TABLE)
-                    .map_err(storage)?
-                    .insert("image", sealed.as_slice())
-                    .map_err(storage)?;
-            }
-            #[cfg(all(test, unix))]
-            tests::provisioning::genesis_boundary("before-commit", &id, image_hash(&sealed));
-            transaction
-                .commit()
-                .map_err(DurableError::CommitUncertain)?;
-            #[cfg(all(test, unix))]
-            tests::provisioning::genesis_boundary("after-commit", &id, image_hash(&sealed));
-            Ok::<_, DurableError>(())
-        })?;
+                    .commit()
+                    .map_err(DurableError::CommitUncertain)?;
+                #[cfg(all(test, unix))]
+                tests::provisioning::genesis_boundary("after-commit", &id, image_hash(&sealed));
+                Ok::<_, DurableError>(())
+            })
+            .await?;
         #[cfg(all(test, unix))]
         tests::provisioning::genesis_boundary("after-publication", &id, image_hash(&sealed));
         Ok(Self {
@@ -699,13 +717,29 @@ impl DeviceJournal {
     }
 
     /// Authenticate and reopen existing storage; missing, wrong-key and malformed stores fail.
-    pub fn open(
+    pub async fn open(
         path: &Path,
         key: JournalKey,
         device: &VerifiedDevice,
         expected_id: JournalIdentity,
     ) -> Result<Self, DurableError> {
-        let db = open_private_database(path)?;
+        Self::open_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            device,
+            expected_id,
+        )
+        .await
+    }
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
+        path: &Path,
+        key: JournalKey,
+        device: &VerifiedDevice,
+        expected_id: JournalIdentity,
+    ) -> Result<Self, DurableError> {
+        let db = store.open_database(path).await?;
         Self::open_database(db, key, device, expected_id)
     }
 

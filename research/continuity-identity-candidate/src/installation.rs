@@ -8,17 +8,18 @@ use crate::{
     AnchorClient, AnchorGenesis, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey,
     PrekeyQuality, SessionArchiveStore, VerifiedDevice, VerifiedSessionPolicy,
 };
-use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
+use q_periapt_host_store::filesystem::open_private_database;
 use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
-use std::{
-    io,
-    path::{Component, Path, PathBuf},
-};
+use std::path::{Component, Path, PathBuf};
+
+#[cfg(all(test, unix))]
+use std::io;
 
 const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_installation_v1");
 const TAG: &[u8; 8] = b"QPCINS01";
 
 mod admission;
+mod opening;
 mod recovery;
 mod reopen;
 mod retired;
@@ -280,18 +281,12 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
         retired_ack,
     })
 }
-pub(crate) fn missing(path: &Path) -> Result<bool, DurableError> {
-    match std::fs::symlink_metadata(path) {
-        Ok(_) => Ok(false),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(true),
-        Err(e) => Err(e.into()),
-    }
-}
 
 /// Exclusive independent initialization record for one configured device lineage.
 /// Provision only after an explicit first-install decision; never on an open error.
 /// The trusted configuration is not an anti-rollback witness or a backup of the journal.
 pub struct DeviceInstallation {
+    storage: crate::storage::Storage,
     active: Option<Database>,
     paths: InstallationPaths,
     identity: JournalIdentity,
@@ -303,107 +298,6 @@ pub struct DeviceInstallation {
     maybe_async::must_be_sync
 )]
 impl DeviceInstallation {
-    /// Durably retain a fresh journal ID and exact key/device/policy/path bindings
-    /// before any journal creation. Existing child paths cannot be adopted.
-    pub fn provision(
-        paths: InstallationPaths,
-        key: &JournalKey,
-        device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
-        now: u64,
-    ) -> Result<Self, DurableError> {
-        Self::provision_inner(paths, key, device, policy, now, None)
-    }
-    pub(crate) fn provision_with_identity(
-        paths: InstallationPaths,
-        key: &JournalKey,
-        device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
-        now: u64,
-        identity: JournalIdentity,
-    ) -> Result<Self, DurableError> {
-        Self::provision_inner(paths, key, device, policy, now, Some(identity))
-    }
-    fn provision_inner(
-        paths: InstallationPaths,
-        key: &JournalKey,
-        device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
-        now: u64,
-        retained_identity: Option<JournalIdentity>,
-    ) -> Result<Self, DurableError> {
-        admit(device, policy, now)?;
-        if !missing(&paths.journal)? || !missing(&paths.archives)? {
-            return Err(DurableError::Conflict);
-        }
-        let identity = match retained_identity {
-            Some(identity) => identity,
-            None => JournalIdentity::generate()?,
-        };
-        let key_binding = key.installation_binding();
-        let scope = scope(&paths, identity, key_binding, device, policy)?;
-        let db = provision_private_database(&paths.configuration, |db| {
-            let mut row = scope.clone();
-            row.push(InstallationStatus::Creating.byte());
-            let tx = transaction(db)?;
-            tx.open_table(TABLE)
-                .map_err(storage)?
-                .insert("installation", row.as_slice())
-                .map_err(storage)?;
-            #[cfg(all(test, unix))]
-            tests::at_boundary("intent-before-commit");
-            tx.commit().map_err(DurableError::CommitUncertain)?;
-            Ok::<_, DurableError>(())
-        })?;
-        let mut owner = Self {
-            active: Some(db),
-            paths,
-            identity,
-            key_binding,
-            scope,
-        };
-        if owner.status()? != InstallationStatus::Creating {
-            return Err(DurableError::Conflict);
-        }
-        admit(device, policy, now)?;
-        #[cfg(all(test, unix))]
-        tests::at_boundary("intent");
-        Ok(owner)
-    }
-    /// Reopen only existing independent configuration and verify every binding.
-    /// Missing, corrupt, wrong-key, changed-device/policy/path and busy states fail.
-    pub fn open(
-        paths: InstallationPaths,
-        key: &JournalKey,
-        device: &VerifiedDevice,
-        policy: &VerifiedSessionPolicy,
-        now: u64,
-    ) -> Result<Self, DurableError> {
-        admit(device, policy, now)?;
-        Self::open_bound(paths, key, device, policy)
-    }
-    pub(crate) fn open_bound(
-        paths: InstallationPaths,
-        key: &JournalKey,
-        device: &VerifiedDevice,
-        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
-    ) -> Result<Self, DurableError> {
-        let policy = policy.as_ref();
-        let db = open_private_database(&paths.configuration)?;
-        let (identity, saved, _) = read(&db)?;
-        let key_binding = key.installation_binding();
-        let expected = scope(&paths, identity, key_binding, device, policy)?;
-        if saved != expected {
-            return Err(DurableError::Conflict);
-        }
-        Ok(Self {
-            active: Some(db),
-            paths,
-            identity,
-            key_binding,
-            scope: expected,
-        })
-    }
     /// Original independently retained public journal identity; no message authority.
     pub fn identity(&self) -> Result<JournalIdentity, DurableError> {
         self.active.as_ref().ok_or(DurableError::Closed)?;
@@ -472,18 +366,27 @@ impl DeviceInstallation {
             return Err(DurableError::Conflict);
         }
         let anchored = policy.anchor_requirement().binding().is_some();
-        let prepared = if missing(&self.paths.journal)? {
+        let prepared = if self.storage.missing(&self.paths.journal).await? {
             let mut journal = if anchored {
-                DeviceJournal::provision_anchored(
+                DeviceJournal::provision_anchored_with_storage(
+                    self.storage.clone(),
                     &self.paths.journal,
                     key,
                     device,
                     policy,
                     self.identity,
                     now,
-                )?
+                )
+                .await?
             } else {
-                DeviceJournal::provision(&self.paths.journal, key, device, self.identity)?
+                DeviceJournal::provision_with_storage(
+                    self.storage.clone(),
+                    &self.paths.journal,
+                    key,
+                    device,
+                    self.identity,
+                )
+                .await?
             };
             if anchored {
                 InstallationPreparation::RequiresEnrollment(journal.anchor_genesis(device, policy)?)
@@ -494,15 +397,26 @@ impl DeviceInstallation {
                 InstallationPreparation::Local
             }
         } else if anchored {
-            InstallationPreparation::RequiresEnrollment(DeviceJournal::recover_anchor_genesis(
+            InstallationPreparation::RequiresEnrollment(
+                DeviceJournal::recover_anchor_genesis_with_storage(
+                    self.storage.clone(),
+                    &self.paths.journal,
+                    key,
+                    device,
+                    policy,
+                    self.identity,
+                )
+                .await?,
+            )
+        } else {
+            let mut journal = DeviceJournal::open_with_storage(
+                self.storage.clone(),
                 &self.paths.journal,
                 key,
                 device,
-                policy,
                 self.identity,
-            )?)
-        } else {
-            let mut journal = DeviceJournal::open(&self.paths.journal, key, device, self.identity)?;
+            )
+            .await?;
             journal
                 .check_installation_state(device, policy, true)
                 .await?;
@@ -510,10 +424,20 @@ impl DeviceInstallation {
         };
         #[cfg(all(test, unix))]
         tests::at_boundary("journal");
-        let mut archives = if missing(&self.paths.archives)? {
-            SessionArchiveStore::provision(&self.paths.archives, self.identity)?
+        let mut archives = if self.storage.missing(&self.paths.archives).await? {
+            SessionArchiveStore::provision_with_storage(
+                self.storage.clone(),
+                &self.paths.archives,
+                self.identity,
+            )
+            .await?
         } else {
-            SessionArchiveStore::open(&self.paths.archives, self.identity)?
+            SessionArchiveStore::open_with_storage(
+                self.storage.clone(),
+                &self.paths.archives,
+                self.identity,
+            )
+            .await?
         };
         if !archives.session_ids()?.is_empty() {
             return Err(DurableError::Conflict);
@@ -618,7 +542,7 @@ impl DeviceInstallation {
         if policy.anchor_requirement().binding().is_none() && anchor.is_some() {
             return Err(DurableError::Conflict);
         }
-        let mut installation = Self::open_bound(paths, &key, original, policy)?;
+        let mut installation = Self::open_bound(paths, &key, original, policy).await?;
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }
@@ -658,11 +582,18 @@ impl DeviceInstallation {
         let policy = policy.as_ref();
         let journal = match (policy.anchor_requirement().binding(), anchor, account) {
             (None, None, AccountAuthorityOpen::Existing(None)) => {
-                DeviceJournal::open(&self.paths.journal, key, device, self.identity)?
+                DeviceJournal::open_with_storage(
+                    self.storage.clone(),
+                    &self.paths.journal,
+                    key,
+                    device,
+                    self.identity,
+                )
+                .await?
             }
             (Some(_), Some(client), account) => {
-                DeviceJournal::open_anchored_admitted(
-                    &self.paths.journal,
+                DeviceJournal::open_anchored_database_admitted(
+                    self.storage.open_database(&self.paths.journal).await?,
                     key,
                     device,
                     policy,
@@ -675,7 +606,12 @@ impl DeviceInstallation {
             (_, None, _) => return Err(DurableError::AnchorRequired),
             (None, Some(_), _) => return Err(DurableError::Conflict),
         };
-        let archives = SessionArchiveStore::open(&self.paths.archives, self.identity)?;
+        let archives = SessionArchiveStore::open_with_storage(
+            self.storage.clone(),
+            &self.paths.archives,
+            self.identity,
+        )
+        .await?;
         archives.check_journal(&journal)?;
         Ok((journal, archives))
     }

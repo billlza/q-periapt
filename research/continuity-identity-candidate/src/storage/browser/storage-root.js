@@ -57,6 +57,10 @@ export class DatabaseLease {
     return this.#id;
   }
   markPublished() { this.#check(); this.#published = true; }
+  retainedFile(root) {
+    this.#check(); if (root !== this.#root) throw fail('Conflict');
+    return 'db-' + this.#id;
+  }
   close() {
     if (!this.#handle) return;
     const handle = this.#handle; this.#handle = undefined;
@@ -131,26 +135,32 @@ export class StorageRoot {
         { create: this.#state.phase === 'creating' && expected.size === 0 });
     } catch (cause) { throw fail(cause.name === 'NotFoundError' ? 'Absent' : 'Storage', cause); }
     this.check();
-    if (this.#state.phase === 'creating') {
-      const present = new Map();
-      for await (const [name, entry] of this.#directory.entries()) {
-        this.check();
-        if (present.size >= 256) throw fail('Capacity');
-        if (entry.kind !== 'file' || !/^db-[a-f0-9]{64}$/.test(name)) throw fail('Corrupt');
-        present.set(name, entry);
-      }
-      if ([...expected].some(name => !present.has(name))) throw fail('Absent');
-      for (const name of present.keys()) if (!expected.has(name)) {
-        // Original genesis has not published this file or released an identity.
-        await this.#directory.removeEntry(name); this.check();
-      }
-    }
+    if (this.#state.phase === 'creating' || resume) await this.#removeUnpublished();
     await this.#transaction(({ root, paths, roots, done }) => {
       admitSnapshot(root, paths, this.#meta, this.#state); roots.put(this.#meta, 'current'); done();
     });
   }
   prefix() { this.check(); return prefix(this.#name, this.#id); }
   check() { if (this.#closed) throw fail('Closed', this.#closeError); }
+  async #removeUnpublished() {
+    // The authenticated catalogue is append-only: every published database is
+    // retained there. Preserve live staging handles as well as committed files.
+    const retained = new Set(this.#state.files.filter(pair => pair[1].kind === 'database').map(pair => 'db-' + pair[1].id));
+    for (const child of this.#children) if (child instanceof DatabaseLease) retained.add(child.retainedFile(this));
+    const present = new Set();
+    for await (const [name, entry] of this.#directory.entries()) {
+      this.check();
+      if (present.size >= 256) throw fail('Capacity');
+      if (entry.kind !== 'file' || !/^db-[a-f0-9]{64}$/.test(name)) throw fail('Corrupt');
+      present.add(name);
+    }
+    // Validate the entire inventory before deleting any uncommitted staging.
+    if ([...retained].some(name => !present.has(name))) throw fail('Absent');
+    for (const name of present) if (!retained.has(name)) {
+      await this.#directory.removeEntry(name); this.check();
+    }
+    return retained.size;
+  }
   #path(path) { this.check(); return scoped(path, this.#name, this.#id); }
   #run(operation, code = 'CommitUnknown') {
     this.check(); if (this.#busy) throw fail('Busy'); this.#busy = true;
@@ -159,9 +169,14 @@ export class StorageRoot {
     });
     this.#pending = pending.settled;
     const task = (async () => { const value = await operation(); this.check(); return value; })();
-    task.then(value => pending.finish(undefined, value), error => {
-      pending.finish(ioError(error)); this.beginClose();
-    }).finally(() => { this.#busy = false; this.#pending = undefined; });
+    const finish = (error, value) => {
+      // An awaiting caller may start the next operation as soon as it receives
+      // the result. Clear only this operation's state before delivering it.
+      this.#busy = false; this.#pending = undefined;
+      pending.finish(error, value);
+      if (error) this.beginClose();
+    };
+    task.then(value => finish(undefined, value), error => finish(ioError(error)));
     return pending.result;
   }
   async #lookup(path) {
@@ -242,6 +257,7 @@ export class StorageRoot {
     return this.#run(async () => {
       if (await this.#lookup(path) !== null) throw fail('Exists');
       if (this.#paths.has(path)) throw fail('Busy'); if (this.#children.size >= 64) throw fail('Capacity');
+      if (await this.#removeUnpublished() >= 256 || this.#state.files.length >= 256) throw fail('Capacity');
       for (let attempt = 0; attempt < 4; attempt++) {
         const id = identifier(); let missing = false;
         try { await this.#directory.getFileHandle('db-' + id); }

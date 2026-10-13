@@ -394,7 +394,7 @@ impl DeviceInstallation {
         context.check_session_identity(now)?;
         let device = context.device(role);
         let policy = context.current_policy()?;
-        let mut installation = Self::open_bound(paths, &key, device, policy)?;
+        let mut installation = Self::open_bound(paths, &key, device, policy).await?;
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }

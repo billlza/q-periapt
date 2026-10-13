@@ -9,7 +9,11 @@ impl Storage {
         Ok(Self)
     }
     pub(crate) fn missing(&self, path: &Path) -> Result<bool, DurableError> {
-        crate::installation::missing(path)
+        match std::fs::symlink_metadata(path) {
+            Ok(_) => Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
+            Err(error) => Err(error.into()),
+        }
     }
     pub(crate) fn open_key(&self, path: &Path) -> Result<JournalKey, DurableError> {
         JournalKey::open(path)

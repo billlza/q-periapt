@@ -37,6 +37,24 @@ wasm-bindgen output. The completion helper separates a bounded operation result
 from the browser's actual resource-release receipt. Timeout and cleanup failure
 remain separately observable across the WASM error boundary.
 
+The same storage owner now follows enrollment into installation, journal and
+archive-index construction and initial activation. An isolated public-input
+adapter has exercised browser-generated identities through signed credential
+acceptance, local-policy activation and original SDK prekey recovery, including
+Worker interruption before and after child publication. Required-witness
+preparation returns its original genesis; missing witness admission is refused.
+This does not yet expose operational ownership through the final product API.
+The [activation evidence](../sdk-alpha1/evidence/20261013-browser-owned-activation/README.md)
+also records delayed publication receipts and actual published-file loss.
+
+Explicit original resume and new database staging reclaim only unpublished files
+inside the authenticated owned directory. The catalogue remains append-only;
+published files and live staging leases are retained. The complete bounded
+directory inventory is validated before deletion, and missing published files
+or unrelated entries cause failure. Completing an operation clears its busy
+state before delivering the result, while actual pending I/O still retains the
+root lease until its own completion receipt.
+
 The `bindings-wasm` CI job now builds this shared candidate and exercises the
 real browser through `artifact/continuity_browser_creation.py`. It generates a
 fresh native authority, runs creation/recovery and delayed-completion scenarios,
@@ -58,8 +76,9 @@ Use a fresh output directory. The host also needs Chrome, the wasm32 target and
 a C compiler with WebAssembly support, as configured by `bindings-wasm`.
 
 This is a candidate enrollment boundary, not the unified product browser entry.
-Operational grant activation, session/installation owners, root/roster lifecycle,
-transport and installed browser packaging remain integration work. The prototype
+Product bindings for operational owners, required-witness activation, complete
+session/root/roster lifecycle, transport and installed browser packaging remain
+integration work. The prototype
 uses storage schema 2 and does not migrate its earlier experimental schema.
 The non-extractable vault is an API restriction, not isolation from malicious
 same-origin code or a compromised browser profile. Authenticated local metadata
