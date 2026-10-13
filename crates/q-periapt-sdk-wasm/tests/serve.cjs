@@ -9,7 +9,7 @@ const files = new Map([
   ...['browser-suite.mjs', 'browser-worker.mjs', 'storage-suite.mjs', 'storage-worker.mjs', 'storage-deadline-worker.mjs'].map(name => [`/${name}`, 'application/javascript']),
   ...['signed-policy-vectors', 'sdk-policy-revocation-vectors', 'sdk-policy-update-vectors']
     .map(name => [`/fixtures/${name}.json`, 'application/json']),
-  ...['index.js', 'expert.js', 'storage.js', 'policy-database.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm']
+  ...['index.js', 'expert.js', 'storage.js', 'storage-io.js', 'policy-database.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm']
     .map(name => [`/node_modules/q-periapt-sdk-wasm/web/${name}`, name.endsWith('.wasm')
       ? 'application/wasm' : 'application/javascript'])
 ]);

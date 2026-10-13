@@ -411,6 +411,7 @@ fn faulty(c: &Case, after: bool) -> (DeviceEnrollment, Arc<AtomicUsize>, Arc<Ato
     let binding = c.paths.binding(&key, &c.intent).expect("scope");
     (
         DeviceEnrollment {
+            storage: crate::storage::Storage::native().expect("native storage"),
             active: Some(Active { database, key }),
             paths: c.paths.clone(),
             intent: c.intent.clone(),

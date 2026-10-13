@@ -296,6 +296,17 @@ impl JournalKey {
     }
     /// Generate and durably provision a fresh key without replacing an existing file.
     pub fn provision(path: &Path) -> Result<Self, DurableError> {
+        let (key, image) = Self::prepare_file()?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, false)?;
+        publish_private_bytes(path, &image)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, true)?;
+        #[cfg(all(test, unix))]
+        tests::key_files::after_key_publication()?;
+        Ok(key)
+    }
+    pub(crate) fn prepare_file() -> Result<(Self, Zeroizing<Vec<u8>>), DurableError> {
         let mut key = Box::new(ZeroizingBytes::zeroed());
         getrandom::fill(key.as_mut_bytes()).map_err(|_| Error::Entropy)?;
         #[cfg(all(test, unix))]
@@ -304,14 +315,7 @@ impl JournalKey {
         #[cfg(all(test, unix))]
         tests::key_files::at_checkpoint(tests::key_files::Checkpoint::Header)?;
         image.extend_from_slice(key.as_bytes());
-        #[cfg(all(test, unix))]
-        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, false)?;
-        publish_private_bytes(path, &image)?;
-        #[cfg(all(test, unix))]
-        tests::key_files::at_sync(tests::key_files::Barrier::ProvisionPublication, true)?;
-        #[cfg(all(test, unix))]
-        tests::key_files::after_key_publication()?;
-        Ok(Self(key))
+        Ok((Self(key), image))
     }
     /// Reopen an existing immutable private key file and reconcile its durability
     /// before returning the owner. Partial files are refused, never replaced.
@@ -355,13 +359,9 @@ impl JournalKey {
     }
     fn read_file(file: &mut std::fs::File) -> Result<Self, DurableError> {
         Self::check_file(file, 40)?;
-        let mut header = [0u8; 8];
-        file.read_exact(&mut header)?;
-        if header != *b"QPVKEY01" {
-            return Err(DurableError::PrivateFile);
-        }
-        let mut key = Box::new(ZeroizingBytes::zeroed());
-        file.read_exact(key.as_mut_bytes())?;
+        let mut bytes = Zeroizing::new([0u8; 40]);
+        file.read_exact(bytes.as_mut_slice())?;
+        let key = Self::decode_file(bytes.as_slice())?;
         let mut extra = [0];
         if file.read(&mut extra)? != 0 {
             return Err(DurableError::PrivateFile);
@@ -376,6 +376,15 @@ impl JournalKey {
         tests::key_files::at_sync(tests::key_files::Barrier::OpenFile, true)?;
         #[cfg(all(test, unix))]
         tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenFileSynced)?;
+        Ok(key)
+    }
+    pub(crate) fn decode_file(bytes: &[u8]) -> Result<Self, DurableError> {
+        if bytes.len() != 40 || bytes.get(..8) != Some(b"QPVKEY01") {
+            return Err(DurableError::PrivateFile);
+        }
+        let mut key = Box::new(ZeroizingBytes::zeroed());
+        key.as_mut_bytes()
+            .copy_from_slice(bytes.get(8..).ok_or(DurableError::PrivateFile)?);
         Ok(Self(key))
     }
 }

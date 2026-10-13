@@ -199,6 +199,10 @@ struct Owners {
     state: State,
     installation: Option<RetiredInstallationRecovery>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Owners {
     fn read(&self) -> Result<(Image, State, VerifiedDevice), DurableError> {
         let (image, state) = read_retired_snapshot(&self.enrollment, &self.pin, self.retired)?;
@@ -230,14 +234,14 @@ impl Owners {
             &plan.acknowledgement,
         )?)
     }
-    fn installation(&mut self) -> Result<&mut RetiredInstallationRecovery, DurableError> {
+    async fn installation(&mut self) -> Result<&mut RetiredInstallationRecovery, DurableError> {
         self.read()?;
         // Reconcile the same saved request, including after erase_journal closed its
         // restricted child. This does not replay host effects or select another backup.
         self.installation = None;
         let mut child = RetiredInstallationRecovery::open(
             self.enrollment.paths.installation.clone(),
-            self.enrollment.key()?,
+            self.enrollment.key().await?,
             self.retired,
         )?;
         if child.proposal()? != self.state.inventory {
@@ -283,27 +287,32 @@ fn check_original(
 pub struct RetiredDeviceEnrollment {
     active: Option<Owners>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl RetiredDeviceEnrollment {
     /// Open the original existing enrollment with independently verified permanent
     /// retirement and its original witness pin. First admission retains the existing
     /// installation's original inventory, then freezes the enrollment metadata.
     /// An unknown commit returns no owner; reopen these exact paths/intent/proof.
-    pub fn open(
+    pub async fn open(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
         Self::from_enrollment(
-            DeviceEnrollment::open_original_storage(paths, intent)?,
+            DeviceEnrollment::open_original_storage(paths, intent).await?,
             pin,
             retired,
         )
+        .await
     }
     pub(super) fn is_closed(&self) -> bool {
         self.active.is_none()
     }
-    pub(super) fn check_managed_scope(
+    pub(super) async fn check_managed_scope(
         &self,
         paths: &EnrollmentPaths,
         intent: &EnrollmentIntent,
@@ -313,7 +322,8 @@ impl RetiredDeviceEnrollment {
         let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
         owners.read()?;
         if owners.pin.binding() != pin.binding()
-            || owners.enrollment.binding != paths.binding(&owners.enrollment.key()?, intent)?
+            || owners.enrollment.binding
+                != paths.binding(&owners.enrollment.key().await?, intent)?
         {
             return Err(DurableError::Conflict);
         }
@@ -332,6 +342,7 @@ impl RetiredDeviceEnrollment {
         let binding = paths.binding(&key, &intent)?;
         Self::from_enrollment(
             DeviceEnrollment {
+                storage: crate::storage::Storage::native()?,
                 active: Some(Active { database, key }),
                 paths,
                 intent,
@@ -342,7 +353,7 @@ impl RetiredDeviceEnrollment {
             retired,
         )
     }
-    pub(super) fn from_enrollment(
+    pub(super) async fn from_enrollment(
         enrollment: DeviceEnrollment,
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
@@ -359,7 +370,7 @@ impl RetiredDeviceEnrollment {
             None => {
                 let mut child = RetiredInstallationRecovery::open(
                     enrollment.paths.installation.clone(),
-                    enrollment.key()?,
+                    enrollment.key().await?,
                     retired,
                 )?;
                 let state = State {
@@ -387,12 +398,11 @@ impl RetiredDeviceEnrollment {
     /// Borrow the existing restricted installation flow for full report retention,
     /// explicit host acknowledgement and journal erasure. Each new borrow reopens
     /// the same independently saved expectation; missing originals are never replaced.
-    pub fn installation(&mut self) -> Result<&mut RetiredInstallationRecovery, DurableError> {
-        let result = self
-            .active
-            .as_mut()
-            .ok_or(DurableError::Closed)
-            .and_then(|o| o.installation().map(|_| ()));
+    pub async fn installation(&mut self) -> Result<&mut RetiredInstallationRecovery, DurableError> {
+        let result = match self.active.as_mut() {
+            Some(owner) => owner.installation().await.map(|_| ()),
+            None => Err(DurableError::Closed),
+        };
         if let Err(error) = result {
             self.close();
             return Err(error);
@@ -406,50 +416,52 @@ impl RetiredDeviceEnrollment {
     /// and purpose-21 host acknowledgement. This authenticates the original device
     /// role, public key, file identity and encrypted bytes without returning a signer.
     /// Exact retries retain the first plan and perform no file mutation.
-    pub fn prepare_signer_erasure(&mut self, receipt: &[u8]) -> Result<(), DurableError> {
-        let result = (|| {
-            let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
-            let (image, state, original) = owners.read()?;
-            if let Some(plan) = &state.signer {
-                owners.pin.verify_retired_report_acknowledgement(
-                    owners.retired,
-                    plan.file.report(),
-                    receipt,
-                )?;
-                return Ok(());
-            }
-            let pin = owners.pin.clone();
-            let child = owners.installation()?;
-            if child.journal_erasure_status(&pin)? != JournalErasureState::Erased {
-                return Err(DurableError::Suspended);
-            }
-            let ack = child.verify_host_acknowledgement(&pin, receipt)?;
-            let active = owners
-                .enrollment
-                .active
-                .as_ref()
-                .ok_or(DurableError::Closed)?;
-            let file = SigningFilePlan::capture(
-                &owners.enrollment.paths.signer,
-                &active.key,
-                image.identity,
-                &original,
-                &ack,
-            )?;
-            let mut next = state.clone();
-            next.signer = Some(Box::new(SignerPlan {
-                file,
-                acknowledgement: receipt.to_vec(),
-            }));
-            save(&owners.enrollment, Some(&state), &next)?;
-            owners.state = next;
-            Ok(())
-        })();
+    pub async fn prepare_signer_erasure(&mut self, receipt: &[u8]) -> Result<(), DurableError> {
+        let result = self.prepare_signer_erasure_attempt(receipt).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn prepare_signer_erasure_attempt(&mut self, receipt: &[u8]) -> Result<(), DurableError> {
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        let (image, state, original) = owners.read()?;
+        if let Some(plan) = &state.signer {
+            owners.pin.verify_retired_report_acknowledgement(
+                owners.retired,
+                plan.file.report(),
+                receipt,
+            )?;
+            return Ok(());
+        }
+        let pin = owners.pin.clone();
+        let child = owners.installation().await?;
+        if child.journal_erasure_status(&pin)? != JournalErasureState::Erased {
+            return Err(DurableError::Suspended);
+        }
+        let ack = child.verify_host_acknowledgement(&pin, receipt)?;
+        let active = owners
+            .enrollment
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?;
+        let file = SigningFilePlan::capture(
+            &owners.enrollment.paths.signer,
+            &active.key,
+            image.identity,
+            &original,
+            &ack,
+        )?;
+        let mut next = state.clone();
+        next.signer = Some(Box::new(SignerPlan {
+            file,
+            acknowledgement: receipt.to_vec(),
+        }));
+        save(&owners.enrollment, Some(&state), &next)?;
+        owners.state = next;
+        Ok(())
+    }
+
     /// Query the original prepared file. Missing, foreign or corrupt state is an
     /// error. A full-length partially marked file still retains encrypted seeds.
     /// This requires the independently stored complete host ACK, never just a tag.
@@ -513,10 +525,14 @@ impl RetiredDeviceEnrollment {
         self.active = None;
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl EnrolledDevice {
     /// Consume this device's service and signer, retaining its original enrollment
     /// lease for permanent retirement under independently verified witness authority.
-    pub fn retire(
+    pub async fn retire(
         mut self,
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
@@ -530,6 +546,6 @@ impl EnrolledDevice {
         } = *owners;
         service.close();
         signer.close();
-        RetiredDeviceEnrollment::from_enrollment(enrollment, pin, retired)
+        RetiredDeviceEnrollment::from_enrollment(enrollment, pin, retired).await
     }
 }

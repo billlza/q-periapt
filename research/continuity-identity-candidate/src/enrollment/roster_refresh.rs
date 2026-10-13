@@ -245,7 +245,7 @@ impl DeviceEnrollment {
     }
     /// Open a historical control client for this original enrollment's R operation.
     /// It grants no runtime permission and does not prepare, commit or acknowledge R.
-    pub fn roster_refresh_anchor_client(
+    pub async fn roster_refresh_anchor_client(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         pin: AnchorPin,
@@ -253,6 +253,7 @@ impl DeviceEnrollment {
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
         self.policy_renewal_anchor_client(original_policy, pin, transport, timeout)
+            .await
     }
     /// Retain and seal one root-approved same-credential roster target. Exact retries
     /// preserve the original sealed bytes. The journal's actual predecessor must
@@ -348,11 +349,11 @@ impl DeviceEnrollment {
             self.save(&image)?;
             image = self.image()?;
         }
-        let lease = self.witness_lease(&original, original_policy, id)?;
+        let lease = self.witness_lease(&original, original_policy, id).await?;
         let path = self.paths.installation.files()[1];
         let proposal = match DeviceJournal::inspect_roster_refresh_preparation(
             path,
-            self.key()?,
+            self.key().await?,
             &original,
             original_policy,
             id,
@@ -437,94 +438,109 @@ impl DeviceEnrollment {
     }
     /// Inspect the actual original R preparation after an uncertain local return.
     /// None means local absence only; no network command or new target is created.
-    pub fn recover_witnessed_roster_refresh_preparation(
+    pub async fn recover_witnessed_roster_refresh_preparation(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<Option<Proposal>, DurableError> {
-        let result = (|| {
-            let image = self.image()?;
-            let (original, id) = self.roster_witness_scope(&image, original_policy)?;
-            let r = image
-                .roster_witness
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            if r.abandoned || r.coordination.is_some_and(|c| c.terminal.is_some()) {
-                return Err(DurableError::Conflict);
-            }
-            let lease = self.witness_lease(&original, original_policy, id)?;
-            let found = DeviceJournal::inspect_roster_refresh_preparation(
-                self.paths.installation.files()[1],
-                self.key()?,
-                &original,
-                original_policy,
-                id,
-            )?;
-            if let Some(p) = found {
-                self.retain_roster_proposal(image, original_policy, p)?;
-            } else if r.coordination.is_some() {
-                return Err(DurableError::Conflict);
-            }
-            drop(lease);
-            Ok(found)
-        })();
+        let result = self
+            .recover_witnessed_roster_refresh_preparation_attempt(original_policy)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn recover_witnessed_roster_refresh_preparation_attempt(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<Option<Proposal>, DurableError> {
+        let image = self.image()?;
+        let (original, id) = self.roster_witness_scope(&image, original_policy)?;
+        let r = image
+            .roster_witness
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        if r.abandoned || r.coordination.is_some_and(|c| c.terminal.is_some()) {
+            return Err(DurableError::Conflict);
+        }
+        let lease = self.witness_lease(&original, original_policy, id).await?;
+        let found = DeviceJournal::inspect_roster_refresh_preparation(
+            self.paths.installation.files()[1],
+            self.key().await?,
+            &original,
+            original_policy,
+            id,
+        )?;
+        if let Some(p) = found {
+            self.retain_roster_proposal(image, original_policy, p)?;
+        } else if r.coordination.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        drop(lease);
+        Ok(found)
+    }
+
     /// Abandon only a staged intent whose proposal has never been released by
     /// this original enrollment and whose journal has no pending target. Holds
     /// the original service lease, sends nothing, and grants no witness outcome.
     /// Reserved/terminal operations must use their exact witness reconciliation.
-    pub fn abandon_unprepared_roster_refresh(
+    pub async fn abandon_unprepared_roster_refresh(
         &mut self,
         operation: RosterRefreshId,
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<WitnessedRosterRefreshProgress, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            let (original, id) = self.roster_witness_scope(&image, original_policy)?;
-            let r = image
-                .roster_witness
-                .as_ref()
-                .ok_or(DurableError::Conflict)?;
-            if r.scope.operation != operation || r.coordination.is_some() {
-                return Err(DurableError::Conflict);
-            }
-            if r.abandoned {
-                return Ok(r.progress());
-            }
-            let scope = r.scope;
-            let lease = self.witness_lease(&original, original_policy, id)?;
-            if DeviceJournal::inspect_roster_refresh_preparation(
-                self.paths.installation.files()[1],
-                self.key()?,
-                &original,
-                original_policy,
-                id,
-            )?
-            .is_some()
-            {
-                return Err(DurableError::Suspended);
-            }
-            image
-                .roster_witness
-                .as_mut()
-                .ok_or(DurableError::Corrupt)?
-                .abandoned = true;
-            self.save(&image)?;
-            let expected = WitnessedRosterRefreshProgress::AbandonedBeforePreparation(scope);
-            if self.witnessed_roster_refresh_progress()? != Some(expected) {
-                return Err(DurableError::Conflict);
-            }
-            drop(lease);
-            Ok(expected)
-        })();
+        let result = self
+            .abandon_unprepared_roster_refresh_attempt(operation, original_policy)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn abandon_unprepared_roster_refresh_attempt(
+        &mut self,
+        operation: RosterRefreshId,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<WitnessedRosterRefreshProgress, DurableError> {
+        let mut image = self.image()?;
+        let (original, id) = self.roster_witness_scope(&image, original_policy)?;
+        let r = image
+            .roster_witness
+            .as_ref()
+            .ok_or(DurableError::Conflict)?;
+        if r.scope.operation != operation || r.coordination.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        if r.abandoned {
+            return Ok(r.progress());
+        }
+        let scope = r.scope;
+        let lease = self.witness_lease(&original, original_policy, id).await?;
+        if DeviceJournal::inspect_roster_refresh_preparation(
+            self.paths.installation.files()[1],
+            self.key().await?,
+            &original,
+            original_policy,
+            id,
+        )?
+        .is_some()
+        {
+            return Err(DurableError::Suspended);
+        }
+        image
+            .roster_witness
+            .as_mut()
+            .ok_or(DurableError::Corrupt)?
+            .abandoned = true;
+        self.save(&image)?;
+        let expected = WitnessedRosterRefreshProgress::AbandonedBeforePreparation(scope);
+        if self.witnessed_roster_refresh_progress()? != Some(expected) {
+            return Err(DurableError::Conflict);
+        }
+        drop(lease);
+        Ok(expected)
+    }
+
     /// Read authenticated R coordination without borrowing a signer or runtime.
     pub fn witnessed_roster_refresh_progress(
         &mut self,
@@ -622,7 +638,8 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         if r.coordination.is_none() {
-            self.recover_witnessed_roster_refresh_preparation(policy)?
+            self.recover_witnessed_roster_refresh_preparation(policy)
+                .await?
                 .ok_or(DurableError::Suspended)?;
             image = self.image()?;
         }
@@ -651,7 +668,7 @@ impl DeviceEnrollment {
         {
             return Err(Error::Scope.into());
         }
-        let lease = self.witness_lease(&original, policy, id)?;
+        let lease = self.witness_lease(&original, policy, id).await?;
         if c.retired {
             return Ok(c.terminal.ok_or(DurableError::Corrupt)?.state());
         }
@@ -662,7 +679,7 @@ impl DeviceEnrollment {
                     policy: current,
                     now,
                 } => {
-                    self.authorize_journal_commit(&original, id)?;
+                    self.authorize_journal_commit(&original, id).await?;
                     image.check_time_floor(now)?;
                     let Phase::Accepted { admission, .. } = &image.phase else {
                         return Err(DurableError::Corrupt);
@@ -693,7 +710,7 @@ impl DeviceEnrollment {
             }
             let observed = DeviceJournal::recover_roster_refresh(
                 self.paths.installation.files()[1],
-                self.key()?,
+                self.key().await?,
                 &original,
                 policy,
                 id,
@@ -734,7 +751,7 @@ impl DeviceEnrollment {
         tests::renewal::boundary("independent-roster-terminal");
         DeviceJournal::retire_roster_refresh(
             self.paths.installation.files()[1],
-            self.key()?,
+            self.key().await?,
             &original,
             policy,
             id,

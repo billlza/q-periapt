@@ -181,7 +181,7 @@ impl DeviceEnrollment {
             .ok_or(DurableError::Conflict)?;
         let approval = self.authenticated_policy_record(completed)?;
         approval.check_context_policy(original_policy, policy)?;
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         let Phase::Accepted {
             admission,
             stage: AdmissionPhase::Active,
@@ -229,7 +229,7 @@ impl DeviceEnrollment {
                 now,
             )
             .await?;
-        let signer = self.signer(image.identity, false)?;
+        let signer = self.signer(image.identity, false).await?;
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
@@ -253,7 +253,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<(EnrolledDevice, crate::ReopenedPeer), DurableError> {
         let image = self.image()?;
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         if request.context.device(request.role).credential_digest() != original.credential_digest()
         {
             return Err(DurableError::Conflict);
@@ -671,7 +671,7 @@ impl DeviceEnrollment {
     /// extend the credential under the exact adopted current policy.
     /// After an unknown save result, reopen this original enrollment and query
     /// the operation. Never provision another record or manufacture a G grant.
-    pub fn stage_policy_renewal(
+    pub async fn stage_policy_renewal(
         &mut self,
         renewal: &VerifiedPolicyRenewal,
         operation: PolicyRenewalId,
@@ -679,75 +679,85 @@ impl DeviceEnrollment {
         target: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<PolicyRenewalStatus, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            image.check_time_floor(now)?;
-            if image
-                .policy_resolution
-                .as_ref()
-                .is_some_and(|r| r.contains(operation))
-            {
-                return Err(DurableError::Conflict);
-            }
-            let Phase::Accepted {
-                admission,
-                stage: AdmissionPhase::Active,
-                ..
-            } = &image.phase
-            else {
-                return Err(Error::State.into());
-            };
-            if let Some(history) = &image.renewal {
-                if !history.permits_policy_pending() {
-                    return Err(DurableError::Suspended);
-                }
-                history.policy_time_floor(now)?;
-            }
-            let approval = renewal.historical();
-            if approval.scope().operation != operation {
-                return Err(DurableError::Conflict);
-            }
-            let original = self.original_device(&image, now)?;
-            let pin = AccountPin::new(
-                crate::identity::account_id(&self.intent.root),
-                self.intent.root.clone(),
-                admission.checkpoint,
-                self.intent.description.family,
-            )?;
-            let current = pin.verify_device(&admission.certificate, &admission.roster, now)?;
-            approval.check_devices(&original, &current)?;
-            approval.check_context_policy(original_policy, target)?;
-            admit(&current, target, now)?;
-            if let Some(completed) = &image.policy_completed {
-                if completed.operation == operation {
-                    if image.policy_pending.is_none()
-                        && completed.statement == approval.statement_digest()
-                        && completed.target == approval.target_policy()
-                    {
-                        return Ok(completed.committed_status());
-                    }
-                    return Err(DurableError::Conflict);
-                }
-            }
-            self.check_policy_predecessor(&image, &approval, &original, admission)?;
-            if let Some(pending) = &image.policy_pending {
-                if pending.operation != operation
-                    || pending.statement != approval.statement_digest()
-                    || pending.target != approval.target_policy()
-                {
-                    return Err(DurableError::Conflict);
-                }
-                return Ok(pending.status());
-            }
-            self.begin_witness_policy(&mut image, original_policy, operation)?;
-            image.policy_pending = Some(RetainedPolicyRenewal::new(&approval));
-            self.validate_policy_pending(&image)?;
-            self.save(&image)?;
-            self.policy_renewal_status()
-        })();
+        let result = self
+            .stage_policy_renewal_attempt(renewal, operation, original_policy, target, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn stage_policy_renewal_attempt(
+        &mut self,
+        renewal: &VerifiedPolicyRenewal,
+        operation: PolicyRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+        target: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<PolicyRenewalStatus, DurableError> {
+        let mut image = self.image()?;
+        image.check_time_floor(now)?;
+        if image
+            .policy_resolution
+            .as_ref()
+            .is_some_and(|r| r.contains(operation))
+        {
+            return Err(DurableError::Conflict);
+        }
+        let Phase::Accepted {
+            admission,
+            stage: AdmissionPhase::Active,
+            ..
+        } = &image.phase
+        else {
+            return Err(Error::State.into());
+        };
+        if let Some(history) = &image.renewal {
+            if !history.permits_policy_pending() {
+                return Err(DurableError::Suspended);
+            }
+            history.policy_time_floor(now)?;
+        }
+        let approval = renewal.historical();
+        if approval.scope().operation != operation {
+            return Err(DurableError::Conflict);
+        }
+        let original = self.original_device(&image, now).await?;
+        let pin = AccountPin::new(
+            crate::identity::account_id(&self.intent.root),
+            self.intent.root.clone(),
+            admission.checkpoint,
+            self.intent.description.family,
+        )?;
+        let current = pin.verify_device(&admission.certificate, &admission.roster, now)?;
+        approval.check_devices(&original, &current)?;
+        approval.check_context_policy(original_policy, target)?;
+        admit(&current, target, now)?;
+        if let Some(completed) = &image.policy_completed {
+            if completed.operation == operation {
+                if image.policy_pending.is_none()
+                    && completed.statement == approval.statement_digest()
+                    && completed.target == approval.target_policy()
+                {
+                    return Ok(completed.committed_status());
+                }
+                return Err(DurableError::Conflict);
+            }
+        }
+        self.check_policy_predecessor(&image, &approval, &original, admission)?;
+        if let Some(pending) = &image.policy_pending {
+            if pending.operation != operation
+                || pending.statement != approval.statement_digest()
+                || pending.target != approval.target_policy()
+            {
+                return Err(DurableError::Conflict);
+            }
+            return Ok(pending.status());
+        }
+        self.begin_witness_policy(&mut image, original_policy, operation)?;
+        image.policy_pending = Some(RetainedPolicyRenewal::new(&approval));
+        self.validate_policy_pending(&image)?;
+        self.save(&image)?;
+        self.policy_renewal_status()
     }
 }

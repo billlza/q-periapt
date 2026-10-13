@@ -8,6 +8,10 @@ pub(super) enum Original {
     Fenced(AccountRootEnrollmentRecovery),
     Retired(Box<RetiredDeviceEnrollment>),
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Owners {
     fn registry_committed(&self, proposal: &Proposal) -> Result<bool, DurableError> {
         let (application, state, retained) = match self.registry.replacement(proposal.operation()) {
@@ -23,7 +27,7 @@ impl Owners {
         }
         Ok(state == State::Committed)
     }
-    fn admit_original(
+    async fn admit_original(
         &self,
         enrollment: DeviceEnrollment,
         proposal: &Proposal,
@@ -34,24 +38,31 @@ impl Owners {
                 return Err(DurableError::Conflict);
             }
             return Ok(Original::Retired(Box::new(
-                RetiredDeviceEnrollment::from_enrollment(enrollment, self.pin.clone(), retired)?,
+                RetiredDeviceEnrollment::from_enrollment(enrollment, self.pin.clone(), retired)
+                    .await?,
             )));
         }
         let recovery = match transition {
-            Some(transition) => AccountRootEnrollmentRecovery::prepare_managed_transition(
-                enrollment,
-                self.pin.clone(),
-                transition,
-            )?,
-            None => AccountRootEnrollmentRecovery::prepare(
-                enrollment,
-                self.pin.clone(),
-                proposal.clone(),
-            )?,
+            Some(transition) => {
+                AccountRootEnrollmentRecovery::prepare_managed_transition(
+                    enrollment,
+                    self.pin.clone(),
+                    transition,
+                )
+                .await?
+            }
+            None => {
+                AccountRootEnrollmentRecovery::prepare(
+                    enrollment,
+                    self.pin.clone(),
+                    proposal.clone(),
+                )
+                .await?
+            }
         };
         Ok(Original::Fenced(recovery))
     }
-    pub(super) fn reconcile(&mut self) -> Result<(), DurableError> {
+    pub(super) async fn reconcile(&mut self) -> Result<(), DurableError> {
         let proposal = match self.state()? {
             State::Preparing => None,
             State::Closed => match self.registry.replacement(self.operation.id()) {
@@ -64,29 +75,35 @@ impl Owners {
             }
         };
         let original = match (proposal, self.original.take()) {
-            (None, None) => Original::Preparing(Box::new(DeviceEnrollment::open(
-                self.paths.clone(),
-                self.intent.clone(),
-            )?)),
+            (None, None) => Original::Preparing(Box::new(
+                DeviceEnrollment::open(self.paths.clone(), self.intent.clone()).await?,
+            )),
             (None, Some(original @ Original::Preparing(_))) => original,
             (None, Some(_)) => return Err(DurableError::Conflict),
-            (Some(proposal), None) => self.admit_original(
-                DeviceEnrollment::open_original_storage(self.paths.clone(), self.intent.clone())?,
-                &proposal,
-                None,
-            )?,
+            (Some(proposal), None) => {
+                self.admit_original(
+                    DeviceEnrollment::open_original_storage(
+                        self.paths.clone(),
+                        self.intent.clone(),
+                    )
+                    .await?,
+                    &proposal,
+                    None,
+                )
+                .await?
+            }
             (Some(proposal), Some(Original::Preparing(enrollment))) => {
-                self.admit_original(*enrollment, &proposal, None)?
+                self.admit_original(*enrollment, &proposal, None).await?
             }
             (Some(proposal), Some(mut original)) => {
-                self.check_original(&mut original, &proposal, false)?;
+                self.check_original(&mut original, &proposal, false).await?;
                 original
             }
         };
         self.original = Some(original);
         Ok(())
     }
-    fn check_original(
+    async fn check_original(
         &self,
         original: &mut Original,
         proposal: &Proposal,
@@ -104,83 +121,98 @@ impl Owners {
                 Ok(())
             }
             Original::Retired(retired) => {
-                retired.check_managed_scope(&self.paths, &self.intent, &self.pin, proposal)
+                retired
+                    .check_managed_scope(&self.paths, &self.intent, &self.pin, proposal)
+                    .await
             }
         }
     }
-    pub(super) fn check_parent(
+    pub(super) async fn check_parent(
         &mut self,
         proposal: &Proposal,
         committed: bool,
     ) -> Result<(), DurableError> {
         let mut original = self.original.take().ok_or(DurableError::Closed)?;
-        self.check_original(&mut original, proposal, committed)?;
+        self.check_original(&mut original, proposal, committed)
+            .await?;
         self.original = Some(original);
         Ok(())
     }
-    pub(super) fn validate_parent_transition(
+    pub(super) async fn validate_parent_transition(
         &mut self,
         transition: &AccountRootJournalTransition,
     ) -> Result<(), DurableError> {
         match self.original.as_mut() {
-            Some(Original::Fenced(recovery)) => recovery.validate_managed_transition(transition),
-            Some(Original::Retired(_)) => self.check_parent(transition.next_proposal(), true),
+            Some(Original::Fenced(recovery)) => {
+                recovery.validate_managed_transition(transition).await
+            }
+            Some(Original::Retired(_)) => self.check_parent(transition.next_proposal(), true).await,
             Some(Original::Preparing(_)) | None => Ok(()),
         }
     }
-    pub(super) fn advance_parent(
+    pub(super) async fn advance_parent(
         &mut self,
         transition: &AccountRootJournalTransition,
     ) -> Result<(), DurableError> {
         let proposal = transition.next_proposal();
         let original = match self.original.take() {
             Some(Original::Fenced(mut recovery)) => {
-                recovery.apply_managed_transition(transition)?;
+                recovery.apply_managed_transition(transition).await?;
                 Original::Fenced(recovery)
             }
             Some(Original::Preparing(enrollment)) => {
-                self.admit_original(*enrollment, proposal, Some(transition))?
+                self.admit_original(*enrollment, proposal, Some(transition))
+                    .await?
             }
             Some(mut original @ Original::Retired(_)) => {
                 if !self.registry_committed(proposal)? {
                     return Err(DurableError::Conflict);
                 }
-                self.check_original(&mut original, proposal, true)?;
+                self.check_original(&mut original, proposal, true).await?;
                 original
             }
-            None => self.admit_original(
-                DeviceEnrollment::open_original_storage(self.paths.clone(), self.intent.clone())?,
-                proposal,
-                Some(transition),
-            )?,
+            None => {
+                self.admit_original(
+                    DeviceEnrollment::open_original_storage(
+                        self.paths.clone(),
+                        self.intent.clone(),
+                    )
+                    .await?,
+                    proposal,
+                    Some(transition),
+                )
+                .await?
+            }
         };
         self.original = Some(original);
         Ok(())
     }
-    pub(super) fn retain_parent_retirement(
+    pub(super) async fn retain_parent_retirement(
         &mut self,
         proposal: &Proposal,
         receipt: &[u8],
     ) -> Result<(), DurableError> {
-        self.check_parent(proposal, false)?;
+        self.check_parent(proposal, false).await?;
         match self.original.as_mut().ok_or(DurableError::Closed)? {
             Original::Fenced(recovery) => {
                 recovery.retain_witness_retirement(receipt)?;
             }
-            Original::Retired(_) => self.check_parent(proposal, true)?,
+            Original::Retired(_) => self.check_parent(proposal, true).await?,
             Original::Preparing(_) => return Err(DurableError::Suspended),
         }
         Ok(())
     }
-    pub(super) fn start_cleanup(&mut self, proposal: &Proposal) -> Result<(), DurableError> {
-        self.check_parent(proposal, true)?;
+    pub(super) async fn start_cleanup(&mut self, proposal: &Proposal) -> Result<(), DurableError> {
+        self.check_parent(proposal, true).await?;
         let original = match self.original.take().ok_or(DurableError::Closed)? {
-            Original::Fenced(recovery) => Original::Retired(Box::new(recovery.into_retired()?)),
+            Original::Fenced(recovery) => {
+                Original::Retired(Box::new(recovery.into_retired().await?))
+            }
             original @ Original::Retired(_) => original,
             Original::Preparing(_) => return Err(DurableError::Suspended),
         };
         self.original = Some(original);
-        self.check_parent(proposal, true)
+        self.check_parent(proposal, true).await
     }
     pub(super) fn cleanup(&mut self) -> Result<&mut RetiredDeviceEnrollment, DurableError> {
         match self.original.as_mut() {
@@ -188,21 +220,30 @@ impl Owners {
             _ => Err(DurableError::Suspended),
         }
     }
-    pub(super) fn finish_cleanup_step(&mut self, proposal: &Proposal) -> Result<(), DurableError> {
+    pub(super) async fn finish_cleanup_step(
+        &mut self,
+        proposal: &Proposal,
+    ) -> Result<(), DurableError> {
         // Logical signer erasure deliberately closes its restricted owner. Only
         // that explicit closed state permits reopening these same existing paths.
         if self.cleanup()?.is_closed() {
             self.original = None;
-            let original = self.admit_original(
-                DeviceEnrollment::open_original_storage(self.paths.clone(), self.intent.clone())?,
-                proposal,
-                None,
-            )?;
+            let original = self
+                .admit_original(
+                    DeviceEnrollment::open_original_storage(
+                        self.paths.clone(),
+                        self.intent.clone(),
+                    )
+                    .await?,
+                    proposal,
+                    None,
+                )
+                .await?;
             if !matches!(original, Original::Retired(_)) {
                 return Err(DurableError::Conflict);
             }
             self.original = Some(original);
         }
-        self.check_parent(proposal, true)
+        self.check_parent(proposal, true).await
     }
 }

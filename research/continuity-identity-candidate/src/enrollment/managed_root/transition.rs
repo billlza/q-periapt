@@ -38,6 +38,10 @@ impl ManagedAccountRootTransition {
         })
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Owners {
     fn check_transition(
         &self,
@@ -69,11 +73,11 @@ impl Owners {
         }
         Ok(())
     }
-    fn apply_transition(
+    async fn apply_transition(
         &mut self,
         transition: &ManagedAccountRootTransition,
     ) -> Result<Proposal, DurableError> {
-        self.validate_parent_transition(&transition.journal)?;
+        self.validate_parent_transition(&transition.journal).await?;
         self.registry.close_preparation(&transition.closed)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("noncommit");
@@ -85,13 +89,17 @@ impl Owners {
             .bind_preparation(transition.next.operation(), &transition.frozen)?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("next-binding");
-        self.advance_parent(&transition.journal)?;
+        self.advance_parent(&transition.journal).await?;
         #[cfg(all(test, unix))]
         account_root::managed_boundary("next-parent");
         self.operation = Operation::Prepared(Box::new(transition.next.clone()));
         Ok(transition.journal.next_proposal().clone())
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl ManagedAccountRootReplacement {
     /// Retain signed permanent non-commit of the current plan, including before
     /// a freeze has returned. The original account stays suspended. This is a
@@ -114,7 +122,7 @@ impl ManagedAccountRootReplacement {
     /// Close the original plan, retain/bind the separately approved next plan,
     /// then reconcile the original parent and child. Each commit can precede an
     /// error. Retry only this same transition through `resume_transition`.
-    pub fn transition_after_noncommit(
+    pub async fn transition_after_noncommit(
         &mut self,
         transition: &ManagedAccountRootTransition,
     ) -> Result<Proposal, DurableError> {
@@ -122,13 +130,16 @@ impl ManagedAccountRootReplacement {
             .as_ref()
             .ok_or(DurableError::Closed)?
             .check_transition(transition)?;
-        self.run(|owners| owners.apply_transition(transition))
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        let result = owners.apply_transition(transition).await?;
+        self.active = Some(owners);
+        Ok(result)
     }
     /// Reconcile the same approved transition across any of its registry, parent
     /// or child commits. The original parent may be unfenced, retain the previous
     /// proposal, or already retain this exact next proposal. Missing or conflicting
     /// state is refused; no database, identity, key or operation is regenerated.
-    pub fn resume_transition(
+    pub async fn resume_transition(
         registry: AccountAuthorityStore,
         expected: AccountAuthorityCheckpoint,
         paths: EnrollmentPaths,
@@ -147,7 +158,7 @@ impl ManagedAccountRootReplacement {
         };
         Self::check_inputs(&owners)?;
         owners.check_transition(transition)?;
-        owners.apply_transition(transition)?;
+        owners.apply_transition(transition).await?;
         Ok(Self {
             active: Some(Box::new(owners)),
         })

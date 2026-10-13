@@ -479,7 +479,7 @@ impl DeviceEnrollment {
         )?;
         Ok(pin.verify_historical_device(certificate, roster)?)
     }
-    pub(super) fn original_device(
+    pub(super) async fn original_device(
         &self,
         image: &Image,
         now: u64,
@@ -495,7 +495,8 @@ impl DeviceEnrollment {
         {
             return Err(Error::Validity.into());
         }
-        self.signer(image.identity, false)?
+        self.signer(image.identity, false)
+            .await?
             .check_device(&original)?;
         Ok(original)
     }
@@ -536,7 +537,7 @@ impl DeviceEnrollment {
     /// Call activate to reconcile its original journal and publish an owner only
     /// after current admission. Unknown results require reopening this enrollment;
     /// an exact pending retry preserves the original bytes and operation identity.
-    pub fn stage_credential_renewal(
+    pub async fn stage_credential_renewal(
         &mut self,
         grant: &VerifiedCredentialRenewal,
         operation: CredentialRenewalId,
@@ -544,12 +545,13 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         self.stage_renewal(grant, operation, policy, now, None)
+            .await
     }
     /// Durably stage one independently double-approved credential/policy target
     /// in the original enrollment. The first saved intent includes the complete
     /// joint statement; a credential-only pending operation cannot acquire it.
     /// This is preparation only and returns no P1 service or session owner.
-    pub fn stage_policy_continuation(
+    pub async fn stage_policy_continuation(
         &mut self,
         grant: &VerifiedCredentialRenewal,
         continuation: &crate::VerifiedPolicyContinuation,
@@ -558,6 +560,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         self.stage_renewal(grant, operation, policy, now, Some(continuation))
+            .await
     }
     pub(super) fn retained_policy(
         &self,
@@ -584,7 +587,7 @@ impl DeviceEnrollment {
         }
         Ok(())
     }
-    fn stage_renewal(
+    async fn stage_renewal(
         &mut self,
         grant: &VerifiedCredentialRenewal,
         operation: CredentialRenewalId,
@@ -592,187 +595,197 @@ impl DeviceEnrollment {
         now: u64,
         continuation: Option<&crate::VerifiedPolicyContinuation>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            image.check_time_floor(now)?;
-            let independent = self.completed_policy_approval(&image)?;
-            if image.policy_pending.is_some() || (independent.is_some() && continuation.is_some()) {
-                return Err(DurableError::Suspended);
-            }
-            let original = self.original_device(&image, now)?;
-            let Phase::Accepted {
-                admission,
-                stage: AdmissionPhase::Active,
-                ..
-            } = &image.phase
-            else {
-                return Err(Error::State.into());
-            };
-            if grant.operation() != operation
-                || grant.original_storage_owner() != crate::bootstrap::storage_owner(&original)
-                || grant.policy_digest() != admission.policy
-            {
-                return Err(DurableError::Conflict);
-            }
-            grant.resolve_established(&original, admission.policy)?;
-            let joint = continuation.map(crate::VerifiedPolicyContinuation::historical);
-            let adopted = image
-                .renewal
-                .as_ref()
-                .and_then(|r| r.adopted_policy.as_deref())
-                .map(|bytes| self.retained_policy(bytes))
-                .transpose()?;
-            if let Some(previous) = &adopted {
-                Self::check_policy_scope(previous, &original, admission)?;
-            }
-            if let Some(approval) = &independent {
-                if policy.anchor_requirement().binding().is_some() {
-                    return Err(DurableError::AnchorRequired);
-                }
-                approval.check_target(policy)?;
-                approval.check_renewed_identity(&original, grant)?;
-            } else if let Some(joint) = &joint {
-                Self::check_policy_scope(joint, &original, admission)?;
-                joint.check_credential(grant)?;
-                joint.check_target(policy)?;
-            } else if let Some(previous) = &adopted {
-                previous.check_target(policy)?;
-            } else if admission.policy != policy.checkpoint().digest() {
-                return Err(DurableError::Conflict);
-            }
-            let statement = joint.as_ref().map_or_else(
-                || grant.statement_digest(),
-                crate::HistoricalPolicyContinuation::statement_digest,
-            );
-            if let Some(renewal) = &image.renewal {
-                if renewal.witnessed() != policy.anchor_requirement().binding().is_some() {
-                    return Err(DurableError::Conflict);
-                }
-                if let Some(p) = &renewal.pending {
-                    if p.operation != operation
-                        || p.statement != statement
-                        || p.continuation.is_some() != joint.is_some()
-                    {
-                        return Err(DurableError::Conflict);
-                    }
-                    if let Some(bytes) = &p.continuation {
-                        let saved = self.retained_policy(bytes)?;
-                        Self::check_policy_scope(&saved, &original, admission)?;
-                        saved.check_credential(grant)?;
-                        if saved.statement_digest() != p.statement {
-                            return Err(DurableError::Conflict);
-                        }
-                    }
-                    return renewal.status();
-                }
-                if let Some(c) = renewal
-                    .completed
-                    .as_ref()
-                    .filter(|c| c.operation == operation && c.statement == statement)
-                {
-                    if joint.is_some()
-                        && adopted
-                            .as_ref()
-                            .is_none_or(|saved| saved.statement_digest() != statement)
-                    {
-                        return Err(DurableError::Conflict);
-                    }
-                    return Ok(CredentialRenewalStatus::Committed {
-                        operation: c.operation,
-                        statement: c.statement,
-                        target: c.target,
-                    });
-                }
-                if let Some(witness) = &renewal.witness {
-                    witness.check_next(grant)?;
-                }
-            }
-            if let Some(joint) = &joint {
-                match &adopted {
-                    None if joint.scope().previous_authorization.is_none()
-                        && joint.scope().previous_policy == joint.scope().original_policy => {}
-                    Some(previous)
-                        if joint.scope().previous_authorization
-                            == Some(previous.statement_digest())
-                            && joint.scope().previous_policy == previous.target_policy()
-                            && joint.scope().original_policy
-                                == previous.scope().original_policy
-                            && joint.scope().operation != previous.scope().operation => {}
-                    _ => return Err(DurableError::Conflict),
-                }
-            }
-            if let Some(renewal) = &image.renewal {
-                renewal.check_time_floor(now)?;
-                if renewal
-                    .expired
-                    .as_ref()
-                    .is_some_and(|e| e.operation == operation)
-                {
-                    return Err(DurableError::Conflict);
-                }
-            }
-            let current = self.historical_device(
-                &admission.certificate,
-                &admission.roster,
-                admission.checkpoint,
-                now,
-            )?;
-            if current.credential_digest() != grant.previous_device().credential_digest()
-                || admission.checkpoint.version()
-                    > grant.previous_device().roster().checkpoint().version()
-                || (admission.checkpoint.version()
-                    == grant.previous_device().roster().checkpoint().version()
-                    && admission.checkpoint != grant.previous_device().roster().checkpoint())
-            {
-                return Err(DurableError::Conflict);
-            }
-            admit(grant.successor_device(), policy, now)?;
-            if image.renewal.is_none() {
-                image.renewal = Some(LocalRenewal {
-                    origin: Origin {
-                        certificate: admission.certificate.clone(),
-                        roster: admission.roster.clone(),
-                        checkpoint: admission.checkpoint,
-                    },
-                    pending: None,
-                    completed: None,
-                    time_floor: 0,
-                    expired: None,
-                    witness: policy
-                        .anchor_requirement()
-                        .binding()
-                        .map(|_| witness::WitnessRenewal::new()),
-                    adopted_policy: None,
-                });
-            }
-            image.renewal.as_mut().ok_or(DurableError::Corrupt)?.pending = Some(Pending {
-                operation,
-                statement,
-                wire: grant.as_bytes().to_vec(),
-                continuation: joint
-                    .as_ref()
-                    .map(crate::HistoricalPolicyContinuation::journal_bytes),
-            });
-            if independent.is_some() {
-                image.policy_device_binding = super::PolicyDeviceBinding::CredentialRenewal;
-            }
-            self.save(&image)?;
-            #[cfg(all(test, unix))]
-            super::tests::renewal::boundary("intent");
-            self.credential_renewal_status()
-        })();
+        let result = self
+            .stage_renewal_attempt(grant, operation, policy, now, continuation)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
-    pub(super) fn admitted_renewed(
+    async fn stage_renewal_attempt(
+        &mut self,
+        grant: &VerifiedCredentialRenewal,
+        operation: CredentialRenewalId,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        continuation: Option<&crate::VerifiedPolicyContinuation>,
+    ) -> Result<CredentialRenewalStatus, DurableError> {
+        let mut image = self.image()?;
+        image.check_time_floor(now)?;
+        let independent = self.completed_policy_approval(&image)?;
+        if image.policy_pending.is_some() || (independent.is_some() && continuation.is_some()) {
+            return Err(DurableError::Suspended);
+        }
+        let original = self.original_device(&image, now).await?;
+        let Phase::Accepted {
+            admission,
+            stage: AdmissionPhase::Active,
+            ..
+        } = &image.phase
+        else {
+            return Err(Error::State.into());
+        };
+        if grant.operation() != operation
+            || grant.original_storage_owner() != crate::bootstrap::storage_owner(&original)
+            || grant.policy_digest() != admission.policy
+        {
+            return Err(DurableError::Conflict);
+        }
+        grant.resolve_established(&original, admission.policy)?;
+        let joint = continuation.map(crate::VerifiedPolicyContinuation::historical);
+        let adopted = image
+            .renewal
+            .as_ref()
+            .and_then(|r| r.adopted_policy.as_deref())
+            .map(|bytes| self.retained_policy(bytes))
+            .transpose()?;
+        if let Some(previous) = &adopted {
+            Self::check_policy_scope(previous, &original, admission)?;
+        }
+        if let Some(approval) = &independent {
+            if policy.anchor_requirement().binding().is_some() {
+                return Err(DurableError::AnchorRequired);
+            }
+            approval.check_target(policy)?;
+            approval.check_renewed_identity(&original, grant)?;
+        } else if let Some(joint) = &joint {
+            Self::check_policy_scope(joint, &original, admission)?;
+            joint.check_credential(grant)?;
+            joint.check_target(policy)?;
+        } else if let Some(previous) = &adopted {
+            previous.check_target(policy)?;
+        } else if admission.policy != policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        let statement = joint.as_ref().map_or_else(
+            || grant.statement_digest(),
+            crate::HistoricalPolicyContinuation::statement_digest,
+        );
+        if let Some(renewal) = &image.renewal {
+            if renewal.witnessed() != policy.anchor_requirement().binding().is_some() {
+                return Err(DurableError::Conflict);
+            }
+            if let Some(p) = &renewal.pending {
+                if p.operation != operation
+                    || p.statement != statement
+                    || p.continuation.is_some() != joint.is_some()
+                {
+                    return Err(DurableError::Conflict);
+                }
+                if let Some(bytes) = &p.continuation {
+                    let saved = self.retained_policy(bytes)?;
+                    Self::check_policy_scope(&saved, &original, admission)?;
+                    saved.check_credential(grant)?;
+                    if saved.statement_digest() != p.statement {
+                        return Err(DurableError::Conflict);
+                    }
+                }
+                return renewal.status();
+            }
+            if let Some(c) = renewal
+                .completed
+                .as_ref()
+                .filter(|c| c.operation == operation && c.statement == statement)
+            {
+                if joint.is_some()
+                    && adopted
+                        .as_ref()
+                        .is_none_or(|saved| saved.statement_digest() != statement)
+                {
+                    return Err(DurableError::Conflict);
+                }
+                return Ok(CredentialRenewalStatus::Committed {
+                    operation: c.operation,
+                    statement: c.statement,
+                    target: c.target,
+                });
+            }
+            if let Some(witness) = &renewal.witness {
+                witness.check_next(grant)?;
+            }
+        }
+        if let Some(joint) = &joint {
+            match &adopted {
+                None if joint.scope().previous_authorization.is_none()
+                    && joint.scope().previous_policy == joint.scope().original_policy => {}
+                Some(previous)
+                    if joint.scope().previous_authorization
+                        == Some(previous.statement_digest())
+                        && joint.scope().previous_policy == previous.target_policy()
+                        && joint.scope().original_policy == previous.scope().original_policy
+                        && joint.scope().operation != previous.scope().operation => {}
+                _ => return Err(DurableError::Conflict),
+            }
+        }
+        if let Some(renewal) = &image.renewal {
+            renewal.check_time_floor(now)?;
+            if renewal
+                .expired
+                .as_ref()
+                .is_some_and(|e| e.operation == operation)
+            {
+                return Err(DurableError::Conflict);
+            }
+        }
+        let current = self.historical_device(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+            now,
+        )?;
+        if current.credential_digest() != grant.previous_device().credential_digest()
+            || admission.checkpoint.version()
+                > grant.previous_device().roster().checkpoint().version()
+            || (admission.checkpoint.version()
+                == grant.previous_device().roster().checkpoint().version()
+                && admission.checkpoint != grant.previous_device().roster().checkpoint())
+        {
+            return Err(DurableError::Conflict);
+        }
+        admit(grant.successor_device(), policy, now)?;
+        if image.renewal.is_none() {
+            image.renewal = Some(LocalRenewal {
+                origin: Origin {
+                    certificate: admission.certificate.clone(),
+                    roster: admission.roster.clone(),
+                    checkpoint: admission.checkpoint,
+                },
+                pending: None,
+                completed: None,
+                time_floor: 0,
+                expired: None,
+                witness: policy
+                    .anchor_requirement()
+                    .binding()
+                    .map(|_| witness::WitnessRenewal::new()),
+                adopted_policy: None,
+            });
+        }
+        image.renewal.as_mut().ok_or(DurableError::Corrupt)?.pending = Some(Pending {
+            operation,
+            statement,
+            wire: grant.as_bytes().to_vec(),
+            continuation: joint
+                .as_ref()
+                .map(crate::HistoricalPolicyContinuation::journal_bytes),
+        });
+        if independent.is_some() {
+            image.policy_device_binding = super::PolicyDeviceBinding::CredentialRenewal;
+        }
+        self.save(&image)?;
+        #[cfg(all(test, unix))]
+        super::tests::renewal::boundary("intent");
+        self.credential_renewal_status()
+    }
+
+    pub(super) async fn admitted_renewed(
         &self,
         image: &Image,
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<VerifiedDevice, DurableError> {
-        let original = self.original_device(image, now)?;
+        let original = self.original_device(image, now).await?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         renewal.check_time_floor(now)?;
         if renewal.pending.is_none() && renewal.completed.is_none() && renewal.expired.is_some() {
@@ -799,10 +812,11 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         self.current_renewed_device(image, &original, policy, now)
+            .await
     }
     // Ordinary renewal still requires its configured roster to be current.
     // Continued-owner admission below resolves its current roster from journal.
-    fn current_renewed_device(
+    async fn current_renewed_device(
         &self,
         image: &Image,
         original: &VerifiedDevice,
@@ -824,13 +838,14 @@ impl DeviceEnrollment {
             self.intent.description.family,
         )?;
         let current = pin.verify_device(&admission.certificate, &admission.roster, now)?;
-        self.check_renewed_identity(image, original, &current)?;
+        self.check_renewed_identity(image, original, &current)
+            .await?;
         admit(&current, policy, now)?;
         Ok(current)
     }
     // Immutable configuration/signing-key binding, not current admission. The
     // caller must separately check its current policy and authenticated roster.
-    fn check_renewed_identity(
+    async fn check_renewed_identity(
         &self,
         image: &Image,
         original: &VerifiedDevice,
@@ -848,10 +863,12 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Conflict);
         }
-        self.signer(image.identity, false)?.check_device(current)?;
+        self.signer(image.identity, false)
+            .await?
+            .check_device(current)?;
         Ok(())
     }
-    pub(super) fn refresh_renewed_roster(
+    pub(super) async fn refresh_renewed_roster(
         &mut self,
         mut image: Image,
         previous: RosterCheckpoint,
@@ -860,7 +877,7 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<EnrollmentStatus, DurableError> {
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         renewal.check_time_floor(now)?;
         if renewal.pending.is_none() && renewal.completed.is_none() && renewal.expired.is_some() {
@@ -1011,7 +1028,7 @@ impl DeviceEnrollment {
             if independent.is_some() && matches!(policy, LocalRenewalPolicy::Historical(_)) {
                 self.original_device_metadata(&image)?
             } else {
-                self.original_device(&image, now)?
+                self.original_device(&image, now).await?
             };
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
@@ -1309,7 +1326,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<(EnrolledDevice, crate::ReopenedPeer), DurableError> {
         let image = self.image_without_policy_renewal()?;
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         if request.context.device(request.role).credential_digest() != original.credential_digest()
         {
             return Err(DurableError::Conflict);
@@ -1374,7 +1391,7 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<EnrolledDevice, DurableError> {
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         let Phase::Accepted {
             admission,
             stage: AdmissionPhase::Active,
@@ -1408,7 +1425,8 @@ impl DeviceEnrollment {
             admission.checkpoint,
             now,
         )?;
-        self.check_renewed_identity(&image, &original, &retained)?;
+        self.check_renewed_identity(&image, &original, &retained)
+            .await?;
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
         let current = service
@@ -1425,7 +1443,7 @@ impl DeviceEnrollment {
                 now,
             )
             .await?;
-        let signer = self.signer(image.identity, false)?;
+        let signer = self.signer(image.identity, false).await?;
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
@@ -1450,7 +1468,7 @@ impl DeviceEnrollment {
         if image.renewal.as_ref().is_some_and(LocalRenewal::witnessed) {
             return self.activate_witnessed(image, policy, now, anchor).await;
         }
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         let authority = RetainedInstallationAuthority::active_installation(&original, policy);
         let (mut image, mut service) = self
             .reconcile_local_renewal(
@@ -1462,7 +1480,7 @@ impl DeviceEnrollment {
             )
             .await?;
         let journal = service.stores()?.0;
-        let current = self.admitted_renewed(&image, policy, now)?;
+        let current = self.admitted_renewed(&image, policy, now).await?;
         let Phase::Accepted {
             admission, stage, ..
         } = &mut image.phase
@@ -1483,7 +1501,7 @@ impl DeviceEnrollment {
         journal
             .check_renewed_local_device(&authority, &current, policy, now)
             .await?;
-        let signer = self.signer(image.identity, false)?;
+        let signer = self.signer(image.identity, false).await?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
             active: Some(Box::new(EnrolledOwners {

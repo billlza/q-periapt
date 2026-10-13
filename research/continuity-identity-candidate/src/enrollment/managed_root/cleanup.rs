@@ -3,6 +3,10 @@
 use super::*;
 use crate::RetiredDeviceEnrollment;
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl ManagedAccountRootReplacement {
     /// Borrow the original restricted cleanup owner for a reporting/ACK/erasure step.
     /// Requires a committed original registry decision and retained parent retirement.
@@ -15,31 +19,31 @@ impl ManagedAccountRootReplacement {
     /// delegated owners. Panics propagate unchanged;
     /// reopen the original registry/operation after an unknown result. Missing originals
     /// fail. No enrollment, key, root or report identity is regenerated.
-    pub fn with_retired_cleanup<T>(
+    pub async fn with_retired_cleanup<T>(
         &mut self,
         action: impl FnOnce(&mut RetiredDeviceEnrollment) -> Result<T, DurableError>,
     ) -> Result<T, DurableError> {
         if self.active.as_ref().ok_or(DurableError::Closed)?.state()? != State::Committed {
             return Err(DurableError::Suspended);
         }
-        self.run(|owners| {
-            let proposal = owners
-                .registry
-                .replacement(owners.operation.id())?
-                .2
-                .clone();
-            owners.start_cleanup(&proposal)?;
-            #[cfg(all(test, unix))]
-            account_root::managed_boundary("cleanup-parent");
-            let result = action(owners.cleanup()?)?;
-            #[cfg(all(test, unix))]
-            if owners.cleanup()?.is_closed() {
-                account_root::managed_boundary("cleanup-owner-closed");
-            }
-            owners.finish_cleanup_step(&proposal)?;
-            #[cfg(all(test, unix))]
-            account_root::managed_boundary("cleanup-return");
-            Ok(result)
-        })
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        let proposal = owners
+            .registry
+            .replacement(owners.operation.id())?
+            .2
+            .clone();
+        owners.start_cleanup(&proposal).await?;
+        #[cfg(all(test, unix))]
+        account_root::managed_boundary("cleanup-parent");
+        let result = action(owners.cleanup()?)?;
+        #[cfg(all(test, unix))]
+        if owners.cleanup()?.is_closed() {
+            account_root::managed_boundary("cleanup-owner-closed");
+        }
+        owners.finish_cleanup_step(&proposal).await?;
+        #[cfg(all(test, unix))]
+        account_root::managed_boundary("cleanup-return");
+        self.active = Some(owners);
+        Ok(result)
     }
 }

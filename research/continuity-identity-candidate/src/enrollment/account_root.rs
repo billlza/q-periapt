@@ -218,6 +218,10 @@ struct Owners {
     pin: AnchorPin,
     state: State,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Owners {
     fn read(&self) -> Result<VerifiedDevice, DurableError> {
         let active = self
@@ -243,12 +247,12 @@ impl Owners {
         }
         Ok(original)
     }
-    fn fence_journal(&mut self) -> Result<(), DurableError> {
+    async fn fence_journal(&mut self) -> Result<(), DurableError> {
         let original = self.read()?;
         self.journal = None;
         let mut journal = AccountRootJournalRecovery::resume_parent(
             self.enrollment.paths.installation.files()[1],
-            self.enrollment.key()?,
+            self.enrollment.key().await?,
             &original,
             self.state.journal,
             self.pin.clone(),
@@ -284,11 +288,15 @@ pub enum AccountRootEnrollmentState {
 pub struct AccountRootEnrollmentRecovery {
     active: Option<Box<Owners>>,
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl EnrolledDevice {
     /// Consume this service/signer, retain the independently approved original
     /// root intent in its enrollment, then fence its exact journal. Failure can
     /// follow either commit; resume this original operation, never reopen for traffic.
-    pub fn begin_account_root_replacement(
+    pub async fn begin_account_root_replacement(
         mut self,
         pin: AnchorPin,
         proposal: Proposal,
@@ -296,26 +304,31 @@ impl EnrolledDevice {
         let owners = *self.active.take().ok_or(DurableError::Closed)?;
         drop(owners.service);
         drop(owners.signer);
-        AccountRootEnrollmentRecovery::prepare(owners.enrollment, pin, proposal)
+        AccountRootEnrollmentRecovery::prepare(owners.enrollment, pin, proposal).await
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl AccountRootEnrollmentRecovery {
     /// Recover only the existing enrollment and original independently retained
     /// proposal. Also reconciles a failed first parent commit; never provisions
     /// missing configuration, keys or journal. The original signer is not opened.
-    pub fn resume_original(
+    pub async fn resume_original(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
         pin: AnchorPin,
         proposal: Proposal,
     ) -> Result<Self, DurableError> {
         Self::prepare(
-            DeviceEnrollment::open_original_storage(paths, intent)?,
+            DeviceEnrollment::open_original_storage(paths, intent).await?,
             pin,
             proposal,
         )
+        .await
     }
-    pub(super) fn prepare(
+    pub(super) async fn prepare(
         enrollment: DeviceEnrollment,
         pin: AnchorPin,
         proposal: Proposal,
@@ -351,7 +364,7 @@ impl AccountRootEnrollmentRecovery {
             state,
             journal: None,
         };
-        owners.fence_journal()?;
+        owners.fence_journal().await?;
         Ok(Self {
             active: Some(Box::new(owners)),
         })

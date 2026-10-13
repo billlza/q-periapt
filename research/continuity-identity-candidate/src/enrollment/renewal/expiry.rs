@@ -100,7 +100,7 @@ impl DeviceEnrollment {
         let original = match policy {
             ExpiryPolicy::Original(_) => {
                 image.require_no_policy_renewal()?;
-                self.original_device(&image, now)?
+                self.original_device(&image, now).await?
             }
             ExpiryPolicy::Independent { .. } => {
                 if image.policy_completed.is_none() {

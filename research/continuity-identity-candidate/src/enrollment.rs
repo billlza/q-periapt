@@ -11,7 +11,8 @@ use crate::{
     RosterCheckpoint, SigningKeyId, VerifiedDevice, VerifiedSessionPolicy, PUBLIC_KEY_BYTES,
 };
 use hmac::{Hmac, Mac};
-use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
+#[cfg(all(test, unix))]
+use q_periapt_host_store::filesystem::open_private_database;
 use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
 use sha2::Sha256;
 use std::{
@@ -345,6 +346,7 @@ struct Active {
 /// never-active first-use intent can retry an absent unpublished configuration.
 /// Partial formal files fail closed and are never deleted or replaced.
 pub struct DeviceEnrollment {
+    storage: crate::storage::Storage,
     active: Option<Active>,
     paths: EnrollmentPaths,
     intent: EnrollmentIntent,
@@ -358,13 +360,20 @@ pub struct DeviceEnrollment {
 impl DeviceEnrollment {
     /// Commit original intent before dependent signer creation or request release.
     /// Existing signer or installation children cannot be adopted as a new intent.
-    pub fn provision(
+    pub async fn provision(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
     ) -> Result<Self, DurableError> {
-        let key = JournalKey::open(&paths.wrapping)?;
+        Self::provision_with_storage(crate::storage::Storage::native()?, paths, intent).await
+    }
+    pub(crate) async fn provision_with_storage(
+        store: crate::storage::Storage,
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+    ) -> Result<Self, DurableError> {
+        let key = store.open_key(&paths.wrapping).await?;
         for path in std::iter::once(paths.signer.as_path()).chain(paths.installation.files()) {
-            if !missing(path)? {
+            if !store.missing(path).await? {
                 return Err(DurableError::Conflict);
             }
         }
@@ -382,15 +391,18 @@ impl DeviceEnrollment {
             roster_witness: None,
         };
         let bytes = encode(&key, binding, &image)?;
-        let database = provision_private_database(&paths.configuration, |database| {
-            write(database, &bytes)?;
-            #[cfg(all(test, unix))]
-            tests::initial_boundary("after-commit");
-            Ok::<_, DurableError>(())
-        })?;
+        let database = store
+            .provision_database(&paths.configuration, |database| {
+                write(database, &bytes)?;
+                #[cfg(all(test, unix))]
+                tests::initial_boundary("after-commit");
+                Ok::<_, DurableError>(())
+            })
+            .await?;
         #[cfg(all(test, unix))]
         tests::after_commit(&bytes);
         let mut owner = Self {
+            storage: store,
             active: Some(Active { database, key }),
             paths,
             intent,
@@ -402,21 +414,40 @@ impl DeviceEnrollment {
     }
     /// Reopen the original record, key, approved scope and paths. Never infer first
     /// use from missing, corrupt, busy, authentication or permission errors.
-    pub fn open(paths: EnrollmentPaths, intent: EnrollmentIntent) -> Result<Self, DurableError> {
-        let mut owner = Self::open_original_storage(paths, intent)?;
+    pub async fn open(
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+    ) -> Result<Self, DurableError> {
+        Self::open_with_storage(crate::storage::Storage::native()?, paths, intent).await
+    }
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+    ) -> Result<Self, DurableError> {
+        let mut owner = Self::open_original_storage_with_storage(store, paths, intent).await?;
         owner.image()?;
         Ok(owner)
     }
     // Storage admission only. Restricted callers must authenticate their own
     // retained lifecycle state before returning an owner; never expose this raw open.
-    fn open_original_storage(
+    async fn open_original_storage(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
     ) -> Result<Self, DurableError> {
-        let key = JournalKey::open(&paths.wrapping)?;
+        Self::open_original_storage_with_storage(crate::storage::Storage::native()?, paths, intent)
+            .await
+    }
+    async fn open_original_storage_with_storage(
+        store: crate::storage::Storage,
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+    ) -> Result<Self, DurableError> {
+        let key = store.open_key(&paths.wrapping).await?;
         let binding = paths.binding(&key, &intent)?;
-        let database = open_private_database(&paths.configuration)?;
+        let database = store.open_database(&paths.configuration).await?;
         Ok(Self {
+            storage: store,
             active: Some(Active { database, key }),
             paths,
             intent,
@@ -500,64 +531,71 @@ impl DeviceEnrollment {
         }
         result
     }
-    fn key(&self) -> Result<JournalKey, DurableError> {
+    async fn key(&self) -> Result<JournalKey, DurableError> {
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let key = JournalKey::open(&self.paths.wrapping)?;
+        let key = self.storage.open_key(&self.paths.wrapping).await?;
         if key.installation_binding() != active.key.installation_binding() {
             return Err(DurableError::Conflict);
         }
         Ok(key)
     }
-    fn signer(
+    async fn signer(
         &self,
         identity: SigningKeyId,
         creating: bool,
     ) -> Result<DeviceSigningKey, DurableError> {
-        let key = self.key()?;
-        if creating && missing(&self.paths.signer)? {
-            DeviceSigningKey::provision(&self.paths.signer, &key, identity)
+        let key = self.key().await?;
+        if creating && self.storage.missing(&self.paths.signer).await? {
+            self.storage
+                .provision_signer(&self.paths.signer, &key, identity)
+                .await
         } else {
-            DeviceSigningKey::open(&self.paths.signer, &key, identity)
+            self.storage
+                .open_signer(&self.paths.signer, &key, identity)
+                .await
         }
     }
     /// Create/reopen the exact original signer, commit its complete signed request,
     /// then release bytes. Restart/retry returns the identical committed request.
-    pub fn request(&mut self, now: u64) -> Result<Vec<u8>, DurableError> {
-        let result = (|| {
-            self.intent.description.validity.check(now)?;
-            let mut image = self.image()?;
-            let signer = self.signer(image.identity, matches!(image.phase, Phase::Preparing))?;
-            let wire = match &image.phase {
-                Phase::Preparing => {
-                    let mut body = b"QPENRQ01".to_vec();
-                    body.extend_from_slice(image.identity.as_bytes());
-                    self.intent.encode(&mut body);
-                    body.extend_from_slice(&signer.public_key()?.encode());
-                    let wire = envelope(&body, &signer.sign(Purpose::EnrollmentRequest, &body)?)?;
-                    // Refuse shared components or invalid scope before persistence/release.
-                    VerifiedEnrollmentRequest::verify(&wire, &self.intent, now)?;
-                    image.phase = Phase::Requested(wire.clone());
-                    self.save(&image)?;
-                    wire
-                }
-                Phase::Requested(wire) | Phase::Accepted { request: wire, .. } => wire.clone(),
-            };
-            let request = VerifiedEnrollmentRequest::verify(&wire, &self.intent, now)?;
-            if request.identity != image.identity || request.public != signer.public_key()? {
-                return Err(DurableError::Conflict);
-            }
-            Ok(wire)
-        })();
+    pub async fn request(&mut self, now: u64) -> Result<Vec<u8>, DurableError> {
+        let result = self.request_attempt(now).await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn request_attempt(&mut self, now: u64) -> Result<Vec<u8>, DurableError> {
+        self.intent.description.validity.check(now)?;
+        let mut image = self.image()?;
+        let signer = self
+            .signer(image.identity, matches!(image.phase, Phase::Preparing))
+            .await?;
+        let wire = match &image.phase {
+            Phase::Preparing => {
+                let mut body = b"QPENRQ01".to_vec();
+                body.extend_from_slice(image.identity.as_bytes());
+                self.intent.encode(&mut body);
+                body.extend_from_slice(&signer.public_key()?.encode());
+                let wire = envelope(&body, &signer.sign(Purpose::EnrollmentRequest, &body)?)?;
+                // Refuse shared components or invalid scope before persistence/release.
+                VerifiedEnrollmentRequest::verify(&wire, &self.intent, now)?;
+                image.phase = Phase::Requested(wire.clone());
+                self.save(&image)?;
+                wire
+            }
+            Phase::Requested(wire) | Phase::Accepted { request: wire, .. } => wire.clone(),
+        };
+        let request = VerifiedEnrollmentRequest::verify(&wire, &self.intent, now)?;
+        if request.identity != image.identity || request.public != signer.public_key()? {
+            return Err(DurableError::Conflict);
+        }
+        Ok(wire)
+    }
     /// Admit the response under an independently obtained CURRENT account/roster
     /// pin and live verified policy. The same signer and exact approved metadata
     /// must match. Commit acceptance and one future journal ID before installation.
     /// An already accepted target is read back, never replaced by another response.
-    pub fn accept(
+    pub async fn accept(
         &mut self,
         certificate: &[u8],
         roster: &[u8],
@@ -565,55 +603,68 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<JournalIdentity, DurableError> {
-        let result = (|| {
-            let mut image = self.image_without_policy_renewal()?;
-            if image.renewal.is_some() {
-                return Err(DurableError::Conflict);
-            }
-            let request = match &image.phase {
-                Phase::Preparing => return Err(Error::State.into()),
-                Phase::Requested(wire) | Phase::Accepted { request: wire, .. } => wire,
-            };
-            let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
-            let device = pin.verify_device(certificate, roster, now)?;
-            self.intent.verify_device(&device)?;
-            self.signer(image.identity, false)?.check_device(&device)?;
-            if original.identity != image.identity || original.public != device.key {
-                return Err(Error::Scope.into());
-            }
-            admit(&device, policy, now)?;
-            if let Phase::Accepted { admission, .. } = &image.phase {
-                if admission.checkpoint != device.roster().checkpoint()
-                    || admission.policy != policy.checkpoint().digest()
-                {
-                    return Err(DurableError::Conflict);
-                }
-                let saved = pin.verify_device(&admission.certificate, &admission.roster, now)?;
-                if saved.credential_digest() != device.credential_digest() {
-                    return Err(DurableError::Conflict);
-                }
-                return Ok(admission.journal);
-            }
-            let journal = JournalIdentity::generate()?;
-            image.phase = Phase::Accepted {
-                request: request.clone(),
-                admission: Admission {
-                    certificate: certificate.to_vec(),
-                    roster: roster.to_vec(),
-                    checkpoint: device.roster().checkpoint(),
-                    policy: policy.checkpoint().digest(),
-                    journal,
-                },
-                stage: AdmissionPhase::Accepted,
-            };
-            self.save(&image)?;
-            Ok(journal)
-        })();
+        let result = self
+            .accept_attempt(certificate, roster, pin, policy, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn accept_attempt(
+        &mut self,
+        certificate: &[u8],
+        roster: &[u8],
+        pin: &AccountPin,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<JournalIdentity, DurableError> {
+        let mut image = self.image_without_policy_renewal()?;
+        if image.renewal.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        let request = match &image.phase {
+            Phase::Preparing => return Err(Error::State.into()),
+            Phase::Requested(wire) | Phase::Accepted { request: wire, .. } => wire,
+        };
+        let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
+        let device = pin.verify_device(certificate, roster, now)?;
+        self.intent.verify_device(&device)?;
+        self.signer(image.identity, false)
+            .await?
+            .check_device(&device)?;
+        if original.identity != image.identity || original.public != device.key {
+            return Err(Error::Scope.into());
+        }
+        admit(&device, policy, now)?;
+        if let Phase::Accepted { admission, .. } = &image.phase {
+            if admission.checkpoint != device.roster().checkpoint()
+                || admission.policy != policy.checkpoint().digest()
+            {
+                return Err(DurableError::Conflict);
+            }
+            let saved = pin.verify_device(&admission.certificate, &admission.roster, now)?;
+            if saved.credential_digest() != device.credential_digest() {
+                return Err(DurableError::Conflict);
+            }
+            return Ok(admission.journal);
+        }
+        let journal = JournalIdentity::generate()?;
+        image.phase = Phase::Accepted {
+            request: request.clone(),
+            admission: Admission {
+                certificate: certificate.to_vec(),
+                roster: roster.to_vec(),
+                checkpoint: device.roster().checkpoint(),
+                policy: policy.checkpoint().digest(),
+                journal,
+            },
+            stage: AdmissionPhase::Accepted,
+        };
+        self.save(&image)?;
+        Ok(journal)
+    }
+
     /// Retain an independently authorized CURRENT roster for the same original
     /// credential, key, root and policy. `previous` is an expected checkpoint,
     /// never authority. The original credential/intent must still be valid.
@@ -625,7 +676,7 @@ impl DeviceEnrollment {
     /// An exact retry preserves the original target bytes; a different pending
     /// target is refused. Errors close this owner. Reopen the original enrollment
     /// after an unknown commit; never use `accept` or provisioning as a fallback.
-    pub fn refresh_roster(
+    pub async fn refresh_roster(
         &mut self,
         previous: RosterCheckpoint,
         roster: &[u8],
@@ -633,79 +684,96 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<EnrollmentStatus, DurableError> {
-        let result = (|| {
-            let mut image = self.image()?;
-            image.check_time_floor(now)?;
-            if image.roster_witness.is_some() {
-                return Err(DurableError::Conflict);
-            }
-            if image.policy_completed.is_some() {
-                return self.refresh_policy_roster(image, previous, roster, pin, policy, now);
-            }
-            image.require_no_policy_renewal()?;
-            if image.renewal.is_some() {
-                return self.refresh_renewed_roster(image, previous, roster, pin, policy, now);
-            }
-            let Phase::Accepted {
-                request,
-                admission,
-                stage,
-            } = &mut image.phase
-            else {
-                return Err(Error::State.into());
-            };
-            if !matches!(
-                *stage,
-                AdmissionPhase::Active
-                    | AdmissionPhase::Refreshing { .. }
-                    | AdmissionPhase::RosterResolved { .. }
-            ) {
-                return Err(Error::State.into());
-            }
-            if admission.policy != policy.checkpoint().digest() {
-                return Err(DurableError::Conflict);
-            }
-            // The old roster may be expired. The authenticated enrollment record
-            // supplies its expected identity, never a renewed authorization grant.
-            let device = pin.verify_device(&admission.certificate, roster, now)?;
-            self.intent.verify_device(&device)?;
-            let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
-            if original.identity != image.identity || original.public != device.key {
-                return Err(DurableError::Conflict);
-            }
-            self.signer(image.identity, false)?.check_device(&device)?;
-            admit(&device, policy, now)?;
-            let next = device.roster().checkpoint();
-            if next.version() <= previous.version() {
-                return Err(Error::Checkpoint.into());
-            }
-            match *stage {
-                AdmissionPhase::Refreshing { previous: expected }
-                    if expected == previous && admission.checkpoint == next => {}
-                AdmissionPhase::Active if admission.checkpoint == next => {}
-                AdmissionPhase::Active if admission.checkpoint == previous => {
-                    admission.roster = roster.to_vec();
-                    admission.checkpoint = next;
-                    *stage = AdmissionPhase::Refreshing { previous };
-                    self.save(&image)?;
-                }
-                AdmissionPhase::RosterResolved { observed } if observed == previous => {
-                    admission.roster = roster.to_vec();
-                    admission.checkpoint = next;
-                    *stage = AdmissionPhase::Refreshing { previous };
-                    self.save(&image)?;
-                }
-                _ => return Err(DurableError::Conflict),
-            }
-            admit(&device, policy, now)?;
-            self.status()
-        })();
+        let result = self
+            .refresh_roster_attempt(previous, roster, pin, policy, now)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
-    fn admitted(
+    async fn refresh_roster_attempt(
+        &mut self,
+        previous: RosterCheckpoint,
+        roster: &[u8],
+        pin: &AccountPin,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<EnrollmentStatus, DurableError> {
+        let mut image = self.image()?;
+        image.check_time_floor(now)?;
+        if image.roster_witness.is_some() {
+            return Err(DurableError::Conflict);
+        }
+        if image.policy_completed.is_some() {
+            return self
+                .refresh_policy_roster(image, previous, roster, pin, policy, now)
+                .await;
+        }
+        image.require_no_policy_renewal()?;
+        if image.renewal.is_some() {
+            return self
+                .refresh_renewed_roster(image, previous, roster, pin, policy, now)
+                .await;
+        }
+        let Phase::Accepted {
+            request,
+            admission,
+            stage,
+        } = &mut image.phase
+        else {
+            return Err(Error::State.into());
+        };
+        if !matches!(
+            *stage,
+            AdmissionPhase::Active
+                | AdmissionPhase::Refreshing { .. }
+                | AdmissionPhase::RosterResolved { .. }
+        ) {
+            return Err(Error::State.into());
+        }
+        if admission.policy != policy.checkpoint().digest() {
+            return Err(DurableError::Conflict);
+        }
+        // The old roster may be expired. The authenticated enrollment record
+        // supplies its expected identity, never a renewed authorization grant.
+        let device = pin.verify_device(&admission.certificate, roster, now)?;
+        self.intent.verify_device(&device)?;
+        let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
+        if original.identity != image.identity || original.public != device.key {
+            return Err(DurableError::Conflict);
+        }
+        self.signer(image.identity, false)
+            .await?
+            .check_device(&device)?;
+        admit(&device, policy, now)?;
+        let next = device.roster().checkpoint();
+        if next.version() <= previous.version() {
+            return Err(Error::Checkpoint.into());
+        }
+        match *stage {
+            AdmissionPhase::Refreshing { previous: expected }
+                if expected == previous && admission.checkpoint == next => {}
+            AdmissionPhase::Active if admission.checkpoint == next => {}
+            AdmissionPhase::Active if admission.checkpoint == previous => {
+                admission.roster = roster.to_vec();
+                admission.checkpoint = next;
+                *stage = AdmissionPhase::Refreshing { previous };
+                self.save(&image)?;
+            }
+            AdmissionPhase::RosterResolved { observed } if observed == previous => {
+                admission.roster = roster.to_vec();
+                admission.checkpoint = next;
+                *stage = AdmissionPhase::Refreshing { previous };
+                self.save(&image)?;
+            }
+            _ => return Err(DurableError::Conflict),
+        }
+        admit(&device, policy, now)?;
+        self.status()
+    }
+
+    async fn admitted(
         &self,
         image: &Image,
         policy: &VerifiedSessionPolicy,
@@ -715,7 +783,7 @@ impl DeviceEnrollment {
         image.require_reconciled_roster()?;
         image.require_no_policy_renewal()?;
         if image.renewal.is_some() {
-            return self.admitted_renewed(image, policy, now);
+            return self.admitted_renewed(image, policy, now).await;
         }
         let Phase::Accepted {
             request, admission, ..
@@ -738,11 +806,13 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         self.intent.verify_device(&device)?;
-        self.signer(image.identity, false)?.check_device(&device)?;
+        self.signer(image.identity, false)
+            .await?
+            .check_device(&device)?;
         admit(&device, policy, now)?;
         Ok(device)
     }
-    fn installation(
+    async fn installation(
         &self,
         image: &Image,
         device: &VerifiedDevice,
@@ -756,7 +826,7 @@ impl DeviceEnrollment {
         else {
             return Err(Error::State.into());
         };
-        let key = self.key()?;
+        let key = self.key().await?;
         let paths = self.paths.installation.clone();
         let config = paths
             .files()
@@ -808,16 +878,17 @@ impl DeviceEnrollment {
         ) {
             return Err(Error::State.into());
         }
-        let device = self.admitted(&image, policy, now)?;
-        self.installation(&image, &device, policy, now, true)?
-            .prepare(self.key()?, &device, policy, now)
+        let device = self.admitted(&image, policy, now).await?;
+        self.installation(&image, &device, policy, now, true)
+            .await?
+            .prepare(self.key().await?, &device, policy, now)
             .await
     }
 
     /// Construct the required witness client from the original controlled signer,
     /// using the independently pinned witness and explicit carrier. The admitted
     /// policy must require this exact pin; a local-only or changed pin is refused.
-    pub fn anchor_client(
+    pub async fn anchor_client(
         &mut self,
         policy: &VerifiedSessionPolicy,
         now: u64,
@@ -825,22 +896,37 @@ impl DeviceEnrollment {
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
-        let result = (|| {
-            let image = self.image_without_policy_renewal()?;
-            let device = self.admitted(&image, policy, now)?;
-            if policy.anchor_requirement().binding() != Some(pin.binding()) {
-                return Err(Error::Scope.into());
-            }
-            let client =
-                AnchorClient::new(pin, self.signer(image.identity, false)?, transport, timeout)?;
-            admit(&device, policy, now)?;
-            Ok(client)
-        })();
+        let result = self
+            .anchor_client_attempt(policy, now, pin, transport, timeout)
+            .await;
         if result.is_err() {
             self.close();
         }
         result
     }
+    async fn anchor_client_attempt(
+        &mut self,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        pin: AnchorPin,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<AnchorClient, DurableError> {
+        let image = self.image_without_policy_renewal()?;
+        let device = self.admitted(&image, policy, now).await?;
+        if policy.anchor_requirement().binding() != Some(pin.binding()) {
+            return Err(Error::Scope.into());
+        }
+        let client = AnchorClient::new(
+            pin,
+            self.signer(image.identity, false).await?,
+            transport,
+            timeout,
+        )?;
+        admit(&device, policy, now)?;
+        Ok(client)
+    }
+
     /// Activate/reopen the original prepared installation. Persist Active before
     /// releasing the service/signing owners. Missing required witness never falls
     /// back to local protection. Unknown results require original enrollment open.
@@ -854,9 +940,11 @@ impl DeviceEnrollment {
         if image.renewal.is_some() {
             return self.activate_renewed(image, policy, now, anchor).await;
         }
-        let device = self.admitted(&image, policy, now)?;
-        let signer = self.signer(image.identity, false)?;
-        let mut installation = self.installation(&image, &device, policy, now, false)?;
+        let device = self.admitted(&image, policy, now).await?;
+        let signer = self.signer(image.identity, false).await?;
+        let mut installation = self
+            .installation(&image, &device, policy, now, false)
+            .await?;
         let Phase::Accepted { stage, .. } = &mut image.phase else {
             return Err(Error::State.into());
         };
@@ -880,7 +968,7 @@ impl DeviceEnrollment {
         }
         let mut service = installation
             .activate_admitted(
-                self.key()?,
+                self.key().await?,
                 &device,
                 policy,
                 now,

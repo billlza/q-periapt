@@ -36,6 +36,8 @@ pub use account_authority::{
     AccountAuthorityLease, AccountAuthorityReplacementState, AccountAuthorityStore,
     ApplicationAccountId,
 };
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod browser_enrollment_probe;
 mod durable;
 mod enrollment;
 mod identity;
@@ -47,6 +49,7 @@ mod native_transport;
 mod selection;
 mod session_archives;
 mod session_policy;
+mod storage;
 #[cfg(feature = "anchor-tls")]
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;

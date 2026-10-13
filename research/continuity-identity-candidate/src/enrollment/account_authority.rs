@@ -21,32 +21,36 @@ impl DeviceEnrollment {
     /// Check the selected registry and approved intent before creating the
     /// original registration record. A later error can still follow I/O (for
     /// example, concurrent registry closure); reconcile the same original intent.
-    pub fn provision_with_account_authority(
+    pub async fn provision_with_account_authority(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
         authority: JournalAccountAuthority,
     ) -> Result<Self, DurableError> {
         intent.check_account_authority(&authority)?;
-        Self::provision(paths, intent)?.with_account_authority(authority)
+        Self::provision(paths, intent)
+            .await?
+            .with_account_authority(authority)
     }
     /// Check the original registry/intent before opening the existing record.
     /// This never provisions on absence or replaces the original enrollment.
-    pub fn open_with_account_authority(
+    pub async fn open_with_account_authority(
         paths: EnrollmentPaths,
         intent: EnrollmentIntent,
         authority: JournalAccountAuthority,
     ) -> Result<Self, DurableError> {
         intent.check_account_authority(&authority)?;
-        Self::open(paths, intent)?.with_account_authority(authority)
+        Self::open(paths, intent)
+            .await?
+            .with_account_authority(authority)
     }
-    pub(super) fn authorize_journal_commit(
+    pub(super) async fn authorize_journal_commit(
         &self,
         original: &VerifiedDevice,
         identity: JournalIdentity,
     ) -> Result<(), DurableError> {
         crate::DeviceJournal::check_original_account_authority(
             self.paths.installation.files()[1],
-            self.key()?,
+            self.key().await?,
             original,
             identity,
             self.account_authority.as_ref(),
@@ -61,7 +65,7 @@ impl DeviceEnrollment {
     ) -> Result<crate::DeviceJournal, DurableError> {
         crate::DeviceJournal::open_anchored_admitted(
             self.paths.installation.files()[1],
-            self.key()?,
+            self.key().await?,
             original,
             policy,
             identity,
@@ -110,7 +114,7 @@ impl DeviceEnrollment {
     ) -> Result<DeviceService, DurableError> {
         DeviceInstallation::reconcile_original_enrollment(
             self.paths.installation.clone(),
-            self.key()?,
+            self.key().await?,
             original,
             policy,
             crate::installation::InstallationAdmission {

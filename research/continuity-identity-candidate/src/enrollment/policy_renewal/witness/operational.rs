@@ -110,7 +110,7 @@ impl DeviceEnrollment {
                 now,
             )
             .await?;
-        let signer = self.signer(image.identity, false)?;
+        let signer = self.signer(image.identity, false).await?;
         signer.check_device(&current)?;
         admit(&current, policy, now)?;
         Ok(EnrolledDevice {
@@ -132,7 +132,7 @@ impl DeviceEnrollment {
         client: AnchorClient,
     ) -> Result<(EnrolledDevice, crate::ReopenedPeer), DurableError> {
         let image = self.image()?;
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         if request.context.device(request.role).credential_digest() != original.credential_digest()
         {
             return Err(DurableError::Conflict);

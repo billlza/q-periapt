@@ -7,7 +7,7 @@ use super::*;
     maybe_async::must_be_sync
 )]
 impl DeviceEnrollment {
-    pub(in crate::enrollment) fn refresh_policy_roster(
+    pub(in crate::enrollment) async fn refresh_policy_roster(
         &mut self,
         mut image: Image,
         previous: RosterCheckpoint,
@@ -36,7 +36,7 @@ impl DeviceEnrollment {
         if let Some(history) = &image.renewal {
             history.policy_time_floor(now)?;
         }
-        let original = self.original_device(&image, now)?;
+        let original = self.original_device(&image, now).await?;
         let Phase::Accepted {
             admission, stage, ..
         } = &image.phase
@@ -53,7 +53,9 @@ impl DeviceEnrollment {
         }
         let current = pin.verify_device(&admission.certificate, roster, now)?;
         self.check_completed_policy_identity(&image, &approval, &original, &current)?;
-        self.signer(image.identity, false)?.check_device(&current)?;
+        self.signer(image.identity, false)
+            .await?
+            .check_device(&current)?;
         admit(&current, policy, now)?;
         let next = current.roster().checkpoint();
         if next.version() <= previous.version() {

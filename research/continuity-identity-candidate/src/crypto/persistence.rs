@@ -68,7 +68,7 @@ fn seal(
     Ok(wire)
 }
 
-fn unseal(
+pub(super) fn unseal(
     wrapping: &JournalKey,
     identity: SigningKeyId,
     role: u8,
@@ -139,15 +139,24 @@ pub(super) fn provision(
     identity: SigningKeyId,
     role: u8,
 ) -> Result<Material, DurableError> {
-    let seed = SigningSeed::generate()?;
-    let material = seed.materialize()?;
-    let sealed = seal(wrapping, identity, role, &seed, &material.public)?;
+    let (material, sealed) = prepare(wrapping, identity, role)?;
     #[cfg(all(test, unix))]
     tests::at_boundary("generated", &material.public);
     publish_private_bytes(path, &sealed)?;
     #[cfg(all(test, unix))]
     tests::at_boundary("published", &material.public);
     Ok(material)
+}
+
+pub(super) fn prepare(
+    wrapping: &JournalKey,
+    identity: SigningKeyId,
+    role: u8,
+) -> Result<(Material, Vec<u8>), DurableError> {
+    let seed = SigningSeed::generate()?;
+    let material = seed.materialize()?;
+    let sealed = seal(wrapping, identity, role, &seed, &material.public)?;
+    Ok((material, sealed))
 }
 
 #[cfg(unix)]

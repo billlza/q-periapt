@@ -894,6 +894,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf",
  "hmac",
+ "js-sys",
  "maybe-async",
  "mio",
  "p256",
@@ -911,6 +912,8 @@ dependencies = [
  "sha3 0.12.0",
  "socket2",
  "tempfile",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-time",
  "zeroize",
 ]
@@ -1420,6 +1423,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio"
+version = "1.53.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
 name = "toml"
 version = "1.1.6+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,6 +1521,17 @@ dependencies = [
  "rustversion",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-futures"
+version = "0.4.79"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cbab34de2d982e9b48e18d216d04c4a6f641066ff19ffb699980f591ee3610e"
+dependencies = [
+ "js-sys",
+ "tokio",
+ "wasm-bindgen",
 ]
 
 [[package]]

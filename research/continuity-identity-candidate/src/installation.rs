@@ -69,7 +69,15 @@ impl InstallationPaths {
 
 pub(crate) fn validate_paths(paths: &[&Path]) -> Result<(), DurableError> {
     for path in paths {
-        if !path.is_absolute()
+        // The browser backend addresses a rooted logical namespace. The unknown
+        // target has no native absolute-path semantics, even for RootDir paths.
+        // Admission to a particular browser root remains the storage owner's job.
+        let rooted = if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
+            matches!(path.components().next(), Some(Component::RootDir))
+        } else {
+            path.is_absolute()
+        };
+        if !rooted
             || path.to_str().is_none_or(|s| s.len() > 4096)
             || path.file_name().is_none()
             || path.components().collect::<PathBuf>().as_os_str() != path.as_os_str()

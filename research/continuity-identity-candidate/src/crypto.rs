@@ -429,6 +429,26 @@ macro_rules! owner {
 }
 owner!(RootSigningKey, 1);
 owner!(DeviceSigningKey, 2);
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub(crate) fn open_browser_device(
+    key: &crate::JournalKey,
+    identity: SigningKeyId,
+    bytes: &[u8],
+) -> Result<DeviceSigningKey, crate::DurableError> {
+    Ok(DeviceSigningKey(Some(persistence::unseal(
+        key, identity, 2, bytes,
+    )?)))
+}
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub(crate) fn prepare_browser_device(
+    key: &crate::JournalKey,
+    identity: SigningKeyId,
+) -> Result<(DeviceSigningKey, Vec<u8>), crate::DurableError> {
+    let (material, bytes) = persistence::prepare(key, identity, 2)?;
+    Ok((DeviceSigningKey(Some(material)), bytes))
+}
 owner!(PolicySigningKey, 3);
 owner!(AnchorSigningKey, 4);
 

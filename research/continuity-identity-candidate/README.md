@@ -22,8 +22,30 @@ Shared witness calls are asynchronous on `wasm32-unknown-unknown`; pinned
 `maybe-async` removes async/await for the native synchronous API. Named operation
 helpers preserve error-cleanup boundaries in both forms. A polled exchange owns
 its signer until a timely verified reply; failure or future drop closes it.
-Browser installation/key provisioning and public transport/owner packaging
-remain integration work; the fixture adapter is not a product API.
+The experimental `browser_enrollment_probe` now uses owned asynchronous storage
+for first-use enrollment. `create` atomically publishes its vault, wrapping key
+and exact initial inputs; `resume` reconciles that authenticated original intent.
+An encrypted file catalogue distinguishes unpublished work from a lost published
+file. `open` requires completed initialization. Missing published keys/records,
+changed inputs and damaged authentication are refused without regeneration.
+All three paths use the same enrollment records and dual-signature request
+engine as native callers. Native entry points retain their synchronous form.
+
+Its IndexedDB/OPFS adapter is in `src/storage/browser/`. The browser bundle must
+place those JavaScript modules and the SDK's shared `storage-io.js` beside the
+wasm-bindgen output. The completion helper separates a bounded operation result
+from the browser's actual resource-release receipt. Timeout and cleanup failure
+remain separately observable across the WASM error boundary.
+
+This is a candidate enrollment boundary, not the unified product browser entry.
+Operational grant activation, session/installation owners, root/roster lifecycle,
+transport and installed browser packaging remain integration work. The prototype
+uses storage schema 2 and does not migrate its earlier experimental schema.
+The non-extractable vault is an API restriction, not isolation from malicious
+same-origin code or a compromised browser profile. Authenticated local metadata
+does not prevent whole-profile rollback. Removing an unpublished OPFS staging
+file is logical cleanup, not cryptographic erasure. Browser strict transactions
+and explicit flushes do not establish native power-loss equivalence.
 
 The consolidated [wire contract](../../docs/continuity/WIRE_V1.md) covers the exact
 current public record/carrier grammars, domains and verification boundaries.

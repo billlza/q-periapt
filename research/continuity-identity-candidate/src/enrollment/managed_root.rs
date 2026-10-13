@@ -31,16 +31,20 @@ impl Drop for Owners {
         self.registry.close();
     }
 }
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl Owners {
     fn state(&self) -> Result<State, DurableError> {
         self.operation.state(&self.registry, self.expected)
     }
-    fn successor(&mut self) -> Result<(AccountAuthorityCheckpoint, Proposal), DurableError> {
+    async fn successor(&mut self) -> Result<(AccountAuthorityCheckpoint, Proposal), DurableError> {
         if self.state()? != State::Committed {
             return Err(DurableError::Suspended);
         }
         let proposal = self.registry.replacement(self.operation.id())?.2.clone();
-        self.check_parent(&proposal, true)?;
+        self.check_parent(&proposal, true).await?;
         let checkpoint = self
             .registry
             .access()?
@@ -88,7 +92,7 @@ impl ManagedAccountRootReplacement {
     /// approved plan, and revoke old traffic before a witness freeze is requested.
     /// The original device must select this registry/checkpoint. Failure consumes
     /// both owners without deleting or recreating any persistent state.
-    pub fn begin(
+    pub async fn begin(
         registry: AccountAuthorityStore,
         expected: AccountAuthorityCheckpoint,
         plan: Plan,
@@ -127,7 +131,7 @@ impl ManagedAccountRootReplacement {
         owners.original = Some(Original::Preparing(Box::new(original.enrollment)));
         #[cfg(all(test, unix))]
         account_root::managed_boundary("preparation");
-        owners.reconcile()?;
+        owners.reconcile().await?;
         Ok(Self {
             active: Some(Box::new(owners)),
         })
@@ -135,7 +139,7 @@ impl ManagedAccountRootReplacement {
     /// Resume an existing original registry operation. Absence is an error, never
     /// permission to create a new plan, enrollment, key or journal. A retained bound
     /// proposal reconciles the original parent/child fences before returning.
-    pub fn resume_original(
+    pub async fn resume_original(
         registry: AccountAuthorityStore,
         expected: AccountAuthorityCheckpoint,
         plan: Plan,
@@ -153,7 +157,7 @@ impl ManagedAccountRootReplacement {
             pin,
         };
         Self::check_inputs(&owners)?;
-        owners.reconcile()?;
+        owners.reconcile().await?;
         Ok(Self {
             active: Some(Box::new(owners)),
         })
@@ -177,7 +181,7 @@ impl ManagedAccountRootReplacement {
     }
     /// Verify the original signed freeze, bind it in the registry, and retain the
     /// exact parent/journal fences before returning the approved witness proposal.
-    pub fn bind_witness_freeze(&mut self, receipt: &[u8]) -> Result<Proposal, DurableError> {
+    pub async fn bind_witness_freeze(&mut self, receipt: &[u8]) -> Result<Proposal, DurableError> {
         let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
         if owners.state()? == State::Closed {
             return Err(Error::Retired.into());
@@ -186,26 +190,26 @@ impl ManagedAccountRootReplacement {
             .pin
             .verify_account_freeze(owners.operation.plan()?.request(), receipt)?;
         owners.operation.plan()?.bind(&frozen)?;
-        self.run(|owners| {
-            owners
-                .registry
-                .bind_preparation(owners.operation.id(), &frozen)?;
-            #[cfg(all(test, unix))]
-            account_root::managed_boundary("binding");
-            owners.reconcile()?;
-            let proposal = owners
-                .registry
-                .replacement(owners.operation.id())?
-                .2
-                .clone();
-            owners.check_parent(&proposal, false)?;
-            Ok(proposal)
-        })
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        owners
+            .registry
+            .bind_preparation(owners.operation.id(), &frozen)?;
+        #[cfg(all(test, unix))]
+        account_root::managed_boundary("binding");
+        owners.reconcile().await?;
+        let proposal = owners
+            .registry
+            .replacement(owners.operation.id())?
+            .2
+            .clone();
+        owners.check_parent(&proposal, false).await?;
+        self.active = Some(owners);
+        Ok(proposal)
     }
     /// Retain the exact signed retirement in child and parent before selecting
     /// the successor in the registry. Lost returns retry this same receipt and
     /// cannot advance the registry revision twice. No operational owner is returned.
-    pub fn retain_witness_retirement(
+    pub async fn retain_witness_retirement(
         &mut self,
         receipt: &[u8],
     ) -> Result<AccountAuthorityCheckpoint, DurableError> {
@@ -215,15 +219,18 @@ impl ManagedAccountRootReplacement {
         }
         let proposal = owners.registry.replacement(owners.operation.id())?.2;
         let retired = owners.pin.verify_retired_account(proposal, receipt)?;
-        self.run(|owners| {
-            owners.retain_parent_retirement(retired.proposal(), receipt)?;
-            #[cfg(all(test, unix))]
-            account_root::managed_boundary("retirement");
-            owners.registry.commit_replacement(&retired)?;
-            #[cfg(all(test, unix))]
-            account_root::managed_boundary("registry");
-            Ok(owners.successor()?.0)
-        })
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        owners
+            .retain_parent_retirement(retired.proposal(), receipt)
+            .await?;
+        #[cfg(all(test, unix))]
+        account_root::managed_boundary("retirement");
+        owners.registry.commit_replacement(&retired)?;
+        #[cfg(all(test, unix))]
+        account_root::managed_boundary("registry");
+        let checkpoint = owners.successor().await?.0;
+        self.active = Some(owners);
+        Ok(checkpoint)
     }
     /// Activate only the exact independently enrolled successor after retained
     /// retirement. Current credential/policy, fresh witness admission and durable
@@ -259,9 +266,9 @@ impl ManagedAccountRootReplacement {
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<EnrolledDevice, DurableError> {
-        let (checkpoint, proposal) = owners.successor()?;
+        let (checkpoint, proposal) = owners.successor().await?;
         let image = enrollment.image_without_policy_renewal()?;
-        let device = enrollment.admitted(&image, policy, now)?;
+        let device = enrollment.admitted(&image, policy, now).await?;
         let Phase::Accepted { admission, .. } = &image.phase else {
             return Err(DurableError::Suspended);
         };
@@ -279,18 +286,20 @@ impl ManagedAccountRootReplacement {
             owners.registry.access()?,
             checkpoint,
         )?)?;
-        let client =
-            enrollment.anchor_client(policy, now, owners.pin.clone(), transport, timeout)?;
+        let client = enrollment
+            .anchor_client(policy, now, owners.pin.clone(), transport, timeout)
+            .await?;
         enrollment.activate(policy, now, Some(client)).await
     }
     /// Obtain the committed successor's original registry admission for ordinary
     /// enrollment reopening and later credential/policy maintenance. This read
     /// descriptor does not own the registry and is revoked when this owner closes.
-    pub fn successor_authority(&mut self) -> Result<JournalAccountAuthority, DurableError> {
-        self.run(|owners| {
-            let (checkpoint, _) = owners.successor()?;
-            JournalAccountAuthority::new(owners.registry.access()?, checkpoint)
-        })
+    pub async fn successor_authority(&mut self) -> Result<JournalAccountAuthority, DurableError> {
+        let mut owners = self.active.take().ok_or(DurableError::Closed)?;
+        let (checkpoint, _) = owners.successor().await?;
+        let authority = JournalAccountAuthority::new(owners.registry.access()?, checkpoint)?;
+        self.active = Some(owners);
+        Ok(authority)
     }
     /// Revoke returned successor owners and release all original leases. Durable
     /// progress remains available through the original registry and recovery inputs.

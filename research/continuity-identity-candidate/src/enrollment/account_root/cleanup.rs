@@ -61,13 +61,17 @@ impl DeviceEnrollment {
     }
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl AccountRootEnrollmentRecovery {
     /// Consume the original fenced owner into inventory/report/host-ACK recovery.
     /// A retained purpose-22 commitment is required. The original enrollment lease
     /// is transferred without reopening; no successor, signer or traffic is returned.
     /// After this transition, resume with `RetiredDeviceEnrollment::open` and the
     /// same verified account retirement's `retired_subject`, even after journal erasure.
-    pub fn into_retired(mut self) -> Result<RetiredDeviceEnrollment, DurableError> {
+    pub async fn into_retired(mut self) -> Result<RetiredDeviceEnrollment, DurableError> {
         let mut owners = self.active.take().ok_or(DurableError::Closed)?;
         let original = owners.read()?;
         let active = owners
@@ -94,7 +98,7 @@ impl AccountRootEnrollmentRecovery {
         // Release only the restricted child. Keep its independent parent leased
         // while the existing cleanup flow commits its original inventory.
         owners.journal = None;
-        RetiredDeviceEnrollment::from_enrollment(owners.enrollment, owners.pin, retired)
+        RetiredDeviceEnrollment::from_enrollment(owners.enrollment, owners.pin, retired).await
     }
 }
 
