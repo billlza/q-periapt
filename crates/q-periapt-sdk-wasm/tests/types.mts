@@ -97,3 +97,30 @@ async function continuityDevice() {
   }
 }
 void continuityDevice;
+
+import { QPeriaptContinuityParticipant, QPeriaptContinuityPeerTrust,
+  QPeriaptContinuityQuality, QPeriaptContinuityRole, QPeriaptContinuityPeer,
+  QPeriaptContinuityEndpoint, QPeriaptContinuityMessage,
+  QPeriaptContinuityConsumption, QPeriaptContinuityMessageStatus,
+  type QPeriaptContinuitySession } from 'q-periapt-sdk-wasm/web';
+async function sessionExchange(device: QPeriaptContinuityDevice, policy: QPeriaptContinuityPolicy,
+    account: QPeriaptContinuityAccountTrust) {
+  const a = new QPeriaptContinuityParticipant(account, data, 1n);
+  const b = new QPeriaptContinuityParticipant(account, data, 1n);
+  const trust = new QPeriaptContinuityPeerTrust(a, b, QPeriaptContinuityQuality.OneTimeBoth, data);
+  const peer = await device.admit_peer(data, policy, trust, QPeriaptContinuityRole.Initiator, 1n);
+  const request: Uint8Array = QPeriaptContinuityPeer.new_request_id();
+  const endpoint = new QPeriaptContinuityEndpoint('https://example.test/session');
+  const session: QPeriaptContinuitySession = await device.establish_session(peer, request, endpoint, 5000, () => 1n);
+  const id: Uint8Array = await device.next_session_message_id(session, 1n);
+  const input = new QPeriaptContinuityMessage(id, data, data);
+  const consumption: QPeriaptContinuityConsumption = await device.deliver_session_message(session, input, endpoint, 5000, () => 1n);
+  const status: QPeriaptContinuityMessageStatus = await device.session_message_status(session, id);
+  const reopened = await device.reopen_session(data, policy, trust, QPeriaptContinuityRole.Initiator, session.id(), 1n);
+  const consume = async (_session: Uint8Array, _message: Uint8Array, _plaintext: Uint8Array): Promise<void> => {};
+  const reply: Uint8Array = await device.serve_session_exchange(peer, data, consume, 5000, () => 1n);
+  const resumedReply: Uint8Array = await device.serve_session_message(reopened, data, consume, 5000, () => 1n);
+  input.close(); input.free(); session.free(); reopened.free(); endpoint.free(); peer.free(); trust.free(); a.free(); b.free();
+  void consumption; void status; void reply; void resumedReply;
+}
+void sessionExchange;

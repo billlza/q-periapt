@@ -176,7 +176,35 @@ authority. Retiring a public advertisement does not retire its inventory, and
 retiring inventory does not retract already distributed public bytes or establish
 physical/backup erasure.
 
-Connections, root/roster lifecycle and migration still require final browser API
+The session-exchange candidate admits a public bundle with `admit_peer` under a
+`QPeriaptContinuityPeerTrust`: exact independently pinned participants, generations,
+prekey quality and directory checkpoint. `establish_session` takes one retained
+request ID, an explicit endpoint, a finite timeout and a trusted bigint clock.
+It authenticates the peer's session acknowledgement before returning a session.
+`reopen_session` checks original local state and its archive; it is not a fresh
+remote-liveness receipt or a substitute for retrying failed establishment.
+
+Obtain `next_session_message_id`, retain it with the original input, then construct
+`QPeriaptContinuityMessage` and call `deliver_session_message`. The input owns a
+wipeable SDK plaintext copy; `close`/`free` does not erase host copies or journal
+recovery state. `session_message_status` reconciles that original ID after an
+unknown outcome. `Confirmed` requires the peer's authenticated consumption prefix;
+`PrefixPending` means that prefix does not yet cover the message. Changed input
+under an existing ID is refused, and erased history cannot authenticate new input.
+
+`serve_session_exchange` and `serve_session_message` invoke the host consumer with
+copies of the session ID, message ID and plaintext only after authenticated inbox
+commit. Resolve with `undefined` only after the host effect and deduplication record
+are durable together. An unknown outcome must reject; the same ID can be invoked
+again. Cancellation/deadline stops the SDK's wait, but cannot undo or stop a host
+Promise already running. Such a failure never consumes the inbox. Host plaintext
+copies have their own lifetimes. The SDK does not promise global exactly-once effects.
+
+`QPeriaptContinuityEndpoint` requires HTTPS; `for_loopback` permits explicit numeric
+HTTP loopback diagnostics. Peer pins remain independent of the untrusted carrier.
+Requests omit ambient credentials and redirects, and bound each streamed response
+to 32 KiB. Source-integrated APIs still require installed browser/native network
+qualification; root/roster lifecycle, rekey and migration require further browser
 integration. The protocol and package remain prerelease candidates.
 
 Await `close()` before releasing the wrapper with `free()`. Close cancels pending

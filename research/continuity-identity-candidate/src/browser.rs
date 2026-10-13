@@ -10,11 +10,14 @@ use std::{
     time::Duration,
 };
 use wasm_bindgen::JsValue;
+mod connections;
 mod errors;
+pub(crate) mod http;
 mod inventory;
 mod opening;
 mod publication;
 pub use errors::{failure, input_failure};
+pub use http::PeerEndpoint;
 
 fn cleanup_error(primary: DurableError, cleanup: Result<(), DurableError>) -> JsValue {
     match cleanup {

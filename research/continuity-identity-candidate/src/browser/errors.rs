@@ -2,7 +2,7 @@
 use super::*;
 use crate::AnchorClientError;
 use std::io::ErrorKind;
-fn io_code(kind: ErrorKind, otherwise: &'static str) -> &'static str {
+pub(super) fn io_code(kind: ErrorKind, otherwise: &'static str) -> &'static str {
     match kind {
         ErrorKind::WouldBlock => "Busy",
         ErrorKind::Interrupted => "Cancelled",

@@ -3,7 +3,7 @@ use super::*;
 /// Independently pinned signed protocol policy using the real SDK runtime owner.
 #[wasm_bindgen(js_name = QPeriaptContinuityPolicy)]
 pub struct SessionPolicy {
-    pub(super) inner: engine::VerifiedSessionPolicy,
+    pub(super) inner: std::sync::Arc<engine::VerifiedSessionPolicy>,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityPolicy)]
 impl SessionPolicy {
@@ -29,9 +29,10 @@ impl SessionPolicy {
         let pin = engine::PolicyPin::new(array(family)?, public, checkpoint).map_err(protocol)?;
         let statement = read_input(statement, 1, 8192)?;
         Ok(Self {
-            inner: pin
-                .verify(&statement, runtime.inner.clone(), now)
-                .map_err(protocol)?,
+            inner: std::sync::Arc::new(
+                pin.verify(&statement, runtime.inner.clone(), now)
+                    .map_err(protocol)?,
+            ),
         })
     }
     /// Close protocol-policy authority for subsequent operations.
@@ -42,7 +43,7 @@ impl SessionPolicy {
 /// Independent account-root and roster checkpoint expected for this enrollment.
 #[wasm_bindgen(js_name = QPeriaptContinuityAccountTrust)]
 pub struct AccountTrust {
-    pub(super) inner: engine::AccountPin,
+    pub(super) inner: std::sync::Arc<engine::AccountPin>,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityAccountTrust)]
 impl AccountTrust {
@@ -64,8 +65,10 @@ impl AccountTrust {
         let checkpoint = engine::RosterCheckpoint::from_trusted_state(version, array(digest)?)
             .map_err(protocol)?;
         Ok(Self {
-            inner: engine::AccountPin::new(array(account)?, public, checkpoint, array(family)?)
-                .map_err(protocol)?,
+            inner: std::sync::Arc::new(
+                engine::AccountPin::new(array(account)?, public, checkpoint, array(family)?)
+                    .map_err(protocol)?,
+            ),
         })
     }
 }

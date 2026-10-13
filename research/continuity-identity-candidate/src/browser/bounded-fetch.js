@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-class WitnessTransportError extends Error {
-  constructor(code, cause) { super('Witness transport: ' + code, { cause }); this.code = code; }
+class BrowserTransportError extends Error {
+  constructor(code, cause) { super('Browser transport: ' + code, { cause }); this.code = code; }
 }
-const fail = (code, cause) => new WitnessTransportError(code, cause);
+const fail = (code, cause) => new BrowserTransportError(code, cause);
 
-export function witnessEndpoint(value, loopback) {
+export function httpEndpoint(value, loopback) {
   if (!globalThis.isSecureContext || typeof fetch !== 'function') throw fail('Unavailable');
   if (typeof value !== 'string' || value.length < 1 || value.length > 4096) throw fail('InvalidEndpoint');
   let url;
@@ -16,15 +16,16 @@ export function witnessEndpoint(value, loopback) {
   return url.href;
 }
 
-export class WitnessExchange {
+export class HttpExchange {
   #controller = new AbortController(); #timer; #poll; #cancelled; #reason; #finished = false; #outcome;
-  static start(endpoint, request, milliseconds, cancelled) {
-    if (!(request instanceof Uint8Array) || request.length !== 3674
+  static start(endpoint, request, milliseconds, cancelled, profile) {
+    const bounds = profile === 1 ? [3674, 3674, 3659, 3659] : profile === 2 ? [10, 32768, 10, 32768] : undefined;
+    if (!bounds || !(request instanceof Uint8Array) || request.length < bounds[0] || request.length > bounds[1]
         || !Number.isFinite(milliseconds) || milliseconds <= 0 || milliseconds > 60000
         || typeof cancelled !== 'function') throw fail('InvalidResponse');
-    return new WitnessExchange(endpoint, request.slice(), milliseconds, cancelled);
+    return new HttpExchange(endpoint, request.slice(), milliseconds, cancelled, bounds);
   }
-  constructor(endpoint, request, milliseconds, cancelled) {
+  constructor(endpoint, request, milliseconds, cancelled, bounds) {
     this.#cancelled = cancelled;
     this.#timer = setTimeout(() => this.#abort('Timeout'), milliseconds);
     this.#poll = setInterval(() => {
@@ -33,7 +34,7 @@ export class WitnessExchange {
     // The stored outcome never rejects without a consumer. reply() exposes the
     // original failure; dropping a Rust future cancels instead of leaving an
     // unhandled rejection or a callable freed Rust closure in a JS timer.
-    this.#outcome = this.#run(endpoint, request);
+    this.#outcome = this.#run(endpoint, request, bounds);
   }
   #detach() { clearTimeout(this.#timer); clearInterval(this.#poll); this.#cancelled = undefined; }
   #abort(code) {
@@ -42,7 +43,7 @@ export class WitnessExchange {
     this.#detach(); this.#controller.abort();
   }
   cancel() { this.#abort('Cancelled'); this.#detach(); }
-  async #run(endpoint, request) {
+  async #run(endpoint, request, bounds) {
     let reader;
     try {
       if (this.#cancelled()) this.#abort('Cancelled');
@@ -55,22 +56,22 @@ export class WitnessExchange {
       }
       if (!response.body || response.headers.get('Content-Type')?.split(';', 1)[0].trim().toLowerCase() !== 'application/octet-stream') throw fail('InvalidResponse');
       const length = response.headers.get('Content-Length');
-      if (length !== null && length !== '3659') throw fail('InvalidResponse');
+      if (length !== null && (!/^[1-9][0-9]{0,4}$/.test(length) || Number(length) < bounds[2] || Number(length) > bounds[3])) throw fail('InvalidResponse');
       reader = response.body.getReader();
-      const bytes = new Uint8Array(3659); let offset = 0;
+      const bytes = new Uint8Array(bounds[3]); let offset = 0;
       for (;;) {
         const chunk = await reader.read();
         if (chunk.done) break;
         if (!(chunk.value instanceof Uint8Array) || offset + chunk.value.length > bytes.length) throw fail('InvalidResponse');
         bytes.set(chunk.value, offset); offset += chunk.value.length;
       }
-      if (offset !== bytes.length) throw fail('InvalidResponse');
+      if (offset < bounds[2] || (length !== null && offset !== Number(length))) throw fail('InvalidResponse');
       if (this.#cancelled?.()) this.#abort('Cancelled');
       if (this.#reason) throw this.#reason;
-      return { bytes };
+      return { bytes: bytes.subarray(0, offset) };
     } catch (cause) {
       this.#controller.abort();
-      return { error: this.#reason ?? (cause instanceof WitnessTransportError ? cause : fail('Network', cause)) };
+      return { error: this.#reason ?? (cause instanceof BrowserTransportError ? cause : fail('Network', cause)) };
     } finally {
       this.#finished = true; this.#detach(); reader?.releaseLock();
     }

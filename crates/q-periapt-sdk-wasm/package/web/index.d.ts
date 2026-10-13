@@ -23,3 +23,14 @@ export interface QPeriaptContinuityError extends Error {
   /** Original failure, including any nested primary/cleanup receipt errors. */
   readonly cause: unknown;
 }
+
+export { QPeriaptContinuityParticipant,
+  QPeriaptContinuityPeerTrust,
+  QPeriaptContinuityQuality,
+  QPeriaptContinuityRole,
+  QPeriaptContinuityPeer,
+  QPeriaptContinuityEndpoint,
+  QPeriaptContinuitySession,
+  QPeriaptContinuityMessage,
+  QPeriaptContinuityConsumption,
+  QPeriaptContinuityMessageStatus } from './q_periapt_sdk_wasm.js';

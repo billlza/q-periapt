@@ -21,3 +21,14 @@ export { QPeriaptContinuityPhase, QPeriaptContinuityStatus, QPeriaptContinuityCh
 
 export { QPeriaptContinuityPublicationPlan, QPeriaptContinuityPublicationPhase,
   QPeriaptContinuityPublicationStatus, QPeriaptContinuityPreparedPublication } from './q_periapt_sdk_wasm.js';
+
+export { QPeriaptContinuityParticipant,
+  QPeriaptContinuityPeerTrust,
+  QPeriaptContinuityQuality,
+  QPeriaptContinuityRole,
+  QPeriaptContinuityPeer,
+  QPeriaptContinuityEndpoint,
+  QPeriaptContinuitySession,
+  QPeriaptContinuityMessage,
+  QPeriaptContinuityConsumption,
+  QPeriaptContinuityMessageStatus } from './q_periapt_sdk_wasm.js';

@@ -73,6 +73,10 @@ pub struct Run<'a> {
     deadline: Instant,
 }
 impl<'a> Run<'a> {
+    /// Original absolute deadline, for bounded host callbacks; it cannot be extended.
+    pub fn deadline(&self) -> Instant {
+        self.deadline
+    }
     /// Create a nonzero invocation of at most 120 seconds.
     pub fn new(cancel: &'a Cancellation, timeout: Duration) -> Result<Self, Error> {
         if timeout.is_zero()

@@ -30,7 +30,8 @@ GENERATED = ("q_periapt_sdk_wasm.js", "q_periapt_sdk_wasm.d.ts", "q_periapt_sdk_
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
 BROWSER_HOSTS = {f"web/{name}": CANDIDATE / "src/storage/browser" / name
                  for name in ("storage-root.js", "storage-database.js", "storage-catalogue.js", "storage-opening.js")}
-BROWSER_HOSTS["web/witness-fetch.js"] = CANDIDATE / "src/anchor/transport/witness-fetch.js"
+BROWSER_HOSTS["web/bounded-fetch.js"] = CANDIDATE / "src/browser/bounded-fetch.js"
+BROWSER_HOSTS["web/application.js"] = CANDIDATE / "src/browser/application.js"
 NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",

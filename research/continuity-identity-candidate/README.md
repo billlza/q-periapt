@@ -70,7 +70,7 @@ Browser scheduling can delay cancellation/timeout delivery; late replies are ref
 It performs no automatic retry. Neither abort nor timeout proves non-commit:
 the existing journal/client must reconcile the original operation and verify the
 complete signed reply against its independently supplied witness pin.
-The bundle must also place `src/anchor/transport/witness-fetch.js` beside the
+The bundle must also place `src/browser/bounded-fetch.js` beside the
 generated WASM glue. `for_loopback` explicitly permits HTTP only for numeric
 loopback addresses for diagnostics; it is not a fallback from HTTPS.
 
