@@ -390,3 +390,23 @@ Bootstrap/message/KEM bytes, existing purposes, product ABI 2 and implicit rejec
 are unchanged by this addition. The separate candidate owner ABI and language
 packages expose renewal but still require exact-source installed-package and
 platform qualification. This candidate protocol is not frozen.
+
+
+## Retaining an independently adopted witnessed policy
+
+The witnessed G path can follow a completed independent P using the original
+journal/owner/P0 scope and the current P target. This preserves G as an account
+credential authorization; it does not synthesize T or renew P in the same step.
+See [original enrollment coordination](ENROLLMENT.md#credential-renewal-after-an-independent-witnessed-policy-update).
+
+`QPCRNP03` proposals are 329 bytes and `QPCRNC03` cancellations are 281 bytes.
+Both append mode zero and the retained independent-P statement to the original
+credential-only grammar. Mode one is invalid. `policy_renewal()` exposes this
+expectation; `policy_continuation()` remains reserved for joint T. The complete
+canonical bytes, including the distinct tag, bind witness commands.
+
+The witness keeps this policy authority outside the bounded G/ACK slot. Its
+`QPANC019` layout uses a distinct retained-P discriminator after the first later G,
+including after closure/ACK and subsequent P updates. Earlier containers cannot
+claim this meaning. Fresh preparation checks the exact current target; historical
+close/status preserve an original Applied result without granting live authority.

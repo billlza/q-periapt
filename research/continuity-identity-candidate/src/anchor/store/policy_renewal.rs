@@ -40,6 +40,8 @@ struct Record {
 #[derive(Default)]
 pub(super) struct PolicyRenewal {
     pub(super) current: Option<PolicyAuthority>,
+    // Sticky format discriminator: later G must never erase independently adopted P.
+    pub(super) credential_after: bool,
     floor: u64,
     ack: Option<[u8; 32]>,
     record: Option<Record>,
@@ -55,7 +57,7 @@ impl PolicyRenewal {
         match self.current {
             None => out.push(0),
             Some(p) => {
-                out.push(1);
+                out.push(if self.credential_after { 2 } else { 1 });
                 p.encode(out);
             }
         }
@@ -73,7 +75,10 @@ impl PolicyRenewal {
             }
         }
     }
-    pub(super) fn decode(d: &mut Decoder<'_>) -> Result<Self, DurableError> {
+    pub(super) fn decode(
+        d: &mut Decoder<'_>,
+        credential_format: bool,
+    ) -> Result<Self, DurableError> {
         let floor = d.u64()?;
         let present = d.array::<1>()?;
         let value = d.array()?;
@@ -85,9 +90,10 @@ impl PolicyRenewal {
             }
             _ => return Err(DurableError::Corrupt),
         };
-        let current = match d.array::<1>()? {
-            [0] => None,
-            [1] => Some(PolicyAuthority::decode(d)?),
+        let (current, credential_after) = match d.array::<1>()? {
+            [0] => (None, false),
+            [1] => (Some(PolicyAuthority::decode(d)?), false),
+            [2] if credential_format => (Some(PolicyAuthority::decode(d)?), true),
             _ => return Err(DurableError::Corrupt),
         };
         let record = match d.array::<1>()? {
@@ -107,6 +113,7 @@ impl PolicyRenewal {
         };
         Ok(Self {
             current,
+            credential_after,
             floor,
             ack,
             record,
@@ -125,8 +132,17 @@ impl Entry {
         let Some(s) = &self.independent_policy else {
             return Ok(());
         };
-        // A retired plain G may precede P; live G/T coordination remains excluded.
-        if self.renewal.is_some()
+        // Only an exact retained-P G may coexist with an acknowledged P.
+        if (self.renewal.is_some()
+            && (!s.credential_after
+                || s.record.is_some()
+                || self
+                    .renewal
+                    .as_ref()
+                    .and_then(CredentialRenewalRecord::independent_policy)
+                    != s.current.map(|p| p.statement)))
+            || (s.credential_after
+                && (s.current.is_none() || (self.renewal_floor == 0 && self.renewal.is_none())))
             || self.credential_authorization.is_some()
             || self.policy_authorization.is_some()
             || self.policy_floor != 0

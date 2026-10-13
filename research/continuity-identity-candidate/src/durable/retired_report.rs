@@ -257,6 +257,15 @@ pub enum Transaction {
         /// Optional policy statement: true adopts it, false retains prior adoption.
         policy: Option<(bool, [u8; 32])>,
     },
+    /// Credential renewal retaining an already adopted independent policy.
+    CredentialUnderPolicy {
+        /// Original credential operation identity.
+        operation: [u8; 32],
+        /// Signed credential authorization statement.
+        statement: [u8; 32],
+        /// Exact retained independent policy statement, never a new adoption.
+        policy: [u8; 32],
+    },
     /// Independent policy-only renewal.
     Policy {
         /// Original independently retained operation identity.
@@ -358,7 +367,7 @@ pub(crate) fn verify_recorded_report(
     if bytes.len() > 4 * MAX_IMAGE
         || !bytes
             .get(..8)
-            .is_some_and(|tag| tag == b"QPRDMD01" || tag == b"QPRDMD02")
+            .is_some_and(|tag| tag == b"QPRDMD01" || tag == b"QPRDMD02" || tag == b"QPRDMD03")
         || bytes.get(8..321) != Some(proposal.inventory().to_bytes().as_slice())
     {
         return Err(DurableError::Conflict);
@@ -668,8 +677,17 @@ fn canonical(
             .iter()
             .any(|r| matches!(r.metadata, RecordMetadata::PrekeyPublications { .. }))
     });
+    let independent = matches!(
+        intent,
+        Intent::Write {
+            transaction: Transaction::CredentialUnderPolicy { .. },
+            ..
+        }
+    ) || matches!(intent, Intent::Cancellation(wire) if wire.starts_with(b"QPCRNC03"));
     let mut out = Encoder(
-        if publication {
+        if independent {
+            b"QPRDMD03"
+        } else if publication {
             b"QPRDMD02"
         } else {
             b"QPRDMD01"
@@ -706,6 +724,16 @@ fn canonical(
                         out.byte(u8::from(*adopts));
                         out.raw(digest);
                     }
+                }
+                Transaction::CredentialUnderPolicy {
+                    operation,
+                    statement,
+                    policy,
+                } => {
+                    out.byte(4);
+                    out.raw(operation);
+                    out.raw(statement);
+                    out.raw(policy);
                 }
                 Transaction::Policy {
                     operation,

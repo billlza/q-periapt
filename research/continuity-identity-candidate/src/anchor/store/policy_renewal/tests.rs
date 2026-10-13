@@ -1049,3 +1049,6 @@ fn credential_policy_composition_requires_explicit_witness_format() {
     .expect("new container allows an absent closure section")
     .is_empty());
 }
+
+#[path = "credential_cycle_tests.rs"]
+mod credential_cycle;

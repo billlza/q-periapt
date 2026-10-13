@@ -50,7 +50,7 @@ impl DeviceEnrollment {
         let approval = self.authenticated_policy_record(record)?;
         approval.check_original_policy(original_policy)?;
         let current = self.policy_witness_current_device(image)?;
-        approval.check_credential_lineage(&original, &current)?;
+        self.check_completed_policy_identity(image, &approval, &original, &current)?;
         Ok(Some(Arc::new(EnrollmentPolicyCompletion {
             proposal,
             approval,
@@ -73,6 +73,10 @@ impl DeviceEnrollment {
         image.require_roster_retired()?;
         let (original, id) = self.policy_witness_scope(&image, original_policy)?;
         if image.policy_pending.is_some()
+            || image
+                .renewal
+                .as_ref()
+                .is_some_and(|r| !r.permits_policy_pending())
             || image
                 .policy_witness
                 .as_ref()

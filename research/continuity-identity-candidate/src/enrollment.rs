@@ -274,9 +274,27 @@ impl Image {
         }
         Ok(())
     }
+    fn witnessed_credential_after_policy(&self) -> bool {
+        self.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
+            && self.policy_witness.is_some()
+            && self.renewal.as_ref().is_some_and(LocalRenewal::witnessed)
+    }
     fn require_no_policy_renewal(&self) -> Result<(), DurableError> {
         self.require_roster_retired()?;
         if self.policy_pending.is_some() || self.policy_completed.is_some() {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
+    }
+    fn require_credential_policy_retired(&self) -> Result<(), DurableError> {
+        self.require_roster_retired()?;
+        if self.policy_completed.is_none() {
+            return self.require_no_policy_renewal();
+        }
+        if self.policy_pending.is_some()
+            || self.policy_witness.is_none()
+            || !self.policy_coordination_retired()
+        {
             return Err(DurableError::Suspended);
         }
         Ok(())
@@ -293,7 +311,9 @@ impl Image {
             resolution.validate(self)?;
         }
         if self.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
-            && self.renewal.is_none()
+            && (self.renewal.is_none()
+                || (self.renewal.as_ref().is_some_and(LocalRenewal::witnessed)
+                    && self.policy_witness.is_none()))
         {
             return Err(DurableError::Corrupt);
         }
@@ -1288,6 +1308,11 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
         wrapper.extend_from_slice(&bytes);
         bytes = wrapper;
     }
+    if image.witnessed_credential_after_policy() {
+        let mut wrapper = b"QPENST18".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -1455,6 +1480,12 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
+    let credential_after_policy = tag == *b"QPENST18";
+    let tag = if credential_after_policy {
+        d.array::<8>()?
+    } else {
+        tag
+    };
     let has_roster_witness = tag == *b"QPENST17";
     let tag = if has_roster_witness {
         d.array::<8>()?
@@ -1584,12 +1615,15 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         }
         Some(LocalRenewal::decode(
             &mut d,
-            tag != *b"QPENST02",
-            tag == *b"QPENST04" || tag == *b"QPENST05",
-            tag == *b"QPENST05",
-            [*b"QPENST06", *b"QPENST07", *b"QPENST08"].contains(&tag),
-            tag == *b"QPENST07" || tag == *b"QPENST08",
-            tag == *b"QPENST08",
+            renewal::RenewalEncoding {
+                extended: tag != *b"QPENST02",
+                witnessed: tag == *b"QPENST04" || tag == *b"QPENST05",
+                cancellation: tag == *b"QPENST05",
+                joint: [*b"QPENST06", *b"QPENST07", *b"QPENST08"].contains(&tag),
+                policy_coordination: tag == *b"QPENST07" || tag == *b"QPENST08",
+                policy_cancellation: tag == *b"QPENST08",
+                independent_policy: credential_after_policy,
+            },
         )?)
     } else {
         None
@@ -1650,6 +1684,9 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         roster_witness,
     };
     image.validate_policy_phase()?;
+    if image.witnessed_credential_after_policy() != credential_after_policy {
+        return Err(DurableError::Corrupt);
+    }
     Ok(image)
 }
 fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {

@@ -13,6 +13,12 @@ pub(crate) enum WitnessedCredentialIntent {
     Cancellation(Cancellation),
 }
 impl WitnessedCredentialIntent {
+    pub(crate) fn policy_renewal(self) -> Option<[u8; 32]> {
+        match self {
+            Self::Proposal(p) => p.policy_renewal(),
+            Self::Cancellation(c) => c.policy_renewal(),
+        }
+    }
     pub(crate) fn proposal(self) -> Result<Proposal, DurableError> {
         match self {
             Self::Proposal(p) => Ok(p),
@@ -84,6 +90,7 @@ pub(crate) struct CredentialCancellationTarget<'a> {
     pub(crate) continuation: Option<&'a crate::HistoricalPolicyContinuation>,
     pub(crate) adopts: bool,
     pub(crate) completed: Option<&'a LocalRenewalCommit>,
+    pub(crate) independent: Option<&'a crate::enrollment::EnrollmentPolicyCompletion>,
 }
 impl PendingCancellation {
     fn new(
@@ -91,7 +98,9 @@ impl PendingCancellation {
         image: &Image,
         cancellation: Cancellation,
     ) -> Result<Self, DurableError> {
-        let mut wire = if cancellation.policy_continuation().is_some() {
+        let mut wire = if cancellation.policy_renewal().is_some() {
+            b"QPWINT09"
+        } else if cancellation.policy_continuation().is_some() {
             b"QPWINT05"
         } else {
             b"QPWINT03"
@@ -117,18 +126,24 @@ impl PendingCancellation {
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
         let tag = d.array::<8>()?;
-        if (tag != *b"QPWINT03" || wire.len() != 320) && (tag != *b"QPWINT05" || wire.len() != 353)
+        if (tag != *b"QPWINT03" || wire.len() != 320)
+            && (!matches!(&tag, b"QPWINT05" | b"QPWINT09") || wire.len() != 353)
         {
             return Err(DurableError::Corrupt);
         }
         let local_account = d.array()?;
         crate::codec::nonzero(&local_account)?;
-        let cancellation = Cancellation::from_trusted_state(d.take(if tag == *b"QPWINT05" {
+        let cancellation = Cancellation::from_trusted_state(d.take(if tag != *b"QPWINT03" {
             281
         } else {
             248
         })?)?;
         d.finish()?;
+        if cancellation.policy_renewal().is_some() != (tag == *b"QPWINT09")
+            || cancellation.policy_continuation().is_some() != (tag == *b"QPWINT05")
+        {
+            return Err(DurableError::Corrupt);
+        }
         Ok(Self {
             cancellation,
             wire: wire.to_vec(),
@@ -153,6 +168,7 @@ impl PendingCancellation {
         {
             return Err(DurableError::Conflict);
         }
+        rosters::check_credential_policy_binding(image, self.cancellation.policy_renewal())?;
         Ok(())
     }
 }
@@ -203,6 +219,7 @@ impl DeviceJournal {
                 continuation: None,
                 adopts: false,
                 completed,
+                independent: None,
             },
         )
     }
@@ -221,6 +238,17 @@ impl DeviceJournal {
         check_scope(&image, original, policy, id)?;
         rosters::check_credential_cancellation(&image, grant, target.completed)?;
         rosters::check_policy_cancellation(&image, grant, target.continuation, target.adopts)?;
+        let independent = target.independent;
+        if let Some(completion) = independent {
+            if target.continuation.is_some() || target.adopts {
+                return Err(DurableError::Conflict);
+            }
+            rosters::check_enrollment_policy_completion(&image, completion)?;
+        }
+        rosters::check_credential_policy_binding(
+            &image,
+            independent.map(|p| p.approval().statement_digest()),
+        )?;
         let mut bytes = b"QPCRNC01".to_vec();
         bytes.extend_from_slice(
             &policy
@@ -239,7 +267,10 @@ impl DeviceJournal {
         let cancellation = match target.continuation {
             Some(t) if target.adopts => base.with_policy_continuation(t)?,
             Some(t) => base.with_retained_policy_continuation(t)?,
-            None => base,
+            None => match independent {
+                Some(p) => base.with_retained_policy_renewal(p.approval())?,
+                None => base,
+            },
         };
         if let Some(pending) = pending {
             return match pending {

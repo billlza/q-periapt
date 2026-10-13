@@ -282,3 +282,77 @@ fn required_policy_after_g_does_not_revive_stale_or_revoked_membership() {
         );
     }
 }
+
+#[test]
+fn required_credential_after_independent_policy_stages_against_the_current_authority() {
+    let f = fixture();
+    let policy = approved_at(&f, &f.c.policy, 2, 300, 155);
+    let proposal = prepared_at(&f, &policy, &f.c.policy, 155);
+    applied_at(&f, &policy, proposal, 155);
+    activate(&f, &policy.target, 155)
+        .expect("independent P active")
+        .close();
+    let grant = credential::grant(&f, &f.original, 2, 280);
+    let mut owner = open(&f.c);
+    assert_eq!(
+        owner
+            .stage_credential_renewal(&grant, grant.operation(), &policy.target, 180)
+            .expect("real next G retains the independently completed P"),
+        crate::CredentialRenewalStatus::Pending {
+            operation: grant.operation(),
+            statement: grant.statement_digest(),
+        }
+    );
+    let anchor = credential::client(&f, &mut owner, 180);
+    let proposal = owner
+        .prepare_witnessed_policy_continuation(f.c.policy.historical(), &policy.target, 180, anchor)
+        .expect("original sealed G retains P completion");
+    assert_eq!(
+        proposal.policy_renewal(),
+        Some(policy.proof.statement_digest())
+    );
+    assert_eq!(proposal.policy_continuation(), None);
+    owner.close();
+    f.carrier.clock.store(180, Ordering::SeqCst);
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_policy_renewed_credential_renewal(
+            proposal,
+            &grant,
+            f.c.policy.historical(),
+            &policy.target,
+            180,
+        )
+        .expect("independent witness G approval");
+    let mut owner = open(&f.c);
+    let mut anchor = credential::client(&f, &mut owner, 180);
+    assert_eq!(
+        owner
+            .commit_witnessed_policy_continuation(
+                &proposal,
+                f.c.policy.historical(),
+                &policy.target,
+                180,
+                &mut anchor
+            )
+            .expect("G terminal durably retained before witness ACK"),
+        renewal::committed(&grant)
+    );
+    owner.close();
+    let mut active =
+        activate(&f, &policy.target, 180).expect("same original owner under P1 and C1");
+    assert_eq!(
+        active
+            .parts()
+            .expect("current owners")
+            .2
+            .credential_digest(),
+        grant.successor_device().credential_digest()
+    );
+    active.close();
+}
+
+#[path = "witness_policy_credential_cycle_tests.rs"]
+mod cycle;

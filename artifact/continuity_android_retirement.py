@@ -71,7 +71,7 @@ def _retired_records(read):
     envelope('retirement-report-receipt', proposal)
     envelope('retirement-ack', b'QPRACK01' + proposal[8:])
     report = read('retirement-complete-report')
-    sdk.require(323 <= len(report) <= 8388608 and report[:8] in (b'QPRDMD01', b'QPRDMD02')
+    sdk.require(323 <= len(report) <= 8388608 and report[:8] in (b'QPRDMD01', b'QPRDMD02', b'QPRDMD03')
             and report[8:321] == inventory, 'complete report inventory')
     sdk.require(read('retirement-verified') == report, 'complete report changed across erasure')
     sdk.require(read('retirement-report-reopened') == proposal[321:] + (1).to_bytes(4, 'big') + report,

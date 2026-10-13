@@ -58,7 +58,7 @@ def _records(read, route, count):
     same("roster-effect-before", "root-original-effect-after")
     report = same("root-complete-report", "root-verified")
     inventory = read("root-inventory")
-    sdk.require(len(inventory) == 313 and report.startswith((b"QPRDMD01", b"QPRDMD02"))
+    sdk.require(len(inventory) == 313 and report.startswith((b"QPRDMD01", b"QPRDMD02", b"QPRDMD03"))
                 and report[8:321] == inventory, "complete original report inventory")
     proposal = same("root-report-proposal", "root-report-unknown", "root-ack-proposal",
                     "root-journal-unknown", "root-signer-unknown")

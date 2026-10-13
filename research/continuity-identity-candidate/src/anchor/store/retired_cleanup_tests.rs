@@ -479,6 +479,7 @@ fn historical_inventory_keeps_target_free_cancellation_and_refuses_omitting_back
                 continuation: None,
                 adopts: false,
                 completed: None,
+                independent: None,
             },
         )
         .expect("actual target-free cancellation reservation");

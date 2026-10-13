@@ -740,6 +740,11 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
         .entries
         .values()
         .any(Entry::has_credential_policy_composition);
+    let policy_credential_format = image.entries.values().any(|e| {
+        e.independent_policy
+            .as_ref()
+            .is_some_and(|p| p.credential_after)
+    });
     let closure_format = credential_policy_format || !image.account_closures.is_empty();
     let freeze_format = closure_format || !image.account_freezes.is_empty();
     let account_format = freeze_format || !image.account_replacements.is_empty();
@@ -786,7 +791,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if credential_policy_format {
+    let mut bytes = if policy_credential_format {
+        b"QPANC019".to_vec()
+    } else if credential_policy_format {
         b"QPANC018".to_vec()
     } else if closure_format {
         b"QPANC017".to_vec()
@@ -967,7 +974,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             let independent_policy = if version >= ImageVersion::V8 {
                 match d.array::<1>()? {
                     [0] => None,
-                    [1] => Some(PolicyRenewal::decode(&mut d)?),
+                    [1] => Some(PolicyRenewal::decode(&mut d, version >= ImageVersion::V19)?),
                     _ => return Err(DurableError::Corrupt),
                 }
             } else {

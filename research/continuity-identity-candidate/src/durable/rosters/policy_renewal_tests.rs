@@ -530,6 +530,12 @@ fn credential_policy_history_tags_do_not_alias_opposite_operation_order() {
             *b"QPRHST06",
             *b"QPRHST08",
         ),
+        (
+            approval(&c),
+            ReceiptPhase::AwaitingEnrollment,
+            *b"QPRHST09",
+            *b"QPRHST06",
+        ),
     ] {
         let record = StoredPolicyRenewal {
             approval,

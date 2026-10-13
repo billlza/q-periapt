@@ -31,9 +31,13 @@ pub(crate) struct PersistedRenewalTerminal {
     intent: WitnessedCredentialIntent,
     state: crate::AnchorCredentialRenewalState,
     adopted_policy: Option<[u8; 32]>,
+    independent_policy: Option<[u8; 32]>,
     completed: Option<LocalRenewalCommit>,
 }
 impl PersistedRenewalTerminal {
+    pub(crate) fn policy_renewal(&self) -> Option<[u8; 32]> {
+        self.independent_policy
+    }
     pub(crate) fn completed(&self) -> Option<&LocalRenewalCommit> {
         self.completed.as_ref()
     }
@@ -125,6 +129,15 @@ impl ExpiredRenewal {
         }
     }
 }
+pub(super) struct RenewalEncoding {
+    pub(super) extended: bool,
+    pub(super) witnessed: bool,
+    pub(super) cancellation: bool,
+    pub(super) joint: bool,
+    pub(super) policy_coordination: bool,
+    pub(super) policy_cancellation: bool,
+    pub(super) independent_policy: bool,
+}
 pub(super) struct LocalRenewal {
     origin: Origin,
     pending: Option<Pending>,
@@ -136,7 +149,7 @@ pub(super) struct LocalRenewal {
 }
 impl LocalRenewal {
     pub(super) fn permits_policy_credential(&self, policy_pending: bool) -> bool {
-        self.witness.is_none()
+        (self.witness.is_none() || !self.joint())
             && self
                 .pending
                 .as_ref()
@@ -152,7 +165,8 @@ impl LocalRenewal {
         self.witnessed()
             && self.permits_policy_pending()
             && !self.joint()
-            && self.completed.is_some()
+            && (self.completed.is_some()
+                || self.witness.as_ref().is_some_and(|w| w.closed.is_some()))
     }
     pub(super) fn policy_predecessor(&self) -> Option<&[u8]> {
         self.adopted_policy.as_deref()
@@ -300,13 +314,17 @@ impl LocalRenewal {
     }
     pub(super) fn decode(
         d: &mut Decoder<'_>,
-        extended: bool,
-        witnessed: bool,
-        cancellation: bool,
-        joint: bool,
-        policy_coordination: bool,
-        policy_cancellation: bool,
+        format: RenewalEncoding,
     ) -> Result<Self, DurableError> {
+        let RenewalEncoding {
+            extended,
+            witnessed,
+            cancellation,
+            joint,
+            policy_coordination,
+            policy_cancellation,
+            independent_policy,
+        } = format;
         let (extended, witnessed, cancellation) = if joint {
             let [flags] = d.array()?;
             if flags & !7 != 0
@@ -380,6 +398,7 @@ impl LocalRenewal {
                     cancellation,
                     policy_coordination,
                     policy_cancellation,
+                    independent_policy,
                 )?)
             } else {
                 None
@@ -651,8 +670,10 @@ impl DeviceEnrollment {
             Self::check_policy_scope(previous, &original, admission)?;
         }
         if let Some(approval) = &independent {
-            if policy.anchor_requirement().binding().is_some() {
-                return Err(DurableError::AnchorRequired);
+            if policy.anchor_requirement().binding().is_some()
+                && (!image.policy_coordination_retired() || image.policy_witness.is_none())
+            {
+                return Err(DurableError::Suspended);
             }
             approval.check_target(policy)?;
             approval.check_renewed_identity(&original, grant)?;

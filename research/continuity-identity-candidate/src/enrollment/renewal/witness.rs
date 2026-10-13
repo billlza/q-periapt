@@ -145,7 +145,9 @@ impl WitnessRenewal {
             Some(c) => {
                 match c.intent {
                     WitnessedCredentialIntent::Proposal(p) => {
-                        out.push(if p.policy_continuation().is_some() {
+                        out.push(if p.policy_renewal().is_some() {
+                            5
+                        } else if p.policy_continuation().is_some() {
                             3
                         } else {
                             1
@@ -153,7 +155,9 @@ impl WitnessRenewal {
                         out.extend_from_slice(&p.to_bytes());
                     }
                     WitnessedCredentialIntent::Cancellation(c) => {
-                        out.push(if c.policy_continuation().is_some() {
+                        out.push(if c.policy_renewal().is_some() {
+                            6
+                        } else if c.policy_continuation().is_some() {
                             4
                         } else {
                             2
@@ -170,6 +174,7 @@ impl WitnessRenewal {
         cancellation: bool,
         policy_coordination: bool,
         policy_cancellation: bool,
+        independent_policy: bool,
     ) -> Result<Self, DurableError> {
         let floor = d.u64()?;
         let closed = match d.array::<1>()? {
@@ -183,21 +188,22 @@ impl WitnessRenewal {
         };
         let coordination = match d.array::<1>()? {
             [0] => None,
-            [kind @ 1..=4]
+            [kind @ 1..=6]
                 if kind == 1
                     || (kind == 2 && cancellation)
                     || (kind == 3 && policy_coordination && !policy_cancellation)
-                    || (kind == 4 && policy_cancellation) =>
+                    || (kind == 4 && policy_cancellation)
+                    || ((kind == 5 || kind == 6) && independent_policy) =>
             {
                 Some(Coordination {
-                    intent: if kind == 1 || kind == 3 {
+                    intent: if kind == 1 || kind == 3 || kind == 5 {
                         WitnessedCredentialIntent::Proposal(Proposal::from_trusted_state(
-                            d.take(if kind == 3 { 329 } else { 296 })?,
+                            d.take(if kind == 1 { 296 } else { 329 })?,
                         )?)
                     } else {
                         WitnessedCredentialIntent::Cancellation(
                             crate::AnchorCredentialRenewalCancellation::from_trusted_state(
-                                d.take(if kind == 4 { 281 } else { 248 })?,
+                                d.take(if kind == 2 { 248 } else { 281 })?,
                             )?,
                         )
                     },
@@ -211,6 +217,16 @@ impl WitnessRenewal {
             }
             _ => return Err(DurableError::Corrupt),
         };
+        if coordination.is_some_and(|c| match c.intent {
+            WitnessedCredentialIntent::Proposal(p) => {
+                p.policy_renewal().is_some() && !independent_policy
+            }
+            WitnessedCredentialIntent::Cancellation(c) => {
+                c.policy_renewal().is_some() && !independent_policy
+            }
+        }) {
+            return Err(DurableError::Corrupt);
+        }
         if cancellation
             != coordination
                 .is_some_and(|c| matches!(c.intent, WitnessedCredentialIntent::Cancellation(_)))
@@ -230,6 +246,11 @@ impl WitnessRenewal {
     maybe_async::must_be_sync
 )]
 impl DeviceEnrollment {
+    fn image_for_witnessed_credential(&mut self) -> Result<Image, DurableError> {
+        let image = self.image()?;
+        image.require_credential_policy_retired()?;
+        Ok(image)
+    }
     /// Build a historical renewal carrier from the original controlled signer.
     /// This does not admit the credential or permit traffic after expiry. Every
     /// renewal operation separately binds the original policy, journal and intent.
@@ -257,7 +278,7 @@ impl DeviceEnrollment {
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let original = self.original_device(&image, now).await?;
         let Phase::Accepted {
             admission,
@@ -352,7 +373,12 @@ impl DeviceEnrollment {
             }
             if coord.terminal == Some(Terminal::Applied) {
                 let p = coord.intent.proposal()?;
-                if p.policy_continuation() != adopted.as_ref().map(|t| t.statement_digest()) {
+                if p.policy_continuation() != adopted.as_ref().map(|t| t.statement_digest())
+                    || p.policy_renewal()
+                        != self
+                            .completed_policy_approval(image)?
+                            .map(|p| p.statement_digest())
+                {
                     return Err(DurableError::Conflict);
                 }
             }
@@ -378,7 +404,7 @@ impl DeviceEnrollment {
         now: u64,
         proposal: WitnessedCredentialIntent,
     ) -> Result<PersistedRenewalTerminal, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         self.witness_scope(&image, policy, now).await?;
         let coord = image
             .renewal
@@ -391,6 +417,9 @@ impl DeviceEnrollment {
         }
         Ok(PersistedRenewalTerminal {
             intent: proposal,
+            independent_policy: self
+                .completed_policy_approval(&image)?
+                .map(|p| p.statement_digest()),
             state: coord.terminal.ok_or(DurableError::Conflict)?.state(),
             completed: image.renewal.as_ref().and_then(|r| r.completed.clone()),
             adopted_policy: image
@@ -487,10 +516,14 @@ impl DeviceEnrollment {
             };
             Self::check_policy_scope(t, original, admission)?;
         }
+        let independent = self
+            .completed_policy_approval(image)?
+            .map(|p| p.statement_digest());
         match intent {
             WitnessedCredentialIntent::Proposal(p)
                 if p.statement() == grant.statement_digest()
                     && p.policy_continuation() == policy.as_ref().map(|t| t.statement_digest())
+                    && p.policy_renewal() == independent
                     && p.adopts_policy() == pending.continuation.is_some() =>
             {
                 Ok(())
@@ -498,6 +531,7 @@ impl DeviceEnrollment {
             WitnessedCredentialIntent::Cancellation(c)
                 if c.statement() == grant.statement_digest()
                     && c.policy_continuation() == policy.as_ref().map(|t| t.statement_digest())
+                    && c.policy_renewal() == independent
                     && c.adopts_policy() == pending.continuation.is_some() =>
             {
                 Ok(())
@@ -541,7 +575,7 @@ impl DeviceEnrollment {
         policy: &crate::HistoricalSessionPolicy,
         now: u64,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, policy, now).await?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         let coordination = renewal
@@ -596,7 +630,7 @@ impl DeviceEnrollment {
             }
             _ => return Err(DurableError::Conflict),
         }
-        let readback = self.image_without_policy_renewal()?;
+        let readback = self.image_for_witnessed_credential()?;
         self.witness_scope(&readback, policy, now).await?;
         let saved = readback
             .renewal
@@ -621,8 +655,10 @@ impl DeviceEnrollment {
         self.prepare_witnessed_policy_continuation(policy.historical(), policy, now, client)
             .await
     }
-    /// Seal the original staged G/T target, or a G target retaining the adopted T.
-    /// P0 authenticates the installation and P1 admits the new credential. This
+    /// Seal the original staged G/T target, or G retaining an adopted T or independent P.
+    /// An independent P requires its original enrollment completion and a distinct
+    /// proposal binding; it is never re-adopted as T. P0 authenticates the installation,
+    /// and the current policy admits the new credential. This
     /// returns only an exact proposal for independent witness approval, no owner.
     pub async fn prepare_witnessed_policy_continuation(
         &mut self,
@@ -646,7 +682,7 @@ impl DeviceEnrollment {
         now: u64,
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, original_policy, now).await?;
         let grant = self.pending_grant(&image, &original, original_policy)?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
@@ -684,6 +720,16 @@ impl DeviceEnrollment {
                     .await?;
                 let authority =
                     RetainedInstallationAuthority::active_installation(&original, original_policy);
+                let independent = self.completed_policy_approval(&image)?;
+                if let Some(completion) = if independent.is_some() {
+                    self.policy_enrollment_completion(&image, original_policy)?
+                } else {
+                    None
+                } {
+                    journal
+                        .retain_enrollment_policy_completion(completion)
+                        .await?;
+                }
                 journal
                     .prepare_enrollment_renewal(
                         &crate::installation::PolicyScope {
@@ -692,7 +738,7 @@ impl DeviceEnrollment {
                             original_device: &original,
                         },
                         &LocalRenewalTarget {
-                            policy_renewal: None,
+                            policy_renewal: independent.as_ref().map(|p| (p, &original)),
                             grant: &grant,
                             continuation: continuation.as_ref(),
                         },
@@ -745,7 +791,7 @@ impl DeviceEnrollment {
         policy: &crate::HistoricalSessionPolicy,
         now: u64,
     ) -> Result<crate::AnchorCredentialRenewalCancellation, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, policy, now).await?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         if let Some(coord) = renewal.witness.as_ref().and_then(|w| w.coordination) {
@@ -777,6 +823,11 @@ impl DeviceEnrollment {
                 return Err(DurableError::Conflict);
             }
         }
+        let independent = if image.policy_completed.is_some() {
+            self.policy_enrollment_completion(&image, policy)?
+        } else {
+            None
+        };
         let cancellation = self
             .reserve_original_credential_cancellation(
                 &original,
@@ -787,6 +838,7 @@ impl DeviceEnrollment {
                     continuation: continuation.as_ref(),
                     adopts: pending.continuation.is_some(),
                     completed: renewal.completed.as_ref(),
+                    independent: independent.as_deref(),
                 },
             )
             .await?;
@@ -882,7 +934,7 @@ impl DeviceEnrollment {
         now: u64,
         client: &mut AnchorClient,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let coord = image
             .renewal
             .as_ref()
@@ -950,7 +1002,7 @@ impl DeviceEnrollment {
         client: &mut AnchorClient,
         action: RenewalAction<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        let mut image = self.image_without_policy_renewal()?;
+        let mut image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, policy, now).await?;
         client.check_device(&original)?;
         if Some(client.pin().binding()) != policy.anchor_requirement().binding() {
@@ -969,7 +1021,7 @@ impl DeviceEnrollment {
                     return Err(DurableError::Conflict);
                 }
                 self.recover_witnessed_preparation(policy, now).await?;
-                image = self.image_without_policy_renewal()?;
+                image = self.image_for_witnessed_credential()?;
             }
         }
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
@@ -1046,6 +1098,9 @@ impl DeviceEnrollment {
                         .transpose()?;
                     if let Some(t) = continuation.as_ref().or(adopted.as_ref()) {
                         t.check_context_policy(policy, current)?;
+                    } else if let Some(p) = self.completed_policy_approval(&image)? {
+                        p.check_context_policy(policy, current)?;
+                        p.check_renewed_identity(&original, &grant)?;
                     } else if policy.checkpoint() != current.checkpoint() {
                         return Err(DurableError::Conflict);
                     }
@@ -1095,7 +1150,7 @@ impl DeviceEnrollment {
                     });
                     renewal.pending = None;
                     self.save(&image)?;
-                    image = self.image_without_policy_renewal()?;
+                    image = self.image_for_witnessed_credential()?;
                 }
             }
         }
@@ -1145,7 +1200,7 @@ impl DeviceEnrollment {
         now: u64,
         anchor: AnchorClient,
     ) -> Result<EnrolledDevice, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, original_policy, now).await?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Conflict)?;
         if renewal.pending.is_some()

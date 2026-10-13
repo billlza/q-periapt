@@ -64,6 +64,13 @@ impl StoredPolicyRenewal {
             {
                 Ok(b"QPRHST06")
             }
+            Some(grant)
+                if grant.successor_device().credential_digest()
+                    != self.approval.scope().current_credential
+                    && self.phase == ReceiptPhase::AwaitingEnrollment =>
+            {
+                Ok(b"QPRHST09")
+            }
             _ => Err(DurableError::Corrupt),
         }
     }
@@ -107,7 +114,7 @@ impl StoredPolicyRenewal {
             family,
         )
         .map_err(DurableError::InvalidCheckpoint)?;
-        let carried_grant = if matches!(&format_tag, b"QPRHST06" | b"QPRHST08") {
+        let carried_grant = if matches!(&format_tag, b"QPRHST06" | b"QPRHST08" | b"QPRHST09") {
             let length = usize::try_from(u32::from_be_bytes(d.array()?))
                 .map_err(|_| DurableError::Corrupt)?;
             if length > crate::MAX_CREDENTIAL_RENEWAL_BYTES {
@@ -172,6 +179,18 @@ fn credential_precedes_policy(
     }
 }
 
+fn credential_follows_policy(
+    image: &Image,
+    saved: &Stored,
+    retained: &StoredPolicyRenewal,
+) -> bool {
+    matches!(image.protection, Protection::Required { .. })
+        && retained.carried_grant.as_ref().is_some_and(|g| {
+            g.successor_device().credential_digest() != retained.approval.scope().current_credential
+                && saved.local_commit.as_ref() == Some(&LocalRenewalCommit::for_grant(g))
+        })
+}
+
 pub(super) fn adopted<'a>(
     image: &Image,
     saved: &'a Stored,
@@ -183,7 +202,8 @@ pub(super) fn adopted<'a>(
         .ok_or(DurableError::Conflict)?;
     if !completion_acknowledged(image, retained)?
         || (saved.local_commit.is_some()
-            && !credential_precedes_policy(image, saved, &retained.approval))
+            && !credential_precedes_policy(image, saved, &retained.approval)
+            && !credential_follows_policy(image, saved, retained))
     {
         return Err(DurableError::Suspended);
     }
@@ -275,14 +295,13 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
     let s = current.approval.scope();
     let head = saved.roster.checkpoint();
     let supported_protection = match image.protection {
-        Protection::Local => true,
+        Protection::Local => current.format_tag()? != b"QPRHST09",
         Protection::Required { policy, .. } => {
             policy == s.original_policy.digest()
+                && current.phase == ReceiptPhase::AwaitingEnrollment
                 && saved.policy_continuation.is_none()
                 && (s.current_credential == s.original_credential
-                    || current.carried_grant.as_ref().is_some_and(|g| {
-                        g.successor_device().credential_digest() == s.current_credential
-                    }))
+                    || current.carried_grant.is_some())
         }
     };
     if !supported_protection
@@ -307,9 +326,7 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
     if let Some(grant) = &current.carried_grant {
         let device = grant.successor_device();
         let target = device.roster().checkpoint();
-        if (current.phase != ReceiptPhase::Acknowledged
-            && device.credential_digest() != s.current_credential)
-            || grant.original_storage_owner() != image.owner
+        if grant.original_storage_owner() != image.owner
             || grant.original_credential_digest() != s.original_credential
             || grant.policy_digest() != s.original_policy.digest()
             || target.version() > head.version()
@@ -354,7 +371,7 @@ pub(super) fn check_credential_target(
         .as_ref()
         .ok_or(DurableError::Conflict)?;
     if retained.approval.journal_bytes() != approval.journal_bytes()
-        || retained.phase != ReceiptPhase::Acknowledged
+        || !completion_acknowledged(image, retained)?
     {
         return Err(DurableError::Conflict);
     }
@@ -918,8 +935,8 @@ pub(in crate::durable) fn check_enrollment_policy_completion(
     {
         return Err(DurableError::Conflict);
     }
-    let current = credential(image, &saved, original, approval)?;
-    approval.check_credential_lineage(original, current)?;
+    // credential() checks exact P lineage, or the original-root G retained after P.
+    credential(image, &saved, original, approval)?;
     Ok(())
 }
 pub(super) fn witness_admission(

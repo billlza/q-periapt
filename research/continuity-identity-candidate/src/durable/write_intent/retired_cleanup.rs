@@ -132,6 +132,15 @@ impl DeviceJournal {
                 }
                 let transaction = match p.binding {
                     None => Transaction::Ordinary,
+                    Some(BoundTransaction::Credential(RenewalBinding {
+                        operation,
+                        credential,
+                        policy: Some(PolicyIntent::RetainIndependent(policy)),
+                    })) => Transaction::CredentialUnderPolicy {
+                        operation: *operation.as_bytes(),
+                        statement: credential,
+                        policy,
+                    },
                     Some(BoundTransaction::Credential(binding)) => Transaction::Credential {
                         operation: *binding.operation.as_bytes(),
                         statement: binding.credential,

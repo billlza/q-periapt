@@ -46,8 +46,27 @@ pub(super) fn check_credential_renewal_intent(
         return Err(DurableError::Conflict);
     }
     let continuation = match (binding.policy, saved.policy_continuation.as_ref()) {
-        (None, None) => None,
-        (Some(intent), Some(t)) if intent.statement() == t.statement_digest() => {
+        (Some(write_intent::PolicyIntent::RetainIndependent(statement)), None) => {
+            let retained = saved
+                .policy_renewal
+                .as_ref()
+                .ok_or(DurableError::Conflict)?;
+            if retained.format_tag()? != b"QPRHST09"
+                || retained.policy_binding().1 != statement
+                || retained.carried_grant.as_ref().is_none_or(|g| {
+                    g.operation() != binding.operation || g.statement_digest() != binding.credential
+                })
+            {
+                return Err(DurableError::Conflict);
+            }
+            None
+        }
+        (None, None) if saved.policy_renewal.is_none() => None,
+        (Some(intent), Some(t))
+            if !intent.independent()
+                && saved.policy_renewal.is_none()
+                && intent.statement() == t.statement_digest() =>
+        {
             if intent.adopts() {
                 if t.scope().operation != binding.operation {
                     return Err(DurableError::Conflict);
@@ -123,6 +142,16 @@ pub(super) fn check_credential_cancellation(
                 || c.target.version() > previous.roster().checkpoint().version()
         })
     {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+pub(super) fn check_credential_policy_binding(
+    image: &Image,
+    expected: Option<[u8; 32]>,
+) -> Result<(), DurableError> {
+    let saved = get(image, &image.local_account)?;
+    if saved.policy_renewal.as_ref().map(|p| p.policy_binding().1) != expected {
         return Err(DurableError::Conflict);
     }
     Ok(())
@@ -387,7 +416,7 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         tag
     };
     let policy_format_tag = tag;
-    let policy_only = matches!(&tag, b"QPRHST05" | b"QPRHST06" | b"QPRHST08");
+    let policy_only = matches!(&tag, b"QPRHST05" | b"QPRHST06" | b"QPRHST08" | b"QPRHST09");
     let tag = if policy_only {
         decoder.array::<8>()?
     } else {

@@ -7,6 +7,8 @@ use crate::{
     HistoricalSessionPolicy, VerifiedCredentialRenewal,
 };
 
+mod independent_policy;
+
 // Authenticated witness control-plane metadata, independent of the latest G
 // and of the bounded transaction/ACK slot. It is not a client runtime owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -158,6 +160,12 @@ pub(super) enum CredentialRenewalRecord {
     },
 }
 impl CredentialRenewalRecord {
+    pub(super) fn independent_policy(&self) -> Option<[u8; 32]> {
+        match self {
+            Self::Joint(r) => r.proposal.policy_renewal(),
+            Self::GrantClosed { cancellation, .. } => cancellation.policy_renewal(),
+        }
+    }
     pub(super) fn roster_floor(&self) -> u64 {
         match self {
             Self::Joint(record) => record.version,
@@ -318,10 +326,18 @@ impl Entry {
             {
                 return Err(DurableError::Corrupt);
             }
-            if cancellation.policy_continuation() != policy.map(|p| p.statement) {
+            if cancellation
+                .policy_continuation()
+                .or(cancellation.policy_renewal())
+                != policy.map(|p| p.statement)
+            {
                 return Err(DurableError::Corrupt);
             }
             match policy {
+                Some(p)
+                    if cancellation.policy_renewal() == Some(p.statement)
+                        && self.independent_policy.as_ref().and_then(|s| s.current) == Some(*p)
+                        && !cancellation.adopts_policy() => {}
                 None if self.policy_authorization.is_none() && !cancellation.adopts_policy() => {}
                 Some(p)
                     if cancellation.adopts_policy()
@@ -336,7 +352,8 @@ impl Entry {
         }
         if let Some(CredentialRenewalRecord::Joint(record)) = &self.renewal {
             let proposal = &record.proposal;
-            if proposal.policy_continuation() != record.policy.map(|p| p.statement)
+            if proposal.policy_continuation().or(proposal.policy_renewal())
+                != record.policy.map(|p| p.statement)
                 || (record.policy.is_none()
                     && (record.proposal.adopts_policy() || self.policy_authorization.is_some()))
             {
@@ -346,20 +363,27 @@ impl Entry {
                 if !policy.validity.contains(record.validity) {
                     return Err(DurableError::Corrupt);
                 }
-                let valid = match record.phase {
-                    Phase::Prepared if record.proposal.adopts_policy() => {
-                        policy.checkpoint.version() > self.policy_floor
+                let valid = if proposal.policy_renewal().is_some() {
+                    !proposal.adopts_policy()
+                        && self.independent_policy.as_ref().and_then(|s| s.current) == Some(policy)
+                } else {
+                    match record.phase {
+                        Phase::Prepared if record.proposal.adopts_policy() => {
+                            policy.checkpoint.version() > self.policy_floor
+                        }
+                        Phase::Closed if record.proposal.adopts_policy() => {
+                            policy.checkpoint.version() == self.policy_floor
+                        }
+                        Phase::Applied => {
+                            self.policy_authorization == Some(policy)
+                                && self.credential_authorization == Some(proposal.statement())
+                                && (!record.proposal.adopts_policy()
+                                    || self.policy_floor == policy.checkpoint.version())
+                        }
+                        Phase::Prepared | Phase::Closed => {
+                            self.policy_authorization == Some(policy)
+                        }
                     }
-                    Phase::Closed if record.proposal.adopts_policy() => {
-                        policy.checkpoint.version() == self.policy_floor
-                    }
-                    Phase::Applied => {
-                        self.policy_authorization == Some(policy)
-                            && self.credential_authorization == Some(proposal.statement())
-                            && (!record.proposal.adopts_policy()
-                                || self.policy_floor == policy.checkpoint.version())
-                    }
-                    Phase::Prepared | Phase::Closed => self.policy_authorization == Some(policy),
                 };
                 if !valid {
                     return Err(DurableError::Corrupt);
@@ -442,7 +466,10 @@ impl Entry {
                     self.validity = record.validity;
                     self.last = Some(request.command);
                     self.renewal_floor = record.version;
-                    if let Some(policy) = record.policy {
+                    if let Some(policy) = record
+                        .policy
+                        .filter(|_| record.proposal.policy_renewal().is_none())
+                    {
                         self.credential_authorization = Some(record.proposal.statement());
                         self.policy_authorization = Some(policy);
                         if record.proposal.adopts_policy() {
@@ -511,7 +538,10 @@ impl AnchorStore {
         policy: &HistoricalSessionPolicy,
     ) -> Result<(), DurableError> {
         let previous = grant.previous_device();
-        if entry.independent_policy.is_some()
+        if entry
+            .independent_policy
+            .as_ref()
+            .is_some_and(|s| s.pending())
             || entry.independent_roster.is_some()
             || entry.subject != proposal.subject
             || entry.head != proposal.expected
@@ -523,7 +553,10 @@ impl AnchorStore {
                 != enrollment_interval(
                     previous,
                     entry
-                        .policy_authorization
+                        .independent_policy
+                        .as_ref()
+                        .and_then(|s| s.current)
+                        .or(entry.policy_authorization)
                         .map_or(policy.validity(), |p| p.validity),
                 )?
         {
@@ -556,43 +589,53 @@ impl AnchorStore {
         let mut image = self.image()?;
         image.require_live(proposal.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
-        if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
+        if entry.independent_roster.is_some() {
             return Err(DurableError::Conflict);
         }
-        match proposal.policy_continuation() {
-            None => {
-                if continuation.is_some()
-                    || entry.policy_authorization.is_some()
-                    || target_policy.checkpoint() != policy.checkpoint()
-                {
-                    return Err(DurableError::Conflict);
-                }
+        if let Some(statement) = proposal.policy_renewal() {
+            if continuation.is_some() || proposal.adopts_policy() {
+                return Err(DurableError::Conflict);
             }
-            Some(statement) => {
-                let target = target_policy;
-                if let Some(t) = continuation {
-                    t.check_context_policy(policy, target)?;
-                    t.check_credential(grant)?;
-                    if t.statement_digest() != statement
-                        || t.scope().journal.as_bytes() != &proposal.subject.journal
-                        || t.scope().original_owner != proposal.subject.owner
+            record.policy = Some(entry.retained_independent_policy(statement, target_policy)?);
+        } else {
+            if entry.independent_policy.is_some() {
+                return Err(DurableError::Conflict);
+            }
+            match proposal.policy_continuation() {
+                None => {
+                    if continuation.is_some()
+                        || entry.policy_authorization.is_some()
+                        || target_policy.checkpoint() != policy.checkpoint()
                     {
                         return Err(DurableError::Conflict);
                     }
-                    record.policy = Some(PolicyAuthority {
-                        statement,
-                        checkpoint: target.checkpoint(),
-                        validity: target.validity(),
-                    });
-                } else {
-                    let retained = entry.policy_authorization.ok_or(DurableError::Conflict)?;
-                    if retained.statement != statement
-                        || retained.checkpoint != target.checkpoint()
-                        || retained.validity != target.validity()
-                    {
-                        return Err(DurableError::Conflict);
+                }
+                Some(statement) => {
+                    let target = target_policy;
+                    if let Some(t) = continuation {
+                        t.check_context_policy(policy, target)?;
+                        t.check_credential(grant)?;
+                        if t.statement_digest() != statement
+                            || t.scope().journal.as_bytes() != &proposal.subject.journal
+                            || t.scope().original_owner != proposal.subject.owner
+                        {
+                            return Err(DurableError::Conflict);
+                        }
+                        record.policy = Some(PolicyAuthority {
+                            statement,
+                            checkpoint: target.checkpoint(),
+                            validity: target.validity(),
+                        });
+                    } else {
+                        let retained = entry.policy_authorization.ok_or(DurableError::Conflict)?;
+                        if retained.statement != statement
+                            || retained.checkpoint != target.checkpoint()
+                            || retained.validity != target.validity()
+                        {
+                            return Err(DurableError::Conflict);
+                        }
+                        record.policy = Some(retained);
                     }
-                    record.policy = Some(retained);
                 }
             }
         }
@@ -641,6 +684,13 @@ impl AnchorStore {
                     .version();
             }
         }
+        if proposal.policy_renewal().is_some() {
+            entry
+                .independent_policy
+                .as_mut()
+                .ok_or(DurableError::Conflict)?
+                .credential_after = true;
+        }
         entry.renewal = Some(CredentialRenewalRecord::Joint(record));
         self.persist(&mut image)?;
         if let Some((policy, now)) = current {
@@ -662,7 +712,7 @@ impl AnchorStore {
         policy: &impl AsRef<HistoricalSessionPolicy>,
     ) -> Result<AnchorCredentialCancellationState, DurableError> {
         let (grant, policy) = (grant.as_ref(), policy.as_ref());
-        self.close_unprepared_renewal(cancellation, grant, policy, None)
+        self.close_unprepared_renewal(cancellation, grant, policy, None, None)
     }
     /// Close an independently authenticated historical G/T target without
     /// inventing a sealed image. Current policy/runtime permission is unnecessary.
@@ -686,6 +736,7 @@ impl AnchorStore {
             materials.credential,
             materials.original,
             Some((&checked, materials.target)),
+            None,
         )
     }
     /// Close a later G while explicitly retaining the independently adopted T.
@@ -706,6 +757,7 @@ impl AnchorStore {
             grant.as_ref(),
             original,
             Some((retained, policy)),
+            None,
         )
     }
     fn close_unprepared_renewal(
@@ -717,6 +769,7 @@ impl AnchorStore {
             &crate::HistoricalPolicyContinuation,
             &HistoricalSessionPolicy,
         )>,
+        retained_policy: Option<&HistoricalSessionPolicy>,
     ) -> Result<AnchorCredentialCancellationState, DurableError> {
         let scope = RenewalScope::from(&cancellation);
         self.check_renewal_scope(&scope, grant, policy)?;
@@ -725,35 +778,52 @@ impl AnchorStore {
         let mut image = self.image()?;
         image.require_live(cancellation.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
-        if entry.independent_policy.is_some() || entry.independent_roster.is_some() {
+        if entry.independent_roster.is_some() {
             return Err(DurableError::Conflict);
         }
-        let target = match continuation {
-            None if cancellation.policy_continuation().is_none()
-                && entry.policy_authorization.is_none() =>
-            {
-                None
+        let target = if let Some(policy) = retained_policy {
+            if continuation.is_some() || cancellation.adopts_policy() {
+                return Err(DurableError::Conflict);
             }
-            Some((t, target)) => {
-                t.check_context_policy(policy, target)?;
-                if cancellation.policy_continuation() != Some(t.statement_digest())
-                    || t.scope().journal.as_bytes() != &scope.subject.journal
-                    || t.scope().original_owner != scope.subject.owner
+            Some(
+                entry.retained_independent_policy(
+                    cancellation
+                        .policy_renewal()
+                        .ok_or(DurableError::Conflict)?,
+                    policy,
+                )?,
+            )
+        } else {
+            if entry.independent_policy.is_some() || cancellation.policy_renewal().is_some() {
+                return Err(DurableError::Conflict);
+            }
+            match continuation {
+                None if cancellation.policy_continuation().is_none()
+                    && entry.policy_authorization.is_none() =>
                 {
-                    return Err(DurableError::Conflict);
+                    None
                 }
-                if cancellation.adopts_policy() {
-                    t.check_credential(grant)?;
-                } else if t.scope().operation == grant.operation() {
-                    return Err(DurableError::Conflict);
+                Some((t, target)) => {
+                    t.check_context_policy(policy, target)?;
+                    if cancellation.policy_continuation() != Some(t.statement_digest())
+                        || t.scope().journal.as_bytes() != &scope.subject.journal
+                        || t.scope().original_owner != scope.subject.owner
+                    {
+                        return Err(DurableError::Conflict);
+                    }
+                    if cancellation.adopts_policy() {
+                        t.check_credential(grant)?;
+                    } else if t.scope().operation == grant.operation() {
+                        return Err(DurableError::Conflict);
+                    }
+                    Some(PolicyAuthority {
+                        statement: t.statement_digest(),
+                        checkpoint: target.checkpoint(),
+                        validity: target.validity(),
+                    })
                 }
-                Some(PolicyAuthority {
-                    statement: t.statement_digest(),
-                    checkpoint: target.checkpoint(),
-                    validity: target.validity(),
-                })
+                _ => return Err(DurableError::Conflict),
             }
-            _ => return Err(DurableError::Conflict),
         };
         if let Some(record) = &entry.renewal {
             return if matches!(record, CredentialRenewalRecord::GrantClosed {
@@ -797,6 +867,13 @@ impl AnchorStore {
         entry.renewal_floor = version;
         if cancellation.adopts_policy() {
             entry.policy_floor = target.ok_or(DurableError::Conflict)?.checkpoint.version();
+        }
+        if retained_policy.is_some() {
+            entry
+                .independent_policy
+                .as_mut()
+                .ok_or(DurableError::Conflict)?
+                .credential_after = true;
         }
         entry.renewal = Some(CredentialRenewalRecord::GrantClosed {
             cancellation,

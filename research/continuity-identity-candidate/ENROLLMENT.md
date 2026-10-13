@@ -361,10 +361,56 @@ expired recovery without a runtime; successive P after expired-predecessor ACK
 loss; current owner/roster/runtime refusal; and original-session bidirectional
 traffic, one actual rekey, cached message and fanout release fences. These are
 finite same-implementation tests, not physical power-loss, live network/TLS,
-installed-package or independent-protocol qualification. Required-witness roster
-maintenance through enrollment, G/T composition, target-free cancellation,
-foreign bindings and supported-platform installation remain open. macOS
-qualification targets Apple Silicon only.
+installed-package or independent-protocol qualification. They do not cover every
+ordering of roster, G/T/P and authority replacement, or qualify foreign bindings
+and supported-platform installation. The independent-P-then-G extension is
+described below. macOS qualification targets Apple Silicon only.
+
+## Credential renewal after an independent witnessed policy update
+
+After P has an original Applied completion and its witness coordination has
+retired, `stage_credential_renewal` may stage a separately approved G under that
+exact current policy. G still binds the immutable P0/journal/owner; it does not
+adopt P again or create a joint T. A pending policy or unretired witness operation
+must finish first. The original enrollment retains both completions.
+
+The existing two-policy preparation/commit entry points
+`prepare_witnessed_policy_continuation` and
+`commit_witnessed_policy_continuation` carry historical P0 and the independently
+current policy. Preparation attaches the private original P completion to the
+same journal before validating and sealing G. The resulting proposal binds G and
+that exact retained P separately. The trusted witness control plane uses
+`prepare_policy_renewed_credential_renewal`; metadata alone is never approval.
+
+The same original G reconciliation, close, terminal-before-ACK and cleanup path
+applies. `prepare_witnessed_credential_cancellation` can reserve a target-free
+cancellation under the retained P; independent authorization uses
+`close_unprepared_policy_renewed_credential_renewal`. An existing sealed proposal
+cannot be replaced by a cancellation, and Applied cannot be relabelled Closed.
+Once Closed is retired, another independently approved G or P may proceed if its
+actual predecessor and current admission permit it. Closure never revives an
+expired or revoked credential.
+
+`activate_witnessed_policy_renewal` and its established-session variant release
+the original owners only after G has no pending target or coordination. Current
+credential/roster authority comes from the journal's exact signed G and matching
+enrollment receipt; the independent P completion still has to match. Independently
+approved peer grants must also be admitted before bilateral session recovery.
+
+`QPENST18` explicitly wraps required-policy enrollment history carrying a later
+G. Its G coordination distinguishes retained-P proposals/cancellations from joint
+T. `QPRHST09` represents the corresponding required journal history: P remains
+AwaitingEnrollment, with the later real G and its receipt retained separately.
+The local `QPRHST06` and required G-before-P `QPRHST08` formats keep their own
+meaning. Authenticated old-format relabelling is rejected, not migrated in place.
+These remain unpublished candidate formats.
+
+Native regressions exercise complete P/G/P/G cycles, original pending ciphertext
+and bilateral PQ rekey, commit/ACK reply loss, eight actual enrollment-process
+kills, historical recovery, and exact retired reports at three commit cuts. Time
+expiry in these tests uses explicit logical clocks. This is not a claim of
+installed-browser, foreign-binding, physical-device, power-loss, or release
+qualification for the new ordering.
 
 ## Roster maintenance after independent policy renewal
 

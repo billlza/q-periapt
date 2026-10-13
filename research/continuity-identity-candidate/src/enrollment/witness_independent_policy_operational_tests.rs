@@ -344,6 +344,15 @@ fn closing_second_policy_preserves_first_enrollment_completion_and_owner() {
 
 #[test]
 fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under_independent_p() {
+    original_session_after_independent_policy(false);
+}
+#[test]
+fn required_policy_credential_cycle_keeps_bilateral_session_pending_ciphertext_and_pq_rekey() {
+    original_session_after_independent_policy(true);
+}
+fn original_session_after_independent_policy(renew_credentials: bool) {
+    let expiry = if renew_credentials { 199 } else { 159 };
+    let now = if renew_credentials { 185 } else { 155 };
     use crate::enrollment::tests::witness_renewal::policy_transaction::sessions::{
         bundle, endpoint, requirements,
     };
@@ -418,12 +427,70 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
     }
     a.owner.close();
     b.owner.close();
-    let ap = approved_at(&a.f, &a.f.c.policy, 2, 159, 155);
+    let ap = approved_at(&a.f, &a.f.c.policy, 2, expiry, 155);
     let aq = prepared_at(&a.f, &ap, &a.f.c.policy, 155);
     applied_at(&a.f, &ap, aq, 155);
-    let bp = approved_at(&b.f, &b.f.c.policy, 2, 159, 155);
+    let bp = approved_at(&b.f, &b.f.c.policy, 2, expiry, 155);
     let bq = prepared_at(&b.f, &bp, &b.f.c.policy, 155);
     applied_at(&b.f, &bp, bq, 155);
+    if renew_credentials {
+        let ga = super::super::grant(&a.f, &a.f.original, 2, 280);
+        let gb = super::super::grant(&b.f, &b.f.original, 2, 280);
+        for (f, approval, grant) in [(&a.f, &ap, &ga), (&b.f, &bp, &gb)] {
+            let mut owner = open(&f.c);
+            owner
+                .stage_credential_renewal(grant, grant.operation(), &approval.target, 180)
+                .expect("G after independent P");
+            let client = super::super::client(f, &mut owner, 180);
+            let p = owner
+                .prepare_witnessed_policy_continuation(
+                    f.c.policy.historical(),
+                    &approval.target,
+                    180,
+                    client,
+                )
+                .expect("original G target");
+            f.carrier.clock.store(180, Ordering::SeqCst);
+            f.carrier
+                .store
+                .lock()
+                .expect("witness")
+                .prepare_policy_renewed_credential_renewal(
+                    p,
+                    grant,
+                    f.c.policy.historical(),
+                    &approval.target,
+                    180,
+                )
+                .expect("independent G authorization");
+            let mut client = super::super::client(f, &mut owner, 180);
+            owner
+                .commit_witnessed_policy_continuation(
+                    &p,
+                    f.c.policy.historical(),
+                    &approval.target,
+                    180,
+                    &mut client,
+                )
+                .expect("original completed G");
+            owner.close();
+        }
+        a.f.carrier.clock.store(now, Ordering::SeqCst);
+        let mut ao = activate(&a.f, &ap.target, now).expect("current C1 initiator");
+        ao.parts()
+            .expect("owners")
+            .0
+            .admit_peer_credential_renewal(&gb, gb.operation(), &ap.target, now)
+            .expect("independent responder G admission");
+        ao.close();
+        let mut bo = activate(&b.f, &bp.target, now).expect("current C1 responder");
+        bo.parts()
+            .expect("owners")
+            .0
+            .admit_peer_credential_renewal(&ga, ga.operation(), &bp.target, now)
+            .expect("independent initiator G admission");
+        bo.close();
+    }
     let pa = Arc::new(ap.target);
     let pb = Arc::new(bp.target);
     let ri = bundle
@@ -432,7 +499,7 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
             requirements(&a, &b),
             BootstrapRole::Initiator,
             session,
-            155,
+            now,
         )
         .expect("original initiator archive request");
     let rr = bundle
@@ -441,19 +508,19 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
             requirements(&a, &b),
             BootstrapRole::Responder,
             session,
-            155,
+            now,
         )
         .expect("original responder archive request");
     let mut owner = open(&a.f.c);
     let client = policy_client(&a.f, &mut owner);
     let (ao, pi) = owner
-        .activate_witnessed_policy_renewed_session(ri, Arc::clone(&pa), 155, client)
+        .activate_witnessed_policy_renewed_session(ri, Arc::clone(&pa), now, client)
         .expect("owning initiator reopen");
     a.owner = ao;
     let mut owner = open(&b.f.c);
     let client = policy_client(&b.f, &mut owner);
     let (bo, pr) = owner
-        .activate_witnessed_policy_renewed_session(rr, Arc::clone(&pb), 155, client)
+        .activate_witnessed_policy_renewed_session(rr, Arc::clone(&pb), now, client)
         .expect("owning responder reopen");
     b.owner = bo;
     let (is, ik, _) = a.owner.parts().expect("original owners");
@@ -461,18 +528,18 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
     let ij = is.stores().expect("stores").0;
     let rj = rs.stores().expect("stores").0;
     assert_eq!(
-        ij.resume_message(pi.context(), session, old_id, 155)
+        ij.resume_message(pi.context(), session, old_id, now)
             .expect("original outbox"),
         old_wire
     );
     assert_eq!(
-        rj.receive_message(pr.context(), session, &old_wire, b"old", 155)
+        rj.receive_message(pr.context(), session, &old_wire, b"old", now)
             .expect("decrypt old ciphertext")
             .as_bytes(),
         b"original ciphertext"
     );
     let id = ij
-        .next_message_id(pi.context(), session, 155)
+        .next_message_id(pi.context(), session, now)
         .expect("new original-session message");
     let wire = ij
         .send_message(
@@ -481,28 +548,28 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
             id,
             b"independent P traffic",
             b"new",
-            155,
+            now,
         )
         .expect("new traffic");
     assert_eq!(
-        rj.receive_message(pr.context(), session, &wire, b"new", 155)
+        rj.receive_message(pr.context(), session, &wire, b"new", now)
             .expect("actual peer decryption")
             .as_bytes(),
         b"independent P traffic"
     );
     let offer = ij
-        .prepare_rekey_offer(pi.context(), session, ik, 155)
+        .prepare_rekey_offer(pi.context(), session, ik, now)
         .expect("PQ offer");
     let response = rj
-        .respond_rekey_offer(pr.context(), session, &offer, rk, 155)
+        .respond_rekey_offer(pr.context(), session, &offer, rk, now)
         .expect("PQ response");
     let final_msg = ij
-        .accept_rekey_response(pi.context(), session, &response, ik, 155)
+        .accept_rekey_response(pi.context(), session, &response, ik, now)
         .expect("PQ final");
     let receipt = rj
-        .finish_rekey(pr.context(), session, &final_msg, rk, 155)
+        .finish_rekey(pr.context(), session, &final_msg, rk, now)
         .expect("PQ receipt");
-    ij.accept_rekey_receipt(pi.context(), session, &receipt, 155)
+    ij.accept_rekey_receipt(pi.context(), session, &receipt, now)
         .expect("confirmed epoch");
     assert_eq!(
         ij.rekey_progress(pi.context(), session)
@@ -517,21 +584,21 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
         1
     );
     let id = rj
-        .next_message_id(pr.context(), session, 155)
+        .next_message_id(pr.context(), session, now)
         .expect("peer ID");
     let wire = rj
-        .send_message(pr.context(), session, id, b"new epoch", b"epoch", 155)
+        .send_message(pr.context(), session, id, b"new epoch", b"epoch", now)
         .expect("reverse direction");
     assert_eq!(
-        ij.receive_message(pi.context(), session, &wire, b"epoch", 155)
+        ij.receive_message(pi.context(), session, &wire, b"epoch", now)
             .expect("decrypt new epoch")
             .as_bytes(),
         b"new epoch"
     );
     let cached = ij
-        .next_message_id(pi.context(), session, 155)
+        .next_message_id(pi.context(), session, now)
         .expect("cached ID");
-    ij.send_message(pi.context(), session, cached, b"cached", b"cache", 155)
+    ij.send_message(pi.context(), session, cached, b"cached", b"cache", now)
         .expect("cached individual");
     let batch = rj.next_fanout_id().expect("batch");
     let targets = [FanoutTarget {
@@ -550,19 +617,19 @@ fn original_required_session_exchanges_rekeys_and_fences_cached_ciphertext_under
     )
     .expect("real account fanout");
     // Current SDK time alone is insufficient: witness time independently expires P.
-    a.f.carrier.clock.store(159, Ordering::SeqCst);
+    a.f.carrier.clock.store(expiry, Ordering::SeqCst);
     assert!(
-        matches!(ij.resume_message(pi.context(), session, cached, 155), Err(DurableError::Anchor(e)) if matches!(*e, crate::AnchorClientError::AuthorityDenied)),
+        matches!(ij.resume_message(pi.context(), session, cached, now), Err(DurableError::Anchor(e)) if matches!(*e, crate::AnchorClientError::AuthorityDenied)),
         "cached ciphertext needs fresh P admission"
     );
     assert!(
-        matches!(rj.resume_account_message(batch, &targets, 155), Err(DurableError::Anchor(e)) if matches!(*e, crate::AnchorClientError::AuthorityDenied)),
+        matches!(rj.resume_account_message(batch, &targets, now), Err(DurableError::Anchor(e)) if matches!(*e, crate::AnchorClientError::AuthorityDenied)),
         "cached fanout needs fresh P admission"
     );
     a.owner.close();
     b.owner.close();
     // Reopen metadata independently; a new operational owner still cannot pass the witness.
-    assert!(activate(&a.f, &pa, 155).is_err());
+    assert!(activate(&a.f, &pa, now).is_err());
     assert_eq!(
         open(&a.f.c)
             .policy_renewal_status()

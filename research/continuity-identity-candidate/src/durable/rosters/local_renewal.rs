@@ -51,7 +51,7 @@ impl<'a> LocalRenewalTarget<'a> {
             return Err(DurableError::Conflict);
         }
         if let Some((approval, original)) = self.policy_renewal {
-            if self.continuation.is_some() || image.protection != Protection::Local {
+            if self.continuation.is_some() {
                 return Err(DurableError::Conflict);
             }
             super::policy_renewal::check_credential_target(
@@ -286,13 +286,19 @@ impl DeviceJournal {
         self.check_release(&image).await?;
         crate::installation::admit(grant.successor_device(), policy, now)?;
         let updated = target.advance(saved)?;
-        let policy_intent = updated.policy_continuation.as_ref().map(|t| {
-            if target.continuation.is_some() {
-                write_intent::PolicyIntent::Adopt(t.statement_digest())
-            } else {
-                write_intent::PolicyIntent::Retain(t.statement_digest())
-            }
-        });
+        let policy_intent = if let Some((approval, _)) = target.policy_renewal {
+            Some(write_intent::PolicyIntent::RetainIndependent(
+                approval.statement_digest(),
+            ))
+        } else {
+            updated.policy_continuation.as_ref().map(|t| {
+                if target.continuation.is_some() {
+                    write_intent::PolicyIntent::Adopt(t.statement_digest())
+                } else {
+                    write_intent::PolicyIntent::Retain(t.statement_digest())
+                }
+            })
+        };
         image
             .records
             .insert(id(&image.local_account), updated.record()?);

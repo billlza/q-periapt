@@ -108,10 +108,10 @@ class RetirementEvidenceTests(unittest.TestCase):
             root = Path(folder) / 'source'; fixture(root)
             paths = [root / 'retirement-host-report', root / 'retirement-host-report-verified']
             body = paths[0].read_bytes()[8:]
-            for tag in (b'QPRDMD01', b'QPRDMD02'):
+            for tag in (b'QPRDMD01', b'QPRDMD02', b'QPRDMD03'):
                 for path in paths: path.write_bytes(tag + body)
                 retirement.verify(root)
-            for path in paths: path.write_bytes(b'QPRDMD03' + body)
+            for path in paths: path.write_bytes(b'QPRDMD04' + body)
             with self.assertRaises(ValueError): retirement.verify(root)
 
     def test_successor_sequence_requires_all_distinct_processes(self):

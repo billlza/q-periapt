@@ -38,7 +38,7 @@ impl DeviceEnrollment {
             .open_database(self.paths.installation.files()[1])
             .await?;
         let key = self.key().await?;
-        if target.continuation.is_some() {
+        if target.continuation.is_some() || target.independent.is_some() {
             DeviceJournal::reserve_bound_cancellation_in_database(
                 &db, &key, original, policy, id, target,
             )

@@ -275,3 +275,23 @@ sync failures, checking the original typed I/O source. Eight actual process kill
 reopen original enrollment, journal and witness databases after expiry without
 constructing a live runtime. These counts are distinct from the reservation and
 installation matrix above.
+
+
+## G retaining an independently completed P
+
+`QPWINT08` carries G operation/statement, mode byte zero and the exact retained
+independent-P statement before the usual journal write fields. Its sealed-target
+prefix is 253 bytes. It is distinct from `QPWINT04` joint-T metadata. Decode
+requires the matching `QPRHST09` target, actual signed G, original owner/policy and
+exact G receipt; changing only the intent tag cannot reinterpret another order.
+
+`QPWINT09` is the target-free equivalent: the original local account, canonical
+`QPCRNC03` cancellation and the existing MAC (353 bytes total). It has no target
+image. Its original-enrollment P completion and the actual unchanged journal
+predecessor are checked before reservation. The private G terminal, journal P
+binding and complete retained intent must agree before witness ACK or removal.
+
+Retirement projects a pending retained-P G as `CredentialUnderPolicy`, distinct
+from a joint-T adoption/carry. Such a write, or a retained-P cancellation, selects
+`QPRDMD03`. Report capture authenticates and preserves the original source/target
+images; it cannot apply the pending write or classify an unknown commit as closed.

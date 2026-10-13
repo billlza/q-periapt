@@ -13,12 +13,16 @@ const MAX_BOUND_BINDING_BYTES: usize = crate::RosterRefreshScope::ENCODED_BYTES;
 pub(super) enum PolicyIntent {
     Adopt([u8; 32]),
     Retain([u8; 32]),
+    RetainIndependent([u8; 32]),
 }
 impl PolicyIntent {
     pub(super) fn statement(self) -> [u8; 32] {
         match self {
-            Self::Adopt(s) | Self::Retain(s) => s,
+            Self::Adopt(s) | Self::Retain(s) | Self::RetainIndependent(s) => s,
         }
+    }
+    pub(super) fn independent(self) -> bool {
+        matches!(self, Self::RetainIndependent(_))
     }
     pub(super) fn adopts(self) -> bool {
         matches!(self, Self::Adopt(_))
@@ -124,6 +128,11 @@ impl PendingWrite {
         let mut wire = match binding {
             Some(BoundTransaction::Roster(_)) => b"QPWINT07".to_vec(),
             Some(BoundTransaction::Policy(_)) => b"QPWINT06".to_vec(),
+            Some(BoundTransaction::Credential(r))
+                if r.policy.is_some_and(PolicyIntent::independent) =>
+            {
+                b"QPWINT08".to_vec()
+            }
             Some(BoundTransaction::Credential(r)) if r.policy.is_some() => b"QPWINT04".to_vec(),
             Some(BoundTransaction::Credential(_)) => b"QPWINT02".to_vec(),
             None => b"QPWINT01".to_vec(),
@@ -200,17 +209,18 @@ impl PendingWrite {
                     statement,
                 }))
             }
-            tag if tag == *b"QPWINT02" || tag == *b"QPWINT04" => {
+            tag if matches!(&tag, b"QPWINT02" | b"QPWINT04" | b"QPWINT08") => {
                 let operation = crate::CredentialRenewalId::from_trusted_state(d.array()?)?;
                 let credential = d.array()?;
                 crate::codec::nonzero(&credential)?;
-                let policy = if tag == *b"QPWINT04" {
+                let policy = if tag != *b"QPWINT02" {
                     let [mode] = d.array()?;
                     let statement = d.array()?;
                     crate::codec::nonzero(&statement)?;
                     Some(match mode {
+                        0 if tag == *b"QPWINT08" => PolicyIntent::RetainIndependent(statement),
                         0 => PolicyIntent::Retain(statement),
-                        1 => PolicyIntent::Adopt(statement),
+                        1 if tag == *b"QPWINT04" => PolicyIntent::Adopt(statement),
                         _ => return Err(DurableError::Corrupt),
                     })
                 } else {
@@ -313,6 +323,9 @@ impl PendingWrite {
             crate::AnchorHead::from_trusted_state(fence, self.next_revision, self.next_digest)?,
         )?;
         Ok(match binding.policy {
+            Some(PolicyIntent::RetainIndependent(statement)) => {
+                proposal.bind_independent_policy_expectation(statement)?
+            }
             Some(policy) => {
                 proposal.bind_policy_expectation(policy.statement(), policy.adopts())?
             }
@@ -392,7 +405,10 @@ fn load_pending_snapshot(
     }
     let pending = pending
         .map(|bytes| {
-            if bytes.value().starts_with(b"QPWINT03") || bytes.value().starts_with(b"QPWINT05") {
+            if bytes.value().starts_with(b"QPWINT03")
+                || bytes.value().starts_with(b"QPWINT05")
+                || bytes.value().starts_with(b"QPWINT09")
+            {
                 PendingCancellation::decode(key, bytes.value()).map(PendingIntent::Cancellation)
             } else {
                 PendingWrite::decode(key, owner, image.id, bytes.value()).map(PendingIntent::Write)
@@ -760,6 +776,10 @@ impl DeviceJournal {
             }
         }
         rosters::check_terminal_completion(&image, adopted_policy, terminal.completed())?;
+        if proposal.policy_renewal() != terminal.policy_renewal() {
+            return Err(DurableError::Conflict);
+        }
+        rosters::check_credential_policy_binding(&image, terminal.policy_renewal())?;
         client.check_device(original)?;
         policy.check_external_signer(client.pin().public_key())?;
         if client
