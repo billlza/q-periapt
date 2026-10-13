@@ -28,6 +28,7 @@ import { QPeriaptContinuityDevice, QPeriaptContinuityEnrollment,
   QPeriaptContinuityPolicy, QPeriaptContinuityAccountTrust,
   QPeriaptContinuityWitness, QPeriaptContinuityPrekeyKind, QPeriaptContinuityPhase,
   QPeriaptContinuityPublicationPlan, QPeriaptContinuityPublicationPhase,
+  QPeriaptContinuityPrekeyStatus,
   type QPeriaptContinuityError } from 'q-periapt-sdk-wasm/web';
 async function continuityDevice() {
   const intent = new QPeriaptContinuityEnrollment(data, data, 1n, data, 1n, 100n);
@@ -83,6 +84,9 @@ async function continuityDevice() {
     const intentDigest: Uint8Array = publication.intent_digest();
     const artifactDigest: Uint8Array = publication.artifact_digest();
     (await device.retire_publication(id, artifactDigest)).free();
+    const inventory: QPeriaptContinuityPrekeyStatus = await device.prekey_status(policy, members[0]!);
+    const retired: QPeriaptContinuityPrekeyStatus = await device.retire_prekey(policy, members[0]!);
+    void inventory; void retired;
     publication.free(); plan.free();
     void capacity; void publicationPhase; void originalIntent; void originalArtifact;
     void originalManifest; void publicBytes; void members; void originalId; void intentDigest;

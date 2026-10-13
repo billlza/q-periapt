@@ -6,7 +6,8 @@ export default function initialize(): Promise<void>;
 
 export { QPeriaptContinuityEnrollment, QPeriaptContinuityDevice, QPeriaptContinuityPolicy,
   QPeriaptContinuityAccountTrust, QPeriaptContinuityWitness,
-  QPeriaptContinuityPreparation, QPeriaptContinuityPrekeyKind } from './q_periapt_sdk_wasm.js';
+  QPeriaptContinuityPreparation, QPeriaptContinuityPrekeyKind,
+  QPeriaptContinuityPrekeyStatus } from './q_periapt_sdk_wasm.js';
 
 export { QPeriaptContinuityPhase, QPeriaptContinuityStatus, QPeriaptContinuityCheckpoint,
   QPeriaptContinuityRosterRefresh, QPeriaptContinuityRosterOutcome } from './q_periapt_sdk_wasm.js';

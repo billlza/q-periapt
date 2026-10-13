@@ -3,7 +3,7 @@
 use crate::{
     storage::Storage, AccountPin, AnchorClient, AnchorPin, AnchorTransport, Cancellation,
     DeviceEnrollment, DurableError, EnrolledDevice, Error, InstallationPreparation,
-    JournalIdentity, LeafKind, PrekeyId, Validity, VerifiedSessionPolicy,
+    JournalIdentity, VerifiedSessionPolicy,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -11,6 +11,7 @@ use std::{
 };
 use wasm_bindgen::JsValue;
 mod errors;
+mod inventory;
 mod opening;
 mod publication;
 pub use errors::{failure, input_failure};
@@ -127,33 +128,6 @@ impl BrowserDevice {
         let journal = active.parts()?.0.stores()?.0.identity()?;
         op.state = Some(State::Active(active));
         Ok(journal)
-    }
-    /// Generate/recover an original public prekey through the controlled SDK owner.
-    /// This does not advertise a key or establish a remote publication receipt.
-    pub async fn generate_prekey(
-        &self,
-        policy: &VerifiedSessionPolicy,
-        id: PrekeyId,
-        kind: LeafKind,
-        validity: Validity,
-        now: u64,
-    ) -> Result<Vec<u8>, JsValue> {
-        let mut op = self.operation()?;
-        let result = async {
-            let Some(State::Active(active)) = op.state.as_mut() else {
-                return Err(Error::State.into());
-            };
-            let (service, _, device) = active.parts()?;
-            Ok(service
-                .stores()?
-                .0
-                .generate_prekey(policy, device, id, kind, validity, now)
-                .await?
-                .public_key()
-                .to_vec())
-        }
-        .await;
-        op.finish(result).await
     }
     /// Close descendants, cancel pending transports, and await real storage release.
     pub async fn close(&self) -> Result<(), JsValue> {

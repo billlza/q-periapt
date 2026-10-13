@@ -30,7 +30,7 @@ export async function runAcceptance(mode, realm) {
     const sdk = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/index.js`);
     const { QPeriaptExpert } = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/expert.js`);
     check(Object.keys(sdk).sort().join(',') === ['QPeriaptContinuityAccountTrust', 'QPeriaptContinuityCheckpoint', 'QPeriaptContinuityDevice', 'QPeriaptContinuityEnrollment',
-      'QPeriaptContinuityPhase', 'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPreparation',
+      'QPeriaptContinuityPhase', 'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPrekeyStatus', 'QPeriaptContinuityPreparation',
       'QPeriaptContinuityPreparedPublication', 'QPeriaptContinuityPublicationPhase',
       'QPeriaptContinuityPublicationPlan', 'QPeriaptContinuityPublicationStatus',
       'QPeriaptContinuityRosterOutcome', 'QPeriaptContinuityRosterRefresh', 'QPeriaptContinuityStatus',

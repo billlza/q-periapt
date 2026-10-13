@@ -2,7 +2,7 @@
 use super::*;
 use crate::{
     codec::Decoder, DeviceDescription, EnrollmentIntent, EnrollmentPaths, InstallationPaths,
-    PublicKey,
+    PublicKey, Validity,
 };
 use std::path::Path;
 fn intent(root: &[u8], description: &[u8]) -> Result<(EnrollmentIntent, Vec<u8>), DurableError> {

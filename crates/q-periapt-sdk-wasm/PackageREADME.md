@@ -167,6 +167,15 @@ Use the returned `bytes()` as the public distribution artifact only after a
 successful preparation; no private key or general signing handle is exported.
 Prepared establishes no remote publication receipt or directory freshness.
 
+`prekey_status(policy, requestId)` observes the exact original inventory request:
+Absent, Reserved, Available, Consumed, Abandoned or Retired. `retire_prekey` removes
+the logical key-recovery command while retaining terminal consumption/retirement
+states; a pending response still blocks retirement. These maintenance operations
+can use the held policy after its runtime is closed and never grant fresh traffic
+authority. Retiring a public advertisement does not retire its inventory, and
+retiring inventory does not retract already distributed public bytes or establish
+physical/backup erasure.
+
 Connections, root/roster lifecycle and migration still require final browser API
 integration. The protocol and package remain prerelease candidates.
 
