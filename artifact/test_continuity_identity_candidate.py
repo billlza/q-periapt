@@ -1,4 +1,4 @@
-"""Keep the actual-signature research candidate out of the SDK dependency graph."""
+"""Keep candidate authority isolated except for the explicit private browser owner."""
 
 import json
 from pathlib import Path
@@ -6,6 +6,7 @@ import tomllib
 import unittest
 
 from artifact.bounded_process import capture_output
+from rust_sdk_profile import classify, validate_browser_candidate_dependency
 
 ROOT = Path(__file__).resolve().parents[1]
 CANDIDATE = ROOT / "research/continuity-identity-candidate"
@@ -41,16 +42,29 @@ class ContinuityIdentityIsolationTests(unittest.TestCase):
         lock = tomllib.loads((CANDIDATE / "Cargo.lock").read_text())
         self.assertIn(NAME, {package["name"] for package in lock["package"]})
 
-    def test_sdk_members_cannot_acquire_candidate_authority(self):
+    def test_only_the_private_browser_owner_can_compose_candidate_authority(self):
         sdk = metadata(ROOT / "Cargo.toml")
+        classify(sdk)
+        edges = []
         for package in sdk["packages"]:
             self.assertNotEqual(package["name"], NAME)
             for dependency in package["dependencies"]:
-                self.assertNotEqual(dependency["name"], NAME)
+                if dependency["name"] == NAME:
+                    validate_browser_candidate_dependency(package["name"], dependency)
+                    self.assertEqual(package["publish"], [])
+                    self.assertEqual(package["features"], {"browser-continuity": [
+                        "dep:q-periapt-continuity-identity-candidate", "dep:wasm-bindgen-futures",
+                    ]})
+                    edges.append(package["name"])
+                    continue
                 if dependency.get("path"):
                     self.assertNotEqual(Path(dependency["path"]).resolve(), CANDIDATE)
         lock = tomllib.loads((ROOT / "Cargo.lock").read_text())
-        self.assertNotIn(NAME, {package["name"] for package in lock["package"]})
+        self.assertEqual(edges, ["q-periapt-sdk-wasm"])
+        candidate, = [package for package in lock["package"] if package["name"] == NAME]
+        self.assertEqual(candidate["version"], "0.0.0")
+        self.assertNotIn("source", candidate)
+        self.assertNotIn("checksum", candidate)
 
 
 if __name__ == "__main__":

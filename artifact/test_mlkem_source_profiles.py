@@ -129,7 +129,17 @@ class MlKemSourceProfilesTests(unittest.TestCase):
                     for key in ("dependencies", "dev-dependencies", "build-dependencies"):
                         for name, dependency in section.get(key, {}).items():
                             if name.startswith("q-periapt-"):
-                                self.assertEqual(dependency["version"], "=" + SDK_VERSION)
+                                if name == "q-periapt-continuity-identity-candidate":
+                                    self.assertEqual(manifest["package"]["name"], "q-periapt-sdk-wasm")
+                                    self.assertIs(manifest["package"]["publish"], False)
+                                    self.assertIs(section, manifest["target"]['cfg(all(target_arch = "wasm32", target_os = "unknown"))'])
+                                    self.assertEqual(key, "dependencies")
+                                    self.assertEqual(dependency, {
+                                        "version": "=0.0.0", "optional": True,
+                                        "path": "../../research/continuity-identity-candidate",
+                                    })
+                                else:
+                                    self.assertEqual(dependency["version"], "=" + SDK_VERSION)
         # Independent workspaces have their own package versions and lockfiles,
         # but their path dependencies still resolve these workspace packages.
         for relative in ("Cargo.lock", "fuzz/Cargo.lock", "research/hqc-fips207-candidate/Cargo.lock"):
