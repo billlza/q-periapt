@@ -247,6 +247,27 @@ change the local account; local-account updates use the original workflow below.
 Retain the original bootstrap bundle/pins for historical session reconstruction;
 they do not replace explicit admission of newly received peer rosters.
 
+Credential issuer preparation uses the original registration owner and
+`QPeriaptContinuityHistoricalPolicy`. Retain a fresh
+`QPeriaptContinuityCredentialRequest.new_operation_id()` before dispatch. Use
+`credential_renewal_request(id, originalPolicy)` for signed local protection or
+`witnessed_credential_renewal_request(id, originalPolicy, witness)` for required
+witnesses; neither route silently changes the protection profile. Close/free an
+operational owner and reopen the original registration before this maintenance.
+
+The returned public request exposes the original journal/owner, exact original
+and previous credential/roster bytes, predecessor checkpoint/validity, original
+policy digest and actual adopted policy checkpoint/authorization. These are
+historical issuer materials, including after expiry, not live credentials or a
+reservation. Retain the complete request for issuer deduplication. The issuer
+must independently authenticate/authorize the account, select trusted roots and
+checkpoints, serialize roster versions and preserve its exact grant. Do not build
+trust pins from an incoming request or treat it as user authentication. Required
+witnesses are contacted through the controlled original signer, which is never
+exported. Pending maintenance, unacknowledged completion and reused terminal G
+identities are refused. This request API does not stage/commit a credential grant
+or activate renewed traffic; those original renewal bindings remain separate work.
+
 `refresh_local_roster` retains an independently pinned, signed target and requires
 local protection. Required-witness policy is refused before this path changes state.
 `resolve_local_roster_refresh` reconciles an original predecessor/target pair and

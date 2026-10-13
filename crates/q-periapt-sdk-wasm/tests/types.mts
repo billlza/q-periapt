@@ -162,3 +162,21 @@ async function rosterMaintenance(device: QPeriaptContinuityDevice,
   void stage; void applied; void reconciled; void closed;
 }
 void rosterMaintenance;
+
+import {QPeriaptContinuityCredentialRequest} from 'q-periapt-sdk-wasm/web';
+async function credentialRequest(device: QPeriaptContinuityDevice,
+    original: QPeriaptContinuityHistoricalPolicy, witness: QPeriaptContinuityWitness) {
+  const id = QPeriaptContinuityCredentialRequest.new_operation_id();
+  const request = await device.witnessed_credential_renewal_request(id, original, witness);
+  const operation: Uint8Array = request.operation_id();
+  const version: bigint = request.previous_roster_version();
+  const authorization: Uint8Array | undefined = request.current_policy_authorization();
+  request.original_credential(); request.original_roster(); request.previous_credential(); request.previous_roster();
+  request.original_owner(); request.journal(); request.original_policy_digest();
+  request.original_roster_version(); request.original_roster_digest(); request.previous_roster_digest();
+  request.previous_valid_from(); request.previous_valid_until(); request.current_policy_version(); request.current_policy_digest();
+  request.free();
+  const local = await device.credential_renewal_request(id, original); local.free();
+  void operation; void version; void authorization;
+}
+void credentialRequest;

@@ -9,6 +9,8 @@ use std::{
     sync::{atomic::AtomicU64, Mutex},
     time::Instant,
 };
+#[path = "witness_credential_request_tests.rs"]
+mod credential_request;
 #[path = "managed_renewal_tests.rs"]
 mod managed;
 #[path = "witness_policy_transaction_tests.rs"]

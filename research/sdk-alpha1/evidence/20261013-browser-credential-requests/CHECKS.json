@@ -1,0 +1,68 @@
+{
+  "capture": {
+    "bytes": 3303509,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "d723c6e314a6eb688e6e4b536d823e36d5b4555178611bcc5d8b717a740f9e0e",
+    "members": 1418,
+    "sha256": "f7fa72d29fb41af3688fc369e4fd2f2e0def69806041e615d3aae89b19b5a573"
+  },
+  "case_count": 7,
+  "cases": [
+    "cancel",
+    "expired-required",
+    "local",
+    "no-local-fallback",
+    "read-loss",
+    "required",
+    "wrong-witness"
+  ],
+  "completed": true,
+  "package": {
+    "manifest_sha256": "b2c70c3506c65454bea1cc0ce02ca2de2d611b079e6548846170eec98d727478",
+    "sha256": "a18ed23293a56217f986e7471f4198be6efc459f37fa9089096366751399d71c",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "real_expiry": {
+    "activated_at": 1791899929,
+    "request_at": 1791900003,
+    "valid_until": 1791900001
+  },
+  "release_claim_eligible": false,
+  "scope": "Public original credential-renewal requests through installed browser/IndexedDB/OPFS and required signed witness; independently retained native issuer pins sign and verify real G. Same Rust engine, loopback. No browser G staging/commit/recovery/activation, independent protocol implementation, device/performance/PCS or release qualification.",
+  "source": {
+    "base_commit": "cdb847cc6352c791b06b49c2f4a3f2fbf74311a7",
+    "overlay": {
+      "ARTIFACT.md": "255f1e1e2c5f20a9007d26dddeecfd50555a8da29a5bf52d5a60f5474f359e6a",
+      "artifact/codeql_rust_quality.py": "7947220b2ac96e4b5bb3e6e642dc56d064e04d8ed18d1d36e9bf9ae90b7446ba",
+      "artifact/test_codeql_rust_quality.py": "f41de8732589745fe1c3d2482817ff06b42fb1c3097630466eba8701326aaabd",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "974c4af1feef7e39c35b22f99913b53e1f5e489ec9218963bfc373778a05fa13",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "1b5e888750787ebf0a4b275ff44517afcba2245137ff7d359b4eedddcb0db368",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "1f39cb38a7a2a8c32984a6d4b2a081072ae9d756cf30c86cc0d63f1103cd79b3",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "f6886800e0b55569519ac004827bc411f43feebeb4115344d5771f792560fcb0",
+      "crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs": "e0a92f317284ca70a422b39bdebd22785a62b6030d894877ac5bdfcab7db9707",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "dbf90c27459c759d0e375d26565de78de5a1ef3355316571d81ace0cc52a4a65",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "88fdfcc0ecfdc5003cacf95436bab5bdf0d75518035ff1a1c65c6c8c1335341e",
+      "research/continuity-identity-candidate/src/browser.rs": "181367f5a0b80045d2949b5a82a2ff54fccdc59237535eb2fc45c218c9ae7fa0",
+      "research/continuity-identity-candidate/src/browser/credential_requests.rs": "0d301b9e2e882723a8f17c9a5c2fbe1fbc0adede6949437c20a0231ee3f4e696",
+      "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs": "560cdbe2286359836d770fe5bbe62c98b2c3e1cff3b0f3a15055582904877a5e",
+      "research/continuity-identity-candidate/src/enrollment/renewal/request.rs": "84d91d38d6a3a077dd1420aa518b180d52f0ca45c1637c864a585445b1f462ec",
+      "research/continuity-identity-candidate/src/enrollment/witness_credential_request_tests.rs": "e037204d18fe8424c065d323c56ec06a3e966dfcda8272b291757e1897fddb44",
+      "research/continuity-identity-candidate/src/enrollment/witness_independent_policy_tests.rs": "04948c2e9f082e159cb650692c53bb9fe8b5ab69b50acb8744cb3d1c25904539",
+      "research/continuity-identity-candidate/src/enrollment/witness_policy_transaction_tests.rs": "74bd2c0a126573d935d3fa0d5d2754ee7f303f6043bbf152acd29f3ee953766e",
+      "research/continuity-identity-candidate/src/enrollment/witness_renewal_tests.rs": "78dd878ce838dcaa1b80954c4e5994b6c997296a51949a7fb2d7f363a8da9b9b"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "browser": "155.0.8059.40",
+    "credential_request_tests": 16,
+    "format": "passed",
+    "installed_base_browser_modes": 10,
+    "native_clippy": "all targets -D warnings passed",
+    "policy_request_tests": 7,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "1.90.0 passed"
+  }
+}

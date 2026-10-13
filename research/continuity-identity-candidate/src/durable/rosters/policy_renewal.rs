@@ -532,7 +532,14 @@ impl DeviceJournal {
         joint: Option<&crate::HistoricalPolicyContinuation>,
     ) -> Result<crate::PolicyRenewalScope, DurableError> {
         let snapshot = self
-            .inspect_renewal_request(scope, current, completed, joint, RequestRoster::Configured)
+            .inspect_renewal_request(
+                scope,
+                current,
+                completed,
+                joint,
+                RequestRoster::Configured,
+                None,
+            )
             .await?;
         if completed.is_some_and(|approval| approval.scope().operation == operation) {
             return Err(DurableError::Conflict);
@@ -555,9 +562,17 @@ impl DeviceJournal {
         current: &VerifiedDevice,
         completed: Option<&HistoricalPolicyRenewal>,
         joint: Option<&crate::HistoricalPolicyContinuation>,
+        witnessed_completion: Option<&LocalRenewalCommit>,
     ) -> Result<RenewalRequestSnapshot, DurableError> {
-        self.inspect_renewal_request(scope, current, completed, joint, RequestRoster::Actual)
-            .await
+        self.inspect_renewal_request(
+            scope,
+            current,
+            completed,
+            joint,
+            RequestRoster::Actual,
+            witnessed_completion,
+        )
+        .await
     }
     async fn inspect_renewal_request(
         &mut self,
@@ -566,6 +581,7 @@ impl DeviceJournal {
         completed: Option<&HistoricalPolicyRenewal>,
         joint: Option<&crate::HistoricalPolicyContinuation>,
         roster_binding: RequestRoster,
+        witnessed_completion: Option<&LocalRenewalCommit>,
     ) -> Result<RenewalRequestSnapshot, DurableError> {
         self.check_policy(scope.original_policy)?;
         let image = self.image().await?;
@@ -584,8 +600,15 @@ impl DeviceJournal {
             return Err(DurableError::Conflict);
         }
         let saved = get(&image, &image.local_account)?;
-        if saved.local_commit.is_some() {
-            return Err(DurableError::Suspended);
+        // A required G keeps its exact original receipt after ACK. Only the
+        // original enrollment, with no pending coordination, may supply this
+        // authenticated completion. Local unacknowledged receipts stay refused.
+        if let Some(retained) = &saved.local_commit {
+            if required.is_none() || witnessed_completion != Some(retained) {
+                return Err(DurableError::Suspended);
+            }
+        } else if witnessed_completion.is_some() {
+            return Err(DurableError::Conflict);
         }
         // Never guess a credential from a newer journal. G may use the actual
         // newer roster containing the same credential even after C expires;

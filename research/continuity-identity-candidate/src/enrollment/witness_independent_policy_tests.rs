@@ -177,6 +177,66 @@ fn original_enrollment_owns_independent_policy_terminal_ack_and_pending_cleanup(
         "local activation cannot replace required P owner admission"
     );
 }
+
+#[test]
+fn required_credential_request_preserves_completed_independent_policy_scope() {
+    let f = fixture();
+    let a = approval(&f);
+    stage(&f, &a);
+    let proposal = prepare(&f, &a);
+    approve_witness(&f, &a, proposal);
+    let mut owner = open(&f.c);
+    let mut anchor = policy_client(&f, &mut owner);
+    owner
+        .commit_witnessed_policy_renewal(
+            &proposal,
+            f.c.policy.historical(),
+            &a.target,
+            150,
+            &mut anchor,
+        )
+        .expect("original P completion");
+    owner.close();
+    f.carrier.clock.store(170, Ordering::SeqCst);
+    f.c.policy.close();
+    a.target.close();
+    let before = journal(&f);
+    let mut owner = open(&f.c);
+    let anchor = owner
+        .credential_renewal_request_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("historical G request carrier");
+    let request = owner
+        .witnessed_credential_renewal_request(
+            crate::CredentialRenewalId::generate().expect("G operation"),
+            f.c.policy.historical(),
+            anchor,
+        )
+        .expect("actual P1 issuer materials after C0 expiry");
+    assert_eq!(request.current_policy(), a.target.checkpoint());
+    assert_eq!(
+        request.current_policy_authorization(),
+        Some(a.proof.statement_digest())
+    );
+    assert_eq!(
+        request.authorization().policy_digest,
+        f.c.policy.checkpoint().digest()
+    );
+    assert_eq!(
+        request.previous_device().credential_digest(),
+        f.original.credential_digest()
+    );
+    owner.close();
+    assert_eq!(
+        journal(&f),
+        before,
+        "issuer inspection cannot reseal P completion"
+    );
+}
 #[test]
 fn witnessed_close_is_retained_separately_from_a_policy_commit() {
     let f = fixture();

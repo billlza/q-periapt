@@ -7,6 +7,7 @@ use q_periapt_continuity_identity_candidate as engine;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 mod connections;
+mod credential_requests;
 mod history;
 mod inventory;
 mod peers;

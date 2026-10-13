@@ -53,6 +53,63 @@ fn prepare_policy(
     .expect("independent exact G/T approval");
     proposal
 }
+
+#[test]
+fn required_credential_request_preserves_completed_joint_credential_policy_scope() {
+    let f = fixture_with_policy_expiry(Some(160));
+    let g = grant(&f, &f.original, 2, 180);
+    let p1 = super::super::policy_continuation::policy(&f.c, 2, 190, 170);
+    let scope = super::super::policy_continuation::scope(&f.c, &g, f.id);
+    let t = super::super::policy_continuation::joint(&f.c, &g, &scope, &f.c.policy, &p1);
+    let proposal = prepare_policy(&f, &g, Some(&t), &p1);
+    let mut owner = open(&f.c);
+    let mut anchor = client(&f, &mut owner, 170);
+    owner
+        .commit_witnessed_policy_continuation(
+            &proposal,
+            f.c.policy.historical(),
+            &p1,
+            170,
+            &mut anchor,
+        )
+        .expect("original joint completion");
+    owner.close();
+    f.carrier.clock.store(200, Ordering::SeqCst);
+    f.c.policy.close();
+    p1.close();
+    let before = disk(&f);
+    let mut owner = open(&f.c);
+    let anchor = owner
+        .credential_renewal_request_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("historical request client");
+    let request = owner
+        .witnessed_credential_renewal_request(
+            crate::CredentialRenewalId::generate().expect("fresh G"),
+            f.c.policy.historical(),
+            anchor,
+        )
+        .expect("actual completed T predecessor");
+    assert_eq!(request.current_policy(), p1.checkpoint());
+    assert_eq!(
+        request.current_policy_authorization(),
+        Some(t.statement_digest())
+    );
+    assert_eq!(
+        request.previous_device().credential_digest(),
+        g.successor_device().credential_digest()
+    );
+    assert_eq!(
+        request.authorization().policy_digest,
+        f.c.policy.checkpoint().digest()
+    );
+    owner.close();
+    assert_eq!(disk(&f), before);
+}
 fn target_bytes(f: &Fixture, p: &Proposal) -> Vec<u8> {
     let pending = disk(f).1.expect("durable intent");
     assert_eq!(pending.get(..8), Some(b"QPWINT04".as_slice()));

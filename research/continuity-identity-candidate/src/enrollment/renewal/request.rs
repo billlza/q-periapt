@@ -169,6 +169,11 @@ impl PreparedRenewalRequest {
                 &self.current,
                 self.completed.as_ref(),
                 self.joint.as_ref(),
+                self.image
+                    .renewal
+                    .as_ref()
+                    .filter(|r| r.witnessed())
+                    .and_then(|r| r.completed.as_ref()),
             )
             .await
     }
@@ -179,21 +184,20 @@ impl PreparedRenewalRequest {
     maybe_async::must_be_sync
 )]
 impl DeviceEnrollment {
-    pub(in crate::enrollment) async fn prepare_renewal_request(
+    fn renewal_request_image(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
-    ) -> Result<PreparedRenewalRequest, DurableError> {
+    ) -> Result<Image, DurableError> {
         let image = self.image()?;
+        image.require_roster_retired()?;
         if image.policy_pending.is_some()
+            || !image.policy_coordination_retired()
             || image
                 .renewal
                 .as_ref()
                 .is_some_and(|r| !r.permits_policy_pending())
         {
             return Err(DurableError::Suspended);
-        }
-        if original_policy.anchor_requirement().binding().is_some() {
-            return Err(DurableError::AnchorRequired);
         }
         let Phase::Accepted {
             admission,
@@ -206,6 +210,32 @@ impl DeviceEnrollment {
         if admission.policy != original_policy.checkpoint().digest() {
             return Err(DurableError::Conflict);
         }
+        Ok(image)
+    }
+    pub(in crate::enrollment) async fn prepare_renewal_request(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+    ) -> Result<PreparedRenewalRequest, DurableError> {
+        self.prepare_renewal_request_with_anchor(original_policy, None)
+            .await
+    }
+    async fn prepare_renewal_request_with_anchor(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+        anchor: Option<AnchorClient>,
+    ) -> Result<PreparedRenewalRequest, DurableError> {
+        match (
+            original_policy.anchor_requirement().binding(),
+            anchor.is_some(),
+        ) {
+            (Some(_), false) => return Err(DurableError::AnchorRequired),
+            (None, true) => return Err(DurableError::Conflict),
+            _ => {}
+        }
+        let image = self.renewal_request_image(original_policy)?;
+        let Phase::Accepted { admission, .. } = &image.phase else {
+            return Err(DurableError::Corrupt);
+        };
         let original = self.original_device_metadata(&image)?;
         let current = self.historical_device_metadata(
             &admission.certificate,
@@ -222,10 +252,19 @@ impl DeviceEnrollment {
         let authority =
             RetainedInstallationAuthority::active_installation(&original, original_policy);
         let mut service = self
-            .reconcile_installation(&original, original_policy, None)
+            .reconcile_installation(&original, original_policy, anchor)
             .await?;
         if service.stores()?.0.identity()? != admission.journal {
             return Err(DurableError::Conflict);
+        }
+        if image.policy_witness.is_some() {
+            if let Some(completion) = self.policy_enrollment_completion(&image, original_policy)? {
+                service
+                    .stores()?
+                    .0
+                    .retain_enrollment_policy_completion(completion)
+                    .await?;
+            }
         }
         Ok(PreparedRenewalRequest {
             image,
@@ -236,6 +275,73 @@ impl DeviceEnrollment {
             authority,
             service,
         })
+    }
+
+    /// Build only the original historical carrier for issuer-request inspection.
+    /// Completed G/T/P history is retained; pending maintenance must finish first.
+    /// No live credential, runtime or fabricated old current-time value is needed.
+    pub async fn credential_renewal_request_anchor_client(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+        pin: AnchorPin,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<AnchorClient, DurableError> {
+        let result = self
+            .credential_renewal_request_anchor_client_attempt(
+                original_policy,
+                pin,
+                transport,
+                timeout,
+            )
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn credential_renewal_request_anchor_client_attempt(
+        &mut self,
+        original_policy: &HistoricalSessionPolicy,
+        pin: AnchorPin,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<AnchorClient, DurableError> {
+        let image = self.renewal_request_image(original_policy)?;
+        let original = self.original_device_metadata(&image)?;
+        if original_policy.anchor_requirement().binding() != Some(pin.binding()) {
+            return Err(DurableError::Conflict);
+        }
+        original_policy.check_external_signer(pin.public_key())?;
+        if pin.public_key().shares_component(&original.authority_key) {
+            return Err(Error::Scope.into());
+        }
+        let client = AnchorClient::new(
+            pin,
+            self.signer(image.identity, false).await?,
+            transport,
+            timeout,
+        )?;
+        client.check_device(&original)?;
+        Ok(client)
+    }
+
+    /// Inspect the actual original required-witness G predecessor. This is only
+    /// public issuer material, not a reservation, independent approval or a live
+    /// owner. Reuse the retained operation/request after unknown results.
+    pub async fn witnessed_credential_renewal_request(
+        &mut self,
+        operation: CredentialRenewalId,
+        original_policy: &HistoricalSessionPolicy,
+        client: AnchorClient,
+    ) -> Result<CredentialRenewalRequest, DurableError> {
+        let result = self
+            .credential_renewal_request_attempt(operation, original_policy, Some(client))
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
     }
 
     /// Prepare real credential-renewal issuer materials from this original
@@ -255,7 +361,7 @@ impl DeviceEnrollment {
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<CredentialRenewalRequest, DurableError> {
         let result = self
-            .credential_renewal_request_attempt(operation, original_policy)
+            .credential_renewal_request_attempt(operation, original_policy, None)
             .await;
         if result.is_err() {
             self.close();
@@ -266,13 +372,19 @@ impl DeviceEnrollment {
         &mut self,
         operation: CredentialRenewalId,
         original_policy: &HistoricalSessionPolicy,
+        anchor: Option<AnchorClient>,
     ) -> Result<CredentialRenewalRequest, DurableError> {
-        let mut prepared = self.prepare_renewal_request(original_policy).await?;
+        let mut prepared = self
+            .prepare_renewal_request_with_anchor(original_policy, anchor)
+            .await?;
         if prepared.image.renewal.as_ref().is_some_and(|r| {
             r.completed
                 .as_ref()
                 .is_some_and(|c| c.operation == operation)
                 || r.expired.as_ref().is_some_and(|e| e.operation == operation)
+                || r.witness.as_ref().and_then(|w| w.closed.as_ref()).is_some_and(|c| {
+                    matches!(c.status(), CredentialRenewalStatus::Closed { operation: old, .. } if old == operation)
+                })
         }) {
             return Err(DurableError::Conflict);
         }
