@@ -64,14 +64,16 @@ def verify_execution(stdout: bytes, directory: Path, profile: str) -> dict:
     return result
 
 
-def verify_route(directory: Path, profile: str, carrier: str, *, with_roster: bool = False) -> dict:
+def verify_route(directory: Path, profile: str, carrier: str, *, with_roster: bool = False, with_credential: bool = False) -> dict:
     """Check one completed route; this alone does not qualify the complete profile."""
     sdk.require(profile in TESTS and carrier in {"local", "signed", "tls"}, "policy route scope")
     label = carrier + "-" + profile; base = directory / label
     def read(name): return sdk.snapshot(base / name).data
     steps = cases(carrier); count = len(steps)
+    sdk.require(not (with_roster and with_credential), "distinct policy maintenance routes")
     sdk.require(count == (31 if carrier == "local" else 43), "policy process census definition")
     if with_roster: count += 12 if carrier == "local" else 25
+    if with_credential: count += 15 if carrier == "local" else 17
     sdk.require(read("policy-process-count") == count.to_bytes(8, "big"), "policy process census differs")
     for name, mode in steps:
         sdk.require(read(name + ".stdout") == f"{profile}:{mode}:passed\n".encode() and read(name + ".stderr") == b"", "policy process outcome missing: " + name)

@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 import shutil
 import unittest
+import continuity_android_contract as contract
 
 import continuity_android_policy_renewal as renewal
 import continuity_configuration_policy as policy
@@ -75,7 +76,7 @@ def fixture(root, profile):
         for name, data in files.items():
             p = base / name; p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(data)
         lines.append(f"qualified policy renewal {carrier}/{profile}: {count} foreign processes; expired P0, independent P2, original identity session message and one effect")
-    lines += ["test " + renewal.TESTS[profile] + " ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out;"]
+    lines += ["test " + renewal.TESTS[profile] + " ... ok", f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(contract.TESTS)-1} filtered out;"]
     return ("\n".join(lines) + "\n").encode()
 
 

@@ -2,13 +2,13 @@
 //! Same-host public ABI record parser shared by independent consumer traces.
 use crate::{p, Result};
 use std::{fs, path::Path};
-struct Input<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-    big_endian: bool,
+pub(crate) struct Input<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) offset: usize,
+    pub(crate) big_endian: bool,
 }
 impl Input<'_> {
-    fn array<const N: usize>(&mut self) -> Result<[u8; N]> {
+    pub(crate) fn array<const N: usize>(&mut self) -> Result<[u8; N]> {
         let end = self.offset.checked_add(N).ok_or("input offset")?;
         let value = self
             .bytes
@@ -18,7 +18,7 @@ impl Input<'_> {
         self.offset = end;
         Ok(value)
     }
-    fn u64(&mut self) -> Result<u64> {
+    pub(crate) fn u64(&mut self) -> Result<u64> {
         let bytes = self.array()?;
         Ok(if self.big_endian {
             u64::from_be_bytes(bytes)
@@ -26,7 +26,7 @@ impl Input<'_> {
             u64::from_ne_bytes(bytes)
         })
     }
-    fn u32(&mut self) -> Result<u32> {
+    pub(crate) fn u32(&mut self) -> Result<u32> {
         let bytes = self.array()?;
         Ok(if self.big_endian {
             u32::from_be_bytes(bytes)
@@ -34,19 +34,19 @@ impl Input<'_> {
             u32::from_ne_bytes(bytes)
         })
     }
-    fn roster(&mut self) -> Result<p::RosterCheckpoint> {
+    pub(crate) fn roster(&mut self) -> Result<p::RosterCheckpoint> {
         Ok(p::RosterCheckpoint::from_trusted_state(
             self.u64()?,
             self.array()?,
         )?)
     }
-    fn policy(&mut self) -> Result<p::PolicyCheckpoint> {
+    pub(crate) fn policy(&mut self) -> Result<p::PolicyCheckpoint> {
         Ok(p::PolicyCheckpoint::from_trusted_state(
             self.u64()?,
             self.array()?,
         )?)
     }
-    fn record(&mut self) -> Result<Vec<u8>> {
+    pub(crate) fn record(&mut self) -> Result<Vec<u8>> {
         let n = usize::try_from(self.u32()?)?;
         let bytes = self.array::<8192>()?;
         if n == 0 || n > 8192 || bytes.get(n..).ok_or("record tail")?.iter().any(|x| *x != 0) {

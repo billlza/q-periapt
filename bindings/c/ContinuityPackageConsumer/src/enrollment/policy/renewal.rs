@@ -94,7 +94,7 @@ pub struct PublicRecord {
     pub bytes: [u8; 8192],
 }
 impl PublicRecord {
-    fn observed(bytes: &[u8]) -> Result<Self> {
+    pub(in crate::enrollment) fn observed(bytes: &[u8]) -> Result<Self> {
         if bytes.is_empty() || bytes.len() > 8192 {
             return Err(failure(5));
         }

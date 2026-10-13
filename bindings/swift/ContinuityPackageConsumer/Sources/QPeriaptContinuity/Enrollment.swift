@@ -317,21 +317,38 @@ public final class ContinuityEnrollment: Sendable {
     public func witnessedPolicyRenewalRequest(operation: PolicyRenewalID) throws -> PolicyRenewalRequest {
         try independentPolicyRequest(operation) { qpc_enrollment_v1_witnessed_policy_renewal_request($0, $1, $2, $3) }
     }
+    /// Actual local credential predecessor and original signed inputs; reserves nothing.
+    public func credentialRenewalRequest(operation: CredentialRenewalID) throws -> CredentialRenewalRequest {
+        try issuerRequest(operation.bytes,
+            { qpc_enrollment_v1_credential_renewal_request($0, $1, $2, $3) },
+            { try CredentialRenewalRequest(native: &$0) })
+    }
+    /// Required-witness counterpart, with no fallback or live device release.
+    public func witnessedCredentialRenewalRequest(operation: CredentialRenewalID) throws -> CredentialRenewalRequest {
+        try issuerRequest(operation.bytes,
+            { qpc_enrollment_v1_witnessed_credential_renewal_request($0, $1, $2, $3) },
+            { try CredentialRenewalRequest(native: &$0) })
+    }
     private func independentPolicyRequest(_ operation: PolicyRenewalID,
         _ invoke: (UInt64, UnsafePointer<UInt8>?, UnsafeMutablePointer<qpc_policy_renewal_request_v1>,
                    UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> PolicyRenewalRequest {
+        try issuerRequest(operation.bytes, invoke, decodePolicyRenewalRequest)
+    }
+    private func issuerRequest<Record, Value>(_ operation: [UInt8],
+        _ invoke: (UInt64, UnsafePointer<UInt8>?, UnsafeMutablePointer<Record>, UnsafeMutablePointer<qpc_error_v1>) -> Int32,
+        _ decode: (inout Record) throws -> Value) throws -> Value {
         try reference.call { native in try native.call { handle in
             // The C contract initializes the complete 33-KiB record only on
             // success. Keep it off cooperative worker stacks and never read or
             // deinitialize the untouched allocation after a failed native call.
-            let raw = UnsafeMutablePointer<qpc_policy_renewal_request_v1>.allocate(capacity: 1)
+            let raw = UnsafeMutablePointer<Record>.allocate(capacity: 1)
             defer { raw.deallocate() }
             var error = qpc_error_v1()
-            let code = operation.bytes.withUnsafeBufferPointer {
+            let code = operation.withUnsafeBufferPointer {
                 invoke(handle, $0.baseAddress, raw, &error)
             }
             defer { if code == QPC_OK { raw.deinitialize(count: 1) } }
-            try checked(code, &error); return try decodePolicyRenewalRequest(&raw.pointee)
+            try checked(code, &error); return try decode(&raw.pointee)
         } }
     }
     /// Select the current target first; repeated preparation retains the same

@@ -8,6 +8,7 @@ import zipfile
 
 import continuity_android_recovery as recovery
 import continuity_android_recovery_records as records
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 
@@ -43,7 +44,7 @@ class AndroidRecoveryTests(unittest.TestCase):
                 value = json.loads((self.root / ('ANDROID_RECOVERY_' + profile.upper() + '.json')).read_text())
                 self.assertIs(value['completed'], True)
                 self.assertEqual(value['first_use'], records.first_use(
-                    self.path('first-use.stdout', profile).read_bytes(), self.path('first-use-public', profile)))
+                    self.path('first-use.stdout', profile).read_bytes(), self.path('first-use-public', profile), catalog=contract.RECOVERY_TESTS))
                 self.assertEqual(value['witness'], records.dispatches(self.path('witness-calls', profile),
                     expected_java=44, expected_c=18, account_reports=self.reports(profile)))
                 self.assertEqual(value['committed_members'], records.dispatches(self.path('result-calls', profile),

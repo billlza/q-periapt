@@ -31,7 +31,13 @@ the exact genesis that still requires witness enrollment. `activate()` applies
 native authorization and transfers ownership to the device facade.
 
 For same-key credential renewal, close active devices and resume the original
-enrollment. Retain the independently approved grant, target `AccountPin`, original
+enrollment. Export `credentialRenewalRequest(operation)` for local storage or
+`witnessedCredentialRenewalRequest(operation)` for required-witness storage. Retain
+the complete request before submitting it to the independent issuer. It includes
+the original credential/roster and P0 digest, actual predecessor credential/roster,
+and current policy authorization. An unknown submission reuses the same request;
+the issuer must authenticate, authorize and deduplicate it independently.
+Retain the independently approved grant, target `AccountPin`, original
 `Ids.CredentialRenewal` and statement. `stageCredentialRenewal` preserves the
 signing identity and journal. Under required-witness protection, export
 `prepareWitnessedCredentialRenewal()` for independent witness approval before
@@ -41,6 +47,15 @@ with the original operation and statement. This query emits neither Commit nor
 Close. `PENDING` does not establish that the operation is uncommitted; `COMMITTED`
 is historical evidence and grants no current traffic permission. Select the live
 account registry and use the ordinary `activate()` path for current authorization.
+
+After an independently approved P update, explicitly select its configuration and
+use `stageContinuedCredentialRenewal`. Local G completes through
+`activatePolicyRenewal`; `reconcilePolicyContinuation` is for joint G/T instead.
+Required-witness G uses `prepareWitnessedPolicyContinuation`, independent witness
+approval and `commitWitnessedPolicyContinuation`, followed by
+`activatePolicyRenewal`. Its proposal exposes `independentPolicyStatement` for P;
+`policyStatement` is reserved for joint T. The original G operation and statement
+still identify historical reconciliation and Close, and Close can return Committed.
 
 For registry-managed traffic, independently associate the peer account as well as
 the local account. An unknown peer is refused even when its TLS certificate and

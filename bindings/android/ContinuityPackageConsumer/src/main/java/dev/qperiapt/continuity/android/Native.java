@@ -49,6 +49,10 @@ final class Native {
     static native byte[] authorityCommand(long handle, int operation, byte[][] inputs, long version);
     static native void selectAuthority(long enrollment, long registry, byte[][] checkpoint);
     static native byte[] credentialCommand(long handle, int operation, byte[][] inputs, long version);
+    static final int CREDENTIAL_STAGE_CONTINUED = 10, CREDENTIAL_PREPARE_CONTINUED = 11,
+        CREDENTIAL_CANCEL_CONTINUED = 12, CREDENTIAL_COMMIT_CONTINUED = 13,
+        CREDENTIAL_RECONCILE_LOCAL = 14, CREDENTIAL_RECOVER_HISTORICAL = 15,
+        CREDENTIAL_REQUEST = 16, CREDENTIAL_WITNESSED_REQUEST = 17;
     // Private JNI selectors; independent policy operations never use credential grammar.
     static final int POLICY_REQUEST = 1, POLICY_WITNESSED_REQUEST = 2, POLICY_STATUS = 3,
         POLICY_RECONCILE = 4, POLICY_APPROVAL = 5, POLICY_PREPARE = 6, POLICY_PREPARATION = 7,

@@ -1,0 +1,12 @@
+{
+  "bytes": 554242,
+  "members": 470,
+  "native_exit_status": 0,
+  "reader_failure_corrected_without_runtime_reexecution": true,
+  "routes": [
+    "signed-fixed",
+    "tls-recoverable"
+  ],
+  "scope": "Source-linked host JNI, not physical acceptance",
+  "sha256": "af265ea40c03b955330753b4ce5ec04ec5923522605f65134962e25601b757b1"
+}

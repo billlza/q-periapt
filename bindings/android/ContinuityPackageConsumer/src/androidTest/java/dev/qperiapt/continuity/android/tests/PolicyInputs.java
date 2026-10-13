@@ -65,5 +65,16 @@ final class PolicyInputs {
         if (operation.startsWith("policy-witness-") && !operation.equals("policy-witness-prepare") && !operation.equals("policy-witness-recover"))
             WitnessInputs.install(inputs, arguments, "renewal-proposal", 296, 296, true);
         if (operation.startsWith("policy-peer-")) PeerInputs.install(inputs, arguments, operation.substring("policy-".length()));
+        if (operation.startsWith("policy-credential-")) {
+            String name = operation.equals("policy-credential-next-request") ? "credential-next-operation" : "credential-operation";
+            WitnessInputs.install(inputs, arguments, name, 32, 32, true);
+            if (!operation.equals("policy-credential-request") && !operation.equals("policy-credential-next-request")
+                    && !operation.equals("policy-credential-request-local-refused")) {
+                for (String field : new String[] {"credential-statement", "renewal-digest"})
+                    WitnessInputs.install(inputs, arguments, field, 32, 32, true);
+                WitnessInputs.install(inputs, arguments, "renewal-version", 8, 8, true);
+                WitnessInputs.install(inputs, arguments, "credential-renewal", 1, 65536, true);
+            }
+        }
     }
 }

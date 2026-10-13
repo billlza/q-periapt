@@ -9,6 +9,15 @@ state; an open failure never authorizes creating a replacement identity.
 This is an unpublished `qpc-owner/1` candidate, separate from product SDK ABI 2.
 
 For an existing registration, same-key credential renewal preserves its original identity.
+Export `qpc_enrollment_v1_credential_renewal_request`, or its required-witness
+variant `qpc_enrollment_v1_witnessed_credential_renewal_request`, before asking the
+independent issuer for a grant. Retain the operation and complete public request:
+original credential/roster/P0, actual predecessor and current policy authorization.
+This is a snapshot, not a reservation or approval. The issuer independently
+authenticates, authorizes and deduplicates; an unknown submission reuses the exact
+retained request. The request record is unchanged on failure. No live Device or
+private key is exported.
+
 Resume the original enrollment intent, call `qpc_enrollment_v1_stage_credential_renewal`
 with the exact grant, independent target pin and retained operation, then use the
 existing consuming activation. `qpc_enrollment_v1_credential_renewal_status` reports

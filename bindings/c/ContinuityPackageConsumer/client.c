@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
         (!strcmp(argv[1],"serve") && argc>3 && !strcmp(argv[3],"bootstrap"))))
         fail("continued enrollment requires an existing operational session");
     self_check();
-    if (!strcmp(argv[1],"continued-peer-refused") || !strcmp(argv[1],"continued-peer-admit")) {
+    if (!strcmp(argv[1],"continued-peer-refused") || !strcmp(argv[1],"continued-peer-admit") || !strcmp(argv[1],"independent-peer-admit")) {
         if(device_path || existing) fail("continued peer command owns its enrollment");
         return continued_peer_command(argc,argv,witness,witness_tls);
     }

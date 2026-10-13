@@ -3,6 +3,7 @@
 use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
+mod credential_request;
 pub(crate) mod policy;
 mod roster_refresh;
 pub(crate) use roster_refresh::qpc_enrollment_v1_refresh_roster_with_policy;

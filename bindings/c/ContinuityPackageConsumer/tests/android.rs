@@ -46,6 +46,8 @@ mod android_roster_traffic;
 mod android_roster_witness;
 #[path = "common/android_witness.rs"]
 mod android_witness;
+#[path = "common/credential_request.rs"]
+mod credential_request;
 #[path = "common/policy_request.rs"]
 mod policy_request;
 #[path = "common/receiver_policy.rs"]

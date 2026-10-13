@@ -17,8 +17,8 @@ FIRST_USE_CASES = (("recovery-next-before","account-next"),("recovery-original-r
 FIRST_USE_PUBLIC = account.PUBLIC + tuple(name for name,_ in FIRST_USE_CASES) + tuple(
     name+"."+suffix for name,_ in FIRST_USE_CASES for suffix in ("stdout","stderr"))
 
-def first_use(stdout: bytes, cases: Path) -> dict:
-    result=account.verify_execution(stdout,cases,test=FIRST_USE_TEST)
+def first_use(stdout: bytes, cases: Path, *, catalog: frozenset[str] = contract.TESTS) -> dict:
+    result=account.verify_execution(stdout,cases,test=FIRST_USE_TEST,catalog=catalog)
     for trust,value in result.items():
         def read(name): return sdk.snapshot(cases/trust/name).data
         marker=f"qualified first-use recovery {trust}: original Java installation; complete results, full session reports, exact acknowledgement, authenticated archive/index restore and unchanged account position"

@@ -1,0 +1,215 @@
+Test Suite 'All tests' started at 2026-10-13 22:07:01.444.
+Test Suite 'QPeriaptContinuityTests.xctest' started at 2026-10-13 22:07:01.445.
+Test Suite 'AccountAuthorityTests' started at 2026-10-13 22:07:01.446.
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityInputsOwnBytesAndRejectEmptyScope]' started.
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityInputsOwnBytesAndRejectEmptyScope]' passed (0.001 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityLayoutsAndCheckpointRejectMalformedOutput]' started.
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityLayoutsAndCheckpointRejectMalformedOutput]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease]' started.
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testAuthorityPersistsAndFinalARCReleaseFreesItsOriginalLease]' passed (0.110 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testPendingAuthorityUsesSharedCapacityAndPreservesCancellation]' started.
+Test Case '-[QPeriaptContinuityTests.AccountAuthorityTests testPendingAuthorityUsesSharedCapacityAndPreservesCancellation]' passed (0.007 seconds).
+Test Suite 'AccountAuthorityTests' passed at 2026-10-13 22:07:01.564.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.118 (0.119) seconds
+Test Suite 'AccountRecoveryTests' started at 2026-10-13 22:07:01.564.
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner]' started.
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testAccountCleanupCannotAcquireAuthorityFromPendingOrClosedOwner]' passed (0.001 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport]' started.
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testAccountCleanupStatusRejectsNarrowingAndKeepsExactReport]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence]' started.
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testCompleteAccountMetadataPreservesFullWidthAndRejectsMalformedPresence]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testReconciliationKeepsEveryOutcomeAndRejectsPartialOrNoncanonicalFrames]' started.
+Test Case '-[QPeriaptContinuityTests.AccountRecoveryTests testReconciliationKeepsEveryOutcomeAndRejectsPartialOrNoncanonicalFrames]' passed (0.001 seconds).
+Test Suite 'AccountRecoveryTests' passed at 2026-10-13 22:07:01.567.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'CredentialRenewalTests' started at 2026-10-13 22:07:01.567.
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testCancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testCancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testRenewalStatusPreservesHistoricalBindingAndRejectsMalformedCombinations]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testRenewalStatusPreservesHistoricalBindingAndRejectsMalformedCombinations]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRenewalTests testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads]' passed (0.000 seconds).
+Test Suite 'CredentialRenewalTests' passed at 2026-10-13 22:07:01.569.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'CredentialRequestTests' started at 2026-10-13 22:07:01.569.
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestFailureLeavesOutputUntouched]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestFailureLeavesOutputUntouched]' passed (0.001 seconds).
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestNativeLayoutAndOwnedHistoricalFields]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestNativeLayoutAndOwnedHistoricalFields]' passed (0.008 seconds).
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestRejectsContradictoryMetadataAndDirtyRecords]' started.
+Test Case '-[QPeriaptContinuityTests.CredentialRequestTests testCredentialRequestRejectsContradictoryMetadataAndDirtyRecords]' passed (0.008 seconds).
+Test Suite 'CredentialRequestTests' passed at 2026-10-13 22:07:01.586.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.017 (0.017) seconds
+Test Suite 'DeviceTests' started at 2026-10-13 22:07:01.586.
+Test Case '-[QPeriaptContinuityTests.DeviceTests testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes]' started.
+Test Case '-[QPeriaptContinuityTests.DeviceTests testAccountDeliveryRejectsMisboundOutputAndDistinguishesRetainedOutcomes]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.DeviceTests testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates]' started.
+Test Case '-[QPeriaptContinuityTests.DeviceTests testAggregateStatusRequiresTheExactReportShapeAndPreservesUnknownStates]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.DeviceTests testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority]' started.
+Test Case '-[QPeriaptContinuityTests.DeviceTests testPreparedDeviceCapacityCancellationAndNoPrematurePeerAuthority]' passed (0.001 seconds).
+Test Suite 'DeviceTests' passed at 2026-10-13 22:07:01.588.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'EnrollmentTests' started at 2026-10-13 22:07:01.588.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testApprovedValuesOwnBytesAndPreserveUnsignedCounters]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testApprovedValuesOwnBytesAndPreserveUnsignedCounters]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testNativeEnrollmentLayoutsMatchHeader]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testNativeEnrollmentLayoutsMatchHeader]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testPendingRegistrationSharesQuotaAndPreservesCloseAfterRefusal]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testPendingRegistrationSharesQuotaAndPreservesCloseAfterRefusal]' passed (0.006 seconds).
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testPreparationCopiesIntentAndNativeRequestSurvivesFailedActivation]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testPreparationCopiesIntentAndNativeRequestSurvivesFailedActivation]' passed (0.158 seconds).
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testRequestRejectsTruncationAndUnexpectedTail]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testRequestRejectsTruncationAndUnexpectedTail]' passed (0.005 seconds).
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testSixPhasesRejectImpossibleIdentityAndCheckpointCombinations]' started.
+Test Case '-[QPeriaptContinuityTests.EnrollmentTests testSixPhasesRejectImpossibleIdentityAndCheckpointCombinations]' passed (0.001 seconds).
+Test Suite 'EnrollmentTests' passed at 2026-10-13 22:07:01.759.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.171 (0.171) seconds
+Test Suite 'IndependentPolicyTests' started at 2026-10-13 22:07:01.759.
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains]' started.
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains]' passed (0.001 seconds).
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags]' started.
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testProgressKeepsEveryTerminalAndRetirementStateDistinct]' started.
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testProgressKeepsEveryTerminalAndRetirementStateDistinct]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries]' started.
+Test Case '-[QPeriaptContinuityTests.IndependentPolicyTests testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries]' passed (0.001 seconds).
+Test Suite 'IndependentPolicyTests' passed at 2026-10-13 22:07:01.762.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'OwnerTests' started at 2026-10-13 22:07:01.762.
+Test Case '-[QPeriaptContinuityTests.OwnerTests testARCRetiresPendingSlotsAndClosedAliases]' started.
+Test Case '-[QPeriaptContinuityTests.OwnerTests testARCRetiresPendingSlotsAndClosedAliases]' passed (0.002 seconds).
+Test Case '-[QPeriaptContinuityTests.OwnerTests testDiagnosticRejectsInconsistentAndInvalidUTF8]' started.
+Test Case '-[QPeriaptContinuityTests.OwnerTests testDiagnosticRejectsInconsistentAndInvalidUTF8]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.OwnerTests testIDsAndTextsRejectAmbiguousInput]' started.
+Test Case '-[QPeriaptContinuityTests.OwnerTests testIDsAndTextsRejectAmbiguousInput]' passed (0.000 seconds).
+Test Suite 'OwnerTests' passed at 2026-10-13 22:07:01.765.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'PeerConfigurationTests' started at 2026-10-13 22:07:01.765.
+Test Case '-[QPeriaptContinuityTests.PeerConfigurationTests testCallerMutationCannotChangeStoredOrNativePeerInputs]' started.
+Test Case '-[QPeriaptContinuityTests.PeerConfigurationTests testCallerMutationCannotChangeStoredOrNativePeerInputs]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PeerConfigurationTests testWidthsAndBoundsPrecedeNativeAdmission]' started.
+Test Case '-[QPeriaptContinuityTests.PeerConfigurationTests testWidthsAndBoundsPrecedeNativeAdmission]' passed (0.000 seconds).
+Test Suite 'PeerConfigurationTests' passed at 2026-10-13 22:07:01.766.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'PolicyContinuationTests' started at 2026-10-13 22:07:01.766.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testExtendedMetadataRejectsInvalidModeTVersionAndWidth]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testExtendedMetadataRejectsInvalidModeTVersionAndWidth]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyCarryKeepsItsOwnStatementDomain]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyCarryKeepsItsOwnStatementDomain]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyCarryRejectsAdoptionAndMalformedMetadata]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyCarryRejectsAdoptionAndMalformedMetadata]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyContinuationTests testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding]' passed (0.000 seconds).
+Test Suite 'PolicyContinuationTests' passed at 2026-10-13 22:07:01.768.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'PolicyRenewalTests' started at 2026-10-13 22:07:01.768.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testAllStatusStatesRemainDistinctIncludingBothAbandonmentReasons]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testAllStatusStatesRemainDistinctIncludingBothAbandonmentReasons]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testMalformedStatusesCannotBecomeCommittedOrNoCommit]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testMalformedStatusesCannotBecomeCommittedOrNoCommit]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testNativeLayoutsAndOffsetsAreExact]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testNativeLayoutsAndOffsetsAreExact]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testRequestRejectsDirtyTailEmptyFieldsAndImpossibleOriginalHead]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testRequestRejectsDirtyTailEmptyFieldsAndImpossibleOriginalHead]' passed (0.015 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testRetainedRequestRoundTripOwnsAllBytesAndPreservesUnsignedCounters]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testRetainedRequestRoundTripOwnsAllBytesAndPreservesUnsignedCounters]' passed (0.007 seconds).
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testScopeRejectsContradictoryPredecessorAndNoncanonicalNativeOption]' started.
+Test Case '-[QPeriaptContinuityTests.PolicyRenewalTests testScopeRejectsContradictoryPredecessorAndNoncanonicalNativeOption]' passed (0.000 seconds).
+Test Suite 'PolicyRenewalTests' passed at 2026-10-13 22:07:01.792.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.023 (0.024) seconds
+Test Suite 'PublicationTests' started at 2026-10-13 22:07:01.792.
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPreparedDeviceCannotPublishOrAcquireAuthorityAndClosedOwnerStaysClosed]' started.
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPreparedDeviceCannotPublishOrAcquireAuthorityAndClosedOwnerStaysClosed]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationArtifactOwnsCompleteBytesAndRejectsTruncationSubstitutionAndTail]' started.
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationArtifactOwnsCompleteBytesAndRejectsTruncationSubstitutionAndTail]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationLayoutsAndPlanOwnCompleteOriginalInputs]' started.
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationLayoutsAndPlanOwnCompleteOriginalInputs]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationStatesRejectDirtyAbsenceAndUnknownCompletion]' started.
+Test Case '-[QPeriaptContinuityTests.PublicationTests testPublicationStatesRejectDirtyAbsenceAndUnknownCompletion]' passed (0.000 seconds).
+Test Suite 'PublicationTests' passed at 2026-10-13 22:07:01.794.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'RecoveryTests' started at 2026-10-13 22:07:01.794.
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testClosureDecodingPreservesCountersAndRejectsUnknownStates]' started.
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testClosureDecodingPreservesCountersAndRejectsUnknownStates]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen]' started.
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testClosureStatusKeepsReportIdentityAndRejectsMalformedOpen]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testRecoverySharesRegistryAndRetainsCancelledClosedAuthority]' started.
+Test Case '-[QPeriaptContinuityTests.RecoveryTests testRecoverySharesRegistryAndRetainsCancelledClosedAuthority]' passed (0.001 seconds).
+Test Suite 'RecoveryTests' passed at 2026-10-13 22:07:01.796.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'RetirementTests' started at 2026-10-13 22:07:01.796.
+Test Case '-[QPeriaptContinuityTests.RetirementTests testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID]' started.
+Test Case '-[QPeriaptContinuityTests.RetirementTests testCompleteRetirementReportKeepsBytesSeparateFromItsKeyedID]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust]' started.
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementAuthorityOwnsBoundedInputsWithoutGrantingTrust]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementLayoutsMatchTheNativeContract]' started.
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementLayoutsMatchTheNativeContract]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity]' started.
+Test Case '-[QPeriaptContinuityTests.RetirementTests testRetirementProposalRejectsDirtyAbsenceAndPreservesOriginalIdentity]' passed (0.000 seconds).
+Test Suite 'RetirementTests' passed at 2026-10-13 22:07:01.797.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'RootReplacementTests' started at 2026-10-13 22:07:01.797.
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testPendingRegistryCannotGrantRootOrCleanupAuthority]' started.
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testPendingRegistryCannotGrantRootOrCleanupAuthority]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testRootApprovalsRejectWrongGrammarAndBoundsWithoutClaimingAuthority]' started.
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testRootApprovalsRejectWrongGrammarAndBoundsWithoutClaimingAuthority]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testRootLayoutsKeepSizePrefixAndAllFourIndependentInputs]' started.
+Test Case '-[QPeriaptContinuityTests.RootReplacementTests testRootLayoutsKeepSizePrefixAndAllFourIndependentInputs]' passed (0.000 seconds).
+Test Suite 'RootReplacementTests' passed at 2026-10-13 22:07:01.798.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'RosterRefreshTests' started at 2026-10-13 22:07:01.798.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testPeerRosterAdmissionRespectsBoundsAndOwnerLifetime]' started.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testPeerRosterAdmissionRespectsBoundsAndOwnerLifetime]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRetainedRosterProposalOwnsExactScopeAndRejectsOtherDomains]' started.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRetainedRosterProposalOwnsExactScopeAndRejectsOtherDomains]' passed (0.001 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterCallsRespectPreparedCancelledAndClosedOwners]' started.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterCallsRespectPreparedCancelledAndClosedOwners]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterPreparationChecksCanonicalAbsenceAndABI]' started.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterPreparationChecksCanonicalAbsenceAndABI]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterProgressPreservesAllSixStatesAndChecksProposalScope]' started.
+Test Case '-[QPeriaptContinuityTests.RosterRefreshTests testRosterProgressPreservesAllSixStatesAndChecksProposalScope]' passed (0.000 seconds).
+Test Suite 'RosterRefreshTests' passed at 2026-10-13 22:07:01.800.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'RosterResolutionTests' started at 2026-10-13 22:07:01.800.
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testABIHasExplicitReservedFieldAndExactOffsets]' started.
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testABIHasExplicitReservedFieldAndExactOffsets]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testAllFourOutcomesAndUnsignedUnknownRemainDistinct]' started.
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testAllFourOutcomesAndUnsignedUnknownRemainDistinct]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testMalformedOrContradictoryResultsNeverBecomeNoCommit]' started.
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testMalformedOrContradictoryResultsNeverBecomeNoCommit]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testResolvedEnrollmentPreservesOriginalPairAndRejectsUnknownPhase]' started.
+Test Case '-[QPeriaptContinuityTests.RosterResolutionTests testResolvedEnrollmentPreservesOriginalPairAndRejectsUnknownPhase]' passed (0.000 seconds).
+Test Suite 'RosterResolutionTests' passed at 2026-10-13 22:07:01.801.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ServerTests' started at 2026-10-13 22:07:01.801.
+Test Case '-[QPeriaptContinuityTests.ServerTests testCallbackCopiesBorrowedRegions]' started.
+Test Case '-[QPeriaptContinuityTests.ServerTests testCallbackCopiesBorrowedRegions]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.ServerTests testCallbackFailureAndForeignBoundsCannotBecomeConsumption]' started.
+Test Case '-[QPeriaptContinuityTests.ServerTests testCallbackFailureAndForeignBoundsCannotBecomeConsumption]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.ServerTests testServedRecordRejectsUnknownKindsAndInconsistentBootstrap]' started.
+Test Case '-[QPeriaptContinuityTests.ServerTests testServedRecordRejectsUnknownKindsAndInconsistentBootstrap]' passed (0.000 seconds).
+Test Suite 'ServerTests' passed at 2026-10-13 22:07:01.802.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'SetupTests' started at 2026-10-13 22:07:01.802.
+Test Case '-[QPeriaptContinuityTests.SetupTests testInstallationStatusRejectsUnknownPhaseAndZeroJournal]' started.
+Test Case '-[QPeriaptContinuityTests.SetupTests testInstallationStatusRejectsUnknownPhaseAndZeroJournal]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.SetupTests testOriginalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata]' started.
+Test Case '-[QPeriaptContinuityTests.SetupTests testOriginalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata]' passed (0.000 seconds).
+Test Case '-[QPeriaptContinuityTests.SetupTests testPendingSetupSharesCapacityAndCannotActivateAfterCancellation]' started.
+Test Case '-[QPeriaptContinuityTests.SetupTests testPendingSetupSharesCapacityAndCannotActivateAfterCancellation]' passed (0.004 seconds).
+Test Suite 'SetupTests' passed at 2026-10-13 22:07:01.807.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+Test Suite 'QPeriaptContinuityTests.xctest' passed at 2026-10-13 22:07:01.807.
+	 Executed 74 tests, with 0 failures (0 unexpected) in 0.354 (0.361) seconds
+Test Suite 'All tests' passed at 2026-10-13 22:07:01.807.
+	 Executed 74 tests, with 0 failures (0 unexpected) in 0.354 (0.362) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

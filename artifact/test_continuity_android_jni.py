@@ -2,6 +2,7 @@
 from pathlib import Path
 import tempfile
 import unittest
+import continuity_android_contract as contract
 from unittest.mock import patch
 
 import continuity_android_jni as android
@@ -24,7 +25,7 @@ def fixture(root: Path) -> bytes:
             (base / name).write_bytes(session + b"m" * 32)
         (base / "reverse.result").write_bytes(session + b"n" * 32 + b"reverse delivery after rekey")
         output.append(f"qualified {profile}: 12 foreign processes; registration, original retry, rekey, reverse callback retry, cancellation and concurrent close")
-    output += ["test android_lifecycle ... ok", "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out;"]
+    output += ["test android_lifecycle ... ok", f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(contract.TESTS)-1} filtered out;"]
     return ("\n".join(output) + "\n").encode()
 
 

@@ -60,11 +60,31 @@ public final class ContinuityEnrollment implements AutoCloseable {
      * prepare/terminal workflow before the ordinary consuming activate call.
      */
     public CredentialRenewalStatus stageCredentialRenewal(byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
+        return stageCredential(2, grant, independentPin, original);
+    }
+    /** Retain the actual adopted T or independent P under the independently selected
+     * current policy. Activate independent P through activatePolicyRenewal(). */
+    public CredentialRenewalStatus stageContinuedCredentialRenewal(byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
+        return stageCredential(Native.CREDENTIAL_STAGE_CONTINUED, grant, independentPin, original);
+    }
+    private CredentialRenewalStatus stageCredential(int command, byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
         Objects.requireNonNull(independentPin, "independent account pin");
         byte[][] pin = independentPin.snapshot();
         byte[][] input = {ConfigurationInputs.copy(grant, 1, 65536, "credential grant"), pin[0], pin[1], pin[2], pin[3],
             Objects.requireNonNull(original, "original renewal").encoded()};
-        return owner.call(false, handle -> new CredentialRenewalStatus(Native.credentialCommand(handle, 2, input, independentPin.version.bits)));
+        return owner.call(false, handle -> new CredentialRenewalStatus(Native.credentialCommand(handle, command, input, independentPin.version.bits)));
+    }
+    private CredentialRenewalRequest credentialRequest(Ids.CredentialRenewal operation, int command) {
+        byte[][] input = {Objects.requireNonNull(operation, "original credential operation").encoded()};
+        return owner.call(false, handle -> CredentialRenewalRequest.fromNative(Native.credentialCommand(handle, command, input, 0)));
+    }
+    /** Public original local-journal predecessor; no grant, reservation or live traffic owner. */
+    public CredentialRenewalRequest credentialRenewalRequest(Ids.CredentialRenewal operation) {
+        return credentialRequest(operation, Native.CREDENTIAL_REQUEST);
+    }
+    /** Required-witness request; missing witness or unknown state never falls back to local. */
+    public CredentialRenewalRequest witnessedCredentialRenewalRequest(Ids.CredentialRenewal operation) {
+        return credentialRequest(operation, Native.CREDENTIAL_WITNESSED_REQUEST);
     }
     private CredentialRenewalStatus credentialPair(int command, Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
         byte[][] input = {Objects.requireNonNull(original, "original renewal").encoded(), Objects.requireNonNull(statement, "original statement").encoded()};
@@ -78,6 +98,34 @@ public final class ContinuityEnrollment implements AutoCloseable {
     }
     public CredentialRenewalCancellation prepareWitnessedCredentialCancellation() {
         return owner.call(false, handle -> new CredentialRenewalCancellation(Native.credentialCommand(handle, 5, new byte[0][], 0)));
+    }
+    /** Read or prepare exact G metadata; joint T and retained independent P have distinct fields. */
+    public PolicyRenewalProposal prepareWitnessedPolicyContinuation() {
+        return owner.call(false, handle -> PolicyRenewalProposal.fromNative(
+            Native.credentialCommand(handle, Native.CREDENTIAL_PREPARE_CONTINUED, new byte[0][], 0)));
+    }
+    /** Reserve the exact target-free expectation, never a Closed fact or live owner. */
+    public PolicyRenewalCancellation prepareWitnessedPolicyCancellation() {
+        return owner.call(false, handle -> PolicyRenewalCancellation.fromNative(
+            Native.credentialCommand(handle, Native.CREDENTIAL_CANCEL_CONTINUED, new byte[0][], 0)));
+    }
+    /** Current independently selected policy is required only for a still-pending new commit. */
+    public CredentialRenewalStatus commitWitnessedPolicyContinuation(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {
+        return credentialPair(Native.CREDENTIAL_COMMIT_CONTINUED, original, statement);
+    }
+    /** Reconcile a local joint G/T transaction under the selected policy; no device is released.
+     * A credential-only G after independent P is completed by activatePolicyRenewal(). */
+    public CredentialRenewalStatus reconcilePolicyContinuation() {
+        return owner.call(false, handle -> new CredentialRenewalStatus(
+            Native.credentialCommand(handle, Native.CREDENTIAL_RECONCILE_LOCAL, new byte[0][], 0)));
+    }
+    /** Resolve the original local joint G/T using independently pinned historical policy, without live activation. */
+    public CredentialRenewalStatus recoverHistoricalPolicyContinuation(Ids.CredentialRenewal original,
+            Ids.CredentialStatement statement, ConfigurationInputs.ProtocolPolicy target) {
+        byte[][] input = PolicyCodec.join(new byte[][] {Objects.requireNonNull(original, "original renewal").encoded(),
+            Objects.requireNonNull(statement, "original statement").encoded()}, PolicyCodec.document(target));
+        return owner.call(false, handle -> new CredentialRenewalStatus(
+            Native.credentialCommand(handle, Native.CREDENTIAL_RECOVER_HISTORICAL, input, 0)));
     }
     /** A new commit requires current authorization; terminal history releases no device. */
     public CredentialRenewalStatus commitWitnessedCredentialRenewal(Ids.CredentialRenewal original, Ids.CredentialStatement statement) {

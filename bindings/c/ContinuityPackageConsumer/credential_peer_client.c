@@ -78,11 +78,12 @@ static int continued_peer_command(int argc,char **argv,const qpc_witness_v1 *wit
         if(!role) fail("continued peer role");
         decode(argv[5],session);
     }
-    uint64_t parent=continued_enrollment_parent(argv[2],witness,tls);
+    int independent=!strcmp(argv[1],"independent-peer-admit");
+    uint64_t parent=independent ? independent_policy_parent(argv[2],witness,tls) : continued_enrollment_parent(argv[2],witness,tls);
     if(refusal) credential_peer_refused(parent,argv[3],role,session,QPC_VALIDITY);
     else credential_peer_admit(parent,argv[3],1);
     close_owner(parent);
-    puts(refusal ? "continued-peer-expired-refused" : "continued-peer-admitted");
+    puts(refusal ? "continued-peer-expired-refused" : independent ? "independent-peer-admitted" : "continued-peer-admitted");
     if(fflush(stdout)) fail("continued peer output");
     return 0;
 }

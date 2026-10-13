@@ -493,6 +493,14 @@ archive-produced cohort and final distribution admission.
 
 ## Original-identity credential renewal
 
+Before requesting a signed grant, export `credentialRenewalRequest(operation:)`
+for local storage or `witnessedCredentialRenewalRequest(operation:)` for required
+witness storage. Retain every request field and the original operation before
+submission. The request contains the acknowledged predecessor and current policy
+context together with immutable original identity/P0 inputs; it is neither a grant
+nor a reservation. The issuer independently authenticates, authorizes and
+deduplicates issuance. Retry an unknown submission with the retained request.
+
 Resume the original `ContinuityEnrollment` and call `stageCredentialRenewal` with
 an independently obtained `AccountPin`, the bounded signed grant and its retained
 `CredentialRenewalID`. Activation transfers the same native registration owner to

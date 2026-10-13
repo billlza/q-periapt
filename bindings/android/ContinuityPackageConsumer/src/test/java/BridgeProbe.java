@@ -35,7 +35,7 @@ public final class BridgeProbe {
             rejected(IllegalArgumentException.class, () -> Native.authorityCommand(0, 1, new byte[][] {new byte[31]}, 0));
             rejected(IllegalArgumentException.class, () -> Native.selectAuthority(0, 0, new byte[][] {new byte[71]}));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 0, new byte[0][], 0));
-            rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 10, new byte[0][], 0));
+            rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 18, new byte[0][], 0));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 9, new byte[0][], 0));
             rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0, 9,
                 new byte[][] {new byte[65537], new byte[32], new byte[1985], new byte[32], new byte[32], new byte[32]}, 1));
@@ -46,6 +46,7 @@ public final class BridgeProbe {
                 new byte[][] {new byte[65537], new byte[32], new byte[1985], new byte[32], new byte[32], new byte[32]}, 1));
         }
         credentialCodecs();
+        CredentialBridgeProbe.run();
         rejected(ContinuityFailure.class, () -> Native.enrollmentQuery(0, 1));
         rejected(IllegalArgumentException.class, () -> Native.path("\ud800"));
         rejected(IllegalArgumentException.class, () -> Native.path("a\u0000b"));

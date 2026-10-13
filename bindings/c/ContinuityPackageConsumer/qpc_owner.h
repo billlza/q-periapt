@@ -738,6 +738,34 @@ typedef struct {
 } qpc_policy_renewal_scope_v1;
 /* Exactly length valid public bytes, 1..8192. Every unused byte is zero. */
 typedef struct { uint32_t length; uint8_t bytes[8192]; } qpc_public_record_v1;
+/* Public credential-renewal issuer snapshot, never a grant or reservation.
+ * G binds original_policy_digest; current_policy and its optional authorization
+ * describe the actual acknowledged journal predecessor, not caller-selected trust.
+ * A zero presence flag requires all authorization bytes zero; reserved is zero.
+ * Public records contain exact signed bytes with zero unused tails. */
+typedef struct {
+    uint8_t operation[32], journal[32], original_owner[32], original_policy_digest[32];
+    qpc_policy_checkpoint_v1 current_policy;
+    uint8_t current_policy_authorization[32];
+    uint32_t has_current_policy_authorization, reserved;
+    qpc_roster_checkpoint_v1 previous_roster_checkpoint, original_roster_checkpoint;
+    uint64_t previous_valid_from, previous_valid_until;
+    uint8_t account[32];
+    qpc_public_record_v1 original_credential, original_roster, previous_credential, previous_roster;
+} qpc_credential_renewal_request_v1;
+/* Caller retains operation and the complete request before submission. The issuer
+ * independently authenticates, authorizes and serializes issuance; this snapshot
+ * neither reserves the journal nor proves authorization. An unknown submission
+ * must reuse the original request, not generate another ID. Required-witness
+ * callers use the witnessed entry, which never falls back. Historical P0 is
+ * required; no live traffic policy or Device is released. Admitted failure may
+ * consume the owner; close/resume the original enrollment. Outputs are untouched
+ * after failure. Operation has32 readable bytes; outputs are aligned writable
+ * complete records. All input/output regions are disjoint for the invocation. */
+int32_t qpc_enrollment_v1_credential_renewal_request(uint64_t handle, const uint8_t operation[32],
+    qpc_credential_renewal_request_v1 *request, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_witnessed_credential_renewal_request(uint64_t handle, const uint8_t operation[32],
+    qpc_credential_renewal_request_v1 *request, qpc_error_v1 *error);
 typedef struct {
     qpc_policy_renewal_scope_v1 scope;
     uint8_t account[32];

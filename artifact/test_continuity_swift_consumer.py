@@ -136,6 +136,9 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("CredentialRenewalTests", "testWitnessProposalOwnsCanonicalBytesAndRejectsOverflowOrContradictoryHeads"),
                  ("CredentialRenewalTests", "testCancellationOwnsTargetFreeBytesAndRejectsProposalOrInvalidHead"),
                  ("CredentialRenewalTests", "testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths"),
+                 ("CredentialRequestTests", "testCredentialRequestNativeLayoutAndOwnedHistoricalFields"),
+                 ("CredentialRequestTests", "testCredentialRequestRejectsContradictoryMetadataAndDirtyRecords"),
+                 ("CredentialRequestTests", "testCredentialRequestFailureLeavesOutputUntouched"),
                  ("PolicyContinuationTests", "testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout"),
                  ("PolicyContinuationTests", "testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode"),
                  ("PolicyContinuationTests", "testIndependentPolicyCarryKeepsItsOwnStatementDomain"),
@@ -179,7 +182,7 @@ class SwiftConsumerTests(unittest.TestCase):
         names += (("PeerConfigurationTests", "testCallerMutationCannotChangeStoredOrNativePeerInputs"),
                   ("PeerConfigurationTests", "testWidthsAndBoundsPrecedeNativeAdmission"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 71 tests, with 0 failures").encode()
+                  + "\nExecuted 74 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")

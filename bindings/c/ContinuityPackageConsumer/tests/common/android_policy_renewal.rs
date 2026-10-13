@@ -12,6 +12,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+#[path = "android_policy_renewal/credential.rs"]
+mod credential;
 #[path = "android_policy_renewal/flow.rs"]
 mod flow;
 #[path = "android_policy_renewal/local_roster.rs"]
@@ -48,6 +50,7 @@ struct Case<'a> {
     inputs: &'a Path,
     reference: &'a fixture::Setup,
     root: &'a p::RootSigningKey,
+    intent: &'a p::EnrollmentIntent,
     certificate: &'a [u8],
     roster: &'a p::IssuedRoster,
     validity: p::Validity,
@@ -101,12 +104,16 @@ impl Case<'_> {
         }
     }
 }
+enum Maintenance {
+    Roster { closed: bool },
+    Credential,
+}
 fn exercise(
     output: &Path,
     driver: &Path,
     profile: &str,
     carrier: &str,
-    roster_terminal: Option<bool>,
+    maintenance: Option<Maintenance>,
 ) -> Result<()> {
     let base = output.join(format!("{carrier}-{profile}"));
     fs::DirBuilder::new().mode(0o700).create(&base)?;
@@ -229,6 +236,7 @@ fn exercise(
         inputs: &inputs,
         reference: &reference,
         root: &root,
+        intent: &intent,
         certificate: &certificate,
         roster: &roster,
         validity,
@@ -252,13 +260,17 @@ fn exercise(
     let traffic = traffic::Traffic::begin(&case)?;
     traffic.renew_receiver(&case)?;
     flow::renew(&case, &identity)?;
-    if let Some(closed) = roster_terminal {
-        if case.witness.is_some() {
-            roster::advance(&case, &identity, closed)?;
-        } else {
-            assert!(!closed);
-            local_roster::advance(&case, &identity)?;
+    match maintenance {
+        Some(Maintenance::Roster { closed }) => {
+            if case.witness.is_some() {
+                roster::advance(&case, &identity, closed)?;
+            } else {
+                assert!(!closed);
+                local_roster::advance(&case, &identity)?;
+            }
         }
+        Some(Maintenance::Credential) => credential::renew(&case, &identity)?,
+        None => {}
     }
     traffic.resume(&case)?;
     assert_eq!(case.run("policy-identity", "final.identity")?, identity);
@@ -285,7 +297,13 @@ fn roster_profile(profile: &str, carrier: &str, closed: bool) -> Result<()> {
     let driver =
         PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("roster policy driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;
-    exercise(&output, &driver, profile, carrier, Some(closed))
+    exercise(
+        &output,
+        &driver,
+        profile,
+        carrier,
+        Some(Maintenance::Roster { closed }),
+    )
 }
 #[test]
 fn roster_signed_fixed_applied() -> Result<()> {
@@ -327,4 +345,43 @@ fn roster_local_fixed() -> Result<()> {
 #[test]
 fn roster_local_recoverable() -> Result<()> {
     roster_profile("recoverable", "local", false)
+}
+
+fn credential_profile(profile: &str, carrier: &str) -> Result<()> {
+    let output =
+        PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("credential policy cases")?);
+    let driver =
+        PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("credential policy driver")?);
+    fs::DirBuilder::new().mode(0o700).create(&output)?;
+    exercise(
+        &output,
+        &driver,
+        profile,
+        carrier,
+        Some(Maintenance::Credential),
+    )
+}
+#[test]
+fn credential_local_fixed() -> Result<()> {
+    credential_profile("fixed", "local")
+}
+#[test]
+fn credential_signed_fixed() -> Result<()> {
+    credential_profile("fixed", "signed")
+}
+#[test]
+fn credential_tls_fixed() -> Result<()> {
+    credential_profile("fixed", "tls")
+}
+#[test]
+fn credential_local_recoverable() -> Result<()> {
+    credential_profile("recoverable", "local")
+}
+#[test]
+fn credential_signed_recoverable() -> Result<()> {
+    credential_profile("recoverable", "signed")
+}
+#[test]
+fn credential_tls_recoverable() -> Result<()> {
+    credential_profile("recoverable", "tls")
 }
