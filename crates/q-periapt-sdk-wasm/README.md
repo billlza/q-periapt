@@ -25,10 +25,12 @@ For direct binding development:
 ```sh
 CC_wasm32_unknown_unknown=/absolute/path/to/upstream/clang \
   wasm-pack build crates/q-periapt-sdk-wasm --target nodejs --out-dir pkg-node -- --locked
+cp crates/q-periapt-sdk-wasm/src/input.mjs crates/q-periapt-sdk-wasm/pkg-node/input.mjs
 node crates/q-periapt-sdk-wasm/tests/product.cjs
 ```
 
-For browsers build with `--target web`. A compatible `globalThis.crypto` is
+For browsers build with `--target web` and copy the same `src/input.mjs` beside
+the generated module. The installed package stages this helper automatically. A compatible `globalThis.crypto` is
 required when generating keys, importing private keys or encapsulating; failure is reported, without
 deterministic coins or a weak RNG fallback. Browser runtime verification is a
 separate gate from the Node integration test.

@@ -28,14 +28,15 @@ CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 946684800
 GENERATED = ("q_periapt_sdk_wasm.js", "q_periapt_sdk_wasm.d.ts", "q_periapt_sdk_wasm_bg.wasm")
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
-BROWSER_HOSTS = {f"web/{name}": CANDIDATE / "src/storage/browser" / name
+HOST_MODULES = {f"web/{name}": CANDIDATE / "src/storage/browser" / name
                  for name in ("storage-root.js", "storage-database.js", "storage-catalogue.js", "storage-opening.js")}
-BROWSER_HOSTS["web/bounded-fetch.js"] = CANDIDATE / "src/browser/bounded-fetch.js"
-BROWSER_HOSTS["web/application.js"] = CANDIDATE / "src/browser/application.js"
+HOST_MODULES["web/bounded-fetch.js"] = CANDIDATE / "src/browser/bounded-fetch.js"
+HOST_MODULES["web/application.js"] = CANDIDATE / "src/browser/application.js"
+HOST_MODULES.update({f"{target}/input.mjs": CRATE / "src/input.mjs" for target in ("node", "web")})
 NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",
-                  "browser-suite.mjs", "publication-inputs.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts",
+                  "browser-suite.mjs", "input-acceptance.mjs", "publication-inputs.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts",
                   "storage-browser.html", "storage-suite.mjs", "storage-worker.mjs", "storage-acceptance.js",
                   "storage-quota-acceptance.js", "storage-deadline-acceptance.js", "storage-deadline-worker.mjs")
 NODE_TESTS = {
@@ -151,10 +152,10 @@ def verify(root: Path, manifest_sha256: str) -> dict:
     for environment in ("node", "web"):
         for name in GENERATED:
             require(f"{environment}/{name}" in actual, "WASM SDK generated payload is incomplete")
-    for relative, path in BROWSER_HOSTS.items():
+    for relative, path in HOST_MODULES.items():
         source = snapshot(path)
         require(actual.get(relative) == {"sha256": source.sha256, "bytes": source.size},
-                f"WASM SDK browser host module differs: {relative}")
+                f"WASM SDK host module differs: {relative}")
     verify_licenses(root, expected_target=TARGET, root_package=NAME)
     return manifest
 
@@ -277,7 +278,7 @@ def build(output: Path) -> dict:
     for source, destination in (("nodejs", "node"), ("web", "web")):
         for name in GENERATED:
             copy(output / "generated" / source / name, package / destination / name)
-    for relative, path in BROWSER_HOSTS.items():
+    for relative, path in HOST_MODULES.items():
         copy(path, package / relative)
     copy(CRATE / "PackageREADME.md", package / "README.md")
     for name in NOTICES:

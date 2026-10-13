@@ -10,7 +10,7 @@ async (page) => {
   }
   const context = page.context();
   if (context.pages().length !== 1) throw new Error('Expected one isolated automation tab');
-  const expectedAssertions = { roundtrip: 178, 'no-entropy': 15, 'throwing-entropy': 15,
+  const expectedAssertions = { roundtrip: 236, 'no-entropy': 15, 'throwing-entropy': 15,
     'init-fail': 6, 'no-wasm': 6 };
   const scenarios = ['window', 'worker'].flatMap(realm =>
     Object.keys(expectedAssertions).map(mode => ({ mode, realm })));
@@ -35,7 +35,7 @@ async (page) => {
       await page.waitForFunction(() => globalThis.__QPERIAPT_TEST_RESULT !== undefined, undefined, { timeout: 20000 });
       const result = await page.evaluate(() => globalThis.__QPERIAPT_TEST_RESULT);
       if (result.status !== 'pass' || result.mode !== mode || result.realm !== realm
-          || result.assertions !== expectedAssertions[mode] || result.errors.length || pageErrors.length) {
+          || result.assertions !== expectedAssertions[mode] + (mode === 'roundtrip' && realm === 'window' ? 7 : 0) || result.errors.length || pageErrors.length) {
         throw new Error(JSON.stringify({ result, pageErrors, diagnostics }));
       }
       if (diagnostics.length && !(mode === 'init-fail' && diagnostics.length === 1

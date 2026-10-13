@@ -55,16 +55,41 @@ impl Drop for WipingInput {
     }
 }
 
+#[wasm_bindgen(raw_module = "./input.mjs")]
+extern "C" {
+    #[wasm_bindgen(js_name = inputLength, catch)]
+    fn input_length(input: &Uint8Array, min: u32, max: u32) -> Result<i32, JsValue>;
+    #[wasm_bindgen(js_name = copyInput, catch)]
+    fn copy_input(input: &Uint8Array, output: &mut [u8]) -> Result<(), JsValue>;
+}
+
+fn input_failure(cause: JsValue) -> JsError {
+    let failure = JsError::new("byte-array input access failed");
+    // Preserve the original exception without inspecting or coercing it. This
+    // is a newly constructed ordinary Error, not an object supplied by the host.
+    let value: JsValue = failure.clone().into();
+    if !matches!(
+        js_sys::Reflect::set(&value, &JsValue::from_str("cause"), &cause),
+        Ok(true)
+    ) {
+        return JsError::new("byte-array input access failed; cause could not be retained");
+    }
+    failure
+}
+
 fn read_input(input: &Uint8Array, min: usize, max: usize) -> Result<Vec<u8>, JsError> {
-    if !JsValue::from(input.clone()).is_instance_of::<Uint8Array>() {
-        return Err(JsError::new("expected Uint8Array"));
-    }
-    let len = input.length() as usize;
-    if len < min || len > max {
-        return Err(error(sdk::Error::InvalidLength));
-    }
-    // Check JS length before wasm-bindgen copies bytes into linear memory.
-    Ok(input.to_vec())
+    let min = u32::try_from(min).map_err(|_| error(sdk::Error::InvalidLength))?;
+    let max = u32::try_from(max).map_err(|_| error(sdk::Error::InvalidLength))?;
+    let len = match input_length(input, min, max).map_err(input_failure)? {
+        -1 => return Err(JsError::new("expected Uint8Array")),
+        -2 => return Err(error(sdk::Error::InvalidLength)),
+        value => usize::try_from(value).map_err(|_| error(sdk::Error::InvalidLength))?,
+    };
+    // Allocate only after checking the real internal length. A caught copy
+    // failure wipes possible partial input and unwinds the owner borrow normally.
+    let mut bytes = WipingInput(vec![0; len]);
+    copy_input(input, &mut bytes.0).map_err(input_failure)?;
+    Ok(std::mem::take(&mut bytes.0))
 }
 
 /// An immutable signed-policy runtime, with WebCrypto-backed randomness.

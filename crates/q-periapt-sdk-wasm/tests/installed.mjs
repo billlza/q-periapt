@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import assert from 'node:assert/strict';
+import {runInNewContext} from 'node:vm';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import * as esm from 'q-periapt-sdk-wasm';
+import { checkInputOwners } from './input-acceptance.mjs';
 import { QPeriaptExpert } from 'q-periapt-sdk-wasm/expert';
 const require = createRequire(import.meta.url);
 const cjs = require('q-periapt-sdk-wasm');
@@ -14,6 +16,8 @@ for (const name of ['node/q_periapt_sdk_wasm.js', 'web/q_periapt_sdk_wasm.js', '
   assert.throws(() => require(`q-periapt-sdk-wasm/${name}`), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });
 }
 const f = JSON.parse(readFileSync(new URL('./fixtures/signed-policy-vectors.json', import.meta.url)));
+checkInputOwners(esm, f, (condition, message) => assert.ok(condition, message),
+  [['foreign-realm', true, () => runInNewContext('new Uint8Array([5,7,11])')]]);
 const hex = text => new Uint8Array(Buffer.from(text, 'hex'));
 const runtime = new esm.QPeriaptRuntime(new TextEncoder().encode(f.policy_toml), hex(f.signature),
   hex(f.verification_key), new Uint8Array(), 2, 1);

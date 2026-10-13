@@ -131,7 +131,10 @@ IndexedDB, Web Locks and OPFS synchronous access handles. Use one stable name
 32-byte storage ID, and the exact same enrollment intent on reopen. The intent
 constructor takes the pinned account root, 16-byte device ID, generation,
 32-byte policy family and validity interval. Timestamps and versions are BigInt;
-buffer inputs are Uint8Array and are bounded before copying into WASM.
+buffer inputs are Uint8Array and are bounded before copying into WASM. Their real
+typed-array length is checked without invoking caller properties. Genuine subclasses
+and cross-realm Uint8Arrays are accepted; proxies, detached/out-of-bounds views and
+other array kinds are rejected. Invalid input does not strand the owner borrow.
 
 The lifecycle is `create` (or explicit original `resume`) → `request` → authority
 registration → `accept` → `prepare` → any required independent witness enrollment

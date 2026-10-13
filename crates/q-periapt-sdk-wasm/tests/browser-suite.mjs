@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 // The same real installed-package contract runs in each isolated execution realm.
 import {checkPublicationInputs} from './publication-inputs.mjs';
+import {checkInputOwners} from './input-acceptance.mjs';
 export async function runAcceptance(mode, realm) {
   let assertions = 0;
   function check(condition, message) {
@@ -60,6 +61,12 @@ export async function runAcceptance(mode, realm) {
     let coerced = false;
     const coercible = { valueOf() { coerced = true; return 1; } };
     checkPublicationInputs(sdk, check);
+    if (realm === 'window') {
+      const frame = document.createElement('iframe'); document.body.appendChild(frame);
+      try {
+        checkInputOwners(sdk, f, check, [['foreign-realm', true, value => new frame.contentWindow.Uint8Array(value)]]);
+      } finally { frame.remove(); }
+    } else checkInputOwners(sdk, f, check);
     for (const value of [0, -1, 1.5, 4294967297, NaN, Infinity, '1', true, null, undefined, 1n, coercible]) {
       throws(() => create(value, 1), /invalid runtime limits/);
       throws(() => create(1, value), /invalid runtime limits/);
