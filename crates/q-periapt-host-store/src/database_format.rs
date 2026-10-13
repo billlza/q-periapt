@@ -5,9 +5,19 @@
 //! This only excludes recovery of an unclean image written without two-phase
 //! commit. It neither authenticates records nor admits a storage platform.
 
-pub(crate) fn refuse_unclean_foreign_redb(
-    backend: &impl redb::StorageBackend,
-) -> std::io::Result<()> {
+/// Refuse recovery of an unclean redb 4.3 image without two-phase commit.
+///
+/// Call this on the already-owned backend before redb opens the image. The
+/// caller must establish exclusive ownership and storage bounds independently.
+/// This reads only the recovery flags; redb must still validate the complete
+/// header, including truncated input. No bytes are changed by this check.
+///
+/// # Errors
+///
+/// Returns the backend's original length/read error, or `InvalidData` for an
+/// unclean image without the two-phase flag. Success does not authenticate the
+/// image or establish that a platform's persistence and recovery are supported.
+pub fn refuse_unclean_foreign_redb(backend: &impl redb::StorageBackend) -> std::io::Result<()> {
     const GOD_BYTE_OFFSET: u64 = 9;
     const RECOVERY_REQUIRED: u8 = 2;
     const TWO_PHASE_COMMIT: u8 = 4;
