@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Browser lifecycle binding over the same shared engine and SDK runtime.
-use super::{read_input, read_limit, Runtime};
+use super::{read_input as sdk_input, read_limit as sdk_limit, Runtime};
 use engine::browser::{failure, BrowserDevice};
 use js_sys::Uint8Array;
 use q_periapt_continuity_identity_candidate as engine;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
+mod status;
 mod trust;
+use status::Status;
 use trust::{AccountTrust, Enrollment, SessionPolicy, Witness};
+fn read_input(value: &Uint8Array, min: usize, max: usize) -> Result<Vec<u8>, JsValue> {
+    sdk_input(value, min, max).map_err(|error| engine::browser::input_failure(error.into()))
+}
+fn read_limit(value: &JsValue, maximum: usize) -> Result<usize, JsValue> {
+    sdk_limit(value, maximum).map_err(|error| engine::browser::input_failure(error.into()))
+}
 fn protocol(error: engine::Error) -> JsValue {
     failure(&error.into())
 }
@@ -35,10 +43,11 @@ fn location(name: &JsValue, id: &Uint8Array) -> Result<(String, String), JsValue
     {
         return Err(protocol(engine::Error::Encoding));
     }
-    let id = array(id)?
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let id = array(id)?;
+    if id.iter().all(|byte| *byte == 0) {
+        return Err(protocol(engine::Error::Encoding));
+    }
+    let id = id.iter().map(|byte| format!("{byte:02x}")).collect();
     Ok((name, id))
 }
 
@@ -49,6 +58,16 @@ pub struct Device {
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityDevice)]
 impl Device {
+    /// Permanently closed handle, independently of pending cleanup or commit outcome.
+    pub fn is_closed(&self) -> bool {
+        self.inner.is_closed()
+    }
+    /// Read durable recovery progress; does not renew authority or authorize traffic.
+    pub async fn status(&self) -> Result<Status, JsValue> {
+        Ok(Status {
+            inner: self.inner.status().await?,
+        })
+    }
     /// Create a fresh identity bound to independently approved account inputs.
     pub async fn create(
         #[wasm_bindgen(unchecked_param_type = "string")] name: JsValue,

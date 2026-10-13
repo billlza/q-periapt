@@ -156,3 +156,39 @@ key; normal witness configuration requires HTTPS, while `for_loopback` is an
 explicit local diagnostic entry. Cross-origin endpoints must permit your origin
 and `application/octet-stream` POST through CORS. No automatic retry, redirect,
 ambient credential or unanchored fallback is used.
+
+## Original recovery state and errors
+
+Use `await device.status()` after opening the original device. Its immutable
+snapshot contains `phase()`, `journal()` and any `roster_refresh()` observation.
+The journal is absent only before grant acceptance. Free snapshots and any
+returned checkpoint/refresh wrappers after reading them; they own no authority.
+
+| Phase | Next original operation |
+| --- | --- |
+| Preparing / Requested | Obtain the same signed `request()` and reconcile authenticated registration. |
+| Accepted | Repeat `prepare()` to recover original children/genesis, complete any required independent witness enrollment, then activate. |
+| Activating / Active | Retry `activate()` under current policy and witness admission. Do not prepare or recreate children. |
+| Refreshing / RosterResolved | Preserve the original roster workflow. Browser control bindings for these states are still being integrated; the snapshot does not authorize traffic. |
+
+Roster observations retain predecessor, target, actual observed checkpoint and
+observation time. `SupersededUnknown` stays distinct from the two uncommitted
+outcomes. An unresolved observation has no outcome; absence never means that
+nothing committed. A status snapshot does not renew expired policy/credentials.
+
+Shared-engine failures expose a stable `code`, retain the original error in
+`cause`, and include `ownerClosed` on device-operation failures. `Busy` leaves
+that existing owner open; an admitted operation failure closes it. `is_closed()`
+reports the handle's state, independently of pending native cleanup or whether
+its authority is still current. Input failures before dispatch have no owner
+result; inspect the handle if needed. Generated JavaScript argument/type errors
+remain ordinary programming errors.
+
+Common codes include `Busy`, `Closed`, `Encoding`, `InvalidInput`, `Scope`,
+`Checkpoint`, `Validity`, `PolicyDenied`, `Authentication`, `Corrupt`, `Absent`,
+`Capacity`, `Cancelled`, `Deadline`, `WitnessTransport`, `WitnessVerification`,
+`WitnessConflict` and `WitnessAuthorityDenied`. Storage-specific codes such as
+`CommitUnknown`, `OpenUnknown` and `ClosePending` retain their original cause and
+cleanup chain. Do not parse diagnostic messages or treat a code as proof of
+non-commit. Reopen the original state and follow the authenticated phase;
+never reset identity or recreate a published object in response to an error.

@@ -14,22 +14,32 @@ use zeroize::Zeroizing;
 
 #[wasm_bindgen(raw_module = "./storage-root.js")]
 extern "C" {
+    #[wasm_bindgen(js_name=continuityFailure)]
+    fn continuity_failure(code: &str, original: &JsValue, owner_closed: JsValue) -> JsValue;
     #[wasm_bindgen(js_name=combineFailures)]
     fn combine_failures(primary: &JsValue, cleanup: &JsValue) -> JsValue;
     #[wasm_bindgen(js_name=StorageRoot)]
     #[derive(Clone)]
     type StorageRoot;
-    #[wasm_bindgen(static_method_of=StorageRoot,js_name=create,catch)]
-    async fn create_root(
+    #[wasm_bindgen(js_name=StorageOpening)]
+    type StorageOpening;
+    #[wasm_bindgen(static_method_of=StorageRoot,js_name=beginCreate,catch)]
+    fn begin_create_root(
         name: &str,
         id: &str,
         binding: &[u8],
         wrapping: &[u8],
-    ) -> Result<StorageRoot, JsValue>;
-    #[wasm_bindgen(static_method_of=StorageRoot,js_name=open,catch)]
-    async fn open_root(name: &str, id: &str, binding: &[u8]) -> Result<StorageRoot, JsValue>;
-    #[wasm_bindgen(static_method_of=StorageRoot,js_name=resume,catch)]
-    async fn resume_root(name: &str, id: &str, binding: &[u8]) -> Result<StorageRoot, JsValue>;
+    ) -> Result<StorageOpening, JsValue>;
+    #[wasm_bindgen(static_method_of=StorageRoot,js_name=beginOpen,catch)]
+    fn begin_open_root(name: &str, id: &str, binding: &[u8]) -> Result<StorageOpening, JsValue>;
+    #[wasm_bindgen(static_method_of=StorageRoot,js_name=beginResume,catch)]
+    fn begin_resume_root(name: &str, id: &str, binding: &[u8]) -> Result<StorageOpening, JsValue>;
+    #[wasm_bindgen(method, catch)]
+    async fn ready(this: &StorageOpening) -> Result<(), JsValue>;
+    #[wasm_bindgen(method, catch)]
+    fn take(this: &StorageOpening) -> Result<StorageRoot, JsValue>;
+    #[wasm_bindgen(method)]
+    fn abandon(this: &StorageOpening);
     #[wasm_bindgen(method,js_name=creationReady,catch)]
     fn creation_ready(this: &StorageRoot) -> Result<bool, JsValue>;
     #[wasm_bindgen(method,js_name=finishCreation,catch)]
@@ -77,6 +87,14 @@ extern "C" {
     fn file_sync(this: &HostFile) -> Result<(), JsValue>;
     #[wasm_bindgen(method,js_name=close,catch)]
     fn file_close(this: &HostFile) -> Result<(), JsValue>;
+}
+// Installed synchronously before the first await. JS owns any late root until
+// take() transfers it; Drop cannot confuse cancellation with native completion.
+struct PendingOpening(StorageOpening);
+impl Drop for PendingOpening {
+    fn drop(&mut self) {
+        self.0.abandon();
+    }
 }
 struct HostFailure {
     code: String,
@@ -238,6 +256,19 @@ pub(crate) struct Storage {
     close_error: Arc<Mutex<Option<io::Error>>>,
 }
 impl Storage {
+    pub(crate) fn continuity_failure(
+        code: &str,
+        original: &JsValue,
+        owner_closed: Option<bool>,
+    ) -> JsValue {
+        continuity_failure(
+            code,
+            original,
+            owner_closed
+                .map(JsValue::from_bool)
+                .unwrap_or(JsValue::UNDEFINED),
+        )
+    }
     pub(crate) fn failure_value(error: &DurableError) -> JsValue {
         if let DurableError::Io(error) = error {
             if let Some(source) = error.get_ref() {
@@ -266,30 +297,25 @@ impl Storage {
     pub(crate) fn native() -> Result<Self, DurableError> {
         Err(DurableError::PrivateFile)
     }
+    async fn acquire(opening: StorageOpening) -> Result<Self, DurableError> {
+        let opening = PendingOpening(opening);
+        opening.0.ready().await.map_err(error)?;
+        let root = opening.0.take().map_err(error)?;
+        Ok(Self {
+            root,
+            close_error: Arc::new(Mutex::new(None)),
+        })
+    }
     pub(crate) async fn create(name: &str, id: &str, binding: &[u8]) -> Result<Self, DurableError> {
         let (_, bytes) = JournalKey::prepare_file()?;
-        Ok(Self {
-            root: StorageRoot::create_root(name, id, binding, &bytes)
-                .await
-                .map_err(error)?,
-            close_error: Arc::new(Mutex::new(None)),
-        })
+        Self::acquire(StorageRoot::begin_create_root(name, id, binding, &bytes).map_err(error)?)
+            .await
     }
     pub(crate) async fn open(name: &str, id: &str, binding: &[u8]) -> Result<Self, DurableError> {
-        Ok(Self {
-            root: StorageRoot::open_root(name, id, binding)
-                .await
-                .map_err(error)?,
-            close_error: Arc::new(Mutex::new(None)),
-        })
+        Self::acquire(StorageRoot::begin_open_root(name, id, binding).map_err(error)?).await
     }
     pub(crate) async fn resume(name: &str, id: &str, binding: &[u8]) -> Result<Self, DurableError> {
-        Ok(Self {
-            root: StorageRoot::resume_root(name, id, binding)
-                .await
-                .map_err(error)?,
-            close_error: Arc::new(Mutex::new(None)),
-        })
+        Self::acquire(StorageRoot::begin_resume_root(name, id, binding).map_err(error)?).await
     }
     pub(crate) fn creation_ready(&self) -> Result<bool, DurableError> {
         self.root.creation_ready().map_err(error)

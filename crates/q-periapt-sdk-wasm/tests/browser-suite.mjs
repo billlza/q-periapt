@@ -28,8 +28,9 @@ export async function runAcceptance(mode, realm) {
     const prefix = mode === 'init-fail' ? '/broken' : '';
     const sdk = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/index.js`);
     const { QPeriaptExpert } = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/expert.js`);
-    check(Object.keys(sdk).sort().join(',') === ['QPeriaptContinuityAccountTrust', 'QPeriaptContinuityDevice', 'QPeriaptContinuityEnrollment',
-      'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPreparation',
+    check(Object.keys(sdk).sort().join(',') === ['QPeriaptContinuityAccountTrust', 'QPeriaptContinuityCheckpoint', 'QPeriaptContinuityDevice', 'QPeriaptContinuityEnrollment',
+      'QPeriaptContinuityPhase', 'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPreparation',
+      'QPeriaptContinuityRosterOutcome', 'QPeriaptContinuityRosterRefresh', 'QPeriaptContinuityStatus',
       'QPeriaptContinuityWitness', 'QPeriaptDerivedKey', 'QPeriaptEncapsulation',
       'QPeriaptKey', 'QPeriaptKeyPurpose', 'QPeriaptPolicyUpdate', 'QPeriaptRuntime',
       'QPeriaptSecret', 'default'].join(','), 'unexpected default browser exports');

@@ -1056,6 +1056,14 @@ pub struct EnrolledDevice {
     maybe_async::must_be_sync
 )]
 impl EnrolledDevice {
+    /// Read retained enrollment progress; this observation grants no traffic authority.
+    pub fn enrollment_status(&mut self) -> Result<EnrollmentStatus, DurableError> {
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .status()
+    }
     /// Borrow the existing service, original signer and verified local identity.
     /// Peer preparation, current roster/policy and durable traffic checks still apply.
     pub fn parts(

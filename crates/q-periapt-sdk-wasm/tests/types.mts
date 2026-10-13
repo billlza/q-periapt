@@ -26,13 +26,30 @@ void durablePolicy;
 
 import { QPeriaptContinuityDevice, QPeriaptContinuityEnrollment,
   QPeriaptContinuityPolicy, QPeriaptContinuityAccountTrust,
-  QPeriaptContinuityWitness, QPeriaptContinuityPrekeyKind } from 'q-periapt-sdk-wasm/web';
+  QPeriaptContinuityWitness, QPeriaptContinuityPrekeyKind, QPeriaptContinuityPhase,
+  type QPeriaptContinuityError } from 'q-periapt-sdk-wasm/web';
 async function continuityDevice() {
   const intent = new QPeriaptContinuityEnrollment(data, data, 1n, data, 1n, 100n);
   const policy = new QPeriaptContinuityPolicy(web, data, data, 1n, data, data, 1n);
   const trust = new QPeriaptContinuityAccountTrust(data, data, 1n, data, data);
   const witness = new QPeriaptContinuityWitness(data, data, 'https://example.test/witness', 5000);
   const device = await QPeriaptContinuityDevice.create('installation', data, intent);
+  const closed: boolean = device.is_closed();
+  const status = await device.status();
+  const phase: QPeriaptContinuityPhase = status.phase();
+  const originalJournal: Uint8Array | undefined = status.journal();
+  const refresh = status.roster_refresh();
+  if (refresh) {
+    const previous = refresh.previous(), target = refresh.target(), observed = refresh.observed();
+    const time: bigint | undefined = refresh.observed_at();
+    const outcome = refresh.outcome();
+    previous.free(); target.free(); observed?.free(); refresh.free(); void time; void outcome;
+  }
+  status.free(); void closed; void phase; void originalJournal;
+  const describeFailure = (error: QPeriaptContinuityError): [string, boolean | undefined, unknown] =>
+    [error.code, error.ownerClosed, error.cause];
+  void describeFailure;
+
   try {
     const request: Uint8Array = await device.request(1n);
     const journal: Uint8Array = await device.accept(data, data, trust, policy, 1n);

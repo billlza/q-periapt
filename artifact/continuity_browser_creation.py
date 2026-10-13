@@ -36,7 +36,7 @@ def source_identity() -> dict:
 def stage_web(web: Path, private: Path) -> dict:
     for name in ('root.bin', 'description.bin'):
         sdk.copy(private / name, web / 'inputs' / name)
-    for name in ('storage-root.js', 'storage-database.js', 'storage-catalogue.js'):
+    for name in ('storage-root.js', 'storage-database.js', 'storage-catalogue.js', 'storage-opening.js'):
         sdk.copy(CANDIDATE / 'src/storage/browser' / name, web / 'pkg' / name)
     sdk.copy(ROOT / 'crates/q-periapt-sdk-wasm/package/web/storage-io.js', web / 'pkg/storage-io.js')
     sdk.copy(CANDIDATE / 'src/anchor/transport/witness-fetch.js', web / 'pkg/witness-fetch.js')

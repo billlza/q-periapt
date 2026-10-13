@@ -3,6 +3,8 @@ import { lease, pendingOperation, closeReceipt } from './storage-io.js';
 import { fail, ioError, hex, identifier, prefix, scoped, describe, matches,
   metadata, validateState, sealState, unsealState, encryptSecret, secretAAD } from './storage-catalogue.js';
 import { openDatabase, transaction, admitSnapshot } from './storage-database.js';
+import { StorageOpening } from './storage-opening.js';
+export { StorageOpening } from './storage-opening.js';
 
 const owned = Symbol('browser-storage-owner');
 const MAX_DB = 64 * 1024 * 1024;
@@ -75,25 +77,41 @@ export class StorageRoot {
     if (token !== owned) throw new TypeError('Use create, open or resume');
     this.#name = name; this.#id = id; this.#binding = binding; this.#release = release;
   }
-  static async create(name, id, binding, wrapping) {
+  static beginCreate(name, id, binding, wrapping) {
     const original = inputs(name, id, binding);
     if (!(wrapping instanceof Uint8Array) || wrapping.length !== 40
         || new TextDecoder().decode(wrapping.subarray(0, 8)) !== 'QPVKEY01') throw new TypeError('Original wrapping key encoding');
     const copy = wrapping.slice();
-    try { return await StorageRoot.#acquire(name, id, original, copy, false); }
-    finally { copy.fill(0); }
+    return new StorageOpening(async capture => {
+      try { return await StorageRoot.#acquire(name, id, original, copy, false, capture); }
+      finally { copy.fill(0); }
+    });
   }
-  static async open(name, id, binding) {
-    return StorageRoot.#acquire(name, id, inputs(name, id, binding), undefined, false);
+  static beginOpen(name, id, binding) {
+    const original = inputs(name, id, binding);
+    return new StorageOpening(capture => StorageRoot.#acquire(name, id, original, undefined, false, capture));
   }
-  static async resume(name, id, binding) {
-    return StorageRoot.#acquire(name, id, inputs(name, id, binding), undefined, true);
+  static beginResume(name, id, binding) {
+    const original = inputs(name, id, binding);
+    return new StorageOpening(capture => StorageRoot.#acquire(name, id, original, undefined, true, capture));
   }
-  static async #acquire(name, id, binding, wrapping, resume) {
+  static async #finish(opening) {
+    try { await opening.ready(); return opening.take(); }
+    finally { opening.abandon(); }
+  }
+  static async create(name, id, binding, wrapping) {
+    return StorageRoot.#finish(StorageRoot.beginCreate(name, id, binding, wrapping));
+  }
+  static async open(name, id, binding) { return StorageRoot.#finish(StorageRoot.beginOpen(name, id, binding)); }
+  static async resume(name, id, binding) { return StorageRoot.#finish(StorageRoot.beginResume(name, id, binding)); }
+  static async #acquire(name, id, binding, wrapping, resume, capture) {
     const release = await lease('qperiapt-continuity-storage/2/' + name);
     const root = new StorageRoot(owned, name, id, binding, release);
-    try { await root.#run(() => root.#initialize(wrapping, resume), 'OpenUnknown'); return root; }
-    catch (error) { return failedAfterClose(error, root); }
+    try {
+      capture(root);
+      await root.#run(() => root.#initialize(wrapping, resume), 'OpenUnknown');
+      return root;
+    } catch (error) { return failedAfterClose(error, root); }
   }
   async #io(operation) {
     this.#receipts.add(operation.settled);
@@ -310,4 +328,14 @@ export class StorageRoot {
 // Preserve both primary failure and cleanup status across the WASM error boundary.
 export function combineFailures(primary, cleanup) {
   return fail(primary.code ?? 'NativeFailure', new AggregateError([primary, cleanup]));
+}
+
+// Machine-readable classification supplements, rather than replaces, the original
+// error and its cleanup/receipt chain. Closed says nothing about commit outcome.
+export function continuityFailure(code, original, ownerClosed) {
+  const value = new Error(typeof original?.message === 'string' ? original.message : String(original), { cause: original });
+  value.name = typeof original?.name === 'string' ? original.name : 'Error';
+  Object.defineProperty(value, 'code', { value: typeof original?.code === 'string' ? original.code : code, enumerable: true });
+  if (ownerClosed !== undefined) Object.defineProperty(value, 'ownerClosed', { value: ownerClosed, enumerable: true });
+  return value;
 }

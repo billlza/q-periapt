@@ -10,12 +10,10 @@ use std::{
     time::Duration,
 };
 use wasm_bindgen::JsValue;
+mod errors;
 mod opening;
+pub use errors::{failure, input_failure};
 
-/// Preserve storage receipt and cleanup errors at a JavaScript boundary.
-pub fn failure(error: &DurableError) -> JsValue {
-    Storage::failure_value(error)
-}
 fn cleanup_error(primary: DurableError, cleanup: Result<(), DurableError>) -> JsValue {
     match cleanup {
         Ok(()) => failure(&primary),
@@ -37,6 +35,20 @@ pub struct BrowserDevice {
     cancellation: Cancellation,
 }
 impl BrowserDevice {
+    /// Whether this handle is permanently closed; not a resource-release or commit receipt.
+    pub fn is_closed(&self) -> bool {
+        self.closed.get()
+    }
+    /// Read authenticated original progress without granting traffic authority.
+    pub async fn status(&self) -> Result<crate::EnrollmentStatus, JsValue> {
+        let mut op = self.operation()?;
+        let result = match op.state.as_mut() {
+            Some(State::Enrollment(owner)) => owner.status(),
+            Some(State::Active(owner)) => owner.enrollment_status(),
+            None => Err(DurableError::Closed),
+        };
+        op.finish(result).await
+    }
     /// Shared one-way signal for this owner's witness/peer transports.
     pub fn cancellation(&self) -> Cancellation {
         self.cancellation.clone()
@@ -145,7 +157,10 @@ impl BrowserDevice {
     /// Close descendants, cancel pending transports, and await real storage release.
     pub async fn close(&self) -> Result<(), JsValue> {
         self.begin_close();
-        self.storage.close().await.map_err(|e| failure(&e))
+        self.storage
+            .close()
+            .await
+            .map_err(|e| errors::owned(failure(&e), true))
     }
     fn begin_close(&self) {
         self.closed.set(true);
@@ -155,13 +170,14 @@ impl BrowserDevice {
     }
     fn operation(&self) -> Result<Operation<'_>, JsValue> {
         if self.closed.get() {
-            return Err(failure(&DurableError::Closed));
+            return Err(errors::owned(failure(&DurableError::Closed), true));
         }
-        let state = self
-            .state
-            .borrow_mut()
-            .take()
-            .ok_or_else(|| failure(&DurableError::Io(std::io::ErrorKind::WouldBlock.into())))?;
+        let state = self.state.borrow_mut().take().ok_or_else(|| {
+            errors::owned(
+                failure(&DurableError::Io(std::io::ErrorKind::WouldBlock.into())),
+                false,
+            )
+        })?;
         Ok(Operation {
             owner: self,
             state: Some(state),
@@ -198,9 +214,9 @@ impl Operation<'_> {
                 self.owner.begin_close();
                 let cleanup = self.owner.storage.close().await;
                 self.armed = false;
-                Err(cleanup_error(
-                    other.err().unwrap_or(DurableError::Closed),
-                    cleanup,
+                Err(errors::owned(
+                    cleanup_error(other.err().unwrap_or(DurableError::Closed), cleanup),
+                    true,
                 ))
             }
         }
