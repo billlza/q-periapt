@@ -73,6 +73,7 @@ export async function runAcceptance(mode, realm) {
       "QPeriaptContinuityRosterRefresh",
       "QPeriaptContinuityRosterTarget",
       "QPeriaptContinuitySession",
+      "QPeriaptContinuitySessionReopenRequest",
       "QPeriaptContinuityStatus",
       "QPeriaptContinuityWitness",
       "QPeriaptContinuityWitnessPolicyProgress",

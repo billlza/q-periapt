@@ -107,6 +107,28 @@ impl BrowserDevice {
         .await;
         op.finish(result).await
     }
+    /// Admit authenticated original history only through the current policy
+    /// continuation already completed in this exact installation. The descriptor
+    /// cannot bootstrap a session or supply its own policy authorization.
+    pub async fn reopen_continued_session(
+        &self,
+        request: &crate::SessionReopenRequest,
+        policy: Arc<VerifiedSessionPolicy>,
+        now: u64,
+    ) -> Result<exchange::Session, JsValue> {
+        let mut op = self.operation()?;
+        let result = async {
+            let peer = op
+                .active()?
+                .parts()?
+                .0
+                .reopen_continued_peer(request.clone(), policy, now)
+                .await?;
+            Ok(exchange::Session::from_reopened(&peer))
+        }
+        .await;
+        op.finish(result).await
+    }
     /// Establish/reconcile the exact original request through an authenticated peer proof.
     pub async fn establish_session(
         &self,

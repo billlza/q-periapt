@@ -306,6 +306,14 @@ and whether ACK/cleanup finished. Remote Unavailable never means uncommitted.
 Activate separately with `activate_local_policy_renewal` or
 `activate_witnessed_policy_renewal`; activation rechecks current target policy,
 credential, roster and required witness before releasing the original owner.
+For an already established session after policy activation, construct
+`QPeriaptContinuitySessionReopenRequest` from its original bundle, independently
+pinned historical P0 and peer expectations, original session ID and role. Pass
+that descriptor and the live target policy to `reopen_continued_session`.
+The original journal must already contain the exact current authorization;
+historical metadata alone cannot create a session or bypass current membership,
+archive or witness checks. This does not grant new bootstrap permission.
+
 These entries share the native state machine. Browser lifecycle qualification
 and complete maintenance composition remain candidate work.
 

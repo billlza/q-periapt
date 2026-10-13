@@ -4,6 +4,8 @@ use super::*;
 use engine::session_exchange as exchange;
 use std::sync::Arc;
 
+mod continuation;
+
 fn message_id(value: &Uint8Array) -> Result<engine::MessageId, JsValue> {
     engine::MessageId::from_trusted_state(array(value)?).map_err(protocol)
 }

@@ -1,0 +1,66 @@
+{
+  "capture": {
+    "bytes": 4894097,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "8139d4544e8f13481eeb76d3c3d1f0ce26ba867af60b8b13432b0ac918b10699",
+    "members": 1957,
+    "sha256": "8f6edbf0fb110bb67dc2e810c1a732b4f0570e2c3c546d38178d1cb89a807eca"
+  },
+  "case_count": 8,
+  "cases": [
+    "bilateral",
+    "cancel",
+    "drop-ack",
+    "drop-commit",
+    "expired-bilateral",
+    "kill-ack",
+    "kill-commit",
+    "live"
+  ],
+  "completed": true,
+  "counterexample": "red01: original journal activates P1; legacy session reopen returns Conflict while original message and epoch-1 control remain pending. New API preserves that legacy refusal.",
+  "diagnostics": {
+    "run02": "Fixture child trace directories were 0755; private publisher refused. Separate v2 helper uses 0700; original source/binary remain frozen.",
+    "run05": "Initial session establishment hit caller-specified 10-second deadline during concurrent builds/cohorts. Both native replies returned successfully. Contention is a hypothesis, not proven cause. Fresh serial run06 retains identical source and timeout bounds. No performance/SLA claim."
+  },
+  "package": {
+    "manifest_sha256": "6844c6c9ccd9b38398b8ce9398da25db74e93211d4f7edf886c60072d8d4f981",
+    "sha256": "7264086fce25a9ba121e85563f9bb4016398d1a72dcec974aa21936b213b219f",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "real_policy_expiry": {
+    "credentials_until": 1791919556,
+    "pending_at": 1791916005,
+    "policy_until": 1791916196,
+    "renew_at": 1791916197
+  },
+  "release_claim_eligible": false,
+  "scope": "Current installed browser original session/PQ/control/ciphertext continuity through unilateral and bilateral independent P, real P0 expiry and original recovery. Shared Rust engine and loopback; not independent implementation, browser G/P/T full composition, OS crash, deployed migration, device, performance, PCS or release qualification.",
+  "source": {
+    "base_commit": "675b465fa46a7dfc03dba02cd5167bac0e7a5596",
+    "overlay": {
+      "ARTIFACT.md": "a1bcbad8ffb725a2ea7f2b5b4fe9a878401a482b0039b8ad5a9a8c17c807ce4a",
+      "artifact/codeql_rust_quality.py": "d062ac8f8d12983e9bcdecd18e783c7b4c819c78de383574a34a612ee6b43a48",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "ede345a92f1fc0fe33bee361cf796962ec56dc96d2c9ba8c115c14bfb40b5ad8",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "e679e5078d387f06ee23b7c1ea65acc13b9caa3dec418a05cf674718e3ba61ec",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "b15eb71162b2df9435effa8f24a20d72459749f565b684c4ec1024b656c3c15e",
+      "crates/q-periapt-sdk-wasm/src/continuity/connections.rs": "b5b6c10e791dba4fa91d155cd52f66ef7a99326fad0f430f9d528f2f2f1cd006",
+      "crates/q-periapt-sdk-wasm/src/continuity/connections/continuation.rs": "462cbb234903247b2e9e95dfb29f34c85d5c6b4783936736db27010863069a76",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "a9c16b629e72d286762833384da4b35bcfa89ff9e2cefab32e60fc4c5152c7a7",
+      "research/continuity-identity-candidate/src/bootstrap_bundle/reopen.rs": "56ebc397dda9f13006bc345f1087f96b2b4ed30f2a83b933c342ea7e4050d1f3",
+      "research/continuity-identity-candidate/src/browser/connections.rs": "59263ba2badf46a921c559db9a68352ca040c376f4c376d5e5d8d13bd2d92d42"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "actual_worker_termination_cuts": 2,
+    "base_browser": 10,
+    "browser": "155.0.8059.40",
+    "clippy_native_wasm": "strict passed",
+    "controls": 53,
+    "format": "passed",
+    "native_bundle_tests": 11,
+    "wasm_msrv": "1.90 passed"
+  }
+}

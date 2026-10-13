@@ -29,6 +29,7 @@ export { QPeriaptContinuityParticipant,
   QPeriaptContinuityPeer,
   QPeriaptContinuityEndpoint,
   QPeriaptContinuitySession,
+  QPeriaptContinuitySessionReopenRequest,
   QPeriaptContinuityMessage,
   QPeriaptContinuityConsumption,
   QPeriaptContinuityMessageStatus } from './q_periapt_sdk_wasm.js';

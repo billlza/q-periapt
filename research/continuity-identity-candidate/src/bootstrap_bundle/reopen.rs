@@ -4,6 +4,7 @@ use crate::{BootstrapRole, HistoricalSessionPolicy};
 
 /// Authenticated historical identity awaiting admission by its original durable
 /// installation. It exposes no context, journal, key or operational authority.
+#[derive(Clone)]
 pub struct SessionReopenRequest {
     pub(crate) context: Arc<BootstrapContext>,
     pub(crate) role: BootstrapRole,
