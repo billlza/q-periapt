@@ -350,14 +350,10 @@ impl DeviceEnrollment {
             image = self.image()?;
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        let path = self.paths.installation.files()[1];
-        let proposal = match DeviceJournal::inspect_roster_refresh_preparation(
-            path,
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )? {
+        let proposal = match self
+            .inspect_original_roster_preparation(&original, original_policy, id)
+            .await?
+        {
             Some(p) => p,
             None => {
                 if image
@@ -392,6 +388,25 @@ impl DeviceEnrollment {
         self.retain_roster_proposal(image, original_policy, proposal)?;
         drop(lease);
         Ok(proposal)
+    }
+
+    async fn inspect_original_roster_preparation(
+        &self,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+    ) -> Result<Option<Proposal>, DurableError> {
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        DeviceJournal::inspect_roster_refresh_preparation_in_database(
+            &db,
+            &self.key().await?,
+            original,
+            policy,
+            id,
+        )
     }
 
     fn retain_roster_proposal(
@@ -464,13 +479,9 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        let found = DeviceJournal::inspect_roster_refresh_preparation(
-            self.paths.installation.files()[1],
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )?;
+        let found = self
+            .inspect_original_roster_preparation(&original, original_policy, id)
+            .await?;
         if let Some(p) = found {
             self.retain_roster_proposal(image, original_policy, p)?;
         } else if r.coordination.is_some() {
@@ -516,14 +527,10 @@ impl DeviceEnrollment {
         }
         let scope = r.scope;
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        if DeviceJournal::inspect_roster_refresh_preparation(
-            self.paths.installation.files()[1],
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )?
-        .is_some()
+        if self
+            .inspect_original_roster_preparation(&original, original_policy, id)
+            .await?
+            .is_some()
         {
             return Err(DurableError::Suspended);
         }
@@ -708,9 +715,13 @@ impl DeviceEnrollment {
                         .roster_refresh_state(proposal)?;
                 }
             }
-            let observed = DeviceJournal::recover_roster_refresh(
-                self.paths.installation.files()[1],
-                self.key().await?,
+            let db = self
+                .storage
+                .open_database(self.paths.installation.files()[1])
+                .await?;
+            let observed = DeviceJournal::recover_roster_refresh_in_database(
+                &db,
+                &self.key().await?,
                 &original,
                 policy,
                 id,
@@ -718,6 +729,7 @@ impl DeviceEnrollment {
                 client,
             )
             .await?;
+            drop(db);
             #[cfg(all(test, unix))]
             tests::renewal::boundary("independent-roster-observed");
             let disposition = match observed {
@@ -749,9 +761,13 @@ impl DeviceEnrollment {
         let terminal = self.persisted_roster_terminal(policy)?;
         #[cfg(all(test, unix))]
         tests::renewal::boundary("independent-roster-terminal");
-        DeviceJournal::retire_roster_refresh(
-            self.paths.installation.files()[1],
-            self.key().await?,
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        DeviceJournal::retire_roster_refresh_in_database(
+            &db,
+            &self.key().await?,
             &original,
             policy,
             id,
@@ -759,6 +775,7 @@ impl DeviceEnrollment {
             client,
         )
         .await?;
+        drop(db);
         #[cfg(all(test, unix))]
         tests::renewal::boundary("independent-roster-retired");
         image = self.image()?;

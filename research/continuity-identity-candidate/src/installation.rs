@@ -533,6 +533,24 @@ impl DeviceInstallation {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         admission: impl Into<InstallationAdmission>,
     ) -> Result<DeviceService, DurableError> {
+        Self::reconcile_original_enrollment_with_storage(
+            crate::storage::Storage::native()?,
+            paths,
+            key,
+            original,
+            policy,
+            admission,
+        )
+        .await
+    }
+    pub(crate) async fn reconcile_original_enrollment_with_storage(
+        storage: crate::storage::Storage,
+        paths: InstallationPaths,
+        key: JournalKey,
+        original: &VerifiedDevice,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+        admission: impl Into<InstallationAdmission>,
+    ) -> Result<DeviceService, DurableError> {
         let admission = admission.into();
         let anchor = admission.anchor;
         let policy = policy.as_ref();
@@ -542,7 +560,8 @@ impl DeviceInstallation {
         if policy.anchor_requirement().binding().is_none() && anchor.is_some() {
             return Err(DurableError::Conflict);
         }
-        let mut installation = Self::open_bound(paths, &key, original, policy).await?;
+        let mut installation =
+            Self::open_bound_with_storage(storage, paths, &key, original, policy).await?;
         if installation.status()? != InstallationStatus::Active {
             return Err(DurableError::Conflict);
         }

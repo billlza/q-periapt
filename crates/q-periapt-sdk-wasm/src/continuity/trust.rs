@@ -13,10 +13,10 @@ impl SessionPolicy {
         runtime: &Runtime,
         root: &Uint8Array,
         family: &Uint8Array,
-        version: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] version: JsValue,
         digest: &Uint8Array,
         statement: &Uint8Array,
-        now: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
     ) -> Result<SessionPolicy, JsValue> {
         let public = engine::PublicKey::decode(&read_input(
             root,
@@ -24,13 +24,14 @@ impl SessionPolicy {
             engine::PUBLIC_KEY_BYTES,
         )?)
         .map_err(protocol)?;
-        let checkpoint = engine::PolicyCheckpoint::from_trusted_state(version, array(digest)?)
-            .map_err(protocol)?;
+        let checkpoint =
+            engine::PolicyCheckpoint::from_trusted_state(read_time(version)?, array(digest)?)
+                .map_err(protocol)?;
         let pin = engine::PolicyPin::new(array(family)?, public, checkpoint).map_err(protocol)?;
         let statement = read_input(statement, 1, 8192)?;
         Ok(Self {
             inner: std::sync::Arc::new(
-                pin.verify(&statement, runtime.inner.clone(), now)
+                pin.verify(&statement, runtime.inner.clone(), read_time(now)?)
                     .map_err(protocol)?,
             ),
         })
@@ -52,7 +53,7 @@ impl AccountTrust {
     pub fn new(
         account: &Uint8Array,
         root: &Uint8Array,
-        version: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] version: JsValue,
         digest: &Uint8Array,
         family: &Uint8Array,
     ) -> Result<AccountTrust, JsValue> {
@@ -62,8 +63,9 @@ impl AccountTrust {
             engine::PUBLIC_KEY_BYTES,
         )?)
         .map_err(protocol)?;
-        let checkpoint = engine::RosterCheckpoint::from_trusted_state(version, array(digest)?)
-            .map_err(protocol)?;
+        let checkpoint =
+            engine::RosterCheckpoint::from_trusted_state(read_time(version)?, array(digest)?)
+                .map_err(protocol)?;
         Ok(Self {
             inner: std::sync::Arc::new(
                 engine::AccountPin::new(array(account)?, public, checkpoint, array(family)?)
@@ -153,10 +155,10 @@ impl Enrollment {
     pub fn new(
         root: &Uint8Array,
         device: &Uint8Array,
-        generation: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] generation: JsValue,
         family: &Uint8Array,
-        from: u64,
-        until: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] from: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] until: JsValue,
     ) -> Result<Enrollment, JsValue> {
         let root = read_input(root, engine::PUBLIC_KEY_BYTES, engine::PUBLIC_KEY_BYTES)?;
         engine::PublicKey::decode(&root).map_err(protocol)?;
@@ -164,6 +166,9 @@ impl Enrollment {
             .try_into()
             .map_err(|_| protocol(engine::Error::Encoding))?;
         let family = array(family)?;
+        let generation = read_time(generation)?;
+        let from = read_time(from)?;
+        let until = read_time(until)?;
         let validity = engine::Validity::new(from, until).map_err(protocol)?;
         engine::DeviceDescription::new(device, generation, family, validity).map_err(protocol)?;
         let mut description = Vec::with_capacity(72);

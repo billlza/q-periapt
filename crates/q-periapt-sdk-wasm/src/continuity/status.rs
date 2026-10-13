@@ -90,10 +90,24 @@ pub enum RosterOutcome {
 /// Immutable signed-checkpoint expectation; does not authenticate itself.
 #[wasm_bindgen(js_name = QPeriaptContinuityCheckpoint)]
 pub struct Checkpoint {
-    inner: engine::RosterCheckpoint,
+    pub(super) inner: engine::RosterCheckpoint,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityCheckpoint)]
 impl Checkpoint {
+    /// Restore an exact independently retained expectation; parsing is not authority.
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        #[wasm_bindgen(unchecked_param_type = "bigint")] version: JsValue,
+        digest: &Uint8Array,
+    ) -> Result<Checkpoint, JsValue> {
+        Ok(Self {
+            inner: engine::RosterCheckpoint::from_trusted_state(
+                read_time(version)?,
+                array(digest)?,
+            )
+            .map_err(protocol)?,
+        })
+    }
     /// Original checkpoint version.
     pub fn version(&self) -> u64 {
         self.inner.version()
@@ -111,6 +125,17 @@ pub struct Refresh {
     observed: Option<engine::RosterCheckpoint>,
     outcome: Option<engine::RosterRefreshOutcome>,
     observed_at: Option<u64>,
+}
+impl From<engine::RosterRefreshResolution> for Refresh {
+    fn from(value: engine::RosterRefreshResolution) -> Self {
+        Self {
+            previous: value.previous,
+            target: value.target,
+            observed: Some(value.observed),
+            outcome: Some(value.outcome),
+            observed_at: Some(value.observed_at),
+        }
+    }
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityRosterRefresh)]
 impl Refresh {

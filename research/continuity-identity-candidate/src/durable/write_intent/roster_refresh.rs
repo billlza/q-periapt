@@ -74,9 +74,18 @@ impl DeviceJournal {
         id: JournalIdentity,
     ) -> Result<Option<Proposal>, DurableError> {
         let db = open_private_database(path)?;
+        Self::inspect_roster_refresh_preparation_in_database(&db, &key, original, policy, id)
+    }
+    pub(crate) fn inspect_roster_refresh_preparation_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+    ) -> Result<Option<Proposal>, DurableError> {
         let (image, pending) = load_pending_snapshot(
-            &db,
-            &key,
+            db,
+            key,
             bootstrap::storage_owner(original),
             SnapshotAdmission::RosterRecovery,
         )?;
@@ -169,19 +178,6 @@ impl DeviceJournal {
     maybe_async::must_be_sync
 )]
 impl DeviceJournal {
-    pub(crate) async fn retire_roster_refresh(
-        path: &Path,
-        key: JournalKey,
-        original: &VerifiedDevice,
-        policy: &HistoricalSessionPolicy,
-        id: JournalIdentity,
-        terminal: &crate::enrollment::PersistedRosterTerminal,
-        client: &mut crate::AnchorClient,
-    ) -> Result<(), DurableError> {
-        let db = open_private_database(path)?;
-        Self::retire_roster_refresh_in_database(&db, &key, original, policy, id, terminal, client)
-            .await
-    }
     pub(crate) async fn retire_roster_refresh_in_database(
         db: &Database,
         key: &JournalKey,

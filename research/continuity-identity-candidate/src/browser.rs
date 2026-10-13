@@ -16,6 +16,7 @@ pub(crate) mod http;
 mod inventory;
 mod opening;
 mod publication;
+mod roster;
 pub use errors::{failure, input_failure};
 pub use http::PeerEndpoint;
 

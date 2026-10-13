@@ -1064,6 +1064,16 @@ impl EnrolledDevice {
             .enrollment
             .status()
     }
+    /// Original roster coordination metadata; it grants no new traffic authority.
+    pub fn witnessed_roster_refresh_progress(
+        &mut self,
+    ) -> Result<Option<WitnessedRosterRefreshProgress>, DurableError> {
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .witnessed_roster_refresh_progress()
+    }
     /// Borrow the existing service, original signer and verified local identity.
     /// Peer preparation, current roster/policy and durable traffic checks still apply.
     pub fn parts(

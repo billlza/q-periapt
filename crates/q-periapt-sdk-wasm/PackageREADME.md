@@ -130,8 +130,9 @@ IndexedDB, Web Locks and OPFS synchronous access handles. Use one stable name
 (1–96 ASCII letters, digits, underscores or hyphens), an independently retained
 32-byte storage ID, and the exact same enrollment intent on reopen. The intent
 constructor takes the pinned account root, 16-byte device ID, generation,
-32-byte policy family and validity interval. Timestamps and versions are BigInt;
-buffer inputs are Uint8Array and are bounded before copying into WASM. Their real
+32-byte policy family and validity interval. Timestamps, versions and generations must be unsigned 64-bit BigInt values;
+wrapping, strings, booleans and coercion objects are refused.
+Buffer inputs are Uint8Array and are bounded before copying into WASM. Their real
 typed-array length is checked without invoking caller properties. Genuine subclasses
 and cross-realm Uint8Arrays are accepted; proxies, detached/out-of-bounds views and
 other array kinds are rejected. Invalid input does not strand the owner borrow.
@@ -207,7 +208,7 @@ copies have their own lifetimes. The SDK does not promise global exactly-once ef
 HTTP loopback diagnostics. Peer pins remain independent of the untrusted carrier.
 Requests omit ambient credentials and redirects, and bound each streamed response
 to 32 KiB. Source-integrated APIs still require installed browser/native network
-qualification; root/roster lifecycle and migration require further browser
+qualification; full identity lifecycle and migration require further browser
 integration. The protocol and package remain prerelease candidates.
 
 `session_rekey_progress(session)` reads local confirmed, sending, receiving and
@@ -221,6 +222,39 @@ the original session, including final/receipt replays after local completion.
 The returned completion's `epoch()` and `exchanges()` describe local journal
 completion only; they are not remote receipt or post-compromise recovery proof.
 These new control bindings require their own installed runtime qualification.
+
+For same-credential roster maintenance, first await `close()` on the operational
+owner and free it, then `open` the original name, storage ID and enrollment intent.
+The opened registration coordinates maintenance without exposing its signer or
+journal. Do not call `create` or `accept` again. After maintenance, `activate` (or
+`activate_local` for a signed local policy) checks current authority before traffic.
+A durable `Active` status is not an already activated JavaScript service handle.
+
+`refresh_local_roster` retains an independently pinned, signed target and requires
+local protection. Required-witness policy is refused before this path changes state.
+`resolve_local_roster_refresh` reconciles an original predecessor/target pair and
+retains Committed, ExpiredUncommitted, SupersededUncommitted or SupersededUnknown;
+a later head does not prove that the old target never committed.
+
+For required witnesses, create `QPeriaptContinuityRosterTarget` from the original
+certificate, new root-signed roster, and independently obtained current account pin.
+Retain one `QPeriaptContinuityRosterProposal.new_operation_id()` before calling
+`prepare_witnessed_roster_refresh`. Send its canonical `bytes()` to the independently
+authorized witness service for preparation. The device SDK does not grant that
+server-side authorization. Only then call `commit_witnessed_roster_refresh` with
+current policy. Unknown returns require the same proposal; the `recover_*` and
+progress APIs read original preparation instead of creating another target.
+
+`reconcile_witnessed_roster_refresh` and `close_witnessed_roster_refresh` use
+`QPeriaptContinuityHistoricalPolicy`, verified from the original independent policy
+pin and signed statement without constructing a live runtime. They finish original
+terminal persistence, acknowledgement and cleanup in the engine's required order.
+Close can return Applied if the target had already committed. Unavailable never
+means uncommitted. A local progress snapshot distinguishes staged, abandoned before
+preparation, reserved, applied and closed, and separately reports completed cleanup.
+Only a never-released staged intent can use `abandon_unprepared_roster_refresh`.
+These roster bindings require their own installed browser qualification. Credential,
+policy and account-root transitions and migrations remain separate integration work.
 
 Await `close()` before releasing the wrapper with `free()`. Close cancels pending
 witness traffic and waits for actual storage-release receipts. Concurrent device
@@ -244,7 +278,7 @@ returned checkpoint/refresh wrappers after reading them; they own no authority.
 | Preparing / Requested | Obtain the same signed `request()` and reconcile authenticated registration. |
 | Accepted | Repeat `prepare()` to recover original children/genesis, complete any required independent witness enrollment, then activate. |
 | Activating / Active | Retry `activate()` under current policy and witness admission. Do not prepare or recreate children. |
-| Refreshing / RosterResolved | Preserve the original roster workflow. Browser control bindings for these states are still being integrated; the snapshot does not authorize traffic. |
+| Refreshing / RosterResolved | Preserve the original roster workflow. Use the original local roster refresh/resolution workflow; the snapshot does not authorize traffic. |
 
 Roster observations retain predecessor, target, actual observed checkpoint and
 observation time. `SupersededUnknown` stays distinct from the two uncommitted

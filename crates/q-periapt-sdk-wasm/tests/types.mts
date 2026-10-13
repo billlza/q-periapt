@@ -131,3 +131,32 @@ async function sessionExchange(device: QPeriaptContinuityDevice, policy: QPeriap
   void consumption; void status; void reply; void resumedReply;
 }
 void sessionExchange;
+
+import {QPeriaptContinuityHistoricalPolicy, QPeriaptContinuityRosterTarget,
+  QPeriaptContinuityRosterProposal, QPeriaptContinuityCheckpoint,
+  QPeriaptContinuityWitnessRosterStage, QPeriaptContinuityWitnessRosterState}
+  from 'q-periapt-sdk-wasm/web';
+async function rosterMaintenance(device: QPeriaptContinuityDevice,
+    account: QPeriaptContinuityAccountTrust, policy: QPeriaptContinuityPolicy,
+    witness: QPeriaptContinuityWitness) {
+  const history = new QPeriaptContinuityHistoricalPolicy(data, data, 1n, data, data);
+  const previous = new QPeriaptContinuityCheckpoint(1n, data);
+  const target = new QPeriaptContinuityRosterTarget(account, data, data, 1n);
+  const operation = QPeriaptContinuityRosterProposal.new_operation_id();
+  const proposal = await device.prepare_witnessed_roster_refresh(operation, history, policy, target, witness, 1n);
+  const restored = new QPeriaptContinuityRosterProposal(proposal.bytes());
+  const recovered = await device.recover_witnessed_roster_refresh_preparation(history);
+  const status = await device.witnessed_roster_refresh_progress();
+  const stage: QPeriaptContinuityWitnessRosterStage | undefined = status?.stage();
+  const applied: QPeriaptContinuityWitnessRosterState = await device.commit_witnessed_roster_refresh(restored, history, policy, witness, 1n);
+  const reconciled = await device.reconcile_witnessed_roster_refresh(restored, history, witness);
+  const closed = await device.close_witnessed_roster_refresh(restored, history, witness);
+  const abandoned = await device.abandon_unprepared_roster_refresh(operation, history);
+  const local = await device.refresh_local_roster(previous, data, account, policy, 1n);
+  const targetCheckpoint = target.checkpoint();
+  const resolution = await device.resolve_local_roster_refresh(previous, targetCheckpoint, history, 1n);
+  resolution.free(); targetCheckpoint.free(); local.free(); abandoned.free(); status?.free(); recovered?.free();
+  restored.free(); proposal.free(); target.free(); previous.free(); history.free();
+  void stage; void applied; void reconciled; void closed;
+}
+void rosterMaintenance;

@@ -48,9 +48,13 @@ impl DeviceEnrollment {
         original: &VerifiedDevice,
         identity: JournalIdentity,
     ) -> Result<(), DurableError> {
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
         crate::DeviceJournal::check_original_account_authority(
-            self.paths.installation.files()[1],
-            self.key().await?,
+            &db,
+            &self.key().await?,
             original,
             identity,
             self.account_authority.as_ref(),
@@ -63,8 +67,12 @@ impl DeviceEnrollment {
         identity: JournalIdentity,
         client: AnchorClient,
     ) -> Result<crate::DeviceJournal, DurableError> {
-        crate::DeviceJournal::open_anchored_admitted(
-            self.paths.installation.files()[1],
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        crate::DeviceJournal::open_anchored_database_admitted(
+            db,
             self.key().await?,
             original,
             policy,
@@ -112,7 +120,8 @@ impl DeviceEnrollment {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
     ) -> Result<DeviceService, DurableError> {
-        DeviceInstallation::reconcile_original_enrollment(
+        DeviceInstallation::reconcile_original_enrollment_with_storage(
+            self.storage.clone(),
             self.paths.installation.clone(),
             self.key().await?,
             original,

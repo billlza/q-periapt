@@ -7,10 +7,12 @@ use q_periapt_continuity_identity_candidate as engine;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 mod connections;
+mod history;
 mod inventory;
 mod peers;
 mod publication;
 mod rekey;
+mod roster;
 mod status;
 mod trust;
 use status::Status;
@@ -122,7 +124,11 @@ impl Device {
         })
     }
     /// Return the original signed enrollment request for the account authority.
-    pub async fn request(&self, now: u64) -> Result<Vec<u8>, JsValue> {
+    pub async fn request(
+        &self,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
+    ) -> Result<Vec<u8>, JsValue> {
+        let now = read_time(now)?;
         self.inner.request(now).await
     }
     /// Accept a signed grant under independent account/roster and policy pins.
@@ -132,8 +138,9 @@ impl Device {
         roster: &Uint8Array,
         trust: &AccountTrust,
         policy: &SessionPolicy,
-        now: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
     ) -> Result<Vec<u8>, JsValue> {
+        let now = read_time(now)?;
         let certificate = read_input(certificate, 1, 8192)?;
         let roster = read_input(roster, 1, 8192)?;
         Ok(self
@@ -144,7 +151,12 @@ impl Device {
             .to_vec())
     }
     /// Prepare original children; any returned genesis requires independent enrollment.
-    pub async fn prepare(&self, policy: &SessionPolicy, now: u64) -> Result<Preparation, JsValue> {
+    pub async fn prepare(
+        &self,
+        policy: &SessionPolicy,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
+    ) -> Result<Preparation, JsValue> {
+        let now = read_time(now)?;
         Ok(Preparation {
             inner: self.inner.prepare(&policy.inner, now).await?,
         })
@@ -153,8 +165,9 @@ impl Device {
     pub async fn activate_local(
         &self,
         policy: &SessionPolicy,
-        now: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
     ) -> Result<Vec<u8>, JsValue> {
+        let now = read_time(now)?;
         Ok(self
             .inner
             .activate(&policy.inner, now, None)
@@ -167,8 +180,9 @@ impl Device {
         &self,
         policy: &SessionPolicy,
         witness: &Witness,
-        now: u64,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
     ) -> Result<Vec<u8>, JsValue> {
+        let now = read_time(now)?;
         let carrier = witness.carrier(self.inner.cancellation())?;
         Ok(self
             .inner
