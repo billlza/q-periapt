@@ -17,6 +17,26 @@ async fn client(
         .await
 }
 impl BrowserDevice {
+    /// Accept an independently pinned signed head for an already known remote
+    /// account. Local account updates must use the original enrollment workflow.
+    /// An unknown result requires this same target and original device on retry;
+    /// success reports the installed head, not which attempt first committed it.
+    pub async fn admit_peer_roster(
+        &self,
+        roster: &[u8],
+        pin: &AccountPin,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<RosterCheckpoint, JsValue> {
+        let mut op = self.operation()?;
+        let result = async {
+            let service = op.active()?.parts()?.0;
+            let roster = pin.verify_roster(roster, now)?;
+            service.admit_peer_roster(&roster, policy, now).await
+        }
+        .await;
+        op.finish(result).await
+    }
     /// Retain a local-only roster target. Reopen the original device before
     /// maintenance; activation reconciles it afterwards. Required witness is refused.
     pub async fn refresh_local_roster(

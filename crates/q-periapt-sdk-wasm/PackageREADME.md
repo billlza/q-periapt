@@ -230,6 +230,23 @@ journal. Do not call `create` or `accept` again. After maintenance, `activate` (
 `activate_local` for a signed local policy) checks current authority before traffic.
 A durable `Active` status is not an already activated JavaScript service handle.
 
+An activated device accepts a known **remote** account's newer roster through
+`admit_peer_roster(signedRoster, independentlyPinnedAccountTrust, policy, now)`.
+The returned checkpoint means that this canonical head is installed locally.
+The operation verifies signatures, current policy and local authority, and refuses
+unknown accounts, another root/family, rollback and same-version forks. An exact
+retry still checks live authority; it is not proof that this invocation first
+committed the update. If transport or storage fails, reopen the original device
+and retry the same independently signed target. A later head refusing that retry
+does not establish whether the older attempt once committed.
+
+Current roster membership is rechecked before existing-session operations release
+data. Accepting a roster which removes a peer therefore blocks that peer's old
+sessions. This operation does not distribute the roster, prove remote receipt or
+change the local account; local-account updates use the original workflow below.
+Retain the original bootstrap bundle/pins for historical session reconstruction;
+they do not replace explicit admission of newly received peer rosters.
+
 `refresh_local_roster` retains an independently pinned, signed target and requires
 local protection. Required-witness policy is refused before this path changes state.
 `resolve_local_roster_refresh` reconciles an original predecessor/target pair and

@@ -139,6 +139,8 @@ import {QPeriaptContinuityHistoricalPolicy, QPeriaptContinuityRosterTarget,
 async function rosterMaintenance(device: QPeriaptContinuityDevice,
     account: QPeriaptContinuityAccountTrust, policy: QPeriaptContinuityPolicy,
     witness: QPeriaptContinuityWitness) {
+  const remoteHead: QPeriaptContinuityCheckpoint = await device.admit_peer_roster(data, account, policy, 1n);
+  remoteHead.free();
   const history = new QPeriaptContinuityHistoricalPolicy(data, data, 1n, data, data);
   const previous = new QPeriaptContinuityCheckpoint(1n, data);
   const target = new QPeriaptContinuityRosterTarget(account, data, data, 1n);

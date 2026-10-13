@@ -29,6 +29,27 @@ fn operation(value: &Uint8Array) -> Result<engine::RosterRefreshId, JsValue> {
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityDevice)]
 impl Device {
+    /// Accept the independently authenticated head of a known remote account.
+    /// Exact retry rechecks current authority; local-account changes require R.
+    pub async fn admit_peer_roster(
+        &self,
+        roster: &Uint8Array,
+        trust: &AccountTrust,
+        policy: &SessionPolicy,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
+    ) -> Result<Checkpoint, JsValue> {
+        Ok(Checkpoint {
+            inner: self
+                .inner
+                .admit_peer_roster(
+                    &read_input(roster, 1, 8192)?,
+                    &trust.inner,
+                    &policy.inner,
+                    read_time(now)?,
+                )
+                .await?,
+        })
+    }
     /// Local-policy path only. Close the operational owner and open the original
     /// registration for maintenance; activate again after the target is reconciled.
     pub async fn refresh_local_roster(
