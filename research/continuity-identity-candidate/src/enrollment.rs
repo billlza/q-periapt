@@ -1056,6 +1056,14 @@ pub struct EnrolledDevice {
     maybe_async::must_be_sync
 )]
 impl EnrolledDevice {
+    /// Historical original renewal outcome; current service admission is separate.
+    pub fn credential_renewal_status(&mut self) -> Result<CredentialRenewalStatus, DurableError> {
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .credential_renewal_status()
+    }
     /// Read retained enrollment progress; this observation grants no traffic authority.
     pub fn enrollment_status(&mut self) -> Result<EnrollmentStatus, DurableError> {
         self.active

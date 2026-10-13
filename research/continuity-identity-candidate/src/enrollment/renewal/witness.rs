@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     AnchorCredentialRenewalProposal as Proposal, AnchorCredentialRenewalState as State,
-    AnchorOperation, AnchorSubject, DeviceJournal,
+    AnchorOperation, AnchorSubject,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -557,13 +557,9 @@ impl DeviceEnrollment {
         }
         let grant = self.pending_grant(&image, &original, policy)?;
         let _lease = self.witness_lease(&original, policy, id).await?;
-        let proposal = DeviceJournal::inspect_witnessed_credential_intent(
-            self.paths.installation.files()[1],
-            self.key().await?,
-            &original,
-            policy,
-            id,
-        )?;
+        let proposal = self
+            .inspect_original_credential_intent(&original, policy, id)
+            .await?;
         let Some(proposal) = proposal else {
             if coordination.is_some() {
                 return Err(DurableError::Conflict);
@@ -667,14 +663,12 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        let path = self.paths.installation.files()[1];
-        let proposal = match DeviceJournal::inspect_credential_renewal_preparation(
-            path,
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )? {
+        let proposal = match self
+            .inspect_original_credential_intent(&original, original_policy, id)
+            .await?
+            .map(WitnessedCredentialIntent::proposal)
+            .transpose()?
+        {
             Some(p) => p,
             None => {
                 if image
@@ -772,25 +766,19 @@ impl DeviceEnrollment {
             .map(|bytes| self.retained_policy(bytes))
             .transpose()?;
         let _lease = self.witness_lease(&original, policy, id).await?;
-        let path = self.paths.installation.files()[1];
         // A retained coordination must never be re-created against a changed
         // head after local record loss. Inspect and compare before reserving.
         if let Some(coord) = renewal.witness.as_ref().and_then(|w| w.coordination) {
-            if DeviceJournal::inspect_witnessed_credential_intent(
-                path,
-                self.key().await?,
-                &original,
-                policy,
-                id,
-            )? != Some(coord.intent)
+            if self
+                .inspect_original_credential_intent(&original, policy, id)
+                .await?
+                != Some(coord.intent)
             {
                 return Err(DurableError::Conflict);
             }
         }
-        let cancellation = if continuation.is_some() {
-            DeviceJournal::reserve_enrollment_policy_cancellation(
-                path,
-                self.key().await?,
+        let cancellation = self
+            .reserve_original_credential_cancellation(
                 &original,
                 policy,
                 id,
@@ -800,18 +788,8 @@ impl DeviceEnrollment {
                     adopts: pending.continuation.is_some(),
                     completed: renewal.completed.as_ref(),
                 },
-            )?
-        } else {
-            DeviceJournal::reserve_enrollment_credential_cancellation(
-                path,
-                self.key().await?,
-                &original,
-                policy,
-                id,
-                grant.historical(),
-                renewal.completed.as_ref(),
-            )?
-        };
+            )
+            .await?;
         self.check_witnessed_pending(
             &image,
             &original,
@@ -1033,7 +1011,6 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let _lease = self.witness_lease(&original, policy, id).await?;
-        let journal_path = self.paths.installation.files()[1].to_path_buf();
         if coord.terminal.is_none() {
             let grant = self.pending_grant(&image, &original, policy)?;
             self.check_witnessed_pending(&image, &original, &grant, proposal)?;
@@ -1051,13 +1028,10 @@ impl DeviceEnrollment {
             let receipt = target.receipt()?;
             // Verify exact retained intent before dispatching even an explicit
             // command. A substituted local proposal cannot cause remote work.
-            if DeviceJournal::inspect_witnessed_credential_intent(
-                &journal_path,
-                self.key().await?,
-                &original,
-                policy,
-                id,
-            )? != Some(proposal)
+            if self
+                .inspect_original_credential_intent(&original, policy, id)
+                .await?
+                != Some(proposal)
             {
                 return Err(DurableError::Conflict);
             }
@@ -1090,16 +1064,9 @@ impl DeviceEnrollment {
             if let Some(command) = command {
                 proposal.interpret(&client.exchange(proposal.subject(), command).await?)?;
             }
-            let observed = DeviceJournal::recover_witnessed_credential_intent(
-                &journal_path,
-                self.key().await?,
-                &original,
-                policy,
-                id,
-                proposal,
-                client,
-            )
-            .await?;
+            let observed = self
+                .recover_original_credential_intent(&original, policy, id, proposal, client)
+                .await?;
             #[cfg(all(test, unix))]
             super::super::tests::renewal::boundary("witness-observed");
             let terminal = match observed {
@@ -1148,18 +1115,11 @@ impl DeviceEnrollment {
         // This crate-private entry accepts only the authenticated durable record,
         // never caller-constructed terminal metadata. It checks local bytes before
         // sending ACK and deletes only the exact intent, retaining the image.
-        DeviceJournal::retire_witnessed_credential_intent(
-            &journal_path,
-            self.key().await?,
-            &original,
-            policy,
-            id,
-            &self
-                .persisted_witness_intent_terminal(policy, now, proposal)
-                .await?,
-            client,
-        )
-        .await?;
+        let terminal = self
+            .persisted_witness_intent_terminal(policy, now, proposal)
+            .await?;
+        self.retire_original_credential_intent(&original, policy, id, &terminal, client)
+            .await?;
         #[cfg(all(test, unix))]
         super::super::tests::renewal::boundary("witness-retired");
         let witness = image

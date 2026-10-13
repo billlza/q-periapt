@@ -12,6 +12,7 @@ use std::{
 use wasm_bindgen::JsValue;
 mod connections;
 mod credential_requests;
+mod credentials;
 mod errors;
 pub(crate) mod http;
 mod inventory;

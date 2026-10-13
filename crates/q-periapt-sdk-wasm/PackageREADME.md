@@ -265,8 +265,33 @@ checkpoints, serialize roster versions and preserve its exact grant. Do not buil
 trust pins from an incoming request or treat it as user authentication. Required
 witnesses are contacted through the controlled original signer, which is never
 exported. Pending maintenance, unacknowledged completion and reused terminal G
-identities are refused. This request API does not stage/commit a credential grant
-or activate renewed traffic; those original renewal bindings remain separate work.
+identities are refused.
+
+Verify the independently issued bytes with `QPeriaptContinuityCredentialGrant`,
+using an independently retained target account pin, original historical policy
+and current trusted time. `stage_credential_renewal` retains that exact grant and
+caller-held operation ID. Local protection reconciles it during separate
+`activate_local`; an expired local target can be resolved explicitly through
+`reconcile_expired_credential_renewal`.
+
+For required witnesses, `prepare_witnessed_credential_renewal` seals the original
+target and returns `QPeriaptContinuityCredentialProposal`. Retain its exact bytes
+and obtain independent witness preparation before explicit
+`commit_witnessed_credential_renewal`. A transport error or cancellation closes
+the owner and may leave the remote outcome unknown. Reopen the original
+registration, recover the original proposal if needed, and reconcile the same
+operation and statement through `reconcile_witnessed_credential_renewal`.
+Historical recovery and `close_witnessed_credential_renewal` require no live runtime.
+Close preserves a target that already committed. An unprepared target can use
+`prepare_witnessed_credential_cancellation` and independent witness cancellation
+approval, followed by original-operation reconciliation; no target is invented.
+
+`credential_renewal_status` reports original historical progress. `Committed`
+may be retained while ACK cleanup is still pending; reconciliation must finish
+before separate current-policy `activate` releases traffic authority. Reuse the
+original journal, identity and operation, including after expiry or unknown
+results. Same-key credential extension does not replace the identity key or
+establish post-compromise recovery.
 
 `refresh_local_roster` retains an independently pinned, signed target and requires
 local protection. Required-witness policy is refused before this path changes state.

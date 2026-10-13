@@ -183,31 +183,6 @@ pub(super) fn check_scope(
 impl DeviceJournal {
     // Only the original enrollment may supply the authenticated prior completion.
     // The database lease spans validation, reservation and exact readback.
-    pub(crate) fn reserve_enrollment_credential_cancellation(
-        path: &Path,
-        key: JournalKey,
-        original: &crate::VerifiedDevice,
-        policy: &crate::HistoricalSessionPolicy,
-        id: JournalIdentity,
-        grant: &crate::HistoricalCredentialRenewal,
-        completed: Option<&LocalRenewalCommit>,
-    ) -> Result<Cancellation, DurableError> {
-        let db = open_private_database(path)?;
-        Self::reserve_credential_cancellation_in_database(
-            &db, &key, original, policy, id, grant, completed,
-        )
-    }
-    pub(crate) fn reserve_enrollment_policy_cancellation(
-        path: &Path,
-        key: JournalKey,
-        original: &crate::VerifiedDevice,
-        policy: &crate::HistoricalSessionPolicy,
-        id: JournalIdentity,
-        target: CredentialCancellationTarget<'_>,
-    ) -> Result<Cancellation, DurableError> {
-        let db = open_private_database(path)?;
-        Self::reserve_bound_cancellation_in_database(&db, &key, original, policy, id, target)
-    }
     pub(crate) fn reserve_credential_cancellation_in_database(
         db: &Database,
         key: &JournalKey,
@@ -231,7 +206,7 @@ impl DeviceJournal {
             },
         )
     }
-    fn reserve_bound_cancellation_in_database(
+    pub(crate) fn reserve_bound_cancellation_in_database(
         db: &Database,
         key: &JournalKey,
         original: &crate::VerifiedDevice,
@@ -287,17 +262,16 @@ impl DeviceJournal {
         }
         Ok(cancellation)
     }
-    pub(crate) async fn recover_witnessed_credential_intent(
-        path: &Path,
-        key: JournalKey,
+    pub(crate) async fn recover_witnessed_credential_intent_in_database(
+        db: &Database,
+        key: &JournalKey,
         original: &crate::VerifiedDevice,
         policy: &crate::HistoricalSessionPolicy,
         id: JournalIdentity,
         intent: WitnessedCredentialIntent,
         client: &mut crate::AnchorClient,
     ) -> Result<State, DurableError> {
-        let db = open_private_database(path)?;
-        super::recover_witnessed_credential_intent(&db, &key, original, policy, id, intent, client)
+        super::recover_witnessed_credential_intent(db, key, original, policy, id, intent, client)
             .await
     }
 }

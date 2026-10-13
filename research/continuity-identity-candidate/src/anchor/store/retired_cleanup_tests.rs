@@ -464,16 +464,25 @@ fn historical_inventory_keeps_target_free_cancellation_and_refuses_omitting_back
         let original_rows = rows(&path);
         let grant = credential_grant(&c, &original, 2, 240);
         let policy = c.peer.responder.current_policy().expect("policy");
-        let cancellation = DeviceJournal::reserve_enrollment_credential_cancellation(
-            &path,
-            JournalKey::open(&key).expect("key"),
+        let db = crate::storage::Storage::native()
+            .expect("storage")
+            .open_database(&path)
+            .expect("original journal lease");
+        let cancellation = DeviceJournal::reserve_bound_cancellation_in_database(
+            &db,
+            &JournalKey::open(&key).expect("key"),
             &original,
             policy.historical(),
             identity,
-            grant.historical(),
-            None,
+            crate::durable::CredentialCancellationTarget {
+                grant: grant.historical(),
+                continuation: None,
+                adopts: false,
+                completed: None,
+            },
         )
         .expect("actual target-free cancellation reservation");
+        drop(db);
         let before = rows(&path);
         assert_eq!(before.0, original_rows.0, "reservation has no target image");
         let pending = before.1.as_ref().expect("full cancellation intent");

@@ -574,9 +574,24 @@ impl DeviceJournal {
         expected_id: JournalIdentity,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let db = open_private_database(path)?;
-        let (image, pending) = load_pending_snapshot(
+        Self::inspect_witnessed_credential_intent_in_database(
             &db,
             &key,
+            original,
+            policy,
+            expected_id,
+        )
+    }
+    pub(crate) fn inspect_witnessed_credential_intent_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
+        expected_id: JournalIdentity,
+    ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
+        let (image, pending) = load_pending_snapshot(
+            db,
+            key,
             bootstrap::storage_owner(original),
             SnapshotAdmission::CredentialRecovery,
         )?;
@@ -708,28 +723,6 @@ pub(super) async fn recover_witnessed_credential_intent(
 impl DeviceJournal {
     // Original enrollment calls this only after authenticated terminal readback.
     // Terminal metadata is historical and never supplies current authority.
-    pub(crate) async fn retire_witnessed_credential_intent(
-        path: &Path,
-        key: JournalKey,
-        original: &crate::VerifiedDevice,
-        policy: &impl AsRef<crate::HistoricalSessionPolicy>,
-        expected_id: JournalIdentity,
-        terminal: &crate::enrollment::PersistedRenewalTerminal,
-        client: &mut crate::AnchorClient,
-    ) -> Result<(), DurableError> {
-        let policy = policy.as_ref();
-        let db = open_private_database(path)?;
-        Self::retire_witnessed_credential_intent_in_database(
-            &db,
-            &key,
-            original,
-            policy,
-            expected_id,
-            terminal,
-            client,
-        )
-        .await
-    }
     pub(crate) async fn retire_witnessed_credential_intent_in_database(
         db: &Database,
         key: &JournalKey,

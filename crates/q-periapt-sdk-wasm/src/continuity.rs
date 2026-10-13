@@ -8,6 +8,7 @@ use std::time::Duration;
 use wasm_bindgen::prelude::*;
 mod connections;
 mod credential_requests;
+mod credentials;
 mod history;
 mod inventory;
 mod peers;

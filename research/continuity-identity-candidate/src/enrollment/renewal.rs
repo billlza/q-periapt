@@ -3,6 +3,7 @@
 use super::*;
 mod expiry;
 mod request;
+mod storage;
 pub use request::CredentialRenewalRequest;
 mod witness;
 use crate::durable::{

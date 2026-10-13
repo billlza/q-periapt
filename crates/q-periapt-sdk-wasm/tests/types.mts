@@ -180,3 +180,31 @@ async function credentialRequest(device: QPeriaptContinuityDevice,
   void operation; void version; void authorization;
 }
 void credentialRequest;
+
+import {QPeriaptContinuityCredentialGrant, QPeriaptContinuityCredentialProposal,
+  QPeriaptContinuityCredentialPhase} from 'q-periapt-sdk-wasm/web';
+async function credentialMaintenance(device: QPeriaptContinuityDevice,
+    account: QPeriaptContinuityAccountTrust, policy: QPeriaptContinuityPolicy,
+    original: QPeriaptContinuityHistoricalPolicy, witness: QPeriaptContinuityWitness) {
+  const grant = new QPeriaptContinuityCredentialGrant(data, account, original, 1n);
+  const id: Uint8Array = grant.operation_id();
+  const statement: Uint8Array = grant.statement();
+  grant.target().free();
+  (await device.stage_credential_renewal(grant, id, policy, 1n)).free();
+  const proposal = await device.prepare_witnessed_credential_renewal(original, policy, witness, 1n);
+  const restored = new QPeriaptContinuityCredentialProposal(proposal.bytes());
+  restored.binding(); restored.statement(); restored.operation_id();
+  (await device.commit_witnessed_credential_renewal(restored, original, policy, witness, 1n)).free();
+  (await device.reconcile_witnessed_credential_renewal(id, statement, original, witness, 1n)).free();
+  (await device.close_witnessed_credential_renewal(id, statement, original, witness, 1n)).free();
+  (await device.recover_witnessed_credential_renewal_preparation(original, 1n))?.free();
+  const cancellation = await device.prepare_witnessed_credential_cancellation(original, 1n);
+  cancellation.bytes(); cancellation.free();
+  (await device.reconcile_expired_credential_renewal(id, statement, policy, 1n)).free();
+  const status = await device.credential_renewal_status();
+  const phase: QPeriaptContinuityCredentialPhase = status.phase();
+  status.operation_id(); status.statement(); status.target()?.free();
+  status.observed_head()?.free(); status.observed_at(); status.free();
+  restored.free(); proposal.free(); grant.free(); void phase;
+}
+void credentialMaintenance;
