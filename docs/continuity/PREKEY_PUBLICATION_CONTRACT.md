@@ -6,6 +6,11 @@ retire. The registered Rust owner and C device-parent entry points now compose
 that operation without exposing a signer. Swift and Kotlin supply typed device
 methods and check complete public result framing. The successor workload now
 uses those registered-owner methods for its actual connection advertisement.
+The browser device now delegates preparation, status, abandonment and retirement
+to the same registered owner. Its typed WASM plan bounds inputs before dispatch;
+its trusted-clock callback is sampled by the shared engine at each admission
+boundary. Browser failures retain the original operation and close the current
+owner, including when a clock callback throws after a durable reservation.
 Whole installed-archive qualification remains open. This is neither a frozen storage/ABI contract
 nor evidence of remote directory publication. Existing `generate_prekey` and
 `issue_manifest` remain lower-level operations with their documented responsibilities.

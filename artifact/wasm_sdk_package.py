@@ -34,7 +34,7 @@ BROWSER_HOSTS["web/witness-fetch.js"] = CANDIDATE / "src/anchor/transport/witnes
 NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",
-                  "browser-suite.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts",
+                  "browser-suite.mjs", "publication-inputs.mjs", "browser-worker.mjs", "serve.cjs", "types.mts", "types.cts",
                   "storage-browser.html", "storage-suite.mjs", "storage-worker.mjs", "storage-acceptance.js",
                   "storage-quota-acceptance.js", "storage-deadline-acceptance.js", "storage-deadline-worker.mjs")
 NODE_TESTS = {

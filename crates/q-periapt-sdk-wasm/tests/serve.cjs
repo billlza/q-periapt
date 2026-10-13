@@ -6,7 +6,7 @@ const path = require('node:path');
 const files = new Map([
   ['/browser.html', 'text/html'],
   ['/storage-browser.html', 'text/html'],
-  ...['browser-suite.mjs', 'browser-worker.mjs', 'storage-suite.mjs', 'storage-worker.mjs', 'storage-deadline-worker.mjs'].map(name => [`/${name}`, 'application/javascript']),
+  ...['browser-suite.mjs', 'publication-inputs.mjs', 'browser-worker.mjs', 'storage-suite.mjs', 'storage-worker.mjs', 'storage-deadline-worker.mjs'].map(name => [`/${name}`, 'application/javascript']),
   ...['signed-policy-vectors', 'sdk-policy-revocation-vectors', 'sdk-policy-update-vectors']
     .map(name => [`/fixtures/${name}.json`, 'application/json']),
   ...['index.js', 'expert.js', 'storage.js', 'storage-io.js', 'policy-database.js', 'storage-root.js', 'storage-database.js', 'storage-catalogue.js', 'storage-opening.js', 'witness-fetch.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm']

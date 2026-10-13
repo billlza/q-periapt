@@ -6,6 +6,7 @@ use js_sys::Uint8Array;
 use q_periapt_continuity_identity_candidate as engine;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
+mod publication;
 mod status;
 mod trust;
 use status::Status;
@@ -15,6 +16,18 @@ fn read_input(value: &Uint8Array, min: usize, max: usize) -> Result<Vec<u8>, JsV
 }
 fn read_limit(value: &JsValue, maximum: usize) -> Result<usize, JsValue> {
     sdk_limit(value, maximum).map_err(|error| engine::browser::input_failure(error.into()))
+}
+fn read_time(value: JsValue) -> Result<u64, JsValue> {
+    u64::try_from(value).map_err(engine::browser::input_failure)
+}
+fn read_kind(value: &JsValue) -> Result<PrekeyKind, JsValue> {
+    match read_limit(value, 4)? {
+        1 => Ok(PrekeyKind::SignedClassical),
+        2 => Ok(PrekeyKind::OneTimeClassical),
+        3 => Ok(PrekeyKind::OneTimePq),
+        4 => Ok(PrekeyKind::LastResortPq),
+        _ => Err(protocol(engine::Error::Encoding)),
+    }
 }
 fn protocol(error: engine::Error) -> JsValue {
     failure(&error.into())
@@ -169,15 +182,17 @@ impl Device {
         &self,
         policy: &SessionPolicy,
         id: &Uint8Array,
-        kind: PrekeyKind,
-        from: u64,
-        until: u64,
-        now: u64,
+        #[wasm_bindgen(unchecked_param_type = "QPeriaptContinuityPrekeyKind")] kind: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] from: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] until: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
     ) -> Result<Vec<u8>, JsValue> {
         let id = engine::PrekeyId::from_trusted_state(array(id)?).map_err(protocol)?;
-        let validity = engine::Validity::new(from, until).map_err(protocol)?;
+        let kind = read_kind(&kind)?;
+        let validity =
+            engine::Validity::new(read_time(from)?, read_time(until)?).map_err(protocol)?;
         self.inner
-            .generate_prekey(&policy.inner, id, kind.into(), validity, now)
+            .generate_prekey(&policy.inner, id, kind.into(), validity, read_time(now)?)
             .await
     }
     /// Cancel pending work, close all descendants and await actual storage release.

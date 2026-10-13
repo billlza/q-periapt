@@ -17,3 +17,6 @@ export { QPeriaptContinuityEnrollment, QPeriaptContinuityDevice, QPeriaptContinu
 
 export { QPeriaptContinuityPhase, QPeriaptContinuityStatus, QPeriaptContinuityCheckpoint,
   QPeriaptContinuityRosterRefresh, QPeriaptContinuityRosterOutcome } from './q_periapt_sdk_wasm.js';
+
+export { QPeriaptContinuityPublicationPlan, QPeriaptContinuityPublicationPhase,
+  QPeriaptContinuityPublicationStatus, QPeriaptContinuityPreparedPublication } from './q_periapt_sdk_wasm.js';

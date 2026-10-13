@@ -142,10 +142,33 @@ with current verified policy and witness configuration to reopen that service.
 Preparation exposes the public witness subject and genesis digest when required;
 these are expectations to enroll, not evidence that enrollment already happened.
 
-The owner can generate/recover an original public prekey. This does not advertise
-it or imply a remote publication receipt. Signed prekey publication, connections,
-root/roster lifecycle and migration still require final browser API integration.
-The protocol and package remain prerelease candidates.
+The owner can generate/recover an original public prekey and prepare a complete
+signed advertisement through `QPeriaptContinuityPublicationPlan`. The plan binds
+an independently obtained directory checkpoint, validity and ordered key list.
+Use `generate` for publication-owned members or `reuse` for an existing available
+inventory request with its unchanged role and validity. The complete plan must
+include reusable classical and PQ members and satisfy the signed policy's modes.
+
+Retain `next_publication_id()` and the complete original plan before dispatch.
+`prepare_publication(id, plan, policy, timeoutMs, trustedClock)` reserves and
+recovers that operation; retries return the original signed bytes. `timeoutMs`
+is an integer from 1 through 60000. `trustedClock` is a synchronous callback that
+returns current trusted Unix seconds as an unsigned 64-bit BigInt. It is sampled
+again after blocking work and before release. A thrown error or invalid return
+rejects the operation with `InvalidClock`, preserves its cause and closes the owner.
+The SDK cannot determine whether a host-supplied clock is trustworthy.
+
+`publication_status(id)` returns an immutable Absent, Reserved, Prepared or Retired
+observation with the original intent/manifest/artifact digests when applicable.
+`abandon_publication` reconciles a Reserved intent; `retire_publication` retires
+the exact prepared public artifact's local history. Neither operation asserts
+remote removal, and retiring public history does not revoke its key inventory.
+Use the returned `bytes()` as the public distribution artifact only after a
+successful preparation; no private key or general signing handle is exported.
+Prepared establishes no remote publication receipt or directory freshness.
+
+Connections, root/roster lifecycle and migration still require final browser API
+integration. The protocol and package remain prerelease candidates.
 
 Await `close()` before releasing the wrapper with `free()`. Close cancels pending
 witness traffic and waits for actual storage-release receipts. Concurrent device

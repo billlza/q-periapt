@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 // The same real installed-package contract runs in each isolated execution realm.
+import {checkPublicationInputs} from './publication-inputs.mjs';
 export async function runAcceptance(mode, realm) {
   let assertions = 0;
   function check(condition, message) {
@@ -30,6 +31,8 @@ export async function runAcceptance(mode, realm) {
     const { QPeriaptExpert } = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/expert.js`);
     check(Object.keys(sdk).sort().join(',') === ['QPeriaptContinuityAccountTrust', 'QPeriaptContinuityCheckpoint', 'QPeriaptContinuityDevice', 'QPeriaptContinuityEnrollment',
       'QPeriaptContinuityPhase', 'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPreparation',
+      'QPeriaptContinuityPreparedPublication', 'QPeriaptContinuityPublicationPhase',
+      'QPeriaptContinuityPublicationPlan', 'QPeriaptContinuityPublicationStatus',
       'QPeriaptContinuityRosterOutcome', 'QPeriaptContinuityRosterRefresh', 'QPeriaptContinuityStatus',
       'QPeriaptContinuityWitness', 'QPeriaptDerivedKey', 'QPeriaptEncapsulation',
       'QPeriaptKey', 'QPeriaptKeyPurpose', 'QPeriaptPolicyUpdate', 'QPeriaptRuntime',
@@ -63,6 +66,7 @@ export async function runAcceptance(mode, realm) {
     check(isSecureContext && typeof crypto.getRandomValues === 'function', 'secure WebCrypto unavailable');
     let coerced = false;
     const coercible = { valueOf() { coerced = true; return 1; } };
+    checkPublicationInputs(sdk, check);
     for (const value of [0, -1, 1.5, 4294967297, NaN, Infinity, '1', true, null, undefined, 1n, coercible]) {
       throws(() => create(value, 1), /invalid runtime limits/);
       throws(() => create(1, value), /invalid runtime limits/);

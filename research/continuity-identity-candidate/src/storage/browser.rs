@@ -16,6 +16,8 @@ use zeroize::Zeroizing;
 extern "C" {
     #[wasm_bindgen(js_name=continuityFailure)]
     fn continuity_failure(code: &str, original: &JsValue, owner_closed: JsValue) -> JsValue;
+    #[wasm_bindgen(js_name=continuityInputFailure)]
+    fn continuity_input_failure(code: &str, original: &JsValue) -> JsValue;
     #[wasm_bindgen(js_name=combineFailures)]
     fn combine_failures(primary: &JsValue, cleanup: &JsValue) -> JsValue;
     #[wasm_bindgen(js_name=StorageRoot)]
@@ -256,6 +258,9 @@ pub(crate) struct Storage {
     close_error: Arc<Mutex<Option<io::Error>>>,
 }
 impl Storage {
+    pub(crate) fn input_failure(code: &str, original: &JsValue) -> JsValue {
+        continuity_input_failure(code, original)
+    }
     pub(crate) fn continuity_failure(
         code: &str,
         original: &JsValue,

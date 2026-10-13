@@ -339,3 +339,11 @@ export function continuityFailure(code, original, ownerClosed) {
   if (ownerClosed !== undefined) Object.defineProperty(value, 'ownerClosed', { value: ownerClosed, enumerable: true });
   return value;
 }
+
+// Host input/callback values can have throwing getters or coercion hooks. Keep
+// the original cause without inspecting it while a Rust owner is borrowed.
+export function continuityInputFailure(code, original) {
+  const value = new Error(code, { cause: original });
+  Object.defineProperty(value, 'code', { value: code, enumerable: true });
+  return value;
+}

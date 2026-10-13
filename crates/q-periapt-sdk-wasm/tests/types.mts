@@ -27,6 +27,7 @@ void durablePolicy;
 import { QPeriaptContinuityDevice, QPeriaptContinuityEnrollment,
   QPeriaptContinuityPolicy, QPeriaptContinuityAccountTrust,
   QPeriaptContinuityWitness, QPeriaptContinuityPrekeyKind, QPeriaptContinuityPhase,
+  QPeriaptContinuityPublicationPlan, QPeriaptContinuityPublicationPhase,
   type QPeriaptContinuityError } from 'q-periapt-sdk-wasm/web';
 async function continuityDevice() {
   const intent = new QPeriaptContinuityEnrollment(data, data, 1n, data, 1n, 100n);
@@ -63,6 +64,28 @@ async function continuityDevice() {
     await device.activate(policy, witness, 1n);
     const prekey: Uint8Array = await device.generate_prekey(policy, data,
       QPeriaptContinuityPrekeyKind.OneTimePq, 1n, 100n, 1n);
+    const plan = new QPeriaptContinuityPublicationPlan(data, 1n, 100n);
+    plan.generate(QPeriaptContinuityPrekeyKind.SignedClassical, 1n, 100n);
+    plan.generate(QPeriaptContinuityPrekeyKind.LastResortPq, 1n, 100n);
+    plan.reuse(data, QPeriaptContinuityPrekeyKind.OneTimePq, 1n, 100n);
+    const capacity: number = plan.artifact_size_bound();
+    const id: Uint8Array = await device.next_publication_id();
+    const observation = await device.publication_status(id);
+    const publicationPhase: QPeriaptContinuityPublicationPhase = observation.phase();
+    const originalIntent: Uint8Array | undefined = observation.intent_digest();
+    const originalArtifact: Uint8Array | undefined = observation.artifact_digest();
+    const originalManifest: Uint8Array | undefined = observation.manifest_digest();
+    observation.free();
+    const publication = await device.prepare_publication(id, plan, policy, 5000, () => 1n);
+    const publicBytes: Uint8Array = publication.bytes();
+    const members: Uint8Array[] = publication.inventory_requests();
+    const originalId: Uint8Array = publication.id();
+    const intentDigest: Uint8Array = publication.intent_digest();
+    const artifactDigest: Uint8Array = publication.artifact_digest();
+    (await device.retire_publication(id, artifactDigest)).free();
+    publication.free(); plan.free();
+    void capacity; void publicationPhase; void originalIntent; void originalArtifact;
+    void originalManifest; void publicBytes; void members; void originalId; void intentDigest;
     void request; void journal; void prekey;
   } finally {
     await device.close(); device.free();

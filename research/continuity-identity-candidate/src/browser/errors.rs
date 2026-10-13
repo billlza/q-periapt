@@ -84,7 +84,7 @@ pub fn failure(error: &DurableError) -> JsValue {
 }
 /// Classify a binding input failure before dispatch, preserving the original error.
 pub fn input_failure(error: JsValue) -> JsValue {
-    Storage::continuity_failure("InvalidInput", &error, None)
+    Storage::input_failure("InvalidInput", &error)
 }
 pub(super) fn owned(error: JsValue, closed: bool) -> JsValue {
     Storage::continuity_failure("NativeFailure", &error, Some(closed))

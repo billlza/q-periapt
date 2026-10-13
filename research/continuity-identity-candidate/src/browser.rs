@@ -12,6 +12,7 @@ use std::{
 use wasm_bindgen::JsValue;
 mod errors;
 mod opening;
+mod publication;
 pub use errors::{failure, input_failure};
 
 fn cleanup_error(primary: DurableError, cleanup: Result<(), DurableError>) -> JsValue {
@@ -196,13 +197,23 @@ struct Operation<'a> {
     armed: bool,
 }
 impl Operation<'_> {
+    fn active(&mut self) -> Result<&mut EnrolledDevice, DurableError> {
+        match self.state.as_mut() {
+            Some(State::Active(owner)) => Ok(owner),
+            _ => Err(Error::State.into()),
+        }
+    }
     fn enrollment(&mut self) -> Result<&mut DeviceEnrollment, DurableError> {
         match self.state.as_mut() {
             Some(State::Enrollment(owner)) => Ok(owner),
             _ => Err(Error::State.into()),
         }
     }
-    async fn finish<T>(mut self, result: Result<T, DurableError>) -> Result<T, JsValue> {
+    async fn finish<T>(self, result: Result<T, DurableError>) -> Result<T, JsValue> {
+        self.finish_failure(result.map_err(|error| failure(&error)))
+            .await
+    }
+    async fn finish_failure<T>(mut self, result: Result<T, JsValue>) -> Result<T, JsValue> {
         match result {
             Ok(value) if !self.owner.closed.get() => {
                 *self.owner.state.borrow_mut() = self.state.take();
@@ -214,10 +225,14 @@ impl Operation<'_> {
                 self.owner.begin_close();
                 let cleanup = self.owner.storage.close().await;
                 self.armed = false;
-                Err(errors::owned(
-                    cleanup_error(other.err().unwrap_or(DurableError::Closed), cleanup),
-                    true,
-                ))
+                let primary = other
+                    .err()
+                    .unwrap_or_else(|| failure(&DurableError::Closed));
+                let error = match cleanup {
+                    Ok(()) => primary,
+                    Err(cleanup) => Storage::combine_failures(&primary, &failure(&cleanup)),
+                };
+                Err(errors::owned(error, true))
             }
         }
     }

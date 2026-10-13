@@ -10,7 +10,7 @@ async (page) => {
   }
   const context = page.context();
   if (context.pages().length !== 1) throw new Error('Expected one isolated automation tab');
-  const expectedAssertions = { roundtrip: 82, 'no-entropy': 15, 'throwing-entropy': 15,
+  const expectedAssertions = { roundtrip: 178, 'no-entropy': 15, 'throwing-entropy': 15,
     'init-fail': 6, 'no-wasm': 6 };
   const scenarios = ['window', 'worker'].flatMap(realm =>
     Object.keys(expectedAssertions).map(mode => ({ mode, realm })));
