@@ -45,3 +45,8 @@ export { QPeriaptContinuityHistoricalPolicy,
   QPeriaptContinuityWitnessRosterProgress } from './q_periapt_sdk_wasm.js';
 
 export { QPeriaptContinuityCredentialGrant, QPeriaptContinuityCredentialProposal, QPeriaptContinuityCredentialCancellation, QPeriaptContinuityCredentialPhase, QPeriaptContinuityCredentialStatus } from './q_periapt_sdk_wasm.js';
+
+export { QPeriaptContinuityPolicyGrant, QPeriaptContinuityPolicyProposal,
+  QPeriaptContinuityPolicyPhase, QPeriaptContinuityPolicyAbandonment, QPeriaptContinuityPolicyStatus,
+  QPeriaptContinuityWitnessPolicyState, QPeriaptContinuityWitnessPolicyStage,
+  QPeriaptContinuityWitnessPolicyProgress } from './q_periapt_sdk_wasm.js';

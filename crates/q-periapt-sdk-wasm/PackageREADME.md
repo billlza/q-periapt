@@ -284,8 +284,30 @@ reconciled. A completed plain credential renewal G retains its original receipt
 and contributes the actual successor credential/roster to this request, including
 under required witnesses. Joint credential/policy continuation remains separate.
 A failed witnessed request must not be retried through local protection. Browser
-policy grant adoption and activation remain under development; this public
-request is not a completed policy renewal.
+policy renewal uses `QPeriaptContinuityPolicyGrant` to verify separate account
+and policy approvals against this original request and independently pinned
+original, predecessor and live target policies. The request alone grants no
+permission. Close the active owner and reopen the original registration before
+`stage_policy_renewal`; keep its exact operation through errors and retries.
+
+For local protection, `reconcile_policy_renewal` commits or reconciles the
+original journal. `recover_historical_policy_renewal` acknowledges an exact
+already-committed operation without a runtime; `resolve_policy_renewal` resolves
+an expired or superseded uncommitted target. For required protection,
+`prepare_witnessed_policy_renewal` returns the exact sealed proposal, which the
+independent witness must approve. Then use `commit_witnessed_policy_renewal`.
+After an unknown result, reopen the same registration and call
+`reconcile_witnessed_policy_renewal`. `close_witnessed_policy_renewal` preserves
+Applied when commit already won; it cannot undo that result.
+
+`policy_renewal_status` reports local historical intent/completion, while
+`witnessed_policy_renewal_progress` retains the original Applied/Closed terminal
+and whether ACK/cleanup finished. Remote Unavailable never means uncommitted.
+Activate separately with `activate_local_policy_renewal` or
+`activate_witnessed_policy_renewal`; activation rechecks current target policy,
+credential, roster and required witness before releasing the original owner.
+These entries share the native state machine. Browser lifecycle qualification
+and complete maintenance composition remain candidate work.
 
 Verify the independently issued bytes with `QPeriaptContinuityCredentialGrant`,
 using an independently retained target account pin, original historical policy

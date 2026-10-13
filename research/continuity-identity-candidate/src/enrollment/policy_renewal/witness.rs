@@ -551,13 +551,9 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        let observed = DeviceJournal::inspect_policy_renewal_preparation(
-            self.paths.installation.files()[1],
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )?;
+        let observed = self
+            .inspect_original_policy_preparation(&original, original_policy, id)
+            .await?;
         let result = match observed {
             Some(p) => Some(self.retain_policy_proposal(image, original_policy, p)?),
             None => {
@@ -574,6 +570,25 @@ impl DeviceEnrollment {
         };
         drop(lease);
         Ok(result)
+    }
+
+    async fn inspect_original_policy_preparation(
+        &self,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+    ) -> Result<Option<Proposal>, DurableError> {
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        DeviceJournal::inspect_policy_renewal_preparation_in_database(
+            &db,
+            &self.key().await?,
+            original,
+            policy,
+            id,
+        )
     }
 
     /// Seal/recover the exact staged P target and retain its proposal before any
@@ -631,14 +646,10 @@ impl DeviceEnrollment {
             now,
         )?;
         let lease = self.witness_lease(&original, original_policy, id).await?;
-        let path = self.paths.installation.files()[1];
-        let proposal = match DeviceJournal::inspect_policy_renewal_preparation(
-            path,
-            self.key().await?,
-            &original,
-            original_policy,
-            id,
-        )? {
+        let proposal = match self
+            .inspect_original_policy_preparation(&original, original_policy, id)
+            .await?
+        {
             Some(p) => p,
             None => {
                 if image
@@ -893,9 +904,13 @@ impl DeviceEnrollment {
                     reply.policy_renewal_state(&c.proposal)?;
                 }
             }
-            let observed = DeviceJournal::recover_policy_renewal(
-                self.paths.installation.files()[1],
-                self.key().await?,
+            let db = self
+                .storage
+                .open_database(self.paths.installation.files()[1])
+                .await?;
+            let observed = DeviceJournal::recover_policy_renewal_in_database(
+                &db,
+                &self.key().await?,
                 &original,
                 policy,
                 id,
@@ -903,6 +918,7 @@ impl DeviceEnrollment {
                 client,
             )
             .await?;
+            drop(db);
             #[cfg(all(test, unix))]
             super::super::tests::renewal::boundary("independent-policy-observed");
             let disposition = match observed {
@@ -935,9 +951,13 @@ impl DeviceEnrollment {
         let terminal = self.persisted_policy_terminal(policy)?;
         #[cfg(all(test, unix))]
         super::super::tests::renewal::boundary("independent-policy-terminal");
-        DeviceJournal::retire_policy_renewal(
-            self.paths.installation.files()[1],
-            self.key().await?,
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        DeviceJournal::retire_policy_renewal_in_database(
+            &db,
+            &self.key().await?,
             &original,
             policy,
             id,
@@ -945,6 +965,7 @@ impl DeviceEnrollment {
             client,
         )
         .await?;
+        drop(db);
         #[cfg(all(test, unix))]
         super::super::tests::renewal::boundary("independent-policy-retired");
         image = self.image()?;

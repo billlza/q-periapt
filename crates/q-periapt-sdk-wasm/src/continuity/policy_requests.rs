@@ -6,7 +6,7 @@ use super::*;
 /// issuer approval, user authentication, a durable reservation or traffic authority.
 #[wasm_bindgen(js_name = QPeriaptContinuityPolicyRequest)]
 pub struct Request {
-    inner: engine::PolicyRenewalRequest,
+    pub(super) inner: engine::PolicyRenewalRequest,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityPolicyRequest)]
 impl Request {

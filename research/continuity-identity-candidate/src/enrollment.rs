@@ -1064,6 +1064,24 @@ impl EnrolledDevice {
             .enrollment
             .credential_renewal_status()
     }
+    /// Historical independent policy outcome; current traffic admission is separate.
+    pub fn policy_renewal_status(&mut self) -> Result<PolicyRenewalStatus, DurableError> {
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .policy_renewal_status()
+    }
+    /// Retained independent policy terminal and original witness cleanup status.
+    pub fn witnessed_policy_renewal_progress(
+        &mut self,
+    ) -> Result<Option<WitnessedPolicyRenewalProgress>, DurableError> {
+        self.active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .witnessed_policy_renewal_progress()
+    }
     /// Read retained enrollment progress; this observation grants no traffic authority.
     pub fn enrollment_status(&mut self) -> Result<EnrollmentStatus, DurableError> {
         self.active

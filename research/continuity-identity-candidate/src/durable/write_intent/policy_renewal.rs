@@ -80,9 +80,18 @@ impl DeviceJournal {
         id: JournalIdentity,
     ) -> Result<Option<Proposal>, DurableError> {
         let db = open_private_database(path)?;
+        Self::inspect_policy_renewal_preparation_in_database(&db, &key, original, policy, id)
+    }
+    pub(crate) fn inspect_policy_renewal_preparation_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+    ) -> Result<Option<Proposal>, DurableError> {
         let (image, pending) = load_pending_snapshot(
-            &db,
-            &key,
+            db,
+            key,
             bootstrap::storage_owner(original),
             SnapshotAdmission::PolicyRecovery,
         )?;
@@ -107,7 +116,19 @@ impl DeviceJournal {
         client: &mut crate::AnchorClient,
     ) -> Result<State, DurableError> {
         let db = open_private_database(path)?;
-        recover_policy_renewal(&db, &key, original, policy, id, proposal, client).await
+        Self::recover_policy_renewal_in_database(&db, &key, original, policy, id, proposal, client)
+            .await
+    }
+    pub(crate) async fn recover_policy_renewal_in_database(
+        db: &Database,
+        key: &JournalKey,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+        proposal: Proposal,
+        client: &mut crate::AnchorClient,
+    ) -> Result<State, DurableError> {
+        recover_policy_renewal(db, key, original, policy, id, proposal, client).await
     }
 }
 #[cfg_attr(
@@ -180,19 +201,6 @@ pub(in crate::durable) async fn recover_policy_renewal(
 impl DeviceJournal {
     // Only a read-back authenticated original enrollment terminal can grant ACK
     // authority. Keep the original pending bytes until that exact ACK is observed.
-    pub(crate) async fn retire_policy_renewal(
-        path: &Path,
-        key: JournalKey,
-        original: &VerifiedDevice,
-        policy: &HistoricalSessionPolicy,
-        id: JournalIdentity,
-        terminal: &crate::enrollment::PersistedPolicyTerminal,
-        client: &mut crate::AnchorClient,
-    ) -> Result<(), DurableError> {
-        let db = open_private_database(path)?;
-        Self::retire_policy_renewal_in_database(&db, &key, original, policy, id, terminal, client)
-            .await
-    }
     pub(crate) async fn retire_policy_renewal_in_database(
         db: &Database,
         key: &JournalKey,
