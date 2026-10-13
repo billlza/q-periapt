@@ -168,7 +168,7 @@ private func policyStatusBytes(_ value: PolicyRenewalStatus) throws -> [UInt8] {
     case let .abandonedUncommitted(operation,statement,target,reason,roster,at): return row(3,operation,statement,target,reason.rawValue,roster,at)
     }
 }
-private func selectPolicyTarget(_ owner: ContinuityEnrollment,source: URL,path: String,recoverable: Bool) throws {
+func selectPolicyTarget(_ owner: ContinuityEnrollment,source: URL,path: String,recoverable: Bool) throws {
     let inputs=source.appendingPathComponent("policy-target",isDirectory:true)
     let target=try ContinuityConfiguration.prepareOpen(path:path+".policy-target",trust:trust(inputs,recoverable),protocolPolicy:policy(inputs))
     let result: Result<Void,Error>
@@ -282,7 +282,7 @@ private struct Main {
         }
         guard args.count == 6 || args.count == 7 else { throw ClientError("argument count") }
         let mode = args[1], profile = args[2]
-        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode) || credentialModes.contains(mode),
+        guard ["create", "resume", "reconcile", "reconcile-refused", "cancel-create", "arc-capacity", "select-target", "select-target-reject", "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile"].contains(mode) || credentialModes.contains(mode) || policyCredentialModes.contains(mode),
               ["fixed", "recoverable"].contains(profile) else { throw ClientError("mode/profile") }
         let source = URL(fileURLWithPath: args[3], isDirectory: true), target = args[4], output = args[5]
         let carrier = args.count == 7 ? args[6] : nil
@@ -350,10 +350,13 @@ private struct Main {
                 }
                 // A retained/transferred source must not close or pin the successor.
                 try configuration.close()
-                let credential = credentialModes.contains(mode) || mode == "retry-credential"
+                let credential = credentialModes.contains(mode) || policyCredentialModes.contains(mode) || mode == "retry-credential"
                 var bytes = credential ? try credentialIdentity(owner) : try owner.request()
                 var marker = "QPC_CONFIGURATION_REQUEST_PASS"
-                if credentialModes.contains(mode) {
+                if policyCredentialModes.contains(mode) {
+                    bytes = try policyCredentialOperation(owner, device: &device, source: source, path: target, recoverable: recoverable, carrier: carrier, mode: mode)
+                    marker = "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION"
+                } else if credentialModes.contains(mode) {
                     bytes = try credentialOperation(owner, registry: &registry, device: &device, source: source, mode: mode)
                     marker = "QPC_CONFIGURATION_CREDENTIAL_OPERATION"
                 } else if mode.hasPrefix("policy-") {

@@ -25,7 +25,7 @@ fn issue(case: &Case<'_>, identity: &[u8]) -> Result<p::VerifiedCredentialRenewa
         );
     }
     let request =
-        credential_request::read_credential_request(&case.base.join("credential-request"))?;
+        credential_request::read_credential_request(&case.base.join("credential-request"), true)?;
     let registered =
         crate::policy_request::read_request(&case.inputs.join("renewal-request"), true)?;
     let target = fixture::protocol_policy(&case.inputs.join("policy-target"), case.sdk)?;
@@ -311,8 +311,10 @@ pub(super) fn renew(case: &Case<'_>, identity: &[u8]) -> Result<()> {
         next_operation.as_bytes(),
     )?;
     case.run("policy-credential-next-request", "credential-next-request")?;
-    let next =
-        credential_request::read_credential_request(&case.base.join("credential-next-request"))?;
+    let next = credential_request::read_credential_request(
+        &case.base.join("credential-next-request"),
+        true,
+    )?;
     assert_eq!(next.operation, next_operation);
     assert_eq!(next.original_c, case.certificate);
     assert_eq!(next.original_r, case.roster.as_bytes());

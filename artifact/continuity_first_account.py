@@ -31,13 +31,14 @@ def marker(language: str, carrier: str, profile: str, *, credential: bool = Fals
             "original_registry=true missing_registry=211 release_qualified=false")
 
 
-def verify_execution(stdout: bytes, evidence: Path, *, language: str, credential: bool = False) -> dict:
+def verify_execution(stdout: bytes, evidence: Path, *, language: str, credential: bool = False, catalog_total: int = 7) -> dict:
+    sdk.require(catalog_total in (7, 11), "unknown managed first-configuration catalog")
     sdk.require(not credential or language in {"C", "Swift", "Kotlin"}, "managed credential adapter is not qualified for this language")
     test = credentials.TEST if credential else TEST
     renewal = credentials if credential else policy
     text = stdout.decode()
     sdk.require(language in {"C", "Swift", "Kotlin"} and re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE) == [test]
-                and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out;",
+                and len(re.findall(rf"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; {catalog_total-1} filtered out;",
                                    text, re.MULTILINE)) == 1, "managed first registration did not execute completely")
     scenarios = [(c, p) for c in ("signed", "tls") for p in ("fixed", "recoverable")]
     expected = {marker(language, c, p, credential=credential) for c, p in scenarios} | {

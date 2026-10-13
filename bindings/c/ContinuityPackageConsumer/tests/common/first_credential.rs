@@ -22,7 +22,7 @@ pub(crate) struct Renewal<'a> {
 }
 
 impl Renewal<'_> {
-    fn exchanges(&self) -> Result<Vec<witness::Capture>> {
+    pub(super) fn exchanges(&self) -> Result<Vec<witness::Capture>> {
         Ok(if let Some(tls) = self.tls {
             tls.captured
                 .lock()
@@ -353,7 +353,7 @@ fn no_commit(records: &[witness::Capture]) -> Result<()> {
     }
     Ok(())
 }
-fn write_exchanges(path: &Path, records: &[witness::Capture]) -> Result<()> {
+pub(super) fn write_exchanges(path: &Path, records: &[witness::Capture]) -> Result<()> {
     if records.len() > 128 {
         return Err("credential exchange capture bound".into());
     }
@@ -369,7 +369,7 @@ fn write_exchanges(path: &Path, records: &[witness::Capture]) -> Result<()> {
     publish_private_bytes(path, &bytes)?;
     Ok(())
 }
-fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Result<()> {
+pub(super) fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Result<()> {
     assert_eq!(bytes.len(), 120);
     assert_eq!(bytes.get(..4), Some(phase.to_ne_bytes().as_slice()));
     assert_eq!(
@@ -390,6 +390,12 @@ fn status(bytes: &[u8], proof: &p::VerifiedCredentialRenewal, phase: u32) -> Res
     Ok(())
 }
 fn admit_peer(case: &crate::first_connection::Case<'_>) -> Result<()> {
+    admit_peer_kind(case, false)
+}
+pub(super) fn admit_policy_peer(case: &crate::first_connection::Case<'_>) -> Result<()> {
+    admit_peer_kind(case, true)
+}
+fn admit_peer_kind(case: &crate::first_connection::Case<'_>, independent: bool) -> Result<()> {
     let client = std::env::var_os("QPC_CONFIGURATION_RECEIVER").ok_or("receiver executable")?;
     let mut command = Command::new(client);
     command.arg(match case.carrier {
@@ -399,7 +405,11 @@ fn admit_peer(case: &crate::first_connection::Case<'_>) -> Result<()> {
     });
     command.arg(fs::read_to_string(case.source.join("witness-address"))?);
     command
-        .arg("credential-peer-admit")
+        .arg(if independent {
+            "independent-peer-admit"
+        } else {
+            "credential-peer-admit"
+        })
         .arg(case.receiver)
         .arg(case.source);
     command.stdout(Stdio::from(fs::File::create(
@@ -418,7 +428,11 @@ fn admit_peer(case: &crate::first_connection::Case<'_>) -> Result<()> {
     );
     assert_eq!(
         fs::read(case.base.join("credential-peer.stdout"))?,
-        b"credential-peer-admitted\n"
+        if independent {
+            b"independent-peer-admitted\n".as_slice()
+        } else {
+            b"credential-peer-admitted\n".as_slice()
+        }
     );
     Ok(())
 }

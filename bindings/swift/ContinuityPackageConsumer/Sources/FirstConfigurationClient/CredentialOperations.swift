@@ -18,7 +18,7 @@ func credentialIdentity(_ owner: ContinuityEnrollment) throws -> [UInt8] {
 
 // Same-host public test readback shared with C. Serialize named fields, including
 // explicit zero padding; Swift enum layout and native struct padding are private.
-private func credentialStatusBytes(_ status: CredentialRenewalStatus) -> [UInt8] {
+func credentialStatusBytes(_ status: CredentialRenewalStatus) -> [UInt8] {
     func row(_ phase: UInt32, _ operation: CredentialRenewalID, _ statement: CredentialRenewalStatementID,
              _ checkpoint: RosterCheckpoint? = nil, _ observed: UInt64 = 0) -> [UInt8] {
         var bytes = hostNumber(phase) + operation.bytes + statement.bytes + [UInt8](repeating: 0, count: 4)

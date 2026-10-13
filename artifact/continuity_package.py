@@ -34,6 +34,7 @@ def source_inputs() -> dict:
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         "artifact/continuity_first_configuration.py", "artifact/continuity_configuration_policy.py",
         "artifact/continuity_configuration_credential.py",
+        "artifact/continuity_configuration_policy_credential.py",
         "artifact/continuity_peer_configuration.py",
         "artifact/continuity_foreign_account_results.py", "artifact/continuity_foreign_policy.py",
         "artifact/continuity_foreign_roster.py", "artifact/continuity_peer_tls_preprocessing.py", "artifact/continuity_device_replacement.py", "artifact/continuity_device_retirement.py",

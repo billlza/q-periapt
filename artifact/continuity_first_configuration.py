@@ -69,12 +69,13 @@ def verify_original(data: dict, *, after_traffic: str = "request", identity_jour
     return account, intent[24:56], valid_until, hashlib.sha256(request).hexdigest()
 
 
-def verify_execution(stdout: bytes, evidence: Path, *, language: str) -> dict:
+def verify_execution(stdout: bytes, evidence: Path, *, language: str, catalog_total: int = 7) -> dict:
+    sdk.require(catalog_total in (7, 11), "unknown first-configuration catalog")
     sdk.require(language in {"C", "Swift", "Kotlin"}, "unknown configuration language")
     text = stdout.decode("utf-8")
     tests = re.findall(r"^test ([a-z_]+) \.\.\.", text, re.MULTILINE)
     sdk.require(len(tests) == 2 and set(tests) == TESTS and len(re.findall(
-        r"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out;", text, re.MULTILINE)) == 1,
+        rf"^test result: ok\. 2 passed; 0 failed; 0 ignored; 0 measured; {catalog_total-2} filtered out;", text, re.MULTILINE)) == 1,
         "configuration execution did not run both complete scenarios")
     expected = {f"INDEPENDENT_CONFIGURATION_PASS language={language} profile={profile} original_request_replayed=true"
                 for profile in ("fixed", "recoverable")} | {
@@ -158,10 +159,10 @@ def _qualify(outside: Path, output: Path, profile: str, runtime: dict, helper: P
         environment.pop("QPERIAPT_CONFIGURATION_EVIDENCE")
         environment["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"] = str(evidence)
         selector = ["--exact", account.credentials.TEST if credential else account.TEST]
-        verify = partial(account.verify_execution, credential=credential)
+        verify = partial(account.verify_execution, credential=credential, catalog_total=11)
     else:
         selector = ["independent_c_"]
-        verify = verify_execution
+        verify = partial(verify_execution, catalog_total=11)
     stdout = run([str(helper), *selector, "--nocapture", "--test-threads=1"], label, runtime=environment)
     checked = verify(stdout, evidence, language=language)
     exported = output / (prefix + "-public") / language.lower() / profile / (collector.lower() or "default")
@@ -205,6 +206,9 @@ def qualify_native(outside, output, consumer, build, cargo, runtime, cc, platfor
                                                       receiver=receiver, language="C", managed=True)
     checked["managed_credential_renewal"] = _qualify(outside, output, profile, runtime, helper, client, run,
                                                     receiver=receiver, language="C", managed=True, credential=True)
+    import continuity_configuration_policy_credential as policy_credential
+    checked["managed_policy_credential_renewal"] = policy_credential.qualify(
+        outside, output, profile, runtime, helper, client, receiver, run, language="C")
     checked["short_header_guard"] = True
     return checked
 
@@ -228,4 +232,8 @@ def qualify_foreign(outside, output, profile, runtime, native, run, client, *, l
             client, run, receiver=Path(receiver["path"]), language=language, collector=collector, managed=True)
         checked["managed_credential_renewal"] = _qualify(outside, output, profile, runtime, Path(helper["path"]),
             client, run, receiver=Path(receiver["path"]), language=language, collector=collector, managed=True, credential=True)
+    if language == "Swift":
+        import continuity_configuration_policy_credential as policy_credential
+        checked["managed_policy_credential_renewal"] = policy_credential.qualify(
+            outside, output, profile, runtime, Path(helper["path"]), client, Path(receiver["path"]), run, language=language)
     return checked

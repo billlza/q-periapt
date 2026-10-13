@@ -19,13 +19,13 @@ pub(crate) struct CredentialRequest {
     pub(crate) previous_c: Vec<u8>,
     pub(crate) previous_r: Vec<u8>,
 }
-pub(crate) fn read_credential_request(path: &Path) -> Result<CredentialRequest> {
+pub(crate) fn read_credential_request(path: &Path, big_endian: bool) -> Result<CredentialRequest> {
     let bytes = fs::read(path)?;
     assert_eq!(bytes.len(), 33120);
     let mut r = Input {
         bytes: &bytes,
         offset: 0,
-        big_endian: true,
+        big_endian,
     };
     let operation = p::CredentialRenewalId::from_trusted_state(r.array()?)?;
     let journal = p::JournalIdentity::from_trusted_state(r.array()?)?;

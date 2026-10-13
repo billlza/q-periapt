@@ -151,6 +151,7 @@ static int guard_pages(void) {
 #include "configuration_policy_client.c"
 #include "configuration_registry_client.c"
 #include "configuration_credential_client.c"
+#include "configuration_policy_credential_client.c"
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--guard") == 0) return guard_pages();
     const char *registry_path = NULL;
@@ -159,7 +160,8 @@ int main(int argc, char **argv) {
     }
     if (argc != 6 && argc != 7) return 64;
     int target_create = strcmp(argv[1], "policy-target-create") == 0;
-    int credential = strncmp(argv[1], "credential-", 11) == 0;
+    int policy_credential = strncmp(argv[1], "policy-credential-", sizeof("policy-credential-") - 1) == 0;
+    int credential = strncmp(argv[1], "credential-", 11) == 0 || policy_credential;
     if ((!strcmp(argv[1], "credential-commit-unmanaged") || !strcmp(argv[1], "credential-activation-unmanaged")) && registry_path) return 64;
     int policy = !strcmp(argv[1],"policy-stage-refused") || !strcmp(argv[1],"policy-request") || !strcmp(argv[1],"policy-stage") || !strcmp(argv[1],"policy-reconcile") || !strcmp(argv[1],"policy-witness-prepare") || !strcmp(argv[1],"policy-witness-recover") || !strcmp(argv[1],"policy-witness-commit") || !strcmp(argv[1],"policy-witness-reconcile");
     int continued = !strcmp(argv[1],"retry-policy");
@@ -269,7 +271,8 @@ int main(int argc, char **argv) {
         written_bytes=policy_output;
     }
     if (credential) {
-        if (credential_operation(handle, &registry, source, argv[1], policy_output, &written_length, &error)) goto done;
+        if (policy_credential ? policy_credential_operation(handle, source, target, recoverable, carrier, argv[1], policy_output, &written_length, &error)
+            : credential_operation(handle, &registry, source, argv[1], policy_output, &written_length, &error)) goto done;
         written_bytes = policy_output;
     }
     if (prepare || local) {
@@ -329,7 +332,7 @@ done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
     if (registry && checked(qpc_owner_v1_close(registry, &error), &error)) result = 1;
-    if (!result) puts(credential ? "QPC_CONFIGURATION_CREDENTIAL_OPERATION" : unmanaged ? "QPC_CONFIGURATION_REGISTRY_REQUIRED" : expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+    if (!result) puts(policy_credential ? "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION" : credential ? "QPC_CONFIGURATION_CREDENTIAL_OPERATION" : unmanaged ? "QPC_CONFIGURATION_REGISTRY_REQUIRED" : expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
         strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
         local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :

@@ -24,6 +24,7 @@ pub(crate) struct Case<'a> {
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum RenewalKind {
     Policy,
+    PolicyCredential,
     Credential,
 }
 enum Receiver {
@@ -215,7 +216,7 @@ impl Case<'_> {
         fs::write(self.source.join("connection-address"), address.to_string())?;
         self.sender(
             match kind {
-                RenewalKind::Policy => "retry-policy",
+                RenewalKind::Policy | RenewalKind::PolicyCredential => "retry-policy",
                 RenewalKind::Credential => "retry-credential",
             },
             "acknowledged",
@@ -241,7 +242,7 @@ impl Case<'_> {
             .count();
         assert_eq!(effects, 1);
         match kind {
-            RenewalKind::Policy => {
+            RenewalKind::Policy | RenewalKind::PolicyCredential => {
                 self.sender("resume", "after-traffic.request")?;
                 assert_eq!(fs::read(self.base.join("after-traffic.request"))?, original);
             }
@@ -255,6 +256,7 @@ impl Case<'_> {
         }
         let renewal = match kind {
             RenewalKind::Policy => "POLICY",
+            RenewalKind::PolicyCredential => "POLICY_CREDENTIAL",
             RenewalKind::Credential => "CREDENTIAL",
         };
         println!("\nINDEPENDENT_CONFIGURATION_{renewal}_RENEWAL_PASS language={} carrier={} profile={} original_session=true original_message=true uncertain_before_update=true acknowledged=true effects=1", self.language, self.carrier.unwrap_or("local"), self.profile);

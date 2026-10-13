@@ -13,6 +13,8 @@ use zeroize::Zeroizing;
 #[path = "common/recovery_inputs.rs"]
 mod recovery_inputs;
 use recovery_inputs::install_recovery;
+#[path = "common/credential_request.rs"]
+mod credential_request;
 #[path = "common/first_account.rs"]
 mod first_account;
 #[path = "common/first_connection.rs"]
@@ -23,6 +25,8 @@ mod first_credential;
 mod first_expiry;
 #[path = "common/first_policy.rs"]
 mod first_policy;
+#[path = "common/first_policy_credential.rs"]
+mod first_policy_credential;
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "common/peer_bundle.rs"]
@@ -133,6 +137,9 @@ impl ConfigurationProcess<'_> {
             String::from_utf8_lossy(&stderr)
         );
         let expected = match mode {
+            mode if mode.starts_with("policy-credential-") => {
+                "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION\n"
+            }
             "credential-identity"
             | "credential-expired"
             | "credential-expired-request"
@@ -493,8 +500,21 @@ fn managed_first_credential_renewal_preserves_identity_and_delivery() -> Result<
 }
 
 fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind) -> Result<()> {
+    witnessed_registration_selected(managed, renewal, None)
+}
+
+fn witnessed_registration_selected(
+    managed: bool,
+    renewal: first_connection::RenewalKind,
+    selected: Option<(&str, bool)>,
+) -> Result<()> {
+    let policy_credential = renewal == first_connection::RenewalKind::PolicyCredential;
+    let mut executed = 0usize;
     let credential = renewal == first_connection::RenewalKind::Credential;
     let language = client_language()?;
+    if policy_credential && (!managed || !matches!(language, "C" | "Swift")) {
+        return Err("P then G requires the C or Swift managed adapter".into());
+    }
     if credential && !matches!(language, "C" | "Swift" | "Kotlin") {
         return Err("credential first-use adapter is not qualified for this language".into());
     }
@@ -507,12 +527,19 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
     assert!(client.is_absolute() && client.is_file());
     for carrier in ["signed", "tls"] {
         for recoverable in [false, true] {
+            if selected.is_some_and(|route| route != (carrier, recoverable)) {
+                continue;
+            }
+            executed += 1;
             let profile = if recoverable { "recoverable" } else { "fixed" };
             let mut witness = witness::Witness::start()?;
             let reference = if credential {
                 fixture::setup_with_witness(Some(&witness.configured))?
             } else {
-                fixture::setup_expiring_policy(Some(&witness.configured), 60)?
+                fixture::setup_expiring_policy(
+                    Some(&witness.configured),
+                    if policy_credential { 180 } else { 60 },
+                )?
             };
             let witness_pin = witness
                 .configured
@@ -715,7 +742,7 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
                 first_expiry::prepare_receiver_metadata(&reference)?;
             }
             connection.prepare(&authority, &certificate, &roster, Some(&witness.configured))?;
-            let mut credential_tls = if carrier == "tls" && credential {
+            let mut credential_tls = if carrier == "tls" && (credential || policy_credential) {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls_faults::FaultWitness::start(
                     std::sync::Arc::clone(&witness.configured.store),
@@ -727,7 +754,7 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
             } else {
                 None
             };
-            let mut tls = if carrier == "tls" && !credential {
+            let mut tls = if carrier == "tls" && !credential && !policy_credential {
                 publish_private_bytes(&source.join("witness-subject"), &subject.to_bytes())?;
                 let server = witness_tls::TlsWitness::start(
                     std::sync::Arc::clone(&witness.configured.store),
@@ -827,7 +854,22 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
                     reference: &reference.initiator,
                     witness: Some(&witness.configured),
                 }
-                .run(&connection)
+                .run(&connection)?;
+                if policy_credential {
+                    first_credential::Renewal {
+                        root: &authority,
+                        original: &device,
+                        public_key: verified.public_key(),
+                        validity,
+                        certificate: &certificate,
+                        roster: &roster,
+                        reference: &reference.initiator,
+                        witness: &witness,
+                        tls: credential_tls.as_ref(),
+                    }
+                    .run_after_policy(&connection)?;
+                }
+                Ok(())
             })?;
             if let Some(server) = &mut tls {
                 assert!(server.admitted.load(std::sync::atomic::Ordering::Acquire) >= 2);
@@ -860,7 +902,7 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
                 // Preserve the actual witness exchange records for this configured path.
                 let records = witness.captured.lock().map_err(|_| "capture")?;
                 assert!(records.len() > measured_start);
-                if credential {
+                if credential || policy_credential {
                     let lost: Vec<_> = records
                         .iter()
                         .skip(measured_start)
@@ -872,7 +914,7 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
                     assert_eq!(lost.reply.get(204), Some(&8));
                 }
                 for record in records.iter().skip(measured_start) {
-                    if !credential {
+                    if !credential && !policy_credential {
                         assert!(record.delivered);
                     }
                     assert!(!record.request.is_empty() && !record.reply.is_empty());
@@ -884,7 +926,12 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
                 first_account::export_public(
                     &source, &base, &registry, language, profile, carrier, credential,
                 )?;
-                let prefix = if credential {
+                if policy_credential {
+                    first_policy_credential::export_public(&connection)?;
+                }
+                let prefix = if policy_credential {
+                    "MANAGED_POLICY_CREDENTIAL_CONFIGURATION"
+                } else if credential {
                     "MANAGED_CREDENTIAL_CONFIGURATION"
                 } else {
                     "MANAGED_CONFIGURATION"
@@ -896,5 +943,42 @@ fn witnessed_registration(managed: bool, renewal: first_connection::RenewalKind)
             }
         }
     }
+    assert_eq!(executed, if selected.is_some() { 1 } else { 4 });
     Ok(())
+}
+
+#[test]
+fn managed_policy_credential_signed_fixed() -> Result<()> {
+    witnessed_registration_selected(
+        true,
+        first_connection::RenewalKind::PolicyCredential,
+        Some(("signed", false)),
+    )
+}
+
+#[test]
+fn managed_policy_credential_signed_recoverable() -> Result<()> {
+    witnessed_registration_selected(
+        true,
+        first_connection::RenewalKind::PolicyCredential,
+        Some(("signed", true)),
+    )
+}
+
+#[test]
+fn managed_policy_credential_tls_fixed() -> Result<()> {
+    witnessed_registration_selected(
+        true,
+        first_connection::RenewalKind::PolicyCredential,
+        Some(("tls", false)),
+    )
+}
+
+#[test]
+fn managed_policy_credential_tls_recoverable() -> Result<()> {
+    witnessed_registration_selected(
+        true,
+        first_connection::RenewalKind::PolicyCredential,
+        Some(("tls", true)),
+    )
 }

@@ -151,14 +151,14 @@ class FirstConfigurationTests(unittest.TestCase):
                 self.assertEqual(runtime["UNRELATED_SETTING"], "retained")
                 self.assertEqual(runtime["QPC_CONFIGURATION_CLIENT"], str(client))
                 self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
-                return fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]))
+                return fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"])).replace(b"5 filtered out", b"9 filtered out")
             checked = configuration._qualify(outside, output, "debug", original, helper, client, run, receiver=receiver, language="C")
             self.assertTrue(checked["completed"])
             self.assertEqual(original["QPERIAPT_PUBLIC_SERVICE_EVIDENCE"], str(previous))
             self.assertEqual(list(previous.iterdir()), [])
 
     def test_foreign_receiver_must_match_native_baseline_and_remain_unchanged(self):
-        for mutation in ("none", "baseline", "before", "during", "managed-during", "credential-during"):
+        for mutation in ("none", "baseline", "before", "during", "managed-during", "credential-during", "policy-during"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory).resolve(); outside = root / "outside"; outside.mkdir()
                 output = root / "output"; output.mkdir()
@@ -177,7 +177,12 @@ class FirstConfigurationTests(unittest.TestCase):
                     self.assertEqual(runtime["QPC_CONFIGURATION_RECEIVER"], str(receiver))
                     managed = "QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE" in runtime
                     credential = "managed_first_credential_renewal_preserves_identity_and_delivery" in command
-                    if credential:
+                    import continuity_configuration_policy_credential as pg
+                    policy_route = next((route for route, test in pg.TESTS.items() if test in command), None)
+                    if policy_route is not None:
+                        from test_continuity_configuration_policy_credential import fixture as pg_fixture
+                        data = pg_fixture(Path(runtime["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"]), "Swift", policy_route)
+                    elif credential:
                         from test_continuity_configuration_credential import fixture as credential_fixture
                         data = credential_fixture(Path(runtime["QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE"]), "Swift")
                     elif managed:
@@ -186,9 +191,9 @@ class FirstConfigurationTests(unittest.TestCase):
                     else:
                         data = fixture(Path(runtime["QPERIAPT_CONFIGURATION_EVIDENCE"]), "Swift")
                     if (mutation == "during" or (mutation == "managed-during" and managed)
-                            or (mutation == "credential-during" and credential)):
+                            or (mutation == "credential-during" and credential) or (mutation == "policy-during" and policy_route is not None)):
                         receiver.write_bytes(b"replaced during execution")
-                    return data
+                    return data.replace(b"5 filtered out", b"9 filtered out").replace(b"6 filtered out", b"10 filtered out")
                 def execute():
                     return configuration.qualify_foreign(outside, output, "debug",
                         {"QPC_CONFIGURATION_RECEIVER": "untrusted-inherited-selection"}, native, run, client, language="Swift")
@@ -196,9 +201,9 @@ class FirstConfigurationTests(unittest.TestCase):
                     result = execute()
                     self.assertEqual(result["binaries"]["receiver"], identity(receiver))
                 else:
-                    with self.assertRaisesRegex(ValueError, "executable changed" if mutation in ("during", "managed-during", "credential-during") else "native receiver differs"):
+                    with self.assertRaisesRegex(ValueError, "P/G executable drift" if mutation == "policy-during" else "executable changed" if mutation in ("during", "managed-during", "credential-during") else "native receiver differs"):
                         execute()
-                self.assertEqual(len(calls), {"baseline": 0, "before": 0, "during": 1, "managed-during": 2}.get(mutation, 3))
+                self.assertEqual(len(calls), {"none": 7, "policy-during": 7, "baseline": 0, "before": 0, "during": 1, "managed-during": 2}.get(mutation, 3))
 
     def test_ci_retains_selected_public_configuration_evidence(self):
         workflow = (Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml").read_text()
@@ -210,6 +215,7 @@ class FirstConfigurationTests(unittest.TestCase):
             self.assertIn(prefix + "configuration-public/**", upload)
             self.assertIn(prefix + "managed-configuration-public/**", upload)
             self.assertIn(prefix + "managed-credential-configuration-public/**", upload)
+            self.assertIn(prefix + "policy-credential-*-public/**", upload)
             self.assertIn(prefix + "c-managed-public/**", upload)
 
     def test_each_scenario_requires_its_own_registration(self):

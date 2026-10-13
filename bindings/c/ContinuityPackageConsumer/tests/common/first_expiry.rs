@@ -11,7 +11,11 @@ pub(crate) fn wait_and_refuse_expired(
     original: &[u8],
 ) -> Result<()> {
     let until = historical(case.source)?.validity().until();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+    let remaining = until.saturating_sub(fixture::now()?);
+    if remaining > 300 {
+        return Err("policy fixture wait exceeds five minutes".into());
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(remaining + 15);
     while fixture::now()? < until {
         if std::time::Instant::now() >= deadline {
             return Err("policy expiry deadline".into());
