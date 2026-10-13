@@ -5,6 +5,12 @@
 //! operations; this module has no caller coins or raw combiner. Plaintext private
 //! key transfer is isolated in the explicitly named `QPeriaptExpert` API.
 //! Objects are ownership controls, not isolation from malicious same-realm JS.
+#[cfg(all(
+    feature = "browser-continuity",
+    target_arch = "wasm32",
+    target_os = "unknown"
+))]
+mod continuity;
 use js_sys::Uint8Array;
 use q_periapt_policy::TrustedPolicyState;
 use q_periapt_sdk::{self as sdk, Ciphertext, PublicKey};

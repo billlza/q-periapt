@@ -9,7 +9,8 @@ description = "Isolated Continuity accountable identity and prekey-manifest cand
 repository = "https://github.com/billlza/q-periapt"
 readme = "README.md"
 
-# Candidate implementation, outside the published SDK graph and its lockfile.
+# Separate native qualification workspace; the private browser facade also
+# resolves this engine through the SDK workspace lockfile.
 [workspace]
 resolver = "2"
 members = ["."]

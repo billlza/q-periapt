@@ -20,6 +20,7 @@ from third_party_licenses import collect as collect_licenses, verify as verify_l
 
 ROOT = Path(__file__).resolve().parent.parent
 CRATE = ROOT / "crates/q-periapt-sdk-wasm"
+CANDIDATE = ROOT / "research/continuity-identity-candidate"
 NAME = "q-periapt-sdk-wasm"
 VERSION = "0.2.0"
 TARGET = "wasm32-unknown-unknown"
@@ -27,6 +28,9 @@ CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 946684800
 GENERATED = ("q_periapt_sdk_wasm.js", "q_periapt_sdk_wasm.d.ts", "q_periapt_sdk_wasm_bg.wasm")
 POLICIES = ("signed-policy-vectors.json", "sdk-policy-revocation-vectors.json", "sdk-policy-update-vectors.json")
+BROWSER_HOSTS = {f"web/{name}": CANDIDATE / "src/storage/browser" / name
+                 for name in ("storage-root.js", "storage-database.js", "storage-catalogue.js")}
+BROWSER_HOSTS["web/witness-fetch.js"] = CANDIDATE / "src/anchor/transport/witness-fetch.js"
 NOTICES = ("LICENSE", "LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt", "LICENSES/Rust-1.98.1-library.html")
 VENDOR_NOTICES = ("LICENSE.mlkem-native", "PROVENANCE.md", "INVENTORY.sha256", "LICENSE-INVENTORY.md")
 CONSUMER_FILES = ("product.cjs", "installed.mjs", "browser.html", "browser-acceptance.js",
@@ -78,6 +82,8 @@ def sources() -> dict:
         "artifact/third_party_licenses.py", "artifact/deterministic_archive.py", "artifact/evidence_io.py",
         "artifact/bounded_process.py", "artifact/c_package_manifest.py")]
     paths += [ROOT / "bindings" / name for name in POLICIES]
+    paths += [CANDIDATE / name for name in ("Cargo.toml", "Cargo.lock")]
+    paths += sorted(path for path in (CANDIDATE / "src").rglob("*") if path.is_file())
     return {"rust_workspace_sha256": rust_workspace_source_digest(ROOT),
             "inputs": {p.relative_to(ROOT).as_posix(): snapshot(p).sha256 for p in paths}}
 
@@ -144,6 +150,10 @@ def verify(root: Path, manifest_sha256: str) -> dict:
     for environment in ("node", "web"):
         for name in GENERATED:
             require(f"{environment}/{name}" in actual, "WASM SDK generated payload is incomplete")
+    for relative, path in BROWSER_HOSTS.items():
+        source = snapshot(path)
+        require(actual.get(relative) == {"sha256": source.sha256, "bytes": source.size},
+                f"WASM SDK browser host module differs: {relative}")
     verify_licenses(root, expected_target=TARGET, root_package=NAME)
     return manifest
 
@@ -256,7 +266,8 @@ def build(output: Path) -> dict:
     require(int(tools["node"].split(".")[0].lstrip("v")) >= 24, "WASM SDK requires Node >=24")
     for target in ("nodejs", "web"):
         run(["wasm-pack", "build", str(CRATE), "--mode", "no-install", "--target", target,
-             "--release", "--out-dir", str(output / "generated" / target), "--", "--locked"],
+             "--release", "--out-dir", str(output / "generated" / target), "--", "--locked",
+             *(["--features", "browser-continuity"] if target == "web" else [])],
              output / f"build-{target}", ROOT)
     package = output / "package"
     package.mkdir()
@@ -265,12 +276,17 @@ def build(output: Path) -> dict:
     for source, destination in (("nodejs", "node"), ("web", "web")):
         for name in GENERATED:
             copy(output / "generated" / source / name, package / destination / name)
+    for relative, path in BROWSER_HOSTS.items():
+        copy(path, package / relative)
     copy(CRATE / "PackageREADME.md", package / "README.md")
     for name in NOTICES:
         copy(ROOT / name, package / name)
     for name in VENDOR_NOTICES:
         copy(ROOT / "crates/q-periapt-mlkem-native-sys/vendor" / name, package / "LICENSES/mlkem-native" / name)
-    collect_licenses(ROOT, package, TARGET, root_package=NAME)
+    metadata = parse_strict_json_bytes(run(["cargo", "metadata", "--locked", "--format-version", "1",
+        "--filter-platform", TARGET, "--features", "q-periapt-sdk-wasm/browser-continuity"],
+        output / "browser-cargo-metadata", ROOT), label="browser Cargo dependency closure")
+    collect_licenses(ROOT, package, TARGET, root_package=NAME, resolved_metadata=metadata)
     write_json(package / CONTENTS, {"schema_version": 1, "name": NAME, "version": VERSION,
         "release_claim_eligible": False, "sources": before, "tools": tools,
         "files": entries(package)})

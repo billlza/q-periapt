@@ -10,3 +10,7 @@ export default function initialize() {
   initialization ??= init().then(() => undefined);
   return initialization;
 }
+
+export { QPeriaptContinuityEnrollment, QPeriaptContinuityDevice, QPeriaptContinuityPolicy,
+  QPeriaptContinuityAccountTrust, QPeriaptContinuityWitness,
+  QPeriaptContinuityPreparation, QPeriaptContinuityPrekeyKind } from './q_periapt_sdk_wasm.js';

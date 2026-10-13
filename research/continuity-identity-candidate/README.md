@@ -43,7 +43,11 @@ adapter has exercised browser-generated identities through signed credential
 acceptance, local-policy activation and original SDK prekey recovery, including
 Worker interruption before and after child publication. Required-witness
 preparation returns its original genesis; missing witness admission is refused.
-This does not yet expose operational ownership through the final product API.
+The private product browser build now exposes this shared lifecycle through
+`QPeriaptContinuityDevice` in the installed npm web entry. The retained
+`BrowserEnrollmentProbe` delegates to the same `BrowserDevice` owner. The
+operational owner closes on failure or future drop, rejects concurrent work, and
+keeps the original enrollment and storage alive through activation.
 The [activation evidence](../sdk-alpha1/evidence/20261013-browser-owned-activation/README.md)
 also records delayed publication receipts and actual published-file loss.
 
@@ -90,8 +94,9 @@ sh artifact/python-run.sh artifact/continuity_browser_creation.py \
 Use a fresh output directory. The host also needs Chrome, the wasm32 target and
 a C compiler with WebAssembly support, as configured by `bindings-wasm`.
 
-This is a candidate enrollment boundary, not the unified product browser entry.
-Product bindings for operational owners, complete session/root/roster lifecycle,
+The installed product web entry now covers original enrollment, preparation,
+witnessed activation and original public prekey recovery. Signed prekey
+publication, complete session/root/roster lifecycle,
 peer transport, HTTPS deployment and installed browser packaging remain
 integration work. The prototype
 uses storage schema 2 and does not migrate its earlier experimental schema.

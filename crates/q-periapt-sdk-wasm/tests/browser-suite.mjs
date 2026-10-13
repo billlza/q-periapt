@@ -28,7 +28,9 @@ export async function runAcceptance(mode, realm) {
     const prefix = mode === 'init-fail' ? '/broken' : '';
     const sdk = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/index.js`);
     const { QPeriaptExpert } = await import(`${prefix}/node_modules/q-periapt-sdk-wasm/web/expert.js`);
-    check(Object.keys(sdk).sort().join(',') === ['QPeriaptDerivedKey', 'QPeriaptEncapsulation',
+    check(Object.keys(sdk).sort().join(',') === ['QPeriaptContinuityAccountTrust', 'QPeriaptContinuityDevice', 'QPeriaptContinuityEnrollment',
+      'QPeriaptContinuityPolicy', 'QPeriaptContinuityPrekeyKind', 'QPeriaptContinuityPreparation',
+      'QPeriaptContinuityWitness', 'QPeriaptDerivedKey', 'QPeriaptEncapsulation',
       'QPeriaptKey', 'QPeriaptKeyPurpose', 'QPeriaptPolicyUpdate', 'QPeriaptRuntime',
       'QPeriaptSecret', 'default'].join(','), 'unexpected default browser exports');
     if (mode === 'no-wasm') Object.defineProperty(globalThis, 'WebAssembly', { value: undefined });

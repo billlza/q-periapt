@@ -3,3 +3,7 @@ export { QPeriaptDerivedKey, QPeriaptEncapsulation, QPeriaptKey,
   QPeriaptSecret } from './q_periapt_sdk_wasm.js';
 /** Load the adjacent WASM once; rejects on loading/compilation/initialization failure. */
 export default function initialize(): Promise<void>;
+
+export { QPeriaptContinuityEnrollment, QPeriaptContinuityDevice, QPeriaptContinuityPolicy,
+  QPeriaptContinuityAccountTrust, QPeriaptContinuityWitness,
+  QPeriaptContinuityPreparation, QPeriaptContinuityPrekeyKind } from './q_periapt_sdk_wasm.js';

@@ -5,7 +5,8 @@
 //! This isolated, unpublished component uses actual ML-DSA-65 and P-256 signatures.
 //! The volatile handshake is not a ratchet or permission to consume prekeys.
 //! Account enrollment must independently pin the intended account and roster head.
-//! No production crate, C ABI, or language binding depends on this candidate.
+//! The private browser product build reuses this engine. Protocol freeze and
+//! complete cross-platform product admission remain separate release gates.
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub use anchor::AnchorFetchTransport;
@@ -38,6 +39,8 @@ pub use account_authority::{
     AccountAuthorityLease, AccountAuthorityReplacementState, AccountAuthorityStore,
     ApplicationAccountId,
 };
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod browser;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod browser_enrollment_probe;
 mod durable;

@@ -86,3 +86,11 @@ numbers fail without invoking coercion hooks. Runtime limits are integers in
 1..1024 (live keys) and 1..64 (operations).
 
 See [current scope and validation](../../docs/SDK_0_2_RELEASE_READINESS.md).
+
+The `browser-continuity` build feature adds the shared browser device lifecycle
+through the existing npm web entry. The Node build retains its original exports.
+`QPeriaptContinuityDevice` owns first-use enrollment through witnessed activation
+and original prekey recovery; it accepts typed independent trust inputs and the
+existing signed-policy `QPeriaptRuntime`. See the shipped `PackageREADME.md` for
+creation/reopen, cancellation and resource-release semantics. Full session,
+publication, root/roster and migration bindings remain under development.

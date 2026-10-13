@@ -40,6 +40,8 @@ class WasmSDKPackageTests(unittest.TestCase):
         self.root = Path(temporary.name)
         for relative in wasm.entries(wasm.CRATE / "package"):
             wasm.copy(wasm.CRATE / "package" / relative, self.root / relative)
+        for relative, path in wasm.BROWSER_HOSTS.items():
+            wasm.copy(path, self.root / relative)
         wasm.copy(wasm.CRATE / "PackageREADME.md", self.root / "README.md")
         for name in wasm.NOTICES:
             wasm.copy(wasm.ROOT / name, self.root / name)
@@ -94,6 +96,22 @@ class WasmSDKPackageTests(unittest.TestCase):
         self.seal()
         with self.assertRaisesRegex(ValueError, "notice or README"):
             wasm.verify(self.root, self.sha)
+
+    def test_rehashed_missing_or_changed_browser_host_is_rejected(self):
+        for relative, source in wasm.BROWSER_HOSTS.items():
+            path = self.root / relative
+            for mutation in ("missing", "changed"):
+                with self.subTest(relative=relative, mutation=mutation):
+                    path.unlink()
+                    if mutation == "changed":
+                        path.write_bytes(source.read_bytes() + b"\n// altered host\n")
+                    self.seal()
+                    with self.assertRaisesRegex(ValueError, "browser host module differs"):
+                        wasm.verify(self.root, self.sha)
+                    if path.exists():
+                        path.unlink()
+                    wasm.copy(source, path)
+                    self.seal()
 
     def test_extra_file_and_symlink_are_rejected(self):
         path = self.root / "unexpected.js"

@@ -63,9 +63,9 @@ HKDF-SHA-256 application key, then explicitly export only when your cipher needs
 bytes. Labels are 1–255 printable ASCII bytes; context is at most 65536 bytes.
 
 Policy update is prepare → persist the signed policy and trusted state atomically
-→ `activate_after_persist()`. Activation revokes the old epoch. The application
-owns durable storage and recovery; this package supplies no persistent service,
-worker cancellation, transport authentication or session protocol.
+→ `activate_after_persist()`. Activation revokes the old epoch. The raw runtime does not supply a persistent session service. The browser
+policy store and Continuity lifecycle owner below provide separate persistence
+contracts; complete Continuity session bindings remain under development.
 
 `PACKAGE_CONTENTS.json` records candidate bytes and source/tool identities;
 distribution signatures are verified separately. `THIRD_PARTY/rust/INVENTORY.json` records
@@ -115,3 +115,44 @@ trust/history rather than silently recreated. IndexedDB `strict` requests the
 browser's strongest standard transaction durability; it is not a demonstrated
 native-filesystem or power-loss equivalence. The schema is explicitly versioned;
 unknown or malformed records are refused, not migrated by guesswork.
+
+# Browser Continuity lifecycle
+
+The same web entry exposes `QPeriaptContinuityEnrollment`,
+`QPeriaptContinuityDevice`, `QPeriaptContinuityPolicy`,
+`QPeriaptContinuityAccountTrust` and `QPeriaptContinuityWitness`.
+They reuse the shared native protocol engine and the real `QPeriaptRuntime`;
+there is no private fixture-key import or policy-digest-only admission.
+The Node entry keeps its existing API and does not load browser storage modules.
+
+Run persistent device operations in a dedicated Worker on a secure origin with
+IndexedDB, Web Locks and OPFS synchronous access handles. Use one stable name
+(1–96 ASCII letters, digits, underscores or hyphens), an independently retained
+32-byte storage ID, and the exact same enrollment intent on reopen. The intent
+constructor takes the pinned account root, 16-byte device ID, generation,
+32-byte policy family and validity interval. Timestamps and versions are BigInt;
+buffer inputs are Uint8Array and are bounded before copying into WASM.
+
+The lifecycle is `create` (or explicit original `resume`) → `request` → authority
+registration → `accept` → `prepare` → any required independent witness enrollment
+→ `activate`. `open` never creates or replaces missing original state. It returns
+an enrollment owner even for an already active installation; call `activate`
+with current verified policy and witness configuration to reopen that service.
+`activate_local` is available only when the signed policy admits local protection.
+Preparation exposes the public witness subject and genesis digest when required;
+these are expectations to enroll, not evidence that enrollment already happened.
+
+The owner can generate/recover an original public prekey. This does not advertise
+it or imply a remote publication receipt. Signed prekey publication, connections,
+root/roster lifecycle and migration still require final browser API integration.
+The protocol and package remain prerelease candidates.
+
+Await `close()` before releasing the wrapper with `free()`. Close cancels pending
+witness traffic and waits for actual storage-release receipts. Concurrent device
+operations are refused. An operational failure closes the owner; reopen the same
+identity to reconcile the original state. Timeout/cancellation may follow a remote
+commit and never authorize reset. Independently pin witness identity and public
+key; normal witness configuration requires HTTPS, while `for_loopback` is an
+explicit local diagnostic entry. Cross-origin endpoints must permit your origin
+and `application/octet-stream` POST through CORS. No automatic retry, redirect,
+ambient credential or unanchored fallback is used.
