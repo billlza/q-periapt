@@ -193,8 +193,13 @@ pub(super) fn after_preparation_commit(image: &Image) {
     if selected != phase {
         return;
     }
-    std::fs::write(Path::new(&path).join("registry-committed"), phase)
-        .expect("owned child commit marker");
+    // The parent reads immediately after observing the final name. Publish the
+    // complete marker atomically; create-then-write exposes an empty cut marker.
+    q_periapt_host_store::filesystem::publish_private_bytes(
+        &Path::new(&path).join("registry-committed"),
+        phase.as_bytes(),
+    )
+    .expect("owned child commit marker");
     loop {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }

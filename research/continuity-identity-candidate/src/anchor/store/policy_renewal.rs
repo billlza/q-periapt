@@ -114,18 +114,22 @@ impl PolicyRenewal {
     }
 }
 impl Entry {
+    pub(super) fn has_credential_policy_composition(&self) -> bool {
+        self.independent_policy.is_some()
+            && (self.renewal_floor != 0
+                || self.renewal.is_some()
+                || self.renewal_ack.is_some()
+                || self.credential_owner != self.subject.owner)
+    }
     pub(super) fn check_independent_policy(&self, pin: &AnchorPin) -> Result<(), DurableError> {
         let Some(s) = &self.independent_policy else {
             return Ok(());
         };
-        // G/T composition needs its own later integration; this path never aliases it.
+        // A retired plain G may precede P; live G/T coordination remains excluded.
         if self.renewal.is_some()
-            || self.renewal_floor != 0
-            || self.renewal_ack.is_some()
             || self.credential_authorization.is_some()
             || self.policy_authorization.is_some()
             || self.policy_floor != 0
-            || self.credential_owner != self.subject.owner
             || s.floor == 1
             || s.floor == u64::MAX
             || (s.ack.is_some() && s.floor == 0)
@@ -244,7 +248,8 @@ impl AnchorStore {
     /// Reverify both roots against caller-pinned materials and the actual witness
     /// predecessor. This reserves one transaction, grants no operational owner,
     /// and does not fabricate a credential renewal or advance the roster.
-    /// Current scope excludes a subject that has adopted a credential/joint renewal.
+    /// An already retired plain credential renewal is retained; joint continuation
+    /// and unfinished credential coordination remain separate.
     pub fn prepare_policy_renewal(
         &mut self,
         proposal: Proposal,
@@ -294,7 +299,6 @@ impl AnchorStore {
             || proposal.subject()
                 != AnchorSubject::for_device(scope.journal, m.original_device, m.original)?
             || m.original.anchor_requirement().binding() != Some(pin.binding)
-            || scope.current_credential != scope.original_credential
             || pin.key.shares_component(&current.key)
             || pin.key.shares_component(&current.authority_key)
         {
@@ -323,8 +327,6 @@ impl AnchorStore {
             .as_ref()
             .is_some_and(RosterRefresh::pending)
             || entry.renewal.is_some()
-            || entry.renewal_floor != 0
-            || entry.renewal_ack.is_some()
             || entry.credential_authorization.is_some()
             || entry.policy_authorization.is_some()
             || entry.policy_floor != 0

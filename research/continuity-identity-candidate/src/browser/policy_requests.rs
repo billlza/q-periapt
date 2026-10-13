@@ -22,9 +22,9 @@ impl BrowserDevice {
     }
 
     /// Read required-witness predecessor metadata under the original service lease.
-    /// The native policy-only restrictions also apply here, including refusal of
-    /// installations that have adopted a credential renewal. Neither a transport
-    /// failure nor unsupported lineage permits falling back to local protection.
+    /// A completed plain credential renewal keeps its exact original receipt and
+    /// actual successor identity. Pending credential work and joint continuation
+    /// remain excluded. Failure never permits falling back to local protection.
     pub async fn witnessed_policy_renewal_request(
         &self,
         operation: PolicyRenewalId,

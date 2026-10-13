@@ -127,6 +127,11 @@ impl PreparedRenewalRequest {
                 operation,
                 self.completed.as_ref(),
                 self.joint.as_ref(),
+                self.image
+                    .renewal
+                    .as_ref()
+                    .filter(|r| r.witnessed())
+                    .and_then(|r| r.completed.as_ref()),
             )
             .await
     }
@@ -219,7 +224,7 @@ impl DeviceEnrollment {
         self.prepare_renewal_request_with_anchor(original_policy, None)
             .await
     }
-    async fn prepare_renewal_request_with_anchor(
+    pub(in crate::enrollment) async fn prepare_renewal_request_with_anchor(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
         anchor: Option<AnchorClient>,

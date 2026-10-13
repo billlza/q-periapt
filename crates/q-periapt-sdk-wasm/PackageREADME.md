@@ -280,11 +280,12 @@ the caller and approve the same exact scope. The request does not authorize a
 policy change, reserve an operation or release traffic authority.
 
 These entries preserve native restrictions: pending maintenance must first be
-reconciled, and the current required-witness policy-only path refuses an
-installation that has adopted credential renewal G. A failed witnessed request
-must not be retried through local protection. Browser policy grant adoption,
-activation and the required-witness P-after-G lifecycle remain under development;
-this public request is not a completed policy renewal.
+reconciled. A completed plain credential renewal G retains its original receipt
+and contributes the actual successor credential/roster to this request, including
+under required witnesses. Joint credential/policy continuation remains separate.
+A failed witnessed request must not be retried through local protection. Browser
+policy grant adoption and activation remain under development; this public
+request is not a completed policy renewal.
 
 Verify the independently issued bytes with `QPeriaptContinuityCredentialGrant`,
 using an independently retained target account pin, original historical policy

@@ -221,12 +221,7 @@ impl Stored {
             b"QPRHST02"
         };
         let mut payload = Zeroizing::new(if let Some(policy) = &self.policy_renewal {
-            let mut prefix = if policy.carried_grant.is_some() {
-                b"QPRHST06"
-            } else {
-                b"QPRHST05"
-            }
-            .to_vec();
+            let mut prefix = policy.format_tag()?.to_vec();
             prefix.extend_from_slice(tag);
             prefix
         } else {
@@ -391,8 +386,8 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
     } else {
         tag
     };
-    let credential_renewed = tag == *b"QPRHST06";
-    let policy_only = tag == *b"QPRHST05" || credential_renewed;
+    let policy_format_tag = tag;
+    let policy_only = matches!(&tag, b"QPRHST05" | b"QPRHST06" | b"QPRHST08");
     let tag = if policy_only {
         decoder.array::<8>()?
     } else {
@@ -494,7 +489,7 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         Some(StoredPolicyRenewal::decode(
             &mut decoder,
             &roster,
-            credential_renewed,
+            policy_format_tag,
         )?)
     } else {
         None

@@ -995,3 +995,57 @@ fn independent_policy_roster_refresh_preserves_current_p_and_rejects_stale_autho
         State::Applied
     );
 }
+
+#[test]
+fn credential_policy_composition_requires_explicit_witness_format() {
+    let mut c = Case::new();
+    let a = c.approval(&c.original, None, &c.target);
+    let p = c.proposal(&a, c.initial, 71);
+    c.prepare(p, &a).expect("real independent approval");
+    let mut image = c.store.image().expect("authenticated P state");
+    // A retired Closed G has no credential change, but its historical floor and
+    // acknowledgement still require the new composition-capable container.
+    let entry = image
+        .entries
+        .get_mut(&c.subject.id(&c.pin.binding()))
+        .expect("subject");
+    entry.renewal_floor = 2;
+    entry.renewal_ack = Some([43; 32]);
+    let key = &c.store.active.as_ref().expect("active witness").wrapping;
+    let bytes = super::super::encode(key, &c.pin, &image).expect("new image");
+    assert_eq!(bytes.get(..8), Some(b"QPANC018".as_slice()));
+    super::super::decode(key, &c.pin, &bytes).expect("new container roundtrip");
+    let body_len = bytes
+        .len()
+        .checked_sub(32)
+        .expect("authenticated image length");
+    let mut downgraded = bytes
+        .get(..body_len)
+        .expect("exact authenticated body")
+        .to_vec();
+    downgraded
+        .get_mut(..8)
+        .expect("complete version tag")
+        .copy_from_slice(b"QPANC017");
+    let mut mac = super::super::authenticator(key).expect("owned test authenticator");
+    mac.update(&downgraded);
+    downgraded.extend_from_slice(&mac.finalize().into_bytes());
+    assert!(
+        matches!(
+            super::super::decode(key, &c.pin, &downgraded),
+            Err(DurableError::Conflict)
+        ),
+        "valid authentication must not reinterpret an old container as new authority composition"
+    );
+    assert!(super::super::account_replacement::closure::decode_records(
+        &mut Decoder::new(&[0, 0]),
+        false
+    )
+    .is_err());
+    assert!(super::super::account_replacement::closure::decode_records(
+        &mut Decoder::new(&[0, 0]),
+        true
+    )
+    .expect("new container allows an absent closure section")
+    .is_empty());
+}

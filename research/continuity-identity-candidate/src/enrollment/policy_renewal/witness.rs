@@ -63,7 +63,10 @@ pub(in crate::enrollment) struct WitnessPolicy {
 impl WitnessPolicy {
     pub(in crate::enrollment) fn validate(&self, image: &Image) -> Result<(), DurableError> {
         crate::codec::nonzero(&self.binding)?;
-        if image.renewal.is_some()
+        if image
+            .renewal
+            .as_ref()
+            .is_some_and(|r| !r.permits_witness_policy())
             || image.policy_resolution.is_some()
             || image.roster_resolution.is_some()
             || image.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
@@ -240,7 +243,10 @@ impl DeviceEnrollment {
         let Some(binding) = original.anchor_requirement().binding() else {
             return Ok(());
         };
-        if image.renewal.is_some()
+        if image
+            .renewal
+            .as_ref()
+            .is_some_and(|r| !r.permits_witness_policy())
             || image.policy_resolution.is_some()
             || image.roster_resolution.is_some()
         {
@@ -269,6 +275,7 @@ impl DeviceEnrollment {
         };
         w.validate(image)?;
         let original = self.original_device_metadata(image)?;
+        let current = self.policy_witness_current_device(image)?;
         let Phase::Accepted { admission, .. } = &image.phase else {
             return Err(DurableError::Corrupt);
         };
@@ -303,7 +310,7 @@ impl DeviceEnrollment {
         if let Some(closed) = &w.closed {
             let approval = self.authenticated_policy_record(closed)?;
             if image.policy_device_binding == PolicyDeviceBinding::MonotonicRoster {
-                approval.check_credential_lineage(&original, &original)?;
+                approval.check_credential_lineage(&original, &current)?;
                 let approved = approval.scope().current_roster;
                 if admission.checkpoint.version() < approved.version()
                     || (admission.checkpoint.version() == approved.version()
@@ -312,7 +319,7 @@ impl DeviceEnrollment {
                     return Err(DurableError::Conflict);
                 }
             } else {
-                approval.check_devices(&original, &original)?;
+                approval.check_devices(&original, &current)?;
             }
             self.check_policy_predecessor(image, &approval, &original, admission)?;
         }
@@ -331,6 +338,19 @@ impl DeviceEnrollment {
         }
         Ok(())
     }
+    pub(in crate::enrollment) fn policy_witness_current_device(
+        &self,
+        image: &Image,
+    ) -> Result<VerifiedDevice, DurableError> {
+        let Phase::Accepted { admission, .. } = &image.phase else {
+            return Err(DurableError::Corrupt);
+        };
+        self.historical_device_metadata(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+        )
+    }
     pub(in crate::enrollment) fn policy_witness_scope(
         &self,
         image: &Image,
@@ -348,7 +368,10 @@ impl DeviceEnrollment {
         else {
             return Err(DurableError::Suspended);
         };
-        if image.renewal.is_some()
+        if image
+            .renewal
+            .as_ref()
+            .is_some_and(|r| !r.permits_witness_policy())
             || admission.policy != policy.checkpoint().digest()
             || image.policy_device_binding == PolicyDeviceBinding::CredentialRenewal
             || image
@@ -441,7 +464,7 @@ impl DeviceEnrollment {
     ) -> Result<crate::PolicyRenewalRequest, DurableError> {
         let image = self.image()?;
         image.require_roster_retired()?;
-        let (original, id) = self.policy_witness_scope(&image, original_policy)?;
+        self.policy_witness_scope(&image, original_policy)?;
         if image.policy_pending.is_some()
             || image
                 .policy_witness
@@ -451,44 +474,10 @@ impl DeviceEnrollment {
         {
             return Err(DurableError::Suspended);
         }
-        let lease = self.witness_lease(&original, original_policy, id).await?;
-        let mut journal = self
-            .open_original_journal(&original, original_policy, id, client)
+        let prepared = self
+            .prepare_renewal_request_with_anchor(original_policy, Some(client))
             .await?;
-        if let Some(completed) = self.policy_enrollment_completion(&image, original_policy)? {
-            journal
-                .retain_enrollment_policy_completion(completed)
-                .await?;
-        }
-        let authority =
-            RetainedInstallationAuthority::active_installation(&original, original_policy);
-        let completed = self.completed_policy_approval(&image)?;
-        let scope = journal
-            .policy_renewal_request_scope(
-                &crate::installation::PolicyScope {
-                    authority: &authority,
-                    original_policy,
-                    original_device: &original,
-                },
-                &original,
-                operation,
-                completed.as_ref(),
-                None,
-            )
-            .await?;
-        let Phase::Accepted { admission, .. } = &image.phase else {
-            return Err(DurableError::Corrupt);
-        };
-        let request = crate::PolicyRenewalRequest::new(
-            scope,
-            original.clone(),
-            original,
-            admission.certificate.clone(),
-            admission.certificate.clone(),
-        );
-        journal.close();
-        drop(lease);
-        Ok(request)
+        prepared.policy_request(operation, original_policy).await
     }
 
     fn retain_policy_proposal(
@@ -622,6 +611,7 @@ impl DeviceEnrollment {
         let image = self.image()?;
         image.check_time_floor(now)?;
         let (original, id) = self.policy_witness_scope(&image, original_policy)?;
+        let current = self.policy_witness_current_device(&image)?;
         let pending = image
             .policy_pending
             .as_ref()
@@ -632,7 +622,7 @@ impl DeviceEnrollment {
             previous: previous_policy,
             target,
             original_device: &original,
-            current_device: &original,
+            current_device: &current,
         };
         let approval = VerifiedPolicyRenewal::from_bytes(
             retained.as_bytes(),
@@ -883,7 +873,8 @@ impl DeviceEnrollment {
                 Action::Commit { target, now, .. } => {
                     self.authorize_journal_commit(&original, id).await?;
                     image.check_time_floor(now)?;
-                    admit(&original, target, now)?;
+                    let current = self.policy_witness_current_device(&image)?;
+                    admit(&current, target, now)?;
                     let reply = client
                         .exchange(
                             c.proposal.subject(),

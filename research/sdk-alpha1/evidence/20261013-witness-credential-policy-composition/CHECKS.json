@@ -1,0 +1,93 @@
+{
+  "capture": {
+    "bytes": 2421010,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "8eb0366b42e85fd77952cb6f2a5863077b2e8d331a4655ec534da9cda802c090",
+    "members": 699,
+    "sha256": "f169c5934b8574798af830ef3f4d5f4c3a3d24d888865fe1390d7eb95a220a3b"
+  },
+  "case_count": 9,
+  "completed": true,
+  "excluded_results": {
+    "all-lib.log": "931 passed/1 failed diagnostic only; schema prototype replaced shared executable while full suite was live. Failed marker race observed before collision. Not used for qualification.",
+    "package01_browser": "Historical pre-format cohorts remain closed; not current qualification."
+  },
+  "formats": {
+    "roster_preceding_credential": "QPRHST08",
+    "roster_subsequent_credential": "QPRHST06",
+    "witness": "QPANC018"
+  },
+  "issuer_cases": [
+    "cancel",
+    "expired-required",
+    "local",
+    "no-local-fallback",
+    "read-loss",
+    "required",
+    "wrong-witness"
+  ],
+  "package": {
+    "manifest_sha256": "f97cf9522b2c8341bd4f74f9f0a2cc1c687f542db0fd11c8577119ee22cf54f4",
+    "sha256": "c44ecd521aad63112146f2d8e99a223576180f470d28afd43d82295ae647d645",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "post_g_cases": {
+    "local": "actual successor metadata",
+    "required": "actual successor metadata; original G remains active"
+  },
+  "real_policy_expiry": {
+    "activated_at": 1791912331,
+    "request_at": 1791912397,
+    "valid_until": 1791912395
+  },
+  "release_claim_eligible": false,
+  "scope": "Shared required plain G then independent P: original ownership, current C1, exact receipt, lost Commit/ACK, closed targets, revoked membership, eight actual cross-store process kills and bilateral pending message/PQ continuity. Installed browser issuer requests after G. Same Rust engine and loopback; not G after P/joint T integration, browser P adoption, independent implementation, deployed old/new upgrade, devices/performance/PCS or full release.",
+  "source": {
+    "base_commit": "8fc35d6c8d2b400a36fb23032302e54dbc647b43",
+    "formats": [
+      "QPANC018",
+      "QPRHST08"
+    ],
+    "overlay": {
+      "ARTIFACT.md": "96a9d203535684ffb5ce540035a25dab6a8433eb09949d85438b4732e31066be",
+      "artifact/codeql_rust_quality.py": "3bb37ac01503781952039aa4cb9649d2d2237a02c97f36c7574dc7ef7d1e1908",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "45f97f5b3b55deb83bd492970564491a0cd3ac29933a054cd8591ac72a8298b2",
+      "research/continuity-identity-candidate/src/account_authority/tests.rs": "46b952a306f13e20f92eed4a79f59832a8194b21d5fc4810b058d5b37039344e",
+      "research/continuity-identity-candidate/src/anchor/store.rs": "1d30395d55ac9f146aef01bb5ffc983e4a94b31daa84fa7053dd0e345228d35d",
+      "research/continuity-identity-candidate/src/anchor/store/account_replacement/closure.rs": "fad32334b63a58b0a24cdc62479235d89877de2a56567a854ff464a2cf6e81a3",
+      "research/continuity-identity-candidate/src/anchor/store/image_version.rs": "85cd87903e691d7347d2fa63072283e7cba896acc7460ae6f3be290c80a9197f",
+      "research/continuity-identity-candidate/src/anchor/store/policy_renewal.rs": "749b8d89b226141cf454ca95dd7683832c206beed342c6e43ee0a01255ce6794",
+      "research/continuity-identity-candidate/src/anchor/store/policy_renewal/tests.rs": "524037d3d50763bc1061d73518ab373b89ba5307d4077fcac00189cecfbe26ca",
+      "research/continuity-identity-candidate/src/browser/policy_requests.rs": "da9f35a8a141f75484857c8dd90397a345836c853a7f9540df03597fd441862a",
+      "research/continuity-identity-candidate/src/durable/rosters.rs": "a2db04e82f510a0afc76962cc70d40f260f784127afac6ed35cd26fb11f483fd",
+      "research/continuity-identity-candidate/src/durable/rosters/policy_renewal.rs": "d38e813d26eb819e737758092a5ef8220dd0d6ffd3e625ce39375c9fc28b0bfb",
+      "research/continuity-identity-candidate/src/durable/rosters/policy_renewal_tests.rs": "2d743567d093aa1f70ab54bb34f4c0344a08a0ce7834639486a4575c730ea490",
+      "research/continuity-identity-candidate/src/enrollment/policy_renewal/witness.rs": "aa52ba91820d09fa69d47d2324a1907ce50257bf93ed632899c8fc270600a699",
+      "research/continuity-identity-candidate/src/enrollment/policy_renewal/witness/operational.rs": "b72be161a42b893d4c3f6e59c119f7060d1ef3be979c849afa91fb7e72571308",
+      "research/continuity-identity-candidate/src/enrollment/renewal.rs": "70deca85f1b50560c1992f5a6fc97f1a8c5dfcd0802843422e4df30d7289fc7e",
+      "research/continuity-identity-candidate/src/enrollment/renewal/request.rs": "a2399191e81b3d867b09df097ce9640d062d90a535e13ba97448b9a9002c6de1",
+      "research/continuity-identity-candidate/src/enrollment/witness_independent_policy_operational_tests.rs": "0a129bf678aad5bcf715720467092664033dad77ed55dd74c5178128d528180f",
+      "research/continuity-identity-candidate/src/enrollment/witness_independent_policy_process_tests.rs": "9d7b041c8d50672ba473353be2e274ebf65dc00a1b01cec998aae89f987a2314",
+      "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_composition_tests.rs": "4bd095ac1eed6cf5b99143762ba29731d8224c3d221bd6a9f0a9358a6aaba8fa",
+      "research/continuity-identity-candidate/src/enrollment/witness_roster_operational_tests.rs": "28fb7426a6d96f94b543766e2a6ee32e131f429a2439a8fbf769b9046a7e4a20",
+      "research/continuity-identity-candidate/src/session_policy/renewal/tests.rs": "bc7ac9f3c0fee2897a9523936cc302db5b4b96684aaa33148feb78c02f894046"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "atomic_marker_actual_kills": 9,
+    "atomic_marker_runs": 3,
+    "base_browser": 10,
+    "browser": "155.0.8059.40",
+    "format": "passed",
+    "native_clippy": "all targets -D warnings passed",
+    "preliminary_schema_filter": 3,
+    "qualified_executable_sha256": "2f78bea6104b1805fb1f285a3fe3407cb60388e82029dfe30e386afd21c7e68a",
+    "qualified_native_lib": 934,
+    "source_and_executable_unchanged": true,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "1.90 passed"
+  }
+}

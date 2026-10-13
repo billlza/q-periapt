@@ -49,7 +49,8 @@ impl DeviceEnrollment {
         }
         let approval = self.authenticated_policy_record(record)?;
         approval.check_original_policy(original_policy)?;
-        approval.check_credential_lineage(&original, &original)?;
+        let current = self.policy_witness_current_device(image)?;
+        approval.check_credential_lineage(&original, &current)?;
         Ok(Some(Arc::new(EnrollmentPolicyCompletion {
             proposal,
             approval,
@@ -86,6 +87,7 @@ impl DeviceEnrollment {
         completed
             .approval
             .check_context_policy(original_policy, policy)?;
+        let retained = self.policy_witness_current_device(&image)?;
         let mut service = self
             .reconcile_installation(&original, original_policy, Some(client))
             .await?;
@@ -105,7 +107,7 @@ impl DeviceEnrollment {
                     original_policy,
                     original_device: &original,
                 },
-                &original,
+                &retained,
                 policy,
                 now,
             )

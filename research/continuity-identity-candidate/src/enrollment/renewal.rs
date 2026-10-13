@@ -148,6 +148,12 @@ impl LocalRenewal {
     pub(super) fn permits_policy_pending(&self) -> bool {
         self.pending.is_none() && self.witness.as_ref().and_then(|w| w.coordination).is_none()
     }
+    pub(super) fn permits_witness_policy(&self) -> bool {
+        self.witnessed()
+            && self.permits_policy_pending()
+            && !self.joint()
+            && self.completed.is_some()
+    }
     pub(super) fn policy_predecessor(&self) -> Option<&[u8]> {
         self.adopted_policy.as_deref()
     }

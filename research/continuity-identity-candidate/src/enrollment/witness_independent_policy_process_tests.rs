@@ -11,6 +11,9 @@ fn independent_policy_process_child() -> Result<(), &'static str> {
     };
     let root = Path::new(&root);
     let f = fixture();
+    if std::env::var("QPERIAPT_INDEPENDENT_POLICY_AFTER_G").as_deref() == Ok("1") {
+        super::credential_composition::completed_g(&f, 150);
+    }
     let a = approval(&f);
     stage(&f, &a);
     let p = prepare(&f, &a);
@@ -80,6 +83,13 @@ fn checkpoint(path: &Path) -> crate::PolicyCheckpoint {
 }
 #[test]
 fn actual_process_kills_recover_original_independent_policy_at_four_cross_store_boundaries() {
+    process_cuts(false);
+}
+#[test]
+fn actual_process_kills_recover_policy_after_credential_at_four_cross_store_boundaries() {
+    process_cuts(true);
+}
+fn process_cuts(after_credential: bool) {
     let mut cuts = 0;
     for closed in [false, true] {
         for stage in [
@@ -92,7 +102,7 @@ fn actual_process_kills_recover_original_independent_policy_at_four_cross_store_
             let root = folder.path().canonicalize().expect("owned directory");
             let log = fs::File::create(root.join("child.log")).expect("log");
             let mut child=ChildGuard(Command::new(std::env::current_exe().expect("test binary")).args(["--exact","enrollment::tests::witness_renewal::independent_policy::operational::process::independent_policy_process_child","--nocapture"])
-                .env("TMPDIR",&root).env("QPERIAPT_INDEPENDENT_POLICY_CHILD",&root).env("QPERIAPT_INDEPENDENT_POLICY_CLOSED",if closed {"1"} else {"0"}).env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log)).spawn().expect("child"));
+                .env("TMPDIR",&root).env("QPERIAPT_INDEPENDENT_POLICY_AFTER_G",if after_credential {"1"} else {"0"}).env("QPERIAPT_INDEPENDENT_POLICY_CHILD",&root).env("QPERIAPT_INDEPENDENT_POLICY_CLOSED",if closed {"1"} else {"0"}).env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log)).spawn().expect("child"));
             let deadline = Instant::now() + Duration::from_secs(40);
             while !root.join("renewal-ready").exists() {
                 assert!(

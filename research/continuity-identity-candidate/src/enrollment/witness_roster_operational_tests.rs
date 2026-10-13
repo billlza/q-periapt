@@ -254,6 +254,13 @@ fn committed(member: &FanoutMember) -> &[u8] {
 
 #[test]
 fn original_pending_pq_offer_and_outbox_survive_policy_expiry_roster_commit_and_lost_ack() {
+    pending_session_across_maintenance(false);
+}
+#[test]
+fn original_pending_pq_offer_and_outbox_survive_bilateral_g_then_p() {
+    pending_session_across_maintenance(true);
+}
+fn pending_session_across_maintenance(after_credential: bool) {
     let f = fixture_with_policy_expiry(Some(151));
     let peer = fixture_on_witness(
         Arc::clone(&f._witness_dir),
@@ -286,12 +293,39 @@ fn original_pending_pq_offer_and_outbox_survive_policy_expiry_roster_commit_and_
         .expect("reserved original PQ contribution");
     a.owner.close();
     b.owner.close();
+    let renewals = if after_credential {
+        use crate::enrollment::tests::witness_renewal::independent_policy::operational::credential_composition::completed_g;
+        Some((completed_g(&a.f, 150), completed_g(&b.f, 150)))
+    } else {
+        None
+    };
     let pa = adopt_policy(&a.f, 155);
     let pb = adopt_policy(&b.f, 155);
-    let ar = roster_target(&a.f, &[certificate(&a.f)], 2, 155);
-    let br = roster_target(&b.f, &[certificate(&b.f)], 2, 155);
-    refresh(&a.f, &pa, &ar, 155, true);
-    refresh(&b.f, &pb, &br, 155, false);
+    let (ar, br) = if let Some((ag, bg)) = &renewals {
+        a.owner = activate(&a.f, &pa, 155).expect("C1/P1 sender");
+        b.owner = activate(&b.f, &pb, 155).expect("C1/P1 receiver");
+        a.owner
+            .parts()
+            .expect("sender")
+            .0
+            .admit_peer_credential_renewal(bg, bg.operation(), &pa, 155)
+            .expect("actual peer G");
+        b.owner
+            .parts()
+            .expect("receiver")
+            .0
+            .admit_peer_credential_renewal(ag, ag.operation(), &pb, 155)
+            .expect("actual sender G");
+        a.owner.close();
+        b.owner.close();
+        (ag.successor_device().clone(), bg.successor_device().clone())
+    } else {
+        let ar = roster_target(&a.f, &[certificate(&a.f)], 2, 155);
+        let br = roster_target(&b.f, &[certificate(&b.f)], 2, 155);
+        refresh(&a.f, &pa, &ar, 155, true);
+        refresh(&b.f, &pb, &br, 155, false);
+        (ar, br)
+    };
     let (ri, rr) = requests(&link, &a, &b, 155);
     let pi = reopen(&mut a, ri, &pa, 155);
     let pr = reopen(&mut b, rr, &pb, 155);

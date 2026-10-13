@@ -736,7 +736,11 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
     image.check_account_replacements(pin)?;
     image.check_account_freezes(pin)?;
     image.check_account_closures()?;
-    let closure_format = !image.account_closures.is_empty();
+    let credential_policy_format = image
+        .entries
+        .values()
+        .any(Entry::has_credential_policy_composition);
+    let closure_format = credential_policy_format || !image.account_closures.is_empty();
     let freeze_format = closure_format || !image.account_freezes.is_empty();
     let account_format = freeze_format || !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
@@ -782,7 +786,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if closure_format {
+    let mut bytes = if credential_policy_format {
+        b"QPANC018".to_vec()
+    } else if closure_format {
         b"QPANC017".to_vec()
     } else if freeze_format {
         b"QPANC016".to_vec()
@@ -1011,6 +1017,9 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 independent_policy,
                 independent_roster,
             };
+            if version < ImageVersion::V18 && entry.has_credential_policy_composition() {
+                return Err(DurableError::Conflict);
+            }
             entry.check_renewal_state(pin)?;
             if let Some(identity) = &entry.original_identity {
                 identity.check(&entry)?;
@@ -1048,7 +1057,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
             BTreeMap::new()
         };
         let account_closures = if version >= ImageVersion::V17 {
-            account_replacement::closure::decode_records(&mut d)?
+            account_replacement::closure::decode_records(&mut d, version >= ImageVersion::V18)?
         } else {
             BTreeMap::new()
         };

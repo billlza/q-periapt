@@ -730,3 +730,6 @@ fn actual_roster_revocation_or_witness_roster_advance_blocks_original_policy_own
 
 #[path = "witness_roster_atomicity_tests.rs"]
 mod roster_atomicity;
+
+#[path = "witness_policy_credential_composition_tests.rs"]
+mod credential_composition;

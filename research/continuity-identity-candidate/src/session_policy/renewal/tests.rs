@@ -119,6 +119,36 @@ impl Case {
             current_device: &self.device,
         }
     }
+    pub(crate) fn approve_current(
+        &self,
+        scope: &PolicyRenewalScope,
+        current: &VerifiedDevice,
+        now: u64,
+    ) -> VerifiedPolicyRenewal {
+        let materials = PolicyRenewalMaterials {
+            original: &self.old,
+            previous: &self.old,
+            target: &self.target,
+            original_device: &self.device,
+            current_device: current,
+        };
+        let statement =
+            PolicyRenewalStatement::new(scope, &materials, now).expect("exact current identity");
+        VerifiedPolicyRenewal::verify(
+            &self
+                .account
+                .approve_policy_renewal(&statement)
+                .expect("account root"),
+            &self
+                .issuer
+                .approve_policy_renewal(&statement)
+                .expect("policy root"),
+            scope,
+            &materials,
+            now,
+        )
+        .expect("two independent approvals")
+    }
     pub(crate) fn approvals(&self) -> (PolicyRenewalApproval, PolicyRenewalApproval) {
         let statement = PolicyRenewalStatement::new(&self.scope, &self.materials(), 170)
             .expect("current policy-only relation");

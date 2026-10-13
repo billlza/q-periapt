@@ -320,7 +320,7 @@ fn issuer_scope_requires_acknowledged_actual_policy_receipt_and_preserves_journa
     };
     let operation = PolicyRenewalId::generate().expect("retained request ID");
     let first = j
-        .policy_renewal_request_scope(&scope, &c.device, operation, None, None)
+        .policy_renewal_request_scope(&scope, &c.device, operation, None, None, None)
         .expect("original P0 scope");
     assert_eq!(first.previous_policy, c.old.checkpoint());
     assert_eq!(first.previous_authorization, None);
@@ -329,7 +329,7 @@ fn issuer_scope_requires_acknowledged_actual_policy_receipt_and_preserves_journa
         .expect("commit without enrollment ACK");
     let before = j.test_snapshot();
     assert!(matches!(
-        j.policy_renewal_request_scope(&scope, &c.device, operation, Some(&a), None),
+        j.policy_renewal_request_scope(&scope, &c.device, operation, Some(&a), None, None),
         Err(DurableError::Suspended)
     ));
     let after = j.test_snapshot();
@@ -341,14 +341,14 @@ fn issuer_scope_requires_acknowledged_actual_policy_receipt_and_preserves_journa
         .expect("exact original completion ACK");
     let before = j.test_snapshot();
     let next = j
-        .policy_renewal_request_scope(&scope, &c.device, operation, Some(&a), None)
+        .policy_renewal_request_scope(&scope, &c.device, operation, Some(&a), None, None)
         .expect("exact completed scope");
     assert_eq!(next.previous_policy, a.target_policy());
     assert_eq!(next.previous_authorization, Some(a.statement_digest()));
     assert_eq!(next.current_roster, c.scope.current_roster);
     assert_eq!(next.current_credential, c.scope.current_credential);
     assert!(matches!(
-        j.policy_renewal_request_scope(&scope, &c.device, operation, None, None),
+        j.policy_renewal_request_scope(&scope, &c.device, operation, None, None, None),
         Err(DurableError::Conflict)
     ));
     let after = j.test_snapshot();
@@ -493,4 +493,75 @@ fn real_g_commit_and_ack_sync_failures_keep_policy_approval_and_credential_atomi
     }
     assert!(old > 0 && applied > 0);
     eprintln!("POLICY_ONLY_CREDENTIAL_JOURNAL_IO faults={faults} original_predecessor={old} exact_g_applied={applied} original_policy_preserved=true");
+}
+
+#[test]
+fn credential_policy_history_tags_do_not_alias_opposite_operation_order() {
+    let c = PolicyRenewalTestCase::new(240, 240);
+    let original = c
+        .account
+        .issue_device(c.device.description.clone(), c.device.key.clone())
+        .expect("original certificate");
+    let grant = crate::durable::tests::grant(
+        &c.account,
+        &original,
+        &c.device,
+        280,
+        2,
+        [93; 32],
+        c.old.checkpoint().digest(),
+    );
+    let mut scope = c.scope.clone();
+    scope.current_credential = grant.successor_device().credential_digest();
+    scope.current_roster = grant.successor_device().roster().checkpoint();
+    let before = c
+        .approve_current(&scope, grant.successor_device(), 175)
+        .historical();
+    for (approval, phase, expected, wrong) in [
+        (
+            before,
+            ReceiptPhase::AwaitingEnrollment,
+            *b"QPRHST08",
+            *b"QPRHST06",
+        ),
+        (
+            approval(&c),
+            ReceiptPhase::Acknowledged,
+            *b"QPRHST06",
+            *b"QPRHST08",
+        ),
+    ] {
+        let record = StoredPolicyRenewal {
+            approval,
+            phase,
+            carried_grant: Some(
+                crate::VerifiedCredentialRenewal::from_journal(
+                    grant.as_bytes(),
+                    grant.successor_device().roster(),
+                )
+                .expect("retained signed G"),
+            ),
+        };
+        assert_eq!(record.format_tag().expect("one canonical order"), &expected);
+        let mut wire = Vec::new();
+        record.encode(&mut wire).expect("actual signed history");
+        let mut decoder = Decoder::new(&wire);
+        let restored =
+            StoredPolicyRenewal::decode(&mut decoder, grant.successor_device().roster(), expected)
+                .expect("matching format");
+        decoder.finish().expect("exact bytes");
+        assert_eq!(
+            restored.format_tag().expect("canonical roundtrip"),
+            &expected
+        );
+        assert!(
+            StoredPolicyRenewal::decode(
+                &mut Decoder::new(&wire),
+                grant.successor_device().roster(),
+                wrong
+            )
+            .is_err(),
+            "authenticated history cannot be relabelled as the opposite operation order"
+        );
+    }
 }

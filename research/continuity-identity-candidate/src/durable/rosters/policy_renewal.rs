@@ -47,6 +47,26 @@ pub(super) struct StoredPolicyRenewal {
     pub(super) carried_grant: Option<crate::VerifiedCredentialRenewal>,
 }
 impl StoredPolicyRenewal {
+    pub(super) fn format_tag(&self) -> Result<&'static [u8; 8], DurableError> {
+        match self.carried_grant.as_ref() {
+            None => Ok(b"QPRHST05"),
+            Some(grant)
+                if grant.successor_device().credential_digest()
+                    == self.approval.scope().current_credential
+                    && self.phase == ReceiptPhase::AwaitingEnrollment =>
+            {
+                Ok(b"QPRHST08")
+            }
+            Some(grant)
+                if grant.successor_device().credential_digest()
+                    != self.approval.scope().current_credential
+                    && self.phase == ReceiptPhase::Acknowledged =>
+            {
+                Ok(b"QPRHST06")
+            }
+            _ => Err(DurableError::Corrupt),
+        }
+    }
     pub(super) fn policy_binding(&self) -> (PolicyCheckpoint, [u8; 32]) {
         (
             self.approval.target_policy(),
@@ -73,7 +93,7 @@ impl StoredPolicyRenewal {
     pub(super) fn decode(
         d: &mut Decoder<'_>,
         roster: &VerifiedRoster,
-        credential_renewed: bool,
+        format_tag: [u8; 8],
     ) -> Result<Self, DurableError> {
         let phase = match d.array::<1>()? {
             [0] => ReceiptPhase::AwaitingEnrollment,
@@ -87,10 +107,7 @@ impl StoredPolicyRenewal {
             family,
         )
         .map_err(DurableError::InvalidCheckpoint)?;
-        if credential_renewed && phase != ReceiptPhase::Acknowledged {
-            return Err(DurableError::Corrupt);
-        }
-        let carried_grant = if credential_renewed {
+        let carried_grant = if matches!(&format_tag, b"QPRHST06" | b"QPRHST08") {
             let length = usize::try_from(u32::from_be_bytes(d.array()?))
                 .map_err(|_| DurableError::Corrupt)?;
             if length > crate::MAX_CREDENTIAL_RENEWAL_BYTES {
@@ -103,14 +120,55 @@ impl StoredPolicyRenewal {
         } else {
             None
         };
-        Ok(Self {
+        let value = Self {
             approval,
             phase,
             carried_grant,
-        })
+        };
+        if value.format_tag()? != &format_tag {
+            return Err(DurableError::Corrupt);
+        }
+        Ok(value)
     }
+
     fn receipt(&self) -> LocalPolicyRenewalCommit {
         LocalPolicyRenewalCommit::for_approval(&self.approval)
+    }
+}
+
+fn credential_precedes_policy(
+    image: &Image,
+    saved: &Stored,
+    approval: &HistoricalPolicyRenewal,
+) -> bool {
+    let scope = approval.scope();
+    if !matches!(image.protection, Protection::Required { policy, .. } if policy == scope.original_policy.digest())
+    {
+        return false;
+    }
+    let Some(receipt) = saved.local_commit.as_ref() else {
+        return false;
+    };
+    let matches = |grant: &crate::VerifiedCredentialRenewal| {
+        let checkpoint = grant.successor_device().roster().checkpoint();
+        receipt == &LocalRenewalCommit::for_grant(grant)
+            && grant.original_storage_owner() == image.owner
+            && grant.original_credential_digest() == scope.original_credential
+            && grant.policy_digest() == scope.original_policy.digest()
+            && grant.successor_device().credential_digest() == scope.current_credential
+            && checkpoint.version() <= scope.current_roster.version()
+            && (checkpoint.version() != scope.current_roster.version()
+                || checkpoint == scope.current_roster)
+    };
+    // Adopted P carries its own exact G, including after active roster history
+    // retires it. Regular traffic must not scan every device's renewal record.
+    match saved
+        .policy_renewal
+        .as_ref()
+        .and_then(|p| p.carried_grant.as_ref())
+    {
+        Some(grant) => matches(grant),
+        None => saved.renewals.values().any(matches), // Initial P preparation only.
     }
 }
 
@@ -123,7 +181,10 @@ pub(super) fn adopted<'a>(
         .policy_renewal
         .as_ref()
         .ok_or(DurableError::Conflict)?;
-    if !completion_acknowledged(image, retained)? || saved.local_commit.is_some() {
+    if !completion_acknowledged(image, retained)?
+        || (saved.local_commit.is_some()
+            && !credential_precedes_policy(image, saved, &retained.approval))
+    {
         return Err(DurableError::Suspended);
     }
     Ok(&retained.approval)
@@ -155,7 +216,9 @@ fn credential<'a>(
     } else {
         original
     };
-    if let Some(grant) = carried {
+    if let Some(grant) = carried
+        .filter(|g| g.successor_device().credential_digest() != approval.scope().current_credential)
+    {
         approval.check_renewed_identity(original, grant)?;
     } else {
         approval.check_credential_lineage(original, current)?;
@@ -215,13 +278,11 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
         Protection::Local => true,
         Protection::Required { policy, .. } => {
             policy == s.original_policy.digest()
-                && s.current_credential == s.original_credential
-                && current.carried_grant.is_none()
                 && saved.policy_continuation.is_none()
-                && saved
-                    .renewals
-                    .values()
-                    .all(|g| g.original_storage_owner() != image.owner)
+                && (s.current_credential == s.original_credential
+                    || current.carried_grant.as_ref().is_some_and(|g| {
+                        g.successor_device().credential_digest() == s.current_credential
+                    }))
         }
     };
     if !supported_protection
@@ -246,7 +307,8 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
     if let Some(grant) = &current.carried_grant {
         let device = grant.successor_device();
         let target = device.roster().checkpoint();
-        if current.phase != ReceiptPhase::Acknowledged
+        if (current.phase != ReceiptPhase::Acknowledged
+            && device.credential_digest() != s.current_credential)
             || grant.original_storage_owner() != image.owner
             || grant.original_credential_digest() != s.original_credential
             || grant.policy_digest() != s.original_policy.digest()
@@ -354,11 +416,13 @@ impl LocalPolicyRenewalTarget<'_> {
     }
     fn check_predecessor(
         &self,
+        image: &Image,
         saved: &Stored,
         completed: Option<&LocalPolicyRenewalCommit>,
     ) -> Result<(), DurableError> {
         let s = self.approval.scope();
-        if saved.local_commit.is_some() {
+        if saved.local_commit.is_some() && !credential_precedes_policy(image, saved, self.approval)
+        {
             return Err(DurableError::Suspended);
         }
         if saved.roster.checkpoint() != s.current_roster
@@ -530,6 +594,7 @@ impl DeviceJournal {
         operation: PolicyRenewalId,
         completed: Option<&HistoricalPolicyRenewal>,
         joint: Option<&crate::HistoricalPolicyContinuation>,
+        witnessed_completion: Option<&LocalRenewalCommit>,
     ) -> Result<crate::PolicyRenewalScope, DurableError> {
         let snapshot = self
             .inspect_renewal_request(
@@ -538,7 +603,7 @@ impl DeviceJournal {
                 completed,
                 joint,
                 RequestRoster::Configured,
-                None,
+                witnessed_completion,
             )
             .await?;
         if completed.is_some_and(|approval| approval.scope().operation == operation) {
@@ -726,7 +791,7 @@ impl DeviceJournal {
         target
             .approval
             .check_devices(target.original, target.current)?;
-        target.check_predecessor(&saved, completed)?;
+        target.check_predecessor(&image, &saved, completed)?;
         crate::installation::admit(target.current, policy, now)?;
         saved.roster.authorize_device(target.current, now)?;
         saved.policy_renewal = Some(StoredPolicyRenewal {
@@ -839,7 +904,6 @@ pub(in crate::durable) fn check_enrollment_policy_completion(
     subject.extend_from_slice(&policy);
     if actual.phase != ReceiptPhase::AwaitingEnrollment
         || actual.approval.journal_bytes() != approval.journal_bytes()
-        || scope.current_credential != scope.original_credential
         || scope.original_policy.digest() != policy
         || scope.journal.as_bytes() != &image.id
         || scope.original_owner != image.owner
@@ -854,7 +918,8 @@ pub(in crate::durable) fn check_enrollment_policy_completion(
     {
         return Err(DurableError::Conflict);
     }
-    approval.check_credential_lineage(original, original)?;
+    let current = credential(image, &saved, original, approval)?;
+    approval.check_credential_lineage(original, current)?;
     Ok(())
 }
 pub(super) fn witness_admission(
@@ -869,7 +934,8 @@ pub(super) fn witness_admission(
         .enrollment_completion
         .as_ref()
         .ok_or(DurableError::Suspended)?;
-    let current = saved.roster.refresh_device(completion.original(), now)?;
+    let retained = credential(image, saved, completion.original(), approval)?;
+    let current = saved.roster.refresh_device(retained, now)?;
     crate::installation::admit(&current, policy, now)?;
     Ok((
         crate::AnchorOperation::admit_policy_renewal(
@@ -929,8 +995,8 @@ pub(in crate::durable) fn check_policy_renewal_intent(
         || actual.approval.scope().operation != binding.operation
         || actual.approval.statement_digest() != binding.statement
         || actual.approval.scope().current_roster != saved.roster.checkpoint()
-        || actual.carried_grant.is_some()
-        || saved.local_commit.is_some()
+        || (saved.local_commit.is_some()
+            && !credential_precedes_policy(image, &saved, &actual.approval))
     {
         return Err(DurableError::Conflict);
     }
@@ -979,12 +1045,8 @@ impl DeviceJournal {
         }
         let mut saved = get(&image, &image.local_account)?;
         if saved.policy_continuation.is_some()
-            || saved.local_commit.is_some()
-            || saved
-                .renewals
-                .values()
-                .any(|g| g.original_storage_owner() == image.owner)
-            || history.scope().current_credential != history.scope().original_credential
+            || (history.scope().current_credential != history.scope().original_credential
+                && !credential_precedes_policy(&image, &saved, &history))
         {
             return Err(DurableError::Conflict);
         }
@@ -1003,16 +1065,21 @@ impl DeviceJournal {
             original_policy: materials.original,
         };
         target.check_identity_scope(&image, &saved)?;
-        target.check_predecessor(&saved, completed.as_ref())?;
+        target.check_predecessor(&image, &saved, completed.as_ref())?;
         self.check_release(&image).await?;
         crate::installation::admit(materials.current_device, materials.target, now)?;
         saved
             .roster
             .authorize_device(materials.current_device, now)?;
+        let carried_grant = saved
+            .renewals
+            .get(&materials.original_device.device_id())
+            .map(|g| crate::VerifiedCredentialRenewal::from_journal(g.as_bytes(), &saved.roster))
+            .transpose()?;
         saved.policy_renewal = Some(StoredPolicyRenewal {
             approval: history,
             phase: ReceiptPhase::AwaitingEnrollment,
-            carried_grant: None,
+            carried_grant,
         });
         image
             .records
@@ -1047,8 +1114,7 @@ pub(in crate::durable) fn check_witnessed_policy_terminal(
         || terminal.proposal().statement() != approval.statement_digest()
         || scope.journal.as_bytes() != &image.id
         || scope.original_owner != image.owner
-        || scope.current_credential != scope.original_credential
-        || saved.local_commit.is_some()
+        || (saved.local_commit.is_some() && !credential_precedes_policy(image, &saved, approval))
         || saved.policy_continuation.is_some()
         || saved.roster.checkpoint() != scope.current_roster
         || saved.history.get(&original.device_id())
@@ -1063,7 +1129,6 @@ pub(in crate::durable) fn check_witnessed_policy_terminal(
                 .as_ref()
                 .ok_or(DurableError::Conflict)?;
             if actual.phase != ReceiptPhase::AwaitingEnrollment
-                || actual.carried_grant.is_some()
                 || actual.approval.journal_bytes() != approval.journal_bytes()
             {
                 return Err(DurableError::Conflict);
@@ -1075,8 +1140,7 @@ pub(in crate::durable) fn check_witnessed_policy_terminal(
                     if scope.previous_authorization.is_none()
                         && scope.previous_policy == scope.original_policy => {}
                 (Some(actual), Some(previous))
-                    if actual.carried_grant.is_none()
-                        && actual.approval.journal_bytes() == previous.journal_bytes()
+                    if actual.approval.journal_bytes() == previous.journal_bytes()
                         && scope.previous_authorization == Some(previous.statement_digest())
                         && scope.previous_policy == previous.target_policy() =>
                 {
