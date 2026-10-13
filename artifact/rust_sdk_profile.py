@@ -105,6 +105,24 @@ def command(argv: list[str], prefix: Path, cwd: Path, *, environment=None) -> by
     return result.stdout
 
 
+def validate_browser_candidate_dependency(name: str, dependency: dict) -> None:
+    """Admit the private browser edge without adding a crate to the SDK cohort."""
+    candidate = ROOT / "research/continuity-identity-candidate"
+    expected = {
+        "req": "=0.0.0", "path": str(candidate), "source": None,
+        "registry": None, "rename": None, "kind": None, "optional": True,
+        "uses_default_features": True, "features": [],
+        "target": 'cfg(all(target_arch = "wasm32", target_os = "unknown"))',
+    }
+    require(name == "q-periapt-sdk-wasm"
+            and all(dependency.get(key) == value for key, value in expected.items()),
+            "private browser candidate dependency differs")
+    package = tomllib.loads(snapshot(candidate / "Cargo.toml").data.decode())["package"]
+    require(package["name"] == "q-periapt-continuity-identity-candidate"
+            and package["version"] == "0.0.0" and package["publish"] is False,
+            "browser candidate package identity or publication boundary differs")
+
+
 def classify(metadata: dict) -> dict:
     members = set(metadata["workspace_members"])
     packages = {p["name"]: p for p in metadata["packages"] if p["id"] in members}
@@ -122,6 +140,9 @@ def classify(metadata: dict) -> dict:
         for dependency in package["dependencies"]:
             other = dependency["name"]
             if not other.startswith("q-periapt"):
+                continue
+            if other == "q-periapt-continuity-identity-candidate":
+                validate_browser_candidate_dependency(name, dependency)
                 continue
             require(other in packages and dependency["req"] == requirement,
                     f"internal alpha dependency differs: {name} -> {other}")

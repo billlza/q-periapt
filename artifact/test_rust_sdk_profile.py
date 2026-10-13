@@ -25,6 +25,19 @@ def metadata():
     return {"workspace_members": [p["id"] for p in packages], "packages": packages}
 
 
+def browser_metadata():
+    value = metadata()
+    package = next(p for p in value["packages"] if p["name"] == "q-periapt-sdk-wasm")
+    package["dependencies"].append({
+        "name": "q-periapt-continuity-identity-candidate", "req": "=0.0.0",
+        "path": str(sdk.ROOT / "research/continuity-identity-candidate"),
+        "source": None, "registry": None, "rename": None, "kind": None,
+        "optional": True, "uses_default_features": True, "features": [],
+        "target": 'cfg(all(target_arch = "wasm32", target_os = "unknown"))',
+    })
+    return value, package
+
+
 def archive(extra=(), *, trailing=b"", name="q-periapt-sdk", manifest=None):
     if manifest is None:
         manifest = f'[package]\nname="{name}"\nversion="{sdk.VERSION}"\n'.encode()
@@ -46,6 +59,48 @@ def archive(extra=(), *, trailing=b"", name="q-periapt-sdk", manifest=None):
 
 
 class RustSDKProfileTests(unittest.TestCase):
+    def test_browser_candidate_remains_outside_the_publishable_cohort(self):
+        value, _ = browser_metadata()
+        packages = sdk.classify(value)
+        self.assertEqual(len(packages), 18)
+        self.assertNotIn("q-periapt-continuity-identity-candidate", packages)
+        self.assertNotIn("q-periapt-continuity-identity-candidate", sdk.COHORT)
+
+    def test_browser_candidate_dependency_admission_is_narrow(self):
+        for field, changed in (
+            ("req", "*"), ("req", "=0.2.0"), ("path", "/other/candidate"),
+            ("source", "registry+https://github.com/rust-lang/crates.io-index"),
+            ("registry", "https://other.invalid"), ("rename", "engine"),
+            ("kind", "dev"), ("optional", False), ("uses_default_features", False),
+            ("features", ["connection-tls"]), ("target", None),
+        ):
+            value, package = browser_metadata()
+            package["dependencies"][0][field] = changed
+            with self.subTest(field=field, value=changed), self.assertRaises(ValueError):
+                sdk.classify(value)
+        for name in sdk.COHORT:
+            value, package = browser_metadata()
+            destination = next(p for p in value["packages"] if p["name"] == name)
+            destination["dependencies"] = package["dependencies"]
+            package["dependencies"] = []
+            with self.subTest(product=name), self.assertRaises(ValueError):
+                sdk.classify(value)
+
+    def test_browser_candidate_identity_and_private_publication_are_required(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.object(sdk, "ROOT", Path(temporary)):
+            candidate = sdk.ROOT / "research/continuity-identity-candidate"
+            candidate.mkdir(parents=True)
+            for name, version, publish in (
+                ("another-candidate", "0.0.0", "false"),
+                ("q-periapt-continuity-identity-candidate", "0.2.0", "false"),
+                ("q-periapt-continuity-identity-candidate", "0.0.0", "true"),
+            ):
+                (candidate / "Cargo.toml").write_text(
+                    f'[package]\nname="{name}"\nversion="{version}"\npublish={publish}\n')
+                value, _ = browser_metadata()
+                with self.subTest(name=name, version=version, publish=publish), self.assertRaises(ValueError):
+                    sdk.classify(value)
+
     def test_exact_alpha_cohort_does_not_replace_frozen_publication_cohort(self):
         self.assertEqual(len(sdk.classify(metadata())), 18)
         self.assertEqual(len(sdk.COHORT), 12)
