@@ -28,20 +28,50 @@ export async function lease(name) {
   await ready;
   return async () => { release(); await held; };
 }
-export function openDatabase(name, initial) {
-  return new Promise((resolve, reject) => {
-    let settled = false, created = false, failure;
-    const request = indexedDB.open(name, 1);
-    const timer = setTimeout(() => finish(fail('OpenUnknown')), DEADLINE);
-    function finish(error, db) {
-      if (settled) { if (db) db.close(); return; }
-      settled = true; clearTimeout(timer);
-      if (error) { if (db) db.close(); reject(error); } else resolve(db);
+
+// A timeout cannot cancel an IndexedDB open, and abort() is not an abort receipt.
+// Keep the bounded caller result separate from actual native I/O settlement.
+function pendingOperation(onTimeout) {
+  let resolve, reject, acknowledge, delivered = false, finished = false;
+  const result = new Promise((yes, no) => { resolve = yes; reject = no; });
+  const settled = new Promise(yes => { acknowledge = yes; });
+  const timer = setTimeout(onTimeout, DEADLINE);
+  const deliver = (error, value) => {
+    if (delivered) return;
+    delivered = true; clearTimeout(timer);
+    if (error) reject(error); else resolve(value);
+  };
+  return {
+    result, settled, deliver,
+    get delivered() { return delivered; },
+    finish(error, value) {
+      if (finished) return;
+      finished = true; deliver(error, value); acknowledge();
     }
-    request.onblocked = () => finish(fail('Busy'));
+  };
+}
+/** Bound the caller's wait while the underlying cleanup and lease remain owned. */
+export function closeReceipt(promise) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(fail('ClosePending')), DEADLINE);
+    promise.then(value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); });
+  });
+}
+export function openDatabase(name, initial) {
+  let created = false, failure, request;
+  const pending = pendingOperation(() => {
+    failure = fail('OpenUnknown');
+    try { request?.transaction?.abort(); }
+    catch (cause) { failure = fail('OpenUnknown', cause); }
+    pending.deliver(failure);
+  });
+  try {
+    request = indexedDB.open(name, 1);
+    request.onblocked = () => { failure = fail('Busy'); pending.deliver(failure); };
     request.onupgradeneeded = event => {
-      if (settled || !initial || event.oldVersion !== 0) {
-        failure = fail(initial ? 'Exists' : 'Absent'); request.transaction.abort(); return;
+      if (pending.delivered || !initial || event.oldVersion !== 0) {
+        failure ??= fail(initial ? 'Exists' : 'Absent'); request.transaction.abort(); return;
       }
       created = true;
       const transaction = request.transaction;
@@ -50,58 +80,62 @@ export function openDatabase(name, initial) {
       try { request.result.createObjectStore('policy').add(initial, 'current'); }
       catch (error) { failure = storageFailure(error); transaction.abort(); }
     };
-    request.onerror = () => finish(failure ?? storageFailure(request.error));
+    request.onerror = () => pending.finish(failure ?? storageFailure(request.error));
     request.onsuccess = () => {
       const db = request.result;
-      if (initial && !created) { finish(fail('Exists'), db); return; }
-      if (db.version !== 1 || db.objectStoreNames.length !== 1 || !db.objectStoreNames.contains('policy')) {
-        finish(fail('Corrupt'), db); return;
+      if (pending.delivered || (initial && !created)) {
+        db.close(); pending.finish(failure ?? fail('Exists')); return;
       }
-      finish(undefined, db);
+      if (db.version !== 1 || db.objectStoreNames.length !== 1 || !db.objectStoreNames.contains('policy')) {
+        db.close(); pending.finish(fail('Corrupt')); return;
+      }
+      pending.finish(undefined, db);
     };
-  });
+  } catch (error) { pending.finish(storageFailure(error)); }
+  return pending;
 }
-/** Resolve only on transaction completion, never on a request's success event. */
+/** Result has a deadline; settled resolves only on the native terminal event. */
 export function imageTransaction(db, replacement, check) {
-  return new Promise((resolve, reject) => {
-    let tx, result, failure, settled = false;
-    const finish = (error) => {
-      if (settled) return;
-      settled = true; clearTimeout(timer);
-      if (error) reject(error); else resolve(result);
-    };
-    const timer = setTimeout(() => {
-      failure = fail('CommitUnknown');
-      try { tx?.abort(); } catch (error) { failure = fail('CommitUnknown', error); }
-      finish(failure);
-    }, DEADLINE);
-    try {
-      // Reopening also seals the original image: a prior creation may have
-      // committed its upgrade transaction but lost the strict completion barrier.
-      tx = db.transaction('policy', 'readwrite', { durability: 'strict' });
-      tx.oncomplete = () => finish(failure);
-      tx.onabort = () => finish(failure ?? fail(tx.error?.name === 'QuotaExceededError' ? 'QuotaExceeded' : 'Aborted', tx.error));
-      tx.onerror = event => {
-        const cause = event.target.error ?? tx.error;
-        failure ??= storageFailure(cause);
-      };
-      if (tx.durability !== 'strict') { failure = fail('Unavailable'); tx.abort(); return; }
-      const store = tx.objectStore('policy');
-      if (store.keyPath !== null || store.autoIncrement) { failure = fail('Corrupt'); tx.abort(); return; }
-      const request = store.getAllKeys(undefined, 2);
-      request.onsuccess = () => {
-        if (request.result.length !== 1 || request.result[0] !== 'current') { failure = fail('Corrupt'); tx.abort(); return; }
-        const read = store.get('current');
-        read.onsuccess = () => {
-          try {
-            result = check(read.result);
-            store.put(replacement ?? result, 'current');
-          } catch (error) { failure = error; tx.abort(); }
-        };
-      };
-    } catch (error) {
-      failure = error instanceof QPeriaptStorageError ? error : fail('Storage', error);
-      if (tx) tx.abort(); else finish(failure);
-    }
+  let tx, result, failure;
+  const pending = pendingOperation(() => {
+    failure = fail('CommitUnknown');
+    try { tx?.abort(); } catch (error) { failure = fail('CommitUnknown', error); }
+    pending.deliver(failure);
   });
+  const abort = error => {
+    failure = error;
+    if (!tx) { pending.finish(failure); return; }
+    try { tx.abort(); }
+    catch (cause) {
+      failure = fail('CommitUnknown', new AggregateError([error, cause]));
+      pending.deliver(failure);
+    }
+  };
+  try {
+    // Reopening also seals the original image: creation may have committed its
+    // upgrade transaction but lost the strict completion barrier.
+    tx = db.transaction('policy', 'readwrite', { durability: 'strict' });
+    tx.oncomplete = () => pending.finish(failure, result);
+    tx.onabort = () => pending.finish(failure ?? storageFailure(tx.error ?? new DOMException('transaction aborted', 'AbortError')));
+    tx.onerror = event => { failure ??= storageFailure(event.target.error ?? tx.error); };
+    if (tx.durability !== 'strict') { abort(fail('Unavailable')); return pending; }
+    const store = tx.objectStore('policy');
+    if (store.keyPath !== null || store.autoIncrement) { abort(fail('Corrupt')); return pending; }
+    const request = store.getAllKeys(undefined, 2);
+    request.onsuccess = () => {
+      if (pending.delivered) return;
+      if (request.result.length !== 1 || request.result[0] !== 'current') { abort(fail('Corrupt')); return; }
+      const read = store.get('current');
+      read.onsuccess = () => {
+        if (pending.delivered) return;
+        try {
+          result = check(read.result);
+          store.put(replacement ?? result, 'current');
+        } catch (error) { abort(error); }
+      };
+    };
+  } catch (error) {
+    abort(error instanceof QPeriaptStorageError ? error : fail('Storage', error));
+  }
+  return pending;
 }

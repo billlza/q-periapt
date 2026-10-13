@@ -98,6 +98,12 @@ Call and await `close()` explicitly. It immediately revokes retained key/secret
 owners and releases its origin-wide lease after pending I/O settles. Closing
 during replacement prevents returning a new runtime; the signed policy may still
 have committed. Other tabs and Workers receive `Busy` while the lease is held.
+An operation timeout reports `OpenUnknown` or `CommitUnknown`; it does not count
+as an I/O completion receipt. Cleanup waits another ten seconds, then reports
+`ClosePending` while retaining the lease until the browser actually settles.
+When both operation and cleanup fail, the operation code is preserved and
+`error.cause.errors` contains both errors. A rejected `close()` can be called
+again to await cleanup; it never grants permission to replace stored state.
 Garbage collection is not an owner-lifecycle API.
 
 This is origin-local policy storage, not a Continuity session journal or witness

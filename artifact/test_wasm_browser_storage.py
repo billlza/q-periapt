@@ -3,6 +3,7 @@ import copy
 import json
 from pathlib import Path
 import unittest
+import zipfile
 
 import rust_sdk_profile as sdk
 import wasm_browser_storage as browser
@@ -84,6 +85,37 @@ class BrowserStorageTests(unittest.TestCase):
         self.assertIn('target/sdk-wasm-browser/*.json', job)
         self.assertLess(job.index('artifact/wasm_browser_storage.py'), job.index('node-version: "24.0.0"'))
         self.assertNotIn('continue-on-error:', job)
+
+    def test_native_receipt_deadline_capture_and_rejections(self):
+        evidence = sdk.ROOT / 'research/sdk-alpha1/evidence/20261013-browser-policy-receipts'
+        with zipfile.ZipFile(evidence / 'CAPTURE.zip') as archive:
+            raw = archive.read('qualification/storage-deadline-acceptance.js.stdout')
+            red = json.loads(archive.read('red/RESULT.json'))
+        marker = 'BROWSER_POLICY_DEADLINE_PASS'
+        current = browser.result(raw, marker)
+        self.assertIs(current['held_until_receipt'], True)
+        red.update(status=marker, diagnostics=[])
+        self.check_rejected(red, marker)
+        for mutation in ('missing-open', 'early-owner', 'no-close-receipt', 'early-deadline',
+                         'missing-state', 'wrong-state', 'live-owner'):
+            value = copy.deepcopy(current)
+            transaction, opening = value['cases']
+            if mutation == 'missing-open':
+                value['cases'].remove(opening)
+            elif mutation == 'early-owner':
+                transaction['early_owner_admitted'] = True
+            elif mutation == 'no-close-receipt':
+                opening['cleanup'] = ['OpenUnknown']
+            elif mutation == 'early-deadline':
+                transaction['elapsed_ms'] = 0
+            elif mutation == 'missing-state':
+                del opening['before'], opening['after']
+            elif mutation == 'wrong-state':
+                opening['after'] = transaction['after']
+            else:
+                transaction['closed_error'] = 'Busy'
+            with self.subTest(mutation=mutation):
+                self.check_rejected(value, marker)
 
 
 if __name__ == '__main__':

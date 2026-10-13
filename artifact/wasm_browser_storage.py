@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -48,6 +49,23 @@ def result(data: bytes, marker: str) -> dict:
         sdk.require(len(original) == 2 and original[0] == original[1]
                     and any(r.get('scenario') == 'replacement' and r.get('command') == 'state'
                             and r.get('code') == 'Closed' for r in rows), 'quota failure changed state or left its owner active')
+    elif marker == 'BROWSER_POLICY_DEADLINE_PASS':
+        rows = value.get('cases', [])
+        sdk.require(value.get('completed') is True and value.get('held_until_receipt') is True
+                    and [row.get('mode') for row in rows] == ['transaction-complete', 'database-open'],
+                    'native completion receipt controls missing')
+        for row in rows:
+            transaction = row['mode'] == 'transaction-complete'
+            sdk.require(row.get('error') == ('CommitUnknown' if transaction else 'OpenUnknown')
+                        and row.get('elapsed_ms', 0) >= 20000
+                        and 'ClosePending' in row.get('cleanup', [])
+                        and row.get('final_receipt_withheld') is True
+                        and row.get('early_owner_admitted') is False and row.get('early_error') == 'Busy'
+                        and all(isinstance(row.get(key), str) and re.fullmatch(r'[0-9a-f]{72}', row[key])
+                                for key in ('before', 'after'))
+                        and (row.get('closed_error') == 'Closed' and row.get('enabled') is False
+                             if transaction else row.get('after') == row.get('before')),
+                        'deadline released storage or lost the original policy')
     else:
         raise ValueError('unknown browser storage marker')
     return value
@@ -97,7 +115,8 @@ def qualify(receipt: Path, output: Path, node: Path, cli: Path) -> dict:
             sdk.require(startup['pid'] == server.pid and startup['url'].startswith('http://127.0.0.1:'), 'fixture server identity differs')
             command(['open', startup['url'].replace('/browser.html', '/storage-browser.html'), '--browser', 'chrome'], 'open')
             for name, marker in [('storage-quota-acceptance.js', 'BROWSER_POLICY_QUOTA_PASS'),
-                                 ('storage-acceptance.js', 'BROWSER_POLICY_STORAGE_PASS')]:
+                                 ('storage-acceptance.js', 'BROWSER_POLICY_STORAGE_PASS'),
+                                 ('storage-deadline-acceptance.js', 'BROWSER_POLICY_DEADLINE_PASS')]:
                 report[name] = result(command(['run-code', '--filename', str(consumer / name)], name), marker)
             package.verify(installed, record['manifest_sha256'])
             for name, digest in record['consumer_inputs'].items():

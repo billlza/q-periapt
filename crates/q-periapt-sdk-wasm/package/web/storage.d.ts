@@ -17,5 +17,7 @@ export class QPeriaptPolicyStore {
   generateKey(): ReturnType<QPeriaptRuntime['generate_key']>;
   encapsulate(publicKey: Uint8Array, context: Uint8Array): ReturnType<QPeriaptRuntime['encapsulate']>;
   replacePolicy(expected: Uint8Array, policy: Uint8Array, signature: Uint8Array): Promise<Uint8Array>;
+  /** Revoke immediately. ClosePending means cleanup still owns the cross-tab lease;
+   * call close again to await its eventual receipt. Never treat it as released. */
   close(): Promise<void>;
 }

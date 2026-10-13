@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import initialize, { QPeriaptRuntime } from './index.js';
-import { QPeriaptStorageError, lease, openDatabase, imageTransaction } from './policy-database.js';
+import { QPeriaptStorageError, lease, openDatabase, imageTransaction, closeReceipt } from './policy-database.js';
 export { QPeriaptStorageError } from './policy-database.js';
-const fail = code => new QPeriaptStorageError(code);
+const fail = (code, cause) => new QPeriaptStorageError(code, cause);
+async function afterCleanup(error, cleanup) {
+  try { await closeReceipt(cleanup); }
+  catch (cause) { throw fail(error.code ?? 'Storage', new AggregateError([error, cause])); }
+  throw error;
+}
 const equal = (a, b) => a.length === b.length && a.every((value, i) => value === b[i]);
 function bytes(value, min, max) {
   if (!(value instanceof Uint8Array) || value.length < min || value.length > max) throw new TypeError('Invalid policy bytes');
@@ -28,12 +33,13 @@ const owned = Symbol('policy-store-owner');
 
 /** Exclusive origin-local policy owner. No runtime or update capability escapes. */
 export class QPeriaptPolicyStore {
-  #runtime; #image; #db; #release; #closed = false; #busy = false; #pending; #closing;
+  #runtime; #image; #db; #release; #closed = false; #busy = false; #pending; #closing; #closeError;
   constructor(token, runtime, current, db, release) {
     if (token !== owned) throw new TypeError('Use create or open');
     this.#runtime = runtime; this.#image = current; this.#db = db; this.#release = release;
-    db.onversionchange = () => { this.close(); };
-    db.onclose = () => { this.close(); };
+    const invalidate = () => { this.close().catch(error => { this.#closeError = error; }); };
+    db.onversionchange = invalidate;
+    db.onclose = invalidate;
   }
   static async create(options) {
     const selected = inputs(options), policy = bytes(options.policy, 1, 65536), signature = bytes(options.signature, 3309, 3309);
@@ -48,13 +54,15 @@ export class QPeriaptPolicyStore {
     return this.#acquire(selected);
   }
   static async #acquire(selected, initial, runtime) {
-    let release, db;
+    let release, db, pending;
     try {
       release = await lease(selected.name);
-      db = await openDatabase(selected.name, initial);
+      const opening = openDatabase(selected.name, initial);
+      pending = opening.settled;
+      db = await opening.result;
       // Upgrade transactions have no selectable durability. Creation uses a second
       // strict transaction before exposing the already verified runtime.
-      const current = await imageTransaction(db, initial, raw => {
+      const reading = imageTransaction(db, initial, raw => {
         const value = image(raw);
         if (!equal(value.root, selected.root)) throw fail('RootMismatch');
         if (initial && !same(value, initial)) throw fail('Stale');
@@ -62,12 +70,20 @@ export class QPeriaptPolicyStore {
         if (!equal(runtime.trusted_state(), value.state)) throw fail('Corrupt');
         return value;
       });
+      pending = reading.settled;
+      const current = await reading.result;
       return new QPeriaptPolicyStore(owned, runtime, current, db, release);
     } catch (error) {
-      destroy(runtime); if (db) db.close(); if (release) await release(); throw error;
+      destroy(runtime);
+      const cleanup = (async () => {
+        if (pending) await pending;
+        if (db) db.close();
+        if (release) await release();
+      })();
+      return afterCleanup(error, cleanup);
     }
   }
-  #ready() { if (this.#closed) throw fail('Closed'); if (this.#busy) throw fail('Busy'); }
+  #ready() { if (this.#closed) throw fail('Closed', this.#closeError); if (this.#busy) throw fail('Busy'); }
   trustedState() { this.#ready(); return this.#runtime.trusted_state(); }
   isEnabled() { this.#ready(); return this.#runtime.is_enabled(); }
   generateKey() { this.#ready(); return this.#runtime.generate_key(); }
@@ -82,29 +98,30 @@ export class QPeriaptPolicyStore {
       const pair = update.states();
       if (!equal(pair.subarray(0, 36), expected)) throw fail('Stale');
       const next = { schema: 1, root: this.#image.root, policy, signature, state: pair.slice(36) };
-      this.#pending = imageTransaction(this.#db, next, raw => {
+      const writing = imageTransaction(this.#db, next, raw => {
         if (!same(image(raw), this.#image)) throw fail('Stale');
       });
-      await this.#pending;
+      this.#pending = writing.settled;
+      await writing.result;
       if (this.#closed) throw fail('Closed');
       const runtime = update.activate_after_persist();
       destroy(this.#runtime); this.#runtime = runtime; this.#image = next;
       return next.state.slice();
     } catch (error) {
-      await this.close(); throw error;
+      return afterCleanup(error, this.close());
     } finally {
       this.#busy = false; this.#pending = undefined; update.close(); update.free();
     }
   }
   /** Immediately revoke keys; release the cross-tab lease only after pending I/O settles. */
   close() {
-    if (this.#closing) return this.#closing;
+    if (this.#closing) return closeReceipt(this.#closing);
     this.#closed = true; destroy(this.#runtime); this.#runtime = undefined;
     this.#closing = (async () => {
-      // The operation's promise retains its error. Closing only awaits settlement.
-      if (this.#pending) await Promise.allSettled([this.#pending]);
+      // The result retains its error; only the actual I/O receipt permits release.
+      if (this.#pending) await this.#pending;
       this.#db.close(); await this.#release();
     })();
-    return this.#closing;
+    return closeReceipt(this.#closing);
   }
 }
