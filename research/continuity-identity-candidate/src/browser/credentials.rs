@@ -18,6 +18,29 @@ async fn client(
         .await
 }
 impl BrowserDevice {
+    /// Admit an independently verified peer G through the active installation.
+    /// Retain the original operation across unknown results. A committed roster
+    /// may revoke this local member and then fail current admission; an error
+    /// therefore does not mean the old head is still installed. Reopen only the
+    /// original established session after successful current-authority checks.
+    pub async fn admit_peer_credential_renewal(
+        &self,
+        grant: &VerifiedCredentialRenewal,
+        operation: CredentialRenewalId,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, JsValue> {
+        let mut op = self.operation()?;
+        let result = async {
+            op.active()?
+                .parts()?
+                .0
+                .admit_peer_credential_renewal(grant, operation, policy, now)
+                .await
+        }
+        .await;
+        op.finish(result).await
+    }
     /// Retained historical outcome, including Committed before remaining ACK cleanup.
     /// Only separate successful activation establishes current traffic authority.
     pub async fn credential_renewal_status(&self) -> Result<CredentialRenewalStatus, JsValue> {

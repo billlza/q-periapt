@@ -190,6 +190,7 @@ async function credentialMaintenance(device: QPeriaptContinuityDevice,
   const id: Uint8Array = grant.operation_id();
   const statement: Uint8Array = grant.statement();
   grant.target().free();
+  (await device.admit_peer_credential_renewal(grant, id, policy, 1n)).free();
   (await device.stage_credential_renewal(grant, id, policy, 1n)).free();
   const proposal = await device.prepare_witnessed_credential_renewal(original, policy, witness, 1n);
   const restored = new QPeriaptContinuityCredentialProposal(proposal.bytes());

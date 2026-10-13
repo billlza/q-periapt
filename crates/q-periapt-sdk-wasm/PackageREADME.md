@@ -293,6 +293,17 @@ original journal, identity and operation, including after expiry or unknown
 results. Same-key credential extension does not replace the identity key or
 establish post-compromise recovery.
 
+For a renewed peer, verify its `QPeriaptContinuityCredentialGrant` using independent
+account and original-policy expectations, then explicitly call
+`admit_peer_credential_renewal(grant, originalOperationId, currentPolicy, now)` on
+the active device. The SDK checks the known original peer history and exact
+operation before updating it. This entry cannot renew the local device. A valid
+same-account peer roster can revoke this local member and be committed before
+the call refuses further use; an error must not be interpreted as non-commit.
+After admission, `reopen_session` uses the original bundle and session identity,
+and resolves its historical credentials through the retained grant. Peer renewal
+does not authorize a fresh bootstrap from an expired original bundle.
+
 `refresh_local_roster` retains an independently pinned, signed target and requires
 local protection. Required-witness policy is refused before this path changes state.
 `resolve_local_roster_refresh` reconciles an original predecessor/target pair and

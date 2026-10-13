@@ -25,6 +25,27 @@ fn operation(value: &Uint8Array) -> Result<engine::CredentialRenewalId, JsValue>
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityDevice)]
 impl Device {
+    /// Explicit peer approval; never renews this local device or bootstraps a session.
+    /// Keep the original operation ID through retries and unknown outcomes.
+    pub async fn admit_peer_credential_renewal(
+        &self,
+        grant: &Grant,
+        id: &Uint8Array,
+        policy: &SessionPolicy,
+        #[wasm_bindgen(unchecked_param_type = "bigint")] now: JsValue,
+    ) -> Result<super::status::Checkpoint, JsValue> {
+        Ok(super::status::Checkpoint {
+            inner: self
+                .inner
+                .admit_peer_credential_renewal(
+                    &grant.inner,
+                    operation(id)?,
+                    &policy.inner,
+                    read_time(now)?,
+                )
+                .await?,
+        })
+    }
     pub async fn credential_renewal_status(&self) -> Result<Status, JsValue> {
         Ok(Status {
             inner: self.inner.credential_renewal_status().await?,
