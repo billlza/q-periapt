@@ -9,6 +9,12 @@ pub struct RekeyControlMessage {
     wire: Vec<u8>,
 }
 impl RekeyControlMessage {
+    pub(crate) fn inspect_target(wire: &[u8]) -> Result<u64, Error> {
+        if wire.is_empty() || wire.len() > crate::contract::MAX_CONTROL_BYTES {
+            return Err(Error::Encoding);
+        }
+        target(open_envelope(wire)?.0)
+    }
     /// Epoch requested by or installed through this control exchange.
     pub fn target_epoch(&self) -> u64 {
         self.target
@@ -53,8 +59,7 @@ enum Work {
     maybe_async::must_be_sync
 )]
 impl DeviceJournal {
-    #[cfg(feature = "control-tls")]
-    pub(crate) fn start_control_delivery(
+    pub(crate) async fn start_control_delivery(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -62,28 +67,26 @@ impl DeviceJournal {
         signer: &DeviceSigningKey,
         now: u64,
     ) -> Result<RekeyControlStep, DurableError> {
-        let step = self.advance_rekey_control(context, session, target, signer, now)?;
+        let step = self
+            .advance_rekey_control(context, session, target, signer, now)
+            .await?;
         if matches!(step, RekeyControlStep::LocallyConfirmed(_)) {
-            let image = self.image()?;
+            let image = self.image().await?;
             let state = self.message_state(&image, context, &session, now)?;
             // A process may have committed its receipt before any network byte
             // escaped. Re-dispatch it on an explicit delivery run. A later local
             // exchange already implies that this predecessor was accepted.
             if !state.control.has_pending() && state.role != proposer(target)? {
-                return output(self.rekey_outbox(
-                    context,
-                    session,
-                    target,
-                    RekeyFlight::Receipt,
-                    now,
-                )?);
+                return output(
+                    self.rekey_outbox(context, session, target, RekeyFlight::Receipt, now)
+                        .await?,
+                );
             }
         }
         Ok(step)
     }
 
-    #[cfg(feature = "control-tls")]
-    pub(crate) fn replay_control_delivery(
+    pub(crate) async fn replay_control_delivery(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -96,7 +99,8 @@ impl DeviceJournal {
             .get(..8)
             .ok_or(Error::Encoding)?;
         let wire = if tag == request::TAG {
-            self.prepare_rekey_request(context, session, signer, now)?
+            self.prepare_rekey_request(context, session, signer, now)
+                .await?
         } else {
             let flight = if tag == TAG {
                 RekeyFlight::Offer
@@ -109,7 +113,8 @@ impl DeviceJournal {
             } else {
                 return Err(Error::Encoding.into());
             };
-            self.rekey_outbox(context, session, message.target_epoch(), flight, now)?
+            self.rekey_outbox(context, session, message.target_epoch(), flight, now)
+                .await?
         };
         if wire != message.as_bytes() {
             return Err(DurableError::Conflict);

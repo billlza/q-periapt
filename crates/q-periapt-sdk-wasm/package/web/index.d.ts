@@ -34,3 +34,5 @@ export { QPeriaptContinuityParticipant,
   QPeriaptContinuityMessage,
   QPeriaptContinuityConsumption,
   QPeriaptContinuityMessageStatus } from './q_periapt_sdk_wasm.js';
+
+export { QPeriaptContinuityRekeyProgress, QPeriaptContinuityRekeyCompletion } from './q_periapt_sdk_wasm.js';

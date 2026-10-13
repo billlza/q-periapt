@@ -204,8 +204,20 @@ copies have their own lifetimes. The SDK does not promise global exactly-once ef
 HTTP loopback diagnostics. Peer pins remain independent of the untrusted carrier.
 Requests omit ambient credentials and redirects, and bound each streamed response
 to 32 KiB. Source-integrated APIs still require installed browser/native network
-qualification; root/roster lifecycle, rekey and migration require further browser
+qualification; root/roster lifecycle and migration require further browser
 integration. The protocol and package remain prerelease candidates.
+
+`session_rekey_progress(session)` reads local confirmed, sending, receiving and
+pending epochs. `drive_session_rekey(session, target, exchanges, endpoint,
+timeoutMs, trustedClock)` delivers one explicit target; `target` is a BigInt,
+`exchanges` is an integer from 1 through 128, and all requests share the same
+deadline. There are no implicit retries after network failure. Reopen the same
+owner and retry the same target. `ExchangeLimit` preserves pending work and
+closes the owner. `serve_session_control` authenticates one control request for
+the original session, including final/receipt replays after local completion.
+The returned completion's `epoch()` and `exchanges()` describe local journal
+completion only; they are not remote receipt or post-compromise recovery proof.
+These new control bindings require their own installed runtime qualification.
 
 Await `close()` before releasing the wrapper with `free()`. Close cancels pending
 witness traffic and waits for actual storage-release receipts. Concurrent device

@@ -35,7 +35,7 @@ pub const MAX_SKIPPED_MESSAGE_KEYS: usize = 128;
 pub const MAX_OUTSTANDING_MESSAGES: usize = 64;
 /// Largest retained traffic history. Retirement still requires signed settlement.
 pub const MAX_TRAFFIC_EPOCHS: usize = 4;
-/// Largest signed control carried inside QPCCTL01, excluding the carrier header.
+/// Largest signed control carried inside QPCCTL01 or QPCXCH01, excluding framing.
 pub const MAX_CONTROL_BYTES: usize = 8192;
 /// Largest complete QPCNET01 carrier frame, including its nine-byte header.
 pub const MAX_CONNECTION_FRAME_BYTES: usize = 32_768;

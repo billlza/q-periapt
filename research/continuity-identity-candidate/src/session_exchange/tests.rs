@@ -8,6 +8,7 @@ use crate::{
     VerifiedSessionPolicy,
 };
 use std::{collections::BTreeMap, path::Path};
+mod control;
 
 struct Device {
     _dir: tempfile::TempDir,

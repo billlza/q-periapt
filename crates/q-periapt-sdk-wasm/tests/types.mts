@@ -102,6 +102,7 @@ import { QPeriaptContinuityParticipant, QPeriaptContinuityPeerTrust,
   QPeriaptContinuityQuality, QPeriaptContinuityRole, QPeriaptContinuityPeer,
   QPeriaptContinuityEndpoint, QPeriaptContinuityMessage,
   QPeriaptContinuityConsumption, QPeriaptContinuityMessageStatus,
+  type QPeriaptContinuityRekeyCompletion, type QPeriaptContinuityRekeyProgress,
   type QPeriaptContinuitySession } from 'q-periapt-sdk-wasm/web';
 async function sessionExchange(device: QPeriaptContinuityDevice, policy: QPeriaptContinuityPolicy,
     account: QPeriaptContinuityAccountTrust) {
@@ -120,6 +121,12 @@ async function sessionExchange(device: QPeriaptContinuityDevice, policy: QPeriap
   const consume = async (_session: Uint8Array, _message: Uint8Array, _plaintext: Uint8Array): Promise<void> => {};
   const reply: Uint8Array = await device.serve_session_exchange(peer, data, consume, 5000, () => 1n);
   const resumedReply: Uint8Array = await device.serve_session_message(reopened, data, consume, 5000, () => 1n);
+  const progress: QPeriaptContinuityRekeyProgress = await device.session_rekey_progress(session);
+  const completed: QPeriaptContinuityRekeyCompletion = await device.drive_session_rekey(session, 1n, 4, endpoint, 10000, () => 1n);
+  const target: bigint = completed.epoch();
+  const pending: bigint | undefined = progress.pending_epoch();
+  const controlReply: Uint8Array = await device.serve_session_control(session, data, 10000, () => 1n);
+  completed.free(); progress.free(); void target; void pending; void controlReply;
   input.close(); input.free(); session.free(); reopened.free(); endpoint.free(); peer.free(); trust.free(); a.free(); b.free();
   void consumption; void status; void reply; void resumedReply;
 }

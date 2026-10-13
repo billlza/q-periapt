@@ -16,8 +16,10 @@ use std::{io, sync::Arc, time::Duration};
 
 mod client;
 mod codec;
+mod control;
 mod server;
 use codec::{frame, payload, ACK, FINAL, INITIAL, MESSAGE, READY, REPLY};
+pub use control::RekeyCompleted;
 
 /// Failure retains its responsible boundary; no variant establishes rollback.
 #[derive(Debug)]
@@ -34,6 +36,8 @@ pub enum Error {
     Cancelled,
     /// The original monotonic invocation deadline expired.
     Deadline,
+    /// The explicit request allowance was exhausted; retain this same target.
+    ExchangeLimit,
 }
 impl From<DurableError> for Error {
     fn from(value: DurableError) -> Self {
@@ -54,6 +58,7 @@ impl std::fmt::Display for Error {
             Self::Application(_) => "application consumption unconfirmed",
             Self::Cancelled => "session operation cancelled",
             Self::Deadline => "session operation deadline expired",
+            Self::ExchangeLimit => "session exchange allowance exhausted",
         })
     }
 }
@@ -62,7 +67,7 @@ impl std::error::Error for Error {
         match self {
             Self::Durable(e) => Some(e),
             Self::Clock(e) | Self::Transport(e) | Self::Application(e) => Some(e),
-            Self::Cancelled | Self::Deadline => None,
+            Self::Cancelled | Self::Deadline | Self::ExchangeLimit => None,
         }
     }
 }

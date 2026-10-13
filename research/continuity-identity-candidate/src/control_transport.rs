@@ -343,9 +343,7 @@ impl ControlEndpoint {
 }
 
 fn require_target(wire: &[u8], expected: u64) -> Result<(), Error> {
-    let (body, _) = crate::crypto::open_envelope(wire).map_err(|_| Error::Protocol)?;
-    let bytes = body.get(112..120).ok_or(Error::Protocol)?;
-    let target = u64::from_be_bytes(bytes.try_into().map_err(|_| Error::Protocol)?);
+    let target = crate::RekeyControlMessage::inspect_target(wire).map_err(|_| Error::Protocol)?;
     if target != expected {
         return Err(Error::Protocol);
     }

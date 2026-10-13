@@ -10,6 +10,7 @@ mod connections;
 mod inventory;
 mod peers;
 mod publication;
+mod rekey;
 mod status;
 mod trust;
 use status::Status;

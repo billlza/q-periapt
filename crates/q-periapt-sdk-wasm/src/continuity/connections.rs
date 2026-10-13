@@ -7,10 +7,10 @@ use std::sync::Arc;
 fn message_id(value: &Uint8Array) -> Result<engine::MessageId, JsValue> {
     engine::MessageId::from_trusted_state(array(value)?).map_err(protocol)
 }
-fn timeout(value: &JsValue) -> Result<Duration, JsValue> {
+pub(super) fn timeout(value: &JsValue) -> Result<Duration, JsValue> {
     Ok(Duration::from_millis(read_limit(value, 60000)? as u64))
 }
-fn callable(value: &js_sys::Function) -> Result<(), JsValue> {
+pub(super) fn callable(value: &js_sys::Function) -> Result<(), JsValue> {
     let value: &JsValue = value.as_ref();
     if !value.is_function() {
         return Err(engine::browser::input_failure(
@@ -22,7 +22,7 @@ fn callable(value: &js_sys::Function) -> Result<(), JsValue> {
 /// Original local session descriptor. Reopening is not a new peer-liveness receipt.
 #[wasm_bindgen(js_name = QPeriaptContinuitySession)]
 pub struct Session {
-    inner: exchange::Session,
+    pub(super) inner: exchange::Session,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuitySession)]
 impl Session {

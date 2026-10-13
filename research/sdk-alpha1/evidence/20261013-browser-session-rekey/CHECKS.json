@@ -1,0 +1,1110 @@
+{
+  "capture": {
+    "bytes": 6474247,
+    "file": "CAPTURE.zip",
+    "member_manifest": "MANIFEST.json",
+    "member_manifest_sha256": "5e685698ac97029df834a8885acb8563b59ffcab3f68fbbcd3821abb099ec5bb",
+    "members": 3176,
+    "sha256": "a40740240d82a3c14b4e76745edf31bff784ef8f6c534988c298ebe35f2d1c62"
+  },
+  "cases": {
+    "run-01": [
+      {
+        "bidirectional_epoch": 3,
+        "case": "happy",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 10,
+        "rejection": null,
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 2
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 314
+      }
+    ],
+    "run-02": [
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-drop-first",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 9,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "PeerTransport",
+          "done": true,
+          "error": "Error: PeerTransport",
+          "observations": [
+            {
+              "journal": [
+                49,
+                21,
+                137,
+                2,
+                60,
+                183,
+                122,
+                129,
+                206,
+                241,
+                117,
+                20,
+                229,
+                187,
+                66,
+                131,
+                143,
+                110,
+                188,
+                68,
+                200,
+                73,
+                49,
+                213,
+                25,
+                57,
+                210,
+                118,
+                221,
+                72,
+                67,
+                238
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                49,
+                21,
+                137,
+                2,
+                60,
+                183,
+                122,
+                129,
+                206,
+                241,
+                117,
+                20,
+                229,
+                187,
+                66,
+                131,
+                143,
+                110,
+                188,
+                68,
+                200,
+                73,
+                49,
+                213,
+                25,
+                57,
+                210,
+                118,
+                221,
+                72,
+                67,
+                238
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                49,
+                21,
+                137,
+                2,
+                60,
+                183,
+                122,
+                129,
+                206,
+                241,
+                117,
+                20,
+                229,
+                187,
+                66,
+                131,
+                143,
+                110,
+                188,
+                68,
+                200,
+                73,
+                49,
+                213,
+                25,
+                57,
+                210,
+                118,
+                221,
+                72,
+                67,
+                238
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 2
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 318
+      },
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-drop-final",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 9,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "PeerTransport",
+          "done": true,
+          "error": "Error: PeerTransport",
+          "observations": [
+            {
+              "journal": [
+                255,
+                8,
+                126,
+                231,
+                71,
+                177,
+                117,
+                148,
+                150,
+                213,
+                89,
+                170,
+                164,
+                23,
+                171,
+                98,
+                216,
+                221,
+                242,
+                112,
+                160,
+                34,
+                7,
+                49,
+                71,
+                13,
+                8,
+                127,
+                143,
+                22,
+                30,
+                78
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                255,
+                8,
+                126,
+                231,
+                71,
+                177,
+                117,
+                148,
+                150,
+                213,
+                89,
+                170,
+                164,
+                23,
+                171,
+                98,
+                216,
+                221,
+                242,
+                112,
+                160,
+                34,
+                7,
+                49,
+                71,
+                13,
+                8,
+                127,
+                143,
+                22,
+                30,
+                78
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                255,
+                8,
+                126,
+                231,
+                71,
+                177,
+                117,
+                148,
+                150,
+                213,
+                89,
+                170,
+                164,
+                23,
+                171,
+                98,
+                216,
+                221,
+                242,
+                112,
+                160,
+                34,
+                7,
+                49,
+                71,
+                13,
+                8,
+                127,
+                143,
+                22,
+                30,
+                78
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 1
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 318
+      },
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-empty",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 9,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "Authentication",
+          "done": true,
+          "error": "Error: Protocol(Authentication)",
+          "observations": [
+            {
+              "journal": [
+                43,
+                109,
+                171,
+                140,
+                132,
+                158,
+                243,
+                59,
+                199,
+                201,
+                199,
+                163,
+                60,
+                250,
+                150,
+                67,
+                177,
+                148,
+                163,
+                77,
+                250,
+                17,
+                58,
+                71,
+                68,
+                16,
+                233,
+                219,
+                16,
+                13,
+                163,
+                48
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                43,
+                109,
+                171,
+                140,
+                132,
+                158,
+                243,
+                59,
+                199,
+                201,
+                199,
+                163,
+                60,
+                250,
+                150,
+                67,
+                177,
+                148,
+                163,
+                77,
+                250,
+                17,
+                58,
+                71,
+                68,
+                16,
+                233,
+                219,
+                16,
+                13,
+                163,
+                48
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                43,
+                109,
+                171,
+                140,
+                132,
+                158,
+                243,
+                59,
+                199,
+                201,
+                199,
+                163,
+                60,
+                250,
+                150,
+                67,
+                177,
+                148,
+                163,
+                77,
+                250,
+                17,
+                58,
+                71,
+                68,
+                16,
+                233,
+                219,
+                16,
+                13,
+                163,
+                48
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 2
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 321
+      },
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-corrupt",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 9,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "Authentication",
+          "done": true,
+          "error": "Error: Protocol(Authentication)",
+          "observations": [
+            {
+              "journal": [
+                150,
+                132,
+                245,
+                7,
+                16,
+                105,
+                76,
+                226,
+                123,
+                237,
+                75,
+                78,
+                203,
+                1,
+                144,
+                203,
+                210,
+                9,
+                230,
+                202,
+                192,
+                129,
+                154,
+                63,
+                27,
+                237,
+                37,
+                179,
+                68,
+                46,
+                216,
+                180
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                150,
+                132,
+                245,
+                7,
+                16,
+                105,
+                76,
+                226,
+                123,
+                237,
+                75,
+                78,
+                203,
+                1,
+                144,
+                203,
+                210,
+                9,
+                230,
+                202,
+                192,
+                129,
+                154,
+                63,
+                27,
+                237,
+                37,
+                179,
+                68,
+                46,
+                216,
+                180
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                150,
+                132,
+                245,
+                7,
+                16,
+                105,
+                76,
+                226,
+                123,
+                237,
+                75,
+                78,
+                203,
+                1,
+                144,
+                203,
+                210,
+                9,
+                230,
+                202,
+                192,
+                129,
+                154,
+                63,
+                27,
+                237,
+                37,
+                179,
+                68,
+                46,
+                216,
+                180
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 2
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 319
+      },
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-old",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 9,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "Scope",
+          "done": true,
+          "error": "Error: Protocol(Scope)",
+          "observations": [
+            {
+              "journal": [
+                40,
+                84,
+                91,
+                160,
+                78,
+                182,
+                26,
+                253,
+                220,
+                81,
+                246,
+                171,
+                114,
+                13,
+                132,
+                23,
+                26,
+                216,
+                179,
+                40,
+                6,
+                133,
+                13,
+                247,
+                19,
+                24,
+                238,
+                208,
+                160,
+                237,
+                220,
+                101
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                40,
+                84,
+                91,
+                160,
+                78,
+                182,
+                26,
+                253,
+                220,
+                81,
+                246,
+                171,
+                114,
+                13,
+                132,
+                23,
+                26,
+                216,
+                179,
+                40,
+                6,
+                133,
+                13,
+                247,
+                19,
+                24,
+                238,
+                208,
+                160,
+                237,
+                220,
+                101
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                40,
+                84,
+                91,
+                160,
+                78,
+                182,
+                26,
+                253,
+                220,
+                81,
+                246,
+                171,
+                114,
+                13,
+                132,
+                23,
+                26,
+                216,
+                179,
+                40,
+                6,
+                133,
+                13,
+                247,
+                19,
+                24,
+                238,
+                208,
+                160,
+                237,
+                220,
+                101
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 2
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 318
+      },
+      {
+        "bidirectional_epoch": 3,
+        "case": "control-limit",
+        "native_control": [
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": false,
+            "original_dispatched": true,
+            "owner_closed": true
+          },
+          {
+            "done": true,
+            "epoch": 3,
+            "exchanges": 1
+          }
+        ],
+        "peer_requests": 8,
+        "rejection": {
+          "cancellationRequested": false,
+          "code": "ExchangeLimit",
+          "done": true,
+          "error": "Error: ExchangeLimit",
+          "observations": [
+            {
+              "journal": [
+                108,
+                238,
+                83,
+                147,
+                115,
+                109,
+                109,
+                213,
+                54,
+                156,
+                12,
+                231,
+                10,
+                116,
+                171,
+                178,
+                53,
+                54,
+                68,
+                202,
+                101,
+                38,
+                115,
+                139,
+                229,
+                71,
+                50,
+                128,
+                179,
+                12,
+                52,
+                57
+              ],
+              "label": "opened",
+              "phase": 5
+            },
+            {
+              "journal": [
+                108,
+                238,
+                83,
+                147,
+                115,
+                109,
+                109,
+                213,
+                54,
+                156,
+                12,
+                231,
+                10,
+                116,
+                171,
+                178,
+                53,
+                54,
+                68,
+                202,
+                101,
+                38,
+                115,
+                139,
+                229,
+                71,
+                50,
+                128,
+                179,
+                12,
+                52,
+                57
+              ],
+              "label": "accepted",
+              "phase": 5
+            },
+            {
+              "journal": [
+                108,
+                238,
+                83,
+                147,
+                115,
+                109,
+                109,
+                213,
+                54,
+                156,
+                12,
+                231,
+                10,
+                116,
+                171,
+                178,
+                53,
+                54,
+                68,
+                202,
+                101,
+                38,
+                115,
+                139,
+                229,
+                71,
+                50,
+                128,
+                179,
+                12,
+                52,
+                57
+              ],
+              "label": "active",
+              "phase": 5
+            },
+            {
+              "closed": true,
+              "code": "Closed",
+              "label": "closed"
+            }
+          ],
+          "ownerClosed": true
+        },
+        "rekeys": [
+          {
+            "epoch": "1",
+            "exchanges": 1
+          },
+          {
+            "epoch": "2",
+            "exchanges": 3
+          }
+        ],
+        "witness_requests": 316
+      }
+    ]
+  },
+  "completed": true,
+  "excluded": [
+    "private keys/wrapping material/journals/browser profiles",
+    "independent implementation and cross-host or HTTPS/CORS deployment",
+    "full browser/version/device matrix",
+    "PCS recovery proof, root/roster renewal, migration and full release approval"
+  ],
+  "fixture_authority": "research/sdk-alpha1/evidence/20261013-browser-required-witness",
+  "package": {
+    "manifest_sha256": "11699b4e9a226993007db4ce136732e64a1c5d990fa64a316d02b8b8146de0ff",
+    "sha256": "881c180bc56e57d60c762e2b41208a893d32ad834d142fd03801b792bfa051f1",
+    "source_bound": true,
+    "sources_unchanged": true,
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "release_claim_eligible": false,
+  "scope": "Installed Chrome dedicated Workers with OPFS/IndexedDB, required signed witness and bidirectional native/browser rekey, same shared engine and loopback diagnostics; not independent implementation, deployment, arbitrary schedules or PCS proof.",
+  "source": {
+    "base_commit": "d32760793840f70bcbcc082671c57c2ef5a313d0",
+    "deleted": [],
+    "overlay": {
+      "ARTIFACT.md": "3e523b24b9f0b6fc40b7c425ab4f66a585da6e89152f3868dae2dc23a865cd85",
+      "artifact/codeql_rust_quality.py": "c285509c4ca42e8c5e7334086b8019043e79e1706d8b4fddbdf949e982fbefe5",
+      "artifact/test_codeql_rust_quality.py": "5a9b0251a41feaa3d7ffaa5d12a9085eb90e84b6190078cb33ce6c4476e765ad",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "b9d0006160f188e41837af7717a4974ab30135c8fd66df5605d09bae77639e40",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "cd9a3cee6ca02c75e014ef961f6fc2d2e2db1b3a90fc184ca1901c9adb9e5306",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "850d2f3eeb00eb940e74225a28d94ce268be049445a550451fecbfebb632924c",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "2c1ef93bc39ed4a3052f2d672b6d33a5b7a66f008eecd348f59759208260ae31",
+      "crates/q-periapt-sdk-wasm/src/continuity/connections.rs": "5dd6ae4533880745fc532e996ba5779c60e7a5ea854f5ee787e1edd3906f91b5",
+      "crates/q-periapt-sdk-wasm/src/continuity/rekey.rs": "de52551387ac12bd7b691557b8bc5d3016e0dbc49eacc4a7e1d06bba3ca6ef2f",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "fe392ccd3136daa77f0d5a27317baf0ad08e91eba43364ea0b42ed238da230ed",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "166d36b5d41f923fbb12c0db82e8ba5f91a4672b3caf06f581d8953cfbfe88a5",
+      "research/continuity-identity-candidate/SESSION_EXCHANGE_V1.md": "3fcaa11aaea3fa134b4f550552bbe452b3372685c76d2221781351d720a4a063",
+      "research/continuity-identity-candidate/src/browser/connections.rs": "9414a5feb4bbdc725a32af7a4ab28cd263648f5c1fe75bb288f9acf2857831f7",
+      "research/continuity-identity-candidate/src/browser/connections/rekey.rs": "660e7c278560e6726f3c0c467aee303e36d5e8efdf8ea8ef0c49de613882799b",
+      "research/continuity-identity-candidate/src/contract.rs": "18404e2fe95dc4492a7450b30701d3ecb9853bfd8893814ff6fef0aed1c9091f",
+      "research/continuity-identity-candidate/src/control_transport.rs": "4d11581b45ba380cf4538b29f5c4d2b8749d000097076cbeca7c849bba473a59",
+      "research/continuity-identity-candidate/src/durable/messages/rekey/driver.rs": "d2440ae6c0a7de6fbd0723c33b8f9bbb8ce4ab8425654f566381b8229ade0c12",
+      "research/continuity-identity-candidate/src/session_exchange.rs": "66b9baeec43161831f10abd0e6cd6117e0bba2477347f783b6a15bfed653eddf",
+      "research/continuity-identity-candidate/src/session_exchange/codec.rs": "27a2da57b518dd633ae46d580cf9fcf1078516dc31eb29fdc9b321930b033754",
+      "research/continuity-identity-candidate/src/session_exchange/control.rs": "4b1ec44e38f76872d24ebdb02bf2df009de50cfbcb61eadf50686caec9d6282b",
+      "research/continuity-identity-candidate/src/session_exchange/tests.rs": "3b95feda3028d345c98115cbc02fd39e9c9918c6133d1f5d9e0257b481b82b74",
+      "research/continuity-identity-candidate/src/session_exchange/tests/control.rs": "0e5958fc428a30eb4d2153a5aa085f56ec81e4f3c96875deb1b405e683f3565b"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "base_installed_browser_cases": 10,
+    "core_tests": 11,
+    "existing_control_tls_tests": 9,
+    "native_clippy": "control-tls,connection-tls lib/tests -D warnings passed",
+    "native_control_msrv": "Rust1.90.0 passed",
+    "new_control_tests": 4,
+    "new_control_transport_loss_cuts": 10,
+    "product_wasm_clippy": "-D warnings passed",
+    "product_wasm_msrv": "Rust1.90.0 passed",
+    "tracked_rust_files": 612
+  }
+}

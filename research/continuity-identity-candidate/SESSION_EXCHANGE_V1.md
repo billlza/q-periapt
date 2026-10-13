@@ -4,8 +4,9 @@ Status: implemented candidate adapter, not frozen or a new PCS claim. It reuses
 the existing bootstrap, session archive, message chains and acknowledgement MAC.
 It is intended to connect the browser owner to native consumers without granting
 the carrier signing authority or treating an HTTP response as peer confirmation.
-Browser bindings and bounded network carriers require their own integration and
-runtime qualification before this becomes an available browser connection API.
+Installed browser/native establishment and data recovery are qualified in
+`../sdk-alpha1/evidence/20261013-browser-owned-sessions`. Control delivery has
+separate validation and does not inherit those results automatically.
 
 ## Authority and ownership
 
@@ -37,6 +38,8 @@ A pair is `first_length:u16be || first || second`, bounded by the enclosing fram
 | 130 READY | Pair of the 32-byte session ID and epoch-zero acknowledgement |
 | 3 MESSAGE | Pair of original associated data and existing message ciphertext |
 | 131 ACK | Existing authenticated consumption acknowledgement |
+| 4 CONTROL | Existing signed request/offer/response/final/receipt, at most 8192 bytes |
+| 132 CONTROL_REPLY | `1 || signed_control`, or exactly `0` for no further flight |
 
 The initiator commits its original contribution, accepts the authenticated reply,
 and retains the exact closure archive before sending FINAL. The responder
@@ -74,5 +77,28 @@ message returns `PrefixPending`, never `Confirmed`.
 
 Reopening uses independently authenticated original bundle inputs and the same
 installation/archive. Both traffic directions use the same controlled message
-engine. This adapter does not itself implement root/roster renewal, rekey control,
-deployment, independent implementation interoperability or the whole 0.2.0 goal.
+engine. Root/roster renewal, deployment, independent implementation interoperability and
+the whole 0.2.0 goal require separate integration and evidence.
+
+## Explicit rekey delivery
+
+`drive_session_rekey` starts or resumes one retained target with an explicit
+request allowance from 1 through 128. It reuses the original signed control
+state machine, signer, archive and journal; no dummy application payload is
+required. The same monotonic deadline covers all requests. Network failures
+return immediately without implicit retry. Exhaustion returns `ExchangeLimit`
+and closes the owner, retaining the target and original outboxes for reopen.
+
+Both proposer and non-proposer roles work through the same API. A responder
+which already committed its receipt before losing the carrier result dispatches
+that exact receipt again. The receiver must remain available after local
+completion to serve repeated final/receipt messages. A signed response for a
+different target is refused before it can satisfy this invocation.
+
+The carrier's `0` reply is unauthenticated metadata. It may conclude an invocation
+only when the local journal already establishes completion of that exact target.
+It cannot establish receipt at the other endpoint. `RekeyCompleted` reports the
+local epoch and attempted exchanges only. A completed target can therefore
+return without a fresh remote exchange. `session_rekey_progress` exposes local
+confirmed/sending/receiving/pending epochs; none describes attacker knowledge or
+proves post-compromise secrecy recovery.

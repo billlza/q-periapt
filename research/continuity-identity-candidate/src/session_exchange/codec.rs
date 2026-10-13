@@ -5,9 +5,11 @@ const MAX: usize = crate::contract::MAX_CONNECTION_FRAME_BYTES;
 pub(super) const INITIAL: u8 = 1;
 pub(super) const FINAL: u8 = 2;
 pub(super) const MESSAGE: u8 = 3;
+pub(super) const CONTROL: u8 = 4;
 pub(super) const REPLY: u8 = 129;
 pub(super) const READY: u8 = 130;
 pub(super) const ACK: u8 = 131;
+pub(super) const CONTROL_REPLY: u8 = 132;
 fn invalid() -> Error {
     crate::Error::Encoding.into()
 }

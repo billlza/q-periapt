@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{io, sync::Arc};
 mod receiver;
+mod rekey;
 
 struct Clock<'a> {
     callback: &'a js_sys::Function,
@@ -51,6 +52,9 @@ fn exchange_failure(error: exchange::Error) -> JsValue {
         }
         exchange::Error::Cancelled => failure(&DurableError::Io(io::ErrorKind::Interrupted.into())),
         exchange::Error::Deadline => failure(&DurableError::Io(io::ErrorKind::TimedOut.into())),
+        exchange::Error::ExchangeLimit => {
+            Storage::input_failure("ExchangeLimit", &JsValue::UNDEFINED)
+        }
     }
 }
 fn run(cancel: &Cancellation, timeout: Duration) -> Result<exchange::Run<'_>, JsValue> {
