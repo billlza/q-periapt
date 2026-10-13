@@ -20,8 +20,9 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
-    # Keep the 180-minute Analyze bound plus independent quality/retention time.
-    timeout-minutes: ${{ matrix.language == 'rust' && 240 || 60 }}
+    # Bound the full Rust query suite at 300 minutes and reserve the rest of
+    # the hosted runner's six-hour limit for builds, quality, and retention.
+    timeout-minutes: ${{ matrix.language == 'rust' && 360 || 60 }}
     permissions:
       actions: read
       contents: read
@@ -214,10 +215,10 @@ jobs:
 
       - name: Analyze
         id: codeql_analyze
-        # Full SummaryStats took 124 minutes at e0e1dee0 and was still making
-        # progress at 29ec0a37's 150-minute limit. Keep every query and reserve
-        # separate time for strict quality checks and diagnostics.
-        timeout-minutes: ${{ matrix.language == 'rust' && 180 || 60 }}
+        # At dc2561f0, 38/39 queries finished and full SummaryStats exceeded
+        # 180 minutes. This bounded retry keeps all queries and quality gates;
+        # completion within the new budget must be established by the run.
+        timeout-minutes: ${{ matrix.language == 'rust' && 300 || 60 }}
         uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
