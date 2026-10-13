@@ -53,6 +53,7 @@ mod merkle;
 mod native_transport;
 mod selection;
 mod session_archives;
+pub mod session_exchange;
 mod session_policy;
 mod storage;
 #[cfg(feature = "anchor-tls")]

@@ -1,0 +1,62 @@
+   Compiling q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+error[E0308]: mismatched types
+   --> src/session_exchange/tests.rs:142:35
+    |
+142 |                 signed_classical: &manifest.proof(0).expect("signed").encode(),
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&Result<Vec<u8>, Error>`
+    |
+    = note: expected reference `&[u8]`
+               found reference `&Result<Vec<u8>, Error>`
+
+error[E0308]: mismatched types
+   --> src/session_exchange/tests.rs:143:33
+    |
+143 |                 last_resort_pq: &manifest.proof(1).expect("pq").encode(),
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&Result<Vec<u8>, Error>`
+    |
+    = note: expected reference `&[u8]`
+               found reference `&Result<Vec<u8>, Error>`
+
+error[E0308]: mismatched types
+   --> src/session_exchange/tests.rs:144:42
+    |
+144 |                 one_time_classical: Some(&manifest.proof(2).expect("otc").encode()),
+    |                                     ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&Result<Vec<u8>, Error>`
+    |                                     |
+    |                                     arguments to this enum variant are incorrect
+    |
+    = note: expected reference `&[u8]`
+               found reference `&Result<Vec<u8>, Error>`
+help: the type constructed contains `&Result<Vec<u8>, Error>` due to the type of the argument passed
+   --> src/session_exchange/tests.rs:144:37
+    |
+144 |                 one_time_classical: Some(&manifest.proof(2).expect("otc").encode()),
+    |                                     ^^^^^-----------------------------------------^
+    |                                          |
+    |                                          this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/option.rs:606:4
+
+error[E0308]: mismatched types
+   --> src/session_exchange/tests.rs:145:35
+    |
+145 |                 one_time_pq: Some(&manifest.proof(3).expect("otp").encode()),
+    |                              ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[u8]`, found `&Result<Vec<u8>, Error>`
+    |                              |
+    |                              arguments to this enum variant are incorrect
+    |
+    = note: expected reference `&[u8]`
+               found reference `&Result<Vec<u8>, Error>`
+help: the type constructed contains `&Result<Vec<u8>, Error>` due to the type of the argument passed
+   --> src/session_exchange/tests.rs:145:30
+    |
+145 |                 one_time_pq: Some(&manifest.proof(3).expect("otp").encode()),
+    |                              ^^^^^-----------------------------------------^
+    |                                   |
+    |                                   this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/option.rs:606:4
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `q-periapt-continuity-identity-candidate` (lib test) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...

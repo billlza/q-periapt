@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Native delivery reconciliation reuses the ordinary authenticated inbox path.
+//! Carrier-independent delivery reconciliation uses the authenticated inbox path.
 use super::*;
 
 pub(crate) enum Delivery {
@@ -18,11 +18,15 @@ pub(crate) fn acknowledgement_epoch(wire: &[u8]) -> Result<u64, Error> {
     acknowledgement::wire_epoch(wire)
 }
 
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
 impl DeviceJournal {
     // PreviouslyConsumed proves only an earlier local consumption of this ID.
     // Below the retained prefix, the old key and input commitment have already
     // been erased; this path never authenticates or delivers replacement bytes.
-    pub(crate) fn receive_delivery(
+    pub(crate) async fn receive_delivery(
         &mut self,
         context: &BootstrapContext,
         session: [u8; 32],
@@ -30,7 +34,7 @@ impl DeviceJournal {
         ad: &[u8],
         now: u64,
     ) -> Result<Delivery, DurableError> {
-        let image = self.image()?;
+        let image = self.image().await?;
         let state = self.message_state(&image, context, &session, now)?;
         let header = Header::decode(wire)?;
         if header.session != session || header.role == state.role {
@@ -69,13 +73,15 @@ impl DeviceJournal {
             false
         };
         if consumed {
-            self.check_session_context_release(&image, context, now)?;
+            self.check_session_context_release(&image, context, now)
+                .await?;
             return Ok(Delivery::PreviouslyConsumed(header.id));
         }
         drop(state);
         drop(image);
         Ok(Delivery::Pending(
-            self.receive_message(context, session, wire, ad, now)?,
+            self.receive_message(context, session, wire, ad, now)
+                .await?,
         ))
     }
 }

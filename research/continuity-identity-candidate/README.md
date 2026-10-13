@@ -5,6 +5,14 @@ shared engine and exercises the public connection/recovery trace through exact
 crate archives outside the checkout. It retains the unpublished candidate boundary;
 foreign bindings and the product protocol freeze remain separate release work.
 
+The [owned session exchange candidate](SESSION_EXCHANGE_V1.md) composes the same
+enrolled owner, archives and message state machine over an untrusted request/reply
+carrier. Establishment verifies a session acknowledgement MAC; delivery reports
+the authenticated consumption prefix. It preserves original IDs after loss and
+closes the owner on error or a dropped polled operation. The portable core is
+implemented; browser bindings and bounded network-carrier qualification remain
+separate work. It does not replace the TLS-bound carrier or establish PCS.
+
 The [browser portability checkpoint](../sdk-alpha1/evidence/20261012-browser-engine-portability/README.md)
 compiles the same engine to WebAssembly and executes dual-signature identity
 verification and monotonic deadlines in real window/Worker realms. Native TCP

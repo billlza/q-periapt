@@ -13,9 +13,7 @@ pub use closure::{
 };
 mod terminal;
 use terminal::Retired;
-#[cfg(feature = "connection-tls")]
 mod delivery;
-#[cfg(feature = "connection-tls")]
 pub(crate) use delivery::{acknowledgement_epoch, message_epoch, message_route, Delivery};
 mod fanout;
 pub use fanout::{
