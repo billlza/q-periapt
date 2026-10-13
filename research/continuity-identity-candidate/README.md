@@ -37,6 +37,26 @@ wasm-bindgen output. The completion helper separates a bounded operation result
 from the browser's actual resource-release receipt. Timeout and cleanup failure
 remain separately observable across the WASM error boundary.
 
+The `bindings-wasm` CI job now builds this shared candidate and exercises the
+real browser through `artifact/continuity_browser_creation.py`. It generates a
+fresh native authority, runs creation/recovery and delayed-completion scenarios,
+then verifies the browser's actual requests with the native engine. The retained
+outputs include public trust inputs, requests, credentials and command records;
+private authority keys and browser profiles are excluded. This is a check of
+the shared source implementation, not independent-implementation interoperability
+or installed browser product qualification. Run it locally with the pinned
+Rust 1.98.1, wasm-pack 0.15.0, Node 24+ and Playwright CLI 0.1.22 tools:
+
+```sh
+sh artifact/python-run.sh artifact/continuity_browser_creation.py \
+  --output target/continuity-browser \
+  --node /absolute/path/to/node \
+  --cli /absolute/path/to/playwright-cli.js
+```
+
+Use a fresh output directory. The host also needs Chrome, the wasm32 target and
+a C compiler with WebAssembly support, as configured by `bindings-wasm`.
+
 This is a candidate enrollment boundary, not the unified product browser entry.
 Operational grant activation, session/installation owners, root/roster lifecycle,
 transport and installed browser packaging remain integration work. The prototype

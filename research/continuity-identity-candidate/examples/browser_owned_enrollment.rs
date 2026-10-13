@@ -54,7 +54,7 @@ fn main() -> Result<()> {
             description.extend_from_slice(&at.checked_add(3600).ok_or("clock")?.to_be_bytes());
             publish_private_bytes(&directory.join("description.bin"), &description)?;
             publish_private_bytes(&directory.join("root.bin"), &root.public_key()?.encode())?;
-            println!("native independent enrollment authority prepared");
+            println!("native enrollment authority prepared");
         }
         "verify" => {
             if args.len() != 5 {
