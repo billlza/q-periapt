@@ -75,6 +75,8 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "CredentialRenewalTests.testOriginalRenewalIdentitiesOwnBytesAndRejectZeroOrWrongWidths",
              "PolicyContinuationTests.testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout",
              "PolicyContinuationTests.testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode",
+             "PolicyContinuationTests.testIndependentPolicyCarryKeepsItsOwnStatementDomain",
+             "PolicyContinuationTests.testIndependentPolicyCarryRejectsAdoptionAndMalformedMetadata",
              "PolicyContinuationTests.testExtendedMetadataRejectsInvalidModeTVersionAndWidth",
              "PolicyContinuationTests.testVariableNativeRecordsCheckPayloadTailAndExcludeABIPadding",
              "PolicyRenewalTests.testNativeLayoutsAndOffsetsAreExact",

@@ -29,7 +29,7 @@ public struct CredentialRenewalProposal: Sendable, Equatable {
     public let statement: CredentialRenewalStatementID
 
     init(nativeBytes bytes: [UInt8]) throws {
-        let identity = try renewalMetadataIdentity(bytes, kind: .proposal, policy: false)
+        let identity = try renewalMetadataIdentity(bytes, kind: .proposal, policy: .none)
         self.bytes = bytes; operation = identity.operation; statement = identity.statement
     }
 }
@@ -42,20 +42,21 @@ public struct CredentialRenewalCancellation: Sendable, Equatable {
     public let statement: CredentialRenewalStatementID
 
     init(nativeBytes bytes: [UInt8]) throws {
-        let identity = try renewalMetadataIdentity(bytes, kind: .cancellation, policy: false)
+        let identity = try renewalMetadataIdentity(bytes, kind: .cancellation, policy: .none)
         self.bytes = bytes; operation = identity.operation; statement = identity.statement
     }
 }
 
 enum RenewalMetadataKind: Equatable { case proposal, cancellation }
+enum RenewalMetadataPolicy: String { case none = "01", continuation = "02", independent = "03" }
 
-// One canonical base grammar for old G-only and the extended G/T records.
+// One base grammar, with separate domains for plain G, joint T and retained P.
 // This checks public output shape, never signatures or current permission.
-func renewalMetadataIdentity(_ bytes: [UInt8], kind: RenewalMetadataKind, policy: Bool) throws
+func renewalMetadataIdentity(_ bytes: [UInt8], kind: RenewalMetadataKind, policy: RenewalMetadataPolicy) throws
     -> (operation: CredentialRenewalID, statement: CredentialRenewalStatementID) {
     let isProposal = kind == .proposal
-    let count = (isProposal ? 296 : 248) + (policy ? 33 : 0)
-    let tag = (isProposal ? "QPCRNP" : "QPCRNC") + (policy ? "02" : "01")
+    let count = (isProposal ? 296 : 248) + (policy == .none ? 0 : 33)
+    let tag = (isProposal ? "QPCRNP" : "QPCRNC") + policy.rawValue
     guard bytes.count == count, Array(bytes[0..<8]) == Array(tag.utf8) else {
         throw ContinuityBoundaryError.malformedOutput
     }

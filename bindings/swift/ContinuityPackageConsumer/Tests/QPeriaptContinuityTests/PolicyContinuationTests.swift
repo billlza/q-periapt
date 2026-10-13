@@ -51,6 +51,7 @@ final class PolicyContinuationTests: XCTestCase {
             let cancellation = try PolicyRenewalCancellation(nativeBytes: metadata(proposal: false, policy: true, adopt: adopt))
             bytes[297] = 6
             XCTAssertEqual(proposal.policyStatement?.bytes, [UInt8](repeating: 9, count: 32))
+            XCTAssertNil(proposal.independentPolicyStatement); XCTAssertNil(cancellation.independentPolicyStatement)
             XCTAssertEqual(proposal.adoptsPolicy, adopt); XCTAssertEqual(cancellation.adoptsPolicy, adopt)
             XCTAssertEqual(proposal.statement.bytes, [UInt8](repeating: adopt ? 9 : 1, count: 32))
             XCTAssertEqual(cancellation.statement, proposal.statement)
@@ -60,8 +61,55 @@ final class PolicyContinuationTests: XCTestCase {
         }
         let legacy = try PolicyRenewalProposal(nativeBytes: metadata(proposal: true, policy: false))
         XCTAssertNil(legacy.policyStatement); XCTAssertFalse(legacy.adoptsPolicy)
+        XCTAssertNil(legacy.independentPolicyStatement)
         XCTAssertEqual(legacy.statement, legacy.credentialStatement)
         XCTAssertNil(try PolicyRenewalCancellation(nativeBytes: metadata(proposal: false, policy: false)).policyStatement)
+    }
+    func testIndependentPolicyCarryKeepsItsOwnStatementDomain() throws {
+        var proposalBytes = metadata(proposal: true, policy: true, adopt: false)
+        var cancellationBytes = metadata(proposal: false, policy: true, adopt: false)
+        proposalBytes[7] = 0x33; cancellationBytes[7] = 0x33
+        let proposal = try PolicyRenewalProposal(nativeBytes: proposalBytes)
+        let cancellation = try PolicyRenewalCancellation(nativeBytes: cancellationBytes)
+        XCTAssertEqual(proposal.bytes, proposalBytes)
+        XCTAssertEqual(cancellation.bytes, cancellationBytes)
+        XCTAssertNil(proposal.policyStatement); XCTAssertNil(cancellation.policyStatement)
+        XCTAssertEqual(proposal.independentPolicyStatement?.bytes, [UInt8](repeating: 9, count: 32))
+        XCTAssertEqual(cancellation.independentPolicyStatement, proposal.independentPolicyStatement)
+        XCTAssertFalse(proposal.adoptsPolicy); XCTAssertFalse(cancellation.adoptsPolicy)
+        XCTAssertEqual(proposal.statement, proposal.credentialStatement)
+        XCTAssertEqual(cancellation.statement, cancellation.credentialStatement)
+        proposalBytes[297] = 6; cancellationBytes[249] = 6
+        XCTAssertEqual(proposal.independentPolicyStatement?.bytes.first, 9)
+        XCTAssertEqual(cancellation.independentPolicyStatement?.bytes.first, 9)
+        XCTAssertThrowsError(try CredentialRenewalProposal(nativeBytes: proposal.bytes))
+        XCTAssertThrowsError(try CredentialRenewalCancellation(nativeBytes: cancellation.bytes))
+    }
+    func testIndependentPolicyCarryRejectsAdoptionAndMalformedMetadata() throws {
+        for proposal in [false, true] {
+            let base = proposal ? 296 : 248
+            var bytes = metadata(proposal: proposal, policy: true, adopt: false)
+            bytes[7] = 0x33
+            var invalid = [Array(bytes.dropLast()), bytes + [0]]
+            for mode in [UInt8(1), 2] {
+                var value = bytes; value[base] = mode; invalid.append(value)
+            }
+            var missing = bytes
+            missing.replaceSubrange((base + 1)..<(base + 33), with: repeatElement(UInt8(0), count: 32))
+            invalid.append(missing)
+            var unknown = bytes; unknown[7] = 0x34; invalid.append(unknown)
+            for value in invalid {
+                if proposal {
+                    XCTAssertThrowsError(try PolicyRenewalProposal(nativeBytes: value)) {
+                        XCTAssertEqual($0 as? ContinuityBoundaryError, .malformedOutput)
+                    }
+                } else {
+                    XCTAssertThrowsError(try PolicyRenewalCancellation(nativeBytes: value)) {
+                        XCTAssertEqual($0 as? ContinuityBoundaryError, .malformedOutput)
+                    }
+                }
+            }
+        }
     }
     func testExtendedMetadataRejectsInvalidModeTVersionAndWidth() throws {
         for proposal in [false, true] {

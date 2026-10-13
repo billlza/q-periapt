@@ -604,7 +604,8 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
-    /// Stage a credential-only successor under the actual adopted T and selected P1.
+    /// Stage a credential-only successor under the actual adopted T or independent P
+    /// and the independently selected current policy.
     public func stageContinuedCredentialRenewal(grant: [UInt8], pin: AccountPin,
         operation: CredentialRenewalID) throws -> CredentialRenewalStatus {
         guard (1...65536).contains(grant.count) else { throw ContinuityBoundaryError.inputLength }
@@ -624,7 +625,8 @@ public final class ContinuityEnrollment: Sendable {
             }
         }
     }
-    /// Original G/T coordination metadata for independent witness approval.
+    /// Original G coordination metadata for independent witness approval, explicitly
+    /// distinguishing a joint T from a retained independent policy statement.
     public func prepareWitnessedPolicyContinuation() throws -> PolicyRenewalProposal {
         try reference.call { native in
             try native.call { handle in

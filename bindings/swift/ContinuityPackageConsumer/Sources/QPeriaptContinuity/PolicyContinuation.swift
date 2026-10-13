@@ -55,17 +55,37 @@ public struct PolicyContinuationStatementID: Sendable, Equatable {
     }
 }
 
-private func policyMetadata(_ bytes: [UInt8], kind: RenewalMetadataKind) throws
-    -> (CredentialRenewalID, CredentialRenewalStatementID, PolicyContinuationStatementID?, Bool) {
+private struct PolicyMetadata {
+    let operation: CredentialRenewalID
+    let credential: CredentialRenewalStatementID
+    let continuation: PolicyContinuationStatementID?
+    let independent: PolicyRenewalStatementID?
+    let adopts: Bool
+}
+
+private func policyMetadata(_ bytes: [UInt8], kind: RenewalMetadataKind) throws -> PolicyMetadata {
     let base = kind == .proposal ? 296 : 248
-    let extended = bytes.count == base + 33
-    let identity = try renewalMetadataIdentity(bytes, kind: kind, policy: extended)
-    if !extended { return (identity.operation, identity.statement, nil, false) }
-    guard bytes[base] <= 1, bytes[(base + 1)..<(base + 33)].contains(where: { $0 != 0 }) else {
+    let format: RenewalMetadataPolicy
+    if bytes.count == base { format = .none }
+    else if bytes.starts(with: Array((kind == .proposal ? "QPCRNP03" : "QPCRNC03").utf8)) {
+        format = .independent
+    } else { format = .continuation }
+    let identity = try renewalMetadataIdentity(bytes, kind: kind, policy: format)
+    if format == .none {
+        return PolicyMetadata(operation: identity.operation, credential: identity.statement,
+            continuation: nil, independent: nil, adopts: false)
+    }
+    guard bytes[base] <= 1, (format != .independent || bytes[base] == 0),
+          bytes[(base + 1)..<(base + 33)].contains(where: { $0 != 0 }) else {
         throw ContinuityBoundaryError.malformedOutput
     }
-    return (identity.operation, identity.statement,
-        try PolicyContinuationStatementID(bytes: Array(bytes[(base + 1)..<(base + 33)])), bytes[base] == 1)
+    let statement = Array(bytes[(base + 1)..<(base + 33)])
+    if format == .independent {
+        return PolicyMetadata(operation: identity.operation, credential: identity.statement,
+            continuation: nil, independent: try PolicyRenewalStatementID(bytes: statement), adopts: false)
+    }
+    return PolicyMetadata(operation: identity.operation, credential: identity.statement,
+        continuation: try PolicyContinuationStatementID(bytes: statement), independent: nil, adopts: bytes[base] == 1)
 }
 
 /// Original coordination bytes, not an independent witness approval. An adopting
@@ -75,16 +95,19 @@ public struct PolicyRenewalProposal: Sendable, Equatable {
     public let operation: CredentialRenewalID
     public let credentialStatement: CredentialRenewalStatementID
     public let policyStatement: PolicyContinuationStatementID?
+    /// Previously adopted independent P; this transaction neither adopts P nor creates T.
+    public let independentPolicyStatement: PolicyRenewalStatementID?
     public let adoptsPolicy: Bool
     public let statement: CredentialRenewalStatementID
     init(nativeBytes bytes: [UInt8]) throws {
-        let (operation, credential, policy, adopts) = try policyMetadata(bytes, kind: .proposal)
-        self.bytes = bytes; self.operation = operation; credentialStatement = credential
-        policyStatement = policy; adoptsPolicy = adopts
-        if adopts {
-            guard let policy else { throw ContinuityBoundaryError.malformedOutput }
+        let metadata = try policyMetadata(bytes, kind: .proposal)
+        self.bytes = bytes; operation = metadata.operation; credentialStatement = metadata.credential
+        policyStatement = metadata.continuation; independentPolicyStatement = metadata.independent
+        adoptsPolicy = metadata.adopts
+        if metadata.adopts {
+            guard let policy = metadata.continuation else { throw ContinuityBoundaryError.malformedOutput }
             statement = try CredentialRenewalStatementID(bytes: policy.bytes)
-        } else { statement = credential }
+        } else { statement = metadata.credential }
     }
 }
 /// Exact target-free expectation. Historical cancellation never claims Closed
@@ -94,16 +117,19 @@ public struct PolicyRenewalCancellation: Sendable, Equatable {
     public let operation: CredentialRenewalID
     public let credentialStatement: CredentialRenewalStatementID
     public let policyStatement: PolicyContinuationStatementID?
+    /// Previously adopted independent P, kept distinct from joint-T metadata.
+    public let independentPolicyStatement: PolicyRenewalStatementID?
     public let adoptsPolicy: Bool
     public let statement: CredentialRenewalStatementID
     init(nativeBytes bytes: [UInt8]) throws {
-        let (operation, credential, policy, adopts) = try policyMetadata(bytes, kind: .cancellation)
-        self.bytes = bytes; self.operation = operation; credentialStatement = credential
-        policyStatement = policy; adoptsPolicy = adopts
-        if adopts {
-            guard let policy else { throw ContinuityBoundaryError.malformedOutput }
+        let metadata = try policyMetadata(bytes, kind: .cancellation)
+        self.bytes = bytes; operation = metadata.operation; credentialStatement = metadata.credential
+        policyStatement = metadata.continuation; independentPolicyStatement = metadata.independent
+        adoptsPolicy = metadata.adopts
+        if metadata.adopts {
+            guard let policy = metadata.continuation else { throw ContinuityBoundaryError.malformedOutput }
             statement = try CredentialRenewalStatementID(bytes: policy.bytes)
-        } else { statement = credential }
+        } else { statement = metadata.credential }
     }
 }
 
