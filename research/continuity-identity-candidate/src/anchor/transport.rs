@@ -9,6 +9,10 @@ mod tcp;
 pub(super) use tcp::checked_remaining;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use tcp::AnchorTcpTransport;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+mod fetch;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use fetch::AnchorFetchTransport;
 
 /// Untrusted byte carrier. Implementations must honor the absolute deadline;
 /// journal authority comes only from verification of the complete signed reply.

@@ -27,6 +27,8 @@ pub use store::{
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use transport::AnchorFetchTransport;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use transport::AnchorTcpTransport;
 pub use transport::{AnchorClient, AnchorClientError, AnchorTransport};

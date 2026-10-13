@@ -1,0 +1,251 @@
+{
+  "completed": true,
+  "release_claim_eligible": false,
+  "main_parent": "e2b75ccd9362441ba33067b29757bb1a2b4b732c",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "members": 4184,
+    "bytes": 14215659,
+    "sha256": "2dd8c2ff5de6bfc37b1eaf1cd2f0e90ece4309545d1150dc25c985ef01196068"
+  },
+  "main_inputs": {
+    "artifact/continuity_browser_creation.py": "0ed0467db7e32c1ba92ad8e64fecfb7c578b8512c283475bb30e20aee5be50c5",
+    "research/continuity-identity-candidate/README.md": "d3a45a4350b4345d22c33314d234851439f3ec243d6113b03eac5665a9729061",
+    "research/continuity-identity-candidate/src/anchor.rs": "76a73c304d4cb62321d901dd28a86b3714ab688ee5c06eb6afcbf996bd8699c2",
+    "research/continuity-identity-candidate/src/anchor/transport.rs": "997d7cf9361531dad1bc48c08bbfb18f586d71c8e26a03b3b09addcb328f9d66",
+    "research/continuity-identity-candidate/src/anchor/transport/fetch.rs": "533c5213f769e4253d025b681e3b9101e6c2ce4955dc788ed712cc47720e0f2f",
+    "research/continuity-identity-candidate/src/anchor/transport/witness-fetch.js": "a30b2e5fc3fd02433e1e13f7fad9d868f1259be47fdd057f93b7bf0f822f5c67",
+    "research/continuity-identity-candidate/src/lib.rs": "13e4409b4081f0b0dd2718e09f2cb7570b16086b135fe713d40ad4912c49a322"
+  },
+  "cases": [
+    {
+      "case": "healthy",
+      "requests": 33,
+      "rejection": null,
+      "journal_sha256": "c1452760bbb74b8475b71bfe6aa616c2e3be6de180824638e8bf4d9e88cfdfdb",
+      "prekey_sha256": "579ed60881711989752a724463d48e5a5a6d63b1ec5c236cf67a5f4714392dc4",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "precancel",
+      "requests": 33,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: Interrupted, error: \"witness dispatch cancelled; reconcile original command\" }))"
+      },
+      "journal_sha256": "30c94640f3802fbe827ef15cc3b0f496d68c9cd8ae6e3b5dc53f192f7d6d1f90",
+      "prekey_sha256": "2200078341b9799d5108991b4645181167b2ef79c5ec8e8d3165b8b35ef124f8",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "wrong-pin",
+      "requests": 33,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Protocol(Scope)"
+      },
+      "journal_sha256": "8a1cdf9feba2e0ee5345016e478ec8e3aef9cde66f96085dbd0d9ce53b89bf9e",
+      "prekey_sha256": "b310b7557551f423b2cb21bf0dc446d656b424164d8cf6e9ff21fe8a7190b4ec",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "drop",
+      "requests": 41,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: Other, error: \"browser witness transport: Network\" }))"
+      },
+      "journal_sha256": "ab4368f52c15e9fb95b4c8e79df14d9d5e5b985262689e04ca465edccb4932b8",
+      "prekey_sha256": "495675f3c16dea6b68a16b2f0562a94a24eb88add2db62c93cfbe39b34c11bbc",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "timeout",
+      "requests": 41,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: TimedOut, error: \"browser witness transport: Timeout\" }))"
+      },
+      "journal_sha256": "4f67245b503a0294f1cf143bd6386ad69648404fd8aee08e17d9d18a834ecacd",
+      "prekey_sha256": "b4929838b9c0baa581f21eed9cb58a6a43b1df45d2a87cd4b956c21cd91b00fe",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "cancel",
+      "requests": 41,
+      "rejection": {
+        "cancellationRequested": true,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: Interrupted, error: \"browser witness transport: Cancelled\" }))"
+      },
+      "journal_sha256": "c5bdadc00563b10ffe5c9fd1020f824d5e1b1ff830792650467b49924f524a3e",
+      "prekey_sha256": "a0086d6e6342e39b3791cc08ac11bbdd1d522818f1acda4c82f588bb5f31500f",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "corrupt",
+      "requests": 34,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Verification(Authentication))"
+      },
+      "journal_sha256": "1ce88dcdaa532e7ccfdbd1b088e582fa3320fd2f2fd158378a5f0d70153feb7b",
+      "prekey_sha256": "305591312d388e7f9cceaa2a4eb2e67a43f616b4e47283cd71a65f07bfb4d934",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    },
+    {
+      "case": "oversized",
+      "requests": 34,
+      "rejection": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: InvalidData, error: \"browser witness transport: InvalidResponse\" }))"
+      },
+      "journal_sha256": "c5a464c84cf7f05861bc3b3fa374d934a302242702ba5f9b1c34b535bf5beb39",
+      "prekey_sha256": "bdac21ed4f31eac09557a7d26f14f57d8e6e242c93c83ef294adc1492a060902",
+      "committed_revisions": [
+        1,
+        2,
+        3
+      ],
+      "fence": 1
+    }
+  ],
+  "endpoint_controls": {
+    "diagnostics": [],
+    "dropped_polled_future": true,
+    "endpoints": [
+      {
+        "actual": "https://example.com/witness",
+        "expected": "https://example.com/witness",
+        "loopback": false
+      },
+      {
+        "actual": "http://127.0.0.1:8080/witness",
+        "expected": "http://127.0.0.1:8080/witness",
+        "loopback": true
+      },
+      {
+        "actual": "http://[::1]:8080/witness",
+        "expected": "http://[::1]:8080/witness",
+        "loopback": true
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": false
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": true
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": true
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": false
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": false
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": false
+      },
+      {
+        "actual": "InvalidEndpoint",
+        "expected": "InvalidEndpoint",
+        "loopback": false
+      }
+    ],
+    "frames": [
+      {
+        "actual": "HttpStatus",
+        "name": "status",
+        "status": 503
+      },
+      {
+        "actual": "Network",
+        "name": "redirect"
+      },
+      {
+        "actual": "InvalidResponse",
+        "name": "short"
+      },
+      {
+        "actual": "InvalidResponse",
+        "name": "overflow"
+      }
+    ],
+    "passed": true
+  },
+  "validation": {
+    "native_clippy": "passed",
+    "wasm_clippy": "passed",
+    "rustfmt": "passed",
+    "js_syntax": "passed",
+    "artifact_tests": 13,
+    "browser_driver_terminal_exit": 0
+  },
+  "source_difference": "The isolated adapter adds activation_probe.rs, diagnostic methods to anchor/store.rs and a reexport in browser_enrollment_probe.rs; its native example and serde_json dependency are test-only. Main carrier implementation matches the tested source; its cancellation timer rustdoc was clarified after validation to avoid claiming a hard scheduling bound.",
+  "transport_scope": "Real browser Fetch to loopback HTTP and persistent independent native witness using the same protocol implementation; no HTTPS deployment or independent implementation claim.",
+  "excluded": [
+    "all private authorities, wrapping keys and witness stores",
+    "browser profiles and OPFS/IndexedDB secret state"
+  ],
+  "still_open": [
+    "final unified product WASM API",
+    "HTTPS deployment qualification",
+    "complete browser session/root/roster lifecycle and migrations",
+    "independent implementation interoperability",
+    "full release qualification"
+  ]
+}

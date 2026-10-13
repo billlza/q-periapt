@@ -7,6 +7,8 @@
 //! Account enrollment must independently pin the intended account and roster head.
 //! No production crate, C ABI, or language binding depends on this candidate.
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use anchor::AnchorFetchTransport;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use anchor::AnchorTcpTransport;
 /// Monotonic deadline clock. Native targets retain `std::time::Instant`; browser

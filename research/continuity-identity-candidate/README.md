@@ -47,6 +47,21 @@ This does not yet expose operational ownership through the final product API.
 The [activation evidence](../sdk-alpha1/evidence/20261013-browser-owned-activation/README.md)
 also records delayed publication receipts and actual published-file loss.
 
+`AnchorFetchTransport` provides the browser carrier for the same signed witness
+protocol. Its default constructor requires an absolute HTTPS URL without userinfo
+or a fragment. The host endpoint accepts one 3,674-byte request by POST and returns
+one 3,659-byte reply with `Content-Type: application/octet-stream`; cross-origin
+deployments must allow the application's origin and this content type through
+CORS. The carrier omits ambient credentials, refuses redirects, bounds streamed
+replies and honors the client's absolute deadline and one-way cancellation signal.
+Browser scheduling can delay cancellation/timeout delivery; late replies are refused.
+It performs no automatic retry. Neither abort nor timeout proves non-commit:
+the existing journal/client must reconcile the original operation and verify the
+complete signed reply against its independently supplied witness pin.
+The bundle must also place `src/anchor/transport/witness-fetch.js` beside the
+generated WASM glue. `for_loopback` explicitly permits HTTP only for numeric
+loopback addresses for diagnostics; it is not a fallback from HTTPS.
+
 Explicit original resume and new database staging reclaim only unpublished files
 inside the authenticated owned directory. The catalogue remains append-only;
 published files and live staging leases are retained. The complete bounded
@@ -76,8 +91,8 @@ Use a fresh output directory. The host also needs Chrome, the wasm32 target and
 a C compiler with WebAssembly support, as configured by `bindings-wasm`.
 
 This is a candidate enrollment boundary, not the unified product browser entry.
-Product bindings for operational owners, required-witness activation, complete
-session/root/roster lifecycle, transport and installed browser packaging remain
+Product bindings for operational owners, complete session/root/roster lifecycle,
+peer transport, HTTPS deployment and installed browser packaging remain
 integration work. The prototype
 uses storage schema 2 and does not migrate its earlier experimental schema.
 The non-extractable vault is an API restriction, not isolation from malicious
