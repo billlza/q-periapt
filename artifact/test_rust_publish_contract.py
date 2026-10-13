@@ -79,7 +79,8 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.1.5"',
+                'version = "0.0.0"' if name == "q-periapt-continuity-identity-candidate"
+                else 'version = "0.1.5"',
                 "",
             )
         )
@@ -1339,6 +1340,10 @@ class RustPublishContractTests(unittest.TestCase):
         # updated WASM support (238 -> 240). The opt-in offline policy-store
         # migration command adds redb 2.6.4 and twox-hash 2.1.4 (240 -> 242),
         # without changing the default SDK closure or the 46-package fuzz scope.
+        # Browser Continuity adds its already isolated P-256 arithmetic closure,
+        # maybe-async, mio and web-time: 17 registry entries, with no removals or
+        # upgrades of existing entries (242 -> 259). Its 0.0.0 local engine is
+        # admitted only in this workspace scope, not the publication/fuzz scopes.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1348,7 +1353,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            242,
+            259,
         )
         self.assertEqual(
             len(
@@ -1379,6 +1384,86 @@ class RustPublishContractTests(unittest.TestCase):
                 workspace,
                 scope="caller-selected",
             )
+
+    def test_browser_candidate_lock_admission_stays_private_and_exact(self) -> None:
+        candidate = "q-periapt-continuity-identity-candidate"
+        valid = normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+        self.assertEqual(
+            len(rust_publish_contract._parse_cargo_lock_scope(valid, scope="workspace")),
+            len(REGISTRY_PACKAGES),
+        )
+        self.assertNotIn(candidate, RUST_PUBLISHABLE_CRATES)
+        for scope, local in (("fuzz", RUST_FUZZ_LOCAL_CRATES),
+                             ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES)):
+            with self.subTest(scope=scope), self.assertRaisesRegex(
+                RustPublishContractError, "unexpected local package"
+            ):
+                rust_publish_contract._parse_cargo_lock_scope(
+                    normalized_cargo_lock(local_names=local | {candidate}), scope=scope
+                )
+        marker = f'name = "{candidate}"\nversion = "0.0.0"'.encode()
+        for replacement, message in (
+            (marker.replace(b'0.0.0', b'0.2.0'), "version differs"),
+            (marker + b'\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "'
+             + b'a' * 64 + b'"', "required local package from crates.io"),
+        ):
+            with self.subTest(message=message), self.assertRaisesRegex(
+                RustPublishContractError, message
+            ):
+                rust_publish_contract._parse_cargo_lock_scope(
+                    valid.replace(marker, replacement), scope="workspace"
+                )
+        with self.assertRaisesRegex(RustPublishContractError, "unexpected local package"):
+            rust_publish_contract._parse_cargo_lock_scope(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES | {"unreviewed-local"}),
+                scope="workspace",
+            )
+
+    def test_browser_dependency_capacity_is_bounded_by_lock_scope(self) -> None:
+        for scope, local, limit in (
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 259),
+            ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
+            ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
+        ):
+            registry = tuple((f"fixture-{index}", "1.0.0", "a" * 64)
+                             for index in range(limit + 1))
+            with self.subTest(scope=scope):
+                self.assertEqual(len(rust_publish_contract._parse_cargo_lock_scope(
+                    normalized_cargo_lock(local_names=local, registry_packages=registry[:-1]),
+                    scope=scope,
+                )), limit)
+                with self.assertRaisesRegex(RustPublishContractError, "registry package limit"):
+                    rust_publish_contract._parse_cargo_lock_scope(
+                        normalized_cargo_lock(local_names=local, registry_packages=registry),
+                        scope=scope,
+                    )
+
+    def test_sparse_helper_receipt_uses_the_same_scope_capacity(self) -> None:
+        for scope, local, limit in (
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 259),
+            ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
+            ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
+        ):
+            data = normalized_cargo_lock(local_names=local, registry_packages=tuple(
+                (f"fixture-{index}", "1.0.0", "a" * 64) for index in range(limit)
+            ))
+            for count in (limit, limit + 1):
+                def runner(command, **_arguments):
+                    self.assertEqual(command[-3], scope)
+                    return BoundedResult(0, json.dumps({
+                        "schema": 1, "ok": True, "registry_packages": count,
+                        "lock_sha256": hashlib.sha256(data).hexdigest(),
+                    }).encode())
+                with self.subTest(scope=scope, count=count):
+                    if count == limit:
+                        self.assertEqual(rust_publish_contract._validate_crates_io_sparse_via_helper(
+                            data, runner=runner, scope=scope,
+                        ), count)
+                    else:
+                        with self.assertRaisesRegex(RustPublishContractError, "success result is malformed"):
+                            rust_publish_contract._validate_crates_io_sparse_via_helper(
+                                data, runner=runner, scope=scope,
+                            )
 
     def test_workspace_dependency_audit_isolated_argv_environment_and_cleanup(
         self,

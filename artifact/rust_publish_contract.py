@@ -92,6 +92,9 @@ RUST_SPARSE_AGGREGATE_MAX_BYTES = 128 * 1024 * 1024
 RUST_SPARSE_INDEX_MAX_WORKERS = 8
 RUST_SPARSE_LOCK_MAX_BYTES = 4 * 1024 * 1024
 RUST_SPARSE_MAX_REGISTRY_PACKAGES = 256
+# The browser engine brings the reviewed workspace closure to 259 entries.
+# Keep the smaller normalized/fuzz resource bound unchanged.
+RUST_WORKSPACE_MAX_REGISTRY_PACKAGES = 259
 RUST_SPARSE_ACCEPTANCE_TIMEOUT_SECONDS = 275
 RUST_SPARSE_HELPER_TIMEOUT_SECONDS = 295
 RUST_SPARSE_TOTAL_TIMEOUT_SECONDS = 300
@@ -170,6 +173,8 @@ RUST_WORKSPACE_LOCAL_CRATES = frozenset(
     {
         "q-periapt-backends",
         "q-periapt-cli",
+        # Optional private browser engine, not part of the publication cohort.
+        "q-periapt-continuity-identity-candidate",
         "q-periapt-continuity-model",
         "q-periapt-core",
         "q-periapt-ctstats",
@@ -472,6 +477,12 @@ def _local_crates_for_lock_scope(scope: str) -> frozenset[str]:
     raise RustPublishContractError(f"Cargo.lock scope is unsupported: {scope!r}")
 
 
+def _registry_package_limit(scope: str) -> int:
+    _local_crates_for_lock_scope(scope)
+    return (RUST_WORKSPACE_MAX_REGISTRY_PACKAGES if scope == "workspace"
+            else RUST_SPARSE_MAX_REGISTRY_PACKAGES)
+
+
 def _dependency_audit_stage_timeout(
     deadline: float | None,
     *,
@@ -538,6 +549,7 @@ def _parse_cargo_lock_scope(
     scope: str = "normalized-backends",
 ) -> tuple[_LockedRegistryPackage, ...]:
     local_crates = _local_crates_for_lock_scope(scope)
+    registry_limit = _registry_package_limit(scope)
     lock_label = f"{scope} Cargo.lock"
     if not isinstance(lock_data, bytes):
         raise RustPublishContractError(
@@ -591,6 +603,10 @@ def _parse_cargo_lock_scope(
                 raise RustPublishContractError(
                     f"{lock_label} contains a duplicate local package: {name}"
                 )
+            if name == "q-periapt-continuity-identity-candidate" and version != "0.0.0":
+                raise RustPublishContractError(
+                    f"{lock_label} private browser candidate version differs"
+                )
             if "checksum" in record:
                 raise RustPublishContractError(
                     f"{lock_label} local package has a checksum: {name}"
@@ -627,7 +643,7 @@ def _parse_cargo_lock_scope(
                 checksum=checksum,
             )
         )
-        if len(registry_packages) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
+        if len(registry_packages) > registry_limit:
             raise RustPublishContractError(
                 f"{lock_label} exceeds the registry package limit"
             )
@@ -830,7 +846,7 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
     if not callable(fetcher):
         raise RustPublishContractError("crates.io sparse index fetcher is not callable")
     names = sorted(by_name)
-    if len(names) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
+    if len(names) > _registry_package_limit(scope):
         raise RustPublishContractError(
             f"{lock_label} exceeds the unique registry name limit"
         )
@@ -1100,7 +1116,7 @@ def _validate_crates_io_sparse_via_helper(
             set(value) != expected_fields
             or result.returncode != 0
             or type(count) is not int
-            or not 1 <= count <= RUST_SPARSE_MAX_REGISTRY_PACKAGES
+            or not 1 <= count <= _registry_package_limit(scope)
             or value.get("lock_sha256") != lock_sha256
         ):
             raise RustPublishContractError(
