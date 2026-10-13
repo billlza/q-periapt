@@ -31,8 +31,8 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
-# Exact tracked Rust inventory, including native and C lifecycle sources.
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 581
+# Exact tracked Rust inventory, including native, C and browser lifecycle sources.
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 594
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 # The unchanged Metrics query took 304 seconds on the pinned frozen database.
 # Keep lighter queries/decoding bounded separately; this is not a quality bypass.
