@@ -267,6 +267,25 @@ witnesses are contacted through the controlled original signer, which is never
 exported. Pending maintenance, unacknowledged completion and reused terminal G
 identities are refused.
 
+Policy-only issuer preparation uses a separately retained
+`QPeriaptContinuityPolicyRequest.new_operation_id()`, with
+`policy_renewal_request(id, originalPolicy)` for local protection or
+`witnessed_policy_renewal_request(id, originalPolicy, witness)` for required
+witnesses. Close the operational owner and reopen its original registration.
+The returned request contains the original journal and owner, original/current
+credential commitments and signed credential/roster bytes, current roster
+checkpoint, original/previous policy checkpoints and exact previous policy
+authorization. The account and policy issuers must independently authenticate
+the caller and approve the same exact scope. The request does not authorize a
+policy change, reserve an operation or release traffic authority.
+
+These entries preserve native restrictions: pending maintenance must first be
+reconciled, and the current required-witness policy-only path refuses an
+installation that has adopted credential renewal G. A failed witnessed request
+must not be retried through local protection. Browser policy grant adoption,
+activation and the required-witness P-after-G lifecycle remain under development;
+this public request is not a completed policy renewal.
+
 Verify the independently issued bytes with `QPeriaptContinuityCredentialGrant`,
 using an independently retained target account pin, original historical policy
 and current trusted time. `stage_credential_renewal` retains that exact grant and

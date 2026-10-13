@@ -17,6 +17,7 @@ mod errors;
 pub(crate) mod http;
 mod inventory;
 mod opening;
+mod policy_requests;
 mod publication;
 mod roster;
 pub use errors::{failure, input_failure};

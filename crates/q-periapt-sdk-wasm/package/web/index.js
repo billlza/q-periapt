@@ -36,6 +36,7 @@ export { QPeriaptContinuityParticipant,
 export { QPeriaptContinuityRekeyProgress, QPeriaptContinuityRekeyCompletion } from './q_periapt_sdk_wasm.js';
 
 export { QPeriaptContinuityHistoricalPolicy,
+  QPeriaptContinuityPolicyRequest,
   QPeriaptContinuityCredentialRequest,
   QPeriaptContinuityRosterTarget,
   QPeriaptContinuityRosterProposal,

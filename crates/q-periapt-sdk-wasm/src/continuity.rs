@@ -12,6 +12,7 @@ mod credentials;
 mod history;
 mod inventory;
 mod peers;
+mod policy_requests;
 mod publication;
 mod rekey;
 mod roster;
