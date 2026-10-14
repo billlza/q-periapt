@@ -2,13 +2,13 @@
 use super::*;
 
 pub(super) fn exercise(carrier: &str, profile: &str, applied: bool) -> Result<()> {
-    exercise_with_cut(carrier, profile, applied, false)
+    exercise_with_cut(carrier, profile, applied, Cut::None)
 }
 pub(super) fn exercise_with_cut(
     carrier: &str,
     profile: &str,
     applied: bool,
-    query_cancel: bool,
+    cut: Cut,
 ) -> Result<()> {
     let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("case output")?);
     let client = PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("public client")?);
@@ -19,7 +19,7 @@ pub(super) fn exercise_with_cut(
         .recursive(true)
         .create(&output)?;
     let outcome = if applied { "applied" } else { "unapplied" };
-    let suffix = if query_cancel { "-query-cancel" } else { "" };
+    let suffix = cut.suffix();
     let base = output.join(format!("{carrier}-{profile}-{outcome}{suffix}"));
     fs::DirBuilder::new().mode(0o700).create(&base)?;
     let inputs = base.join("inputs");
@@ -45,6 +45,9 @@ pub(super) fn exercise_with_cut(
         retain(&inputs.join(name), &bytes)?;
     }
     let run = |mode: &str, label: &str| run_foreign(&client, profile, &inputs, &base, mode, label);
+    let interrupted = |mode: &str, label: &str| {
+        crate::android_retirement::interrupted(&client, profile, &inputs, &base, mode, label)
+    };
     let original = run("managed-witness-create", "original.request")?;
     let (certificate, roster) = issue_grant(&inputs, &authority, &intent, validity, &original)?;
     retain(
@@ -223,17 +226,28 @@ pub(super) fn exercise_with_cut(
     let before_completion =
         crate::witness_tls_faults::snapshot(&witness._directory.path().join("witness.redb"))?;
     let before = transport.captures(&witness)?.len();
+    let before_confirm = || match cut {
+        Cut::None => Ok(()),
+        Cut::Cancellation => cancellation::exercise(
+            &base,
+            &inputs,
+            &transport,
+            &witness,
+            &original_request,
+            &run,
+        ),
+        Cut::ProcessLoss => process_loss::exercise(
+            &base,
+            &inputs,
+            &transport,
+            &witness,
+            &original_request,
+            &run,
+            &interrupted,
+        ),
+    };
     if applied {
-        if query_cancel {
-            cancellation::exercise(
-                &base,
-                &inputs,
-                &transport,
-                &witness,
-                &original_request,
-                &run,
-            )?;
-        }
+        before_confirm()?;
         // Confirm existing signed history before calling any privileged recovery
         // method: no independent fresh approval is needed for an earlier commit.
         assert_eq!(run("pending-confirm", "confirmed")?, [1]);
@@ -254,29 +268,20 @@ pub(super) fn exercise_with_cut(
     assert_eq!(before_completion == after_completion, applied);
     retain(&base.join("controller-read-only"), &[u8::from(applied)])?;
     if !applied {
-        if query_cancel {
-            cancellation::exercise(
-                &base,
-                &inputs,
-                &transport,
-                &witness,
-                &original_request,
-                &run,
-            )?;
-        }
+        before_confirm()?;
         assert_eq!(run("pending-confirm", "confirmed")?, [1]);
     }
     assert_eq!(run("pending-confirm", "retried")?, [1]);
     let captured = transport.captures(&witness)?;
     let queries = captured.get(before..).ok_or("confirmation Query records")?;
-    assert_eq!(queries.len(), 2 + usize::from(query_cancel));
+    assert_eq!(queries.len(), cut.query_count());
     let first = queries.first().ok_or("first Query")?;
     let mut challenges = std::collections::BTreeSet::new();
     let mut transcript = Vec::new();
     for (index, record) in queries.iter().enumerate() {
         assert_eq!(record.request.get(204), Some(&1));
         assert_eq!(record.reply.get(204), Some(&1));
-        assert_eq!(record.delivered, !query_cancel || index != 0);
+        assert_eq!(record.delivered, cut == Cut::None || index != 0);
         assert_eq!(record.request.get(4..12), Some(&b"QPANRQ01"[..]));
         assert_eq!(record.request.get(140..172), first.request.get(140..172));
         let challenge = record.request.get(172..204).ok_or("Query challenge")?;
@@ -286,7 +291,7 @@ pub(super) fn exercise_with_cut(
         transcript.extend_from_slice(&record.request);
         transcript.extend_from_slice(&record.reply);
     }
-    if query_cancel {
+    if cut != Cut::None {
         retain(&base.join("query-confirmation-transcript"), &transcript)?;
     }
     drop(captured);
@@ -322,8 +327,11 @@ pub(super) fn exercise_with_cut(
         b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n",
     )?;
     println!("qualified original pending write {carrier}/{profile}/{outcome}: public configuration, original unknown delivery, exact R2 effect, pre-cancel retained intent, query-only retry, expired activation refused");
-    if query_cancel {
+    if cut == Cut::Cancellation {
         println!("qualified pending Query cancellation {carrier}/{profile}/{outcome}: remote reply barrier, native cancellation with witness uncertainty, unchanged witness, retained original intent, distinct retry challenges");
+    }
+    if cut == Cut::ProcessLoss {
+        println!("qualified pending process loss {carrier}/{profile}/{outcome}: held Query process exit, lost confirmation result, original intent and target, fresh Query retries, expired activation refused");
     }
     Ok(())
 }

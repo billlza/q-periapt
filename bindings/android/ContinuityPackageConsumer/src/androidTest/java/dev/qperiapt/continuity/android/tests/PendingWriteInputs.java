@@ -18,12 +18,12 @@ final class PendingWriteInputs {
             WitnessInputs.install(inputs, arguments, "remote-roster-version", 8, 8, true);
             WitnessInputs.install(inputs, arguments, "remote-roster-digest", 32, 32, true);
             break;
-        case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved", "pending-confirm-cancelled", "pending-confirm-inflight":
+        case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved", "pending-confirm-cancelled", "pending-confirm-inflight", "pending-confirm-process-cut", "pending-confirm-result-cut":
             WitnessInputs.install(inputs, arguments, "pending-proposal", 393, 393, true);
             // This one-peer scenario is bounded by the qualification IPC channel.
             // Larger SDK requests require a separate file/stream transport check.
             WitnessInputs.install(inputs, arguments, "pending-metadata", 569, 65536, true);
-            if (operation.equals("pending-confirm-inflight")) {
+            if (operation.equals("pending-confirm-inflight") || operation.equals("pending-confirm-process-cut")) {
                 WitnessInputs.install(inputs, arguments, "cancel-control-token", 32, 32, true);
                 WitnessInputs.install(inputs, arguments, "cancel-control-address", 1, 128, false);
             }

@@ -20,12 +20,40 @@ mod accounting;
 mod cancellation;
 #[path = "android_pending_write/flow.rs"]
 mod flow;
+#[path = "android_pending_write/process_loss.rs"]
+mod process_loss;
 #[path = "android_pending_write/transport.rs"]
 mod transport;
 use accounting::{roster_metadata, ExpectedEffect, Request};
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Cut {
+    None,
+    Cancellation,
+    ProcessLoss,
+}
+impl Cut {
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Cancellation => "-query-cancel",
+            Self::ProcessLoss => "-process-loss",
+        }
+    }
+    fn query_count(self) -> usize {
+        match self {
+            Self::None => 2,
+            Self::Cancellation => 3,
+            Self::ProcessLoss => 4,
+        }
+    }
+}
+
 pub(crate) fn exercise_query_cancel(carrier: &str, profile: &str, applied: bool) -> Result<()> {
-    flow::exercise_with_cut(carrier, profile, applied, true)
+    flow::exercise_with_cut(carrier, profile, applied, Cut::Cancellation)
+}
+pub(crate) fn exercise_process_loss(carrier: &str, profile: &str, applied: bool) -> Result<()> {
+    flow::exercise_with_cut(carrier, profile, applied, Cut::ProcessLoss)
 }
 
 #[test]

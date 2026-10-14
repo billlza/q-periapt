@@ -60,7 +60,56 @@ def query_fixture(directory: Path, label: str) -> bytes:
     return stdout+pending.query_marker(label).encode()+b'\n'
 
 
+def process_fixture(directory: Path, label: str) -> bytes:
+    stdout=query_fixture(directory,label).replace(pending.QUERY_TESTS[label].encode(),pending.PROCESS_TESTS[label].encode())
+    stdout=stdout.replace(pending.query_marker(label).encode(),pending.process_marker(label).encode())
+    original=directory/(label+'-query-cancel');root=directory/(label+'-process-loss');original.rename(root)
+    binding=(root/'pending-before-expiry').read_bytes()[404:436];trust=label.split('-')[1]
+    for phase,name in [(1,'query-process-cut'),(2,'confirmation-result-cut')]:
+        (root/name).write_bytes(b'QPPCUT01'+bytes([phase])+binding);(root/(name+'.exit')).write_bytes((77).to_bytes(4,'big'))
+        (root/(name+'.stdout')).write_bytes(b'');(root/(name+'.stderr')).write_bytes(b'')
+    for name,mode in [('pending-after-process-cut','pending-request'),('pending-after-result-cut','pending-request-absent')]:
+        (root/(name+'.stdout')).write_bytes(f'{trust}:{mode}:passed\n'.encode());(root/(name+'.stderr')).write_bytes(b'')
+    (root/'pending-after-process-cut').write_bytes((root/'pending-before-expiry').read_bytes())
+    (root/'pending-after-result-cut').write_bytes((201).to_bytes(4,'big'))
+    for suffix in ['transcript','prefix','store-unchanged']:(root/('query-cancel-'+suffix)).rename(root/('process-cut-'+suffix))
+    (root/'process-cut-control').write_bytes(b'QPCCAN01'+b't'*32+binding+b'\1\4\0\x4d')
+    path=root/'query-confirmation-transcript';trace=bytearray(path.read_bytes());fourth=trace[-7334:];fourth[173:205]=b'\4'*32;path.write_bytes(trace+fourth)
+    return stdout
+
+
 class PendingWriteReaderTests(unittest.TestCase):
+    def test_process_loss_requires_both_real_cut_receipts_and_exact_recovery(self):
+        for label in pending.PROCESS_TESTS:
+            with self.subTest(label=label),tempfile.TemporaryDirectory() as temp:
+                root=Path(temp);stdout=process_fixture(root,label)
+                result=pending.verify_execution(stdout,root,label,process_loss=True)
+                self.assertEqual(result[label+'-process-loss']['foreign_processes'],23 if label.endswith('-applied') else 24)
+                with self.assertRaises(ValueError):pending.verify_execution(stdout,root,label,query_cancel=True,process_loss=True)
+
+    def test_process_failure_success_output_or_wrong_cut_cannot_pass(self):
+        label='tls-recoverable-applied'
+        for name,value in [('query-process-cut.exit',(0).to_bytes(4,'big')),('confirmation-result-cut.exit',(1).to_bytes(4,'big')),
+                           ('query-process-cut',b'QPPCUT01'+b'\2'+b'wrong'),('confirmation-result-cut',b'\1'),
+                           ('query-process-cut.stdout',b'passed\n'),('confirmation-result-cut.stderr',b'failure'),
+                           ('process-cut-control',b'generic disconnect'),('pending-after-result-cut',b'\1'),
+                           ('pending-after-process-cut',b'absent'),('process-cut-store-unchanged',b'\0')]:
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as temp:
+                root=Path(temp);stdout=process_fixture(root,label);(root/(label+'-process-loss')/name).write_bytes(value)
+                with self.assertRaises(ValueError):pending.verify_execution(stdout,root,label,process_loss=True)
+
+    def test_previous_query_capture_requires_its_exact_prior_catalog(self):
+        archive=sdk.ROOT/'research/sdk-alpha1/evidence/20261014-android-pending-query-cancellation/CAPTURE.zip'
+        with tempfile.TemporaryDirectory() as temp,zipfile.ZipFile(archive) as bundle:
+            root=Path(temp)
+            for name in bundle.namelist():
+                if '/public/' in name:
+                    path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(bundle.read(name))
+            stdout=bundle.read('host/host-run-07.stdout')
+            for label in pending.QUERY_TESTS:pending.verify_execution(stdout,root/'host/public',label,batch=True,query_cancel=True,catalog=contract.QUERY_PENDING_TESTS)
+            pending.verify_execution(bundle.read('device/execution.stdout'),root/'device/public','tls-recoverable-applied',query_cancel=True,catalog=contract.QUERY_PENDING_TESTS)
+            with self.assertRaises(ValueError):pending.verify_execution(stdout,root/'host/public',query_cancel=True,batch=True)
+
     def test_inflight_cancellation_requires_gated_native_result_and_distinct_challenges(self):
         for label in pending.QUERY_TESTS:
             with self.subTest(label=label),tempfile.TemporaryDirectory() as temp:

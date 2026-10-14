@@ -108,7 +108,14 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 String[] call = {inputs.getPath(), new File(base, leaf).getPath(), profile, operation, publicResult.getPath()};
                 if (pending) {
                     PendingWriteInputs.install(inputs, arguments, operation);
-                    PendingWriteProbe.main(call);
+                    PendingWriteProbe.run(call, value -> {
+                        Bundle cut = new Bundle(); cut.putString("stage", "pending-cut");
+                        cut.putInt("pid", android.os.Process.myPid());
+                        cut.putString("apk_sha256", result.getString("apk_sha256"));
+                        cut.putString("operation", operation); cut.putString("label", label);
+                        cut.putString("report", android.util.Base64.encodeToString(value, android.util.Base64.NO_WRAP));
+                        sendStatus(3, cut);
+                    });
                 } else if (root) {
                     RootInputs.install(inputs,arguments,operation,profile);
                     RootOwnedProbe.run(call,value -> {

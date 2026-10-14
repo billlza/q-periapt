@@ -30,6 +30,8 @@ mod android_credential_terminal;
 mod android_credential_traffic;
 #[path = "common/android_local_credential.rs"]
 mod android_local_credential;
+#[path = "common/android_pending_process.rs"]
+mod android_pending_process;
 #[path = "common/android_pending_query.rs"]
 mod android_pending_query;
 #[path = "common/android_pending_write.rs"]

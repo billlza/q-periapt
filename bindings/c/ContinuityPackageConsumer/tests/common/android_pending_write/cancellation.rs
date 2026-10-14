@@ -4,6 +4,7 @@ use std::{
     io::{self, Read, Write},
     net::TcpListener,
     path::Path,
+    sync::mpsc,
     thread,
 };
 
@@ -13,6 +14,7 @@ struct Control {
     marker: PathBuf,
     prefix: PathBuf,
     tls: bool,
+    process_exit: Option<mpsc::Receiver<()>>,
 }
 impl Control {
     fn serve(self) -> Result<Vec<u8>> {
@@ -71,11 +73,24 @@ impl Control {
         socket.flush()?;
         let mut observed = [0; 1];
         socket.read_exact(&mut observed)?;
-        assert_eq!(
-            observed,
-            [2],
-            "release requires the actual native cancellation result"
-        );
+        let process_cut = self.process_exit.is_some();
+        if let Some(exit) = self.process_exit {
+            assert_eq!(observed, [4], "process cut must acknowledge the held Query");
+            // Only this acknowledged cut connection may terminate without a
+            // normal cancellation result. A timeout is never process loss.
+            match socket.read(&mut [0]) {
+                Ok(0) => {}
+                Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+                other => return Err(format!("cut control did not disconnect: {other:?}").into()),
+            }
+            exit.recv_timeout(Duration::from_secs(3))?;
+        } else {
+            assert_eq!(
+                observed,
+                [2],
+                "release requires the actual native cancellation result"
+            );
+        }
         if self.tls {
             let released = self.marker.with_extension("released");
             fixture::publish_marker(
@@ -86,22 +101,27 @@ impl Control {
                     .ok_or("release name")?,
             )?;
         }
-        socket.write_all(&[3])?;
-        socket.flush()?;
         let mut transcript = received.to_vec();
-        transcript.extend_from_slice(&[1, observed[0], 3]);
+        if process_cut {
+            // EOF/RST plus the independently reaped process, not EOF alone.
+            transcript.extend_from_slice(&[1, 4, 0, 77]);
+        } else {
+            socket.write_all(&[3])?;
+            socket.flush()?;
+            transcript.extend_from_slice(&[1, observed[0], 3]);
+        }
         Ok(transcript)
     }
 }
 
-pub(super) fn exercise(
+pub(super) fn start_control(
     base: &Path,
     inputs: &Path,
     transport: &transport::Carrier,
     witness: &witness::Witness,
     original: &Request,
-    run: &impl Fn(&str, &str) -> Result<Vec<u8>>,
-) -> Result<()> {
+    process_exit: Option<mpsc::Receiver<()>>,
+) -> Result<(thread::JoinHandle<Result<Vec<u8>>>, PathBuf)> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let mut token = [0; 32];
     getrandom::fill(&mut token).map_err(io::Error::other)?;
@@ -128,17 +148,30 @@ pub(super) fn exercise(
         .copy_from_slice(&original.proposal.binding());
     let marker = base.join("pending-query-held");
     let (prefix, tls) = transport.hold_query(witness, &marker)?;
-    let before = transport.captures(witness)?.len();
-    let before_image =
-        crate::witness_tls_faults::snapshot(&witness._directory.path().join("witness.redb"))?;
     let control = Control {
         listener,
         expected,
         marker,
         prefix: prefix.clone(),
         tls,
+        process_exit,
     };
     let worker = thread::spawn(move || control.serve());
+    Ok((worker, prefix))
+}
+
+pub(super) fn exercise(
+    base: &Path,
+    inputs: &Path,
+    transport: &transport::Carrier,
+    witness: &witness::Witness,
+    original: &Request,
+    run: &impl Fn(&str, &str) -> Result<Vec<u8>>,
+) -> Result<()> {
+    let before = transport.captures(witness)?.len();
+    let before_image =
+        crate::witness_tls_faults::snapshot(&witness._directory.path().join("witness.redb"))?;
+    let (worker, prefix) = start_control(base, inputs, transport, witness, original, None)?;
     let outcome = run("pending-confirm-inflight", "query-cancelled");
     let gate = match worker.join() {
         Ok(result) => result,

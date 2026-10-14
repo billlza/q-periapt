@@ -329,13 +329,16 @@ pub(crate) fn interrupted(
             .spawn()?,
     );
     let status = fixture::wait(&mut child)?;
-    assert_eq!(
-        status.code(),
-        Some(77),
-        "{}",
-        String::from_utf8_lossy(&fs::read(base.join(format!("{name}.stderr")))?)
-    );
-    assert!(fs::read(base.join(format!("{name}.stdout")))?.is_empty());
-    assert!(fs::read(base.join(format!("{name}.stderr")))?.is_empty());
+    let stderr = fs::read(base.join(format!("{name}.stderr")))?;
+    if status.code() != Some(77)
+        || !fs::read(base.join(format!("{name}.stdout")))?.is_empty()
+        || !stderr.is_empty()
+    {
+        return Err(format!(
+            "{profile}/{name}: expected process exit77 without success output; {status}; {}",
+            String::from_utf8_lossy(&stderr)
+        )
+        .into());
+    }
     Ok(fs::read(base.join(name))?)
 }

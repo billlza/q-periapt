@@ -12,8 +12,13 @@ import static dev.qperiapt.continuity.android.tests.EnrollmentProbe.*;
 
 /** Public cancellation after an independently observed, withheld Query reply. */
 final class PendingWriteCancellation {
+    @FunctionalInterface interface HeldQueryAction { void run(Socket control) throws Exception; }
     private PendingWriteCancellation() { }
     static void run(ContinuityEnrollment enrollment, Path inputs, byte[] proposal, byte[] metadata) throws Exception {
+        run(enrollment, inputs, proposal, metadata, control -> { });
+    }
+    static void run(ContinuityEnrollment enrollment, Path inputs, byte[] proposal, byte[] metadata,
+            HeldQueryAction held) throws Exception {
         PendingWriteRecoveryRequest request = enrollment.pendingWriteRecoveryRequest();
         require(Arrays.equals(request.proposal(), proposal) && Arrays.equals(request.metadata(), metadata), "original cancellation request");
         byte[] token = read(inputs, "cancel-control-token");
@@ -43,6 +48,7 @@ final class PendingWriteCancellation {
                 require(control.getInputStream().read() == 1, "witness did not reach exact Query barrier");
                 require(worker.isAlive(), "Query returned before cancellation");
                 failed(3, enrollment::close);
+                held.run(control);
                 AtomicReference<Throwable> cancellation = new AtomicReference<>();
                 Thread canceller = new Thread(() -> {
                     try { enrollment.cancel(); }

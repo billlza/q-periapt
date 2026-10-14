@@ -8,6 +8,7 @@ import static dev.qperiapt.continuity.android.tests.EnrollmentProbe.*;
 
 /** Public configured enrollment only; the independent controller owns approval. */
 public final class PendingWriteProbe {
+    @FunctionalInterface public interface CutObserver { void beforeHalt(byte[] cutReceipt) throws Exception; }
     private PendingWriteProbe() { }
 
     private static byte[] complete(PendingWriteRecoveryRequest request) {
@@ -23,7 +24,7 @@ public final class PendingWriteProbe {
             .put(binding).put(metadata).put(signed).array();
     }
     private static void run(Path inputs, Path installation, Path output, String profile,
-            String mode, ConfigurationWitness witness) throws Exception {
+            String mode, ConfigurationWitness witness, CutObserver observer) throws Exception {
         require(witness != null, "original witness required");
         try (ContinuityConfiguration configuration = configuration(inputs, installation,
                 profile.equals("recoverable"), false)) {
@@ -57,6 +58,8 @@ public final class PendingWriteProbe {
                     PendingWriteCancellation.run(enrollment, inputs, read(inputs, "pending-proposal"), read(inputs, "pending-metadata"));
                     publish(output, ByteBuffer.allocate(4).putInt(218).array());
                 }
+                case "pending-confirm-process-cut", "pending-confirm-result-cut" ->
+                    PendingWriteProcessCut.run(enrollment, inputs, output, mode, observer);
                 case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved", "pending-confirm-cancelled" -> {
                     byte[] proposal = read(inputs, "pending-proposal"), metadata = read(inputs, "pending-metadata");
                     if (mode.equals("pending-confirm-damaged")) metadata[metadata.length - 1] ^= 1;
@@ -78,9 +81,12 @@ public final class PendingWriteProbe {
         }
     }
     public static void main(String[] args) throws Exception {
+        run(args, value -> { });
+    }
+    public static void run(String[] args, CutObserver observer) throws Exception {
         require(args.length == 5 && (args[2].equals("fixed") || args[2].equals("recoverable")), "pending write arguments");
         Path inputs = Path.of(args[0]), installation = Path.of(args[1]), output = Path.of(args[4]);
-        WitnessProbe.withWitness(inputs, args[3], witness -> run(inputs, installation, output, args[2], args[3], witness));
+        WitnessProbe.withWitness(inputs, args[3], witness -> run(inputs, installation, output, args[2], args[3], witness, observer));
         System.out.println(args[2] + ":" + args[3] + ":passed");
     }
 }
