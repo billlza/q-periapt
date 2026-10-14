@@ -202,7 +202,15 @@ fn route(profile: &str, committed: bool) -> Result<()> {
     run_route(profile, "local", committed)
 }
 fn run_route(profile: &str, carrier: &str, committed: bool) -> Result<()> {
-    let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("joint policy cases")?);
+    let parent = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("joint policy cases")?);
+    let output = if carrier == "local" {
+        parent
+    } else {
+        parent.join(format!(
+            "{carrier}-{profile}-{}",
+            if committed { "applied" } else { "closed" }
+        ))
+    };
     let driver =
         PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("joint policy driver")?);
     fs::DirBuilder::new().mode(0o700).create(&output)?;

@@ -42,6 +42,40 @@ class WitnessJointTests(unittest.TestCase):
                     self.assertEqual(value["terminal"], "applied" if applied else "closed")
                     self.assertEqual(value["original_message_retried"], applied)
 
+    def test_batch_requires_every_route_and_preserves_each_public_readback(self):
+        # Assemble parser input from retained single-route receipts. This is a
+        # validator control; the actual concurrent run is qualified separately.
+        lines = []
+        for label in joint.TESTS:
+            lines.extend(line for line in (self.root / "host" / label / "execution.stdout").read_bytes().splitlines()
+                         if not line.startswith(b"test result:"))
+        lines.append(b"test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out;")
+        stdout = b"\n".join(lines) + b"\n"
+        for label in joint.TESTS:
+            carrier, profile, outcome = label.split("-")
+            directory = self.root / "host" / label / "public"
+            result = joint.verify_execution(stdout, directory, carrier, profile, outcome == "applied", batch=True)
+            self.assertEqual(result, self.verify(directory, label))
+        passed = ("test " + next(iter(joint.TESTS.values())) + " ... ok").encode()
+        for damaged in (stdout.replace(passed, b"", 1), stdout + passed + b"\n",
+                        stdout.replace(passed, passed.replace(b"ok", b"FAILED"), 1),
+                        stdout.replace(b"8 passed; 0 failed", b"7 passed; 1 failed", 1)):
+            with self.subTest(damaged=damaged[-100:]), self.assertRaises(ValueError):
+                joint.verify_execution(damaged, self.root / "host/signed-fixed-applied/public",
+                                       "signed", "fixed", True, batch=True)
+
+    def test_batch_cannot_reuse_a_journal_witness_or_operation(self):
+        cases = {label: self.root / "host" / label / "public" for label in joint.TESTS}
+        joint.verify_batch_identities(cases)
+        with self.assertRaises(ValueError): joint.verify_batch_identities(dict(list(cases.items())[:-1]))
+        for name in ("original.identity", "inputs/witness-id", "inputs/credential-operation"):
+            with tempfile.TemporaryDirectory() as temp:
+                copied = Path(temp) / "public"
+                shutil.copytree(cases["signed-fixed-closed"], copied)
+                (copied / "signed-fixed" / name).write_bytes((cases["signed-fixed-applied"] / "signed-fixed" / name).read_bytes())
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    joint.verify_batch_identities(dict(cases, **{"signed-fixed-closed": copied}))
+
     def test_witness_binding_subject_and_joint_domain_are_exact(self):
         for label, name, offsets in (("signed-fixed-applied", "joint-proposal", (7,8,40,136,168,296,297)),
                                      ("tls-fixed-closed", "joint-cancellation", (7,8,40,136,168,248,249))):

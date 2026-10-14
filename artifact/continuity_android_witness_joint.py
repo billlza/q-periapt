@@ -59,9 +59,13 @@ def transcript(value: bytes, *, cached_terminal: bool = False) -> None:
     sdk.require(all(value[i] == 1 and value[i + 205] not in (5, 7) for i in range(0, len(value), 7334)), "history sent new Commit/Close")
 
 
-def verify_execution(stdout: bytes, directory: Path, carrier: str, profile: str, committed: bool) -> dict:
+def verify_execution(stdout: bytes, directory: Path, carrier: str, profile: str, committed: bool, *, batch: bool = False) -> dict:
     label = carrier + "-" + profile + ("-applied" if committed else "-closed")
-    sdk.require(label in TESTS, "joint witness route"); contract.verify_single(stdout, TESTS[label])
+    sdk.require(label in TESTS, "joint witness route")
+    if batch:
+        contract.verify_batch(stdout, frozenset(TESTS.values()))
+    else:
+        contract.verify_single(stdout, TESTS[label])
     base = directory / (carrier + "-" + profile)
     def read(name): return sdk.snapshot(base / name).data
     count = len(cases(committed))
@@ -148,15 +152,37 @@ def verify_execution(stdout: bytes, directory: Path, carrier: str, profile: str,
             "historical_reads": 2, "history_sends_no_commit_or_close": True, "release_claim_eligible": False}
 
 
+def verify_batch_identities(cases: dict[str, Path]) -> None:
+    sdk.require(set(cases) == set(TESTS), "joint witness batch routes differ")
+    identities, witnesses, operations = set(), set(), set()
+    for label, directory in cases.items():
+        carrier, trust, _ = label.split("-")
+        base = directory / (carrier + "-" + trust)
+        identity = sdk.snapshot(base / "original.identity").data
+        witness = sdk.snapshot(base / "inputs/witness-id").data
+        operation = sdk.snapshot(base / "inputs/credential-operation").data
+        sdk.require(len(identity) == 64 and len(witness) == len(operation) == 32,
+                    "joint witness batch identity width")
+        identities.add(identity[32:]); witnesses.add(witness); operations.add(operation)
+    sdk.require(len(identities) == len(witnesses) == len(operations) == len(TESTS),
+                "joint witness batch reused a journal, witness or operation")
+
+
 def qualify(binary, consumer, installed, output, profile, runtime, run) -> dict:
     results = {}
-    for label, test in TESTS.items():
+    directory = installed / "witness-joint-cases"
+    directory.mkdir(mode=0o700)
+    # Each native test owns a different identity, journal, witness and directory.
+    # Two waves of four retain both real expiry waits within the 15-minute bound.
+    stdout = run([str(binary), "android_policy_renewal::joint::witness::", "--test-threads=4", "--show-output"],
+                 profile + "-witness-joint", consumer, dict(runtime, QPC_ANDROID_CASES=str(directory)))
+    for label in TESTS:
         carrier, trust, outcome = label.split("-"); committed = outcome == "applied"
-        directory = installed / ("witness-joint-" + label)
-        stdout = run([str(binary), "--exact", test, "--nocapture"], profile + "-witness-joint-" + label,
-                     consumer, dict(runtime, QPC_ANDROID_CASES=str(directory)))
-        results[label] = verify_execution(stdout, directory, carrier, trust, committed)
+        case = directory / label
+        results[label] = verify_execution(stdout, case, carrier, trust, committed, batch=True)
         exported = output / ("android-jni-" + profile + "-witness-joint-" + label)
-        for name in public(carrier, committed): sdk.copy(directory / (carrier + "-" + trust) / name, exported / (carrier + "-" + trust) / name)
-        sdk.require(verify_execution(stdout, exported, carrier, trust, committed) == results[label], "joint witness public export differs")
+        for name in public(carrier, committed): sdk.copy(case / (carrier + "-" + trust) / name, exported / (carrier + "-" + trust) / name)
+        sdk.require(verify_execution(stdout, exported, carrier, trust, committed, batch=True) == results[label], "joint witness public export differs")
+    verify_batch_identities({label: directory / label for label in TESTS})
+    verify_batch_identities({label: output / ("android-jni-" + profile + "-witness-joint-" + label) for label in TESTS})
     return results

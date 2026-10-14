@@ -80,14 +80,16 @@ still present. This does not justify a production configuration change. The
 [retained comparison](research/sdk-alpha1/evidence/20261011-codeql-memory-control/CHECKS.json)
 records the exact inputs, query hashes, failure receipts and limits of the comparison.
 
-The workflow is now named `CodeQL evaluator control`. Its next comparison keeps
-the baseline allocation and changes only `--expect-discarded-cache` to
+The workflow is now named `CodeQL evaluator control`. Its latest comparison kept
+the baseline allocation and changed only `--expect-discarded-cache` to
 `--no-expect-discarded-cache`. The hypothesis is that retaining reusable
 intermediate results can reduce repeated computation. The original memory profiles
 remain available in the diagnostic CLI. The frozen database, 39 original query
 plans, four threads, 15-minute bound and fresh-result requirement remain unchanged.
-This is a pending diagnostic comparison, not an established fix for the current
-300-minute `SummaryStats` timeout. See the
+The [cache comparison](research/sdk-alpha1/evidence/20261014-codeql-cache-control/CHECKS.json)
+timed out in both arms at 900 seconds, again with 38 of 39 queries complete.
+It does not establish a fix for the current 300-minute `SummaryStats` timeout;
+the production configuration remains unchanged. See the
 [current observation and inventory repair](research/sdk-alpha1/evidence/20261014-codeql-evaluator-control/README.md).
 
 Rust and Swift emit the pinned action's diagnostic artifacts, which can

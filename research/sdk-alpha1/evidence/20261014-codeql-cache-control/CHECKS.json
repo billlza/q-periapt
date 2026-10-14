@@ -1,0 +1,28 @@
+{
+  "run": "https://github.com/billlza/q-periapt/actions/runs/38501404936",
+  "experiment_commit": "3fd559d69bf55163c0710591e25fb9130c244681",
+  "completed": false,
+  "production_config_changed": false,
+  "release_claim_eligible": false,
+  "archives": [
+    {
+      "id": 11866683135,
+      "name": "codeql-memory-reusable-cache",
+      "size_in_bytes": 16234506,
+      "digest": "sha256:fcf3533d51408084757b0b1ed643163a9f993cd8d1c6f3a7198e89e19794373c"
+    },
+    {
+      "id": 11865579638,
+      "name": "codeql-memory-baseline",
+      "size_in_bytes": 15993569,
+      "digest": "sha256:9e14df6097a0de529b4537c7f334caa117a81ba0bd6b2bbcd1c499e4f76736d2"
+    }
+  ],
+  "downloaded_archives_match_api_hashes": true,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 23161,
+    "sha256": "5e67402f2a8cb87c9f0bdcf7bd436c403b4358d3c328f730ece2b1b02d5a7d4e"
+  },
+  "result": "Both arms timed out at 900 seconds with unambiguous child cleanup, 38 query completions and original full SummaryStats unfinished. Query source and compiled hashes match. Cache reuse does not establish a fix."
+}
