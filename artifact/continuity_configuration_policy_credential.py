@@ -33,7 +33,7 @@ def _request(data: bytes, byteorder: str) -> tuple:
 
 def verify_execution(stdout: bytes, evidence: Path, *, language: str, carrier: str, profile: str, byteorder: str = sys.byteorder) -> dict:
     label = carrier + "-" + profile
-    sdk.require(language in ("C", "Swift") and label in TESTS and byteorder in ("little", "big"), "P/G qualification scope")
+    sdk.require(language in ("C", "Swift", "Kotlin") and label in TESTS and byteorder in ("little", "big"), "P/G qualification scope")
     text = stdout.decode()
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.M) == [TESTS[label]]
         and len(re.findall(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;", text, re.M)) == 1, "P/G native execution incomplete")
@@ -47,9 +47,9 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str, carrier: s
     sdk.require({p.name for p in evidence.iterdir()} == {label}, "P/G scenario set")
     folder = evidence / label
     commands = dict(account.COMMANDS)
-    lifetime = {"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"} if language == "Swift" else {}
+    lifetime = {"registry-closed": "REGISTRY_CLOSED", "registry-released": "REGISTRY_RELEASED"} if language in ("Swift", "Kotlin") else {}
     commands.update(lifetime)
-    names = account.BASE | {n + ".bin" for n in lifetime} | {n + "." + ext for n in commands for ext in ("stdout", "stderr")} | policy.names(carrier) | policy.EXPIRY
+    names = ({"registry-gc.bin"} if language == "Kotlin" else set()) | account.BASE | {n + ".bin" for n in lifetime} | {n + "." + ext for n in commands for ext in ("stdout", "stderr")} | policy.names(carrier) | policy.EXPIRY
     sdk.require({p.name for p in folder.iterdir()} == names | {"credential"}, "P/G public root inventory")
     data = {name: sdk.snapshot(folder / name, maximum=65536).data for name in names}
     sdk.require(parse_strict_json_bytes(data["manifest.json"], label="P/G manifest") == dict(schema_version=1, language=language, carrier=carrier, profile=profile, release_claim_eligible=False), "P/G manifest")
@@ -62,6 +62,11 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str, carrier: s
     for command, outcome in commands.items():
         sdk.require(data[command + ".stdout"] == f"QPC_CONFIGURATION_{outcome}\n".encode() and not data[command + ".stderr"], "P/G original process outcome")
     for name in lifetime: sdk.require(data[name + ".bin"] == data["request.bin"], "P/G registry lifetime scope")
+    if language == "Kotlin":
+        raw = data["registry-gc.bin"]
+        sdk.require(len(raw) == 16 and 1 <= int.from_bytes(raw[:8], "big") <= 1024
+            and 1 <= int.from_bytes(raw[8:12], "big") <= 32 and int.from_bytes(raw[12:16], "big") == 63,
+            "P/G Kotlin registry collection or slot reclamation was not observed")
     directory = folder / "credential"
     members = set(COMMANDS) | {n + "." + ext for n in COMMANDS for ext in ("stdout", "stderr")} | {n + ".bin" for n in INPUTS} | set(RECORDS)
     sdk.require({p.name for p in directory.iterdir()} == members, "G public inventory")
@@ -107,8 +112,9 @@ def verify_execution(stdout: bytes, evidence: Path, *, language: str, carrier: s
         original_message=data["unknown.bin"][32:].hex(), business_effects=1, public_readbacks=hashes)
 
 
-def qualify(outside, output, profile, runtime, helper, client, receiver, run, *, language: str) -> dict:
-    sdk.require(language in ("C", "Swift"), "qualified P/G client language")
+def qualify(outside, output, profile, runtime, helper, client, receiver, run, *, language: str, collector: str = "") -> dict:
+    sdk.require(language in ("C", "Swift", "Kotlin"), "qualified P/G client language")
+    sdk.require(collector in ("Serial", "G1") if language == "Kotlin" else collector == "", "P/G collector differs")
     binaries = {str(path): sdk.snapshot(Path(path), maximum=256 * 1024**2).sha256 for path in (helper, client, receiver)}
     results = {}
     for label, test in TESTS.items():
@@ -117,7 +123,7 @@ def qualify(outside, output, profile, runtime, helper, client, receiver, run, *,
         env = dict(runtime, QPC_CONFIGURATION_CLIENT=str(client), QPC_CONFIGURATION_LANGUAGE=language,
                    QPC_CONFIGURATION_RECEIVER=str(receiver), QPERIAPT_MANAGED_CONFIGURATION_EVIDENCE=str(evidence))
         env.pop("QPERIAPT_PUBLIC_SERVICE_EVIDENCE", None); env.pop("QPERIAPT_CONFIGURATION_EVIDENCE", None)
-        name = "policy-credential-" + language.lower() + "-" + profile + "-" + label
+        name = "policy-credential-" + language.lower() + "-" + profile + ("-" + collector.lower() if collector else "") + "-" + label
         stdout = run([str(helper), "--exact", test, "--nocapture"], name, runtime=env)
         results[label] = verify_execution(stdout, evidence, language=language, carrier=carrier, profile=trust)
         exported = output / (name + "-public")
@@ -126,4 +132,4 @@ def qualify(outside, output, profile, runtime, helper, client, receiver, run, *,
             sdk.copy(evidence / relative, exported / relative)
         sdk.require(verify_execution(stdout, exported, language=language, carrier=carrier, profile=trust) == results[label], "P/G exported readback differs")
     sdk.require(all(sdk.snapshot(Path(path), maximum=256 * 1024**2).sha256 == digest for path, digest in binaries.items()), "P/G executable drift")
-    return dict(completed=True, release_claim_eligible=False, language=language, routes=results, binaries=binaries)
+    return dict(completed=True, release_claim_eligible=False, language=language, collector=collector, routes=results, binaries=binaries)

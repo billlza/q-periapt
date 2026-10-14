@@ -509,8 +509,29 @@ before `commitWitnessedPolicyContinuation`. Target-free reservation uses
 `prepareWitnessedPolicyCancellation`; the existing witnessed close/reconcile calls
 accept the original transaction operation/statement for both G and G/T.
 
+For issuer renewal after independent P, export `credentialRenewalRequest(operation)`
+for local storage or `witnessedCredentialRenewalRequest(operation)` for required
+witness storage. Retain the operation and complete public request before sending
+it to the independent issuer. Its original identity/P0 and original credentials
+remain fixed; current policy authority and acknowledged predecessor reflect the
+actual resumed registration. A request is neither a journal reservation nor proof
+of issuer authentication/approval. The issuer still verifies, authorizes and
+deduplicates the requested operation. Public arrays are copied and owned.
+
+After independent P, `stageContinuedCredentialRenewal` carries that retained P.
+For required witnesses, prepare the exact extended proposal, obtain independent
+approval, and commit with the original G operation/statement. Unknown results
+retain those same identifiers and use `reconcileWitnessedCredentialRenewal`;
+historical recovery sends no new Commit or Close. Activate the retained independent
+policy with `activatePolicyRenewal`, which transfers the original owner. Local G
+under P likewise finishes through this activation path; joint-T reconciliation
+is not a substitute for independent-P activation.
+
 `PolicyRenewalProposal` and `PolicyRenewalCancellation` retain exact public bytes,
-G, optional T and adopt/carry mode. Their `statement` is T for adopt and G for
+G, optional T and adopt/carry mode. Version 03 instead exposes
+`independentPolicyStatement: PolicyRenewalStatementID` and leaves the joint
+`policyStatement` null. It only permits carry; independent P cannot be relabeled
+as a joint-T adoption. Version 02 retains the existing T semantics. Their `statement` is T for adopt and G for
 carry or legacy. These are neither approvals nor terminal receipts. The old
 296/248-byte credential metadata types remain unchanged. New native output
 records check exact supported lengths, grammar and unused byte-array tails;

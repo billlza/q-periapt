@@ -222,7 +222,13 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
             ContinuityNative.stagePolicyContinuation(it, grantCopy, pin, operation, approvalsCopy, previousDocument, previousT)
         } }
     }
-    /** Advance G while carrying the already adopted T under selected current P1. */
+    /** Original public issuer inputs for a local journal; no reservation or issuer approval. */
+    fun credentialRenewalRequest(operation: CredentialRenewalID): CredentialRenewalRequest =
+        reference.call { owner -> owner.call { ContinuityNative.credentialRenewalRequest(it, operation, false) } }
+    /** Required-witness issuer snapshot; retain exact original inputs across an unknown submission. */
+    fun witnessedCredentialRenewalRequest(operation: CredentialRenewalID): CredentialRenewalRequest =
+        reference.call { owner -> owner.call { ContinuityNative.credentialRenewalRequest(it, operation, true) } }
+    /** Advance G while carrying the already adopted independent P or joint T under selected current policy. */
     fun stageContinuedCredentialRenewal(wire: ByteArray, pin: AccountPin, operation: CredentialRenewalID): CredentialRenewalStatus {
         val copy = wire.clone()
         return reference.call { owner -> owner.call { ContinuityNative.stageContinuedCredentialRenewal(it, copy, pin, operation) } }

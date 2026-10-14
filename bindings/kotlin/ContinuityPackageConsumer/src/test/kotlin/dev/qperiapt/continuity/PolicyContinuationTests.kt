@@ -104,6 +104,28 @@ class PolicyContinuationTests {
         }
     }
 
+    @Test fun independentPolicyMetadataCannotBeRelabeledAsJointAdoption() {
+        val proposalBytes = metadata(true, 0).also { it[7] = '3'.code.toByte() }
+        val cancellationBytes = metadata(false, 0).also { it[7] = '3'.code.toByte() }
+        val proposal = ContinuityNative.decodePolicyProposalRecord(record(proposalBytes, true))
+        val cancellation = ContinuityNative.decodePolicyCancellationRecord(record(cancellationBytes, false))
+        assertNull(proposal.policyStatement); assertNull(cancellation.policyStatement)
+        assertEquals(PolicyRenewalStatementID(ByteArray(32) { 7 }), proposal.independentPolicyStatement)
+        assertEquals(proposal.independentPolicyStatement, cancellation.independentPolicyStatement)
+        assertEquals(proposal.credentialStatement, proposal.statement)
+        assertEquals(false, proposal.adoptsPolicy); assertEquals(PolicyContinuationMode.CARRY, proposal.mode)
+        proposalBytes.fill(0); assertEquals('3'.code.toByte(), proposal.encoded()[7])
+        for (isProposal in listOf(false, true)) {
+            val bytes = metadata(isProposal, 0).also { it[7] = '3'.code.toByte() }
+            val base = if (isProposal) 296 else 248
+            for (mode in listOf(1,2,255)) assertFailsWith<ContinuityBoundaryFailure> {
+                decode(record(bytes.clone().also { it[base] = mode.toByte() }, isProposal), isProposal)
+            }
+            assertFailsWith<ContinuityBoundaryFailure> { decode(record(bytes.clone().also { it.fill(0,base+1) },isProposal),isProposal) }
+            assertFailsWith<ContinuityBoundaryFailure> { decode(record(bytes.clone().also { it[7] = '4'.code.toByte() },isProposal),isProposal) }
+        }
+    }
+
     @Test fun extendedGrammarRejectsWrongLengthsTagsModesZeroBindingsAndNonzeroUnusedTail() {
         for (proposal in listOf(false, true)) {
             val base = if (proposal) 296 else 248

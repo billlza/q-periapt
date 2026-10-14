@@ -96,6 +96,13 @@ internal object ContinuityNative {
         "family" to array(32), "version" to JAVA_LONG, "digest" to array(32), "wire" to ADDRESS, "wire_length" to JAVA_LONG)
     private val policyRenewalProposalLayout = struct("length" to JAVA_INT, "bytes" to array(329))
     private val policyRenewalCancellationLayout = struct("length" to JAVA_INT, "bytes" to array(281))
+    private val credentialRenewalRequestLayout = struct("operation" to array(32), "journal" to array(32),
+        "original_owner" to array(32), "original_policy_digest" to array(32), "current_policy" to checkpointLayout,
+        "current_policy_authorization" to array(32), "has_current_policy_authorization" to JAVA_INT, "reserved" to JAVA_INT,
+        "previous_roster_checkpoint" to checkpointLayout, "original_roster_checkpoint" to checkpointLayout,
+        "previous_valid_from" to JAVA_LONG, "previous_valid_until" to JAVA_LONG, "account" to array(32),
+        "original_credential" to enrollmentRequestLayout, "original_roster" to enrollmentRequestLayout,
+        "previous_credential" to enrollmentRequestLayout, "previous_roster" to enrollmentRequestLayout)
     private val policyRenewalScopeLayout = struct("operation" to array(32), "journal" to array(32),
         "original_owner" to array(32), "original_credential" to array(32), "current_credential" to array(32),
         "current_roster" to checkpointLayout, "original_policy" to checkpointLayout, "previous_policy" to checkpointLayout,
@@ -205,6 +212,8 @@ internal object ContinuityNative {
         "prepare_publication" to function("qpc_device_v1_prepare_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS),
         "retire_publication" to function("qpc_device_v1_retire_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "abandon_publication" to function("qpc_device_v1_abandon_publication", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+        "credential_renewal_request" to function("qpc_enrollment_v1_credential_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
+        "witnessed_credential_renewal_request" to function("qpc_enrollment_v1_witnessed_credential_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "witnessed_policy_renewal_request" to function("qpc_enrollment_v1_witnessed_policy_renewal_request", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "prepare_witnessed_roster_refresh" to function("qpc_enrollment_v1_prepare_witnessed_roster_refresh", JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
         "recover_witnessed_roster_refresh_preparation" to function("qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation", JAVA_LONG, ADDRESS, ADDRESS),
@@ -888,6 +897,12 @@ internal object ContinuityNative {
             invoke(arena, "select_continued_policy", handle, arena.bytes(encoded), encoded.size.toLong(), encodePolicyDocument(arena, document))
         }
     }
+    @JvmSynthetic internal fun credentialRenewalRequest(handle: Long, operation: CredentialRenewalID, witnessed: Boolean): CredentialRenewalRequest =
+        Arena.ofConfined().use { arena ->
+            val output = arena.allocate(credentialRenewalRequestLayout)
+            invoke(arena, if (witnessed) "witnessed_credential_renewal_request" else "credential_renewal_request", handle, arena.bytes(operation.encoded()), output)
+            CredentialRequestCodec.decode(output.toArray(JAVA_BYTE))
+        }
     @JvmSynthetic internal fun policyRenewalRequest(handle: Long, operation: PolicyRenewalID, witnessed: Boolean = false): PolicyRenewalRequest =
         Arena.ofConfined().use { arena ->
             val output = arena.allocate(policyRenewalRequestLayout)
@@ -1599,6 +1614,7 @@ internal object ContinuityNative {
         "retired_authority" to retiredAuthorityLayout, "retired_inventory" to retiredInventoryLayout,
         "retired_proposal" to retiredProposalLayout, "retired_report_info" to retiredReportInfoLayout,
         "roster_resolution" to rosterResolutionLayout,
+        "credential_renewal_request" to credentialRenewalRequestLayout,
         "credential_renewal_status" to credentialRenewalStatusLayout,
         "credential_renewal_proposal" to credentialRenewalProposalLayout,
         "credential_renewal_cancellation" to credentialRenewalCancellationLayout,
@@ -1634,6 +1650,12 @@ internal object ContinuityNative {
     @JvmSynthetic internal fun policyDocumentOffsets(): Map<String, Long> =
         listOf("root", "root_length", "family", "version", "digest", "wire", "wire_length").associateWith {
             offset(policyDocumentLayout, it)
+        }
+    @JvmSynthetic internal fun credentialRequestOffsets(): Map<String, Long> =
+        listOf("operation", "journal", "original_owner", "original_policy_digest", "current_policy", "current_policy_authorization",
+            "has_current_policy_authorization", "reserved", "previous_roster_checkpoint", "original_roster_checkpoint", "previous_valid_from",
+            "previous_valid_until", "account", "original_credential", "original_roster", "previous_credential", "previous_roster").associateWith {
+            offset(credentialRenewalRequestLayout, it)
         }
     @JvmSynthetic internal fun credentialRenewalOffsets(): Map<String, Long> =
         listOf("phase", "operation", "statement", "checkpoint", "observed_at").associateWith {

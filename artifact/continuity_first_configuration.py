@@ -232,8 +232,8 @@ def qualify_foreign(outside, output, profile, runtime, native, run, client, *, l
             client, run, receiver=Path(receiver["path"]), language=language, collector=collector, managed=True)
         checked["managed_credential_renewal"] = _qualify(outside, output, profile, runtime, Path(helper["path"]),
             client, run, receiver=Path(receiver["path"]), language=language, collector=collector, managed=True, credential=True)
-    if language == "Swift":
+    if language in ("Swift", "Kotlin"):
         import continuity_configuration_policy_credential as policy_credential
         checked["managed_policy_credential_renewal"] = policy_credential.qualify(
-            outside, output, profile, runtime, Path(helper["path"]), client, Path(receiver["path"]), run, language=language)
+            outside, output, profile, runtime, Path(helper["path"]), client, Path(receiver["path"]), run, language=language, collector=collector)
     return checked

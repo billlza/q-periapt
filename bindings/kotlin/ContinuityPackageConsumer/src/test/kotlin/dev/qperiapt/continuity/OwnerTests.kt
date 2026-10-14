@@ -52,6 +52,7 @@ class OwnerTests {
             "publication_status" to (104L to 4L),
             "roster_proposal" to (417L to 1L), "roster_scope" to (192L to 8L),
             "roster_preparation" to (424L to 4L), "roster_progress" to (624L to 8L), "roster_target" to (40L to 8L),
+            "credential_renewal_request" to (33120L to 8L),
             "credential_renewal_status" to (120L to 8L),
             "credential_renewal_proposal" to (296L to 1L),
             "credential_renewal_cancellation" to (248L to 1L),

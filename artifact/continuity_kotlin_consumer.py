@@ -68,9 +68,15 @@ POLICY_TEST_NAMES = frozenset({
     "extendedGrammarRejectsWrongLengthsTagsModesZeroBindingsAndNonzeroUnusedTail",
     "independentPolicyDocumentOwnsInputsAndPreservesUnsignedCheckpoint",
     "adoptCarryAndLegacyKeepDifferentTransactionStatements",
+    "independentPolicyMetadataCannotBeRelabeledAsJointAdoption",
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "CredentialRequestTests": frozenset({
+        "credentialIssuerRequestLayoutAndOwnedUnsignedInputsMatchNative",
+        "issuerRequestRejectsContradictoryAuthorizationPredecessorValidityAndRecordTails",
+        "issuerSnapshotCallsPreservePreparedCancelledAndClosedOwnerBoundaries",
+    }),
     "RootReplacementTests": frozenset({
         "rootLayoutsAndAllFourIndependentInputsMatchNative",
         "rootApprovalsOwnBytesAndRejectWrongGrammarBoundsAndStates",
@@ -160,7 +166,7 @@ def maven_contract() -> jvm.MavenContract:
          "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
-         "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
+         "CredentialRenewalRequest", "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
          "RetiredReportProposal", "RetiredReportID", "RetiredDeviceReport", "RetiredErasureState",
          "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
          "PolicyRenewalScope", "PolicyRenewalRequest", "PolicyRenewalStatus", "PolicyRenewalAbandonment",

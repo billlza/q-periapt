@@ -175,7 +175,7 @@ private fun policyStatusBytes(value: PolicyRenewalStatus): ByteArray {
     }
     check(!b.hasRemaining()); return b.array()
 }
-private fun selectPolicyTarget(owner:ContinuityEnrollment,source:Path,target:String,recoverable:Boolean) {
+internal fun selectPolicyTarget(owner:ContinuityEnrollment,source:Path,target:String,recoverable:Boolean) {
     val input=source.resolve("policy-target")
     ContinuityConfiguration.prepareOpen("$target.policy-target",trust(input,recoverable),policy(input)).use {
         it.finishOpen(); it.selectContinuationTarget(owner)
@@ -223,7 +223,7 @@ fun main(arguments: Array<String>) {
     check(args.size in 5..6) { "argument count" }
     val mode = args[0]; val recoverable = when (args[1]) { "fixed" -> false; "recoverable" -> true; else -> error("profile") }
     check(mode in setOf("create", "resume", "reconcile", "reconcile-refused", "cancel-create", "gc-capacity", "select-target", "select-target-reject",
-        "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile") || mode in credentialModes) { "mode" }
+        "prepare", "activate", "activate-expired", "activate-unmanaged", "activate-closed-registry", "activate-released-registry", "activate-missing", "activate-bad-receipt", "wrong-witness", "cancel", "enroll-local", "connect", "uncertain-send", "retry-send", "retry-policy", "retry-credential", "policy-target-create", "policy-request", "policy-stage-refused", "policy-stage", "policy-reconcile", "policy-witness-prepare", "policy-witness-recover", "policy-witness-commit", "policy-witness-reconcile") || mode in credentialModes || mode in policyCredentialModes) { "mode" }
     val source = Path.of(args[2]); val target = args[3]; val output = args[4]; val carrier = args.getOrNull(5)
     if (mode == "gc-capacity") { gcCapacity(source, target, recoverable); println("QPC_CONFIGURATION_GC_PASS"); return }
     if (mode == "policy-target-create") {
@@ -268,10 +268,14 @@ fun main(arguments: Array<String>) {
                         registry = selectRegistry(registryPath, source, owner, mode == "prepare")
                     }
                     configuration.close()
-                    val credential = mode in credentialModes || mode == "retry-credential"
+                    val credential = mode in credentialModes || mode in policyCredentialModes || mode == "retry-credential"
                     var bytes = if (credential) credentialIdentity(owner) else owner.request().encoded()
                     marker = "QPC_CONFIGURATION_REQUEST_PASS"
                     when (mode) {
+                        in policyCredentialModes -> {
+                            bytes = policyCredentialOperation(owner,source,target,recoverable,carrier,mode)
+                            marker = "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION"
+                        }
                         in credentialModes -> {
                             if (mode == "credential-commit-closed") {
                                 checkNotNull(registry) { "credential commit requires original registry" }.close()

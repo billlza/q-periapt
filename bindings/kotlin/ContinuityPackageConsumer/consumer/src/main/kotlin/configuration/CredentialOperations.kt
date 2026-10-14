@@ -23,7 +23,7 @@ private fun resultCode(code: Int): ByteArray = ByteBuffer.allocate(4).order(Byte
 
 // Same-host public test readback shared with C; private JVM/native object
 // layouts and struct padding are not part of the public wrapper contract.
-private fun credentialStatusBytes(value: CredentialRenewalStatus): ByteArray {
+internal fun credentialStatusBytes(value: CredentialRenewalStatus): ByteArray {
     val bytes = ByteBuffer.allocate(120).order(ByteOrder.nativeOrder())
     fun record(phase: Int, operation: CredentialRenewalID, statement: CredentialRenewalStatementID,
                checkpoint: RosterCheckpoint? = null, observed: Counter64 = Counter64.ZERO) {

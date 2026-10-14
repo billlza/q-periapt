@@ -512,8 +512,8 @@ fn witnessed_registration_selected(
     let mut executed = 0usize;
     let credential = renewal == first_connection::RenewalKind::Credential;
     let language = client_language()?;
-    if policy_credential && (!managed || !matches!(language, "C" | "Swift")) {
-        return Err("P then G requires the C or Swift managed adapter".into());
+    if policy_credential && (!managed || !matches!(language, "C" | "Swift" | "Kotlin")) {
+        return Err("P then G requires a C, Swift or Kotlin managed adapter".into());
     }
     if credential && !matches!(language, "C" | "Swift" | "Kotlin") {
         return Err("credential first-use adapter is not qualified for this language".into());

@@ -42,15 +42,16 @@ private fun policyMetadata(length: Int, storage: ByteArray, proposal: Boolean): 
     check(storage.copyOfRange(length, capacity).all { it == 0.toByte() })
     val wire = storage.copyOf(length)
     val prefix = if (proposal) "QPCRNP" else "QPCRNC"
-    val tag = prefix + if (length == legacy) "01" else "02"
-    check(wire.copyOfRange(0, 8).contentEquals(tag.toByteArray(Charsets.US_ASCII)))
+    val version = wire[7].toInt() - '0'.code
+    check(version in 1..3 && length == legacy + (if (version == 1) 0 else 33))
+    check(wire.copyOfRange(0, 8).contentEquals((prefix + "0" + version).toByteArray(Charsets.US_ASCII)))
     // Reuse every original common-field/head check; the old decoders still
-    // reject v2 and accept only their own exact fixed-width records.
+    // reject extended versions and accept only their own exact fixed-width records.
     val original = wire.copyOf(legacy)
     (prefix + "01").toByteArray(Charsets.US_ASCII).copyInto(original)
     if (proposal) CredentialRenewalProposal.decode(original) else CredentialRenewalCancellation.decode(original)
     if (length != legacy) {
-        check(wire[legacy] == 0.toByte() || wire[legacy] == 1.toByte())
+        check(wire[legacy] == 0.toByte() || (version == 2 && wire[legacy] == 1.toByte()))
         check(wire.copyOfRange(legacy + 1, capacity).any { it != 0.toByte() })
     }
     return wire
@@ -60,7 +61,8 @@ private fun policyMetadata(length: Int, storage: ByteArray, proposal: Boolean): 
 class PolicyRenewalProposal private constructor(private val value: ByteArray) {
     val operation = CredentialRenewalID(value.copyOfRange(136, 168))
     val credentialStatement = CredentialRenewalStatementID(value.copyOfRange(168, 200))
-    val policyStatement = if (value.size == 329) PolicyContinuationStatementID(value.copyOfRange(297, 329)) else null
+    val policyStatement = if (value[7] == '2'.code.toByte()) PolicyContinuationStatementID(value.copyOfRange(297, 329)) else null
+    val independentPolicyStatement = if (value[7] == '3'.code.toByte()) PolicyRenewalStatementID(value.copyOfRange(297, 329)) else null
     val mode = if (value.size == 329) PolicyContinuationMode.entries[value[296].toInt()] else null
     val adoptsPolicy: Boolean get() = mode == PolicyContinuationMode.ADOPT
     val statement = CredentialRenewalStatementID(
@@ -78,7 +80,8 @@ class PolicyRenewalProposal private constructor(private val value: ByteArray) {
 class PolicyRenewalCancellation private constructor(private val value: ByteArray) {
     val operation = CredentialRenewalID(value.copyOfRange(136, 168))
     val credentialStatement = CredentialRenewalStatementID(value.copyOfRange(168, 200))
-    val policyStatement = if (value.size == 281) PolicyContinuationStatementID(value.copyOfRange(249, 281)) else null
+    val policyStatement = if (value[7] == '2'.code.toByte()) PolicyContinuationStatementID(value.copyOfRange(249, 281)) else null
+    val independentPolicyStatement = if (value[7] == '3'.code.toByte()) PolicyRenewalStatementID(value.copyOfRange(249, 281)) else null
     val mode = if (value.size == 281) PolicyContinuationMode.entries[value[248].toInt()] else null
     val adoptsPolicy: Boolean get() = mode == PolicyContinuationMode.ADOPT
     val statement = CredentialRenewalStatementID(
