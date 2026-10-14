@@ -88,6 +88,14 @@ checks signed TCP and mutual TLS, real expiry, Applied/Closed recovery and the
 accepted phone's actual package paths. Historical results still require fresh
 current-policy admission before operational use.
 
+For a later joint update, use the public renewal request's current credential,
+roster, policy and previous T. Keep the original installation and session; the
+original policy is no longer the immediate predecessor. The
+[successive-renewal qualification](../../../research/sdk-alpha1/evidence/20261014-android-joint-cycle/README.md)
+executes two G/T generations across all three storage/carrier profiles and both
+trust profiles on the host, plus TLS/recoverable on the accepted phone. The
+original unknown-delivery message survives both updates and produces one effect.
+
 For registry-managed traffic, independently associate the peer account as well as
 the local account. An unknown peer is refused even when its TLS certificate and
 bootstrap bundle are valid. After local renewal, call `preparePeerReopen` with
@@ -414,7 +422,7 @@ successor. Idle cancellation stops controller calls; closing it revokes managed
 successor operations. Historical state is not current traffic authorization.
 
 All five routes pass 724 host calls and 362 ART calls on the same accepted phone,
-including 124 host and 62 ART process cuts. The shared package qualifier now
-requires the complete 30-test catalog and all five bounded public exports; its
+including 124 host and 62 ART process cuts. The shared package qualifier
+requires every test in its current catalog and all five bounded public exports; its
 combined current-source run is a separate integration check. The interface remains
 an unpublished candidate.
