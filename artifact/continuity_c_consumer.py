@@ -49,6 +49,7 @@ EXPORTS |= {"qpc_enrollment_v1_" + name for name in
              "prepare_storage", "refresh_roster", "refresh_roster_with_policy", "activate", "credential_renewal_status",
              "stage_credential_renewal", "reconcile_expired_credential_renewal",
              "credential_renewal_request", "witnessed_credential_renewal_request",
+             "pending_write_request", "copy_pending_write_request", "confirm_pending_write_recovery",
              "prepare_witnessed_credential_renewal", "prepare_witnessed_credential_cancellation",
              "commit_witnessed_credential_renewal",
              "close_witnessed_credential_renewal", "reconcile_witnessed_credential_renewal")}
@@ -323,6 +324,9 @@ def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, st
 
 def verify_admission(stdout: bytes) -> None:
     tests = {
+        "enrollment::pending_recovery::tests::pending_request_layout_and_failed_output_are_stable",
+        "enrollment::pending_recovery::tests::pending_bounds_are_checked_before_reading_or_owner_admission",
+        "enrollment::pending_recovery::tests::pending_copy_failure_publishes_neither_output",
         "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
         "account_authority::tests::authority_registry_wrong_enrollment_root_is_refused_before_record_creation",
         "configuration::tests::account_authority::configured_first_account_selects_registry_after_request_and_requires_it_on_reopen",
@@ -384,7 +388,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 

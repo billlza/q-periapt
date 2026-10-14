@@ -140,6 +140,22 @@ impl Configuration {
     pub(crate) fn trusted_binding(&self) -> Option<[u8; 32]> {
         self.trusted.as_ref().map(|value| value.pin.binding())
     }
+    /// Historical inspection needs only the independently configured pin. It
+    /// neither opens a connection nor loads operational TLS credentials.
+    pub(crate) fn pin(&self, path: &Path) -> Result<p::AnchorPin> {
+        match &self.trusted {
+            Some(trusted) => Ok(trusted.pin.clone()),
+            None => Self::legacy_pin(
+                &OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?,
+            ),
+        }
+    }
+    fn legacy_pin(directory: &OwnedPrivateDirectory) -> Result<p::AnchorPin> {
+        Ok(p::AnchorPin::new(
+            p::AnchorIdentity::from_trusted_state(owner::array(directory, "witness-id")?)?,
+            p::PublicKey::decode(&owner::read(directory, "witness-public", 8192)?)?,
+        ))
+    }
     pub(crate) fn client(
         self,
         path: &Path,
@@ -174,10 +190,7 @@ impl Configuration {
                 // contract. Explicit configuration inputs never take this branch.
                 let directory =
                     OwnedPrivateDirectory::open(path).map_err(Failure::configuration)?;
-                let pin = p::AnchorPin::new(
-                    p::AnchorIdentity::from_trusted_state(owner::array(&directory, "witness-id")?)?,
-                    p::PublicKey::decode(&owner::read(&directory, "witness-public", 8192)?)?,
-                );
+                let pin = Self::legacy_pin(&directory)?;
                 let endpoint = match self.carrier {
                     Carrier::SignedTcp => Endpoint::SignedTcp(self.address),
                     Carrier::Tls => Endpoint::Tls(Box::new(self.tls(&directory)?)),

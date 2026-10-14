@@ -66,6 +66,7 @@ final class Native {
     static native void selectPolicy(long configuration, long enrollment);
     static native long prepareRetired(byte[][] inputs, long[] counters);
     static native byte[] retiredCommand(long handle, int operation, byte[][] inputs);
+    static native byte[] pendingWriteCommand(long handle, int operation, byte[][] inputs);
     static final int RETIRED_INVENTORY = 1, RETIRED_PREPARE_REPORT = 2, RETIRED_REPORT_PROPOSAL = 3,
         RETIRED_LOAD_REPORT = 4, RETIRED_PREPARE_ACK = 5, RETIRED_ACK_PROPOSAL = 6,
         RETIRED_JOURNAL_STATE = 7, RETIRED_ERASE_JOURNAL = 8, RETIRED_PREPARE_SIGNER = 9,

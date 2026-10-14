@@ -1580,3 +1580,30 @@ remain separate gates. Nine SIGKILL cuts follow public call returns, and the
 reverse receiver cut is inside the host callback after effect persistence; native
 in-commit storage cuts retain their separate qualification. This interface remains
 unpublished `qpc-owner/1`, outside product ABI 2.
+
+### Original pending-write confirmation
+
+An expired credential or protocol policy can leave an original witnessed write
+unresolved. On the same opened enrollment, call
+`qpc_enrollment_v1_pending_write_request` to obtain `qpc_pending_write_request_info_v1`.
+Allocate the two indicated buffers and call
+`qpc_enrollment_v1_copy_pending_write_request` with that exact `binding` and those
+exact lengths. A mismatched binding or a failed copy publishes neither output.
+Preparation reads original history and the pinned witness without network I/O or
+loading TLS credentials. It grants no operational authority.
+
+Retain the proposal, binding, complete metadata and signed request together. The
+metadata includes both complete source and target views; a digest alone cannot
+describe the proposed effect. An independently authorized controller must compare
+these views with the intended original operation before approving it. A valid
+historical device signature is not that approval. Metadata includes account and
+device linkage and belongs in the host's protected operation record.
+
+After that approval, `qpc_enrollment_v1_confirm_pending_write_recovery` accepts the
+retained proposal and complete metadata. It uses a fresh signed witness Query and
+confirms only the original target; it does not issue another Advance, choose a
+replacement operation, activate a runtime or renew traffic permission. If the
+result is unknown, close the failed owner, reopen the original enrollment, and
+retry with the same retained inputs. Normal cancellation, deadline and explicit
+close rules still apply. Current credential/policy admission remains a separate
+step before operational use.

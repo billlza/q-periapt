@@ -426,3 +426,27 @@ including 124 host and 62 ART process cuts. The shared package qualifier
 requires every test in its current catalog and all five bounded public exports; its
 combined current-source run is a separate integration check. The interface remains
 an unpublished candidate.
+
+### Original pending-write confirmation
+
+Resume the original enrollment through `ContinuityConfiguration.resumeEnrollment`
+with its original intent and pinned `ConfigurationWitness`. Its
+`pendingWriteRecoveryRequest()` returns a `PendingWriteRecoveryRequest` containing
+the proposal, binding, complete metadata and signed request as owned byte copies.
+Retain all four fields in protected host storage. Preparation reads historical
+policy and the original witness pin without a network request or TLS credential
+load; it grants no traffic permission.
+
+An independent controller must approve the exact original effect after comparing
+both metadata views with its retained intent. The historical signature alone is
+not approval. Call `confirmPendingWriteRecovery(approved, recordedMetadata)` with
+the retained proposal and full metadata after that approval. It performs a fresh
+signed Query and confirms only the original target. An unknown result requires
+closing the affected owner, reopening the same configuration/enrollment, and
+retrying those exact inputs. Success neither activates a device nor renews its
+credentials or policy. Run these synchronous operations off the UI thread and
+retain the existing explicit cancellation/join/close discipline.
+
+Host JNI boundary checks cover this interface. Positive recovery through this
+configured Android entry point and physical-device lifecycle execution retain
+their own qualification; JVM/Swift process results do not establish ART behavior.

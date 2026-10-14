@@ -4,6 +4,7 @@ use super::*;
 use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 use std::{io, path::PathBuf};
 mod credential_request;
+mod pending_recovery;
 pub(crate) mod policy;
 mod roster_refresh;
 pub(crate) use roster_refresh::qpc_enrollment_v1_refresh_roster_with_policy;
@@ -212,6 +213,7 @@ pub(crate) struct Owner {
     historical: Option<p::HistoricalSessionPolicy>,
     supplied: Option<crate::first_install::SuppliedPolicy>,
     witness: Option<witness::Configuration>,
+    pending_recovery: Option<p::PendingWriteRecoveryRequest>,
 }
 pub(crate) fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
     Ok(p::EnrollmentPaths::new(
@@ -261,6 +263,7 @@ impl Owner {
             historical: None,
             supplied,
             witness,
+            pending_recovery: None,
         });
         opening::check(cancel, deadline)?;
         Ok(result)

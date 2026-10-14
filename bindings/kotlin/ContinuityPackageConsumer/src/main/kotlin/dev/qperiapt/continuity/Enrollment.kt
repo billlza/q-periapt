@@ -53,6 +53,16 @@ internal data class EnrollmentPreparation(val intent: EnrollmentIntent, val acti
 /** Original native registration. Explicit resume never selects identity recreation. */
 class ContinuityEnrollment private constructor(native: NativeOwner) : AutoCloseable {
     private val reference = OwnerTransfer(native, "enrollment")
+    /** Inspect the exact ordinary intent without network, replay or a live runtime. */
+    fun pendingWriteRecoveryRequest(): PendingWriteRecoveryRequest =
+        reference.call { owner -> owner.call { PendingWriteRecoveryNative.request(it) } }
+    /** Retain these independently approved inputs after any missing result and
+     * reopen the original enrollment. Success grants no traffic permission. */
+    fun confirmPendingWriteRecovery(approved: ByteArray, recordedMetadata: ByteArray) {
+        require(approved.size == 393 && recordedMetadata.size in 1..8388608) { "invalid pending write input width" }
+        val proposal = approved.clone(); val metadata = recordedMetadata.clone()
+        reference.call { owner -> owner.call { PendingWriteRecoveryNative.confirm(it, proposal, metadata) } }
+    }
     companion object {
         @JvmSynthetic internal fun configured(native: NativeOwner): ContinuityEnrollment = ContinuityEnrollment(native)
         fun provisionWrappingKey(path: String) = ContinuityNative.enrollmentKey(path)

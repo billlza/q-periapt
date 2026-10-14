@@ -139,6 +139,9 @@ class SwiftConsumerTests(unittest.TestCase):
                  ("CredentialRequestTests", "testCredentialRequestNativeLayoutAndOwnedHistoricalFields"),
                  ("CredentialRequestTests", "testCredentialRequestRejectsContradictoryMetadataAndDirtyRecords"),
                  ("CredentialRequestTests", "testCredentialRequestFailureLeavesOutputUntouched"),
+                 ("PendingWriteRecoveryTests", "testPendingRequestLayoutAndIndependentCompleteSnapshot"),
+                 ("PendingWriteRecoveryTests", "testPendingMetadataRejectsScopeFramingAndOverflow"),
+                 ("PendingWriteRecoveryTests", "testPendingRequestFailurePreservesOutput"),
                  ("PolicyContinuationTests", "testIndependentPolicyDocumentOwnsInputAndMatchesNativeLayout"),
                  ("PolicyContinuationTests", "testExtendedProposalAndCancellationPreserveGAndTWithExplicitTransactionMode"),
                  ("PolicyContinuationTests", "testIndependentPolicyCarryKeepsItsOwnStatementDomain"),
@@ -182,8 +185,10 @@ class SwiftConsumerTests(unittest.TestCase):
         names += (("PeerConfigurationTests", "testCallerMutationCannotChangeStoredOrNativePeerInputs"),
                   ("PeerConfigurationTests", "testWidthsAndBoundsPrecedeNativeAdmission"))
         output = ("\n".join(f"Test Case '-[QPeriaptContinuityTests.{owner} {name}]' passed" for owner, name in names)
-                  + "\nExecuted 74 tests, with 0 failures").encode()
+                  + "\nExecuted 77 tests, with 0 failures").encode()
         swift.verify_tests(output, b"")
+        with self.assertRaisesRegex(ValueError, "all execute"):
+            swift.verify_tests(b"\n".join(line for line in output.splitlines() if b"PendingWriteRecoveryTests" not in line), b"")
         with self.assertRaisesRegex(ValueError, "all execute"):
             swift.verify_tests(output + output, b"")
         with self.assertRaisesRegex(ValueError, "all execute"):

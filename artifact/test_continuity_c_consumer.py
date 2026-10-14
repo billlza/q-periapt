@@ -11,6 +11,9 @@ import continuity_c_consumer as consumer
 class AdmissionTests(unittest.TestCase):
     def test_all_deadline_and_drain_tests_must_actually_execute(self):
         names = [
+            "enrollment::pending_recovery::tests::pending_request_layout_and_failed_output_are_stable",
+            "enrollment::pending_recovery::tests::pending_bounds_are_checked_before_reading_or_owner_admission",
+            "enrollment::pending_recovery::tests::pending_copy_failure_publishes_neither_output",
             "account_authority::tests::authority_registry_parent_close_blocks_all_existing_owner_routes_before_io",
             "account_authority::tests::authority_registry_wrong_enrollment_root_is_refused_before_record_creation",
             "configuration::tests::account_authority::configured_first_account_selects_registry_after_request_and_requires_it_on_reopen",
@@ -70,7 +73,7 @@ class AdmissionTests(unittest.TestCase):
             "root_foreign_preflight_preserves_owners_then_transfer_fences_cached_device",
             "root_foreign_resume_cleanup_keeps_successor_live_until_controller_close")]
         rows = [f"test {name} ... ok\n".encode() for name in names]
-        summary = b"test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        summary = b"test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
         complete = b"".join(rows) + summary
         consumer.verify_admission(complete)
         for invalid in (summary, b"".join(rows[:-1]) + summary,

@@ -72,6 +72,11 @@ POLICY_TEST_NAMES = frozenset({
 })
 
 INDEPENDENT_TEST_SUITES = {
+    "PendingWriteRecoveryTests": frozenset({
+        "pendingRequestOwnsCompleteDataAndMatchesNativeLayout",
+        "pendingRequestRejectsScopeTruncationExtensionAndOverflow",
+        "pendingRequestRejectsMissingOwnerAndOversizedInputBeforeDispatch",
+    }),
     "CredentialRequestTests": frozenset({
         "credentialIssuerRequestLayoutAndOwnedUnsignedInputsMatchNative",
         "issuerRequestRejectsContradictoryAuthorizationPredecessorValidityAndRecordTails",
@@ -166,7 +171,7 @@ def maven_contract() -> jvm.MavenContract:
          "ContinuityConfiguration", "ContinuityOwner", "ContinuityRecoveryOwner", "ContinuityDevice", "ContinuitySetup", "JournalID",
          "InstallationStatus", "InstallationPhase", "InstallationPreparation", "WitnessGenesis", "AccountTarget", "AccountOperationID",
          "AccountMemberState", "AccountReconciledMember", "AccountReconciliation",
-         "CredentialRenewalRequest", "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
+         "CredentialRenewalRequest", "PendingWriteRecoveryRequest", "ContinuityEnrollment", "ContinuityRetiredEnrollment", "RetiredEnrollmentAuthority", "RetiredInventory",
          "RetiredReportProposal", "RetiredReportID", "RetiredDeviceReport", "RetiredErasureState",
          "PolicyRenewalID", "PolicyRenewalStatementID", "PolicyAuthorizationID",
          "PolicyRenewalScope", "PolicyRenewalRequest", "PolicyRenewalStatus", "PolicyRenewalAbandonment",

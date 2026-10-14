@@ -925,3 +925,21 @@ journal and signer erasure sequence. Historical cleanup does not grant fresh
 successor authority. Logical erasure does not erase old pages, backups or wrapping
 keys. Use deterministic `close`/`use`; bounded Cleaner observations in the installed
 consumer are a test of the selected JVM, not a promise of prompt cleanup on every JVM.
+
+### Original pending-write confirmation
+
+Use `pendingWriteRecoveryRequest()` on the original opened enrollment to obtain
+an immutable `PendingWriteRecoveryRequest`. Persist its `proposal`, `binding`,
+complete `metadata` and `signedRequest` together; each `PublicBytes.encoded()`
+returns an independent copy. Preparation uses historical policy and the original
+witness pin without network I/O or TLS credential loading. The metadata contains
+account/device linkage and belongs in protected host storage.
+
+An independently authorized controller must compare the complete source and
+target views with its retained original intent. A historical device signature
+alone does not approve that effect. After approval, call
+`confirmPendingWriteRecovery(approved, recordedMetadata)` with the exact retained
+proposal and full metadata. It queries the witness and confirms only the original
+target. It does not submit another write or restore traffic permission. After an
+unknown result, explicitly close the affected owner, reopen the same enrollment,
+and retry the same inputs; current credential/policy admission remains separate.

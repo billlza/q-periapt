@@ -19,6 +19,20 @@ public final class ContinuityEnrollment implements AutoCloseable {
     public void cancel() { owner.action(2); }
     @Override public void close() { owner.close(); }
     public EnrollmentStatus status() { return owner.call(false, handle -> new EnrollmentStatus(Native.enrollmentQuery(handle, 1))); }
+    /** Inspect the exact ordinary intent without replay, network or a live runtime. */
+    public PendingWriteRecoveryRequest pendingWriteRecoveryRequest() {
+        return owner.call(false, handle -> new PendingWriteRecoveryRequest(Native.pendingWriteCommand(handle, 1, new byte[0][])));
+    }
+    /** Confirm only the independently approved exact target. After any missing
+     * result retain these same bytes and reopen the original enrollment. */
+    public void confirmPendingWriteRecovery(byte[] approved, byte[] recordedMetadata) {
+        byte[][] inputs = {ConfigurationInputs.copy(approved, 393, 393, "pending write proposal"),
+            ConfigurationInputs.copy(recordedMetadata, 1, 8388608, "complete pending write metadata")};
+        owner.call(false, handle -> {
+            RootOperations.empty(Native.pendingWriteCommand(handle, 2, inputs));
+            return null;
+        });
+    }
     public byte[] request() {
         return owner.call(false, handle -> {
             byte[] wire = Native.enrollmentQuery(handle, 2);

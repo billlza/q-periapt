@@ -899,3 +899,21 @@ rekey and bidirectional original-message recovery after owned process loss.
 The shared native fixture's `ROOT_C_*` marker names describe its wire format;
 the client-language record and executable identity distinguish the Swift
 facade from the C consumer. The peers share the same native engine.
+
+### Original pending-write confirmation
+
+On the original opened `ContinuityEnrollment`,
+`pendingWriteRecoveryRequest()` returns an immutable snapshot containing
+`proposal`, `binding`, complete `metadata` and `signedRequest`. Retain all four
+fields together in protected host storage. Preparation reads the historical
+policy and original witness pin without a network request or TLS credential
+load, including when current operational permission has expired.
+
+The independent controller must approve the exact original effect after checking
+both complete metadata views against its retained intent. The old device's
+signature and the returned binding do not supply this approval. Once approved,
+call `confirmPendingWriteRecovery(approved:recordedMetadata:)` with the retained
+proposal and full metadata. Confirmation uses a fresh signed witness Query;
+it neither submits another write nor activates a device. After a missing result,
+close and reopen the same enrollment and retry those exact inputs. Renewed
+credentials/policy and current admission are still required for traffic.

@@ -766,6 +766,37 @@ int32_t qpc_enrollment_v1_credential_renewal_request(uint64_t handle, const uint
     qpc_credential_renewal_request_v1 *request, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_witnessed_credential_renewal_request(uint64_t handle, const uint8_t operation[32],
     qpc_credential_renewal_request_v1 *request, qpc_error_v1 *error);
+/* Exact ordinary pending-write recovery after required-witness authority expiry.
+ * Uses the original enrollment, historical policy and independently configured
+ * witness. Request preparation creates no Runtime, sends no network request and
+ * neither applies nor discards an intent. It caches one immutable complete request
+ * until the next preparation or owner close. Copy both outputs with its binding;
+ * a stale binding fails. Durably retain proposal, complete metadata and signed
+ * request before a separately authenticated controller approves the exact effect.
+ * The old device signature does not authorize that controller decision.
+ * Confirmation verifies a fresh signed read-only Query and applies only the
+ * original sealed target. It grants no traffic permission or host report ACK.
+ * After any missing result, retain the same approval/metadata and reopen the same
+ * enrollment; local absence alone is never success. Later head advances conflict.
+ * Admitted native failure or late cancellation consumes the resource. Bounds are
+ * checked before admission; all regions obey the live/disjoint/aligned contract.
+ * All outputs are untouched on failure. This does not change product ABI 2.
+ */
+typedef struct {
+    uint32_t metadata_length; /* complete QPWRMD01, 1..8388608 bytes */
+    uint32_t signed_request_length; /* purpose-26 envelope, 1..8192 bytes */
+    uint8_t proposal[393]; /* canonical QPWRPL01; parsing is not approval */
+    uint8_t reserved_zero[3];
+    uint8_t binding[32];
+} qpc_pending_write_request_info_v1;
+int32_t qpc_enrollment_v1_pending_write_request(uint64_t handle,
+    qpc_pending_write_request_info_v1 *info, qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_copy_pending_write_request(uint64_t handle, const uint8_t binding[32],
+    uint8_t *metadata, size_t metadata_length, uint8_t *signed_request, size_t signed_request_length,
+    qpc_error_v1 *error);
+int32_t qpc_enrollment_v1_confirm_pending_write_recovery(uint64_t handle,
+    const uint8_t *approved, size_t approved_length, const uint8_t *metadata, size_t metadata_length,
+    qpc_error_v1 *error);
 typedef struct {
     qpc_policy_renewal_scope_v1 scope;
     uint8_t account[32];

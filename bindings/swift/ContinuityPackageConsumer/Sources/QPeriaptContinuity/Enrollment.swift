@@ -157,6 +157,16 @@ public final class ContinuityEnrollment: Sendable {
     private let reference: OwnerTransferReference
     private init(_ native: NativeOwner) { reference = OwnerTransferReference(native, label: "enrollment") }
 
+    /// Inspect the original ordinary intent without network, replay or a live runtime.
+    public func pendingWriteRecoveryRequest() throws -> PendingWriteRecoveryRequest {
+        try reference.call { try PendingWriteRecoveryOperations(native: $0).request() }
+    }
+    /// Confirm only the independently approved exact target. Retain the same inputs
+    /// after cancellation or a missing result; reopen the original enrollment.
+    public func confirmPendingWriteRecovery(approved: [UInt8], recordedMetadata: [UInt8]) throws {
+        try reference.call { try PendingWriteRecoveryOperations(native: $0).confirm(approved: approved, recordedMetadata: recordedMetadata) }
+    }
+
     // Adopt the same native reference after configuration-to-registration transfer.
     static func configured(_ native: NativeOwner) -> ContinuityEnrollment { ContinuityEnrollment(native) }
     func selectConfiguration(_ configuration: NativeOwner) throws {

@@ -61,6 +61,7 @@ public final class BridgeProbe {
         PolicyBridgeProbe.run();
         RosterBridgeProbe.run();
         RetiredBridgeProbe.run();
+        PendingWriteBridgeProbe.run();
         RootBridgeProbe.run();
         AccountBridgeProbe.run();
         RecoveryBridgeProbe.run();
