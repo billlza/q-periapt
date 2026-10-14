@@ -64,3 +64,10 @@ export {
   QPeriaptContinuityAccountMember,
   QPeriaptContinuityAccountMembers
 } from './q_periapt_sdk_wasm.js';
+
+export {
+  QPeriaptContinuityClosurePhase,
+  QPeriaptContinuityClosureStatus,
+  QPeriaptContinuityAccountAbandonment,
+  QPeriaptContinuitySessionClosure
+} from './q_periapt_sdk_wasm.js';

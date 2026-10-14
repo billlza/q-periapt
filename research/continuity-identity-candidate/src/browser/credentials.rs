@@ -49,6 +49,7 @@ impl BrowserDevice {
         let result = match op.state.as_mut() {
             Some(State::Enrollment(owner)) => owner.credential_renewal_status(),
             Some(State::Active(owner)) => owner.credential_renewal_status(),
+            Some(State::Recovery(_)) => Err(Error::State.into()),
             None => Err(DurableError::Closed),
         };
         op.finish(result).await

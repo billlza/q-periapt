@@ -357,7 +357,7 @@ exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
 binds each result to its source and carrier. Current-source registration package
-qualification, complete browser whole-account cleanup, remaining root/witness-key
+qualification, browser permanent-retirement and renewed-authorization composition, remaining root/witness-key
 replacement and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
@@ -391,7 +391,7 @@ acceptance for those Android routes on the selected phone.
 | --- | --- | --- |
 | Explicit new lineage and exact restart | C/Swift/Kotlin/Android configuration owners and the browser IndexedDB owner admit explicit first-use inputs; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Complete current-source archive/device qualification, deployed authority transport, broader creation faults and final product provisioning |
 | Device-scoped protocol service | Native shared service, foreign device-parent/peer owners and the browser device retain one journal and archive index under one installation lease; account calls pin the complete peer set | Complete lifecycle and source-bound qualification on every supported target |
-| Account-wide local transaction | Shared journal transaction with complete-set admission and per-member outcomes; native and foreign carriers, including Android, retain original operations; the installed browser package now commits and delivers to two original recipient sessions | Broader delivery faults/concurrency and authority lifecycle; browser restricted aggregate recovery/abandonment after expiry or retirement |
+| Account-wide local transaction | Shared journal transaction with complete-set admission and per-member outcomes; native and foreign carriers, including Android, retain original operations; the browser adds original-account/session recovery, complete loss reports and whole-reservation abandonment | Broader interruption/concurrency and authority lifecycle; browser permanent retirement and composed renewal-to-cleanup recovery |
 | Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign distribution qualification, remaining Android whole-account services, WASM authority/persistence integration and current-source qualification on every supported platform |
 | Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone | Complete current foreign distribution qualification, remaining foreign replacement authorization and WASM persistence |
 | Platform persistence | Native protected-file/redb engines, Android installation storage and the browser IndexedDB backend retain original write intents and reconcile uncertain commits | Remaining platform lifecycle/failure qualification and release admission under each backend's actual durability contract |
@@ -670,9 +670,16 @@ desktop FFM and in-memory policy tests cannot substitute for those boundaries.
 The product WASM entry point includes a persistent browser device over IndexedDB,
 bounded browser transport, original-session recovery and authority-maintenance
 APIs. The [installed complete-account delivery qualification](../../research/sdk-alpha1/evidence/20261014-browser-account-fanout/README.md)
-adds two-recipient atomic local submission and original-operation retry. Browser
-restricted aggregate recovery/abandonment after expiry or retirement remains
-open. Atomic persistence, revision exclusion, uncertain commits, restart, quota
+adds two-recipient atomic local submission and original-operation retry. The
+browser recovery owner now retains original enrollment, installation, archive and
+journal leases without constructing a current runtime. Local protection permits
+explicit loss accounting after credential/policy expiry; required protection
+retains the independent witness's authorization boundary. Fresh freezes,
+acknowledgements and metadata retirement require current witness authorization.
+Expiry permits historical reads and exact already-applied confirmation, not new
+advances or discarded pending intents. Permanent retirement and composed
+renewal-to-cleanup recovery remain separate admission work. Atomic persistence,
+revision exclusion, uncertain commits, restart, quota
 failure, cancellation and original witness reconciliation must retain their
 explicit contracts across the complete lifecycle. Browser capabilities must be
 reported, and unavailable required capabilities must fail without changing the

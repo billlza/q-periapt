@@ -123,6 +123,10 @@ pub struct FanoutAbandonmentJournal {
     maybe_async::must_be_sync
 )]
 impl FanoutAbandonmentJournal {
+    /// Original selected aggregate identity; this observation grants no authority.
+    pub fn operation_id(&self) -> FanoutId {
+        self.binding.id
+    }
     /// Reopen a local-only batch using its independently retained journal and batch
     /// identities plus the original archive index. Missing/invalid state fails.
     pub async fn open(
@@ -150,7 +154,7 @@ impl FanoutAbandonmentJournal {
     // and key. An installation owner additionally checks every authenticated
     // archive against its retained authority BEFORE any pending write is resolved.
     pub(crate) async fn open_installed(
-        path: &Path,
+        database: Database,
         key: JournalKey,
         expected: JournalIdentity,
         id: FanoutId,
@@ -158,7 +162,16 @@ impl FanoutAbandonmentJournal {
         client: Option<AnchorClient>,
         authority: &crate::RetainedInstallationAuthority,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, id, archives, client, Some(authority)).await
+        Self::from_database(
+            database,
+            key,
+            expected,
+            id,
+            archives,
+            client,
+            Some(authority),
+        )
+        .await
     }
     async fn open_inner(
         path: &Path,
@@ -171,6 +184,18 @@ impl FanoutAbandonmentJournal {
     ) -> Result<Self, DurableError> {
         archives.check_identity(expected)?;
         let db = open_private_database(path)?;
+        Self::from_database(db, key, expected, id, archives, client, authority).await
+    }
+    async fn from_database(
+        db: Database,
+        key: JournalKey,
+        expected: JournalIdentity,
+        id: FanoutId,
+        archives: &mut SessionArchiveStore,
+        client: Option<AnchorClient>,
+        authority: Option<&crate::RetainedInstallationAuthority>,
+    ) -> Result<Self, DurableError> {
+        archives.check_identity(expected)?;
         let (image, pending) = write_intent::load_cleanup_snapshot(&db, &key, expected)?;
         if let Some(authority) = authority {
             let required = match image.protection {

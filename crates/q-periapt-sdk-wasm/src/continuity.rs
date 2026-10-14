@@ -16,6 +16,7 @@ mod peers;
 mod policies;
 mod policy_requests;
 mod publication;
+mod recovery;
 mod rekey;
 mod roster;
 mod status;

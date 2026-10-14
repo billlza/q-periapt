@@ -6,7 +6,14 @@ use super::*;
 use engine::session_exchange as exchange;
 
 mod types;
-use types::{Delivery, Members, Status};
+use types::Delivery;
+pub(super) use types::{Members, Status};
+pub(super) fn status(id: engine::FanoutId, inner: engine::FanoutStatus) -> Status {
+    Status { id, inner }
+}
+pub(super) fn members(inner: engine::FanoutReconciliation) -> Members {
+    Members { inner }
+}
 fn operation(value: &Uint8Array) -> Result<engine::FanoutId, JsValue> {
     engine::FanoutId::from_trusted_state(array(value)?).map_err(protocol)
 }

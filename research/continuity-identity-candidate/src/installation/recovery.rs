@@ -60,20 +60,29 @@ impl InstallationRecovery {
     /// and authenticity are checked on session selection. Configuration remains
     /// trusted host state outside journal backups, not a rollback witness.
     pub async fn open(paths: InstallationPaths, key: JournalKey) -> Result<Self, DurableError> {
-        let db = open_private_database(&paths.configuration)?;
+        Self::open_with_storage(crate::storage::Storage::native()?, paths, key).await
+    }
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
+        paths: InstallationPaths,
+        key: JournalKey,
+    ) -> Result<Self, DurableError> {
+        let db = store.open_database(&paths.configuration).await?;
         let (identity, saved, phase) = read(&db)?;
         if phase != InstallationStatus::Active {
             return Err(DurableError::Suspended);
         }
         let authority = Authority::retained(&saved, &paths, identity, &key)?;
         let key_binding = key.installation_binding();
-        let archives = SessionArchiveStore::open(&paths.archives, identity).await?;
+        let archives =
+            SessionArchiveStore::open_with_storage(store.clone(), &paths.archives, identity)
+                .await?;
         Ok(Self {
             active: Some(RecoveryOwners {
                 archives,
                 key,
                 installation: DeviceInstallation {
-                    storage: crate::storage::Storage::native()?,
+                    storage: store,
                     active: Some(db),
                     paths,
                     identity,
@@ -83,6 +92,30 @@ impl InstallationRecovery {
                 authority,
             }),
         })
+    }
+    // Enrollment supplies an independent original journal/owner/policy binding.
+    // Check it before selecting a journal can reconcile any pending write.
+    pub(crate) fn require_enrollment_scope(
+        &self,
+        expected: JournalIdentity,
+        original: &VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+    ) -> Result<(), DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let installation = &owners.installation;
+        if installation.identity != expected
+            || installation.scope
+                != scope(
+                    &installation.paths,
+                    expected,
+                    installation.key_binding,
+                    original,
+                    policy,
+                )?
+        {
+            return Err(DurableError::Conflict);
+        }
+        Ok(())
     }
     /// Enumerate bounded index hints. Authentication and fresh original-witness
     /// admission occur when selecting a session, including an already closed one.
@@ -148,8 +181,13 @@ impl InstallationRecovery {
             (None, true) => return Err(DurableError::Conflict),
         }
         let identity = installation.identity;
+        archives.check_identity(identity)?;
+        let database = installation
+            .storage
+            .open_database(&installation.paths.journal)
+            .await?;
         let journal = FanoutAbandonmentJournal::open_installed(
-            &installation.paths.journal,
+            database,
             key,
             identity,
             id,
@@ -188,29 +226,20 @@ impl InstallationRecovery {
             authority.policy,
             authority.witness,
         )?;
-        let journal = match (authority.witness, anchor) {
-            (None, None) => {
-                SessionClosureJournal::open(
-                    &installation.paths.journal,
-                    key,
-                    installation.identity,
-                    &archive,
-                )
-                .await?
-            }
-            (Some(_), Some(client)) => {
-                SessionClosureJournal::open_anchored(
-                    &installation.paths.journal,
-                    key,
-                    installation.identity,
-                    &archive,
-                    client,
-                )
-                .await?
-            }
-            (Some(_), None) => return Err(DurableError::AnchorRequired),
-            (None, Some(_)) => return Err(DurableError::Conflict),
-        };
+        match (authority.witness, anchor.is_some()) {
+            (None, false) | (Some(_), true) => {}
+            (Some(_), false) => return Err(DurableError::AnchorRequired),
+            (None, true) => return Err(DurableError::Conflict),
+        }
+        let journal = SessionClosureJournal::open_with_storage(
+            installation.storage.clone(),
+            &installation.paths.journal,
+            key,
+            installation.identity,
+            &archive,
+            anchor,
+        )
+        .await?;
         Ok(InstalledSessionRecovery {
             active: Some(SessionOwners {
                 journal,

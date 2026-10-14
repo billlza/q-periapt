@@ -20,6 +20,7 @@ mod opening;
 mod policies;
 mod policy_requests;
 mod publication;
+mod recovery;
 mod roster;
 pub use errors::{failure, input_failure};
 pub use http::PeerEndpoint;
@@ -33,6 +34,7 @@ fn cleanup_error(primary: DurableError, cleanup: Result<(), DurableError>) -> Js
 enum State {
     Enrollment(Box<DeviceEnrollment>),
     Active(EnrolledDevice),
+    Recovery(Box<crate::EnrollmentRecovery>),
 }
 
 /// One original browser device, from enrollment through operational ownership.
@@ -55,6 +57,7 @@ impl BrowserDevice {
         let result = match op.state.as_mut() {
             Some(State::Enrollment(owner)) => owner.status(),
             Some(State::Active(owner)) => owner.enrollment_status(),
+            Some(State::Recovery(owner)) => owner.enrollment_status(),
             None => Err(DurableError::Closed),
         };
         op.finish(result).await
@@ -179,6 +182,12 @@ struct Operation<'a> {
     armed: bool,
 }
 impl Operation<'_> {
+    fn recovery(&mut self) -> Result<&mut crate::EnrollmentRecovery, DurableError> {
+        match self.state.as_mut() {
+            Some(State::Recovery(owner)) => Ok(owner),
+            _ => Err(Error::State.into()),
+        }
+    }
     fn active(&mut self) -> Result<&mut EnrolledDevice, DurableError> {
         match self.state.as_mut() {
             Some(State::Active(owner)) => Ok(owner),

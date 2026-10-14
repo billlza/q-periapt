@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 use crate::{FanoutId, FanoutMemberState, FanoutStatus};
+mod recovery;
 
 struct Group {
     sender: Device,

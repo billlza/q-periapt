@@ -260,3 +260,34 @@ async function accountDelivery(device: QPeriaptContinuityDevice,
   void count; void empty; void phase; void abandoned; void outcome; void memberPhase;
 }
 void accountDelivery;
+
+import { QPeriaptContinuityClosurePhase } from 'q-periapt-sdk-wasm/web';
+// Compile-only coverage of distinct original-account/session lifecycle phases.
+async function restrictedAccounting(accountOwner: QPeriaptContinuityDevice,
+    sessionOwner: QPeriaptContinuityDevice, original: QPeriaptContinuityHistoricalPolicy,
+    witness: QPeriaptContinuityWitness, required: boolean) {
+  if (required) {
+    await accountOwner.recover_account(data, original, witness);
+    await sessionOwner.recover_session(data, original, witness);
+  } else {
+    await accountOwner.recover_account_local(data, original);
+    await sessionOwner.recover_session_local(data, original);
+  }
+  const aggregate = await accountOwner.recovered_account_status();
+  aggregate.operation_id(); aggregate.phase(); aggregate.abandonment_id(); aggregate.free();
+  const members = await accountOwner.recovered_account_members(); members.free();
+  const batch = await accountOwner.begin_account_abandonment();
+  const batchJson: string = batch.to_json(), count: number = batch.member_count();
+  batch.operation_id(); const batchReport: Uint8Array = batch.report_id(); batch.free();
+  await accountOwner.acknowledge_account_abandonment(batchReport);
+  await accountOwner.retire_recovered_account();
+  const status = await sessionOwner.recovered_session_status();
+  const phase: QPeriaptContinuityClosurePhase = status.phase();
+  const saved: Uint8Array | undefined = status.report_id(); status.free();
+  const closure = await sessionOwner.begin_session_closure();
+  const closureJson: string = closure.to_json(); closure.session_id();
+  const report: Uint8Array = closure.report_id(); closure.free();
+  await sessionOwner.acknowledge_session_closure(report);
+  void batchJson; void closureJson; void count; void phase; void saved;
+}
+void restrictedAccounting;

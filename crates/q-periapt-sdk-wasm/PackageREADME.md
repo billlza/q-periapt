@@ -260,8 +260,51 @@ successful remote consumption. `retire_account_message` only removes aggregate
 metadata after every member has been acknowledged or explicitly accounted; its
 ID is never reused. Host business effects still need durable deduplication and
 are not atomic across recipients. Close/free erases the account-input object's
-SDK plaintext copy. These entry points require an activated original device;
-restricted cleanup of an inactive or retired installation is separate work.
+SDK plaintext copy. These delivery entry points require an activated original
+device. Restricted recovery below does not activate an owner; permanent device
+or account retirement still needs its distinct witness-proof workflow.
+
+For cleanup after policy/credential expiry or runtime closure, close the old
+operational owner and reopen the exact original browser device. Supply the
+independently retained `QPeriaptContinuityHistoricalPolicy` for its original
+installation. Select the retained aggregate ID with `recover_account_local` or
+`recover_account` with the original witness. Required protection refuses a local
+call or missing/conflicting witness. This consumes enrollment access into a
+cleanup-only owner; activation, renewal and ordinary message operations are
+unavailable on it. Status and member reconciliation retain the original IDs.
+
+This does not extend witness authorization. Its effective validity is the
+intersection of credential, roster and policy validity. Once that interval ends,
+the witness refuses fresh cleanup freezes, acknowledgements and retirement writes,
+just as it refuses other new state advances. Historical queries without an
+unapplied pending write, and exact confirmation of an already-applied command,
+remain possible. A refused write may leave the original intent pending; neither
+reopening nor a local fallback may discard or complete it. New writes need
+independent current witness authorization; permanent device/account retirement
+uses its separate approved workflow. Closing a local runtime while the witness
+authorization is still current is a different case and does allow restricted
+cleanup. A transport error alone does not prove whether the witness committed.
+
+A reserved batch is abandoned as a whole: call `begin_account_abandonment`,
+durably save the complete report with host deduplication, then acknowledge its
+exact `report_id`. A committed batch cannot be relabeled as an uncommitted
+reservation. Its unsettled sessions instead use `recover_session_local` or
+`recover_session`, followed by `begin_session_closure` and explicit host accounting
+before `acknowledge_session_closure`. Reopen the original account operation to
+reconcile all member outcomes and retire metadata only when every member is
+accounted. Closing a handle never acknowledges a report or confirms delivery.
+
+Each loss report's `to_json()` returns a complete metadata snapshot under schema 1.
+Byte IDs/digests are lowercase hexadecimal; all `u64` values are decimal strings
+so JSON storage cannot round them. Bounded lengths and roles are JSON numbers,
+and genuinely absent optional metadata is null. Account reports include every
+original session; both report kinds include complete rekey progress, reservations,
+epochs, unconfirmed ciphertext identities, unconsumed deliveries and skipped
+indices. Save the whole document, not just its ID or a selected member. It contains
+no plaintext/private keys and is not a protocol input or traffic authorization.
+Unknown commit results require reopening the original owner and reading its exact
+report/status. Logical state erasure does not establish erasure of backups or
+physical media. These recovery calls do not bypass permanent retirement.
 
 Current roster membership is rechecked before existing-session operations release
 data. Accepting a roster which removes a peer therefore blocks that peer's old

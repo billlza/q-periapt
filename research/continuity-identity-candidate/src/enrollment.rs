@@ -32,7 +32,9 @@ pub use managed_root::{
     ManagedAccountRootAdoption, ManagedAccountRootReplacement, ManagedAccountRootTransition,
 };
 mod policy_renewal;
+mod recovery;
 mod renewal;
+pub use recovery::EnrollmentRecovery;
 mod retirement;
 pub use retirement::{RetiredDeviceEnrollment, SigningFileErasureState};
 mod roster_refresh;

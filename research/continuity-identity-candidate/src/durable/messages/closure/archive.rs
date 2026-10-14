@@ -319,7 +319,15 @@ impl SessionClosureJournal {
         expected: JournalIdentity,
         archive: &SessionClosureArchive,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, archive, None).await
+        Self::open_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            expected,
+            archive,
+            None,
+        )
+        .await
     }
     /// Reopen with the original pinned witness and exact device signer. Their
     /// availability remains required after local policy expiry or revocation.
@@ -331,9 +339,18 @@ impl SessionClosureJournal {
         archive: &SessionClosureArchive,
         client: AnchorClient,
     ) -> Result<Self, DurableError> {
-        Self::open_inner(path, key, expected, archive, Some(client)).await
+        Self::open_with_storage(
+            crate::storage::Storage::native()?,
+            path,
+            key,
+            expected,
+            archive,
+            Some(client),
+        )
+        .await
     }
-    async fn open_inner(
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
         path: &Path,
         key: JournalKey,
         expected: JournalIdentity,
@@ -346,7 +363,7 @@ impl SessionClosureJournal {
             (Protection::Required { .. }, false) => return Err(DurableError::AnchorRequired),
             _ => return Err(DurableError::Conflict),
         }
-        let db = open_private_database(path)?;
+        let db = store.open_database(path).await?;
         let (image, pending) = write_intent::load_snapshot(&db, &key, scope.binding.owner)?;
         // Admit only an existing exact session or its original sealed activation
         // transaction. Preparation alone grants no permission to create that state.

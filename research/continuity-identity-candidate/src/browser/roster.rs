@@ -84,6 +84,7 @@ impl BrowserDevice {
         let result = match op.state.as_mut() {
             Some(State::Enrollment(owner)) => owner.witnessed_roster_refresh_progress(),
             Some(State::Active(owner)) => owner.witnessed_roster_refresh_progress(),
+            Some(State::Recovery(_)) => Err(Error::State.into()),
             None => Err(DurableError::Closed),
         };
         op.finish(result).await
