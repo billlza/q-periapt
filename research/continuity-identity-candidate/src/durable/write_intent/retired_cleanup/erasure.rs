@@ -139,7 +139,7 @@ impl<'a> Scope<'a> {
 
 impl DeviceJournal {
     pub(crate) fn retired_journal_has_terminal(
-        path: &Path,
+        db: &Database,
         key: &JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
@@ -147,10 +147,10 @@ impl DeviceJournal {
         report: &AnchorRetiredReportProposal,
     ) -> Result<bool, DurableError> {
         let scope = Scope::new(key, identity, retired, pin, report)?;
-        scope.read_terminal(&open_private_database(path)?)
+        scope.read_terminal(db)
     }
     pub(crate) fn retired_journal_state(
-        path: &Path,
+        db: &Database,
         key: &JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
@@ -158,27 +158,12 @@ impl DeviceJournal {
         report: &AnchorRetiredReportProposal,
     ) -> Result<JournalErasureState, DurableError> {
         let scope = Scope::new(key, identity, retired, pin, report)?;
-        let db = open_private_database(path)?;
-        if scope.read_terminal(&db)? {
+        if scope.read_terminal(db)? {
             return Ok(JournalErasureState::Erased);
         }
-        scope.check_inventory(&db)?;
+        scope.check_inventory(db)?;
         Ok(JournalErasureState::Retained)
     }
-    pub(crate) fn erase_retired_journal(
-        path: &Path,
-        key: &JournalKey,
-        identity: JournalIdentity,
-        retired: AnchorRetiredSubject,
-        pin: &AnchorPin,
-        report: &AnchorRetiredReportProposal,
-        receipt: &[u8],
-    ) -> Result<(), DurableError> {
-        let scope = Scope::new(key, identity, retired, pin, report)?;
-        scope.verify_receipt(receipt)?;
-        scope.erase(&open_private_database(path)?, receipt)
-    }
-    #[cfg(all(test, unix))]
     pub(crate) fn erase_retired_journal_in_database(
         db: &Database,
         key: &JournalKey,

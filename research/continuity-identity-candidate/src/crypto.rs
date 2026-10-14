@@ -13,6 +13,9 @@ use std::fmt;
 use zeroize::Zeroize;
 
 mod persistence;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub(crate) use persistence::browser_retirement::SigningFilePlan;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub(crate) use persistence::retirement::SigningFilePlan;
 #[cfg(all(test, unix))]
 pub(crate) use persistence::retirement::{

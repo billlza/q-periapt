@@ -2,7 +2,7 @@
 //! Complete public accounting snapshots. These JSON documents are not protocol inputs.
 use super::*;
 
-fn hex(bytes: &[u8]) -> String {
+pub(in crate::continuity) fn hex(bytes: &[u8]) -> String {
     format!(
         "\"{}\"",
         bytes
@@ -12,18 +12,18 @@ fn hex(bytes: &[u8]) -> String {
     )
 }
 // Decimal strings preserve every u64 through JSON.parse/stringify without rounding.
-fn integer(value: u64) -> String {
+pub(in crate::continuity) fn integer(value: u64) -> String {
     format!("\"{value}\"")
 }
 fn optional(value: Option<u64>) -> String {
     value.map(integer).unwrap_or_else(|| "null".into())
 }
-fn array_json(values: impl IntoIterator<Item = String>) -> String {
+pub(in crate::continuity) fn array_json(values: impl IntoIterator<Item = String>) -> String {
     format!("[{}]", values.into_iter().collect::<Vec<_>>().join(","))
 }
 // Keys are fixed ASCII schema literals. All values below come from typed numeric,
 // fixed-byte or enum fields, so no external string enters this encoding.
-fn object(fields: &[(&'static str, String)]) -> String {
+pub(in crate::continuity) fn object(fields: &[(&'static str, String)]) -> String {
     format!(
         "{{{}}}",
         fields
@@ -33,7 +33,7 @@ fn object(fields: &[(&'static str, String)]) -> String {
             .join(",")
     )
 }
-fn progress(value: &engine::RekeyProgress) -> String {
+pub(in crate::continuity) fn progress(value: &engine::RekeyProgress) -> String {
     let engine::RekeyProgress {
         confirmed_epoch,
         sending_epoch,
@@ -47,7 +47,7 @@ fn progress(value: &engine::RekeyProgress) -> String {
         ("pending_epoch", optional(*pending_epoch)),
     ])
 }
-fn reserved(value: &engine::ReservedAbandonment) -> String {
+pub(in crate::continuity) fn reserved(value: &engine::ReservedAbandonment) -> String {
     let engine::ReservedAbandonment {
         message,
         plaintext_bytes,
@@ -59,7 +59,7 @@ fn reserved(value: &engine::ReservedAbandonment) -> String {
         ("associated_data_bytes", associated_data_bytes.to_string()),
     ])
 }
-fn epoch(value: &engine::AbandonedEpoch) -> String {
+pub(in crate::continuity) fn epoch(value: &engine::AbandonedEpoch) -> String {
     let engine::AbandonedEpoch {
         epoch,
         acknowledged_before,

@@ -306,6 +306,46 @@ Unknown commit results require reopening the original owner and reading its exac
 report/status. Logical state erasure does not establish erasure of backups or
 physical media. These recovery calls do not bypass permanent retirement.
 
+For a permanently retired device generation, retain the independently approved
+complete replacement proposal, original subject and witness retirement receipt.
+`QPeriaptContinuityRetirement` verifies that receipt against the original witness
+pin and your retained proposal; never take the expected proposal from an incoming
+receipt. Close the old owner and use `QPeriaptContinuityDevice.open_retired` with
+the original name, ID, enrollment intent and verified retirement. This restricted
+owner cannot activate, renew or send traffic. It needs no current runtime.
+
+`retirement_inventory` returns the original complete inventory request. Retain its
+bytes before sending them to the independently authorized witness controller.
+Use its inventory receipt with `prepare_retired_report`, retain that exact report
+request and obtain the independent report-retention receipt. `retired_report`
+then returns the full report: `to_json()` includes every original source/target
+view, pending intent and unknown/lost outcome, while `to_bytes()` is the canonical
+host-accounting input. JSON uses hexadecimal bytes and decimal strings for u64
+values. These documents contain account/device linkage; store them as private
+host metadata. Neither an uncommitted target nor a committed send proves delivery.
+
+Durably account for the complete report, retaining its canonical bytes and request.
+Pass the exact read-back bytes and both receipts to
+`prepare_retired_host_acknowledgement`, then obtain the separate independent
+purpose-21 acknowledgement. Only this receipt permits `erase_retired_journal`.
+After authenticated journal erasure, `prepare_retired_signer_erasure` retains the
+original signer object's identity and exact encrypted-content fingerprint.
+`erase_retired_signer` atomically replaces that same IndexedDB object with its
+fixed retirement marker and closes the owner, awaiting actual storage release.
+It does not delete or recreate the original path. Native inode plans and browser
+catalogue-object plans have distinct encodings; they are not interchangeable.
+
+Reopen the same retired identity and original proof after an unknown result.
+The `*_request` methods recover independently saved expectations; `undefined`
+means local absence, never witness non-commit. Erasure-status methods authenticate
+the same original object or terminal; missing, swapped and malformed objects fail.
+Neither logical journal erasure nor signer retirement proves removal from old
+pages, backups, archives or previously copied owners. Browser catalogue secret
+revision 2 is only the fixed eight-byte signer terminal; older readers reject it.
+This device-retirement flow does not implement managed account-root cutover or
+repair the separate in-place renewal gap caused by an unapplied ordinary intent
+after required-witness authorization expires.
+
 Current roster membership is rechecked before existing-session operations release
 data. Accepting a roster which removes a peer therefore blocks that peer's old
 sessions. This operation does not distribute the roster, prove remote receipt or

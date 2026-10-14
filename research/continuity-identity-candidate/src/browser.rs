@@ -21,6 +21,7 @@ mod policies;
 mod policy_requests;
 mod publication;
 mod recovery;
+mod retirement;
 mod roster;
 pub use errors::{failure, input_failure};
 pub use http::PeerEndpoint;
@@ -35,6 +36,7 @@ enum State {
     Enrollment(Box<DeviceEnrollment>),
     Active(EnrolledDevice),
     Recovery(Box<crate::EnrollmentRecovery>),
+    Retired(Box<retirement::Retired>),
 }
 
 /// One original browser device, from enrollment through operational ownership.
@@ -58,6 +60,7 @@ impl BrowserDevice {
             Some(State::Enrollment(owner)) => owner.status(),
             Some(State::Active(owner)) => owner.enrollment_status(),
             Some(State::Recovery(owner)) => owner.enrollment_status(),
+            Some(State::Retired(_)) => Err(Error::State.into()),
             None => Err(DurableError::Closed),
         };
         op.finish(result).await

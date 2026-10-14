@@ -10,6 +10,9 @@ use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs::File, io::Read, path::Path};
 use zeroize::Zeroizing;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub(super) mod browser_retirement;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub(super) mod retirement;
 
 const HEADER: usize = 8 + 1 + 32 + 24;

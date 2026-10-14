@@ -393,7 +393,7 @@ acceptance for those Android routes on the selected phone.
 | Device-scoped protocol service | Native shared service, foreign device-parent/peer owners and the browser device retain one journal and archive index under one installation lease; account calls pin the complete peer set | Complete lifecycle and source-bound qualification on every supported target |
 | Account-wide local transaction | Shared journal transaction with complete-set admission and per-member outcomes; native and foreign carriers, including Android, retain original operations; the browser adds original-account/session recovery, complete loss reports and whole-reservation abandonment | Broader interruption/concurrency and authority lifecycle; browser permanent retirement and composed renewal-to-cleanup recovery |
 | Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign distribution qualification, remaining Android whole-account services, WASM authority/persistence integration and current-source qualification on every supported platform |
-| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone | Complete current foreign distribution qualification, remaining foreign replacement authorization and WASM persistence |
+| Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone; installed browser permanent retirement preserves full reports and original object identity across expiry, interruption and cancellation | Complete current foreign distribution qualification, remaining foreign replacement authorization, browser managed account-root cutover and wider lifecycle qualification |
 | Platform persistence | Native protected-file/redb engines, Android installation storage and the browser IndexedDB backend retain original write intents and reconcile uncertain commits | Remaining platform lifecycle/failure qualification and release admission under each backend's actual durability contract |
 
 The native fanout methods are in
@@ -677,14 +677,18 @@ explicit loss accounting after credential/policy expiry; required protection
 retains the independent witness's authorization boundary. Fresh freezes,
 acknowledgements and metadata retirement require current witness authorization.
 Expiry permits historical reads and exact already-applied confirmation, not new
-advances or discarded pending intents. Permanent retirement and composed
-renewal-to-cleanup recovery remain separate admission work. The native
+advances or discarded pending intents. The installed browser
+[permanent retirement qualification](../../research/sdk-alpha1/evidence/20261014-browser-permanent-retirement/README.md)
+now covers independent generation replacement, full two-view loss accounting,
+host acknowledgement and original journal/signer retirement after actual expiry.
+It also exercises cancellation, Worker termination and missing/replaced signer
+refusal. This separate exit does not provide composed in-place renewal. The native
 [cleanup/renewal boundary](../../research/sdk-alpha1/evidence/20261014-recovery-renewal-boundary/README.md)
 confirms that an unapplied ordinary intent can block both the renewal request and
 preparation of an independently approved G/T after witness expiry. An already-applied
 target with a lost reply reconciles. Independent replacement and permanent retired
-accounting are a separate native exit path; they do not provide in-place renewal
-or a browser retirement implementation. Atomic persistence,
+accounting are a separate exit path, now exposed by the browser owner; they do not
+provide in-place renewal or managed account-root cutover. Atomic persistence,
 revision exclusion, uncertain commits, restart, quota
 failure, cancellation and original witness reconciliation must retain their
 explicit contracts across the complete lifecycle. Browser capabilities must be

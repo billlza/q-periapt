@@ -8,6 +8,7 @@ use crate::{
     AnchorClient, AnchorGenesis, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey,
     PrekeyQuality, SessionArchiveStore, VerifiedDevice, VerifiedSessionPolicy,
 };
+#[cfg(all(test, unix))]
 use q_periapt_host_store::filesystem::open_private_database;
 use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
 use std::path::{Component, Path, PathBuf};

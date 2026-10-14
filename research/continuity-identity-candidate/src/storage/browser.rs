@@ -11,6 +11,7 @@ use std::{
 };
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
+mod secrets;
 
 #[wasm_bindgen(raw_module = "./storage-root.js")]
 extern "C" {
@@ -52,6 +53,12 @@ extern "C" {
     async fn read_secret(this: &StorageRoot, path: &str) -> Result<HostSecret, JsValue>;
     #[wasm_bindgen(method,js_name=publishSecret,catch)]
     async fn publish_secret(this: &StorageRoot, path: &str, bytes: &[u8]) -> Result<(), JsValue>;
+    #[wasm_bindgen(method,js_name=retireSigner,catch)]
+    async fn retire_signer(
+        this: &StorageRoot,
+        path: &str,
+        lease: &HostSecret,
+    ) -> Result<(), JsValue>;
     #[wasm_bindgen(method,js_name=openDatabase,catch)]
     async fn open_database(this: &StorageRoot, path: &str) -> Result<HostFile, JsValue>;
     #[wasm_bindgen(method,js_name=stageDatabase,catch)]
@@ -72,6 +79,10 @@ extern "C" {
     type HostSecret;
     #[wasm_bindgen(method,js_name=bytes,catch)]
     fn secret_bytes(this: &HostSecret) -> Result<Uint8Array, JsValue>;
+    #[wasm_bindgen(method,js_name=identity,catch)]
+    fn secret_identity(this: &HostSecret) -> Result<Uint8Array, JsValue>;
+    #[wasm_bindgen(method,js_name=revision,catch)]
+    fn secret_revision(this: &HostSecret) -> Result<u32, JsValue>;
     #[wasm_bindgen(method,js_name=close,catch)]
     fn close_secret(this: &HostSecret) -> Result<(), JsValue>;
     #[wasm_bindgen(js_name=DatabaseLease)]

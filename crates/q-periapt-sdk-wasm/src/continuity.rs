@@ -18,6 +18,7 @@ mod policy_requests;
 mod publication;
 mod recovery;
 mod rekey;
+mod retirement;
 mod roster;
 mod status;
 mod trust;

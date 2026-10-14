@@ -36,6 +36,7 @@ pub(super) fn decode_request(
 
 struct Owners {
     configuration: Database,
+    storage: crate::storage::Storage,
     paths: InstallationPaths,
     key: JournalKey,
     retired: AnchorRetiredSubject,
@@ -67,16 +68,41 @@ impl RetiredInstallationRecovery {
     /// journal to exist. This permits reconciliation of an unknown witness commit,
     /// not reporting or erasure of missing state. It never selects another backup.
     /// Any commit error returns no owner: reopen this exact installation/proof.
-    pub fn open(
+    pub async fn open(
         paths: InstallationPaths,
         key: JournalKey,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
-        let configuration = open_private_database(&paths.configuration)?;
-        Self::open_database(configuration, paths, key, retired)
+        Self::open_with_storage(crate::storage::Storage::native()?, paths, key, retired).await
     }
-    fn open_database(
+    pub(crate) async fn open_with_storage(
+        storage: crate::storage::Storage,
+        paths: InstallationPaths,
+        key: JournalKey,
+        retired: AnchorRetiredSubject,
+    ) -> Result<Self, DurableError> {
+        let configuration = storage.open_database(&paths.configuration).await?;
+        Self::open_database_with_storage(configuration, storage, paths, key, retired).await
+    }
+    #[cfg(all(test, unix))]
+    async fn open_database(
         configuration: Database,
+        paths: InstallationPaths,
+        key: JournalKey,
+        retired: AnchorRetiredSubject,
+    ) -> Result<Self, DurableError> {
+        Self::open_database_with_storage(
+            configuration,
+            crate::storage::Storage::native()?,
+            paths,
+            key,
+            retired,
+        )
+        .await
+    }
+    async fn open_database_with_storage(
+        configuration: Database,
+        store: crate::storage::Storage,
         paths: InstallationPaths,
         key: JournalKey,
         retired: AnchorRetiredSubject,
@@ -89,12 +115,14 @@ impl RetiredInstallationRecovery {
                 .map_err(|_| DurableError::Conflict)?;
             proposal
         } else {
-            let proposal = DeviceJournal::retired_cleanup_inventory(
-                &paths.journal,
+            let journal = store.open_database(&paths.journal).await?;
+            let proposal = DeviceJournal::retired_cleanup_inventory_in_database(
+                &journal,
                 &key,
                 saved.identity,
                 retired,
             )?;
+            drop(journal);
             let mut wire = REQUEST_TAG.to_vec();
             wire.extend_from_slice(&proposal.to_bytes());
             let tx = transaction(&configuration)?;
@@ -127,6 +155,7 @@ impl RetiredInstallationRecovery {
         let mut owner = Self {
             active: Some(Owners {
                 configuration,
+                storage: store,
                 paths,
                 key,
                 retired,
@@ -196,16 +225,22 @@ impl RetiredInstallationRecovery {
         if let Some(proposal) = saved.retired_report {
             return Ok(proposal);
         }
-        let mut archives =
-            crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity).await?;
-        let report = DeviceJournal::retired_report(
-            &owners.paths.journal,
+        let mut archives = crate::SessionArchiveStore::open_with_storage(
+            owners.storage.clone(),
+            &owners.paths.archives,
+            saved.identity,
+        )
+        .await?;
+        let journal = owners.storage.open_database(&owners.paths.journal).await?;
+        let report = DeviceJournal::retired_report_in_database(
+            &journal,
             &owners.key,
             saved.identity,
             owners.retired,
             retained,
             &mut archives,
         )?;
+        drop(journal);
         let proposal = report.proposal().clone();
         let tx = transaction(&owners.configuration)?;
         {
@@ -274,8 +309,9 @@ impl RetiredInstallationRecovery {
         pin.verify_retired_report(retained, &proposal, receipt)?;
         let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
         let saved = read_configuration(&owners.configuration)?;
+        let journal = owners.storage.open_database(&owners.paths.journal).await?;
         if DeviceJournal::retired_journal_has_terminal(
-            &owners.paths.journal,
+            &journal,
             &owners.key,
             saved.identity,
             owners.retired,
@@ -284,10 +320,14 @@ impl RetiredInstallationRecovery {
         )? {
             return Err(Error::Retired.into());
         }
-        let mut archives =
-            crate::SessionArchiveStore::open(&owners.paths.archives, saved.identity).await?;
-        let report = DeviceJournal::retired_report(
-            &owners.paths.journal,
+        let mut archives = crate::SessionArchiveStore::open_with_storage(
+            owners.storage.clone(),
+            &owners.paths.archives,
+            saved.identity,
+        )
+        .await?;
+        let report = DeviceJournal::retired_report_in_database(
+            &journal,
             &owners.key,
             saved.identity,
             owners.retired,
@@ -393,29 +433,34 @@ impl RetiredInstallationRecovery {
     /// Read the exact original journal inventory or its authenticated terminal proof.
     /// Missing or different state is an error, never evidence of successful erasure.
     /// This requires the independently saved host intent but performs no erasure.
-    pub fn journal_erasure_status(
+    pub async fn journal_erasure_status(
         &mut self,
         pin: &AnchorPin,
     ) -> Result<crate::retired_device::JournalErasureState, DurableError> {
-        let result = (|| {
-            let expected = self
-                .host_acknowledgement_proposal()?
-                .ok_or(DurableError::Suspended)?;
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let saved = read_configuration(&owners.configuration)?;
-            DeviceJournal::retired_journal_state(
-                &owners.paths.journal,
-                &owners.key,
-                saved.identity,
-                owners.retired,
-                pin,
-                &expected,
-            )
-        })();
+        let result = self.journal_erasure_status_attempt(pin).await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn journal_erasure_status_attempt(
+        &mut self,
+        pin: &AnchorPin,
+    ) -> Result<crate::retired_device::JournalErasureState, DurableError> {
+        let expected = self
+            .host_acknowledgement_proposal()?
+            .ok_or(DurableError::Suspended)?;
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let saved = read_configuration(&owners.configuration)?;
+        let journal = owners.storage.open_database(&owners.paths.journal).await?;
+        DeviceJournal::retired_journal_state(
+            &journal,
+            &owners.key,
+            saved.identity,
+            owners.retired,
+            pin,
+            &expected,
+        )
     }
     /// Atomically replace the exact original image and pending rows with a terminal
     /// authenticated by the original key and purpose-21 witness acknowledgement.
@@ -424,25 +469,35 @@ impl RetiredInstallationRecovery {
     /// and inspect/retry the same decision. An existing matching terminal is read-only.
     /// This is logical journal erasure, not erasure of old pages, backups, archives,
     /// wrapping/signing key files or the independent installation/host report.
-    pub fn erase_journal(&mut self, pin: &AnchorPin, receipt: &[u8]) -> Result<(), DurableError> {
-        let result = (|| {
-            let expected = self
-                .host_acknowledgement_proposal()?
-                .ok_or(DurableError::Suspended)?;
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let saved = read_configuration(&owners.configuration)?;
-            DeviceJournal::erase_retired_journal(
-                &owners.paths.journal,
-                &owners.key,
-                saved.identity,
-                owners.retired,
-                pin,
-                &expected,
-                receipt,
-            )
-        })();
+    pub async fn erase_journal(
+        &mut self,
+        pin: &AnchorPin,
+        receipt: &[u8],
+    ) -> Result<(), DurableError> {
+        let result = self.erase_journal_attempt(pin, receipt).await;
         self.close();
         result
+    }
+    async fn erase_journal_attempt(
+        &mut self,
+        pin: &AnchorPin,
+        receipt: &[u8],
+    ) -> Result<(), DurableError> {
+        let expected = self
+            .host_acknowledgement_proposal()?
+            .ok_or(DurableError::Suspended)?;
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let saved = read_configuration(&owners.configuration)?;
+        let journal = owners.storage.open_database(&owners.paths.journal).await?;
+        DeviceJournal::erase_retired_journal_in_database(
+            &journal,
+            &owners.key,
+            saved.identity,
+            owners.retired,
+            pin,
+            &expected,
+            receipt,
+        )
     }
     /// Release original owners without changing the request or acknowledging loss.
     pub fn close(&mut self) {

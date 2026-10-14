@@ -72,3 +72,11 @@ export {
   QPeriaptContinuityAccountAbandonment,
   QPeriaptContinuitySessionClosure
 } from './q_periapt_sdk_wasm.js';
+
+export {
+  QPeriaptContinuityRetirement,
+  QPeriaptContinuityRetiredInventory,
+  QPeriaptContinuityRetiredReportRequest,
+  QPeriaptContinuityRetiredReport,
+  QPeriaptContinuityErasureState
+} from './q_periapt_sdk_wasm.js';

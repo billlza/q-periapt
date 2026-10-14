@@ -291,3 +291,30 @@ async function restrictedAccounting(accountOwner: QPeriaptContinuityDevice,
   void batchJson; void closureJson; void count; void phase; void saved;
 }
 void restrictedAccounting;
+
+import { QPeriaptContinuityRetirement, QPeriaptContinuityErasureState } from 'q-periapt-sdk-wasm/web';
+// Compile-only coverage: each receipt comes from its independent control-plane step.
+async function permanentRetirement(intent: QPeriaptContinuityEnrollment,
+    witness: QPeriaptContinuityWitness, approved: Uint8Array, subject: Uint8Array,
+    retirementReceipt: Uint8Array, inventoryReceipt: Uint8Array,
+    reportReceipt: Uint8Array, recordedReport: Uint8Array, acknowledgement: Uint8Array) {
+  const retirement = new QPeriaptContinuityRetirement(witness, approved, subject, retirementReceipt);
+  const owner = await QPeriaptContinuityDevice.open_retired('original', data, intent, retirement);
+  const inventory = await owner.retirement_inventory();
+  inventory.to_bytes(); inventory.binding(); inventory.stored_image_digest(); inventory.pending_intent_digest(); inventory.free();
+  const request = await owner.prepare_retired_report(inventoryReceipt);
+  request.to_bytes(); request.report_id(); request.inventory_binding(); request.free();
+  (await owner.retired_report_request())?.free();
+  const report = await owner.retired_report(inventoryReceipt, reportReceipt);
+  const canonical: Uint8Array = report.to_bytes(), inspection: string = report.to_json();
+  report.report_id(); report.free();
+  (await owner.prepare_retired_host_acknowledgement(recordedReport, inventoryReceipt, reportReceipt)).free();
+  (await owner.retired_host_acknowledgement_request())?.free();
+  const journal: QPeriaptContinuityErasureState = await owner.retired_journal_erasure_status();
+  await owner.erase_retired_journal(acknowledgement);
+  await owner.prepare_retired_signer_erasure(acknowledgement);
+  const signer: QPeriaptContinuityErasureState = await owner.retired_signer_erasure_status();
+  await owner.erase_retired_signer(); owner.is_closed(); owner.free(); retirement.free();
+  void canonical; void inspection; void journal; void signer;
+}
+void permanentRetirement;

@@ -20,9 +20,10 @@ export function scoped(path, name, identity) {
   return path;
 }
 export function descriptor(value) {
-  if (!value || !id(value.id) || value.revision !== 1) throw fail('Corrupt');
-  if (value.kind === 'database' && fields(value, 'id,kind,revision')) return value;
+  if (!value || !id(value.id)) throw fail('Corrupt');
+  if (value.kind === 'database' && value.revision === 1 && fields(value, 'id,kind,revision')) return value;
   if (value.kind === 'bytes' && fields(value, 'id,kind,length,revision')
+      && (value.revision === 1 || (value.revision === 2 && value.length === 8))
       && Number.isSafeInteger(value.length) && value.length > 0 && value.length <= 65536) return value;
   throw fail('Corrupt');
 }
@@ -95,6 +96,17 @@ export async function unsealState(value, name, identity, binding) {
 }
 export async function encryptSecret(key, identity, path, bytes) {
   const value = { kind: 'bytes', id: identifier(), revision: 1, length: bytes.length, iv: crypto.getRandomValues(new Uint8Array(12)) };
+  return sealSecret(key, identity, path, bytes, value);
+}
+// The sole mutation of an existing secret retains its object identity. Revision
+// two contains only the fixed signer retirement marker; it cannot store new keys.
+export async function encryptRetiredSigner(key, identity, path, originalId) {
+  if (!id(originalId)) throw fail('Corrupt');
+  const bytes = encoder.encode('QPSRET01');
+  const value = { kind: 'bytes', id: originalId, revision: 2, length: 8, iv: crypto.getRandomValues(new Uint8Array(12)) };
+  return sealSecret(key, identity, path, bytes, value);
+}
+async function sealSecret(key, identity, path, bytes, value) {
   const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: value.iv,
     additionalData: secretAAD(identity, path, value) }, key, bytes));
   return { ...value, data };

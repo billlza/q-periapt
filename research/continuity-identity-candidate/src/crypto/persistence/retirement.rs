@@ -72,6 +72,7 @@ impl SigningFilePlan {
         Ok(())
     }
     pub(crate) fn capture(
+        _store: &crate::storage::Storage,
         path: &Path,
         key: &JournalKey,
         identity: SigningKeyId,
@@ -114,6 +115,7 @@ impl SigningFilePlan {
     }
     pub(crate) fn erased(
         &self,
+        _store: &crate::storage::Storage,
         path: &Path,
         key: &JournalKey,
         original: &VerifiedDevice,
@@ -142,6 +144,7 @@ impl SigningFilePlan {
     }
     pub(crate) fn erase(
         &self,
+        _store: &crate::storage::Storage,
         path: &Path,
         key: &JournalKey,
         original: &VerifiedDevice,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import { lease, pendingOperation, closeReceipt } from './storage-io.js';
-import { fail, ioError, hex, identifier, prefix, scoped, describe, matches,
-  metadata, validateState, sealState, unsealState, encryptSecret, secretAAD } from './storage-catalogue.js';
+import { fail, ioError, hex, equal, identifier, prefix, scoped, describe, matches,
+  metadata, validateState, sealState, unsealState, encryptSecret, encryptRetiredSigner, secretAAD } from './storage-catalogue.js';
 import { openDatabase, transaction, admitSnapshot } from './storage-database.js';
 import { StorageOpening } from './storage-opening.js';
 export { StorageOpening } from './storage-opening.js';
@@ -26,14 +26,24 @@ async function failedAfterClose(error, root) {
   throw error;
 }
 export class SecretLease {
-  #bytes; #release;
-  constructor(token, bytes, release) {
+  #bytes; #release; #root; #path; #record;
+  constructor(token, root, path, record, bytes, release) {
     if (token !== owned) throw new TypeError('Owned secret lease');
+    this.#root = root; this.#path = path; this.#record = record;
     this.#bytes = new Uint8Array(bytes); this.#release = release;
   }
   bytes() { if (!this.#bytes) throw fail('Closed'); return this.#bytes; }
+  identity() { this.bytes(); return Uint8Array.from(this.#record.id.match(/../g), value => Number.parseInt(value, 16)); }
+  revision() { this.bytes(); return this.#record.revision; }
+  retirement(root, path) {
+    this.bytes(); if (root !== this.#root || path !== this.#path) throw fail('Conflict');
+    return this.#record;
+  }
   close() {
-    if (this.#bytes) { this.#bytes.fill(0); this.#bytes = undefined; this.#release(this); }
+    if (this.#bytes) {
+      this.#bytes.fill(0); this.#bytes = undefined; this.#record = undefined;
+      this.#root = undefined; this.#release(this);
+    }
   }
 }
 export class DatabaseLease {
@@ -161,8 +171,8 @@ export class StorageRoot {
   prefix() { this.check(); return prefix(this.#name, this.#id); }
   check() { if (this.#closed) throw fail('Closed', this.#closeError); }
   async #removeUnpublished() {
-    // The authenticated catalogue is append-only: every published database is
-    // retained there. Preserve live staging handles as well as committed files.
+    // Published object identities remain in the authenticated catalogue, including
+    // retired signer records. Preserve live staging and committed database files.
     const retained = new Set(this.#state.files.filter(pair => pair[1].kind === 'database').map(pair => 'db-' + pair[1].id));
     for (const child of this.#children) if (child instanceof DatabaseLease) retained.add(child.retainedFile(this));
     const present = new Set();
@@ -256,8 +266,37 @@ export class StorageRoot {
         additionalData: secretAAD(this.#id, path, value) }, this.#meta.key, value.data); }
       catch (cause) { throw fail('Authentication', cause); }
       if (this.#closed) { new Uint8Array(plain).fill(0); throw fail('Closed'); }
-      const result = new SecretLease(owned, plain, child => this.#children.delete(child));
+      const result = new SecretLease(owned, this, path, value, plain, child => this.#children.delete(child));
       this.#children.add(result); return result;
+    });
+  }
+  retireSigner(path, lease) {
+    path = this.#path(path);
+    return this.#run(async () => {
+      if (!(lease instanceof SecretLease) || !this.#children.has(lease)) throw fail('Conflict');
+      const original = lease.retirement(this, path);
+      // Rust authenticates the original encrypted signing file and the independent
+      // report ACK first. This storage seam cannot publish an arbitrary replacement.
+      if (original.revision !== 1 || new TextDecoder().decode(lease.bytes().subarray(0, 8)) !== 'QPSIGN01') throw fail('Corrupt');
+      if (this.#state.revision >= Number.MAX_SAFE_INTEGER) throw fail('Capacity');
+      const existing = new Map(this.#state.files).get(path);
+      if (!existing || existing.id !== original.id || existing.kind !== 'bytes'
+          || existing.revision !== 1 || existing.length !== original.length) throw fail('Conflict');
+      const replacement = await encryptRetiredSigner(this.#meta.key, this.#id, path, original.id); this.check();
+      const state = { ...this.#state, files: this.#state.files.map(pair => pair[0] === path ? [path, describe(replacement)] : pair),
+        revision: this.#state.revision + 1 };
+      validateState(state, this.#name, this.#id, this.#binding);
+      const meta = await sealState(this.#meta.key, this.#name, this.#id, state); this.check();
+      await this.#transaction(({ root, paths, roots, files, checked, done }) => {
+        admitSnapshot(root, paths, this.#meta, this.#state);
+        const request = files.get(path);
+        request.onsuccess = checked(() => {
+          const current = matches(request.result, existing);
+          if (!equal(current.iv, original.iv) || !equal(current.data, original.data)) throw fail('Conflict');
+          files.put(replacement, path); roots.put(meta, 'current'); done();
+        });
+      });
+      this.#meta = meta; this.#state = state; lease.close();
     });
   }
   released(child, path) { this.#children.delete(child); if (path) this.#paths.delete(path); }

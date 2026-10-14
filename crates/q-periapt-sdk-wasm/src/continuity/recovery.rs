@@ -3,7 +3,7 @@
 use super::history::HistoricalPolicy;
 use super::*;
 
-mod reports;
+pub(super) mod reports;
 use reports::{AccountReport, SessionReport};
 
 fn operation(id: &Uint8Array) -> Result<engine::FanoutId, JsValue> {

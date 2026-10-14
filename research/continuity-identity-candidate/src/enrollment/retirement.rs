@@ -239,11 +239,13 @@ impl Owners {
         // Reconcile the same saved request, including after erase_journal closed its
         // restricted child. This does not replay host effects or select another backup.
         self.installation = None;
-        let mut child = RetiredInstallationRecovery::open(
+        let mut child = RetiredInstallationRecovery::open_with_storage(
+            self.enrollment.storage.clone(),
             self.enrollment.paths.installation.clone(),
             self.enrollment.key().await?,
             self.retired,
-        )?;
+        )
+        .await?;
         if child.proposal()? != self.state.inventory {
             return Err(DurableError::Conflict);
         }
@@ -302,8 +304,24 @@ impl RetiredDeviceEnrollment {
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
+        Self::open_with_storage(
+            crate::storage::Storage::native()?,
+            paths,
+            intent,
+            pin,
+            retired,
+        )
+        .await
+    }
+    pub(crate) async fn open_with_storage(
+        store: crate::storage::Storage,
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+        pin: AnchorPin,
+        retired: AnchorRetiredSubject,
+    ) -> Result<Self, DurableError> {
         Self::from_enrollment(
-            DeviceEnrollment::open_original_storage(paths, intent).await?,
+            DeviceEnrollment::open_original_storage_with_storage(store, paths, intent).await?,
             pin,
             retired,
         )
@@ -368,11 +386,13 @@ impl RetiredDeviceEnrollment {
                 state
             }
             None => {
-                let mut child = RetiredInstallationRecovery::open(
+                let mut child = RetiredInstallationRecovery::open_with_storage(
+                    enrollment.storage.clone(),
                     enrollment.paths.installation.clone(),
                     enrollment.key().await?,
                     retired,
-                )?;
+                )
+                .await?;
                 let state = State {
                     identity: image.identity,
                     enrollment_digest: original_digest(&enrollment)?,
@@ -436,7 +456,7 @@ impl RetiredDeviceEnrollment {
         }
         let pin = owners.pin.clone();
         let child = owners.installation().await?;
-        if child.journal_erasure_status(&pin)? != JournalErasureState::Erased {
+        if child.journal_erasure_status(&pin).await? != JournalErasureState::Erased {
             return Err(DurableError::Suspended);
         }
         let ack = child.verify_host_acknowledgement(&pin, receipt)?;
@@ -446,12 +466,14 @@ impl RetiredDeviceEnrollment {
             .as_ref()
             .ok_or(DurableError::Closed)?;
         let file = SigningFilePlan::capture(
+            &owners.enrollment.storage,
             &owners.enrollment.paths.signer,
             &active.key,
             image.identity,
             &original,
             &ack,
-        )?;
+        )
+        .await?;
         let mut next = state.clone();
         next.signer = Some(Box::new(SignerPlan {
             file,
@@ -465,60 +487,72 @@ impl RetiredDeviceEnrollment {
     /// Query the original prepared file. Missing, foreign or corrupt state is an
     /// error. A full-length partially marked file still retains encrypted seeds.
     /// This requires the independently stored complete host ACK, never just a tag.
-    pub fn signer_erasure_status(&mut self) -> Result<SigningFileErasureState, DurableError> {
-        let result = (|| {
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let (_, state, original) = owners.read()?;
-            let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
-            let ack = owners.verify_plan(plan)?;
-            let active = owners
-                .enrollment
-                .active
-                .as_ref()
-                .ok_or(DurableError::Closed)?;
-            Ok(
-                if plan.file.erased(
-                    &owners.enrollment.paths.signer,
-                    &active.key,
-                    &original,
-                    &ack,
-                )? {
-                    SigningFileErasureState::Erased
-                } else {
-                    SigningFileErasureState::Retained
-                },
-            )
-        })();
+    pub async fn signer_erasure_status(&mut self) -> Result<SigningFileErasureState, DurableError> {
+        let result = self.signer_erasure_status_attempt().await;
         if result.is_err() {
             self.close();
         }
         result
+    }
+    async fn signer_erasure_status_attempt(
+        &mut self,
+    ) -> Result<SigningFileErasureState, DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let (_, state, original) = owners.read()?;
+        let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
+        let ack = owners.verify_plan(plan)?;
+        let active = owners
+            .enrollment
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?;
+        Ok(
+            if plan
+                .file
+                .erased(
+                    &owners.enrollment.storage,
+                    &owners.enrollment.paths.signer,
+                    &active.key,
+                    &original,
+                    &ack,
+                )
+                .await?
+            {
+                SigningFileErasureState::Erased
+            } else {
+                SigningFileErasureState::Retained
+            },
+        )
     }
     /// Logically erase only the exact prepared original signing file. Sync the fixed
     /// retirement header before truncating its encrypted body, then sync again.
     /// Always closes this owner; reopen and retry the original plan after I/O failure.
     /// Wrapping key, historical configuration, old pages/backups and previously copied
     /// signing owners remain outside this logical erasure claim.
-    pub fn erase_signer(&mut self) -> Result<(), DurableError> {
-        let result = (|| {
-            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let (_, state, original) = owners.read()?;
-            let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
-            let ack = owners.verify_plan(plan)?;
-            let active = owners
-                .enrollment
-                .active
-                .as_ref()
-                .ok_or(DurableError::Closed)?;
-            plan.file.erase(
+    pub async fn erase_signer(&mut self) -> Result<(), DurableError> {
+        let result = self.erase_signer_attempt().await;
+        self.close();
+        result
+    }
+    async fn erase_signer_attempt(&mut self) -> Result<(), DurableError> {
+        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let (_, state, original) = owners.read()?;
+        let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
+        let ack = owners.verify_plan(plan)?;
+        let active = owners
+            .enrollment
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?;
+        plan.file
+            .erase(
+                &owners.enrollment.storage,
                 &owners.enrollment.paths.signer,
                 &active.key,
                 &original,
                 &ack,
             )
-        })();
-        self.close();
-        result
+            .await
     }
     /// Close all held enrollment, wrapping and restricted installation owners.
     pub fn close(&mut self) {

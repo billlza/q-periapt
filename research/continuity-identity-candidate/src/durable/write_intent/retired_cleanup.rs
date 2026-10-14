@@ -51,7 +51,15 @@ impl DeviceJournal {
         retired: AnchorRetiredSubject,
     ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
         let db = open_private_database(path)?;
-        Ok(snapshot(&db, key, expected, retired)?.2)
+        Self::retired_cleanup_inventory_in_database(&db, key, expected, retired)
+    }
+    pub(crate) fn retired_cleanup_inventory_in_database(
+        db: &Database,
+        key: &JournalKey,
+        expected: JournalIdentity,
+        retired: AnchorRetiredSubject,
+    ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
+        Ok(snapshot(db, key, expected, retired)?.2)
     }
 }
 
@@ -84,6 +92,7 @@ fn snapshot(
 }
 
 impl DeviceJournal {
+    #[cfg(all(test, unix))]
     pub(crate) fn retired_report(
         path: &Path,
         key: &JournalKey,
@@ -92,9 +101,19 @@ impl DeviceJournal {
         retained: &crate::AnchorRetiredCleanup,
         archives: &mut crate::SessionArchiveStore,
     ) -> Result<crate::retired_device::Report, DurableError> {
-        use crate::retired_device::{Intent, Transaction, ViewRole};
         let db = open_private_database(path)?;
-        let (image, pending, inventory) = snapshot(&db, key, expected, retired)?;
+        Self::retired_report_in_database(&db, key, expected, retired, retained, archives)
+    }
+    pub(crate) fn retired_report_in_database(
+        db: &Database,
+        key: &JournalKey,
+        expected: JournalIdentity,
+        retired: AnchorRetiredSubject,
+        retained: &crate::AnchorRetiredCleanup,
+        archives: &mut crate::SessionArchiveStore,
+    ) -> Result<crate::retired_device::Report, DurableError> {
+        use crate::retired_device::{Intent, Transaction, ViewRole};
+        let (image, pending, inventory) = snapshot(db, key, expected, retired)?;
         if &inventory != retained.proposal() {
             return Err(DurableError::Conflict);
         }
@@ -172,8 +191,6 @@ impl DeviceJournal {
             )?);
         }
         // The lease spans both exact-inventory admission and complete metadata projection.
-        let report = crate::retired_device::Report::new(key, &inventory, intent, views)?;
-        drop(db);
-        Ok(report)
+        crate::retired_device::Report::new(key, &inventory, intent, views)
     }
 }

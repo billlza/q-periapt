@@ -43,6 +43,7 @@ enum Opening {
     Create,
     Open,
     Resume,
+    Retired(Box<(AnchorPin, crate::AnchorRetiredSubject)>),
 }
 
 struct OpeningLease {
@@ -84,6 +85,25 @@ impl BrowserDevice {
     ) -> Result<Self, JsValue> {
         Self::acquire(name, id, root, description, Opening::Resume).await
     }
+    /// Reopen only the original permanently retired enrollment. Independent
+    /// retirement must already be verified; no live runtime or signer is returned.
+    pub async fn open_retired(
+        name: String,
+        id: String,
+        root: Vec<u8>,
+        description: Vec<u8>,
+        pin: AnchorPin,
+        retired: crate::AnchorRetiredSubject,
+    ) -> Result<Self, JsValue> {
+        Self::acquire(
+            name,
+            id,
+            root,
+            description,
+            Opening::Retired(Box::new((pin, retired))),
+        )
+        .await
+    }
     async fn acquire(
         name: String,
         id: String,
@@ -92,21 +112,42 @@ impl BrowserDevice {
         mode: Opening,
     ) -> Result<Self, JsValue> {
         let (intent, binding) = intent(&root, &description).map_err(|e| failure(&e))?;
-        let storage = match mode {
+        let storage = match &mode {
             Opening::Create => Storage::create(&name, &id, &binding).await,
             Opening::Open => Storage::open(&name, &id, &binding).await,
             Opening::Resume => Storage::resume(&name, &id, &binding).await,
+            Opening::Retired(_) => Storage::open(&name, &id, &binding).await,
         }
         .map_err(|e| failure(&e))?;
         let mut guard = OpeningLease {
             storage,
             armed: true,
         };
-        let result = Self::initialize_or_open(&guard.storage, intent, mode).await;
+        let result = match mode {
+            Opening::Retired(scope) => {
+                let (pin, retired) = *scope;
+                let paths = paths(&guard.storage);
+                match paths {
+                    Ok(paths) => crate::RetiredDeviceEnrollment::open_with_storage(
+                        guard.storage.clone(),
+                        paths,
+                        intent,
+                        pin.clone(),
+                        retired,
+                    )
+                    .await
+                    .map(|owner| State::Retired(Box::new(retirement::Retired { owner, pin }))),
+                    Err(error) => Err(error),
+                }
+            }
+            mode => Self::initialize_or_open(&guard.storage, intent, mode)
+                .await
+                .map(|owner| State::Enrollment(Box::new(owner))),
+        };
         match result {
             Ok(owner) => {
                 let owner = Self {
-                    state: RefCell::new(Some(State::Enrollment(Box::new(owner)))),
+                    state: RefCell::new(Some(owner)),
                     storage: guard.storage.clone(),
                     closed: Cell::new(false),
                     cancellation: Cancellation::default(),
