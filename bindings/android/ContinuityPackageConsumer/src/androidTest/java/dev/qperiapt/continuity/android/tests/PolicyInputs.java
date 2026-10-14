@@ -65,6 +65,22 @@ final class PolicyInputs {
         if (operation.startsWith("policy-witness-") && !operation.equals("policy-witness-prepare") && !operation.equals("policy-witness-recover"))
             WitnessInputs.install(inputs, arguments, "renewal-proposal", 296, 296, true);
         if (operation.startsWith("policy-peer-")) PeerInputs.install(inputs, arguments, operation.substring("policy-".length()));
+        if (operation.startsWith("policy-joint-")) {
+            WitnessInputs.install(inputs, arguments, "credential-operation", 32, 32, true);
+            if (operation.equals("policy-joint-next-request"))
+                WitnessInputs.install(inputs, arguments, "credential-next-operation", 32, 32, true);
+            if (!operation.equals("policy-joint-request") && !operation.equals("policy-joint-next-request"))
+                WitnessInputs.install(inputs, arguments, "credential-statement", 32, 32, true);
+            // Grant/approval inputs are immutable in this fresh cohort. Later peer
+            // operations use those retained files instead of resending them over ADB.
+            if (operation.startsWith("policy-joint-stage")) {
+                WitnessInputs.install(inputs, arguments, "renewal-digest", 32, 32, true);
+                WitnessInputs.install(inputs, arguments, "renewal-version", 8, 8, true);
+                WitnessInputs.install(inputs, arguments, "credential-renewal", 1, 65536, true);
+                WitnessInputs.install(inputs, arguments, "joint-approvals", 7746, 7746, true);
+            }
+            if (operation.equals("policy-joint-peer-retry")) PeerInputs.install(inputs, arguments, "peer-retry");
+        }
         if (operation.startsWith("policy-credential-")) {
             String name = operation.equals("policy-credential-next-request") ? "credential-next-operation" : "credential-operation";
             WitnessInputs.install(inputs, arguments, name, 32, 32, true);

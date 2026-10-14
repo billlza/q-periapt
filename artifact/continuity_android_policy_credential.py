@@ -46,10 +46,10 @@ def _request(data: bytes) -> tuple[bytes, ...]:
     return tuple(values)
 
 
-def verify_execution(stdout: bytes, directory: Path, profile: str, carrier: str) -> dict:
+def verify_execution(stdout: bytes, directory: Path, profile: str, carrier: str, *, catalog=contract.TESTS) -> dict:
     label = carrier + "-" + profile
     sdk.require(label in TESTS, "credential policy route")
-    contract.verify_single(stdout, TESTS[label])
+    contract.verify_single(stdout, TESTS[label], catalog=catalog)
     result = policy.verify_route(directory, profile, carrier, with_credential=True)
     marker = f"qualified policy renewal {carrier}/{profile}: {result['foreign_processes']} foreign processes; expired P0, independent P2, original identity session message and one effect"
     sdk.require(stdout.decode().splitlines().count(marker) == 1, "P then G route incomplete")

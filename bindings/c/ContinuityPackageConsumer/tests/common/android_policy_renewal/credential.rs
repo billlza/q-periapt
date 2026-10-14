@@ -136,7 +136,7 @@ fn issue(case: &Case<'_>, identity: &[u8]) -> Result<p::VerifiedCredentialRenewa
     Ok(proof)
 }
 
-fn admit_peer(case: &Case<'_>) -> Result<()> {
+pub(super) fn admit_peer(case: &Case<'_>) -> Result<()> {
     let mut command = Command::new(crate::android_credential_traffic::executable()?);
     if case.carrier != "local" {
         command

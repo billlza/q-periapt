@@ -165,7 +165,8 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 } else EnrollmentProbe.main(call);
                 byte[] bytes = java.nio.file.Files.readAllBytes(publicResult.toPath());
                 int requestWidth = operation.equals("policy-request") ? 33176
-                    : operation.equals("policy-credential-request") || operation.equals("policy-credential-next-request") ? 33120 : 0;
+                    : operation.equals("policy-credential-request") || operation.equals("policy-credential-next-request")
+                        || operation.equals("policy-joint-request") || operation.equals("policy-joint-next-request") ? 33120 : 0;
                 if (requestWidth != 0 ? bytes.length != requestWidth : bytes.length < 1 || bytes.length > (retired || root ? 65536 : 8192))
                     throw new IllegalStateException("public result width");
                 result.putString("result_payload", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));

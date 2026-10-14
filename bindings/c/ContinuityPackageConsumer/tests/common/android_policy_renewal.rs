@@ -16,6 +16,8 @@ use std::{
 mod credential;
 #[path = "android_policy_renewal/flow.rs"]
 mod flow;
+#[path = "android_policy_renewal/joint.rs"]
+mod joint;
 #[path = "android_policy_renewal/local_roster.rs"]
 mod local_roster;
 #[path = "android_policy_renewal/roster.rs"]
@@ -107,6 +109,7 @@ impl Case<'_> {
 enum Maintenance {
     Roster { closed: bool },
     Credential,
+    Joint { committed: bool },
 }
 fn exercise(
     output: &Path,
@@ -259,20 +262,25 @@ fn exercise(
     );
     let traffic = traffic::Traffic::begin(&case)?;
     traffic.renew_receiver(&case)?;
-    flow::renew(&case, &identity)?;
-    match maintenance {
-        Some(Maintenance::Roster { closed }) => {
-            if case.witness.is_some() {
-                roster::advance(&case, &identity, closed)?;
-            } else {
-                assert!(!closed);
-                local_roster::advance(&case, &identity)?;
+    if let Some(Maintenance::Joint { committed }) = maintenance {
+        joint::exercise(&case, &identity, &traffic, committed)?;
+    } else {
+        flow::renew(&case, &identity)?;
+        match maintenance {
+            Some(Maintenance::Roster { closed }) => {
+                if case.witness.is_some() {
+                    roster::advance(&case, &identity, closed)?;
+                } else {
+                    assert!(!closed);
+                    local_roster::advance(&case, &identity)?;
+                }
             }
+            Some(Maintenance::Credential) => credential::renew(&case, &identity)?,
+            Some(Maintenance::Joint { .. }) => unreachable!("joint route handled separately"),
+            None => {}
         }
-        Some(Maintenance::Credential) => credential::renew(&case, &identity)?,
-        None => {}
+        traffic.resume(&case)?;
     }
-    traffic.resume(&case)?;
     assert_eq!(case.run("policy-identity", "final.identity")?, identity);
     let calls = case.calls.get();
     publish_private_bytes(&base.join("policy-process-count"), &calls.to_be_bytes())?;
@@ -284,7 +292,11 @@ fn exercise(
     if let Some(witness) = witness.as_mut() {
         witness.join()?;
     }
-    println!("qualified policy renewal {carrier}/{profile}: {calls} foreign processes; expired P0, independent P2, original identity session message and one effect");
+    if let Some(Maintenance::Joint { committed }) = maintenance {
+        println!("qualified joint policy {profile}: {calls} foreign processes; committed={committed}, expired original and target, exact historical outcome, original identity and one effect");
+    } else {
+        println!("qualified policy renewal {carrier}/{profile}: {calls} foreign processes; expired P0, independent P2, original identity session message and one effect");
+    }
     Ok(())
 }
 

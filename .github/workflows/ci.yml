@@ -2174,16 +2174,14 @@ jobs:
     name: continuity-installed-${{ matrix.consumer }}
     needs: rust-publish-contract
     runs-on: macos-15
-    # At 252eb954 Swift/Kotlin took 141m/231m. Budget the added native and
-    # foreign first-use expiry matrices, including both Kotlin GC variants.
-    # Kotlin's added credential matrix alone takes 21m locally across the
-    # two profiles and two collectors; preserve margin for the full cohort.
-    # Keep every prerequisite, both profiles and the 15m command bound.
-    timeout-minutes: ${{ matrix.consumer == 'kotlin' && 330 || 210 }}
+    # The earlier combined Kotlin/Android lane took 231m at 252eb954.
+    # Run their growing real-expiry matrices independently. Each still runs
+    # all native prerequisites, both profiles and the 15m command bound.
+    timeout-minutes: ${{ matrix.consumer == 'swift' && 210 || 330 }}
     strategy:
       fail-fast: false
       matrix:
-        consumer: [swift, kotlin]
+        consumer: [swift, kotlin, android]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2212,7 +2210,7 @@ jobs:
           name: rust-sdk-package
           path: target/continuity-sdk-input
       - name: Set up Java 25 for installed Continuity consumers
-        if: matrix.consumer == 'kotlin'
+        if: matrix.consumer != 'swift'
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
@@ -2235,7 +2233,10 @@ jobs:
               ;;
             kotlin)
               gradle_home=$(sh artifact/python-run.sh -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve(strict=True).parent.parent)' "$(command -v gradle)")
-              consumer_args=(--with-kotlin-consumer --kotlin-java-home "$JAVA_HOME" --kotlin-gradle-home "$gradle_home" --with-android-jni-consumer --android-java-home "$JAVA_HOME")
+              consumer_args=(--with-kotlin-consumer --kotlin-java-home "$JAVA_HOME" --kotlin-gradle-home "$gradle_home")
+              ;;
+            android)
+              consumer_args=(--with-android-jni-consumer --android-java-home "$JAVA_HOME")
               ;;
             *)
               echo "Unsupported Continuity consumer: $CONTINUITY_CONSUMER" >&2
@@ -2257,6 +2258,8 @@ jobs:
             target/continuity-installed-swift/*.crate
             target/continuity-installed-swift/continuity-android-classes.jar
             target/continuity-installed-swift/android-jni-*.public
+            target/continuity-installed-swift/android-jni-*-policy-credential-*/**
+            target/continuity-installed-swift/android-jni-*-joint-policy-*/**
             target/continuity-installed-swift/*.zip
             target/continuity-installed-swift/*.json
             target/continuity-installed-swift/*.stdout

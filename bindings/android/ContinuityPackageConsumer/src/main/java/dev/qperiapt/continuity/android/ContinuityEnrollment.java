@@ -67,6 +67,32 @@ public final class ContinuityEnrollment implements AutoCloseable {
     public CredentialRenewalStatus stageContinuedCredentialRenewal(byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
         return stageCredential(Native.CREDENTIAL_STAGE_CONTINUED, grant, independentPin, original);
     }
+    /** Stage one joint G/T under an independently selected current target. Both account
+     * and policy approvals must bind the original operation and exact predecessor.
+     * previousT is null only for the original policy; retain the adopted T otherwise.
+     * An admitted failure may follow persistence: close and resume this original enrollment.
+     */
+    public CredentialRenewalStatus stagePolicyContinuation(byte[] grant, AccountPin independentPin,
+            Ids.CredentialRenewal original, byte[] approvals, ConfigurationInputs.ProtocolPolicy previous,
+            Ids.PolicyContinuationStatement previousT) {
+        byte[][] input = PolicyCodec.join(new byte[][] {ConfigurationInputs.copy(grant, 1, 65536, "credential grant")},
+            PolicyCodec.pin(independentPin), new byte[][] {Objects.requireNonNull(original, "original renewal").encoded(),
+                ConfigurationInputs.copy(approvals, 1, 7746, "joint policy approvals")}, PolicyCodec.document(previous),
+            new byte[][] {previousT == null ? new byte[0] : previousT.encoded()});
+        return owner.call(false, handle -> new CredentialRenewalStatus(
+            Native.credentialCommand(handle, Native.CREDENTIAL_STAGE_JOINT, input, 0)));
+    }
+    /** Transfer the same owner only after current native G/T admission. Historical
+     * reconciliation alone grants no traffic permission. Failure retains a closable owner;
+     * resume the original enrollment after closing it, without creating a replacement.
+     */
+    public ContinuityDevice activatePolicyContinuation() {
+        return owner.transfer(handle -> {
+            ContinuityDevice successor = new ContinuityDevice(handle);
+            Native.credentialCommand(handle, Native.CREDENTIAL_ACTIVATE_JOINT, new byte[0][], 0);
+            return successor;
+        });
+    }
     private CredentialRenewalStatus stageCredential(int command, byte[] grant, AccountPin independentPin, Ids.CredentialRenewal original) {
         Objects.requireNonNull(independentPin, "independent account pin");
         byte[][] pin = independentPin.snapshot();

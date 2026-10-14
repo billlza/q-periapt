@@ -25,7 +25,7 @@ public final class PolicyProbe {
         }
     }
     private static boolean selected(String mode) {
-        return PolicyCredentialProbe.selected(mode) || mode.startsWith("policy-stage") || mode.equals("policy-reconcile") || mode.equals("policy-witness-prepare")
+        return JointPolicyProbe.selected(mode) || PolicyCredentialProbe.selected(mode) || mode.startsWith("policy-stage") || mode.equals("policy-reconcile") || mode.equals("policy-witness-prepare")
             || mode.equals("policy-witness-commit-unknown") || mode.equals("policy-witness-commit-replay")
             || mode.equals("policy-activate-renewed") || mode.equals("policy-activate-unmanaged") || mode.equals("policy-peer-retry");
     }
@@ -70,6 +70,9 @@ public final class PolicyProbe {
                         enrollment.selectAccountAuthority(registry, AuthorityProbe.expected(inputs));
                     }
                     if (selected(mode)) selectTarget(enrollment, inputs, installation, recovery);
+                    if (mode.startsWith("policy-joint-")) {
+                        JointPolicyProbe.run(enrollment, inputs, installation, recovery, mode, output); return;
+                    }
                     if (mode.startsWith("policy-credential-")) {
                         PolicyCredentialProbe.run(enrollment, inputs, mode, output, witness != null); return;
                     }

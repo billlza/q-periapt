@@ -17,7 +17,7 @@ fn status(
     value.extend_from_slice(&[0; 48]);
     value
 }
-fn target_inputs(case: &Case<'_>, issued: &p::IssuedSessionPolicy) -> Result<()> {
+pub(super) fn target_inputs(case: &Case<'_>, issued: &p::IssuedSessionPolicy) -> Result<()> {
     let path = case.inputs.join("policy-target");
     fs::DirBuilder::new().mode(0o700).create(&path)?;
     for name in [

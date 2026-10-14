@@ -102,6 +102,7 @@ final class CredentialBridgeProbe {
         for (int command : new int[] {Native.CREDENTIAL_PREPARE_CONTINUED,Native.CREDENTIAL_CANCEL_CONTINUED,Native.CREDENTIAL_RECONCILE_LOCAL})
             rejected(ContinuityFailure.class, () -> Native.credentialCommand(0,command,new byte[0][],0));
         rejected(ContinuityFailure.class, () -> Native.credentialCommand(0,Native.CREDENTIAL_COMMIT_CONTINUED,new byte[][] {id(1),id(2)},0));
-        rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0,18,new byte[0][],0));
+        rejected(IllegalArgumentException.class, () -> Native.credentialCommand(0,20,new byte[0][],0));
+        JointPolicyBridgeProbe.run();
     }
 }

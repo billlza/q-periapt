@@ -202,10 +202,13 @@ impl Traffic {
         )
     }
     pub(super) fn resume(&self, case: &Case<'_>) -> Result<()> {
+        self.resume_with(case, "policy-peer-retry")
+    }
+    pub(super) fn resume_with(&self, case: &Case<'_>, operation: &str) -> Result<()> {
         let (server, address) = start(case, "message", Some(self.session), true)?;
         fs::write(case.inputs.join("connection-address"), address.to_string())?;
         assert_eq!(
-            case.run("policy-peer-retry", "policy-message-acknowledged")?,
+            case.run(operation, "policy-message-acknowledged")?,
             [self.session.as_slice(), self.message.as_slice()].concat()
         );
         android_credential_traffic::received(server, 0, Some((self.session, self.message)))?;

@@ -21,7 +21,8 @@ class PolicyCredentialTests(unittest.TestCase):
 
     def verify(self, root, label='signed-fixed'):
         carrier, profile = label.split('-')
-        return q.verify_execution((self.root / label / 'execution/execution.stdout').read_bytes(), root, profile, carrier)
+        return q.verify_execution((self.root / label / 'execution/execution.stdout').read_bytes(), root, profile, carrier,
+                                  catalog=q.contract.CREDENTIAL_TESTS)
 
     def test_all_routes_keep_original_operation_and_business_effect(self):
         for label in q.TESTS:

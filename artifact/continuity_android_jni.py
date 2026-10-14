@@ -251,6 +251,10 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             credential_policy_results = policy_credential.qualify(binary, consumer, installed, output, profile,
                 dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver),
                      QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)), run)
+            import continuity_android_joint_policy as joint_policy
+            joint_policy_results = joint_policy.qualify(binary, consumer, installed, output, profile,
+                dict(env, QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver),
+                     QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)), run)
             result["profiles"][profile] = {"root_outcomes": root_results, "retirement_outcomes": retirement_results, "roster_outcomes": roster_results, "policy_renewal_outcomes": policy_results,
                 "policy_target_client_sha256": sdk.snapshot(target_client, maximum=c.MAX_BINARY).sha256,
                 "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
@@ -260,6 +264,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             result["profiles"][profile]["account_outcomes"] = account_results
             result["profiles"][profile]["recovery_outcomes"] = recovery_results
             result["profiles"][profile]["policy_credential_outcomes"] = credential_policy_results
+            result["profiles"][profile]["joint_policy_outcomes"] = joint_policy_results
         sdk.require(source_files() == source and tool_identity(java_home) == tools and sdk.snapshot(jar).sha256 == jar_hash,
                     "Android JNI source, JDK or packaged classes changed during qualification")
         result.update(completed=True, jar_sha256=jar_hash)

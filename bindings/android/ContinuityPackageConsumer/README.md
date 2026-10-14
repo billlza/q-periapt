@@ -6,7 +6,7 @@ surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
 preparation, device activation, explicitly configured peers, original-session
 reopening, message status/retry, bidirectional transport, rekey and registry-backed
-first activation, same-key credential renewal, independent policy/roster renewal
+first activation, same-key credential renewal, joint credential/policy renewal, independent policy/roster renewal
 and original-message retry, device replacement, restricted old-device retirement
 and independently authorized account-root replacement. The current extracted AAR has a
 minified AGP consumer; it is still an unpublished candidate. The
@@ -37,6 +37,8 @@ the complete request before submitting it to the independent issuer. It includes
 the original credential/roster and P0 digest, actual predecessor credential/roster,
 and current policy authorization. An unknown submission reuses the same request;
 the issuer must authenticate, authorize and deduplicate it independently.
+After terminal completion, use a new operation ID for a new issuance; a completed
+operation ID cannot be reused.
 Retain the independently approved grant, target `AccountPin`, original
 `Ids.CredentialRenewal` and statement. `stageCredentialRenewal` preserves the
 signing identity and journal. Under required-witness protection, export
@@ -56,6 +58,22 @@ approval and `commitWitnessedPolicyContinuation`, followed by
 `activatePolicyRenewal`. Its proposal exposes `independentPolicyStatement` for P;
 `policyStatement` is reserved for joint T. The original G operation and statement
 still identify historical reconciliation and Close, and Close can return Committed.
+
+For an atomic credential and policy change (joint G/T), select the independently
+trusted target configuration and use `stagePolicyContinuation` with the credential
+grant, account pin, both independent policy approvals, historical predecessor
+policy and its adopted `Ids.PolicyContinuationStatement` (null for the original
+policy). Local storage uses `reconcilePolicyContinuation`; required-witness storage
+uses the explicit prepare/approve/commit workflow above. Retain the original
+operation and **T statement**, which is distinct from the credential grant's
+statement. `activatePolicyContinuation` performs current admission and transfers
+the same owner. Close active devices before resuming that original enrollment.
+`recoverHistoricalPolicyContinuation` can recover an existing local commit using
+the pinned historical target after expiry; an uncommitted target remains suspended.
+Neither historical result grants traffic authority or permits a new operation.
+The [local joint G/T qualification](../../../research/sdk-alpha1/evidence/20261014-android-joint-policy/README.md)
+covers four host routes and the accepted phone's applied/pending routes, including
+real policy expiry, original-message retry and refusal to create a historical commit.
 
 For registry-managed traffic, independently associate the peer account as well as
 the local account. An unknown peer is refused even when its TLS certificate and
