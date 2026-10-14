@@ -1,6 +1,8 @@
 """Reader rejection controls; synthetic bytes are not cryptographic evidence."""
 from pathlib import Path
+import os
 import tempfile
+import subprocess
 import unittest
 import continuity_android_contract as contract
 from unittest.mock import patch
@@ -30,6 +32,25 @@ def fixture(root: Path) -> bytes:
 
 
 class AndroidJniTests(unittest.TestCase):
+    def test_driver_dispatch_preserves_argument_boundaries_without_nested_python(self):
+        with tempfile.TemporaryDirectory(prefix="android dispatch ") as temp:
+            root = Path(temp)
+            executable = root / "argument recorder"
+            executable.write_text("#!/bin/sh\nprintf '%s\\0' \"$@\"\n")
+            executable.chmod(0o700)
+            jar, classes, library = root / "SDK jar", root / "test classes", root / "native library"
+            driver = android._driver(root, executable, jar, classes, library)
+            for mode, probe in [("pending-request", "PendingWriteProbe"), ("managed-witness-create", "WitnessProbe"),
+                                ("roster-witness-peer-connect", "RosterWitnessProbe"), ("enrollment-create", "EnrollmentProbe")]:
+                values = [mode, "fixed", "inputs with ' quotes", "target $(not-executed)", "output;literal"]
+                result = subprocess.run([str(driver), *values], capture_output=True, check=True, timeout=10)
+                self.assertEqual(result.stderr, b"")
+                self.assertEqual(result.stdout.split(b"\0")[:-1], [str(v).encode() for v in [
+                    "--enable-native-access=ALL-UNNAMED", "-Xcheck:jni", "-Djava.library.path=" + str(library),
+                    "-cp", str(jar) + os.pathsep + str(classes), "dev.qperiapt.continuity.android.tests." + probe,
+                    values[2], values[3], values[1], values[0], values[4]]])
+            self.assertEqual(subprocess.run([str(driver)], capture_output=True, timeout=10).returncode, 64)
+
     def test_requires_both_trust_profiles_and_actual_test(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); stdout = fixture(root)

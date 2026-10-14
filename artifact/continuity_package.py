@@ -45,7 +45,7 @@ def source_inputs() -> dict:
         "artifact/continuity_android_jni.py", "artifact/continuity_android_witness.py",
         "artifact/continuity_android_credential.py", "artifact/continuity_android_remote_credential.py",
         "artifact/continuity_android_credential_terminal.py", "artifact/continuity_android_local_credential.py",
-        "artifact/continuity_android_policy_expiry.py", "artifact/continuity_android_policy_renewal.py",
+        "artifact/continuity_android_policy_expiry.py", "artifact/continuity_android_policy_renewal.py", "artifact/continuity_android_pending.py",
         "artifact/continuity_android_contract.py", "artifact/continuity_android_roster.py",
         "artifact/continuity_android_roster_witness.py", "artifact/continuity_android_policy_roster.py",
         "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py",

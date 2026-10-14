@@ -13,7 +13,9 @@ extend a credential or policy and does not restore traffic permission.
    sealed target without replaying either. Retain its proposal, complete metadata
    and signed request. Repeating preparation preserves their meaning and bytes;
    randomized signatures need not be identical.
-2. An independent controller authenticates the account and intended effect. It
+2. An independent controller calls
+   `AnchorPendingWriteRecoveryProposal::inspect_metadata` to inspect both complete
+   views, then authenticates the account and intended effect independently. It
    durably retains the exact proposal and complete metadata before invoking
    `AnchorStore::complete_pending_write_recovery`. The historical device signature
    is insufficient authorization. This method belongs to the privileged witness
@@ -45,6 +47,21 @@ or private keys, but account/device linkage, message identifiers and lengths are
 private host metadata. Preparation and verification enforce an 8 MiB limit.
 The device dual signature uses purpose 26 and cannot substitute for an ordinary
 AnchorRequest signature.
+
+`inspect_metadata` returns a `PendingWriteRecoveryInspection` with read-only
+`source()` and `target()` descriptions. It checks the metadata commitment and
+scope, both view heads, complete bounded framing and record ordering. Unknown
+tags, incomplete fields, oversized counts and trailing bytes are refused before
+the result is returned. The decoder preserves all record fields, including
+unknown delivery outcomes, retained reservations, consumed holes and prior
+closure data. Roster and publication public histories remain complete byte fields
+for domain-specific verification against independently trusted material.
+
+Inspection performs no I/O, signature verification, witness mutation or device
+activation. It is not proof that the supplied descriptions match encrypted
+device state or an approved business effect. Keep this distinction when presenting
+the views to an operator: a proposed target is not a delivery receipt or an
+authorization. The controller's independent approval is still required.
 
 A fresh controller mutation requires an expired witness authority, exact source
 head and unchanged authority/policy binding. Frozen or retired subjects and
@@ -94,7 +111,12 @@ completion and explicit report acknowledgement. Explicit cancellation returns
 `Cancelled`; transport failure and cancellation are distinct outcomes. Both
 require retaining the original approval and metadata after a missing result.
 
+The C/Swift/Kotlin/Android enrollment bindings expose the same request and exact
+confirmation. The [native binding checkpoint](../sdk-alpha1/evidence/20261014-native-pending-write-bindings/README.md)
+records installed C/Swift/Kotlin process results and distinct Apple physical
+ABI checks. Those results do not establish Android ART recovery behavior.
+
 These are same-engine loopback checks on one host. They do not establish an
 independent implementation, mobile-browser or power-loss equivalence. Targeted
-storage-failure qualification and C/Swift/Kotlin exposure of this new entry point
-remain open, alongside the wider 0.2.0 release gates.
+new-entry storage failures, complete binding fault/lifecycle composition and
+current mobile positive recovery remain open, alongside the wider 0.2.0 gates.

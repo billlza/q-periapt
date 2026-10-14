@@ -61,6 +61,12 @@ fn public_pending_write_recovery_preserves_independent_policy_completion() {
             let pending = owner
                 .pending_write_recovery_request(f.c.policy.historical(), &f.pin)
                 .expect("authenticated original independent P completion remains inspectable");
+            let inspected = pending
+                .proposal()
+                .inspect_metadata(pending.metadata())
+                .expect("complete controller inspection");
+            assert_eq!(inspected.source(), pending.source());
+            assert_eq!(inspected.target(), pending.target());
             owner.close();
             assert_eq!(journal(&f), before);
             assert_eq!(

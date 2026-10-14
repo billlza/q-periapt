@@ -5,6 +5,7 @@ import tempfile
 import unittest
 import zipfile
 import continuity_android_joint_cycle as cycle
+import continuity_android_contract as contract
 import rust_sdk_profile as sdk
 
 
@@ -32,7 +33,8 @@ class JointCycleTests(unittest.TestCase):
 
     def verify(self, directory, label, stdout=None):
         carrier, trust = label.split('-')
-        return cycle.verify_execution(self.stdout if stdout is None else stdout, directory, carrier, trust, batch=True)
+        return cycle.verify_execution(self.stdout if stdout is None else stdout, directory, carrier, trust,
+                                      batch=True, catalog=contract.JOINT_CYCLE_TESTS)
 
     def mutate(self, label, name, change):
         with tempfile.TemporaryDirectory() as folder:
@@ -48,7 +50,8 @@ class JointCycleTests(unittest.TestCase):
             self.assertEqual(result['real_expiries'], 3)
 
     def test_accepted_physical_tls_recoverable_route(self):
-        result = cycle.verify_execution(self.device_stdout, self.root / 'device/public', 'tls', 'recoverable')
+        result = cycle.verify_execution(self.device_stdout, self.root / 'device/public', 'tls', 'recoverable',
+                                        catalog=contract.JOINT_CYCLE_TESTS)
         self.assertEqual(result['foreign_processes'], 80)
         self.assertTrue(self.device_state['completed'] and self.device_state['cleanup'])
         self.assertFalse(self.device_state.get('owned_reverse_ports'))
@@ -65,6 +68,12 @@ class JointCycleTests(unittest.TestCase):
             def flip(data, at=offset):
                 value=bytearray(data); value[at]^=1; return bytes(value)
             self.mutate(label,name,flip)
+
+    def test_historical_capture_cannot_qualify_current_inventory(self):
+        with self.assertRaises(ValueError):
+            cycle.verify_execution(self.device_stdout, self.root / 'device/public', 'tls', 'recoverable')
+        with self.assertRaises(ValueError):
+            cycle.verify_execution(self.stdout, self.root / 'routes/local-fixed/public', 'local', 'fixed', batch=True)
 
     def test_refusals_and_real_expiry_cannot_be_omitted(self):
         for label in ('local-recoverable', 'tls-fixed'):

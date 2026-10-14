@@ -26,6 +26,10 @@ impl<'a> Decoder<'a> {
         Ok(u16::from_be_bytes(self.array()?))
     }
 
+    pub(crate) fn remaining(&self) -> usize {
+        self.0.len()
+    }
+
     pub(crate) fn finish(self) -> Result<(), Error> {
         if self.0.is_empty() {
             Ok(())

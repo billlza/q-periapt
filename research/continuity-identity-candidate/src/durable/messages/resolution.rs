@@ -66,6 +66,11 @@ pub struct UnconfirmedMessage {
     wire_digest: [u8; 32],
 }
 impl UnconfirmedMessage {
+    // Read-only public metadata is not a ciphertext, receipt or authorization.
+    pub(in crate::durable) fn from_recorded_metadata(id: MessageId, wire_digest: [u8; 32]) -> Self {
+        Self { id, wire_digest }
+    }
+
     pub(super) fn new(id: MessageId, wire: &[u8]) -> Self {
         Self {
             id,

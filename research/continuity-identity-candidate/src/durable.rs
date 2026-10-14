@@ -39,7 +39,9 @@ const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
 mod pending_recovery;
 pub(crate) use pending_recovery::PendingRecoveryLineage;
-pub use pending_recovery::{PendingWriteRecoveryRequest, PendingWriteRecoveryView};
+pub use pending_recovery::{
+    PendingWriteRecoveryInspection, PendingWriteRecoveryRequest, PendingWriteRecoveryView,
+};
 mod account_authority;
 mod anchoring;
 pub(crate) use account_authority::AccountAuthorityOpen;

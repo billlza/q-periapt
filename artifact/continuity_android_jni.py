@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import re
 import shlex
-import sys
 import tempfile
 import zipfile
 
@@ -76,20 +75,19 @@ def verify_execution(stdout: bytes, cases: Path) -> dict:
 
 
 def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path) -> Path:
-    program = directory / "driver.py"
-    probes = (("recovery-", "FirstUseRecoveryProbe"), ("account-", "AccountProbe"), ("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
+    probes = (("pending-", "PendingWriteProbe"), ("recovery-", "FirstUseRecoveryProbe"), ("account-", "AccountProbe"), ("root-", "RootOwnedProbe"), ("retired-owned-", "RetiredOwnedProbe"), ("roster-witness-", "RosterWitnessProbe"),
               ("roster-", "RosterProbe"), ("policy-", "PolicyProbe"), ("credential-", "CredentialProbe"),
               ("authority-", "AuthorityProbe"), (("witness-", "managed-"), "WitnessProbe"), ("peer-", "PeerProbe"))
-    program.write_text("import os, sys\n"
-        "mode, profile, inputs, target, output = sys.argv[1:]\n"
-        + "probes = " + repr(probes) + "\n"
-        "probe = next((name for prefix, name in probes if mode.startswith(prefix)), 'EnrollmentProbe')\n"
-        + "command = " + repr([str(java), "--enable-native-access=ALL-UNNAMED", "-Xcheck:jni",
-            "-Djava.library.path=" + str(library), "-cp", str(jar) + os.pathsep + str(classes)]) + "\n"
-        "command += ['dev.qperiapt.continuity.android.tests.' + probe, inputs, target, profile, mode, output]\n"
-        "os.execv(command[0], command)\n")
+    cases = []
+    for prefixes, probe in probes:
+        prefixes = (prefixes,) if isinstance(prefixes, str) else prefixes
+        cases.append("  " + "|".join(prefix + "*" for prefix in prefixes) + ") probe=" + probe + " ;;\n")
+    command = [str(java), "--enable-native-access=ALL-UNNAMED", "-Xcheck:jni",
+        "-Djava.library.path=" + str(library), "-cp", str(jar) + os.pathsep + str(classes)]
     launcher = directory / "driver"
-    launcher.write_text("#!/bin/sh\nexec " + shlex.join([sys.executable, str(program)]) + ' "$@"\n')
+    launcher.write_text("#!/bin/sh\nset -eu\n[ \"$#\" -eq 5 ] || exit 64\ncase \"$1\" in\n"
+        + "".join(cases) + "  *) probe=EnrollmentProbe ;;\nesac\nexec " + shlex.join(command)
+        + ' "dev.qperiapt.continuity.android.tests.$probe" "$3" "$4" "$2" "$1" "$5"\n')
     launcher.chmod(0o700)
     return launcher
 
@@ -228,6 +226,16 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                     for name in expiry.public(label.endswith("-applied")):
                         sdk.copy(expiry_cases / label / name, output / f"android-jni-{profile}-policy-expiry-{label}-{name}.public")
             import continuity_android_policy_renewal as policy_renewal
+            import continuity_android_pending as pending_write
+            pending_cases = installed / "pending-write-cases"
+            pending_runtime = dict(env, QPC_ANDROID_CASES=str(pending_cases), QPC_ANDROID_DRIVER=str(driver),
+                                   QPC_CONFIGURATION_RECEIVER=str(receiver))
+            pending_stdout = run([str(binary), "--exact", pending_write.TEST, "--nocapture"],
+                                  profile + "-pending-write", consumer, pending_runtime)
+            pending_results = pending_write.verify_execution(pending_stdout, pending_cases)
+            for label in pending_results:
+                for name in pending_write.PUBLIC:
+                    sdk.copy(pending_cases / label / name, output / f"android-jni-{profile}-pending-write-{label}-{name}.public")
             target_client = installed / "qpc-configuration-client"
             run([str(clang), "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-isysroot", str(platform),
                  str(consumer / "first_configuration_client.c"), "-I" + str(consumer), "-L" + str(installed),
@@ -265,7 +273,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                      QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)), run)
             result["profiles"][profile] = {"root_outcomes": root_results, "retirement_outcomes": retirement_results, "roster_outcomes": roster_results, "policy_renewal_outcomes": policy_results,
                 "policy_target_client_sha256": sdk.snapshot(target_client, maximum=c.MAX_BINARY).sha256,
-                "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
+                "pending_write_outcomes": pending_results, "policy_expiry_outcomes": expiry_results, "credential_outcomes": witness_results["credential"], "witness_outcomes": witness_results["witness"], "authority_outcomes": witness_results["authority"], "outcomes": outcomes, "boundary_checks": True, "native_sha256": record["sha256"],
                 "bridge_sha256": sdk.snapshot(bridge, maximum=c.MAX_BINARY).sha256,
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}

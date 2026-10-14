@@ -7,8 +7,12 @@ use crate::{
     HistoricalPolicyRenewal,
 };
 
-/// One authenticated local image. Its position is source or proposed target;
-/// neither position claims that the witness has or has not committed it.
+#[cfg(test)]
+mod inspection_tests;
+
+/// Complete public description of a source or proposed target image. A local
+/// request derives it from authenticated storage; inspecting received bytes does
+/// not authenticate that claim. Neither position establishes witness commitment.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PendingWriteRecoveryView {
     /// Exact original image head.
@@ -19,6 +23,52 @@ pub struct PendingWriteRecoveryView {
     pub next_fanout_ordinal: u64,
     /// Every actual record, using the shared complete public metadata grammar.
     pub records: Vec<retired_report::RecordMetadataEntry>,
+}
+
+/// Bounded, complete inspection of the metadata bound to a public proposal.
+/// This proves framing and proposal consistency only. It does not authenticate
+/// the sender, encrypted local images, the intended effect or current authority.
+/// The independent controller must make and durably retain its own approval.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingWriteRecoveryInspection {
+    source: PendingWriteRecoveryView,
+    target: PendingWriteRecoveryView,
+}
+impl PendingWriteRecoveryInspection {
+    /// Complete claimed source, with no assertion that it is the current head.
+    pub fn source(&self) -> &PendingWriteRecoveryView {
+        &self.source
+    }
+    /// Complete claimed target; proposed outcomes are never delivery receipts.
+    pub fn target(&self) -> &PendingWriteRecoveryView {
+        &self.target
+    }
+}
+impl AnchorPendingWriteRecoveryProposal {
+    /// Decode both complete public views for independent control-plane review.
+    /// Checks the proposal's metadata commitment, scope, view heads and bounded
+    /// grammar. It performs no I/O, signature verification or privileged action.
+    /// Public signed roster/publication histories remain verbatim byte fields;
+    /// their domain-specific verification uses the independently trusted roots.
+    pub fn inspect_metadata(
+        &self,
+        recorded_metadata: &[u8],
+    ) -> Result<PendingWriteRecoveryInspection, Error> {
+        self.check_metadata(recorded_metadata)?;
+        let mut input = Decoder::new(recorded_metadata);
+        input.take(self.scope.metadata_prefix()?.len())?;
+        let mut view = || {
+            let size = usize::try_from(input.u64()?).map_err(|_| Error::Encoding)?;
+            retired_report::decode_public_view(input.take(size)?)
+        };
+        let source = view()?;
+        let target = view()?;
+        input.finish()?;
+        if source.head != self.expected_head() || target.head != self.target_head() {
+            return Err(Error::Scope);
+        }
+        Ok(PendingWriteRecoveryInspection { source, target })
+    }
 }
 /// Immutable request, complete host metadata and original historical signature.
 /// It contains no plaintext, private keys, runtime or approval capability.

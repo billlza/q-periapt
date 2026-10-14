@@ -30,6 +30,8 @@ mod android_credential_terminal;
 mod android_credential_traffic;
 #[path = "common/android_local_credential.rs"]
 mod android_local_credential;
+#[path = "common/android_pending_write.rs"]
+mod android_pending_write;
 #[path = "common/android_policy_expiry.rs"]
 mod android_policy_expiry;
 #[path = "common/android_policy_renewal.rs"]

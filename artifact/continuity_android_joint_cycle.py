@@ -76,11 +76,12 @@ def _coordination(read, prefix, inputs, request, statement, pending, applied, su
         witness.transcript(read(prefix + name), cached_terminal=True)
 
 
-def verify_execution(stdout: bytes, directory: Path, carrier: str, trust: str, *, batch: bool = False) -> dict:
+def verify_execution(stdout: bytes, directory: Path, carrier: str, trust: str, *, batch: bool = False,
+                     catalog: frozenset[str] = contract.TESTS) -> dict:
     label = carrier + "-" + trust
     sdk.require(label in TESTS, "cycle route")
-    if batch: contract.verify_batch(stdout, frozenset(TESTS.values()))
-    else: contract.verify_single(stdout, TESTS[label])
+    if batch: contract.verify_batch(stdout, frozenset(TESTS.values()), catalog=catalog)
+    else: contract.verify_single(stdout, TESTS[label], catalog=catalog)
     base = directory / label
     def read(name): return sdk.snapshot(base / name).data
     steps = cases(carrier)

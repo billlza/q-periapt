@@ -132,6 +132,12 @@ fn public_pending_write_recovery_preserves_staged_joint_authorization() {
         let pending = owner
             .pending_write_recovery_request(f.c.policy.historical(), &f.pin)
             .expect("generic original intent remains inspectable with local staged G/T");
+        let inspected = pending
+            .proposal()
+            .inspect_metadata(pending.metadata())
+            .expect("complete controller inspection");
+        assert_eq!(inspected.source(), pending.source());
+        assert_eq!(inspected.target(), pending.target());
         owner.close();
         assert_eq!(disk(&f), before);
         let directory = f.c.paths.wrapping.parent().expect("private host directory");
@@ -298,6 +304,12 @@ fn public_pending_write_recovery_preserves_original_operation_through_joint_rene
             let pending = owner
                 .pending_write_recovery_request(f.c.policy.historical(), &f.pin)
                 .expect("public read-only original intent preparation");
+            let inspected = pending
+                .proposal()
+                .inspect_metadata(pending.metadata())
+                .expect("complete controller inspection");
+            assert_eq!(inspected.source(), pending.source());
+            assert_eq!(inspected.target(), pending.target());
             let repeated = owner
                 .pending_write_recovery_request(f.c.policy.historical(), &f.pin)
                 .expect("same original snapshot");

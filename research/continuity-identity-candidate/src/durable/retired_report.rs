@@ -8,6 +8,9 @@ use crate::{
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+mod inspect;
+pub(in crate::durable) use inspect::decode_public_view;
+
 /// Authenticated local journal state for one independently retained retired report.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JournalErasureState {

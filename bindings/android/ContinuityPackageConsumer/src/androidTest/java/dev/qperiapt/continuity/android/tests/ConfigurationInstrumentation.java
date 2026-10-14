@@ -54,9 +54,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             boolean roster = operation.startsWith("roster-");
             boolean retired = operation.startsWith("retired-owned-");
             boolean root = operation.startsWith("root-");
+            boolean pending = operation.startsWith("pending-");
             boolean credential = operation.startsWith("credential-");
             boolean witnessed = operation.startsWith("witness-") || managed || credential;
-            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority || policy || roster || retired || root;
+            boolean enrollment = operation.startsWith("enrollment-") || witnessed || authority || policy || roster || retired || root || pending;
             boolean peer = operation.startsWith("peer-");
             String slot = arguments.getString("slot", "original");
             if (!(slot.equals("original") || slot.equals("successor"))) throw new IllegalArgumentException("installation slot");
@@ -72,6 +73,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
             }
             File inputs = PolicyGenerationInputs.select(base, arguments.getString("policy-generation", "original"), operation);
             if (!inputs.isDirectory()) {
+                if (pending) throw new IllegalStateException("original pending-write enrollment inputs are absent");
                 if (!inputs.mkdir()) throw new IllegalStateException("create input directory");
                 if (roster || retired || root) throw new IllegalStateException("original enrollment inputs are absent");
                 if (policy) {
@@ -104,7 +106,10 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                         || "witness-prepare".equals(baseOperation) || "authority-create".equals(operation) || "policy-prepare".equals(operation)) grantInputs(inputs);
                 File publicResult = new File(base, label);
                 String[] call = {inputs.getPath(), new File(base, leaf).getPath(), profile, operation, publicResult.getPath()};
-                if (root) {
+                if (pending) {
+                    PendingWriteInputs.install(inputs, arguments, operation);
+                    PendingWriteProbe.main(call);
+                } else if (root) {
                     RootInputs.install(inputs,arguments,operation,profile);
                     RootOwnedProbe.run(call,value -> {
                         Bundle cut=new Bundle();cut.putString("stage","root-cut");
@@ -167,7 +172,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 int requestWidth = operation.equals("policy-request") ? 33176
                     : operation.equals("policy-credential-request") || operation.equals("policy-credential-next-request")
                         || operation.equals("policy-joint-request") || operation.equals("policy-joint-next-request") ? 33120 : 0;
-                if (requestWidth != 0 ? bytes.length != requestWidth : bytes.length < 1 || bytes.length > (retired || root ? 65536 : 8192))
+                if (requestWidth != 0 ? bytes.length != requestWidth : bytes.length < 1 || bytes.length > (retired || root || pending ? 65536 : 8192))
                     throw new IllegalStateException("public result width");
                 result.putString("result_payload", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
                 result.putString("result", profile + ":" + operation + ":passed");
