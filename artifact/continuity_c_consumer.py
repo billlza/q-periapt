@@ -504,6 +504,16 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             loader = dependencies
         verify_linkage(dependencies, loader, filename, darwin=darwin)
         client_identity = sdk.snapshot(executable, maximum=MAX_BINARY)
+        effect_test = installed / "qpc-application-effect-test"
+        run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+             *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
+             str(consumer / "application_effect_test.c"), "-I", str(consumer), "-o", str(effect_test)], "effect-compile-" + profile)
+        effect_case = outside / ("c-application-effect-" + profile)
+        effect_case.mkdir(mode=0o700)
+        sdk.require(run([str(effect_test), str(effect_case)], "effect-contract-" + profile)
+                    == b"effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n",
+                    "C application effect contract failed")
+        effect_identity = sdk.snapshot(effect_test, maximum=MAX_BINARY)
         built = run([*cargo, "test", "--locked", "--offline", "--test", "c_owner", "--no-run",
                      "--message-format=json", "-j", "2", *extra], "trace-build-" + profile)
         runtime = {k: v for k, v in env.items() if not k.startswith(("DYLD_", "LD_"))}
@@ -522,6 +532,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         runtime.update(QPERIAPT_C_OWNER_CLIENT=str(executable), QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence))
         tested = run([str(trace), "--exact", TEST, "--nocapture"], "trace-" + profile, runtime=runtime)
         result["execution"][profile] = verify_execution(tested, evidence)
+        result["execution"][profile]["application_effect_contract"] = {
+            "completed": True, "sha256": effect_identity.sha256, "bytes": effect_identity.size,
+            "effects": 2, "duplicate_idempotence": True, "wrong_payload_and_conflict_refused": True}
         from continuity_c_root_contract import qualify as qualify_root_contract
         result["execution"][profile]["root_contract"] = qualify_root_contract(
             consumer, installed, cc, platform_flags, profile, run,

@@ -10,6 +10,8 @@
 #include <unistd.h>
 
 static const uint8_t payload[] = "persisted before process exit";
+static const uint8_t continued_payload[] = "continued after pending recovery";
+#define QPC_EFFECT_MAX_PAYLOAD (sizeof(payload) > sizeof(continued_payload) ? sizeof(payload)-1 : sizeof(continued_payload)-1)
 struct Application {
     uint64_t handle;
     const char *path, *mode;
@@ -19,10 +21,11 @@ struct Application {
  * A retry compares the complete original record; it never overwrites a conflict.
  * SDK callback success follows both file and directory fsync. */
 static int existing_effect(int directory, const char *name, const uint8_t *bytes, size_t length) {
+    if (length > 64 + QPC_EFFECT_MAX_PAYLOAD) return -1;
     int file = openat(directory, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
     if (file < 0) return errno == ENOENT ? 1 : -1;
     struct stat info;
-    uint8_t observed[64 + sizeof(payload)];
+    uint8_t observed[64 + QPC_EFFECT_MAX_PAYLOAD];
     size_t used = 0;
     int bad = fstat(file, &info) || !S_ISREG(info.st_mode) || info.st_size != (off_t)length;
     while (!bad && used < sizeof(observed)) {
@@ -39,8 +42,14 @@ static int existing_effect(int directory, const char *name, const uint8_t *bytes
 }
 static int persist_effect(struct Application *app, const uint8_t session[32],
                           const uint8_t message[32], const uint8_t *plaintext, size_t length) {
-    if (length != sizeof(payload)-1 || memcmp(plaintext, payload, length)) return -1;
-    uint8_t bytes[64 + sizeof(payload)-1];
+    const uint8_t *expected = payload;
+    size_t expected_length = sizeof(payload)-1;
+    if (app->mode && !strcmp(app->mode, "fresh-message")) {
+        expected = continued_payload; expected_length = sizeof(continued_payload)-1;
+    }
+    if (length != expected_length || memcmp(plaintext, expected, length)) return -1;
+    uint8_t bytes[64 + QPC_EFFECT_MAX_PAYLOAD];
+    size_t record_length = 64 + length;
     memcpy(bytes, session, 32); memcpy(bytes+32, message, 32); memcpy(bytes+64, plaintext, length);
     char name[sizeof("application-") + 64], temporary[sizeof(name) + 64];
     memcpy(name, "application-", sizeof("application-")-1);
@@ -52,14 +61,14 @@ static int persist_effect(struct Application *app, const uint8_t session[32],
     if (n < 0 || (size_t)n >= sizeof(temporary)) return -1;
     int directory = open(app->path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
     if (directory < 0) return -1;
-    int found = existing_effect(directory, name, bytes, sizeof(bytes));
+    int found = existing_effect(directory, name, bytes, record_length);
     if (found != 1) { if (close(directory)) return -1; return found; }
     int file = openat(directory, temporary, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
     if (file < 0) { if (close(directory)) return -1; return -1; }
     int bad = 0;
     size_t used = 0;
-    while (used < sizeof(bytes)) {
-        ssize_t count = write(file, bytes+used, sizeof(bytes)-used);
+    while (used < record_length) {
+        ssize_t count = write(file, bytes+used, record_length-used);
         if (count < 0 && errno == EINTR) continue;
         if (count <= 0) { bad = 1; break; }
         used += (size_t)count;
@@ -71,7 +80,7 @@ static int persist_effect(struct Application *app, const uint8_t session[32],
         else if (errno != EEXIST) bad = 1;
     }
     if (unlinkat(directory, temporary, 0)) bad = 1;
-    if (!bad && existing_effect(directory, name, bytes, sizeof(bytes)) != 0) bad = 1;
+    if (!bad && existing_effect(directory, name, bytes, record_length) != 0) bad = 1;
     if (close(directory)) bad = 1;
     return bad ? -1 : 0;
 }

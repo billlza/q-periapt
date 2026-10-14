@@ -185,7 +185,7 @@ static int32_t commit_application(void *opaque, const uint8_t session[32],
     return 0;
 }
 static void serve(uint64_t handle, const char *path, const char *mode, const char *session_text) {
-    if (strcmp(mode, "bootstrap") && strcmp(mode, "message") && strcmp(mode, "fail-before") &&
+    if (strcmp(mode, "bootstrap") && strcmp(mode, "message") && strcmp(mode, "fresh-message") && strcmp(mode, "fail-before") &&
         strcmp(mode, "uncertain") && strcmp(mode, "crash-after") && strcmp(mode, "rekey") &&
         strcmp(mode, "pre-cancel") && strcmp(mode, "deadline")) fail("unknown server mode");
     struct Application app = {.handle=handle, .path=path, .mode=mode};

@@ -279,8 +279,13 @@ impl Traffic {
         fs::write(case.inputs.join("connection-address"), address.to_string())?;
         assert_eq!(case.run("policy-peer-rekey", "policy-rekeyed")?, [1]);
         assert_eq!(receiver_process::finish(server, 0)?, "server-rekey-1\n");
-        let (server, address) =
-            start_named(case, "message", Some(self.session), true, "fresh-message")?;
+        let (server, address) = start_named(
+            case,
+            "fresh-message",
+            Some(self.session),
+            true,
+            "fresh-message",
+        )?;
         fs::write(case.inputs.join("connection-address"), address.to_string())?;
         let sent = case.run("policy-peer-send", "policy-fresh-message")?;
         assert_eq!(sent.len(), 64);
