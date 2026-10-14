@@ -64,11 +64,11 @@ impl WitnessPolicy {
     pub(in crate::enrollment) fn validate(&self, image: &Image) -> Result<(), DurableError> {
         crate::codec::nonzero(&self.binding)?;
         if image.renewal.as_ref().is_some_and(|r| {
-            !r.permits_witness_policy()
-                && !(image.witnessed_credential_after_policy()
+            !(r.permits_witness_policy()
+                || (image.witnessed_credential_after_policy()
                     && self.completed.is_some()
                     && image.policy_coordination_retired()
-                    && r.permits_policy_credential(image.policy_pending.is_some()))
+                    && r.permits_policy_credential(image.policy_pending.is_some())))
         }) || image.policy_resolution.is_some()
             || image.roster_resolution.is_some()
             || !matches!(
@@ -370,10 +370,10 @@ impl DeviceEnrollment {
             return Err(DurableError::Suspended);
         };
         if image.renewal.as_ref().is_some_and(|r| {
-            !r.permits_witness_policy()
-                && !(image.witnessed_credential_after_policy()
+            !(r.permits_witness_policy()
+                || (image.witnessed_credential_after_policy()
                     && image.policy_coordination_retired()
-                    && r.permits_policy_credential(image.policy_pending.is_some()))
+                    && r.permits_policy_credential(image.policy_pending.is_some())))
         }) || admission.policy != policy.checkpoint().digest()
             || image
                 .policy_witness
