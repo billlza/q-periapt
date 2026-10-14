@@ -116,7 +116,15 @@ confirmation. The [native binding checkpoint](../sdk-alpha1/evidence/20261014-na
 records installed C/Swift/Kotlin process results and distinct Apple physical
 ABI checks. Those results do not establish Android ART recovery behavior.
 
-These are same-engine loopback checks on one host. They do not establish an
-independent implementation, mobile-browser or power-loss equivalence. Targeted
-new-entry storage failures, complete binding fault/lifecycle composition and
-current mobile positive recovery remain open, alongside the wider 0.2.0 gates.
+The [configured Android checkpoint](../sdk-alpha1/evidence/20261014-configured-pending-write-inspection/README.md)
+adds actual-archive host JNI and physical API 37 ART execution through the public
+configuration entry point. Its signed-TCP/fixed-SDK/unapplied route preserves a
+real unknown delivery while independently approving the exact R2 roster write
+after policy expiry. Query-only confirmation/retry do not restore activation.
+The public controller inspector is checked against the complete original views.
+
+These checks share the same protocol engine. They do not establish an independent
+implementation, mobile-browser or power-loss equivalence. Targeted new-entry
+storage failures, complete binding fault/lifecycle composition, other Android
+pending-write routes and positive Apple recovery remain open alongside the wider
+0.2.0 gates.
