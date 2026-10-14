@@ -78,8 +78,13 @@ retains all pending state when fresh witness evidence is unavailable.
 
 ## Security and evidence boundaries
 
-Independent approval is a new decision to complete this exact intent now. It is
-not evidence that the intent was created before expiry. An attacker holding the
+For a still-unapplied write, independent approval is a new decision to complete
+this exact intent now. It is not evidence that the intent was created before
+expiry. An already-applied original Advance can instead be confirmed with a new
+read-only Query; it does not need another approval or a repeated mutation. The
+controller's exact already-applied completion is also read-only.
+
+An attacker holding the
 old device state or signer may present requests and misleading descriptions.
 The controller needs independent knowledge of the account and approved effect;
 this flow cannot establish attacker eviction, private-key erasure or PCS. Device
@@ -123,8 +128,16 @@ real unknown delivery while independently approving the exact R2 roster write
 after policy expiry. Query-only confirmation/retry do not restore activation.
 The public controller inspector is checked against the complete original views.
 
+The [Android recovery matrix](../sdk-alpha1/evidence/20261014-android-pending-write-matrix/README.md)
+extends actual-package host coverage to all eight signed/TLS, fixed/recoverable
+and unapplied/applied combinations. The accepted phone also executes the
+TLS/recoverable/applied path, confirming existing history before any privileged
+recovery call. Pre-call cancellation retains the original request on fresh-owner
+reopen. This does not stand in for cancellation after a Query reaches the witness.
+
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Targeted new-entry
-storage failures, complete binding fault/lifecycle composition, other Android
-pending-write routes and positive Apple recovery remain open alongside the wider
+storage/process failures, in-flight cancellation, subsequent operational
+continuation, complete binding fault/lifecycle composition and positive Apple
+recovery remain open alongside the wider
 0.2.0 gates.
