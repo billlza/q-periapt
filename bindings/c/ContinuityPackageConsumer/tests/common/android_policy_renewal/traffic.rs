@@ -58,6 +58,11 @@ fn start_named(
         case.reference.responder.as_os_str().into(),
         mode.into(),
     ]);
+    if mode == "rekey" {
+        // --session selects the reopened owner; serve rekey separately takes
+        // the exact session whose rekey request the listener must accept.
+        args.push(fixture::hex(&session.ok_or("rekey receiver session")?).into());
+    }
     receiver_process::start_selected(
         &android_credential_traffic::executable()?,
         None,
