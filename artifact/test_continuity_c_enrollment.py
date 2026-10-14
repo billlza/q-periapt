@@ -225,7 +225,7 @@ class RenewalExecutionTests(unittest.TestCase):
                   "C_CREDENTIAL_EXPIRY actual_wall_clock=true target_until=150 observed_at=151 no_policy_status=true same_registration=true separate_root_operation=true\n"
                   "C_POLICY_CONTINUATION local_only=true joint_stage_readback=true joint_commit_readback=true current_owner=true same_signer=true same_wrapping_key=true same_journal=true credential_successor_carries_t1=true original_policy_inputs_unchanged=true\n"
                   "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true\n"
-                  "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true\n"
+                  "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true original_session=true unknown_before_t1=true original_message_after_t2=true effects=1 receiver_exit_77=true\n"
                   "C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true\n"
                   "C_POLICY_UNKNOWN_DELIVERY_RECOVERY receiver_exit_after_effect=true committed_after_reopen=true original_message_retry=true acknowledged_after_reopen=true original_effect_unchanged=true\n"
                   "C_BOTH_EXPIRED_POLICY_TRAFFIC original_session=true original_message=true both_current_refused=true missing_peer_grants_refused=true independent_grants=true peer_effect=true acknowledged_after_reopen=true immutable_originals=true\n"
@@ -266,6 +266,10 @@ class RenewalExecutionTests(unittest.TestCase):
                         output.replace(b"credential_successor_carries_t1=true", b"credential_successor_carries_t1=false"),
                         output.replace(b"uncommitted_remains_pending=true", b"uncommitted_remains_pending=false"),
                         output.replace(b"approved_wrong_predecessor_refused=true", b"approved_wrong_predecessor_refused=false"),
+                        output.replace(b" unknown_before_t1=true", b""),
+                        output.replace(b"original_message_after_t2=true", b"original_message_after_t2=false"),
+                        output.replace(b"effects=1 receiver_exit_77=true", b"effects=2 receiver_exit_77=true"),
+                        output.replace(b"receiver_exit_77=true", b"receiver_exit_77=false"),
                         output.replace(b"acknowledged_after_reopen=true", b"acknowledged_after_reopen=false"),
                         output.replace(b"committed_after_reopen=true", b"committed_after_reopen=false"),
                         output.replace(b"original_effect_unchanged=true", b"original_effect_unchanged=false"),

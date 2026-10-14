@@ -74,7 +74,7 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
         "C_HISTORICAL_POLICY_RECOVERY actual_P1_expiry=true expired_current_refused=true SDK_and_TLS_unavailable=true committed_preserved=true uncommitted_remains_pending=true same_original_owners=true"],
         "foreign expired policy history did not retain exact committed and pending outcomes")
     sdk.require(re.findall(r"^C_SECOND_POLICY_ADOPTION.*$", text, re.MULTILINE) == [
-        "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true"],
+        "C_SECOND_POLICY_ADOPTION explicit_nonnull_t1=true approved_wrong_predecessor_refused=true g2_t2_committed=true same_original_owner=true current_activation=true immutable_p0=true retained_p1=true independent_p2=true original_session=true unknown_before_t1=true original_message_after_t2=true effects=1 receiver_exit_77=true"],
         "foreign second policy adoption did not bind the approved predecessor to retained history")
     sdk.require(re.findall(r"^C_POLICY_CONTINUED_TRAFFIC.*$", text, re.MULTILINE) == [
         "C_POLICY_CONTINUED_TRAFFIC original_session=true original_message=true peer_effect=true acknowledged_after_reopen=true original_owner=true immutable_p0=true current_p1=true"],
@@ -127,6 +127,8 @@ def verify_renewal_execution(stdout: bytes, *, language: str = "C") -> dict:
                 and len(re.findall(r"^C_BOTH_EXPIRED_REKEY.*$", text, re.MULTILINE)) == 3,
                 "both-owner renewed session did not retain acknowledgements and exchange epoch1 traffic in both directions")
     return dict(completed=True, language=language, tests=sorted(RENEWAL_TESTS), actual_wall_clock=True,
+                second_policy_message_recovery=dict(original_session=True, unknown_before_t1=True,
+                    acknowledged_after_t2=True, unchanged_business_effect=True),
                 target_until=int(expiry[0][0]), observed_at=int(expiry[0][1]),
                 both_expired_clock=dict(p0_until=p0_until, left_until=left_until, right_until=right_until,
                                         expired_at=expired_at, resumed_at=resumed_at),
