@@ -176,6 +176,20 @@ struct Selected<'a> {
     maybe_async::must_be_sync
 )]
 impl DeviceJournal {
+    /// Read all original committed/accounted members without releasing bytes or
+    /// committing a reservation. Original complete target bindings remain mandatory.
+    pub async fn reconcile_fanout(
+        &mut self,
+        id: FanoutId,
+        targets: &[FanoutTarget<'_>],
+    ) -> Result<FanoutReconciliation, DurableError> {
+        let image = self.image().await?;
+        let batch = codec::get(&image, id)?;
+        self.check_fanout_bindings(&image, &batch, targets)?;
+        let result = archive::reconciliation(&image, &batch)?;
+        self.check_release(&image).await?;
+        Ok(result)
+    }
     /// Read the next aggregate ID. Concurrent readers can see the same ID;
     /// only the first exact reservation wins, and different input conflicts.
     pub async fn next_fanout_id(&mut self) -> Result<FanoutId, DurableError> {

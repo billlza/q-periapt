@@ -14,10 +14,12 @@ use crate::{
 };
 use std::{io, sync::Arc, time::Duration};
 
+pub(crate) mod account;
 mod client;
 mod codec;
 mod control;
 mod server;
+pub use account::{AccountDelivered, AccountDeliveryOutcome, AccountSubmission};
 use codec::{frame, payload, ACK, FINAL, INITIAL, MESSAGE, READY, REPLY};
 pub use control::RekeyCompleted;
 
@@ -147,6 +149,7 @@ pub trait Consumer {
 }
 
 /// Public context for an existing session, with no independent storage lease.
+#[derive(Clone)]
 pub struct Session {
     context: Arc<BootstrapContext>,
     role: BootstrapRole,

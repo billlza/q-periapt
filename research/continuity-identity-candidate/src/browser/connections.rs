@@ -6,6 +6,7 @@ use crate::{
     BootstrapRole, InitiationId, MessageId, MessageStatus,
 };
 use std::{io, sync::Arc};
+mod account;
 mod receiver;
 mod rekey;
 

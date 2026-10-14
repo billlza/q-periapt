@@ -8,6 +8,7 @@ use crate::{
     VerifiedSessionPolicy,
 };
 use std::{collections::BTreeMap, path::Path};
+mod account;
 mod control;
 
 struct Device {
@@ -17,54 +18,75 @@ struct Device {
     certificate: Vec<u8>,
     roster: Vec<u8>,
     pin: AccountPin,
+    account: [u8; 32],
     owner: EnrolledDevice,
 }
 impl Device {
     fn new(policy: &VerifiedSessionPolicy) -> Self {
-        let dir = crate::durable::tests::directory();
-        let base = dir.path().canonicalize().expect("path");
-        let paths = paths(&base);
-        drop(JournalKey::provision(&base.join("key")).expect("wrapping key"));
-        let root = RootSigningKey::generate().expect("root");
-        let intent = EnrollmentIntent::new(
-            root.public_key().expect("public root"),
-            DeviceDescription::new([7; 16], 1, policy.family(), crate::tests::interval())
+        Self::account(policy, 1)
+            .pop()
+            .expect("one registered device")
+    }
+    fn account(policy: &VerifiedSessionPolicy, count: u8) -> Vec<Self> {
+        let root = RootSigningKey::generate().expect("account root");
+        let mut staged = Vec::new();
+        for index in 0..count {
+            let dir = crate::durable::tests::directory();
+            let base = dir.path().canonicalize().expect("path");
+            let paths = paths(&base);
+            drop(JournalKey::provision(&base.join("key")).expect("wrapping key"));
+            let intent = EnrollmentIntent::new(
+                root.public_key().expect("public root"),
+                DeviceDescription::new(
+                    [7 + index; 16],
+                    1,
+                    policy.family(),
+                    crate::tests::interval(),
+                )
                 .expect("intent"),
-        );
-        let mut pending =
-            DeviceEnrollment::provision(paths.clone(), intent.clone()).expect("provision");
-        let request = pending.request(150).expect("request");
-        let request =
-            VerifiedEnrollmentRequest::verify(&request, &intent, 150).expect("verify request");
-        let certificate = root.issue_enrollment(&request, 150).expect("issue");
-        let roster = root
-            .issue_roster(
-                1,
-                crate::tests::interval(),
-                &[root.roster_entry(&certificate).expect("entry")],
-            )
-            .expect("roster");
-        let pin = AccountPin::new(
-            root.account_id().expect("account"),
-            root.public_key().expect("root"),
-            roster.checkpoint(),
-            policy.family(),
-        )
-        .expect("pin");
-        pending
-            .accept(&certificate, roster.as_bytes(), &pin, policy, 150)
-            .expect("accept");
-        pending.prepare(policy, 150).expect("prepare");
-        let owner = pending.activate(policy, 150, None).expect("activate");
-        Self {
-            _dir: dir,
-            paths,
-            intent,
-            certificate,
-            roster: roster.as_bytes().to_vec(),
-            pin,
-            owner,
+            );
+            let mut pending =
+                DeviceEnrollment::provision(paths.clone(), intent.clone()).expect("provision");
+            let request = pending.request(150).expect("request");
+            let request =
+                VerifiedEnrollmentRequest::verify(&request, &intent, 150).expect("verify request");
+            let certificate = root.issue_enrollment(&request, 150).expect("issue");
+            staged.push((dir, paths, intent, certificate, pending));
         }
+        let entries = staged
+            .iter()
+            .map(|(_, _, _, certificate, _)| root.roster_entry(certificate).expect("entry"))
+            .collect::<Vec<_>>();
+        let roster = root
+            .issue_roster(1, crate::tests::interval(), &entries)
+            .expect("complete roster");
+        staged
+            .into_iter()
+            .map(|(dir, paths, intent, certificate, mut pending)| {
+                let pin = AccountPin::new(
+                    root.account_id().expect("account"),
+                    root.public_key().expect("root"),
+                    roster.checkpoint(),
+                    policy.family(),
+                )
+                .expect("pin");
+                pending
+                    .accept(&certificate, roster.as_bytes(), &pin, policy, 150)
+                    .expect("accept");
+                pending.prepare(policy, 150).expect("prepare");
+                let owner = pending.activate(policy, 150, None).expect("activate");
+                Self {
+                    _dir: dir,
+                    paths,
+                    intent,
+                    certificate,
+                    roster: roster.as_bytes().to_vec(),
+                    pin,
+                    account: root.account_id().expect("account"),
+                    owner,
+                }
+            })
+            .collect()
     }
     fn reopen(&mut self, policy: &VerifiedSessionPolicy) {
         self.owner.close();
@@ -101,77 +123,7 @@ impl Pair {
         let policy = Arc::new(pin.verify(issued.as_bytes(), runtime, 150).expect("policy"));
         let a = Device::new(&policy);
         let mut b = Device::new(&policy);
-        let plan = PrekeyPublicationPlan::new(
-            [77; 32],
-            crate::tests::interval(),
-            &[
-                LeafKind::SignedClassical,
-                LeafKind::LastResortPq,
-                LeafKind::OneTimeClassical,
-                LeafKind::OneTimePq,
-            ]
-            .map(|kind| PrekeyPublicationKey::generate(kind, crate::tests::interval())),
-        )
-        .expect("plan");
-        let publication_id = b
-            .owner
-            .next_prekey_publication_id()
-            .expect("publication id");
-        let cancel = Cancellation::default();
-        let publication = b
-            .owner
-            .prepare_prekey_publication(
-                publication_id,
-                &plan,
-                &policy,
-                PrekeyPublicationRun {
-                    cancel: &cancel,
-                    deadline: Instant::now() + Duration::from_secs(30),
-                },
-                || Ok(150),
-            )
-            .expect("publish");
-        let manifest = publication.manifest();
-        let device = b
-            .pin
-            .verify_device(&b.certificate, &b.roster, 150)
-            .expect("responder");
-        let verified = device
-            .verify_manifest(manifest.as_bytes(), 150)
-            .expect("manifest");
-        let proof_for = |kind| {
-            (0..manifest.leaf_count())
-                .map(|i| manifest.proof(i).expect("proof"))
-                .find(|proof| {
-                    verified
-                        .verify_leaf(proof, 150)
-                        .expect("verified leaf")
-                        .kind()
-                        == kind
-                })
-                .expect("required role")
-                .encode()
-                .expect("proof bytes")
-        };
-        let signed = proof_for(LeafKind::SignedClassical);
-        let pq = proof_for(LeafKind::LastResortPq);
-        let otc = proof_for(LeafKind::OneTimeClassical);
-        let otp = proof_for(LeafKind::OneTimePq);
-        let bundle = BootstrapBundle::from_materials(
-            PrekeyQuality::OneTimeBoth,
-            BootstrapMaterials {
-                initiator_credential: &a.certificate,
-                initiator_roster: &a.roster,
-                responder_credential: &b.certificate,
-                responder_roster: &b.roster,
-                responder_manifest: manifest.as_bytes(),
-                signed_classical: &signed,
-                last_resort_pq: &pq,
-                one_time_classical: Some(&otc),
-                one_time_pq: Some(&otp),
-            },
-        )
-        .expect("bundle");
+        let bundle = bundle(&a, &mut b, &policy);
         Self {
             a,
             b,
@@ -804,4 +756,80 @@ fn wrong_owner_and_closed_policy_do_not_release_new_frames() {
             .is_err());
         assert!(owner.parts().is_err());
     }
+}
+
+fn bundle(a: &Device, b: &mut Device, policy: &Arc<VerifiedSessionPolicy>) -> BootstrapBundle {
+    let plan = PrekeyPublicationPlan::new(
+        [77; 32],
+        crate::tests::interval(),
+        &[
+            LeafKind::SignedClassical,
+            LeafKind::LastResortPq,
+            LeafKind::OneTimeClassical,
+            LeafKind::OneTimePq,
+        ]
+        .map(|kind| PrekeyPublicationKey::generate(kind, crate::tests::interval())),
+    )
+    .expect("plan");
+    let publication_id = b
+        .owner
+        .next_prekey_publication_id()
+        .expect("publication id");
+    let cancel = Cancellation::default();
+    let publication = b
+        .owner
+        .prepare_prekey_publication(
+            publication_id,
+            &plan,
+            policy,
+            PrekeyPublicationRun {
+                cancel: &cancel,
+                deadline: Instant::now() + Duration::from_secs(30),
+            },
+            || Ok(150),
+        )
+        .expect("publish");
+    let manifest = publication.manifest();
+    let device = b
+        .pin
+        .verify_device(&b.certificate, &b.roster, 150)
+        .expect("responder");
+    let verified = device
+        .verify_manifest(manifest.as_bytes(), 150)
+        .expect("manifest");
+    let proof_for = |kind| {
+        (0..manifest.leaf_count())
+            .map(|i| manifest.proof(i).expect("proof"))
+            .find(|proof| {
+                verified
+                    .verify_leaf(proof, 150)
+                    .expect("verified leaf")
+                    .kind()
+                    == kind
+            })
+            .expect("required role")
+            .encode()
+            .expect("proof bytes")
+    };
+    let signed = proof_for(LeafKind::SignedClassical);
+    let pq = proof_for(LeafKind::LastResortPq);
+    let otc = proof_for(LeafKind::OneTimeClassical);
+    let otp = proof_for(LeafKind::OneTimePq);
+    let bundle = BootstrapBundle::from_materials(
+        PrekeyQuality::OneTimeBoth,
+        BootstrapMaterials {
+            initiator_credential: &a.certificate,
+            initiator_roster: &a.roster,
+            responder_credential: &b.certificate,
+            responder_roster: &b.roster,
+            responder_manifest: manifest.as_bytes(),
+            signed_classical: &signed,
+            last_resort_pq: &pq,
+            one_time_classical: Some(&otc),
+            one_time_pq: Some(&otp),
+        },
+    )
+    .expect("bundle");
+
+    bundle
 }

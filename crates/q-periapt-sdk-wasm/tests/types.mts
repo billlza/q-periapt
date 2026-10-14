@@ -232,3 +232,31 @@ async function jointPolicyMaintenance(device: QPeriaptContinuityDevice,
   proposal.free(); proof.free(); void predecessor; void targetVersion; void localJournal; void witnessedJournal;
 }
 void jointPolicyMaintenance;
+
+import { QPeriaptContinuityAccountTargets, QPeriaptContinuityAccountMessage,
+  QPeriaptContinuityAccountPhase, QPeriaptContinuityAccountOutcome,
+  QPeriaptContinuityAccountMemberPhase } from 'q-periapt-sdk-wasm/web';
+async function accountDelivery(device: QPeriaptContinuityDevice,
+    session: QPeriaptContinuitySession, endpoint: QPeriaptContinuityEndpoint) {
+  const targets = new QPeriaptContinuityAccountTargets();
+  targets.add(session);
+  const count: number = targets.len(), empty: boolean = targets.is_empty();
+  const id: Uint8Array = await device.next_account_message_id();
+  const input = new QPeriaptContinuityAccountMessage(id, data, data, data);
+  const state = await device.account_message_status(id);
+  const phase: QPeriaptContinuityAccountPhase = state.phase();
+  const abandoned: Uint8Array | undefined = state.abandonment_id();
+  state.operation_id(); state.free();
+  const result = await device.deliver_account_member(targets, input, 0, endpoint, 5000, () => 1n);
+  const outcome: QPeriaptContinuityAccountOutcome = result.outcome();
+  result.device(); result.session(); result.message(); result.exchanges(); result.free();
+  const members = await device.reconcile_account_message(id, targets);
+  members.operation_id(); members.len(); members.is_empty();
+  const member = members.member(0);
+  const memberPhase: QPeriaptContinuityAccountMemberPhase = member.phase();
+  member.device(); member.session(); member.message(); member.free(); members.free();
+  await device.retire_account_message(id, targets);
+  input.operation_id(); input.close(); input.is_closed(); input.free(); targets.free();
+  void count; void empty; void phase; void abandoned; void outcome; void memberPhase;
+}
+void accountDelivery;

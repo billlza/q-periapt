@@ -52,18 +52,7 @@ fn account_member(
         .ok_or(Error::Binding)
 }
 
-fn retained_outcome(output: FanoutOutput) -> Option<AccountDeliveryOutcome> {
-    match output {
-        FanoutOutput::Committed(_) => None,
-        FanoutOutput::Acknowledged => {
-            Some(AccountDeliveryOutcome::Consumption(Consumption::Confirmed))
-        }
-        FanoutOutput::ResolutionPending => Some(AccountDeliveryOutcome::ResolutionPending),
-        FanoutOutput::DeliveryUnknown => Some(AccountDeliveryOutcome::DeliveryUnknown),
-        FanoutOutput::HistoryRetired => Some(AccountDeliveryOutcome::HistoryRetired),
-        FanoutOutput::ReservationAbandoned => Some(AccountDeliveryOutcome::ReservationAbandoned),
-    }
-}
+use crate::session_exchange::account::retained_outcome;
 
 struct Invocation<'a> {
     endpoint: &'a ConnectionEndpoint,

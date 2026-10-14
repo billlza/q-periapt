@@ -240,6 +240,29 @@ committed the update. If transport or storage fails, reopen the original device
 and retry the same independently signed target. A later head refusing that retry
 does not establish whether the older attempt once committed.
 
+For a complete-account message, populate `QPeriaptContinuityAccountTargets` with
+one existing session for every required device in the signed recipient roster.
+Read `next_account_message_id` once, and retain that ID and one
+`QPeriaptContinuityAccountMessage` containing the recipient account, original
+plaintext and associated data. `deliver_account_member` takes the entire target
+set and one selected index. It commits every required local message together
+before dispatching that member. Additional members use the same aggregate input;
+calling individual-message delivery is not a replacement for this transaction.
+
+After an error, reopen the original device and retain the same operation, input
+and recipient sessions. `account_message_status` distinguishes unreserved,
+reserved, committed, abandoning, abandoned and retired progress. For a committed
+or accounted batch, `reconcile_account_message` returns all original member IDs
+and outcomes without dispatching or completing a reservation. A retained member
+confirmation may return from delivery with zero exchanges. PrefixPending,
+ResolutionPending, DeliveryUnknown and HistoryRetired are distinct outcomes, not
+successful remote consumption. `retire_account_message` only removes aggregate
+metadata after every member has been acknowledged or explicitly accounted; its
+ID is never reused. Host business effects still need durable deduplication and
+are not atomic across recipients. Close/free erases the account-input object's
+SDK plaintext copy. These entry points require an activated original device;
+restricted cleanup of an inactive or retired installation is separate work.
+
 Current roster membership is rechecked before existing-session operations release
 data. Accepting a roster which removes a peer therefore blocks that peer's old
 sessions. This operation does not distribute the roster, prove remote receipt or

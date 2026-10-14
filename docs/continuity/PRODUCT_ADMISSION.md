@@ -357,7 +357,7 @@ exercise complete reports after SDK revocation and original-ID recovery under
 local, signed-TCP and mutual-TLS witness profiles. The
 [qualification ledger](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints)
 binds each result to its source and carrier. Current-source registration package
-qualification, Android/WASM whole-account adapters, remaining root/witness-key
+qualification, complete browser whole-account cleanup, remaining root/witness-key
 replacement and the broader failure matrix remain required. These finite
 own-account traces do not qualify the complete multi-device lifecycle.
 
@@ -389,12 +389,12 @@ acceptance for those Android routes on the selected phone.
 
 | Required boundary | Existing implementation to reuse | Foreign integration still missing |
 | --- | --- | --- |
-| Explicit new lineage and exact restart | C/Swift/Kotlin/Android configuration owners admit explicit first-use inputs and generate the wrapping key; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Complete current-source archive/device qualification, WASM persistence, deployed authority transport, broader creation faults and final product provisioning |
-| Device-scoped protocol service | Native shared service, C device-parent/peer registry and Swift/Kotlin owners retain one journal and archive index under one installation lease; account calls pin the complete peer set | Android/WASM owners and source-bound qualification on every supported target |
-| Account-wide local transaction | `DeviceJournal::send_account_message/resume_account_message`, `FanoutInput`, `FanoutTarget`, per-member outcomes; C/Swift/Kotlin complete-set admission, required-TLS-witness own/peer-account member delivery and cleanup | Broader delivery faults/concurrency, authority lifecycle and Android/WASM integration |
+| Explicit new lineage and exact restart | C/Swift/Kotlin/Android configuration owners and the browser IndexedDB owner admit explicit first-use inputs; enrollment commits the original signer/request, accepts independent trust inputs and retains the enrollment lease; reconcile/open preserve original identity | Complete current-source archive/device qualification, deployed authority transport, broader creation faults and final product provisioning |
+| Device-scoped protocol service | Native shared service, foreign device-parent/peer owners and the browser device retain one journal and archive index under one installation lease; account calls pin the complete peer set | Complete lifecycle and source-bound qualification on every supported target |
+| Account-wide local transaction | Shared journal transaction with complete-set admission and per-member outcomes; native and foreign carriers, including Android, retain original operations; the installed browser package now commits and delivers to two original recipient sessions | Broader delivery faults/concurrency and authority lifecycle; browser restricted aggregate recovery/abandonment after expiry or retirement |
 | Authority lifecycle | Native/C/Swift/Kotlin original enrollment, credential renewal, joint or independent protocol-policy continuation, peer-roster refresh and original-session recovery; native witness account-root retirement fences previously unseen old-root devices; the native managed owner orders registry/enrollment/journal commits, retains non-commit, transitions to approved targets and adopts an independently approved committed winner | Complete deployed authority lifecycle, managed retirement accounting in [account-root cutover and witness-key handoff](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md), foreign distribution qualification, remaining Android whole-account services, WASM authority/persistence integration and current-source qualification on every supported platform |
 | Permanently retired enrolled device | Native atomic generation replacement and restricted retired enrollment; C/Swift/Kotlin delegate complete report/host acknowledgement and original journal/signer erasure without operational authority; Android-created original and successor devices, cleanup and fresh traffic pass on the accepted phone | Complete current foreign distribution qualification, remaining foreign replacement authorization and WASM persistence |
-| Platform persistence | Native protected-file/redb engines and exact write-intent reconciliation | Android installation integration and a reviewed durable browser backend with the same commit/recovery contract |
+| Platform persistence | Native protected-file/redb engines, Android installation storage and the browser IndexedDB backend retain original write intents and reconcile uncertain commits | Remaining platform lifecycle/failure qualification and release admission under each backend's actual durability contract |
 
 The native fanout methods are in
 [`durable/messages/fanout.rs`](../../research/continuity-identity-candidate/src/durable/messages/fanout.rs).
@@ -426,8 +426,9 @@ contexts, refuse an omitted recipient without partial mutation, execute the
 existing complete-roster transaction and replay its exact ciphertext after
 original-installation restart. This is the native existing-session prerequisite;
 the separate native fresh-admission entry is described next. C parent/child
-handles and Swift/Kotlin parent/child owners now reuse both entries. Android/WASM
-integration remains unimplemented.
+handles and Swift/Kotlin parent/child owners reuse both entries. Android and browser
+owners now expose fresh admission and original-session reopen; their complete
+platform lifecycle still needs the separate qualifications described above.
 
 `DeviceService::admit_peer` now admits a freshly and independently verified peer
 context against the same active installation. It rechecks current advertisements,
@@ -661,20 +662,22 @@ lifecycle, root/witness-key replacement or the broader failure matrix.
 ## Platform and release admission
 
 JDK 25 FFM qualification does not exercise Android ART/JNI. The Android adapter
-needs its own reference, callback, exception, cancellation and unloading/lifetime
-contract over the same engine, then actual extracted AAR/native-library execution.
-It must not infer durable Continuity support from the existing in-memory SDK policy
-instrumentation workload.
+has separate public owner APIs and actual AAR/native-library execution on the
+accepted phone, as recorded above. Its reference, callback, exception,
+cancellation and unloading/lifetime contracts still require their own evidence;
+desktop FFM and in-memory policy tests cannot substitute for those boundaries.
 
-The product WASM entry point currently supplies controlled primitive owners, not
-the native filesystem/TCP service. Durable browser admission must specify actual
-atomic persistence, revision exclusion, uncertain commits, restart, quota failure,
-cancellation and original witness reconciliation before returning protocol output.
-A volatile in-memory replacement or successful wasm compilation cannot satisfy
-that boundary. Browser transport and persistence capabilities must be explicitly
-reported; unavailable required capabilities must fail without changing the signed
-security profile. A storage implementation and its target support remain design
-and execution obligations, not claims made by this review.
+The product WASM entry point includes a persistent browser device over IndexedDB,
+bounded browser transport, original-session recovery and authority-maintenance
+APIs. The [installed complete-account delivery qualification](../../research/sdk-alpha1/evidence/20261014-browser-account-fanout/README.md)
+adds two-recipient atomic local submission and original-operation retry. Browser
+restricted aggregate recovery/abandonment after expiry or retirement remains
+open. Atomic persistence, revision exclusion, uncertain commits, restart, quota
+failure, cancellation and original witness reconciliation must retain their
+explicit contracts across the complete lifecycle. Browser capabilities must be
+reported, and unavailable required capabilities must fail without changing the
+signed security profile. Compilation or an in-memory replacement cannot supply
+this evidence.
 
 Before admitting the candidate into the release graph, each supported package
 must exercise fresh setup from its public entry point, exact restart, at least two

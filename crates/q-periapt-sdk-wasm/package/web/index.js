@@ -52,3 +52,15 @@ export { QPeriaptContinuityPolicyGrant, QPeriaptContinuityPolicyProposal,
   QPeriaptContinuityPolicyPhase, QPeriaptContinuityPolicyAbandonment, QPeriaptContinuityPolicyStatus,
   QPeriaptContinuityWitnessPolicyState, QPeriaptContinuityWitnessPolicyStage,
   QPeriaptContinuityWitnessPolicyProgress } from './q_periapt_sdk_wasm.js';
+
+export {
+  QPeriaptContinuityAccountTargets,
+  QPeriaptContinuityAccountMessage,
+  QPeriaptContinuityAccountPhase,
+  QPeriaptContinuityAccountStatus,
+  QPeriaptContinuityAccountOutcome,
+  QPeriaptContinuityAccountDelivery,
+  QPeriaptContinuityAccountMemberPhase,
+  QPeriaptContinuityAccountMember,
+  QPeriaptContinuityAccountMembers
+} from './q_periapt_sdk_wasm.js';

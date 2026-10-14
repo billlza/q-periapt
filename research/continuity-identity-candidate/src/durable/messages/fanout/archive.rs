@@ -286,37 +286,9 @@ impl FanoutAbandonmentJournal {
             self.journal.check_release(&image).await?;
             return Err(Error::Retired.into());
         };
-        if !matches!(
-            batch.state,
-            BatchState::Committed(_) | BatchState::Abandoned(_)
-        ) {
-            return Err(DurableError::Suspended);
-        }
-        let members = batch
-            .members
-            .iter()
-            .map(|member| {
-                let state = match codec::record_output(&image, &batch, member)? {
-                    FanoutOutput::Committed(_) => FanoutMemberState::Committed,
-                    FanoutOutput::Acknowledged => FanoutMemberState::Acknowledged,
-                    FanoutOutput::ResolutionPending => FanoutMemberState::ResolutionPending,
-                    FanoutOutput::DeliveryUnknown => FanoutMemberState::DeliveryUnknown,
-                    FanoutOutput::HistoryRetired => FanoutMemberState::HistoryRetired,
-                    FanoutOutput::ReservationAbandoned => FanoutMemberState::ReservationAbandoned,
-                };
-                Ok(FanoutMemberStatus {
-                    device: member.device,
-                    session: member.session,
-                    message: member.message,
-                    state,
-                })
-            })
-            .collect::<Result<Vec<_>, DurableError>>()?;
+        let result = reconciliation(&image, &batch)?;
         self.journal.check_release(&image).await?;
-        Ok(FanoutReconciliation {
-            batch: batch.id,
-            members,
-        })
+        Ok(result)
     }
     /// Irreversibly freeze every member and return the complete immutable loss
     /// report. Committed batches cannot be reclassified as reserved abandonment.
@@ -360,4 +332,41 @@ impl FanoutAbandonmentJournal {
     pub fn close(&mut self) {
         self.journal.close();
     }
+}
+
+/// Metadata only; callers authenticate original bindings and check release.
+pub(super) fn reconciliation(
+    image: &Image,
+    batch: &Batch,
+) -> Result<FanoutReconciliation, DurableError> {
+    if !matches!(
+        batch.state,
+        BatchState::Committed(_) | BatchState::Abandoned(_)
+    ) {
+        return Err(DurableError::Suspended);
+    }
+    let members = batch
+        .members
+        .iter()
+        .map(|member| {
+            let state = match codec::record_output(image, batch, member)? {
+                FanoutOutput::Committed(_) => FanoutMemberState::Committed,
+                FanoutOutput::Acknowledged => FanoutMemberState::Acknowledged,
+                FanoutOutput::ResolutionPending => FanoutMemberState::ResolutionPending,
+                FanoutOutput::DeliveryUnknown => FanoutMemberState::DeliveryUnknown,
+                FanoutOutput::HistoryRetired => FanoutMemberState::HistoryRetired,
+                FanoutOutput::ReservationAbandoned => FanoutMemberState::ReservationAbandoned,
+            };
+            Ok(FanoutMemberStatus {
+                device: member.device,
+                session: member.session,
+                message: member.message,
+                state,
+            })
+        })
+        .collect::<Result<Vec<_>, DurableError>>()?;
+    Ok(FanoutReconciliation {
+        batch: batch.id,
+        members,
+    })
 }
