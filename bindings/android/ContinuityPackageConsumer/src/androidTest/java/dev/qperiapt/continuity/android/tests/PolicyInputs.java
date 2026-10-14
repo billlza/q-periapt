@@ -24,7 +24,7 @@ final class PolicyInputs {
             WitnessInputs.install(inputs, arguments, "recovery-enrollment", 3309, 3309, true);
         }
     }
-    private static void copyOriginal(File source, File target, String name) throws Exception {
+    static void copyOriginal(File source, File target, String name) throws Exception {
         byte[] bytes = Files.readAllBytes(new File(source, name).toPath());
         try {
             try { Files.write(new File(target, name).toPath(), bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE); }
@@ -55,6 +55,18 @@ final class PolicyInputs {
             WitnessInputs.install(target, fields, "policy-version", 8, 8, true);
             WitnessInputs.install(target, fields, "policy-digest", 32, 32, true);
             WitnessInputs.install(target, fields, "protocol-policy", 1, 8192, true);
+            if ("next".equals(arguments.getString("policy-generation"))) {
+                File previous = new File(inputs, "policy-previous");
+                if (!previous.mkdir() && !previous.isDirectory()) throw new IllegalStateException("previous policy inputs");
+                for (String name : new String[] {"family", "policy-root"}) copyOriginal(inputs, previous, name);
+                Bundle predecessor = new Bundle();
+                for (String name : new String[] {"policy-version", "policy-digest", "protocol-policy"})
+                    predecessor.putString(name, arguments.getString("previous-" + name));
+                WitnessInputs.install(previous, predecessor, "policy-version", 8, 8, true);
+                WitnessInputs.install(previous, predecessor, "policy-digest", 32, 32, true);
+                WitnessInputs.install(previous, predecessor, "protocol-policy", 1, 8192, true);
+                WitnessInputs.install(inputs, arguments, "previous-policy-authorization", 32, 32, true);
+            }
         }
         if (operation.equals("policy-request")) WitnessInputs.install(inputs, arguments, "renewal-operation", 32, 32, true);
         if (operation.startsWith("policy-stage")) {

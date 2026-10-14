@@ -70,7 +70,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                     || (directory.st_mode & 0777) != 0700 || directory.st_uid != android.os.Process.myUid()) {
                 throw new IllegalStateException("private consumer parent admission");
             }
-            File inputs = new File(base, "inputs");
+            File inputs = PolicyGenerationInputs.select(base, arguments.getString("policy-generation", "original"), operation);
             if (!inputs.isDirectory()) {
                 if (!inputs.mkdir()) throw new IllegalStateException("create input directory");
                 if (roster || retired || root) throw new IllegalStateException("original enrollment inputs are absent");

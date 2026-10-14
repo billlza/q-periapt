@@ -59,13 +59,13 @@ def transcript(value: bytes, *, cached_terminal: bool = False) -> None:
     sdk.require(all(value[i] == 1 and value[i + 205] not in (5, 7) for i in range(0, len(value), 7334)), "history sent new Commit/Close")
 
 
-def verify_execution(stdout: bytes, directory: Path, carrier: str, profile: str, committed: bool, *, batch: bool = False) -> dict:
+def verify_execution(stdout: bytes, directory: Path, carrier: str, profile: str, committed: bool, *, batch: bool = False, catalog=contract.TESTS) -> dict:
     label = carrier + "-" + profile + ("-applied" if committed else "-closed")
     sdk.require(label in TESTS, "joint witness route")
     if batch:
-        contract.verify_batch(stdout, frozenset(TESTS.values()))
+        contract.verify_batch(stdout, frozenset(TESTS.values()), catalog=catalog)
     else:
-        contract.verify_single(stdout, TESTS[label])
+        contract.verify_single(stdout, TESTS[label], catalog=catalog)
     base = directory / (carrier + "-" + profile)
     def read(name): return sdk.snapshot(base / name).data
     count = len(cases(committed))

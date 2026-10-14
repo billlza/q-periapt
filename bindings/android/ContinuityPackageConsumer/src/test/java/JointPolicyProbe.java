@@ -35,20 +35,25 @@ final class JointPolicyProbe {
                 });
                 publish(output, ByteBuffer.allocate(4).putInt(211).array());
             }
-            case "policy-joint-stage", "policy-joint-stage-refused", "policy-joint-stage-predecessor" -> {
+            case "policy-joint-stage", "policy-joint-stage-refused", "policy-joint-stage-predecessor",
+                 "policy-joint-stage-next", "policy-joint-stage-next-refused", "policy-joint-stage-next-missing",
+                 "policy-joint-stage-next-predecessor" -> {
                 AccountPin pin = new AccountPin(read(inputs, "trusted-account"), read(inputs, "enrollment-root"), read(inputs, "family"),
                     counter(ByteBuffer.wrap(read(inputs, "renewal-version"))), read(inputs, "renewal-digest"));
                 byte[] approvals = read(inputs, "joint-approvals");
                 if (mode.endsWith("-refused")) approvals[approvals.length - 1] ^= 1;
-                ConfigurationInputs.ProtocolPolicy previous = PolicyProbe.document(inputs);
-                Ids.PolicyContinuationStatement predecessor = mode.endsWith("-predecessor")
-                    ? new Ids.PolicyContinuationStatement(statement.encoded()) : null;
-                int expected = mode.endsWith("-refused") ? 102 : predecessor != null ? 105 : 0;
+                boolean next = mode.startsWith("policy-joint-stage-next");
+                ConfigurationInputs.ProtocolPolicy previous = PolicyProbe.document(next ? inputs.resolve("policy-previous") : inputs);
+                Ids.PolicyContinuationStatement predecessor = mode.endsWith("-missing") ? null : mode.endsWith("-predecessor")
+                    ? new Ids.PolicyContinuationStatement(statement.encoded())
+                    : next ? new Ids.PolicyContinuationStatement(read(inputs, "previous-policy-authorization")) : null;
+                int expected = mode.endsWith("-refused") ? 102 : mode.endsWith("-missing") ? 105
+                    : mode.endsWith("-predecessor") ? (next ? 103 : 105) : 0;
                 byte[] grant = read(inputs, "credential-renewal");
                 if (expected != 0) {
                     failed(expected, () -> owner.stagePolicyContinuation(grant, pin, operation, approvals, previous, predecessor));
                     publish(output, ByteBuffer.allocate(4).putInt(expected).array());
-                } else publish(output, CredentialProbe.status(owner.stagePolicyContinuation(grant, pin, operation, approvals, previous, null)));
+                } else publish(output, CredentialProbe.status(owner.stagePolicyContinuation(grant, pin, operation, approvals, previous, predecessor)));
             }
             case "policy-joint-status" -> publish(output, CredentialProbe.status(owner.credentialRenewalStatus()));
             case "policy-joint-reconcile" -> publish(output, CredentialProbe.status(owner.reconcilePolicyContinuation()));

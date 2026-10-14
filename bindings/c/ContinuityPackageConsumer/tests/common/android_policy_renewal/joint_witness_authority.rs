@@ -2,31 +2,30 @@
 //! Independent witness verifies public G/T approvals before prepare or closure.
 use super::*;
 
-pub(super) fn approve(case: &Case<'_>, prepared: &Prepared, bytes: &[u8]) -> Result<()> {
+pub(super) fn approve(
+    case: &Case<'_>,
+    issued: &issuer::Issued,
+    bytes: &[u8],
+    previous: &p::HistoricalSessionPolicy,
+) -> Result<()> {
     let proposal = p::AnchorCredentialRenewalProposal::from_trusted_state(bytes)?;
-    assert_eq!(proposal.operation(), prepared.issued.operation);
-    assert_eq!(
-        proposal.statement(),
-        prepared.issued.grant.statement_digest()
-    );
-    assert_eq!(proposal.transaction_statement(), prepared.issued.statement);
-    assert_eq!(
-        proposal.policy_continuation(),
-        Some(prepared.issued.statement)
-    );
+    assert_eq!(proposal.operation(), issued.operation);
+    assert_eq!(proposal.statement(), issued.grant.statement_digest());
+    assert_eq!(proposal.transaction_statement(), issued.statement);
+    assert_eq!(proposal.policy_continuation(), Some(issued.statement));
     assert_eq!(proposal.policy_renewal(), None);
     assert!(proposal.adopts_policy());
     let original = crate::receiver_policy::historical(case.inputs)?;
     let target = fixture::protocol_policy(&case.inputs.join("policy-target"), case.sdk)?;
     let materials = p::PolicyContinuationMaterials {
         original: &original,
-        previous: &original,
+        previous,
         target: &target,
-        credential: &prepared.issued.grant,
+        credential: &issued.grant,
     };
     let continuation = p::VerifiedPolicyContinuation::from_bytes(
         &fs::read(case.inputs.join("joint-approvals"))?,
-        &prepared.issued.scope,
+        &issued.scope,
         &materials,
         fixture::now()?,
     )?;
@@ -102,14 +101,15 @@ pub(super) fn commit_reply_loss(case: &Case<'_>) -> Result<()> {
         tls.arm(None)?;
     } else {
         let witness = case.witness.ok_or("signed witness")?;
+        // The server retains a fixed prefix filename beside its marker. Give
+        // each generation its own directory; never overwrite an earlier cut.
+        let directory = case.output("joint-commit-fault");
+        fs::DirBuilder::new().mode(0o700).create(&directory)?;
         let mut marker = witness
             .hold_marker
             .lock()
             .map_err(|_| "joint Commit barrier")?;
-        if marker
-            .replace(case.base.join("joint-commit-error-ready"))
-            .is_some()
-        {
+        if marker.replace(directory.join("ready")).is_some() {
             return Err("unconsumed joint Commit barrier".into());
         }
         drop(marker);

@@ -44,11 +44,13 @@ fn run_profile(profile: &str) -> Result<()> {
     }
     Ok(())
 }
+#[derive(Clone)]
 struct Case<'a> {
     driver: &'a Path,
     profile: &'a str,
     carrier: &'a str,
     base: &'a Path,
+    namespace: &'a str,
     inputs: &'a Path,
     reference: &'a fixture::Setup,
     root: &'a p::RootSigningKey,
@@ -63,6 +65,9 @@ struct Case<'a> {
     calls: Cell<u64>,
 }
 impl Case<'_> {
+    fn output(&self, label: &str) -> PathBuf {
+        self.base.join(format!("{}{label}", self.namespace))
+    }
     fn run(&self, mode: &str, label: &str) -> Result<Vec<u8>> {
         let value = run_foreign(
             self.driver,
@@ -70,7 +75,7 @@ impl Case<'_> {
             self.inputs,
             self.base,
             mode,
-            label,
+            &format!("{}{label}", self.namespace),
         )?;
         self.calls
             .set(self.calls.get().checked_add(1).ok_or("process census")?);
@@ -110,6 +115,7 @@ enum Maintenance {
     Roster { closed: bool },
     Credential,
     Joint { committed: bool },
+    JointCycle,
 }
 fn exercise(
     output: &Path,
@@ -236,6 +242,7 @@ fn exercise(
         profile,
         carrier,
         base: &base,
+        namespace: "",
         inputs: &inputs,
         reference: &reference,
         root: &root,
@@ -262,7 +269,9 @@ fn exercise(
     );
     let traffic = traffic::Traffic::begin(&case)?;
     traffic.renew_receiver(&case)?;
-    if let Some(Maintenance::Joint { committed }) = maintenance {
+    if let Some(Maintenance::JointCycle) = maintenance {
+        joint::repeat(&case, &identity, &traffic)?;
+    } else if let Some(Maintenance::Joint { committed }) = maintenance {
         joint::exercise(&case, &identity, &traffic, committed)?;
     } else {
         flow::renew(&case, &identity)?;
@@ -276,7 +285,9 @@ fn exercise(
                 }
             }
             Some(Maintenance::Credential) => credential::renew(&case, &identity)?,
-            Some(Maintenance::Joint { .. }) => unreachable!("joint route handled separately"),
+            Some(Maintenance::Joint { .. } | Maintenance::JointCycle) => {
+                unreachable!("joint route handled separately")
+            }
             None => {}
         }
         traffic.resume(&case)?;
@@ -292,7 +303,9 @@ fn exercise(
     if let Some(witness) = witness.as_mut() {
         witness.join()?;
     }
-    if let Some(Maintenance::Joint { committed }) = maintenance {
+    if let Some(Maintenance::JointCycle) = maintenance {
+        println!("qualified joint policy cycle {carrier}/{profile}: {calls} foreign processes; two applied G/T generations, three real policy expiries, original identity session message and one effect");
+    } else if let Some(Maintenance::Joint { committed }) = maintenance {
         if carrier == "local" {
             println!("qualified joint policy {profile}: {calls} foreign processes; committed={committed}, expired original and target, exact historical outcome, original identity and one effect");
         } else {

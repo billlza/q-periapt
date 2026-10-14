@@ -53,7 +53,7 @@ fn start(
         &android_credential_traffic::executable()?,
         None,
         case.base,
-        &format!("policy-{mode}"),
+        &format!("{}policy-{mode}", case.namespace),
         &args,
     )
 }
@@ -230,7 +230,7 @@ impl Traffic {
             .filter(|e| e.file_name().to_string_lossy().starts_with("application-"))
             .count();
         assert_eq!(count, 1);
-        publish_private_bytes(&case.base.join("policy-effect-after"), &effect)?;
+        publish_private_bytes(&case.output("policy-effect-after"), &effect)?;
         Ok(())
     }
 }

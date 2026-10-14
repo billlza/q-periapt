@@ -8,12 +8,17 @@ fn observed(case: &Case<'_>, mode: &str, label: &str, expected: &[u8]) -> Result
     assert_eq!(case.run(mode, label)?, expected);
     Ok(())
 }
-fn history(case: &Case<'_>, start: usize, name: &str, cached_terminal: bool) -> Result<()> {
+pub(super) fn history(
+    case: &Case<'_>,
+    start: usize,
+    name: &str,
+    cached_terminal: bool,
+) -> Result<()> {
     let captures = case.captures()?;
     let trace = captures
         .get(start..)
         .ok_or("joint witness history offset")?;
-    crate::android_credential::write_exchanges(&case.base.join(name), trace)?;
+    crate::android_credential::write_exchanges(&case.output(name), trace)?;
     assert!(
         (cached_terminal || !trace.is_empty())
             && trace
@@ -22,11 +27,13 @@ fn history(case: &Case<'_>, start: usize, name: &str, cached_terminal: bool) -> 
     );
     Ok(())
 }
-fn applied(
+pub(super) fn applied(
     case: &Case<'_>,
     prepared: &Prepared,
     identity: &[u8],
     traffic: &traffic::Traffic,
+    previous: &p::HistoricalSessionPolicy,
+    retry: bool,
 ) -> Result<()> {
     let proposal = case.run("policy-joint-witness-prepare", "joint-proposal")?;
     assert_eq!(proposal.len(), 329);
@@ -43,7 +50,7 @@ fn applied(
         "joint-proposal-recovered",
         &proposal,
     )?;
-    authority::approve(case, prepared, &proposal)?;
+    authority::approve(case, &prepared.issued, &proposal, previous)?;
     let before = case.captures()?.len();
     authority::commit_reply_loss(case)?;
     observed(
@@ -63,11 +70,8 @@ fn applied(
     let commit = commits.first().ok_or("joint Commit missing")?;
     assert!(!commit.delivered);
     assert_eq!(commit.reply.get(204), Some(&8));
-    publish_private_bytes(
-        &case.base.join("joint-lost-commit-request"),
-        &commit.request,
-    )?;
-    publish_private_bytes(&case.base.join("joint-lost-commit-reply"), &commit.reply)?;
+    publish_private_bytes(&case.output("joint-lost-commit-request"), &commit.request)?;
+    publish_private_bytes(&case.output("joint-lost-commit-reply"), &commit.reply)?;
     observed(
         case,
         "policy-joint-status",
@@ -85,7 +89,7 @@ fn applied(
     let captures = case.captures()?;
     let closing = captures.get(start..).ok_or("explicit Close offset")?;
     crate::android_credential::write_exchanges(
-        &case.base.join("joint-explicit-close-transcript"),
+        &case.output("joint-explicit-close-transcript"),
         closing,
     )?;
     assert_eq!(
@@ -117,7 +121,10 @@ fn applied(
         observed(case, "policy-joint-activate", label, identity)?;
     }
     credential::admit_peer(case)?;
-    traffic.resume_with(case, "policy-joint-peer-retry")
+    if retry {
+        traffic.resume_with(case, "policy-joint-peer-retry")?;
+    }
+    Ok(())
 }
 fn cancellation(case: &Case<'_>, prepared: &Prepared) -> Result<Vec<u8>> {
     let before = case.captures()?.len();
@@ -164,7 +171,8 @@ pub(super) fn exercise(
     identity: &[u8],
     traffic: &traffic::Traffic,
     committed: bool,
-) -> Result<()> {
+    retry: bool,
+) -> Result<issuer::Issued> {
     let prepared = prepare(case, identity)?;
     for (mode, label) in [
         (
@@ -185,7 +193,8 @@ pub(super) fn exercise(
         )?;
     }
     let cancellation = if committed {
-        applied(case, &prepared, identity, traffic)?;
+        let previous = crate::receiver_policy::historical(case.inputs)?;
+        applied(case, &prepared, identity, traffic, &previous, retry)?;
         None
     } else {
         Some(cancellation(case, &prepared)?)
@@ -240,7 +249,8 @@ pub(super) fn exercise(
         )?;
     }
     history(case, start, "joint-expired-history-transcript", committed)?;
-    next_request(case, identity, &prepared.issued, committed)
+    next_request(case, identity, &prepared.issued, committed)?;
+    Ok(prepared.issued)
 }
 
 #[test]

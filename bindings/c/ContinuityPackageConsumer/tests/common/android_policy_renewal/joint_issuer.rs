@@ -31,7 +31,7 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
         );
     }
     let request =
-        crate::credential_request::read_credential_request(&case.base.join("joint-request"), true)?;
+        crate::credential_request::read_credential_request(&case.output("joint-request"), true)?;
     assert_eq!(request.operation, operation);
     assert_eq!(
         request.journal.as_bytes(),
@@ -46,7 +46,18 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
     assert_eq!(request.current_policy, case.policy.checkpoint());
     assert_eq!(request.original_policy, case.policy.checkpoint().digest());
     assert_eq!(request.previous, case.roster.checkpoint());
+    let previous = crate::receiver_policy::historical(case.inputs)?;
+    approve_request(case, &request, &previous)
+}
+
+pub(super) fn approve_request(
+    case: &Case<'_>,
+    request: &crate::credential_request::CredentialRequest,
+    previous_policy: &p::HistoricalSessionPolicy,
+) -> Result<Issued> {
+    let operation = request.operation;
     let original = crate::receiver_policy::historical(case.inputs)?;
+    assert_eq!(previous_policy.checkpoint(), request.current_policy);
     let original_pin = p::AccountPin::new(
         request.account,
         case.root.public_key()?,
@@ -125,7 +136,11 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
     let issued = issuer.issue_session_policy(
         case.sdk.runtime()?.as_ref(),
         p::SessionPolicyParameters::new(
-            2,
+            request
+                .current_policy
+                .version()
+                .checked_add(1)
+                .ok_or("policy version")?,
             p::Validity::new(original.validity().from(), until)?,
             original.allowed_modes(),
             original.anchor_requirement(),
@@ -143,12 +158,12 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
         previous_credential: grant.previous_device().credential_digest(),
         previous_roster: request.previous,
         original_policy: original.checkpoint(),
-        previous_policy: original.checkpoint(),
-        previous_authorization: None,
+        previous_policy: request.current_policy,
+        previous_authorization: request.authorization,
     };
     let materials = p::PolicyContinuationMaterials {
         original: &original,
-        previous: &original,
+        previous: previous_policy,
         target: &target,
         credential: &grant,
     };

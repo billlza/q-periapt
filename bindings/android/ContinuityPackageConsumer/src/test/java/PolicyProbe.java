@@ -18,9 +18,12 @@ public final class PolicyProbe {
         return new AccountPin(read(inputs, "trusted-account"), read(inputs, "enrollment-root"), read(inputs, "family"),
             counter(ByteBuffer.wrap(read(inputs, "trusted-roster-version"))), read(inputs, "trusted-roster-digest"));
     }
-    private static Path target(Path installation) { return Path.of(installation.toString() + ".policy-target"); }
+    private static Path target(Path installation, Path inputs) throws Exception {
+        Counter64 version = counter(ByteBuffer.wrap(read(inputs.resolve("policy-target"), "policy-version")));
+        return Path.of(installation.toString() + ".policy-target-" + version);
+    }
     static void selectTarget(ContinuityEnrollment enrollment, Path inputs, Path installation, boolean recovery) throws Exception {
-        try (ContinuityConfiguration configuration = configuration(inputs.resolve("policy-target"), target(installation), recovery, false)) {
+        try (ContinuityConfiguration configuration = configuration(inputs.resolve("policy-target"), target(installation, inputs), recovery, false)) {
             configuration.finishOpen(); configuration.selectContinuedPolicy(enrollment);
         }
     }
@@ -52,7 +55,7 @@ public final class PolicyProbe {
     private static void run(Path inputs, Path installation, Path output, String profile, String mode, ConfigurationWitness witness) throws Exception {
         boolean recovery = profile.equals("recoverable"); require(recovery || profile.equals("fixed"), "profile");
         if (mode.equals("policy-target-create")) {
-            try (ContinuityConfiguration configuration = configuration(inputs.resolve("policy-target"), target(installation), recovery, true)) {
+            try (ContinuityConfiguration configuration = configuration(inputs.resolve("policy-target"), target(installation, inputs), recovery, true)) {
                 configuration.finishOpen();
             }
             publish(output, new byte[] {1}); return;

@@ -3,6 +3,8 @@
 use super::*;
 use std::time::{Duration, Instant};
 
+#[path = "joint_cycle.rs"]
+mod cycle;
 #[path = "joint_issuer.rs"]
 mod issuer;
 #[path = "joint_witness.rs"]
@@ -26,14 +28,7 @@ struct Prepared {
     original_until: u64,
     original_at: u64,
 }
-fn prepare(case: &Case<'_>, identity: &[u8]) -> Result<Prepared> {
-    let original_until = case.policy.validity().until();
-    let original_at = wait_expiry(original_until)?;
-    assert_eq!(
-        case.run("policy-activate-expired", "expired-activation")?,
-        104u32.to_be_bytes()
-    );
-    let issued = issuer::issue(case, identity)?;
+fn statuses(issued: &issuer::Issued) -> (Vec<u8>, Vec<u8>) {
     let mut pending = 1u32.to_be_bytes().to_vec();
     pending.extend_from_slice(issued.operation.as_bytes());
     pending.extend_from_slice(&issued.statement);
@@ -44,6 +39,17 @@ fn prepare(case: &Case<'_>, identity: &[u8]) -> Result<Prepared> {
     applied.extend_from_slice(&issued.roster.version().to_be_bytes());
     applied.extend_from_slice(&issued.roster.digest());
     applied.extend_from_slice(&[0; 8]);
+    (pending, applied)
+}
+fn prepare(case: &Case<'_>, identity: &[u8]) -> Result<Prepared> {
+    let original_until = case.policy.validity().until();
+    let original_at = wait_expiry(original_until)?;
+    assert_eq!(
+        case.run("policy-activate-expired", "expired-activation")?,
+        104u32.to_be_bytes()
+    );
+    let issued = issuer::issue(case, identity)?;
+    let (pending, applied) = statuses(&issued);
     assert_eq!(case.run("policy-joint-status", "joint-absent")?, [0; 116]);
     for (mode, label, code) in [
         ("policy-joint-stage-refused", "joint-bad-approval", 102u32),
@@ -82,8 +88,22 @@ pub(super) fn exercise(
     traffic: &traffic::Traffic,
     committed: bool,
 ) -> Result<()> {
+    first(case, identity, traffic, committed, true).map(|_| ())
+}
+
+pub(super) fn repeat(case: &Case<'_>, identity: &[u8], traffic: &traffic::Traffic) -> Result<()> {
+    cycle::exercise(case, identity, traffic)
+}
+
+fn first(
+    case: &Case<'_>,
+    identity: &[u8],
+    traffic: &traffic::Traffic,
+    committed: bool,
+    retry: bool,
+) -> Result<issuer::Issued> {
     if case.witness.is_some() {
-        return witness::exercise(case, identity, traffic, committed);
+        return witness::exercise(case, identity, traffic, committed, retry);
     }
     let Prepared {
         issued,
@@ -105,7 +125,9 @@ pub(super) fn exercise(
             assert_eq!(case.run("policy-joint-activate", label)?, identity);
         }
         credential::admit_peer(case)?;
-        traffic.resume_with(case, "policy-joint-peer-retry")?;
+        if retry {
+            traffic.resume_with(case, "policy-joint-peer-retry")?;
+        }
     }
     let target_at = wait_expiry(issued.until)?;
     let mut times = original_until.to_be_bytes().to_vec();
@@ -144,7 +166,7 @@ pub(super) fn exercise(
     if committed {
         next_request(case, identity, &issued, true)?;
     }
-    Ok(())
+    Ok(issued)
 }
 
 fn next_request(
@@ -166,7 +188,7 @@ fn next_request(
     )?;
     case.run("policy-joint-next-request", "joint-final-request")?;
     let parsed = crate::credential_request::read_credential_request(
-        &case.base.join("joint-final-request"),
+        &case.output("joint-final-request"),
         true,
     )?;
     assert_eq!(parsed.operation, next);

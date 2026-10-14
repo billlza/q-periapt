@@ -152,20 +152,20 @@ pub(super) fn admit_peer(case: &Case<'_>) -> Result<()> {
         .arg(&case.reference.responder)
         .arg(case.inputs)
         .stdout(Stdio::from(fs::File::create(
-            case.base.join("credential-peer-admit.stdout"),
+            case.output("credential-peer-admit.stdout"),
         )?))
         .stderr(Stdio::from(fs::File::create(
-            case.base.join("credential-peer-admit.stderr"),
+            case.output("credential-peer-admit.stderr"),
         )?));
     let mut child = fixture::OwnedChild(command.spawn()?);
     let status = fixture::wait(&mut child)?;
-    let diagnostic = fs::read_to_string(case.base.join("credential-peer-admit.stderr"))?;
+    let diagnostic = fs::read_to_string(case.output("credential-peer-admit.stderr"))?;
     assert!(
         status.success() && diagnostic.is_empty(),
         "peer G admission {status}: {diagnostic}"
     );
     assert_eq!(
-        fs::read(case.base.join("credential-peer-admit.stdout"))?,
+        fs::read(case.output("credential-peer-admit.stdout"))?,
         b"independent-peer-admitted\n"
     );
     Ok(())

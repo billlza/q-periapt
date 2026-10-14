@@ -23,7 +23,7 @@ class WitnessJointTests(unittest.TestCase):
     def verify(self, directory, label, surface="host"):
         carrier, profile, outcome = label.split("-")
         return joint.verify_execution((self.root / surface / label / "execution.stdout").read_bytes(),
-                                      directory, carrier, profile, outcome == "applied")
+                                      directory, carrier, profile, outcome == "applied", catalog=joint.contract.WITNESS_JOINT_TESTS)
 
     def mutate(self, label, name, change):
         with tempfile.TemporaryDirectory() as temp:
@@ -54,7 +54,8 @@ class WitnessJointTests(unittest.TestCase):
         for label in joint.TESTS:
             carrier, profile, outcome = label.split("-")
             directory = self.root / "host" / label / "public"
-            result = joint.verify_execution(stdout, directory, carrier, profile, outcome == "applied", batch=True)
+            result = joint.verify_execution(stdout, directory, carrier, profile, outcome == "applied", batch=True,
+                                            catalog=joint.contract.WITNESS_JOINT_TESTS)
             self.assertEqual(result, self.verify(directory, label))
         passed = ("test " + next(iter(joint.TESTS.values())) + " ... ok").encode()
         for damaged in (stdout.replace(passed, b"", 1), stdout + passed + b"\n",
@@ -62,7 +63,7 @@ class WitnessJointTests(unittest.TestCase):
                         stdout.replace(b"8 passed; 0 failed", b"7 passed; 1 failed", 1)):
             with self.subTest(damaged=damaged[-100:]), self.assertRaises(ValueError):
                 joint.verify_execution(damaged, self.root / "host/signed-fixed-applied/public",
-                                       "signed", "fixed", True, batch=True)
+                                       "signed", "fixed", True, batch=True, catalog=joint.contract.WITNESS_JOINT_TESTS)
 
     def test_batch_cannot_reuse_a_journal_witness_or_operation(self):
         cases = {label: self.root / "host" / label / "public" for label in joint.TESTS}
