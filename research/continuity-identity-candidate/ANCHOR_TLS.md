@@ -10,7 +10,7 @@ qualified for this new carrier.
 ## Construction and authorization
 
 The carrier uses the SDK's immutable `standard::MutualTlsClient` and
-`MutualTlsServer` factories and the already locked rustls 0.23.45. It requires a
+`MutualTlsServer` factories and the already locked rustls 0.23.46. It requires a
 full TLS 1.3 handshake with X25519MLKEM768 and ALPN **`q-periapt-anchor/1`**.
 TLS 1.2, classic-only key exchange, resumption and early data are disabled.
 The driver checks the negotiated version, group, full-handshake status and ALPN
@@ -122,4 +122,4 @@ installed C/other-language execution, independent endpoints, current-device and
 performance evidence remain open. Passing component tests does not close them.
 
 Protocol/library references: [TLS 1.3, including closure alerts](https://www.rfc-editor.org/rfc/rfc8446.html#section-6.1)
-and the [pinned rustls connection interface](https://docs.rs/rustls/0.23.45/rustls/enum.Connection.html).
+and the [pinned rustls connection interface](https://docs.rs/rustls/0.23.46/rustls/enum.Connection.html).

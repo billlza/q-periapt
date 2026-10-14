@@ -35,7 +35,7 @@ hkdf = "=0.13.0"
 hmac = { version = "=0.13.0", features = ["zeroize"] }
 sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
 q-periapt-rustls = { version = "=0.2.0", path = "../../crates/q-periapt-rustls", features = ["reference-connection"], optional = true }
-rustls = { version = "=0.23.45", default-features = false, features = ["std"], optional = true }
+rustls = { version = "=0.23.46", default-features = false, features = ["std"], optional = true }
 
 # Raw sockets are a native carrier, not a protocol or browser dependency.
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]

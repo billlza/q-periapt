@@ -14,6 +14,28 @@ Continuity candidate, rustix 1.1.5, cc 1.5.1 and updated compatible lock closure
 The standard-library notice is copied from the exact Rust 1.98.1 distribution.
 Older notices and frozen results retain their original identities.
 
+The 2026-10-14 security update selects rustls 0.23.46 in both product lockfiles
+and raises all five direct manifest requirements to that version. The
+[upstream patch](https://github.com/rustls/rustls/releases/tag/v%2F0.23.46)
+addresses RUSTSEC-2026-0346 through RUSTSEC-2026-0349: secret-bearing session
+debug output, ECH rejection with buffered application data, Brotli allocation,
+and unauthenticated key-exchange hint updates. No advisory is ignored. The
+workspace/fuzz audit passes against advisory database
+`caee11f41fab07d676c0a4655a2a5dd1f94da97c`; the previous 0.23.45 CI run reports
+all four advisories and remains failed.
+
+The product standard TLS factories already disable resumption/early data and
+restrict negotiation to one hybrid group. Their manifest features do not enable
+Brotli, and they do not configure ECH or a custom client-session logger. These
+boundaries narrow the affected paths; they do not justify keeping an affected
+library or prove that every downstream custom rustls configuration is unaffected.
+Patched native TLS tests, witness TLS tests, additive TLS 1.2 feature checks,
+eight independent OpenSSL interoperability cases, strict Clippy and Rust 1.90
+checking pass. The configured algorithm inventory is unchanged. Actual package
+and current-source CI acceptance remain separate requirements. Earlier 0.23.45
+performance and device results retain their version and are not relabeled as
+measurements of this patch.
+
 ## Storage contract
 
 redb 4.3 changes both storage APIs and locking behavior. The shared protected

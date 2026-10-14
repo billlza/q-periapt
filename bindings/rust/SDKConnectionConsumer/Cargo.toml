@@ -11,7 +11,7 @@ q-periapt-core = "=0.2.0"
 q-periapt-sdk = "=0.2.0"
 q-periapt-host-store = "=0.2.0"
 q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
-rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "logging", "aws_lc_rs"] }
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std", "logging", "aws_lc_rs"] }
 rcgen = "0.14"
 
 [target.'cfg(unix)'.dependencies]

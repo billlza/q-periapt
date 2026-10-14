@@ -42,7 +42,7 @@ q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
-rustls = { version = "0.23.45", default-features = false, optional = true }
+rustls = { version = "0.23.46", default-features = false, optional = true }
 q-periapt-host-store = { version = "=0.2.0", path = "../q-periapt-host-store", optional = true }
 q-periapt-sdk = { version = "=0.2.0", path = "../q-periapt-sdk", optional = true }
 redb = { version = "=4.3.0", optional = true }
