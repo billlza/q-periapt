@@ -16,11 +16,17 @@ const POLICY_SECONDS: u64 = 180;
 
 #[path = "android_pending_write/accounting.rs"]
 mod accounting;
+#[path = "android_pending_write/cancellation.rs"]
+mod cancellation;
 #[path = "android_pending_write/flow.rs"]
 mod flow;
 #[path = "android_pending_write/transport.rs"]
 mod transport;
 use accounting::{roster_metadata, ExpectedEffect, Request};
+
+pub(crate) fn exercise_query_cancel(carrier: &str, profile: &str, applied: bool) -> Result<()> {
+    flow::exercise_with_cut(carrier, profile, applied, true)
+}
 
 #[test]
 fn signed_fixed_unapplied() -> Result<()> {

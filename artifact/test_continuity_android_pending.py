@@ -39,7 +39,64 @@ def fixture(directory: Path, label: str = pending.LABEL) -> bytes:
         f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(contract.TESTS)-1} filtered out;\n").encode()
 
 
+def query_fixture(directory: Path, label: str) -> bytes:
+    stdout=fixture(directory,label).replace(pending.TESTS[label].encode(),pending.QUERY_TESTS[label].encode())
+    original=directory/label;root=directory/(label+'-query-cancel');original.rename(root)
+    trust=label.split('-')[1]
+    for name,mode in [('query-cancelled','pending-confirm-inflight'),('pending-after-inflight','pending-request')]:
+        (root/(name+'.stdout')).write_bytes(f'{trust}:{mode}:passed\n'.encode());(root/(name+'.stderr')).write_bytes(b'')
+    (root/'query-cancelled').write_bytes((218).to_bytes(4,'big'))
+    (root/'pending-after-inflight').write_bytes((root/'pending-before-expiry').read_bytes())
+    token=b't'*32;(root/'inputs/cancel-control-token').write_bytes(token)
+    binding=(root/'pending-before-expiry').read_bytes()[404:436]
+    (root/'query-cancel-control').write_bytes(b'QPCCAN01'+token+binding+b'\1\2\3')
+    (root/'query-cancel-store-unchanged').write_bytes(b'\1')
+    trace=bytearray()
+    for index in range(3):
+        request=bytearray(3674);request[4:12]=b'QPANRQ01';request[140:172]=b'c'*32;request[172:204]=bytes([index+1])*32;request[204]=1
+        reply=bytearray(3659);reply[204]=1;trace+=bytes([index!=0])+request+reply
+    (root/'query-confirmation-transcript').write_bytes(trace);(root/'query-cancel-transcript').write_bytes(trace[:7334])
+    (root/'query-cancel-prefix').write_bytes((3659).to_bytes(4,'big')+trace[3675:5475] if label.startswith('signed-') else b'encrypted reply prefix')
+    return stdout+pending.query_marker(label).encode()+b'\n'
+
+
 class PendingWriteReaderTests(unittest.TestCase):
+    def test_inflight_cancellation_requires_gated_native_result_and_distinct_challenges(self):
+        for label in pending.QUERY_TESTS:
+            with self.subTest(label=label),tempfile.TemporaryDirectory() as temp:
+                root=Path(temp);stdout=query_fixture(root,label)
+                result=pending.verify_execution(stdout,root,label,query_cancel=True)
+                self.assertEqual(result[label+'-query-cancel']['foreign_processes'],21 if label.endswith('-applied') else 22)
+                with self.assertRaises(ValueError):pending.verify_execution(stdout,root,label)
+
+    def test_inflight_failure_and_barrier_substitution_cannot_pass(self):
+        label='signed-fixed-unapplied'
+        for name,value in [('query-cancelled',b'\1'),('query-cancelled',(302).to_bytes(4,'big')),('query-cancel-store-unchanged',b'\0'),
+                           ('query-cancel-control',b'wrong scope'),('query-cancel-prefix',b'wrong prefix'),
+                           ('pending-after-inflight',b'missing'),('query-cancelled.stderr',b'cancel failed')]:
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as temp:
+                root=Path(temp);stdout=query_fixture(root,label);(root/(label+'-query-cancel')/name).write_bytes(value)
+                with self.assertRaises(ValueError):pending.verify_execution(stdout,root,label,query_cancel=True)
+        for offset in [0,7334+1+172,7334+1+140,7334+1+204,7334+1+12]:
+            with self.subTest(offset=offset),tempfile.TemporaryDirectory() as temp:
+                root=Path(temp);stdout=query_fixture(root,label);path=root/(label+'-query-cancel')/'query-confirmation-transcript'
+                data=bytearray(path.read_bytes())
+                if offset==7334+1+172:data[offset:offset+32]=bytes([1])*32
+                else:data[offset]^=1
+                path.write_bytes(data)
+                with self.assertRaises(ValueError):pending.verify_execution(stdout,root,label,query_cancel=True)
+
+    def test_previous_eight_route_capture_has_an_explicit_prior_catalog(self):
+        archive=sdk.ROOT/'research/sdk-alpha1/evidence/20261014-android-pending-write-matrix/CAPTURE.zip'
+        with tempfile.TemporaryDirectory() as temp,zipfile.ZipFile(archive) as bundle:
+            root=Path(temp)
+            for name in bundle.namelist():
+                if name.startswith('host/public/'):
+                    path=root/name.removeprefix('host/public/');path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(bundle.read(name))
+            stdout=bundle.read('host/host-run-06.stdout')
+            for label in pending.TESTS:pending.verify_execution(stdout,root,label,batch=True,catalog=contract.MATRIX_PENDING_TESTS)
+            with self.assertRaises(ValueError):pending.verify_execution(stdout,root,batch=True)
+
     def test_complete_scenario_requires_new_catalog_test_and_all_processes(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);stdout=fixture(root)

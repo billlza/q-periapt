@@ -235,6 +235,16 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             pending_openssl.verify_dependencies(peer["dependency_files"])
             pending_runtime = dict(env, QPC_ANDROID_CASES=str(pending_cases), QPC_ANDROID_DRIVER=str(driver),
                                    QPC_CONFIGURATION_RECEIVER=str(receiver), QPERIAPT_WITNESS_OPENSSL_PEER=peer["path"])
+            query_cases = installed / "pending-query-cases"
+            query_runtime = dict(pending_runtime, QPC_ANDROID_CASES=str(query_cases))
+            query_stdout = run([str(binary), "android_pending_query::", "--test-threads=2", "--nocapture"],
+                               profile + "-pending-query", consumer, query_runtime)
+            query_results = {}
+            for label in pending_write.QUERY_TESTS:
+                query_results.update(pending_write.verify_execution(query_stdout, query_cases, label, batch=True, query_cancel=True))
+                for name in pending_write.public(label.endswith("-applied"), query_cancel=True):
+                    sdk.copy(query_cases / (label + "-query-cancel") / name,
+                             output / f"android-jni-{profile}-pending-query-{label}-{name}.public")
             pending_stdout = run([str(binary), "android_pending_write::", "--test-threads=2", "--nocapture"],
                                   profile + "-pending-write", consumer, pending_runtime)
             pending_results = {}
@@ -285,6 +295,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 "receiver_sha256": sdk.snapshot(receiver, maximum=c.MAX_BINARY).sha256,
                 "test_sha256": sdk.snapshot(binary, maximum=c.MAX_BINARY).sha256}
             result["profiles"][profile]["account_outcomes"] = account_results
+            result["profiles"][profile]["pending_query_cancellation_outcomes"] = query_results
             result["profiles"][profile]["recovery_outcomes"] = recovery_results
             result["profiles"][profile]["policy_credential_outcomes"] = credential_policy_results
             result["profiles"][profile]["joint_policy_outcomes"] = joint_policy_results

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Bounded encrypted-wire loss after a real native witness storage commit.
+//! Bounded encrypted-wire interruption after actual native witness handling.
 use crate::{fixture, p, witness_tls, witness_tls_relay, Result};
 use std::{
     fs,
@@ -20,11 +20,13 @@ pub(crate) struct Exchange {
     pub(crate) advanced: bool,
     pub(crate) delivered: bool,
     pub(crate) encrypted_reply_bytes: usize,
+    pub(crate) query_held: bool,
     pub(crate) record: p::anchor_tls::AnchorTlsRecord,
 }
 enum ReplyFault {
     Drop,
     Hold(PathBuf),
+    HoldQuery(PathBuf),
 }
 pub(crate) fn snapshot(path: &Path) -> Result<Zeroizing<Vec<u8>>> {
     if !fs::symlink_metadata(path)?.is_file() {
@@ -57,14 +59,23 @@ fn serve_one(
     let before = before.ok_or("TLS native admission did not run")?;
     let after = snapshot(path)?;
     let advanced = before != after;
-    // AnchorStore::handle persists only Advanced. Queries and exact retries
-    // are read-only. Observe the real image before handle and after serve,
-    // while no other fixture action accesses this witness store.
-    let fault = if advanced {
-        next.lock().map_err(|_| "TLS next fault lock")?.take()
-    } else {
-        None
+    // Observe the real image before handle and after serve. Mutation faults
+    // retain their original guard; holding a read-only Query is explicit.
+    // No other fixture action accesses this store during this observation.
+    let fault = {
+        let mut next = next.lock().map_err(|_| "TLS next fault lock")?;
+        match next.as_ref() {
+            Some(ReplyFault::HoldQuery(_)) if record.request().get(204) == Some(&1) => {
+                if advanced || record.reply().get(204) != Some(&1) {
+                    return Err("held Query must be read-only Current".into());
+                }
+                next.take()
+            }
+            Some(ReplyFault::Drop | ReplyFault::Hold(_)) if advanced => next.take(),
+            _ => None,
+        }
     };
+    let query_held = matches!(&fault, Some(ReplyFault::HoldQuery(_)));
     if reply.is_empty() {
         return Err("TLS native reply was not retained".into());
     }
@@ -78,6 +89,7 @@ fn serve_one(
             advanced,
             delivered: fault.is_none(),
             encrypted_reply_bytes: reply.len(),
+            query_held,
             record,
         });
     }
@@ -86,7 +98,7 @@ fn serve_one(
     match fault {
         None => witness_tls_relay::write(&mut front, &reply, deadline)?,
         Some(ReplyFault::Drop) => {}
-        Some(ReplyFault::Hold(marker)) => {
+        Some(ReplyFault::Hold(marker) | ReplyFault::HoldQuery(marker)) => {
             // Retain the remainder of the real encrypted response. The foreign
             // caller cannot authenticate a complete TLS reply from this prefix.
             let prefix = reply.get(..reply.len() / 2).ok_or("TLS reply prefix")?;
@@ -94,6 +106,13 @@ fn serve_one(
                 return Err("TLS prefix must be shorter than the signed reply".into());
             }
             witness_tls_relay::write(&mut front, prefix, deadline)?;
+            if query_held {
+                fixture::store(
+                    marker.parent().ok_or("Query marker parent")?,
+                    "witness-query-prefix",
+                    prefix,
+                )?;
+            }
             fixture::publish_marker(
                 marker.parent().ok_or("TLS marker parent")?,
                 marker
@@ -174,11 +193,20 @@ impl FaultWitness {
         })
     }
     pub(crate) fn arm(&self, marker: Option<&Path>) -> Result<()> {
+        self.arm_reply(marker, false)
+    }
+    /// A query hold is explicit, requires a marker and never accepts a mutation.
+    /// Existing mutation/drop callers retain their original arm() contract.
+    pub(crate) fn arm_reply(&self, marker: Option<&Path>, query: bool) -> Result<()> {
         let mut next = self.next.lock().map_err(|_| "TLS next fault lock")?;
         if next.is_some() {
             return Err("unconsumed TLS commit-response fault".into());
         }
-        *next = Some(marker.map_or(ReplyFault::Drop, |p| ReplyFault::Hold(p.to_owned())));
+        *next = Some(if query {
+            ReplyFault::HoldQuery(marker.ok_or("Query hold requires a barrier")?.to_owned())
+        } else {
+            marker.map_or(ReplyFault::Drop, |p| ReplyFault::Hold(p.to_owned()))
+        });
         Ok(())
     }
     pub(crate) fn finish(&mut self) -> Result<()> {
@@ -205,7 +233,12 @@ impl FaultWitness {
             if exchange.record.request().len() != 3674
                 || exchange.record.reply().len() != 3659
                 || exchange.encrypted_reply_bytes == 0
-                || (!exchange.delivered && !exchange.advanced)
+                || (!exchange.delivered && !exchange.advanced && !exchange.query_held)
+                || (exchange.query_held
+                    && (exchange.delivered
+                        || exchange.advanced
+                        || exchange.record.request().get(204) != Some(&1)
+                        || exchange.record.reply().get(204) != Some(&1)))
             {
                 return Err("TLS fault exchange frame width".into());
             }

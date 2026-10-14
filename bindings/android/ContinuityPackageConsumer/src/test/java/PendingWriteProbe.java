@@ -53,6 +53,10 @@ public final class PendingWriteProbe {
                     }
                     publish(output, ByteBuffer.allocate(4).putInt(218).array());
                 }
+                case "pending-confirm-inflight" -> {
+                    PendingWriteCancellation.run(enrollment, inputs, read(inputs, "pending-proposal"), read(inputs, "pending-metadata"));
+                    publish(output, ByteBuffer.allocate(4).putInt(218).array());
+                }
                 case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved", "pending-confirm-cancelled" -> {
                     byte[] proposal = read(inputs, "pending-proposal"), metadata = read(inputs, "pending-metadata");
                     if (mode.equals("pending-confirm-damaged")) metadata[metadata.length - 1] ^= 1;

@@ -447,6 +447,13 @@ retrying those exact inputs. Success neither activates a device nor renews its
 credentials or policy. Run these synchronous operations off the UI thread and
 retain the existing explicit cancellation/join/close discipline.
 
+Cancellation before dispatch returns `302`. Once a witness exchange is in flight,
+cancellation retains witness error `218` with its native cancellation diagnostic.
+It stops the wait without establishing the original write outcome. Join the call,
+close the affected owner, reopen the original enrollment and retry confirmation
+with the same approved proposal and metadata. Neither error permits a new intent
+or a storage reset.
+
 Host JNI boundary checks cover this interface. Positive recovery through this
 configured Android entry point and physical-device lifecycle execution retain
 their own qualification; JVM/Swift process results do not establish ART behavior.

@@ -11,6 +11,35 @@ pub(super) enum Carrier {
     OpenSsl(crate::openssl_host::Host),
 }
 impl Carrier {
+    pub(super) fn hold_query(
+        &self,
+        witness: &witness::Witness,
+        marker: &Path,
+    ) -> Result<(PathBuf, bool)> {
+        let parent = marker.parent().ok_or("Query marker parent")?;
+        match self {
+            Self::Signed => {
+                let mut held = witness
+                    .hold_marker
+                    .lock()
+                    .map_err(|_| "Query barrier lock")?;
+                if held.is_some() {
+                    return Err("unconsumed signed Query barrier".into());
+                }
+                *held = Some(marker.to_owned());
+                drop(held);
+                witness.arm(4)?;
+                Ok((parent.join("witness-cancelled-prefix"), false))
+            }
+            Self::Native(server) => {
+                server.arm_reply(Some(marker), true)?;
+                Ok((parent.join("witness-query-prefix"), true))
+            }
+            Self::OpenSsl(_) => {
+                Err("this cancellation route requires the native held TLS reply".into())
+            }
+        }
+    }
     pub(super) fn start(
         carrier: &str,
         applied: bool,

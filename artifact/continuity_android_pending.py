@@ -9,6 +9,8 @@ TEST = "android_pending_write::signed_fixed_unapplied"
 LABEL = "signed-fixed-unapplied"
 TESTS = {f"{carrier}-{trust}-{outcome}": f"android_pending_write::{carrier}_{trust}_{outcome}"
          for carrier in ("signed", "tls") for trust in ("fixed", "recoverable") for outcome in ("unapplied", "applied")}
+QUERY_TESTS = {label: "android_pending_query::" + label.replace("-", "_")
+               for label in ("signed-fixed-unapplied", "tls-recoverable-applied")}
 MARKER = ("qualified original pending write signed/fixed/unapplied: public configuration, original unknown delivery, "
           "independent exact R2 approval, query-only retry, expired activation refused")
 COMPLETED = b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n"
@@ -29,28 +31,38 @@ LEGACY_PUBLIC = tuple(name for name, _ in CASES) + tuple(name + "." + suffix for
 )
 
 
-def cases(applied: bool, *, legacy: bool = False) -> tuple:
+def cases(applied: bool, *, legacy: bool = False, query_cancel: bool = False) -> tuple:
     if legacy: return CASES
     selected = list(CASES)
     index = selected.index(("unapproved", "pending-confirm-unapproved"))
     selected[index:index] = [("cancelled", "pending-confirm-cancelled"), ("pending-after-cancel", "pending-request")]
     if applied: selected.remove(("unapproved", "pending-confirm-unapproved"))
+    if query_cancel:
+        index = selected.index(("confirmed", "pending-confirm"))
+        selected[index:index] = [("query-cancelled", "pending-confirm-inflight"), ("pending-after-inflight", "pending-request")]
     return tuple(selected)
 
 
-def public(applied: bool, *, legacy: bool = False) -> tuple:
+def public(applied: bool, *, legacy: bool = False, query_cancel: bool = False) -> tuple:
     if legacy: return LEGACY_PUBLIC
-    steps = cases(applied)
+    steps = cases(applied, query_cancel=query_cancel)
     common = tuple(name for name in LEGACY_PUBLIC if name in (
         "completed", "expiry-observation", "roster-effect-before", "inputs/pending-proposal",
         "inputs/pending-metadata", "inputs/connection-session", "inputs/connection-message"))
     return tuple(name for name, _ in steps) + tuple(name + "." + suffix for name, _ in steps for suffix in ("stdout", "stderr")) + common + (
-        "controller-read-only",) + (("processed-original-advance", "original-advance-reply") if applied else ("unprocessed-original-advance",))
+        "controller-read-only",) + (("processed-original-advance", "original-advance-reply") if applied else ("unprocessed-original-advance",)) + (
+        ("query-cancel-transcript", "query-cancel-control", "query-cancel-prefix", "query-cancel-store-unchanged",
+         "query-confirmation-transcript", "inputs/cancel-control-token") if query_cancel else ())
 
 
 def marker(label: str) -> str:
     return ("qualified original pending write " + label.replace("-", "/") + ": public configuration, original unknown delivery, "
             "exact R2 effect, pre-cancel retained intent, query-only retry, expired activation refused")
+
+
+def query_marker(label: str) -> str:
+    return ("qualified pending Query cancellation " + label.replace("-", "/") + ": remote reply barrier, native cancellation with witness uncertainty, "
+            "unchanged witness, retained original intent, distinct retry challenges")
 
 
 def request(data: bytes) -> tuple[bytes, bytes, bytes]:
@@ -73,16 +85,18 @@ def request(data: bytes) -> tuple[bytes, bytes, bytes]:
 
 
 def verify_execution(stdout: bytes, directory: Path, label: str = LABEL, *, batch: bool = False,
-                     legacy: bool = False, catalog: frozenset[str] = contract.TESTS) -> dict:
-    sdk.require(label in TESTS and (not legacy or (label == LABEL and not batch and catalog == contract.SINGLE_PENDING_TESTS)),
+                     legacy: bool = False, catalog: frozenset[str] = contract.TESTS, query_cancel: bool = False) -> dict:
+    tests = QUERY_TESTS if query_cancel else TESTS
+    sdk.require(label in tests and (not legacy or (label == LABEL and not batch and not query_cancel and catalog == contract.SINGLE_PENDING_TESTS)),
                 "unknown pending recovery route or historical scope")
-    if batch: contract.verify_batch(stdout, frozenset(TESTS.values()), catalog=catalog)
-    else: contract.verify_single(stdout, TESTS[label], catalog=catalog)
+    if batch: contract.verify_batch(stdout, frozenset(tests.values()), catalog=catalog)
+    else: contract.verify_single(stdout, tests[label], catalog=catalog)
     sdk.require(stdout.decode().splitlines().count(MARKER if legacy else marker(label)) == 1, "pending-write scenario missing or duplicated")
     carrier, trust, outcome = label.split("-"); applied = outcome == "applied"
-    base = directory / label
+    result_label = label + ("-query-cancel" if query_cancel else "")
+    base = directory / result_label
     def read(name): return sdk.snapshot(base / name).data
-    for name, mode in cases(applied, legacy=legacy):
+    for name, mode in cases(applied, legacy=legacy, query_cancel=query_cancel):
         sdk.require(read(name + ".stdout") == f"{trust}:{mode}:passed\n".encode()
                     and read(name + ".stderr") == b"", "pending-write foreign process did not complete")
     sdk.require(read("completed") == COMPLETED, "pending-write completion missing")
@@ -115,6 +129,24 @@ def verify_execution(stdout: bytes, directory: Path, label: str = LABEL, *, batc
     if applied:
         reply = read("original-advance-reply")
         sdk.require(len(reply) == 3659 and reply[204] == 2, "original applied result missing")
-    return {label: {"foreign_processes": len(cases(applied, legacy=legacy)), "original_identity": True, "unknown_message_retained": True,
+    if query_cancel:
+        sdk.require(stdout.decode().splitlines().count(query_marker(label)) == 1 and read("query-cancelled") == (218).to_bytes(4,"big")
+            and request(read("pending-after-inflight")) == first and read("query-cancel-store-unchanged") == b"\1", "in-flight cancellation or retained intent missing")
+        control, token = read("query-cancel-control"), read("inputs/cancel-control-token")
+        sdk.require(len(token) == 32 and any(token) and control == b"QPCCAN01" + token + first[1] + b"\1\2\3", "cancellation signal is not bound to the original request")
+        trace = read("query-confirmation-transcript")
+        sdk.require(len(trace) == 3*7334 and trace[:7334] == read("query-cancel-transcript"), "cancelled and retried Query transcript missing")
+        challenges, commands = set(), set()
+        for index in range(3):
+            frame = trace[index*7334:(index+1)*7334]; query, reply = frame[1:3675], frame[3675:]
+            sdk.require(frame[0] == (0 if index == 0 else 1) and query[4:12] == b"QPANRQ01" and query[204] == reply[204] == 1
+                and query[12:140] == advance[12:140] and any(query[172:204]), "Query cancellation changed authority, subject, operation or result")
+            challenges.add(query[172:204]); commands.add(query[140:172])
+        sdk.require(len(challenges) == 3 and len(commands) == 1, "retry reused a challenge or changed the Query command")
+        prefix = read("query-cancel-prefix")
+        sdk.require(0 < len(prefix) < 3659, "held reply prefix bound")
+        if carrier == "signed":
+            sdk.require(prefix == (3659).to_bytes(4,"big") + trace[3675:5475], "held signed prefix differs from the recorded reply")
+    return {result_label: {"foreign_processes": len(cases(applied, legacy=legacy, query_cancel=query_cancel)), "original_identity": True, "unknown_message_retained": True,
         "query_only_confirmation": True, "activation_after_expiry": False,
         "metadata_sha256": hashlib.sha256(first[2]).hexdigest(), "binding": first[1].hex()}}
