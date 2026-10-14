@@ -8,7 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** Explicit, bounded input transfer for the policy-renewal qualification APK only. */
+/** Bounded fresh configuration and policy inputs for the qualification APK only. */
 final class PolicyInputs {
     private PolicyInputs() { }
     private static final String[] BASE = {"sdk-policy", "sdk-signature", "sdk-root", "family", "policy-root",
@@ -16,7 +16,9 @@ final class PolicyInputs {
     private static final int[] MINIMUM = {1,3309,1952,32,1985,8,32,1,1,1,1985,72};
     private static final int[] MAXIMUM = {65536,3309,1952,32,1985,8,32,8192,8192,8192,1985,72};
     static void initial(File inputs, Bundle arguments, String profile) throws Exception {
-        if (!"policy-create".equals(arguments.getString("operation"))) throw new IllegalStateException("original policy inputs are absent");
+        String operation = arguments.getString("operation");
+        if (!"policy-create".equals(operation) && !"managed-witness-create".equals(operation))
+            throw new IllegalStateException("original configuration inputs are absent");
         for (int i = 0; i < BASE.length; ++i) WitnessInputs.install(inputs, arguments, BASE[i], MINIMUM[i], MAXIMUM[i], true);
         if (profile.equals("recoverable")) {
             WitnessInputs.install(inputs, arguments, "recovery-scope", 32, 32, true);

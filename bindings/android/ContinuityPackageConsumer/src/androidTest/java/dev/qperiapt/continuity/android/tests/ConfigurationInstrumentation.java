@@ -76,7 +76,7 @@ public final class ConfigurationInstrumentation extends Instrumentation {
                 if (pending) throw new IllegalStateException("original pending-write enrollment inputs are absent");
                 if (!inputs.mkdir()) throw new IllegalStateException("create input directory");
                 if (roster || retired || root) throw new IllegalStateException("original enrollment inputs are absent");
-                if (policy) {
+                if (policy || operation.equals("managed-witness-create")) {
                     PolicyInputs.initial(inputs, arguments, profile);
                 } else {
                 java.util.List<String> names = new java.util.ArrayList<>(java.util.Arrays.asList("sdk-policy", "sdk-signature", "sdk-root", "family", "policy-root",
