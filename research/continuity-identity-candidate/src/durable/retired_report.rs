@@ -777,6 +777,22 @@ pub(in crate::durable) fn project(
     archives: &mut crate::SessionArchiveStore,
     role: ViewRole,
 ) -> Result<View, DurableError> {
+    let records = project_records(image, key, archives)?;
+    Ok(View {
+        role,
+        head: image.protection.head(image.revision, image.digest)?,
+        local_account: image.local_account,
+        next_fanout_ordinal: image.next_fanout,
+        records,
+    })
+}
+
+// Shared exhaustive projection; view roles and authorization stay with each caller.
+pub(in crate::durable) fn project_records(
+    image: &Image,
+    key: &JournalKey,
+    archives: &mut crate::SessionArchiveStore,
+) -> Result<Vec<RecordMetadataEntry>, DurableError> {
     let mut records = Vec::with_capacity(image.records.len());
     for (id, record) in &image.records {
         let metadata = match record.kind {
@@ -799,11 +815,25 @@ pub(in crate::durable) fn project(
             metadata,
         });
     }
-    Ok(View {
-        role,
-        head: image.protection.head(image.revision, image.digest)?,
-        local_account: image.local_account,
-        next_fanout_ordinal: image.next_fanout,
-        records,
-    })
+    Ok(records)
+}
+
+pub(in crate::durable) fn encode_public_view(
+    head: AnchorHead,
+    account: [u8; 32],
+    ordinal: u64,
+    records: &[RecordMetadataEntry],
+) -> Result<Vec<u8>, DurableError> {
+    let mut out = Encoder(Vec::new());
+    out.head(head);
+    out.raw(&account);
+    out.number(ordinal);
+    out.size(records.len())?;
+    for record in records {
+        out.record(record)?;
+        if out.0.len() > 4 * MAX_IMAGE {
+            return Err(DurableError::Capacity);
+        }
+    }
+    Ok(out.0)
 }

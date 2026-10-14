@@ -21,7 +21,7 @@ mod policy_renewal;
 use policy_renewal::StoredPolicyRenewal;
 pub(super) use policy_renewal::{
     check_enrollment_policy_completion, check_policy_renewal_intent,
-    check_witnessed_policy_terminal,
+    check_witnessed_policy_terminal, inspect_renewal_snapshot, RequestRoster,
 };
 pub(crate) use policy_renewal::{
     LocalPolicyRenewalCommit, LocalPolicyRenewalResolution, LocalPolicyRenewalTarget,

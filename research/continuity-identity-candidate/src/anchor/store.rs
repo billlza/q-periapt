@@ -19,6 +19,7 @@ const MAX_IMAGE: usize = 1024 * 1024;
 mod tests;
 
 mod lineage;
+mod pending_recovery;
 use lineage::OriginalIdentity;
 mod image_version;
 use image_version::ImageVersion;

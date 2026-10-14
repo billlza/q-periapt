@@ -502,7 +502,7 @@ pub(crate) struct RenewalRequestSnapshot {
     pub(crate) current_policy: crate::PolicyCheckpoint,
     pub(crate) current_policy_authorization: Option<[u8; 32]>,
 }
-enum RequestRoster {
+pub(in crate::durable) enum RequestRoster {
     Configured,
     Actual,
 }
@@ -667,117 +667,17 @@ impl DeviceJournal {
     ) -> Result<RenewalRequestSnapshot, DurableError> {
         self.check_policy(scope.original_policy)?;
         let image = self.image().await?;
-        let required = match image.protection {
-            Protection::Local => None,
-            Protection::Required {
-                policy, witness, ..
-            } => Some((policy, witness)),
-        };
-        scope.authority.check(image.owner, required)?;
-        let original = scope.original_device;
-        if scope.local_identity().0 != image.local_account
-            || scope.authority.policy != scope.original_policy.checkpoint().digest()
-            || (current.account_id(), current.device_id()) != scope.local_identity()
-        {
-            return Err(DurableError::Conflict);
-        }
-        let saved = get(&image, &image.local_account)?;
-        // A required G keeps its exact original receipt after ACK. Only the
-        // original enrollment, with no pending coordination, may supply this
-        // authenticated completion. Local unacknowledged receipts stay refused.
-        if let Some(retained) = &saved.local_commit {
-            if required.is_none() || witnessed_completion != Some(retained) {
-                return Err(DurableError::Suspended);
-            }
-        } else if witnessed_completion.is_some() {
-            return Err(DurableError::Conflict);
-        }
-        // Never guess a credential from a newer journal. G may use the actual
-        // newer roster containing the same credential even after C expires;
-        // requiring a live-C roster refresh first would prevent that renewal.
-        // Policy-only preparation separately keeps its exact enrollment-R fence.
-        let head = saved.roster.checkpoint();
-        let configured = current.roster().checkpoint();
-        if (matches!(roster_binding, RequestRoster::Configured) && head != configured)
-            || head.version() < configured.version()
-            || (head.version() == configured.version() && head != configured)
-            || !saved.roster.same_authority(current.roster())
-            || saved.history.get(&current.device_id())
-                != Some(&(current.generation(), current.credential_digest()))
-            || !saved.roster.contains_member(
-                current.device_id(),
-                current.generation(),
-                current.credential_digest(),
-            )
-        {
-            return Err(DurableError::Conflict);
-        }
-        let historical = current
-            .description
-            .validity
-            .from()
-            .max(saved.roster.validity().from());
-        let actual_device = saved.roster.refresh_device(current, historical)?;
-        if let Some(grant) = saved.renewals.get(&original.device_id()) {
-            let resolved = grant.resolve_established(original, scope.authority.policy)?;
-            if resolved.device.credential_digest() != current.credential_digest()
-                || resolved.owner != image.owner
-                || grant.original_credential_digest() != original.credential_digest()
-            {
-                return Err(DurableError::Conflict);
-            }
-        } else if current.credential_digest() != original.credential_digest() {
-            return Err(DurableError::Conflict);
-        }
-        let (previous_policy, previous_authorization) = match &saved.policy_renewal {
-            Some(retained) => {
-                if completed.is_none_or(|expected| {
-                    expected.journal_bytes() != retained.approval.journal_bytes()
-                }) {
-                    return Err(DurableError::Conflict);
-                }
-                let approval = adopted(&image, &saved)?;
-                if credential(&image, &saved, original, approval)?.credential_digest()
-                    != current.credential_digest()
-                {
-                    return Err(DurableError::Conflict);
-                }
-                if approval.scope().original_policy != scope.original_policy.checkpoint() {
-                    return Err(DurableError::Conflict);
-                }
-                (approval.target_policy(), Some(approval.statement_digest()))
-            }
-            None => {
-                if completed.is_some() {
-                    return Err(DurableError::Conflict);
-                }
-                match (&saved.policy_continuation, joint) {
-                    (None, None) => (scope.original_policy.checkpoint(), None),
-                    (Some(actual), Some(expected))
-                        if actual.journal_bytes() == expected.journal_bytes()
-                            && actual.scope().original_policy
-                                == scope.original_policy.checkpoint()
-                            && actual.scope().original_credential
-                                == original.credential_digest() =>
-                    {
-                        (actual.target_policy(), Some(actual.statement_digest()))
-                    }
-                    _ => return Err(DurableError::Conflict),
-                }
-            }
-        };
+        let snapshot = inspect_renewal_snapshot(
+            &image,
+            scope,
+            current,
+            completed,
+            joint,
+            roster_binding,
+            witnessed_completion,
+        )?;
         self.check_release(&image).await?;
-        Ok(RenewalRequestSnapshot {
-            journal: crate::JournalIdentity::from_trusted_state(image.id)?,
-            original_owner: image.owner,
-            original_credential: original.credential_digest(),
-            current_credential: current.credential_digest(),
-            current_roster: saved.roster.checkpoint(),
-            current_device: actual_device,
-            original_policy: scope.original_policy.checkpoint(),
-            current_policy: previous_policy,
-            current_policy_authorization: previous_authorization,
-        })
+        Ok(snapshot)
     }
 
     // Original enrollment must hold a durable exact Pending. All current CAS
@@ -1176,3 +1076,125 @@ pub(in crate::durable) fn check_witnessed_policy_terminal(
 #[cfg(all(test, unix))]
 #[path = "policy_renewal_tests.rs"]
 mod tests;
+
+// The original enrollment may inspect an authenticated source/target pair without
+// replaying it. This projection grants neither current authority nor a live lease.
+pub(in crate::durable) fn inspect_renewal_snapshot(
+    image: &Image,
+    scope: &crate::installation::PolicyScope<'_>,
+    current: &VerifiedDevice,
+    completed: Option<&HistoricalPolicyRenewal>,
+    joint: Option<&crate::HistoricalPolicyContinuation>,
+    roster_binding: RequestRoster,
+    witnessed_completion: Option<&LocalRenewalCommit>,
+) -> Result<RenewalRequestSnapshot, DurableError> {
+    image.protection.check_policy(scope.original_policy)?;
+    let required = match image.protection {
+        Protection::Local => None,
+        Protection::Required {
+            policy, witness, ..
+        } => Some((policy, witness)),
+    };
+    scope.authority.check(image.owner, required)?;
+    let original = scope.original_device;
+    if scope.local_identity().0 != image.local_account
+        || scope.authority.policy != scope.original_policy.checkpoint().digest()
+        || (current.account_id(), current.device_id()) != scope.local_identity()
+    {
+        return Err(DurableError::Conflict);
+    }
+    let saved = get(image, &image.local_account)?;
+    // A required G keeps its exact original receipt after ACK. Only the
+    // original enrollment may supply this authenticated prior completion; a new
+    // staged approval is not completion. Local unacknowledged receipts stay refused.
+    if let Some(retained) = &saved.local_commit {
+        if required.is_none() || witnessed_completion != Some(retained) {
+            return Err(DurableError::Suspended);
+        }
+    } else if witnessed_completion.is_some() {
+        return Err(DurableError::Conflict);
+    }
+    // Never guess a credential from a newer journal. G may use the actual
+    // newer roster containing the same credential even after C expires;
+    // requiring a live-C roster refresh first would prevent that renewal.
+    // Policy-only preparation separately keeps its exact enrollment-R fence.
+    let head = saved.roster.checkpoint();
+    let configured = current.roster().checkpoint();
+    if (matches!(roster_binding, RequestRoster::Configured) && head != configured)
+        || head.version() < configured.version()
+        || (head.version() == configured.version() && head != configured)
+        || !saved.roster.same_authority(current.roster())
+        || saved.history.get(&current.device_id())
+            != Some(&(current.generation(), current.credential_digest()))
+        || !saved.roster.contains_member(
+            current.device_id(),
+            current.generation(),
+            current.credential_digest(),
+        )
+    {
+        return Err(DurableError::Conflict);
+    }
+    let historical = current
+        .description
+        .validity
+        .from()
+        .max(saved.roster.validity().from());
+    let actual_device = saved.roster.refresh_device(current, historical)?;
+    if let Some(grant) = saved.renewals.get(&original.device_id()) {
+        let resolved = grant.resolve_established(original, scope.authority.policy)?;
+        if resolved.device.credential_digest() != current.credential_digest()
+            || resolved.owner != image.owner
+            || grant.original_credential_digest() != original.credential_digest()
+        {
+            return Err(DurableError::Conflict);
+        }
+    } else if current.credential_digest() != original.credential_digest() {
+        return Err(DurableError::Conflict);
+    }
+    let (previous_policy, previous_authorization) = match &saved.policy_renewal {
+        Some(retained) => {
+            if completed.is_none_or(|expected| {
+                expected.journal_bytes() != retained.approval.journal_bytes()
+            }) {
+                return Err(DurableError::Conflict);
+            }
+            let approval = adopted(image, &saved)?;
+            if credential(image, &saved, original, approval)?.credential_digest()
+                != current.credential_digest()
+            {
+                return Err(DurableError::Conflict);
+            }
+            if approval.scope().original_policy != scope.original_policy.checkpoint() {
+                return Err(DurableError::Conflict);
+            }
+            (approval.target_policy(), Some(approval.statement_digest()))
+        }
+        None => {
+            if completed.is_some() {
+                return Err(DurableError::Conflict);
+            }
+            match (&saved.policy_continuation, joint) {
+                (None, None) => (scope.original_policy.checkpoint(), None),
+                (Some(actual), Some(expected))
+                    if actual.journal_bytes() == expected.journal_bytes()
+                        && actual.scope().original_policy == scope.original_policy.checkpoint()
+                        && actual.scope().original_credential == original.credential_digest() =>
+                {
+                    (actual.target_policy(), Some(actual.statement_digest()))
+                }
+                _ => return Err(DurableError::Conflict),
+            }
+        }
+    };
+    Ok(RenewalRequestSnapshot {
+        journal: crate::JournalIdentity::from_trusted_state(image.id)?,
+        original_owner: image.owner,
+        original_credential: original.credential_digest(),
+        current_credential: current.credential_digest(),
+        current_roster: saved.roster.checkpoint(),
+        current_device: actual_device,
+        original_policy: scope.original_policy.checkpoint(),
+        current_policy: previous_policy,
+        current_policy_authorization: previous_authorization,
+    })
+}

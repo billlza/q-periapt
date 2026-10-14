@@ -37,6 +37,9 @@ const HEADER: usize = 8 + 32 + 32 + 8 + 24;
 const PENDING_CHECKPOINT: usize = 40 + 5817 + 4633 + 32 + 1 + 32;
 const COMPLETE_CHECKPOINT: usize = PENDING_CHECKPOINT - 32 + 136;
 
+mod pending_recovery;
+pub(crate) use pending_recovery::PendingRecoveryLineage;
+pub use pending_recovery::{PendingWriteRecoveryRequest, PendingWriteRecoveryView};
 mod account_authority;
 mod anchoring;
 pub(crate) use account_authority::AccountAuthorityOpen;

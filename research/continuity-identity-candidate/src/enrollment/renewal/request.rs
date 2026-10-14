@@ -146,8 +146,7 @@ impl PreparedRenewalRequest {
                 self.image
                     .renewal
                     .as_ref()
-                    .filter(|r| r.witnessed())
-                    .and_then(|r| r.completed.as_ref()),
+                    .and_then(LocalRenewal::witnessed_completion),
             )
             .await
     }
@@ -193,8 +192,7 @@ impl PreparedRenewalRequest {
                 self.image
                     .renewal
                     .as_ref()
-                    .filter(|r| r.witnessed())
-                    .and_then(|r| r.completed.as_ref()),
+                    .and_then(LocalRenewal::witnessed_completion),
             )
             .await
     }

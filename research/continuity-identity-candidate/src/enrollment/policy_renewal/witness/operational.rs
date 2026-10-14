@@ -32,6 +32,36 @@ impl DeviceEnrollment {
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<Option<Arc<EnrollmentPolicyCompletion>>, DurableError> {
         let (original, _) = self.policy_witness_scope(image, original_policy)?;
+        self.retained_policy_enrollment_completion(image, original_policy, &original)
+    }
+    // Historical completion can authenticate an older ordinary intent while a
+    // new approval is staged. It neither retires nor activates that approval.
+    pub(in crate::enrollment) fn retained_policy_enrollment_completion(
+        &self,
+        image: &Image,
+        original_policy: &HistoricalSessionPolicy,
+        original: &VerifiedDevice,
+    ) -> Result<Option<Arc<EnrollmentPolicyCompletion>>, DurableError> {
+        let Phase::Accepted {
+            admission,
+            stage: AdmissionPhase::Active,
+            ..
+        } = &image.phase
+        else {
+            return Err(DurableError::Suspended);
+        };
+        let binding = original_policy
+            .anchor_requirement()
+            .binding()
+            .ok_or(DurableError::AnchorRequired)?;
+        if admission.policy != original_policy.checkpoint().digest()
+            || image
+                .policy_witness
+                .as_ref()
+                .is_some_and(|w| w.binding != binding)
+        {
+            return Err(DurableError::Conflict);
+        }
         let proposal = image.policy_witness.as_ref().and_then(|w| w.completed);
         let Some(proposal) = proposal else {
             return if image.policy_completed.is_none() {
@@ -50,11 +80,11 @@ impl DeviceEnrollment {
         let approval = self.authenticated_policy_record(record)?;
         approval.check_original_policy(original_policy)?;
         let current = self.policy_witness_current_device(image)?;
-        self.check_completed_policy_identity(image, &approval, &original, &current)?;
+        self.check_completed_policy_identity(image, &approval, original, &current)?;
         Ok(Some(Arc::new(EnrollmentPolicyCompletion {
             proposal,
             approval,
-            original,
+            original: original.clone(),
         })))
     }
     /// Release the same original installation only after a durable Applied

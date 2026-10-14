@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "pending_recovery_tests.rs"]
+mod pending_recovery;
 use crate::{
     bootstrap::tests::{fixture, Fixture},
     durable::tests::{directory, fault_database_path, new_store, ChildGuard},

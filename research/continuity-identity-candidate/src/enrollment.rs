@@ -31,6 +31,7 @@ mod managed_root;
 pub use managed_root::{
     ManagedAccountRootAdoption, ManagedAccountRootReplacement, ManagedAccountRootTransition,
 };
+mod pending_recovery;
 mod policy_renewal;
 mod recovery;
 mod renewal;

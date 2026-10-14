@@ -203,6 +203,13 @@ impl LocalRenewal {
     pub(super) fn witnessed(&self) -> bool {
         self.witness.is_some()
     }
+    pub(super) fn witnessed_completion(&self) -> Option<&LocalRenewalCommit> {
+        if self.witnessed() {
+            self.completed.as_ref()
+        } else {
+            None
+        }
+    }
     pub(super) fn cancellation(&self) -> bool {
         self.witness
             .as_ref()

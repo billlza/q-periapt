@@ -4,7 +4,7 @@ use super::*;
 use crate::enrollment::tests::policy_continuation::{joint, policy, scope};
 use crate::{BootstrapContext, CredentialRenewalId, InitiationId};
 
-fn session(f: Fixture) -> (Fixture, [u8; 32]) {
+pub(super) fn session(f: Fixture) -> (Fixture, [u8; 32]) {
     use super::policy_transaction::sessions::{bundle, endpoint, requirements};
     let peer = fixture_on_witness(
         Arc::clone(&f._witness_dir),
@@ -432,3 +432,6 @@ fn expired_cleanup_intent_can_be_accounted_only_after_independent_device_retirem
         eprintln!("EXPIRED_CLEANUP_RETIREMENT applied={applied} views=2 unknown_messages_per_view=1 host_accounted=true journal_erased=true signer_erased=true");
     }
 }
+
+#[path = "witness_pending_write_recovery_tests.rs"]
+pub(super) mod pending_write_recovery;

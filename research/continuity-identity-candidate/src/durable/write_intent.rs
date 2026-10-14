@@ -56,6 +56,7 @@ enum BoundTransaction {
 }
 mod account_authority;
 pub(super) mod account_root;
+mod pending_recovery;
 mod retired_cleanup;
 mod roster_refresh;
 pub(super) use roster_refresh::reserve_roster_refresh;

@@ -58,6 +58,7 @@ pub(crate) enum Purpose {
     AnchorAccountFreeze = 23,
     AnchorAccountReplacementClosure = 24,
     AnchorAccountPreparationClosure = 25,
+    PendingWriteRecovery = 26,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

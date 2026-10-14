@@ -5,6 +5,11 @@ shared engine and exercises the public connection/recovery trace through exact
 crate archives outside the checkout. It retains the unpublished candidate boundary;
 foreign bindings and the product protocol freeze remain separate release work.
 
+[Exact ordinary-write recovery after expiry](PENDING_WRITE_RECOVERY.md) separates
+independent witness approval from historical device authentication. The original
+enrollment confirms the exact retained target before continuing its existing
+lifecycle flow; installed bindings for this new candidate entry remain open.
+
 The [owned session exchange candidate](SESSION_EXCHANGE_V1.md) composes the same
 enrolled owner, archives and message state machine over an untrusted request/reply
 carrier. Establishment verifies a session acknowledgement MAC; delivery reports

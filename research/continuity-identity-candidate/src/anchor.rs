@@ -9,6 +9,9 @@ use crate::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod pending_recovery;
+pub use pending_recovery::AnchorPendingWriteRecoveryProposal;
+pub(crate) use pending_recovery::{PendingWriteRecoveryScope, MAX_PENDING_RECOVERY_METADATA};
 mod roster_refresh;
 pub use roster_refresh::{
     AnchorRosterRefreshProposal, AnchorRosterRefreshState, RosterRefreshId, RosterRefreshScope,

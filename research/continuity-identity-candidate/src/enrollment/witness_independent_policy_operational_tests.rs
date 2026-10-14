@@ -2,6 +2,9 @@
 use super::*;
 use crate::enrollment::tests::policy_continuation::policy;
 
+#[path = "witness_pending_write_policy_tests.rs"]
+mod pending_write;
+
 fn approved_at(
     f: &Fixture,
     previous: &VerifiedSessionPolicy,
