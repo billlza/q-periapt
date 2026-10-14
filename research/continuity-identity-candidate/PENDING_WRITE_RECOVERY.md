@@ -135,9 +135,15 @@ TLS/recoverable/applied path, confirming existing history before any privileged
 recovery call. Pre-call cancellation retains the original request on fresh-owner
 reopen. This does not stand in for cancellation after a Query reaches the witness.
 
+The [Android Query cancellation checkpoint](../sdk-alpha1/evidence/20261014-android-pending-query-cancellation/README.md)
+adds held-response cancellation through the public owner, with actual-package
+signed/fixed/unapplied and TLS/recoverable/applied routes and the latter on the
+accepted phone. Native in-flight cancellation preserves witness218 and its
+diagnostic; pre-call cancellation is302. Fresh-owner retries preserve the exact
+intent, use fresh Query challenges and grant no expired activation permission.
+
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Targeted new-entry
-storage/process failures, in-flight cancellation, subsequent operational
-continuation, complete binding fault/lifecycle composition and positive Apple
-recovery remain open alongside the wider
-0.2.0 gates.
+storage/process failures, remaining binding cancellation cuts, subsequent
+operational continuation, complete binding fault/lifecycle composition and
+positive Apple recovery remain open alongside the wider 0.2.0 gates.
