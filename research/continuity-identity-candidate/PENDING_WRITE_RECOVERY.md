@@ -76,6 +76,25 @@ G slot and account freeze. A real child process is terminated after witness
 commit but before returning; exact retry observes one mutation. Decoder controls
 cover truncation, extension, malformed framing and noncanonical fields.
 
-Installed browser/foreign bindings, asynchronous cancellation and storage-failure
-qualification for this new entry point remain open. Native tests and WASM
-compilation do not establish those results or complete the 0.2.0 release gates.
+The browser `QPeriaptContinuityDevice` exposes the same preparation and exact
+confirmation through its existing asynchronous operation owner. Preparation
+returns `QPeriaptContinuityPendingWriteRequest`: retain `proposal()`, `metadata()`
+and `signed_request()` before independent approval. Its `to_json()` supplies the
+complete source and target views under schema 1; neither view is labeled committed.
+Hexadecimal IDs and decimal-string u64 values preserve the original metadata.
+`confirm_pending_write_recovery` takes the exact proposal, complete metadata,
+original historical policy and independent witness pin. It creates no runtime.
+
+Installed Chromium Worker checks use actual IndexedDB/OPFS, signed witness
+requests, real authority expiry and a separate native control process. They cover
+unapplied/already-applied writes, locally staged G/T, cancellation during Query,
+Worker loss before confirmation and loss of the host result after local commit.
+Each successful cohort retains original unknown-message accounting through G/T
+completion and explicit report acknowledgement. Explicit cancellation returns
+`Cancelled`; transport failure and cancellation are distinct outcomes. Both
+require retaining the original approval and metadata after a missing result.
+
+These are same-engine loopback checks on one host. They do not establish an
+independent implementation, mobile-browser or power-loss equivalence. Targeted
+storage-failure qualification and C/Swift/Kotlin exposure of this new entry point
+remain open, alongside the wider 0.2.0 release gates.

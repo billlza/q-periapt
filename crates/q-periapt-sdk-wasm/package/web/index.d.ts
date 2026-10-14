@@ -80,3 +80,5 @@ export {
   QPeriaptContinuityRetiredReport,
   QPeriaptContinuityErasureState
 } from './q_periapt_sdk_wasm.js';
+
+export { QPeriaptContinuityPendingWriteRequest } from './q_periapt_sdk_wasm.js';

@@ -8,7 +8,8 @@ foreign bindings and the product protocol freeze remain separate release work.
 [Exact ordinary-write recovery after expiry](PENDING_WRITE_RECOVERY.md) separates
 independent witness approval from historical device authentication. The original
 enrollment confirms the exact retained target before continuing its existing
-lifecycle flow; installed bindings for this new candidate entry remain open.
+lifecycle flow. The browser owner exposes this flow without creating traffic
+permission; foreign native bindings and broader platform qualification remain open.
 
 The [owned session exchange candidate](SESSION_EXCHANGE_V1.md) composes the same
 enrolled owner, archives and message state machine over an untrusted request/reply

@@ -13,6 +13,7 @@ mod credentials;
 mod history;
 mod inventory;
 mod peers;
+mod pending_recovery;
 mod policies;
 mod policy_requests;
 mod publication;

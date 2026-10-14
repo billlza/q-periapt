@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Permanent original-device accounting under independent witness receipts.
 use super::*;
-mod reports;
+pub(super) mod reports;
 
 /// Verified permanent retirement against an independently retained replacement.
 /// The expected proposal must come from the approved control-plane operation,

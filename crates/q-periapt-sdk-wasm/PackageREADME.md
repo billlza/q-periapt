@@ -285,6 +285,27 @@ uses its separate approved workflow. Closing a local runtime while the witness
 authorization is still current is a different case and does allow restricted
 cleanup. A transport error alone does not prove whether the witness committed.
 
+If an ordinary pending write remains after witness authority expiry, open the
+original device and call `pending_write_recovery_request(originalPolicy, witness)`.
+The returned `QPeriaptContinuityPendingWriteRequest` provides the exact proposal,
+complete source/target metadata, signed request and a schema-1 JSON inspection.
+Retain `proposal()`, `metadata()` and `signed_request()` durably before an
+independent controller authorizes that exact effect. Historical device signatures
+alone cannot grant this approval. Source and target descriptions are not proof
+that either committed; metadata includes account/device linkage and needs private
+host storage.
+
+After the controller completes the original intent at the witness, call
+`confirm_pending_write_recovery(proposal, metadata, originalPolicy, witness)`.
+This performs a fresh signed read-only Query and applies only the exact original
+sealed target. It creates no runtime, extends no validity and acknowledges no
+loss report. Retain the same inputs after cancellation, Worker loss or any missing
+result; reopen the original owner and confirm the exact target again. An absent
+pending record alone is not success, and an intervening head advance conflicts.
+Staged renewal approvals remain intact. Continue the existing independently
+authorized renewal or cleanup workflow after confirmation. This flow cannot
+resolve bound G/T/P/R intents, account-root fences or missing original storage.
+
 A reserved batch is abandoned as a whole: call `begin_account_abandonment`,
 durably save the complete report with host deduplication, then acknowledge its
 exact `report_id`. A committed batch cannot be relabeled as an uncommitted
@@ -342,9 +363,9 @@ the same original object or terminal; missing, swapped and malformed objects fai
 Neither logical journal erasure nor signer retirement proves removal from old
 pages, backups, archives or previously copied owners. Browser catalogue secret
 revision 2 is only the fixed eight-byte signer terminal; older readers reject it.
-This device-retirement flow does not implement managed account-root cutover or
-repair the separate in-place renewal gap caused by an unapplied ordinary intent
-after required-witness authorization expires.
+This device-retirement flow does not implement managed account-root cutover.
+An expired ordinary pending write uses the separate independent approval and
+exact confirmation flow above; retirement itself cannot renew that authority.
 
 Current roster membership is rechecked before existing-session operations release
 data. Accepting a roster which removes a peer therefore blocks that peer's old

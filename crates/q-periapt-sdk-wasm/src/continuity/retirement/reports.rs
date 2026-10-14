@@ -255,52 +255,75 @@ pub(super) fn describe(value: &r::Report) -> String {
                     next_fanout_ordinal,
                     records,
                 } = view;
-                object(&[
-                    (
-                        "role",
-                        label(match role {
-                            r::ViewRole::Authoritative => "authoritative",
-                            r::ViewRole::SupersededSource => "superseded_source",
-                            r::ViewRole::UncommittedTarget => "uncommitted_target",
-                        }),
-                    ),
-                    ("head", head(*position)),
-                    ("local_account", hex(local_account)),
-                    ("next_fanout_ordinal", integer(*next_fanout_ordinal)),
-                    (
-                        "records",
-                        array_json(records.iter().map(|record| {
-                            let r::RecordMetadataEntry {
-                                id,
-                                context,
-                                phase,
-                                authorities,
-                                one_time_claims,
-                                inventory_references,
-                                metadata: value,
-                            } = record;
-                            object(&[
-                                ("id", hex(id)),
-                                ("context", hex(context)),
-                                ("phase", (*phase as u8).to_string()),
-                                (
-                                    "authorities",
-                                    array_json(authorities.iter().map(|v| hex(v))),
-                                ),
-                                (
-                                    "one_time_claims",
-                                    array_json(one_time_claims.iter().map(|v| hex(v))),
-                                ),
-                                (
-                                    "inventory_references",
-                                    array_json(inventory_references.iter().map(|v| hex(v))),
-                                ),
-                                ("metadata", metadata(value)),
-                            ])
-                        })),
-                    ),
-                ])
+                let mut fields = vec![(
+                    "role",
+                    label(match role {
+                        r::ViewRole::Authoritative => "authoritative",
+                        r::ViewRole::SupersededSource => "superseded_source",
+                        r::ViewRole::UncommittedTarget => "uncommitted_target",
+                    }),
+                )];
+                fields.extend(image_fields(
+                    *position,
+                    local_account,
+                    *next_fanout_ordinal,
+                    records,
+                ));
+                object(&fields)
             })),
         ),
+    ])
+}
+
+// Both flows use the same exhaustive record projection; a pending source/target
+// view never acquires a retirement or commitment role merely by being displayed.
+pub(in crate::continuity) fn describe_image(
+    position: engine::AnchorHead,
+    account: &[u8; 32],
+    ordinal: u64,
+    records: &[r::RecordMetadataEntry],
+) -> String {
+    object(&image_fields(position, account, ordinal, records))
+}
+fn image_fields(
+    position: engine::AnchorHead,
+    account: &[u8; 32],
+    ordinal: u64,
+    records: &[r::RecordMetadataEntry],
+) -> Vec<(&'static str, String)> {
+    vec![
+        ("head", head(position)),
+        ("local_account", hex(account)),
+        ("next_fanout_ordinal", integer(ordinal)),
+        ("records", array_json(records.iter().map(record))),
+    ]
+}
+fn record(value: &r::RecordMetadataEntry) -> String {
+    let r::RecordMetadataEntry {
+        id,
+        context,
+        phase,
+        authorities,
+        one_time_claims,
+        inventory_references,
+        metadata: value,
+    } = value;
+    object(&[
+        ("id", hex(id)),
+        ("context", hex(context)),
+        ("phase", (*phase as u8).to_string()),
+        (
+            "authorities",
+            array_json(authorities.iter().map(|v| hex(v))),
+        ),
+        (
+            "one_time_claims",
+            array_json(one_time_claims.iter().map(|v| hex(v))),
+        ),
+        (
+            "inventory_references",
+            array_json(inventory_references.iter().map(|v| hex(v))),
+        ),
+        ("metadata", metadata(value)),
     ])
 }

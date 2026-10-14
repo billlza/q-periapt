@@ -17,6 +17,7 @@ mod errors;
 pub(crate) mod http;
 mod inventory;
 mod opening;
+mod pending_recovery;
 mod policies;
 mod policy_requests;
 mod publication;

@@ -318,3 +318,17 @@ async function permanentRetirement(intent: QPeriaptContinuityEnrollment,
   void canonical; void inspection; void journal; void signer;
 }
 void permanentRetirement;
+
+import { QPeriaptContinuityPendingWriteRequest } from 'q-periapt-sdk-wasm/web';
+// Compile-only: approval and recorded metadata must come from independent retention.
+async function exactPendingWrite(owner: QPeriaptContinuityDevice,
+    original: QPeriaptContinuityHistoricalPolicy, witness: QPeriaptContinuityWitness,
+    approved: Uint8Array, recordedMetadata: Uint8Array) {
+  const request: QPeriaptContinuityPendingWriteRequest = await owner.pending_write_recovery_request(original, witness);
+  const proposal: Uint8Array = request.proposal(), metadata: Uint8Array = request.metadata();
+  const signature: Uint8Array = request.signed_request(), inspection: string = request.to_json();
+  request.binding(); request.free();
+  await owner.confirm_pending_write_recovery(approved, recordedMetadata, original, witness);
+  void proposal; void metadata; void signature; void inspection;
+}
+void exactPendingWrite;
