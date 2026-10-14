@@ -1614,6 +1614,20 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_issuer.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy_credential.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_crash_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/renewal/independent_policy.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1755,6 +1769,20 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
             "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_issuer.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy_credential.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_crash_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/renewal/independent_policy.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

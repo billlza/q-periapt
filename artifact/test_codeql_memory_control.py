@@ -30,7 +30,7 @@ class MemoryControlTests(unittest.TestCase):
 
     def test_memory_is_the_only_evaluator_difference(self):
         commands = [control.query_command(Path('/tool/codeql'), Path('/db'), Path('/case'), p)
-                    for p in control.PROFILES]
+                    for p in ('baseline', 'more-native')]
         strip_memory = lambda c: [v for v in c if not v.startswith(('-J-Xmx', '--off-heap-ram='))]
         self.assertEqual(strip_memory(commands[0]), strip_memory(commands[1]))
         self.assertEqual({sum(pair) for pair in control.PROFILES.values()}, {12686})
@@ -38,6 +38,19 @@ class MemoryControlTests(unittest.TestCase):
             self.assertNotIn('--no-rerun', command)
             self.assertIn('--threat-model=local', command)
             self.assertIn('--threads=4', command)
+
+    def test_reusable_cache_changes_only_cache_expectation(self):
+        baseline = control.query_command(Path('/tool/codeql'), Path('/db'), Path('/case'),
+                                         'baseline')
+        reusable = control.query_command(Path('/tool/codeql'), Path('/db'), Path('/case'),
+                                         'reusable-cache')
+        self.assertEqual(baseline.count('--expect-discarded-cache'), 1)
+        self.assertEqual(reusable.count('--no-expect-discarded-cache'), 1)
+        self.assertEqual(reusable, [
+            '--no-expect-discarded-cache' if value == '--expect-discarded-cache' else value
+            for value in baseline
+        ])
+        self.assertNotIn('--no-rerun', reusable)
 
     def test_manifest_retains_full_summary_and_all_query_plans(self):
         manifest = json.loads(control.QUERY_MANIFEST.read_text())

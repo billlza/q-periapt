@@ -63,7 +63,7 @@ Source `3b654771` reached the 180-minute Analyze deadline with 38 of 39 queries
 complete; the full `SummaryStats` global taint-reach calculation remained active.
 The retained evaluator log shows repeated eviction and reconstruction of native
 cache entries. This observation does not establish that memory allocation is the
-only cause. The isolated `CodeQL memory control` workflow compares JVM/native
+only cause. The isolated `CodeQL memory control` workflow compared JVM/native
 allocations of 5788/6898 MiB and 3072/9614 MiB, with the same 12686 MiB sum, four
 threads, pinned CLI/compiled queries, local threat model and frozen database/cache.
 It uses a fresh result directory and requires all 39 newly produced BQRS outputs.
@@ -80,6 +80,16 @@ still present. This does not justify a production configuration change. The
 [retained comparison](research/sdk-alpha1/evidence/20261011-codeql-memory-control/CHECKS.json)
 records the exact inputs, query hashes, failure receipts and limits of the comparison.
 
+The workflow is now named `CodeQL evaluator control`. Its next comparison keeps
+the baseline allocation and changes only `--expect-discarded-cache` to
+`--no-expect-discarded-cache`. The hypothesis is that retaining reusable
+intermediate results can reduce repeated computation. The original memory profiles
+remain available in the diagnostic CLI. The frozen database, 39 original query
+plans, four threads, 15-minute bound and fresh-result requirement remain unchanged.
+This is a pending diagnostic comparison, not an established fix for the current
+300-minute `SummaryStats` timeout. See the
+[current observation and inventory repair](research/sdk-alpha1/evidence/20261014-codeql-evaluator-control/README.md).
+
 Rust and Swift emit the pinned action's diagnostic artifacts, which can
 include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
 code-scanning results or release evidence. No query is removed. On source `4fc8412a`,
@@ -95,7 +105,7 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-630 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+644 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
 sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
