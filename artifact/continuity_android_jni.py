@@ -267,6 +267,17 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             run([str(clang), "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-isysroot", str(platform),
                  str(consumer / "first_configuration_client.c"), "-I" + str(consumer), "-L" + str(installed),
                  "-lq_periapt_continuity_c_consumer", "-Wl,-rpath,@loader_path", "-o", str(target_client)], profile + "-policy-target-client")
+            import continuity_android_continuation as continuation
+            continued_cases = installed / "pending-continuation-cases"
+            continued_stdout = run([str(binary), "android_pending_continuation::", "--test-threads=2", "--nocapture"],
+                profile + "-pending-continuation", consumer, dict(pending_runtime,
+                    QPC_ANDROID_CASES=str(continued_cases), QPC_CONFIGURATION_TARGET_CLIENT=str(target_client)))
+            continued_results = {}
+            for label in continuation.TESTS:
+                continued_results.update(continuation.verify_execution(continued_stdout, continued_cases, label, batch=True))
+                for name in continuation.public(label):
+                    sdk.copy(continued_cases / (label + "-continuation") / name,
+                        output / f"android-jni-{profile}-pending-continuation-{label}-{name}.public")
             policy_results = {}
             for trust, test in policy_renewal.TESTS.items():
                 policy_cases = installed / ("policy-renewal-" + trust + "-cases")
@@ -307,6 +318,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             result["profiles"][profile]["account_outcomes"] = account_results
             result["profiles"][profile]["pending_query_cancellation_outcomes"] = query_results
             result["profiles"][profile]["pending_process_loss_outcomes"] = process_results
+            result["profiles"][profile]["pending_continuation_outcomes"] = continued_results
             result["profiles"][profile]["recovery_outcomes"] = recovery_results
             result["profiles"][profile]["policy_credential_outcomes"] = credential_policy_results
             result["profiles"][profile]["joint_policy_outcomes"] = joint_policy_results

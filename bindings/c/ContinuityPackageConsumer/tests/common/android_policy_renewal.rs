@@ -12,6 +12,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+#[path = "android_policy_renewal/continuation.rs"]
+pub(crate) mod continuation;
 #[path = "android_policy_renewal/credential.rs"]
 mod credential;
 #[path = "android_policy_renewal/flow.rs"]
@@ -45,24 +47,24 @@ fn run_profile(profile: &str) -> Result<()> {
     Ok(())
 }
 #[derive(Clone)]
-struct Case<'a> {
-    driver: &'a Path,
-    profile: &'a str,
-    carrier: &'a str,
-    base: &'a Path,
-    namespace: &'a str,
-    inputs: &'a Path,
-    reference: &'a fixture::Setup,
-    root: &'a p::RootSigningKey,
-    intent: &'a p::EnrollmentIntent,
-    certificate: &'a [u8],
-    roster: &'a p::IssuedRoster,
-    validity: p::Validity,
-    policy: &'a p::VerifiedSessionPolicy,
-    sdk: &'a q_periapt_host_store::PolicyStore,
-    witness: Option<&'a witness::Witness>,
-    tls: Option<&'a witness_tls_faults::FaultWitness>,
-    calls: Cell<u64>,
+pub(crate) struct Case<'a> {
+    pub(crate) driver: &'a Path,
+    pub(crate) profile: &'a str,
+    pub(crate) carrier: &'a str,
+    pub(crate) base: &'a Path,
+    pub(crate) namespace: &'a str,
+    pub(crate) inputs: &'a Path,
+    pub(crate) reference: &'a fixture::Setup,
+    pub(crate) root: &'a p::RootSigningKey,
+    pub(crate) intent: &'a p::EnrollmentIntent,
+    pub(crate) certificate: &'a [u8],
+    pub(crate) roster: &'a p::IssuedRoster,
+    pub(crate) validity: p::Validity,
+    pub(crate) policy: &'a p::VerifiedSessionPolicy,
+    pub(crate) sdk: &'a q_periapt_host_store::PolicyStore,
+    pub(crate) witness: Option<&'a witness::Witness>,
+    pub(crate) tls: Option<&'a witness_tls_faults::FaultWitness>,
+    pub(crate) calls: Cell<u64>,
 }
 impl Case<'_> {
     fn output(&self, label: &str) -> PathBuf {

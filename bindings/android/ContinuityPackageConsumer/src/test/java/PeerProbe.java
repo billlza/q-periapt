@@ -73,6 +73,20 @@ public final class PeerProbe {
     private static void exchange(ContinuityPeer peer, Path inputs, String mode, Ids.Session session, Path output) throws Exception {
         String address = new String(read(inputs, "connection-address"), java.nio.charset.StandardCharsets.US_ASCII);
         switch (mode) {
+                    case "peer-rekey" -> {
+                        Counter64 epoch = peer.rekey(address, session, new Counter64("1"));
+                        require(epoch.equals(new Counter64("1")), "epoch"); publish(output, new byte[] {1});
+                    }
+                    case "peer-send" -> {
+                        Ids.Message original = new Ids.Message(read(inputs, "connection-message"));
+                        require(peer.messageStatus(session, original) == ContinuityPeer.MessageStatus.ACKNOWLEDGED, "original message is not durably acknowledged");
+                        Ids.Message fresh = peer.nextMessage(session);
+                        require(!fresh.equals(original), "fresh send reused original message");
+                        byte[] payload = "continued after pending recovery".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        require(peer.send(address, session, fresh, payload, AD).consumption() == ContinuityPeer.Consumption.CONFIRMED, "fresh consumption not confirmed");
+                        require(peer.messageStatus(session, fresh) == ContinuityPeer.MessageStatus.ACKNOWLEDGED, "fresh acknowledgement not durable");
+                        publish(output, ByteBuffer.allocate(64).put(session.encoded()).put(fresh.encoded()).array());
+                    }
                     case "peer-connect" -> publish(output, peer.establish(address, new Ids.Initiation(read(inputs, "connection-initiation"))).session().encoded());
                     case "peer-uncertain", "peer-retry" -> {
                         Ids.Message message = mode.equals("peer-uncertain") ? peer.nextMessage(session) : new Ids.Message(read(inputs, "connection-message"));
@@ -121,11 +135,7 @@ public final class PeerProbe {
                 peer.finishOpen();
                 String address = new String(read(inputs, "connection-address"), java.nio.charset.StandardCharsets.US_ASCII);
                 switch (mode) {
-                    case "peer-connect", "peer-uncertain", "peer-retry" -> exchange(peer, inputs, mode, session, output);
-                    case "peer-rekey" -> {
-                        Counter64 epoch = peer.rekey(address, session, new Counter64("1"));
-                        require(epoch.equals(new Counter64("1")), "epoch"); publish(output, new byte[] {1});
-                    }
+                    case "peer-connect", "peer-uncertain", "peer-retry", "peer-rekey", "peer-send" -> exchange(peer, inputs, mode, session, output);
                     case "peer-serve" -> {
                         AtomicInteger calls = new AtomicInteger(); byte[][] borrowed = new byte[1][];
                         java.io.IOException original = new java.io.IOException("application result uncertain after durable effect");

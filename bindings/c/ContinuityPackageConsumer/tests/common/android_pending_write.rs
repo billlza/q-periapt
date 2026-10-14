@@ -31,6 +31,7 @@ enum Cut {
     None,
     Cancellation,
     ProcessLoss,
+    Continuation,
 }
 impl Cut {
     fn suffix(self) -> &'static str {
@@ -38,13 +39,14 @@ impl Cut {
             Self::None => "",
             Self::Cancellation => "-query-cancel",
             Self::ProcessLoss => "-process-loss",
+            Self::Continuation => "-continuation",
         }
     }
     fn query_count(self) -> usize {
         match self {
             Self::None => 2,
             Self::Cancellation => 3,
-            Self::ProcessLoss => 4,
+            Self::ProcessLoss | Self::Continuation => 4,
         }
     }
 }
@@ -54,6 +56,9 @@ pub(crate) fn exercise_query_cancel(carrier: &str, profile: &str, applied: bool)
 }
 pub(crate) fn exercise_process_loss(carrier: &str, profile: &str, applied: bool) -> Result<()> {
     flow::exercise_with_cut(carrier, profile, applied, Cut::ProcessLoss)
+}
+pub(crate) fn exercise_continuation(carrier: &str, profile: &str, applied: bool) -> Result<()> {
+    flow::exercise_with_cut(carrier, profile, applied, Cut::Continuation)
 }
 
 #[test]

@@ -62,7 +62,13 @@ pub(super) fn renew(case: &Case<'_>, identity: &[u8]) -> Result<()> {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+    renew_expired(case, identity)
+}
+
+pub(super) fn renew_expired(case: &Case<'_>, identity: &[u8]) -> Result<()> {
+    let until = case.policy.validity().until();
     let at = fixture::now()?;
+    assert!(at >= until, "renewal must observe real P0 expiry");
     assert_eq!(
         case.run("policy-activate-expired", "expired-activation")?,
         104u32.to_be_bytes()

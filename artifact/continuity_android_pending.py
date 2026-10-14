@@ -12,9 +12,11 @@ TESTS = {f"{carrier}-{trust}-{outcome}": f"android_pending_write::{carrier}_{tru
 QUERY_TESTS = {label: "android_pending_query::" + label.replace("-", "_")
                for label in ("signed-fixed-unapplied", "tls-recoverable-applied")}
 PROCESS_TESTS = {label: "android_pending_process::" + label.replace("-", "_") for label in QUERY_TESTS}
+CONTINUATION_TESTS = {label: "android_pending_continuation::" + label.replace("-", "_") for label in QUERY_TESTS}
 MARKER = ("qualified original pending write signed/fixed/unapplied: public configuration, original unknown delivery, "
           "independent exact R2 approval, query-only retry, expired activation refused")
 COMPLETED = b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n"
+CONTINUED_COMPLETED = b"original-configuration;exact-roster;unknown-message-retained;query-only;expired-activation-denied;independent-renewal;traffic-after-rekey\n"
 CASES = (
     ("original.request", "managed-witness-create"), ("authority-created", "authority-create"),
     ("genesis", "managed-witness-prepare"), ("activated.request", "managed-witness-activate"),
@@ -128,23 +130,25 @@ def _verify_interruption(stdout: bytes, read, label: str, first: tuple, advance:
 
 
 def verify_execution(stdout: bytes, directory: Path, label: str = LABEL, *, batch: bool = False,
-                     legacy: bool = False, catalog: frozenset[str] = contract.TESTS, query_cancel: bool = False, process_loss: bool = False) -> dict:
-    sdk.require(sum((legacy, query_cancel, process_loss)) <= 1, "conflicting pending recovery cuts")
-    tests = PROCESS_TESTS if process_loss else QUERY_TESTS if query_cancel else TESTS
+                     legacy: bool = False, catalog: frozenset[str] = contract.TESTS, query_cancel: bool = False, process_loss: bool = False,
+                     continuation: bool = False) -> dict:
+    sdk.require(sum((legacy, query_cancel, process_loss, continuation)) <= 1, "conflicting pending recovery cuts")
+    process_loss = process_loss or continuation
+    tests = CONTINUATION_TESTS if continuation else PROCESS_TESTS if process_loss else QUERY_TESTS if query_cancel else TESTS
     sdk.require(label in tests and (not legacy or (label == LABEL and not batch and catalog == contract.SINGLE_PENDING_TESTS)),
                 "unknown pending recovery route or historical scope")
     if batch: contract.verify_batch(stdout, frozenset(tests.values()), catalog=catalog)
     else: contract.verify_single(stdout, tests[label], catalog=catalog)
     sdk.require(stdout.decode().splitlines().count(MARKER if legacy else marker(label)) == 1, "pending-write scenario missing or duplicated")
     carrier, trust, outcome = label.split("-"); applied = outcome == "applied"
-    result_label = label + ("-process-loss" if process_loss else "-query-cancel" if query_cancel else "")
+    result_label = label + ("-continuation" if continuation else "-process-loss" if process_loss else "-query-cancel" if query_cancel else "")
     base = directory / result_label
     def read(name): return sdk.snapshot(base / name).data
     for name, mode in cases(applied, legacy=legacy, query_cancel=query_cancel, process_loss=process_loss):
         expected_stdout = b"" if mode in ("pending-confirm-process-cut", "pending-confirm-result-cut") else f"{trust}:{mode}:passed\n".encode()
         sdk.require(read(name + ".stdout") == expected_stdout
                     and read(name + ".stderr") == b"", "pending-write foreign process did not complete")
-    sdk.require(read("completed") == COMPLETED, "pending-write completion missing")
+    sdk.require(read("completed") == (CONTINUED_COMPLETED if continuation else COMPLETED), "pending-write completion missing")
     original = read("original.request")
     sdk.require(len(original) == 5506 and original == read("activated.request") == read("original-identity-after"),
                 "original configured identity changed")

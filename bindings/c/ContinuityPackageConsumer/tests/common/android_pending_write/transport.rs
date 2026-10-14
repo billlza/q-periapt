@@ -11,6 +11,15 @@ pub(super) enum Carrier {
     OpenSsl(crate::openssl_host::Host),
 }
 impl Carrier {
+    pub(super) fn policy_tls(&self) -> Result<Option<&crate::witness_tls_faults::FaultWitness>> {
+        match self {
+            Self::Signed => Ok(None),
+            Self::Native(server) => Ok(Some(server)),
+            Self::OpenSsl(_) => {
+                Err("continued policy fault requires the recorded native TLS witness".into())
+            }
+        }
+    }
     pub(super) fn hold_query(
         &self,
         witness: &witness::Witness,

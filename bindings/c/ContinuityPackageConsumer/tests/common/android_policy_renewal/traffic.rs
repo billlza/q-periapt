@@ -19,6 +19,15 @@ fn start(
     session: Option<[u8; 32]>,
     renewed: bool,
 ) -> Result<(receiver_process::Server, SocketAddr)> {
+    start_named(case, mode, session, renewed, mode)
+}
+fn start_named(
+    case: &Case<'_>,
+    mode: &str,
+    session: Option<[u8; 32]>,
+    renewed: bool,
+    label: &str,
+) -> Result<(receiver_process::Server, SocketAddr)> {
     let mut args: Vec<OsString> = Vec::new();
     if case.carrier != "local" {
         args.extend([
@@ -53,7 +62,7 @@ fn start(
         &android_credential_traffic::executable()?,
         None,
         case.base,
-        &format!("{}policy-{mode}", case.namespace),
+        &format!("{}policy-{label}", case.namespace),
         &args,
     )
 }
@@ -98,6 +107,33 @@ fn create_receiver_target(inputs: &Path, target: &Path, output: &Path) -> Result
     Ok(())
 }
 impl Traffic {
+    pub(super) fn retained(case: &Case<'_>) -> Result<Self> {
+        let session = fixture::array(case.inputs, "connection-session")?;
+        let message = fixture::array(case.inputs, "connection-message")?;
+        let effect = fs::read(case.base.join("roster-effect-before"))?;
+        assert_eq!(
+            effect,
+            [
+                session.as_slice(),
+                message.as_slice(),
+                b"persisted before process exit"
+            ]
+            .concat()
+        );
+        assert_eq!(
+            effect,
+            fs::read(
+                case.reference
+                    .responder
+                    .join(format!("application-{}", fixture::hex(&message)))
+            )?
+        );
+        Ok(Self {
+            session,
+            message,
+            effect,
+        })
+    }
     pub(super) fn begin(case: &Case<'_>) -> Result<Self> {
         receiver_policy::prepare_receiver_metadata(case.reference)?;
         peer_bundle::peer_bundle_at(
@@ -231,6 +267,52 @@ impl Traffic {
             .count();
         assert_eq!(count, 1);
         publish_private_bytes(&case.output("policy-effect-after"), &effect)?;
+        Ok(())
+    }
+    pub(super) fn rekey_and_send(&self, case: &Case<'_>) -> Result<()> {
+        let (server, address) = start(case, "rekey", Some(self.session), true)?;
+        fs::write(case.inputs.join("connection-address"), address.to_string())?;
+        assert_eq!(case.run("policy-peer-rekey", "policy-rekeyed")?, [1]);
+        assert_eq!(receiver_process::finish(server, 0)?, "server-rekey-1\n");
+        let (server, address) =
+            start_named(case, "message", Some(self.session), true, "fresh-message")?;
+        fs::write(case.inputs.join("connection-address"), address.to_string())?;
+        let sent = case.run("policy-peer-send", "policy-fresh-message")?;
+        assert_eq!(sent.len(), 64);
+        assert_eq!(sent.get(..32), Some(self.session.as_slice()));
+        let message: [u8; 32] = sent.get(32..).ok_or("fresh message")?.try_into()?;
+        assert_ne!(message, self.message);
+        android_credential_traffic::received_new(server, self.session, message)?;
+        let effect = fs::read(
+            case.reference
+                .responder
+                .join(format!("application-{}", fixture::hex(&message))),
+        )?;
+        assert_eq!(
+            effect,
+            [sent.as_slice(), b"continued after pending recovery"].concat()
+        );
+        assert_eq!(
+            fs::read(
+                case.reference
+                    .responder
+                    .join(format!("application-{}", fixture::hex(&self.message)))
+            )?,
+            self.effect
+        );
+        let count = fs::read_dir(&case.reference.responder)?
+            .collect::<std::io::Result<Vec<_>>>()?
+            .iter()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("application-")
+            })
+            .count();
+        assert_eq!(count, 2);
+        publish_private_bytes(&case.output("policy-fresh-effect"), &effect)?;
+        publish_private_bytes(&case.output("policy-effect-count"), &2_u32.to_be_bytes())?;
         Ok(())
     }
 }

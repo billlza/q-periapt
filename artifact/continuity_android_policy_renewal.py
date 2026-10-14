@@ -89,6 +89,14 @@ def verify_route(directory: Path, profile: str, carrier: str, *, with_roster: bo
     account, family, identity_until, request_sha = first.verify_original(original_data, after_traffic="identity",
         identity_journal=prepared[4:36] if carrier == "local" else None)
     sdk.require(read("policy-effect-after") == original_data["effect.bin"], "policy retry repeated or replaced business effect")
+    operation = verify_renewal(read, carrier, prepared=prepared, account=account, family=family, identity_until=identity_until)
+    return {"foreign_processes": count, "operation": operation, "original_request_sha256": request_sha,
+                     "original_session": read("policy-connected").hex(), "original_message": read("policy-message-unknown")[32:].hex(),
+                     "policy_expired": True, "independent_policy_renewed": True, "business_effects": 1}
+
+
+def verify_renewal(read, carrier: str, *, prepared: bytes, account: bytes, family: bytes, identity_until: int):
+    """Validate one original independently approved renewal, without inventing setup calls."""
     mapping = {"policy-request.bin": "policy-request", "policy-request-replayed.bin": "policy-request-replayed",
                "policy-after-refusal.bin": "bad-approval-request", "policy-refused.bin": "bad-approval", "policy-root.bin": "inputs/policy-root",
                "original-policy.bin": "inputs/protocol-policy", "target-policy.bin": "inputs/policy-target/protocol-policy",
@@ -131,6 +139,4 @@ def verify_route(directory: Path, profile: str, carrier: str, *, with_roster: bo
         sdk.require(0 < len(trace) <= 128 * 7334 and len(trace) % 7334 == 0, "policy history transcript bound")
         for offset in range(0, len(trace), 7334):
             sdk.require(trace[offset] == 1 and trace[offset + 205] not in (11, 13), "history dispatched another policy Commit/Close")
-    return {"foreign_processes": count, "operation": operation, "original_request_sha256": request_sha,
-                     "original_session": read("policy-connected").hex(), "original_message": read("policy-message-unknown")[32:].hex(),
-                     "policy_expired": True, "independent_policy_renewed": True, "business_effects": 1}
+    return operation

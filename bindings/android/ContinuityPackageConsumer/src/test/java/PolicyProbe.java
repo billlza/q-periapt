@@ -30,7 +30,10 @@ public final class PolicyProbe {
     private static boolean selected(String mode) {
         return JointPolicyProbe.selected(mode) || PolicyCredentialProbe.selected(mode) || mode.startsWith("policy-stage") || mode.equals("policy-reconcile") || mode.equals("policy-witness-prepare")
             || mode.equals("policy-witness-commit-unknown") || mode.equals("policy-witness-commit-replay")
-            || mode.equals("policy-activate-renewed") || mode.equals("policy-activate-unmanaged") || mode.equals("policy-peer-retry");
+            || mode.equals("policy-activate-renewed") || mode.equals("policy-activate-unmanaged") || continuedPeer(mode);
+    }
+    private static boolean continuedPeer(String mode) {
+        return mode.equals("policy-peer-retry") || mode.equals("policy-peer-rekey") || mode.equals("policy-peer-send");
     }
     private static void stage(ContinuityEnrollment enrollment, Path inputs, String mode, Path output) throws Exception {
         PolicyRenewalRequest request = PolicyProbeRecords.request(read(inputs, "renewal-request"));
@@ -81,7 +84,7 @@ public final class PolicyProbe {
                     }
                     if (mode.startsWith("policy-stage")) { stage(enrollment, inputs, mode, output); return; }
                     if (mode.startsWith("policy-peer-")) {
-                        try (ContinuityDevice device = mode.equals("policy-peer-retry") ? enrollment.activatePolicyRenewal() : enrollment.activate()) {
+                        try (ContinuityDevice device = continuedPeer(mode) ? enrollment.activatePolicyRenewal() : enrollment.activate()) {
                             if (mode.equals("policy-peer-unassociated")) PeerProbe.unassociated(device, inputs, output);
                             else PeerProbe.client(device, inputs, mode.substring("policy-".length()), output);
                         }

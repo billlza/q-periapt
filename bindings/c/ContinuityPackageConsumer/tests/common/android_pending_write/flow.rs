@@ -174,6 +174,33 @@ pub(super) fn exercise_with_cut(
         session,
         message,
     };
+    let continuation = if cut == Cut::Continuation {
+        Some(crate::android_policy_renewal::Case {
+            driver: &client,
+            profile,
+            carrier,
+            base: &base,
+            namespace: "continued-",
+            inputs: &inputs,
+            reference: &reference,
+            root: &authority,
+            intent: &intent,
+            certificate: &certificate,
+            roster: &roster,
+            validity,
+            policy: &policy,
+            sdk: &sdk,
+            witness: Some(&witness),
+            tls: transport.policy_tls()?,
+            calls: std::cell::Cell::new(0),
+        })
+    } else {
+        None
+    };
+    let continued_identity = continuation
+        .as_ref()
+        .map(crate::android_policy_renewal::continuation::prepare)
+        .transpose()?;
     let captured_before = transport.captures(&witness)?.len();
     transport.arm(&witness, applied)?;
     assert_eq!(
@@ -236,7 +263,7 @@ pub(super) fn exercise_with_cut(
             &original_request,
             &run,
         ),
-        Cut::ProcessLoss => process_loss::exercise(
+        Cut::ProcessLoss | Cut::Continuation => process_loss::exercise(
             &base,
             &inputs,
             &transport,
@@ -318,20 +345,33 @@ pub(super) fn exercise_with_cut(
         &base.join("expiry-observation"),
         &[until.to_be_bytes(), fixture::now()?.to_be_bytes()].concat(),
     )?;
+    if let Some(case) = continuation {
+        crate::android_policy_renewal::continuation::resume(
+            &case,
+            continued_identity.as_deref().ok_or("continued identity")?,
+        )?;
+    }
     policy.close();
     sdk.close();
     transport.finish()?;
     witness.join()?;
     retain(
         &base.join("completed"),
-        b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n",
+        if cut == Cut::Continuation {
+            b"original-configuration;exact-roster;unknown-message-retained;query-only;expired-activation-denied;independent-renewal;traffic-after-rekey\n"
+        } else {
+            b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n"
+        },
     )?;
     println!("qualified original pending write {carrier}/{profile}/{outcome}: public configuration, original unknown delivery, exact R2 effect, pre-cancel retained intent, query-only retry, expired activation refused");
     if cut == Cut::Cancellation {
         println!("qualified pending Query cancellation {carrier}/{profile}/{outcome}: remote reply barrier, native cancellation with witness uncertainty, unchanged witness, retained original intent, distinct retry challenges");
     }
-    if cut == Cut::ProcessLoss {
+    if matches!(cut, Cut::ProcessLoss | Cut::Continuation) {
         println!("qualified pending process loss {carrier}/{profile}/{outcome}: held Query process exit, lost confirmation result, original intent and target, fresh Query retries, expired activation refused");
+    }
+    if cut == Cut::Continuation {
+        println!("qualified pending continuation {carrier}/{profile}/{outcome}: original recovery, independent policy approval, original message consumed once, rekey1 and fresh traffic");
     }
     Ok(())
 }

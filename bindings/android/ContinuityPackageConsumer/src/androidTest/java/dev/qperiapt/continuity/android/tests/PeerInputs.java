@@ -50,7 +50,7 @@ final class PeerInputs {
         Files.write(new File(inputs, "connection-address").toPath(), decoded(arguments, "connection-address", 1, 128));
         String identity = operation.equals("peer-connect") ? "connection-initiation" : "connection-session";
         original(new File(inputs, identity), decoded(arguments, identity, 32, 32));
-        if (operation.equals("peer-retry")) original(new File(inputs, "connection-message"), decoded(arguments, "connection-message", 32, 32));
+        if (operation.equals("peer-retry") || operation.equals("peer-send")) original(new File(inputs, "connection-message"), decoded(arguments, "connection-message", 32, 32));
     }
     static void installApproval(File inputs, Bundle arguments) throws Exception {
         original(new File(inputs, "authority-peer-application"), decoded(arguments, "authority-peer-application", 32, 32));
