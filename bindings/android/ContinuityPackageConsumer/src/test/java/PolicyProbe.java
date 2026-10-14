@@ -71,7 +71,7 @@ public final class PolicyProbe {
                     }
                     if (selected(mode)) selectTarget(enrollment, inputs, installation, recovery);
                     if (mode.startsWith("policy-joint-")) {
-                        JointPolicyProbe.run(enrollment, inputs, installation, recovery, mode, output); return;
+                        JointPolicyProbe.run(enrollment, inputs, installation, recovery, mode, output, witness != null); return;
                     }
                     if (mode.startsWith("policy-credential-")) {
                         PolicyCredentialProbe.run(enrollment, inputs, mode, output, witness != null); return;

@@ -69,7 +69,8 @@ final class PolicyInputs {
             WitnessInputs.install(inputs, arguments, "credential-operation", 32, 32, true);
             if (operation.equals("policy-joint-next-request"))
                 WitnessInputs.install(inputs, arguments, "credential-next-operation", 32, 32, true);
-            if (!operation.equals("policy-joint-request") && !operation.equals("policy-joint-next-request"))
+            if (!operation.equals("policy-joint-request") && !operation.equals("policy-joint-next-request")
+                    && !operation.equals("policy-joint-request-local-refused"))
                 WitnessInputs.install(inputs, arguments, "credential-statement", 32, 32, true);
             // Grant/approval inputs are immutable in this fresh cohort. Later peer
             // operations use those retained files instead of resending them over ADB.

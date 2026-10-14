@@ -7,6 +7,8 @@ pub(super) struct Issued {
     pub(super) statement: [u8; 32],
     pub(super) roster: p::RosterCheckpoint,
     pub(super) until: u64,
+    pub(super) grant: p::VerifiedCredentialRenewal,
+    pub(super) scope: p::PolicyContinuationScope,
 }
 pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
     let operation = p::CredentialRenewalId::generate()?;
@@ -19,6 +21,15 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
         case.run("policy-joint-request", "joint-request-replayed")?,
         request
     );
+    if case.witness.is_some() {
+        assert_eq!(
+            case.run(
+                "policy-joint-request-local-refused",
+                "joint-request-local-refused"
+            )?,
+            216u32.to_be_bytes()
+        );
+    }
     let request =
         crate::credential_request::read_credential_request(&case.base.join("joint-request"), true)?;
     assert_eq!(request.operation, operation);
@@ -174,5 +185,7 @@ pub(super) fn issue(case: &Case<'_>, identity: &[u8]) -> Result<Issued> {
         statement: approved.statement_digest(),
         roster: roster.checkpoint(),
         until,
+        grant,
+        scope,
     })
 }

@@ -11,20 +11,28 @@ final class JointPolicyProbe {
     private JointPolicyProbe() { }
     static boolean selected(String mode) {
         return mode.startsWith("policy-joint-stage") || mode.equals("policy-joint-reconcile")
-            || mode.equals("policy-joint-activate") || mode.equals("policy-joint-peer-retry");
+            || mode.equals("policy-joint-activate") || mode.equals("policy-joint-peer-retry")
+            || JointWitnessProbe.selected(mode);
     }
     static void run(ContinuityEnrollment owner, Path inputs, Path installation, boolean recovery,
-            String mode, Path output) throws Exception {
+            String mode, Path output, boolean witnessed) throws Exception {
         Ids.CredentialRenewal operation = new Ids.CredentialRenewal(read(inputs, "credential-operation"));
         if (mode.equals("policy-joint-request") || mode.equals("policy-joint-next-request")) {
             // Reuse the public getter serializer, with the same original credential operation.
             PolicyCredentialProbe.run(owner, inputs, mode.equals("policy-joint-next-request")
-                ? "policy-credential-next-request" : "policy-credential-request", output, false); return;
+                ? "policy-credential-next-request" : "policy-credential-request", output, witnessed); return;
         }
+        if (mode.equals("policy-joint-request-local-refused")) {
+            failed(216, () -> owner.credentialRenewalRequest(operation));
+            publish(output, ByteBuffer.allocate(4).putInt(216).array()); return;
+        }
+        if (mode.startsWith("policy-joint-witness-")) { JointWitnessProbe.run(owner, inputs, mode, output); return; }
         Ids.CredentialStatement statement = new Ids.CredentialStatement(read(inputs, "credential-statement"));
         switch (mode) {
             case "policy-joint-request-reused" -> {
-                failed(211, () -> owner.credentialRenewalRequest(operation));
+                failed(211, () -> {
+                    if (witnessed) owner.witnessedCredentialRenewalRequest(operation); else owner.credentialRenewalRequest(operation);
+                });
                 publish(output, ByteBuffer.allocate(4).putInt(211).array());
             }
             case "policy-joint-stage", "policy-joint-stage-refused", "policy-joint-stage-predecessor" -> {

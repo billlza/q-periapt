@@ -39,9 +39,14 @@ CREDENTIAL_TESTS = RECOVERY_TESTS | {
     "android_policy_renewal::credential_" + carrier + "_" + profile
     for carrier in ("local", "signed", "tls") for profile in ("fixed", "recoverable")
 }
-TESTS = CREDENTIAL_TESTS | {
+LOCAL_JOINT_TESTS = CREDENTIAL_TESTS | {
     "android_policy_renewal::joint::" + profile + "_" + outcome
     for profile in ("fixed", "recoverable") for outcome in ("applied", "pending")
+}
+TESTS = LOCAL_JOINT_TESTS | {
+    "android_policy_renewal::joint::witness::" + carrier + "_" + profile + "_" + outcome
+    for carrier in ("signed", "tls") for profile in ("fixed", "recoverable")
+    for outcome in ("applied", "closed")
 }
 
 
@@ -56,7 +61,7 @@ def verify_catalog(stdout: bytes) -> None:
 def verify_single(stdout: bytes, test: str, *, catalog: frozenset[str] = TESTS) -> None:
     # Historical roster captures explicitly retain their previous complete catalog.
     # Live qualification always verifies TESTS first and uses this default.
-    sdk.require(catalog in (ROSTER_TESTS, RETIREMENT_TESTS, ROOT_BASE_TESTS, ROOT_TESTS, ACCOUNT_TESTS, RECOVERY_TESTS, CREDENTIAL_TESTS, TESTS) and test in catalog, "unknown installed Android test/catalog")
+    sdk.require(catalog in (ROSTER_TESTS, RETIREMENT_TESTS, ROOT_BASE_TESTS, ROOT_TESTS, ACCOUNT_TESTS, RECOVERY_TESTS, CREDENTIAL_TESTS, LOCAL_JOINT_TESTS, TESTS) and test in catalog, "unknown installed Android test/catalog")
     text = stdout.decode()
     expected = f"test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; {len(catalog)-1} filtered out;"
     sdk.require(re.findall(r"^test (\S+) \.\.\. ok$", text, re.M) == [test]

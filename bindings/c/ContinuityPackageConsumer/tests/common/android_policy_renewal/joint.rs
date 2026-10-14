@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 
 #[path = "joint_issuer.rs"]
 mod issuer;
+#[path = "joint_witness.rs"]
+mod witness;
 
 fn wait_expiry(until: u64) -> Result<u64> {
     let deadline = Instant::now() + Duration::from_secs(POLICY_SECONDS + 5);
@@ -17,12 +19,14 @@ fn wait_expiry(until: u64) -> Result<u64> {
     Ok(fixture::now()?)
 }
 
-pub(super) fn exercise(
-    case: &Case<'_>,
-    identity: &[u8],
-    traffic: &traffic::Traffic,
-    committed: bool,
-) -> Result<()> {
+struct Prepared {
+    issued: issuer::Issued,
+    pending: Vec<u8>,
+    applied: Vec<u8>,
+    original_until: u64,
+    original_at: u64,
+}
+fn prepare(case: &Case<'_>, identity: &[u8]) -> Result<Prepared> {
     let original_until = case.policy.validity().until();
     let original_at = wait_expiry(original_until)?;
     assert_eq!(
@@ -63,6 +67,31 @@ pub(super) fn exercise(
         case.run("policy-joint-status", "joint-pending-reopened")?,
         pending
     );
+    Ok(Prepared {
+        issued,
+        pending,
+        applied,
+        original_until,
+        original_at,
+    })
+}
+
+pub(super) fn exercise(
+    case: &Case<'_>,
+    identity: &[u8],
+    traffic: &traffic::Traffic,
+    committed: bool,
+) -> Result<()> {
+    if case.witness.is_some() {
+        return witness::exercise(case, identity, traffic, committed);
+    }
+    let Prepared {
+        issued,
+        pending,
+        applied,
+        original_until,
+        original_at,
+    } = prepare(case, identity)?;
     if committed {
         assert_eq!(
             case.run("policy-joint-reconcile", "joint-committed")?,
@@ -113,30 +142,42 @@ pub(super) fn exercise(
         );
     }
     if committed {
-        // A new issuer request is available only after terminal coordination.
-        assert_eq!(
-            case.run("policy-joint-request-reused", "joint-request-reused")?,
-            211u32.to_be_bytes()
-        );
-        let next = p::CredentialRenewalId::generate()?;
-        assert_ne!(next, issued.operation);
-        publish_private_bytes(
-            &case.inputs.join("credential-next-operation"),
-            next.as_bytes(),
-        )?;
-        case.run("policy-joint-next-request", "joint-final-request")?;
-        let parsed = crate::credential_request::read_credential_request(
-            &case.base.join("joint-final-request"),
-            true,
-        )?;
-        assert_eq!(parsed.operation, next);
-        assert_eq!(
-            parsed.journal.as_bytes(),
-            identity.get(32..).ok_or("journal")?
-        );
-        assert_eq!(parsed.original_c, case.certificate);
-        assert_eq!(parsed.original_r, case.roster.as_bytes());
-        assert_eq!(parsed.original_policy, case.policy.checkpoint().digest());
+        next_request(case, identity, &issued, true)?;
+    }
+    Ok(())
+}
+
+fn next_request(
+    case: &Case<'_>,
+    identity: &[u8],
+    issued: &issuer::Issued,
+    adopted: bool,
+) -> Result<()> {
+    // A new issuer request is available only after terminal coordination.
+    assert_eq!(
+        case.run("policy-joint-request-reused", "joint-request-reused")?,
+        211u32.to_be_bytes()
+    );
+    let next = p::CredentialRenewalId::generate()?;
+    assert_ne!(next, issued.operation);
+    publish_private_bytes(
+        &case.inputs.join("credential-next-operation"),
+        next.as_bytes(),
+    )?;
+    case.run("policy-joint-next-request", "joint-final-request")?;
+    let parsed = crate::credential_request::read_credential_request(
+        &case.base.join("joint-final-request"),
+        true,
+    )?;
+    assert_eq!(parsed.operation, next);
+    assert_eq!(
+        parsed.journal.as_bytes(),
+        identity.get(32..).ok_or("journal")?
+    );
+    assert_eq!(parsed.original_c, case.certificate);
+    assert_eq!(parsed.original_r, case.roster.as_bytes());
+    assert_eq!(parsed.original_policy, case.policy.checkpoint().digest());
+    if adopted {
         assert_eq!(parsed.authorization, Some(issued.statement));
         assert_eq!(parsed.previous, issued.roster);
         assert_eq!(
@@ -147,11 +188,20 @@ pub(super) fn exercise(
             parsed.previous_r,
             fs::read(case.inputs.join("renewed-roster"))?
         );
+    } else {
+        assert_eq!(parsed.authorization, None);
+        assert_eq!(parsed.previous, case.roster.checkpoint());
+        assert_eq!(parsed.previous_c, case.certificate);
+        assert_eq!(parsed.previous_r, case.roster.as_bytes());
+        assert_eq!(parsed.current_policy, case.policy.checkpoint());
     }
     Ok(())
 }
 
 fn route(profile: &str, committed: bool) -> Result<()> {
+    run_route(profile, "local", committed)
+}
+fn run_route(profile: &str, carrier: &str, committed: bool) -> Result<()> {
     let output = PathBuf::from(std::env::var_os("QPC_ANDROID_CASES").ok_or("joint policy cases")?);
     let driver =
         PathBuf::from(std::env::var_os("QPC_ANDROID_DRIVER").ok_or("joint policy driver")?);
@@ -160,7 +210,7 @@ fn route(profile: &str, committed: bool) -> Result<()> {
         &output,
         &driver,
         profile,
-        "local",
+        carrier,
         Some(Maintenance::Joint { committed }),
     )
 }

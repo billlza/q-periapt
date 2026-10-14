@@ -75,6 +75,19 @@ The [local joint G/T qualification](../../../research/sdk-alpha1/evidence/202610
 covers four host routes and the accepted phone's applied/pending routes, including
 real policy expiry, original-message retry and refusal to create a historical commit.
 
+For required-witness G/T, export `prepareWitnessedPolicyContinuation()` for the
+witness's independent approval of both the grant and joint policy authorization.
+Retain the original operation and T statement after a missing Commit reply.
+Passive `reconcileWitnessedCredentialRenewal` sends no new Commit or Close;
+explicit `closeWitnessedCredentialRenewal` may send Close and still return Committed
+if Commit already won. Before preparing a sealed target, a target-free
+`prepareWitnessedPolicyCancellation()` supports independently authorized closure.
+Its reservation is not a Closed receipt and permits neither Commit nor activation.
+The [required-witness qualification](../../../research/sdk-alpha1/evidence/20261014-android-witness-joint/README.md)
+checks signed TCP and mutual TLS, real expiry, Applied/Closed recovery and the
+accepted phone's actual package paths. Historical results still require fresh
+current-policy admission before operational use.
+
 For registry-managed traffic, independently associate the peer account as well as
 the local account. An unknown peer is refused even when its TLS certificate and
 bootstrap bundle are valid. After local renewal, call `preparePeerReopen` with

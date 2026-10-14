@@ -23,7 +23,7 @@ class JointPolicyTests(unittest.TestCase):
     def verify(self, root, label, surface="host"):
         profile, outcome = label.split("-")
         stdout = (self.root / surface / label / "execution.stdout").read_bytes()
-        return joint.verify_execution(stdout, root, profile, outcome == "applied")
+        return joint.verify_execution(stdout, root, profile, outcome == "applied", catalog=joint.contract.LOCAL_JOINT_TESTS)
 
     def test_host_and_actual_phone_keep_the_exact_terminal_outcome(self):
         for surface, labels in (("host", joint.TESTS), ("device", ("recoverable-applied", "recoverable-pending"))):

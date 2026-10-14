@@ -293,7 +293,11 @@ fn exercise(
         witness.join()?;
     }
     if let Some(Maintenance::Joint { committed }) = maintenance {
-        println!("qualified joint policy {profile}: {calls} foreign processes; committed={committed}, expired original and target, exact historical outcome, original identity and one effect");
+        if carrier == "local" {
+            println!("qualified joint policy {profile}: {calls} foreign processes; committed={committed}, expired original and target, exact historical outcome, original identity and one effect");
+        } else {
+            println!("qualified witnessed joint policy {carrier}/{profile}: {calls} foreign processes; committed={committed}, expired original and target, exact historical outcome, original identity");
+        }
     } else {
         println!("qualified policy renewal {carrier}/{profile}: {calls} foreign processes; expired P0, independent P2, original identity session message and one effect");
     }

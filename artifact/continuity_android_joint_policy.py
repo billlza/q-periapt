@@ -53,10 +53,10 @@ def _records(request: bytes) -> tuple:
     return tuple(values)
 
 
-def verify_execution(stdout: bytes, directory: Path, profile: str, committed: bool) -> dict:
+def verify_execution(stdout: bytes, directory: Path, profile: str, committed: bool, *, catalog=contract.TESTS) -> dict:
     label = profile + ("-applied" if committed else "-pending")
     sdk.require(label in TESTS, "joint route")
-    contract.verify_single(stdout, TESTS[label])
+    contract.verify_single(stdout, TESTS[label], catalog=catalog)
     base = directory / ("local-" + profile)
     def read(name): return sdk.snapshot(base / name).data
     count = len(cases(committed))

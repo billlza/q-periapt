@@ -2260,6 +2260,7 @@ jobs:
             target/continuity-installed-swift/android-jni-*.public
             target/continuity-installed-swift/android-jni-*-policy-credential-*/**
             target/continuity-installed-swift/android-jni-*-joint-policy-*/**
+            target/continuity-installed-swift/android-jni-*-witness-joint-*/**
             target/continuity-installed-swift/*.zip
             target/continuity-installed-swift/*.json
             target/continuity-installed-swift/*.stdout
