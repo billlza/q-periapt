@@ -66,6 +66,18 @@ impl Proposal {
     pub fn statement(&self) -> Vec<u8> {
         self.inner.transaction_statement().to_vec()
     }
+    pub fn credential_statement(&self) -> Vec<u8> {
+        self.inner.statement().to_vec()
+    }
+    pub fn policy_continuation_statement(&self) -> Option<Vec<u8>> {
+        self.inner.policy_continuation().map(|value| value.to_vec())
+    }
+    pub fn independent_policy_statement(&self) -> Option<Vec<u8>> {
+        self.inner.policy_renewal().map(|value| value.to_vec())
+    }
+    pub fn adopts_policy(&self) -> bool {
+        self.inner.adopts_policy()
+    }
 }
 /// Original target-free cancellation metadata requiring independent witness approval.
 #[wasm_bindgen(js_name = QPeriaptContinuityCredentialCancellation)]

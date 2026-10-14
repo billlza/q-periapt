@@ -78,6 +78,22 @@ impl CredentialRenewalRequest {
             policy_digest: self.snapshot.original_policy.digest(),
         }
     }
+    /// Exact public joint-policy scope from this observed original lineage.
+    /// This is neither approval nor a reservation; staging still checks the
+    /// then-current predecessor and supported policy-continuation mode.
+    pub fn policy_continuation_scope(&self) -> crate::PolicyContinuationScope {
+        crate::PolicyContinuationScope {
+            operation: self.operation,
+            journal: self.snapshot.journal,
+            original_owner: self.snapshot.original_owner,
+            original_credential: self.original_device.credential_digest(),
+            previous_credential: self.snapshot.current_device.credential_digest(),
+            previous_roster: self.snapshot.current_roster,
+            original_policy: self.snapshot.original_policy,
+            previous_policy: self.snapshot.current_policy,
+            previous_authorization: self.snapshot.current_policy_authorization,
+        }
+    }
     /// Combine original SDK-retained inputs with independently issued target
     /// credential/roster bytes for the existing account-root G signing method.
     pub fn materials<'a>(

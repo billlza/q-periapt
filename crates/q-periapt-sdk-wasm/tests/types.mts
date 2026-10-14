@@ -209,3 +209,26 @@ async function credentialMaintenance(device: QPeriaptContinuityDevice,
   restored.free(); proposal.free(); grant.free(); void phase;
 }
 void credentialMaintenance;
+
+import {QPeriaptContinuityPolicyContinuation} from 'q-periapt-sdk-wasm/web';
+async function jointPolicyMaintenance(device: QPeriaptContinuityDevice,
+    request: QPeriaptContinuityCredentialRequest, grant: QPeriaptContinuityCredentialGrant,
+    original: QPeriaptContinuityHistoricalPolicy, previous: QPeriaptContinuityHistoricalPolicy,
+    target: QPeriaptContinuityPolicy, targetHistory: QPeriaptContinuityHistoricalPolicy,
+    witness: QPeriaptContinuityWitness) {
+  const proof = new QPeriaptContinuityPolicyContinuation(data, request, grant, original, previous, target, 1n);
+  const id: Uint8Array = proof.operation_id(), statement: Uint8Array = proof.statement();
+  const predecessor: Uint8Array | undefined = proof.previous_statement();
+  const targetVersion: bigint = proof.target_version();
+  proof.bytes(); proof.credential_statement(); proof.target_digest();
+  (await device.stage_policy_continuation(grant, proof, id, target, 1n)).free();
+  (await device.reconcile_policy_continuation(original, target, 1n)).free();
+  (await device.recover_historical_policy_continuation(id, statement, original, targetHistory, 1n)).free();
+  const localJournal: Uint8Array = await device.activate_local_policy_continuation(original, target, 1n);
+  const witnessedJournal: Uint8Array = await device.activate_witnessed_policy_continuation(original, target, witness, 1n);
+  const proposal = await device.prepare_witnessed_credential_renewal(original, target, witness, 1n);
+  proposal.credential_statement(); proposal.policy_continuation_statement();
+  proposal.independent_policy_statement(); proposal.adopts_policy();
+  proposal.free(); proof.free(); void predecessor; void targetVersion; void localJournal; void witnessedJournal;
+}
+void jointPolicyMaintenance;

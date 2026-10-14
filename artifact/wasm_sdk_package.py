@@ -269,6 +269,7 @@ def build(output: Path) -> dict:
     for target in ("nodejs", "web"):
         run(["wasm-pack", "build", str(CRATE), "--mode", "no-install", "--target", target,
              "--release", "--out-dir", str(output / "generated" / target), "--", "--locked",
+             "--target-dir", str(output / "cargo-target"),
              *(["--features", "browser-continuity"] if target == "web" else [])],
              output / f"build-{target}", ROOT)
     package = output / "package"

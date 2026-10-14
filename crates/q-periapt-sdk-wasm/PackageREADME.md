@@ -324,6 +324,23 @@ caller-held operation ID. Local protection reconciles it during separate
 `activate_local`; an expired local target can be resolved explicitly through
 `reconcile_expired_credential_renewal`.
 
+For an atomic credential and policy extension (joint G/T), construct
+`QPeriaptContinuityPolicyContinuation` from the combined two-root approvals,
+the original public credential request, independently verified credential grant,
+original and previous policy histories, and the live target policy. The request
+supplies the actual original lineage and predecessor T; received approvals do
+not select a new installation or authorize a different predecessor.
+Use `stage_policy_continuation`, retaining its original operation and T statement.
+Local storage completes through `reconcile_policy_continuation`; after expiry,
+`recover_historical_policy_continuation` only finishes an exact existing local
+commit and grants no traffic permission. Required protection uses the witness
+methods below with the T transaction statement. Activate separately using
+`activate_local_policy_continuation` or `activate_witnessed_policy_continuation`,
+then reopen the original session through its retained descriptor. A local call
+never substitutes for a required witness. Independent P and joint T remain
+distinct authorization modes; this interface does not bypass native admission
+rules for switching between them.
+
 For required witnesses, `prepare_witnessed_credential_renewal` seals the original
 target and returns `QPeriaptContinuityCredentialProposal`. Retain its exact bytes
 and obtain independent witness preparation before explicit

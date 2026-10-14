@@ -6,7 +6,7 @@ use super::*;
 /// current traffic permission. Keep the exact request and ID across retries.
 #[wasm_bindgen(js_name = QPeriaptContinuityCredentialRequest)]
 pub struct Request {
-    inner: engine::CredentialRenewalRequest,
+    pub(super) inner: engine::CredentialRenewalRequest,
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityCredentialRequest)]
 impl Request {

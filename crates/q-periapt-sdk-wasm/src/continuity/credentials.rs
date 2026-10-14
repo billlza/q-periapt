@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::history::HistoricalPolicy;
 use super::*;
+mod continuation;
 mod types;
 use types::{CancellationRequest, Grant, Proposal, Status};
 fn witness_config(

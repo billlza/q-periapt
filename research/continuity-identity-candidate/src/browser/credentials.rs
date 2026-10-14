@@ -6,6 +6,7 @@ use crate::{
     AnchorCredentialRenewalProposal as Proposal, CredentialRenewalId, CredentialRenewalStatus,
     HistoricalSessionPolicy, VerifiedCredentialRenewal,
 };
+mod continuation;
 
 async fn client(
     op: &mut Operation<'_>,
