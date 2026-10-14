@@ -2062,10 +2062,12 @@ jobs:
     needs: rust-publish-contract
     # OpenSSL >= 3.5 is required by the independent PQ TLS witness peer.
     runs-on: ubuntu-26.04
-    # At 252eb954 the full cohort took 65m. First-use managed policy and
-    # credential expiry add about 18m in the local two-profile matrix.
+    # At 978e405f the 105m budget canceled after Release policy-continuation;
+    # 165 inspected terminal command receipts succeeded. The completed
+    # Debug C profile took about 48m, in addition to packaging and Rust checks.
+    # Allow both full profiles and bounded runner variance to finish.
     # Individual command (15 minutes) and transport deadlines stay unchanged.
-    timeout-minutes: 105
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:

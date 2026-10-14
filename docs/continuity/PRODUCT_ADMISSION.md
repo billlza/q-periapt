@@ -678,7 +678,13 @@ retains the independent witness's authorization boundary. Fresh freezes,
 acknowledgements and metadata retirement require current witness authorization.
 Expiry permits historical reads and exact already-applied confirmation, not new
 advances or discarded pending intents. Permanent retirement and composed
-renewal-to-cleanup recovery remain separate admission work. Atomic persistence,
+renewal-to-cleanup recovery remain separate admission work. The native
+[cleanup/renewal boundary](../../research/sdk-alpha1/evidence/20261014-recovery-renewal-boundary/README.md)
+confirms that an unapplied ordinary intent can block both the renewal request and
+preparation of an independently approved G/T after witness expiry. An already-applied
+target with a lost reply reconciles. Independent replacement and permanent retired
+accounting are a separate native exit path; they do not provide in-place renewal
+or a browser retirement implementation. Atomic persistence,
 revision exclusion, uncertain commits, restart, quota
 failure, cancellation and original witness reconciliation must retain their
 explicit contracts across the complete lifecycle. Browser capabilities must be

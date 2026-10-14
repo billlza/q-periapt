@@ -85,6 +85,35 @@ scope without opening an SDK runtime or substituting an earlier time. The immuta
 snapshot cannot be passed to activation or a new Commit. Those operations retain
 `VerifiedSessionPolicy` and its current time, closed-state and runtime checks.
 
+### Unresolved ordinary writes at witness expiry
+
+An unrelated ordinary journal write can prevent this renewal coordinator from
+starting. The [cleanup/renewal boundary qualification](../sdk-alpha1/evidence/20261014-recovery-renewal-boundary/README.md)
+uses real sessions and signed witnesses with two distinct cuts: a cleanup freeze
+not delivered to the witness, and a committed freeze whose reply was lost. Both
+leave the original sealed `QPWINT01` locally. After credential expiry, with either
+a current or expired original policy, the already-applied target reconciles and
+the public renewal request becomes available. The unapplied target cannot advance;
+the request returns a witness error and preserves the exact original intent.
+
+Independently obtaining a valid G/T first does not resolve that ordering. Staging
+its enrollment approval succeeds, but preparing its journal target rejects the
+unrelated pending write before witness dispatch. A renewal grant does not authorize
+replacement of another operation's sealed target. The older authority-only method
+is not a coordinator recovery path: it requires the same current original policy
+and is excluded after joint/independent authority transactions. Do not reset the
+pending row, substitute local protection, backdate time or infer NoCommit from a
+transport error. This is a remaining **in-place renewal availability gap**, not a
+permission to relax ordinary witness validity.
+
+Independent device replacement is a different, implemented native exit path. Its
+permanent retirement receipt freezes the old subject, and the restricted retired
+owner reports both the original image and sealed target. The qualification retains
+the unknown delivery in both views and distinguishes `UncommittedTarget` from
+`Authoritative`. Only complete durable host accounting and the original independent
+report acknowledgement permit journal and separate signer erasure. This does not
+restore the old device or qualify a browser replacement/retirement adapter.
+
 `recover_witnessed_credential_renewal_preparation` reads the exact authenticated
 local proposal and repairs missing enrollment coordination after a configuration
 write fails. It sends no witness request and does not reseal or erase journal

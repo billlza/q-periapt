@@ -15,6 +15,8 @@ mod credential_request;
 mod managed;
 #[path = "witness_policy_transaction_tests.rs"]
 mod policy_transaction;
+#[path = "witness_recovery_renewal_tests.rs"]
+mod recovery_renewal;
 const JOURNAL: TableDefinition<&str, &[u8]> =
     TableDefinition::new("continuity_device_candidate_v21");
 type ReplyHook = Option<(u8, Box<dyn FnOnce() + Send>)>;
