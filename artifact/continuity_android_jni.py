@@ -228,14 +228,21 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             import continuity_android_policy_renewal as policy_renewal
             import continuity_android_pending as pending_write
             pending_cases = installed / "pending-write-cases"
+            import continuity_c_witness_openssl as pending_openssl
+            peer_record = native["execution"][profile].get("witness_openssl")
+            sdk.require(peer_record is not None and peer_record["completed"], "Android pending matrix requires the qualified OpenSSL witness peer")
+            peer = peer_record["peer"]
+            pending_openssl.verify_dependencies(peer["dependency_files"])
             pending_runtime = dict(env, QPC_ANDROID_CASES=str(pending_cases), QPC_ANDROID_DRIVER=str(driver),
-                                   QPC_CONFIGURATION_RECEIVER=str(receiver))
-            pending_stdout = run([str(binary), "--exact", pending_write.TEST, "--nocapture"],
+                                   QPC_CONFIGURATION_RECEIVER=str(receiver), QPERIAPT_WITNESS_OPENSSL_PEER=peer["path"])
+            pending_stdout = run([str(binary), "android_pending_write::", "--test-threads=2", "--nocapture"],
                                   profile + "-pending-write", consumer, pending_runtime)
-            pending_results = pending_write.verify_execution(pending_stdout, pending_cases)
-            for label in pending_results:
-                for name in pending_write.PUBLIC:
+            pending_results = {}
+            for label in pending_write.TESTS:
+                pending_results.update(pending_write.verify_execution(pending_stdout, pending_cases, label, batch=True))
+                for name in pending_write.public(label.endswith("-applied")):
                     sdk.copy(pending_cases / label / name, output / f"android-jni-{profile}-pending-write-{label}-{name}.public")
+            pending_openssl.verify_dependencies(peer["dependency_files"])
             target_client = installed / "qpc-configuration-client"
             run([str(clang), "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic", "-isysroot", str(platform),
                  str(consumer / "first_configuration_client.c"), "-I" + str(consumer), "-L" + str(installed),

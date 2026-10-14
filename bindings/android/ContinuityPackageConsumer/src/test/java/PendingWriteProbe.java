@@ -53,11 +53,13 @@ public final class PendingWriteProbe {
                     }
                     publish(output, ByteBuffer.allocate(4).putInt(218).array());
                 }
-                case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved" -> {
+                case "pending-confirm", "pending-confirm-damaged", "pending-confirm-unapproved", "pending-confirm-cancelled" -> {
                     byte[] proposal = read(inputs, "pending-proposal"), metadata = read(inputs, "pending-metadata");
                     if (mode.equals("pending-confirm-damaged")) metadata[metadata.length - 1] ^= 1;
+                    if (mode.equals("pending-confirm-cancelled")) enrollment.cancel();
                     int refused = mode.equals("pending-confirm-damaged") ? 102
-                        : mode.equals("pending-confirm-unapproved") ? 103 : 0;
+                        : mode.equals("pending-confirm-unapproved") ? 103
+                        : mode.equals("pending-confirm-cancelled") ? 302 : 0;
                     if (refused == 0) {
                         enrollment.confirmPendingWriteRecovery(proposal, metadata);
                         publish(output, new byte[] {1});

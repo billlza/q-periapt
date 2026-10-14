@@ -260,6 +260,8 @@ def qualify(args: argparse.Namespace) -> dict:
                 "Android JNI host qualification requires installed C packages on macOS arm64")
     sdk.require(args.witness_openssl_prefix is None or args.with_c_consumer,
                 "OpenSSL witness qualification requires the installed C consumer")
+    sdk.require(not args.with_android_jni_consumer or args.witness_openssl_prefix is not None,
+                "Android pending recovery qualification requires --witness-openssl-prefix")
     sdk.validate_no_registry_credentials(os.environ)
     sdk.require(os.uname().sysname in {"Darwin", "Linux"}, "candidate host store requires Unix")
     commit, dirty = sdk.inspect_package_source(ROOT, allow_dirty=False)

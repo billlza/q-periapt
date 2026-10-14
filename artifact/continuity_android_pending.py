@@ -7,6 +7,8 @@ import rust_sdk_profile as sdk
 
 TEST = "android_pending_write::signed_fixed_unapplied"
 LABEL = "signed-fixed-unapplied"
+TESTS = {f"{carrier}-{trust}-{outcome}": f"android_pending_write::{carrier}_{trust}_{outcome}"
+         for carrier in ("signed", "tls") for trust in ("fixed", "recoverable") for outcome in ("unapplied", "applied")}
 MARKER = ("qualified original pending write signed/fixed/unapplied: public configuration, original unknown delivery, "
           "independent exact R2 approval, query-only retry, expired activation refused")
 COMPLETED = b"original-configuration;exact-roster;unknown-message-retained;query-only;no-activation\n"
@@ -21,10 +23,34 @@ CASES = (
     ("confirmed", "pending-confirm"), ("retried", "pending-confirm"), ("pending-absent", "pending-request-absent"),
     ("still-expired", "pending-activate-expired"), ("original-identity-after", "pending-identity"),
 )
-PUBLIC = tuple(name for name, _ in CASES) + tuple(name + "." + suffix for name, _ in CASES for suffix in ("stdout", "stderr")) + (
+LEGACY_PUBLIC = tuple(name for name, _ in CASES) + tuple(name + "." + suffix for name, _ in CASES for suffix in ("stdout", "stderr")) + (
     "completed", "expiry-observation", "roster-effect-before", "unprocessed-original-advance",
     "inputs/pending-proposal", "inputs/pending-metadata", "inputs/connection-session", "inputs/connection-message",
 )
+
+
+def cases(applied: bool, *, legacy: bool = False) -> tuple:
+    if legacy: return CASES
+    selected = list(CASES)
+    index = selected.index(("unapproved", "pending-confirm-unapproved"))
+    selected[index:index] = [("cancelled", "pending-confirm-cancelled"), ("pending-after-cancel", "pending-request")]
+    if applied: selected.remove(("unapproved", "pending-confirm-unapproved"))
+    return tuple(selected)
+
+
+def public(applied: bool, *, legacy: bool = False) -> tuple:
+    if legacy: return LEGACY_PUBLIC
+    steps = cases(applied)
+    common = tuple(name for name in LEGACY_PUBLIC if name in (
+        "completed", "expiry-observation", "roster-effect-before", "inputs/pending-proposal",
+        "inputs/pending-metadata", "inputs/connection-session", "inputs/connection-message"))
+    return tuple(name for name, _ in steps) + tuple(name + "." + suffix for name, _ in steps for suffix in ("stdout", "stderr")) + common + (
+        "controller-read-only",) + (("processed-original-advance", "original-advance-reply") if applied else ("unprocessed-original-advance",))
+
+
+def marker(label: str) -> str:
+    return ("qualified original pending write " + label.replace("-", "/") + ": public configuration, original unknown delivery, "
+            "exact R2 effect, pre-cancel retained intent, query-only retry, expired activation refused")
 
 
 def request(data: bytes) -> tuple[bytes, bytes, bytes]:
@@ -46,13 +72,18 @@ def request(data: bytes) -> tuple[bytes, bytes, bytes]:
     return proposal, binding, metadata
 
 
-def verify_execution(stdout: bytes, directory: Path) -> dict:
-    contract.verify_single(stdout, TEST)
-    sdk.require(stdout.decode().splitlines().count(MARKER) == 1, "pending-write scenario missing or duplicated")
-    base = directory / LABEL
+def verify_execution(stdout: bytes, directory: Path, label: str = LABEL, *, batch: bool = False,
+                     legacy: bool = False, catalog: frozenset[str] = contract.TESTS) -> dict:
+    sdk.require(label in TESTS and (not legacy or (label == LABEL and not batch and catalog == contract.SINGLE_PENDING_TESTS)),
+                "unknown pending recovery route or historical scope")
+    if batch: contract.verify_batch(stdout, frozenset(TESTS.values()), catalog=catalog)
+    else: contract.verify_single(stdout, TESTS[label], catalog=catalog)
+    sdk.require(stdout.decode().splitlines().count(MARKER if legacy else marker(label)) == 1, "pending-write scenario missing or duplicated")
+    carrier, trust, outcome = label.split("-"); applied = outcome == "applied"
+    base = directory / label
     def read(name): return sdk.snapshot(base / name).data
-    for name, mode in CASES:
-        sdk.require(read(name + ".stdout") == f"fixed:{mode}:passed\n".encode()
+    for name, mode in cases(applied, legacy=legacy):
+        sdk.require(read(name + ".stdout") == f"{trust}:{mode}:passed\n".encode()
                     and read(name + ".stderr") == b"", "pending-write foreign process did not complete")
     sdk.require(read("completed") == COMPLETED, "pending-write completion missing")
     original = read("original.request")
@@ -61,8 +92,14 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     first, second = request(read("pending-before-expiry")), request(read("pending-after-expiry"))
     sdk.require(first == second and first[0] == read("inputs/pending-proposal")
                 and first[2] == read("inputs/pending-metadata"), "original approved metadata changed")
-    for name, code in [("roster-peer-unassociated",201),("original-roster-unknown",218),
-                       ("damaged-metadata",102),("unapproved",103),("pending-absent",201),("still-expired",104)]:
+    if not legacy:
+        sdk.require(request(read("pending-after-cancel")) == first and read("controller-read-only") == bytes([applied]),
+                    "cancellation lost the original intent or controller mutation scope changed")
+    codes = [("roster-peer-unassociated",201),("original-roster-unknown",218),
+             ("damaged-metadata",102),("pending-absent",201),("still-expired",104)]
+    if not applied: codes.append(("unapproved",103))
+    if not legacy: codes.append(("cancelled",302))
+    for name, code in codes:
         sdk.require(read(name) == code.to_bytes(4,"big"), "pending-write refusal changed: " + name)
     sdk.require(read("confirmed") == read("retried") == b"\x01", "original target or exact retry not confirmed")
     session, message = read("inputs/connection-session"), read("inputs/connection-message")
@@ -73,8 +110,11 @@ def verify_execution(stdout: bytes, directory: Path) -> dict:
     observation = read("expiry-observation")
     sdk.require(len(observation) == 16 and 0 < int.from_bytes(observation[:8],"big") < int.from_bytes(observation[8:],"big"),
                 "actual policy expiry missing")
-    advance = read("unprocessed-original-advance")
-    sdk.require(len(advance) == 3674 and advance[204] == 2, "unapplied original Advance missing")
-    return {LABEL: {"foreign_processes": len(CASES), "original_identity": True, "unknown_message_retained": True,
+    advance = read("processed-original-advance" if applied else "unprocessed-original-advance")
+    sdk.require(len(advance) == 3674 and advance[204] == 2, "original Advance missing")
+    if applied:
+        reply = read("original-advance-reply")
+        sdk.require(len(reply) == 3659 and reply[204] == 2, "original applied result missing")
+    return {label: {"foreign_processes": len(cases(applied, legacy=legacy)), "original_identity": True, "unknown_message_retained": True,
         "query_only_confirmation": True, "activation_after_expiry": False,
         "metadata_sha256": hashlib.sha256(first[2]).hexdigest(), "binding": first[1].hex()}}

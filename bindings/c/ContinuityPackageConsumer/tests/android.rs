@@ -50,6 +50,8 @@ mod android_roster_witness;
 mod android_witness;
 #[path = "common/credential_request.rs"]
 mod credential_request;
+#[path = "common/openssl_host.rs"]
+mod openssl_host;
 #[path = "common/policy_request.rs"]
 mod policy_request;
 #[path = "common/receiver_policy.rs"]
