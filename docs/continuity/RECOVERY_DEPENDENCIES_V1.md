@@ -146,9 +146,10 @@ for the missing construction-specific argument.
 
 
 A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
-now machine-checks one necessary generated-key provenance lemma under explicit
-ideal-primitive and protected-state assumptions. Its complete recovery queries
-remain unproved; independent-owner instances do not model shared device journals.
-The result must not be promoted to the construction-specific recovery argument
-required above. Proof inputs, failed searches and the fixed toolchain are retained
-in the linked checkpoint.
+now checks one necessary generated-key provenance lemma and a non-vacuous honest
+execution witness under explicit ideal-primitive and protected-state assumptions.
+A separate process replays the 59-step witness without automatic proof search;
+all rules and five complete declarations remain unchanged. Recovery secrecy and
+the two specified symbolic disclosure witnesses remain unproved. Independent-owner
+instances do not model shared device journals. These results do not close the
+construction-specific recovery argument required above.

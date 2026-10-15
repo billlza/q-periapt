@@ -1,30 +1,46 @@
 # Continuity recovery transition research
 
-Status: **one verified source lemma; recovery secrecy and complete executable
-traces remain unproved.** This directory is not a release proof gate. The full
-0.2.0 construction, shared-device lifecycle, computational argument and external
+Status: **two checked statements: generated-key provenance and an honest
+execution witness.** Recovery secrecy and the two specified disclosure witnesses
+remain unproved. This directory is not a release proof gate; the full 0.2.0
+construction, shared-device lifecycle, computational argument and external
 review remain open.
 
-[`protected-state.spthy`](protected-state.spthy) is a symbolic projection of one
-identity-authenticated rekey exchange. In the exact captured theory,
-`generation_secret_origin` is verified by Tamarin 1.12.0 with Maude 3.5.1 using
-induction and the default smart search: 182 proof steps. It says that knowing an
-honest generated decapsulation key requires a modeled generation-entropy leak
-or acquisition of a phase-1, phase-2 or phase-3 record for that session. It is a
-necessary provenance condition, not a timing bound or recovery-secrecy theorem.
-The lemma is not marked `reuse` in this checked-in theory. No unproved lemma is
-used as an axiom here.
+[`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
+of one identity-authenticated rekey exchange. `generation_secret_origin` is
+verified by Tamarin 1.12.0 / Maude 3.5.1 using induction: 182 steps. It gives a
+necessary condition for knowing an honest generated decapsulation key: modeled
+generation-entropy leakage or acquisition of a phase-1/2/3 record. It is not a
+causal timing bound or a recovery-secrecy theorem. The lemma is not marked
+`reuse`; no unproved lemma is imported as an assumption.
 
-The same invocation reports **analysis incomplete** for the four unselected
-queries: `recovery_is_executable`,
+`recovery_is_executable` now has a checked 59-step witness: Cut precedes fresh
+reservations, both endpoints confirm, and an application event follows both
+confirmations, with no extra snapshot, identity or entropy leakage anywhere.
+Interactive proof-method selection follows genuine signed-flight sources. A
+fresh process then replays the exported methods **without `--prove`** and verifies
+the witness. Initial and final closed-theory exports have identical rules,
+equations, restrictions and all five complete lemma declarations, including
+quantifier kinds and annotations. No model or hypothesis was weakened.
+
+A combined invocation on that same exported input verifies both provenance and
+execution. It reports **analysis incomplete** for
 `clean_reservation_recovers_symbolic_message_secrecy`,
 `pre_cut_generation_reservation_remains_exposed`, and
-`later_storage_access_defeats_fresh_reservations`. Their presence in the source
-is not verification. Follow-up work may reuse the origin lemma only after
-checking its proof on the exact selected theory and must verify every required
-query before claiming that projection is closed. The
-[public checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic/README.md)
-retains the source, terminal result and unsuccessful attempts.
+`later_storage_access_defeats_fresh_reservations`. Those three are not accepted.
+The [execution checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic-execution/README.md)
+retains proof methods, independent replays, six rejected semantic substitutions
+and a missing-proof control: removing the witness still exits zero, but its
+terminal result is incomplete and is rejected. The
+[preceding checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic/README.md)
+preserves the earlier one-lemma result and failed automated searches.
+
+The exported certificate has placeholders for unselected lemmas and unused
+alternative branches. One fully solved trace suffices for this `exists-trace`
+claim; it does not discharge an `all-traces` secrecy claim. Acceptance is based
+on the exact terminal lemma results, not a grep for a word or a successful exit.
+The original bare model remains the editable source; the generated certificate
+is evidence, not additional production code.
 
 ## Modeled boundaries
 
@@ -81,18 +97,20 @@ from passing only because the model also disclosed a later traffic root.
 Use the pinned Tamarin 1.12.0 and Maude 3.5.1 identities. The checkpoint records
 official macOS arm64 archive URLs, exact SHA-256 values, local extraction and the
 repository toolchain-contract result; no global installation or Intel target was
-added. The successful command is:
+added. The original provenance run can be reproduced on the bare model. To reproduce
+the execution witness, extract `proof/export-19.spthy` from the execution
+checkpoint's `CAPTURE.zip` and replay it:
 
 ```sh
 tamarin-prover --with-maude=/absolute/path/to/maude \
-  protected-state.spthy --prove=generation_secret_origin \
-  --heuristic=s --stop-on-trace=DFS --derivcheck-timeout=60 \
-  --quit-on-warning +RTS -N2 -M2G -RTS
+  export-19.spthy --derivcheck-timeout=60 --quit-on-warning \
+  +RTS -N2 -M2G -RTS
 ```
 
-There is no depth bound on that universal-lemma run. Parse success, process exit
-zero, incomplete analysis, a timeout and heap exhaustion must remain distinct
-from a verified terminal lemma. The `no_precomp` annotations change when sources
-are expanded; they do not remove rule premises. See the Tamarin manual on
-[precomputation](https://tamarin-prover.com/manual/master/book/009_precomputation.html)
+Adding `--prove=generation_secret_origin --heuristic=s` also verifies provenance
+on the same input. Neither accepted invocation uses a proof-depth bound. Parse
+success, process exit zero, incomplete analysis, timeout and heap exhaustion
+remain distinct from a verified terminal lemma. The `no_precomp` annotations
+change when sources are expanded; they do not remove rule premises. See the
+Tamarin manual on [precomputation](https://tamarin-prover.com/manual/master/book/009_precomputation.html)
 and [lemma annotations](https://tamarin-prover.com/manual/master/book/007_property-specification.html#lemma-annotations).
