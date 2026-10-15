@@ -167,8 +167,12 @@ adds in-flight Query cancellation and two real process-loss boundaries for both
 signed/fixed/unapplied and TLS/recoverable/applied writes. Its 90 distinct app
 processes include four actual exits with mandatory container readback. Native
 code 218, exact intent, fresh Query challenges and expired-activation rejection
-remain intact. Apple post-recovery policy renewal, rekey and fresh traffic remain
-separate from these recovery and earlier ABI/owner checks.
+remain intact. The [physical Swift continuation checkpoint](../sdk-alpha1/evidence/20261015-apple-pending-continuation/README.md)
+then composes recovery with independently approved policy renewal, current-authority
+activation, original-message confirmation, epoch 1 rekey and a distinct consumed
+message. Its two fresh routes execute 121 app processes and four real exits;
+each native receiver retains exactly the original and new business effects.
+This confirms continued traffic, not post-compromise secrecy or power-loss recovery.
 
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Storage-internal cuts,
