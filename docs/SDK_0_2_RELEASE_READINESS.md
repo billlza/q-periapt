@@ -5427,11 +5427,15 @@ inventories. Hosted Linux qualification remains required.
 The [multi-epoch modeling checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-multi-epoch-model/README.md)
 preserves actual root ancestry, completed transcript parents, alternating roles
 and asymmetric confirmation across unbounded rounds. It includes a source map
-and unchanged-theory search controls. All six bounded searches time out without
-terminal verdicts; the two proposed witnesses, structural inheritance property
-and arbitrary-epoch secrecy query remain unproved. Parser and archive readback
-success do not close this release gate. Product code and the three admitted CI
-proof profiles are unchanged.
+and unchanged-theory search controls. Its initial six bounded searches time out
+without terminal verdicts. A subsequent
+[inheritance checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-multi-epoch-inheritance/README.md)
+independently replays the structural root/parent inheritance property in 14 steps,
+with the full original theory and all four queries preserved. The two proposed
+witnesses and arbitrary-epoch secrecy query remain unproved. This structural
+result does not close the recovery release gate. Product code and the three
+admitted CI proof profiles are unchanged; local prover timing variability is
+retained in the diagnostic record.
 
 The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at

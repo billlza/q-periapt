@@ -8,13 +8,17 @@ results remain valid in their own models. Whole-journal image/restore
 correspondence, multi-epoch recovery, computational security, SDK correspondence
 and external review remain open.
 
-An unproved [multi-epoch projection](multi-epoch.spthy) now preserves stable
+An experimental [multi-epoch projection](multi-epoch.spthy) now preserves stable
 session/context, inherited roots, completed transcript parents, alternating
 proposers and asymmetric local confirmation across unbounded rounds. Its
 [model checkpoint](../sdk-alpha1/evidence/20261015-recovery-multi-epoch-model/README.md)
 retains six bounded searches, exact search-annotation controls and a source map.
-All searches time out without a terminal verdict; no query or witness is admitted
-for this new model. It is separate from the three checked CI profiles.
+Those initial searches time out without a terminal verdict. A later
+[inheritance checkpoint](../sdk-alpha1/evidence/20261015-recovery-multi-epoch-inheritance/README.md)
+independently replays one structural property: every reservation inherits an
+earlier local Ready root and parent at the predecessor epoch. The two witnesses
+and multi-epoch message secrecy remain unproved. This research is separate from
+the three checked CI profiles.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
