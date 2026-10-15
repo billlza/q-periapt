@@ -5339,3 +5339,12 @@ The exact CodeQL inventory includes both new Rust files and rejects their omissi
 Current-source hosted CI and native foreign-package/device qualification of this
 implementation delta remain open alongside the existing protocol, resource, maintenance and
 external-review release gates. No merge or release is implied.
+
+The [current Apple roster-cache package checkpoint](../research/sdk-alpha1/evidence/20261015-apple-roster-cache-package/README.md)
+qualifies source `9d396755` as a fresh three-slice arm64 archive with exact
+consumer links and a real macOS owner probe. Physical SDK recovery remains open:
+the fresh iPad app never reached scene activation or SDK admission and was
+removed; an independent iPhone startup-only control passed without invoking the
+SDK. Both outcomes are retained. The frozen-database CodeQL thread comparison
+also timed out in both profiles and does not establish a fix. Current-source
+hosted checks continue separately; no release or broader device claim is made.
