@@ -20,6 +20,17 @@ earlier local Ready root and parent at the predecessor epoch. The two witnesses
 and multi-epoch message secrecy remain unproved. This research is separate from
 the three checked CI profiles.
 
+The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
+adds seven deterministic observations of produced send-state counters. Checked
+erasure preserves the original execution model and all four complete queries.
+The produced-state counter shape has a 35-step proof; the application-message
+counter shape has a 17-step proof using that fully verified dependency. Both
+independently replay. Removing only the dependency proof leaves a conditional
+target success, which the complete acceptance check rejects. The bare model has
+no reusable assumptions. These are constructor-shape properties, not counter
+uniqueness, nonce safety or recovery secrecy. The added generation-secret origin
+conjecture and the original reachability/secrecy obligations remain unproved.
+
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
 verified by Tamarin 1.12.0 / Maude 3.5.1 using induction: 182 steps. It gives a

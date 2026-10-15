@@ -19,6 +19,15 @@ readback, 211 related tests and the source gate. Both previous hosted 900-second
 timeouts remain recorded. Linux CI and multi-epoch recovery remain separate,
 unclosed obligations.
 
+The [multi-epoch counter checkpoint](../research/sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
+qualifies `1c9e66f3`'s observation-preserving model extension. Complete independent
+replays check the produced-state and application-message counter constructors
+(35 and 17 steps), retaining the original four queries and all protocol behavior.
+A real missing-helper control leaves a conditional target success but correctly
+fails acceptance. The standalone source gate passes. Counter uniqueness, nonce
+safety, generation-secret origin, two-round witnesses, multi-epoch message secrecy
+and SDK correspondence are not established by these structural properties.
+
 The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
 only**, including Continuity. Intel macOS is outside this release's support
 matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in
