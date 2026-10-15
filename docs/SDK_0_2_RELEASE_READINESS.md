@@ -5317,3 +5317,25 @@ expectation, reader opcode correction and rejected build attempts are retained.
 No SDK implementation or security policy changed. Controlled tails, energy,
 maximum-capacity memory, foreign/device/independent hosts, construction analysis,
 maintenance/freeze, external review and exact-source hosted checks remain open.
+
+
+### Bounded historical roster decode reuse — 2026-10-15
+
+The [paired optimization checkpoint](../research/sdk-alpha1/evidence/20261015-roster-decode-cache/README.md)
+promotes an exact-byte, per-Image historical verification memo. All 1025 native
+library tests pass with all features and zero ignored tests; strict Clippy,
+formatting, six Rust 1.90 cache tests, WASM checking and iOS arm64 checking pass.
+The full artifact suite and implementation-source gate pass. A fresh installed
+browser archive executes 81 Worker calls, four Worker terminations and two Query
+cancellations, then resumes original traffic across real policy expiry and P1
+renewal; public-reader controls and archive readback validate both recovery paths.
+The 768-send paired measurement independently verifies 780 business effects,
+twelve rekeys and twelve original unknown-result recoveries. Observed send
+medians decrease by 11.6% locally and 6.6% with the required witness on this one
+uncontrolled native host. Current authority, time, scope, witness and durable
+commit checks remain; complete encoded inputs identify cached historical results.
+The original interrupted broad run and preparation failures remain recorded.
+The exact CodeQL inventory includes both new Rust files and rejects their omission.
+Current-source hosted CI and native foreign-package/device qualification of this
+implementation delta remain open alongside the existing protocol, resource, maintenance and
+external-review release gates. No merge or release is implied.

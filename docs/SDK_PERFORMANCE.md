@@ -348,3 +348,28 @@ energy result or platform-wide performance claim. The observed fixed costs guide
 the next profile of image validation, durable transitions and witness checks;
 file length alone is not a performance diagnosis. Source/foreign/package/device
 comparisons and controlled resource/tail gates remain required.
+
+
+### Per-image historical roster decode reuse — 2026-10-15
+
+The [source-bound paired experiment](../research/sdk-alpha1/evidence/20261015-roster-decode-cache/README.md)
+adds a bounded exact-byte memo to each decoded journal Image. The authoritative
+parser and all current-time, membership, policy, record-scope and witness checks
+remain. Three paired blocks contain 768 actual TLS/durable sends and twelve
+rekey/recovery flows, with 780 independently checked business files.
+
+| Protection | Baseline p50 / p95 (ms) | Cached p50 / p95 (ms) | Observed p50 reduction |
+| --- | --- | --- | --- |
+| local | 131.42 / 139.91 | 116.13 / 134.12 | 11.6% |
+| witness | 231.08 / 243.59 | 215.91 / 231.66 | 6.6% |
+
+These are observed single-host, two-peer native distributions with 192 samples
+per cell. Host load is uncontrolled; energy, production tails, maximum-capacity
+memory and packaged/device performance remain open. Whole-process RSS ranges
+and all raw samples, including outliers, are retained in the linked report.
+Roster verifications fall from 103/109 to 28 per complete operation group;
+instrumented write-intent database commits stay at ten and witnessed traffic
+stays at twenty Query plus five Advance exchanges. The cache retains at most
+64 KiB of encoded inputs plus parsed public values and overhead; full-cache
+misses preserve the original decoder and valid-input admission. This measured
+duplicate work, rather than file length, motivates the isolated private module.
