@@ -152,6 +152,15 @@ def write_json(path: Path, value: object) -> None:
         stream.write("\n")
 
 
+def prover_environment() -> dict[str, str]:
+    # Exported Tamarin certificates contain Unicode quantifiers and proof arrows.
+    # Linux GHC decodes handles using the locale: LC_ALL=C rejects these bytes.
+    # macOS provides en_US.UTF-8; glibc provides the portable C.UTF-8 locale.
+    require(sys.platform in ("darwin", "linux"), "recovery replay requires macOS or Linux")
+    encoding_locale = "en_US.UTF-8" if sys.platform == "darwin" else "C.UTF-8"
+    return {"PATH": os.environ["PATH"], "LANG": encoding_locale, "LC_ALL": encoding_locale}
+
+
 def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]) -> dict:
     source = directory / f"{label}-input.spthy"
     output = directory / f"{label}-checked.spthy"
@@ -197,7 +206,7 @@ def run(root: Path, destination: Path) -> None:
     try:
         # Share the repository's version authority, and remove ambient RTS overrides.
         verify_installed("tamarin")
-        environment = {"PATH": os.environ["PATH"], "LANG": "C", "LC_ALL": "C"}
+        environment = prover_environment()
         for label, data in inputs.items():
             print(f"Replaying recovery {label} certificate (deadline {TIMEOUT_SECONDS}s)", flush=True)
             receipt["groups"][label] = replay(label, data, directory, environment)

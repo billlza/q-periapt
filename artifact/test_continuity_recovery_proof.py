@@ -143,6 +143,7 @@ class RecoveryProofTests(unittest.TestCase):
         self.populate_inputs()
         destination = self.root / "target" / "replay"
         with mock.patch.object(proof, "verify_installed"), \
+             mock.patch.object(proof.sys, "platform", "linux"), \
              mock.patch.object(proof, "capture_output", side_effect=BoundedProcessError("timeout", "deadline")) as run, \
              contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaises(BoundedProcessError):
@@ -158,6 +159,15 @@ class RecoveryProofTests(unittest.TestCase):
         self.assertNotIn("GHCRTS", run.call_args.kwargs["environment"])
         with self.assertRaisesRegex(proof.EvidenceIOError, "fresh"):
             proof.run(self.root, destination)
+
+    def test_prover_locale_decodes_unicode_certificates_without_ambient_rts_overrides(self) -> None:
+        self.assertIn("∀".encode(), self.certificate)
+        for platform, expected in (("linux", "C.UTF-8"), ("darwin", "en_US.UTF-8")):
+            with self.subTest(platform=platform), mock.patch.object(proof.sys, "platform", platform), \
+                 mock.patch.dict(proof.os.environ, {"PATH": "/usr/bin:/bin", "LC_ALL": "C",
+                                                    "LANG": "C", "GHCRTS": "-M1M"}):
+                self.assertEqual({"PATH": "/usr/bin:/bin", "LANG": expected, "LC_ALL": expected},
+                                 proof.prover_environment())
 
 
 if __name__ == "__main__":

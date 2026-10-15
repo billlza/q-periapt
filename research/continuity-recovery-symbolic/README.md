@@ -3,8 +3,8 @@
 Status: **the original positive recovery-secrecy query is verified through a
 20-property dependency group.** Generated-key provenance, honest execution and
 two disclosure witnesses retain their separate checked evidence. This is a
-single-exchange symbolic result; its CI replay does not qualify the full construction,
-shared-device lifecycle, computational argument and external review remain open.
+single-exchange symbolic result. The full construction, shared-device lifecycle,
+computational argument and external review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
@@ -179,6 +179,10 @@ each standard stream. Heap limits are 12 GiB for the positive group and 2 GiB
 for the witnesses. Every required verdict, trace quantifier and inventory entry
 must match; a zero exit code alone cannot pass. Results and checked certificates
 are retained as the `continuity-recovery-proof` CI artifact.
+The prover uses an explicit UTF-8 locale (`C.UTF-8` on Linux and `en_US.UTF-8`
+on macOS), because exported certificates contain Unicode quantifiers and arrows.
+The first hosted invocation exposed a Linux decoding failure under `LC_ALL=C`;
+it failed before proof evaluation and retained its stderr and failure receipt.
 
 The exact byte pins deliberately reject source edits, including deleted queries,
 stronger secrecy antecedents and new restrictions. Updating them requires a new
