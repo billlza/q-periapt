@@ -150,8 +150,14 @@ original intent or authenticate its exact confirmed target; neither pending
 absence nor the process exit alone is treated as success. The TLS route also
 executes on the accepted phone, and both earlier cancellation routes are rerun.
 
+The [Android continuation checkpoint](../sdk-alpha1/evidence/20261015-android-pending-continuation/README.md)
+composes original pending recovery with independently approved protocol-policy
+renewal, current-authority activation, original-message confirmation, epoch 1
+rekey and a fresh consumed message. The already-applied TLS route also runs on
+the accepted phone. Recovery alone still grants no expired traffic permission;
+the receiver's separate renewal and both approving roots are part of this flow.
+
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Storage-internal cuts,
-remaining binding process/cancellation cuts, subsequent operational continuation,
-complete binding fault/lifecycle composition and positive Apple recovery remain
-open alongside the wider 0.2.0 gates.
+remaining binding process/cancellation and continuation paths, complete lifecycle
+composition and positive Apple recovery remain open alongside the wider 0.2.0 gates.
