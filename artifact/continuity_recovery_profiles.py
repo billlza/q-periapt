@@ -146,4 +146,42 @@ KEY_SCOPED = RecoveryProfile(
         ),
     }),
 )
-PROFILES = MappingProxyType({profile.name: profile for profile in (INDEPENDENT, KEY_SCOPED)})
+SHARED_STORAGE_ATTACK = "sibling_wrapping_key_unseals_target_record"
+SHARED_STORAGE_EXECUTION = "recovery_with_shared_storage_is_executable"
+SHARED_OWNER_EXECUTION = "shared_device_identity_and_storage_recovery_is_executable"
+SHARED_STORAGE_PROVENANCE = (
+    "signing_secret_derivation_origin", "generation_secret_derivation_origin",
+    "signing_secret_origin", "generation_secret_origin",
+    "encapsulation_uses_authenticated_generation",
+    "encapsulation_derivation_requires_key_or_session_leak", KEY_SCOPED_MAIN,
+)
+SHARED_STORAGE = RecoveryProfile(
+    name="shared-storage",
+    main=KEY_SCOPED_MAIN,
+    model="research/continuity-recovery-symbolic/shared-storage.spthy",
+    model_sha256="146f0db14ce78d5d54bae1a8265584f471a8637e31aa3a19264151c571dc2046",
+    archive="research/sdk-alpha1/evidence/20261015-recovery-shared-storage-positive/CAPTURE.zip",
+    archive_sha256="9655446a492219424eee05614fd2b4589072e07c07293dc92323bbefb170c0be",
+    archive_maximum_bytes=4 * 1024 * 1024,
+    cases=MappingProxyType({
+        "positive": Certificate(
+            "experiments/final-12-proof.spthy",
+            "0f0a04ec5764fec3017b3a04e0b40debce99b39f84dbba592e9c05048b2c5da6",
+            12, 1, KEY_SCOPED_PROPERTIES, (*RECORD_WITNESSES, CROSS_ROLE_WITNESS), KEY_SCOPED_PROPERTIES,
+        ),
+        "attack": Certificate(
+            "prior/sibling-replay-07-proof.spthy",
+            "c23d023b31f364b528abcdc63c29c525b0d652f85da372a27cfc3e4d5df9e5fa",
+            6, 1, SHARED_STORAGE_PROVENANCE,
+            (*RECORD_WITNESSES, CROSS_ROLE_WITNESS, SHARED_STORAGE_ATTACK, SHARED_STORAGE_EXECUTION),
+            (SHARED_STORAGE_ATTACK,),
+        ),
+        "execution": Certificate(
+            "experiments/owner-replay-19-proof.spthy",
+            "85bd2a6b5dd4936ffdabdd87873a01ff1835c140a1fadf040f31de9fb100154e",
+            6, 1, SHARED_STORAGE_PROVENANCE,
+            (*RECORD_WITNESSES, CROSS_ROLE_WITNESS, SHARED_OWNER_EXECUTION), (SHARED_OWNER_EXECUTION,),
+        ),
+    }),
+)
+PROFILES = MappingProxyType({profile.name: profile for profile in (INDEPENDENT, KEY_SCOPED, SHARED_STORAGE)})

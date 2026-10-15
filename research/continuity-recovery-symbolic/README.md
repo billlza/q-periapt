@@ -192,8 +192,9 @@ requires the same signing key and wrapping key in the target initiator and sibli
 responder roles, a sibling response commit and both target confirmations. Scope
 mutation and missing-dependency controls are rejected. Whole-image storage
 correspondence, multiple epochs and computational/SDK refinement remain open.
-The two existing CI profiles retain their previously verified models; this newer
-certificate still needs CI integration and hosted qualification.
+The CI profiles retain the earlier models and now include an explicit
+`shared-storage` profile for the new certificate. Hosted qualification remains
+required for the new profile.
 
 ## Original independent-identity model boundaries
 
@@ -225,15 +226,17 @@ from passing only because the model also disclosed a later traffic root.
 
 ## Assumptions and uncovered obligations
 
-- Protected state is an ideal confidentiality boundary. The alternative
+- The earlier protected-state models use an ideal confidentiality boundary.
+  Shared-storage checks explicit per-record encryption; whole-image and replay-token
+  correspondence remain unproved. The alternative
   [`explicit-storage.spthy`](explicit-storage.spthy) retains nested symbolic
   encryption for journals and replay tokens; no lemma is accepted for it yet.
   No equivalence/refinement between the two theories has been proved.
 - The original model allocates independent signing keys; the key-scoped model
-  permits their reuse across roles and sessions. The checked projections still allocate
-  wrapping keys per session. Shared device owners, several sessions in one
-  journal, multi-device authorization, policy expiry and revocation remain outside
-  the checked scope.
+  permits their reuse while retaining per-session wrapping keys. Shared-storage
+  also permits wrapping-key reuse and checks a combined identity/storage owner
+  witness. Several sessions in an actual journal, multi-device authorization,
+  policy expiry and revocation remain outside the checked scope.
 - The ideal KEM equation and hash constructors do not prove the concrete hybrid
   combiner, ML-KEM, HKDF or confirmation-MAC assumptions. Perfect signatures omit
   the auxiliary information in exposed ML-DSA signing coins. That gap is not
@@ -252,40 +255,50 @@ from passing only because the model also disclosed a later traffic root.
 
 ### CI profiles
 
-The repository CI `tamarin-proof` job checks both models through the bounded
+The repository CI `tamarin-proof` job checks all three models through the bounded
 [`continuity_recovery_proof.py`](../../artifact/continuity_recovery_proof.py)
 gate with the same pinned Tamarin 1.12.0 / Maude 3.5.1 toolchain as the existing
 handshake and migration checks. The independent profile remains the CLI default;
-CI selects both profiles explicitly:
+CI selects each profile explicitly:
 
 ```sh
 sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
   --profile independent --output target/continuity-recovery-proof/independent
 sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
   --profile key-scoped --output target/continuity-recovery-proof/key-scoped
+sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+  --profile shared-storage --output target/continuity-recovery-proof/shared-storage
 ```
 
 Each output directory must be fresh. The independent profile verifies its
 20-property group and three disclosure/execution witnesses in two processes;
 the key-scoped profile verifies its own 20-property group and the attack and
-normal-execution witnesses in three processes. No process uses `--prove`.
+normal-execution witnesses in three processes. The shared-storage profile checks
+its 20-property group, sibling-wrapping-key attack and combined identity/storage
+owner execution witness in three processes. No process uses `--prove`.
 Each has a 900-second deadline and 4 MiB limits on both standard streams and
 certificate files. Positive groups use a 12 GiB heap; independent witnesses use
-2 GiB, and key-scoped witnesses use 6 GiB. The key-scoped profile uses one thread,
-matching its accepted complete replay.
+2 GiB, and the other witnesses use 6 GiB. The key-scoped and shared-storage
+profiles use one thread, matching their accepted complete replays.
 
 [`continuity_recovery_profiles.py`](../../artifact/continuity_recovery_profiles.py)
 keeps each model, archive, certificate and complete verdict inventory together.
-The archive-read limits are 4 MiB and 8 MiB respectively; only the named small
-certificates are read, and routine CI does not export diagnostic graphs. Every
+The archive-read limits are 4 MiB for independent/shared-storage and 8 MiB for
+key-scoped; only the named small certificates are read, and routine CI does not
+export diagnostic graphs. Every
 required verdict, trace quantifier and inventory entry must match. The checker
 and profile-catalog digests are recorded and rechecked after replay. Results and
 checked certificates are retained in separate profile directories inside the
 `continuity-recovery-proof` CI artifact.
 
-The key-scoped step can run after another proof step fails, provided pinned tools
-were verified and the job was not cancelled. All proof steps remain hard gates;
-a successful second profile does not turn an earlier failure into success.
+Key-scoped and shared-storage positive results have the same theorem names and
+verdict inventory. Their distinct model, archive and certificate byte pins bind
+each result to its reviewed theory; names alone do not identify that scope.
+
+The key-scoped and shared-storage steps can run after another proof step fails,
+provided pinned tools were verified and the job was not cancelled. All proof
+steps remain hard gates; a successful later profile does not turn an earlier
+failure into success.
 The prover uses an explicit UTF-8 locale (`C.UTF-8` on Linux and `en_US.UTF-8`
 on macOS), because exported certificates contain Unicode quantifiers and arrows.
 The first hosted invocation exposed a Linux decoding failure under `LC_ALL=C`;

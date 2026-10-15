@@ -5420,8 +5420,9 @@ now closes its 20-property group in one fresh no-search replay, with the same
 model and complete query declarations. A new independently replayed witness
 exercises the same identity and storage owner in both roles. Whole-journal
 image/restore correspondence, root ancestry, multiple epochs and the concrete
-computational/SDK argument remain open. The existing two CI profiles are unchanged;
-the new certificate still needs integration and hosted Linux qualification.
+computational/SDK argument remain open. CI now includes an explicit shared-storage
+profile alongside the earlier two, with separate byte pins and required witness
+inventories. Hosted Linux qualification remains required.
 
 The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at

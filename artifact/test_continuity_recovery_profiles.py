@@ -155,17 +155,18 @@ class KeyScopedRecoveryProfileTests(unittest.TestCase):
                 proof.run(self.root, destination, "key-scoped")
         self.assertFalse(json.loads((destination / "RESULT.json").read_text())["accepted"])
 
-    def test_ci_requires_both_profiles_and_retains_separate_results(self) -> None:
+    def test_ci_requires_all_profiles_and_retains_separate_results(self) -> None:
         workflow = (proof.ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         job = workflow_tests.extract_workflow_job(workflow, "tamarin-proof")
         identity = workflow_tests.extract_named_workflow_step(job, "Verify pinned Tamarin and Maude identities")
         self.assertIn("id: formal_tools\n", identity)
         self.assertNotIn("continue-on-error", job)
         self.assertNotIn("|| true", job)
-        self.assertEqual(2, job.count("artifact/continuity_recovery_proof.py"))
+        self.assertEqual(3, job.count("artifact/continuity_recovery_proof.py"))
         for profile, title, deadline in (
             ("independent", "Replay independent-identity recovery and disclosure proofs", 35),
             ("key-scoped", "Replay key-scoped recovery and identity-sharing witnesses", 50),
+            ("shared-storage", "Replay shared-storage recovery and device-owner witnesses", 50),
         ):
             with self.subTest(profile=profile):
                 step = workflow_tests.extract_named_workflow_step(job, title)
@@ -173,7 +174,7 @@ class KeyScopedRecoveryProfileTests(unittest.TestCase):
                 self.assertIn("sh artifact/python-run.sh artifact/continuity_recovery_proof.py", step)
                 self.assertIn(f"--profile {profile} --output target/continuity-recovery-proof/{profile}\n", step)
                 self.assertIn(f"timeout-minutes: {deadline}\n", step)
-                if profile == "key-scoped":
+                if profile != "independent":
                     self.assertIn("if: ${{ !cancelled() && steps.formal_tools.outcome == 'success' }}\n", step)
                 else:
                     self.assertNotIn("if:", step)

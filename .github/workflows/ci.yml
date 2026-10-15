@@ -2691,6 +2691,12 @@ jobs:
         run: |
           sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
             --profile key-scoped --output target/continuity-recovery-proof/key-scoped
+      - name: Replay shared-storage recovery and device-owner witnesses
+        if: ${{ !cancelled() && steps.formal_tools.outcome == 'success' }}
+        timeout-minutes: 50
+        run: |
+          sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+            --profile shared-storage --output target/continuity-recovery-proof/shared-storage
       - name: Retain Continuity recovery proof results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
