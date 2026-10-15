@@ -5398,7 +5398,14 @@ across roles and sessions, plus independent attack and normal-execution witnesse
 Its entire-trace exclusions apply to the actual target keys, conservatively
 including signer-file capture. Shared journals/wrapping owners, inherited-root
 correlations, multiple epochs, computational security and SDK refinement remain
-open. This newer model has not yet been wired into CI.
+open. CI now selects separate independent-identity and key-scoped replay profiles.
+Both require complete terminal inventories and retain their own results; the new
+configuration and UTF-8 fix still need hosted Linux qualification.
+Both profiles passed actual local certificate replay through this shared gate:
+20 universal properties and three witnesses for independent identities, and
+20 universal properties and two witnesses for key-scoped identity sharing.
+The 18 focused regressions include missing/deferred proof rejection, profile
+substitution, checker changes during replay and both mandatory CI steps.
 The first hosted replay of the new gate fails before proof evaluation because
 Linux rejects Unicode certificate bytes under `LC_ALL=C`. A local UTF-8 fix
 passes 190 related regressions; its hosted Linux replay remains required.

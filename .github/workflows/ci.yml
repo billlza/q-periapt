@@ -2673,17 +2673,24 @@ jobs:
           rm -rf "$TAMARIN_DIR"
           trap - EXIT
       - name: Verify pinned Tamarin and Maude identities
+        id: formal_tools
         run: sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool tamarin
       - name: Machine-check handshake, migration, and countermodels (make prove)
         run: |
           MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
             make -C formal/tamarin TAMARIN=tamarin-prover \
               DERIVCHECK_TIMEOUT=60 prove
-      - name: Replay Continuity single-exchange recovery and disclosure proofs
+      - name: Replay independent-identity recovery and disclosure proofs
         timeout-minutes: 35
         run: |
           sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
-            --output target/continuity-recovery-proof
+            --profile independent --output target/continuity-recovery-proof/independent
+      - name: Replay key-scoped recovery and identity-sharing witnesses
+        if: ${{ !cancelled() && steps.formal_tools.outcome == 'success' }}
+        timeout-minutes: 50
+        run: |
+          sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+            --profile key-scoped --output target/continuity-recovery-proof/key-scoped
       - name: Retain Continuity recovery proof results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

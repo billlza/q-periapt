@@ -11,6 +11,7 @@ from unittest import mock
 import zipfile
 
 import continuity_recovery_proof as proof
+import continuity_recovery_profiles as profiles
 from bounded_process import BoundedProcessError, BoundedResult
 
 
@@ -18,9 +19,9 @@ class RecoveryProofTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # Terminal output from the real accepted replay, not generated verdicts.
-        with zipfile.ZipFile(proof.ROOT / proof.ARCHIVE) as zipped:
+        with zipfile.ZipFile(proof.ROOT / profiles.INDEPENDENT.archive) as zipped:
             cls.positive = zipped.read("receipts/final-positive-53.stdout")
-            cls.certificate = zipped.read(proof.CERTIFICATES["positive"][0])
+            cls.certificate = zipped.read(profiles.INDEPENDENT.cases["positive"].member)
         disclosure = proof.ROOT / "research/sdk-alpha1/evidence/20261015-recovery-symbolic-disclosure/CAPTURE.zip"
         with zipfile.ZipFile(disclosure) as zipped:
             cls.witnesses = zipped.read("receipts/isolate-42.stdout")
@@ -49,14 +50,14 @@ class RecoveryProofTests(unittest.TestCase):
         positive = proof.verify_summary(self.summary(self.positive), "positive", self.source, self.output)
         witnesses = proof.verify_summary(self.summary(self.witnesses), "witnesses", self.source, self.output)
         self.assertEqual(20, len(positive))
-        self.assertEqual(9, positive[proof.MAIN])
+        self.assertEqual(9, positive[profiles.INDEPENDENT.main])
         self.assertEqual({"recovery_is_executable": 59,
                           "pre_cut_generation_reservation_remains_exposed": 80,
                           "later_storage_access_defeats_fresh_reservations": 45}, witnesses)
 
     def test_each_missing_or_incomplete_dependency_and_main_is_rejected(self) -> None:
         data = self.summary(self.positive).decode()
-        for name in (*proof.DEPENDENCIES, proof.MAIN):
+        for name in profiles.INDEPENDENT_PROPERTIES:
             line = next(line for line in data.splitlines(True) if line.startswith(f"  {name} ("))
             for replacement in ("", line.replace("verified", "analysis incomplete")):
                 with self.subTest(name=name, replacement=replacement):
@@ -66,7 +67,7 @@ class RecoveryProofTests(unittest.TestCase):
 
     def test_summary_does_not_accept_duplicate_mislabelled_or_appended_results(self) -> None:
         data = self.summary(self.positive)
-        row = next(line for line in data.splitlines(True) if proof.MAIN.encode() in line)
+        row = next(line for line in data.splitlines(True) if profiles.INDEPENDENT.main.encode() in line)
         mutations = (
             data.replace(row, row + row), data + data,
             data.replace(b"(all-traces)", b"(exists-trace)", 1),
@@ -86,7 +87,7 @@ class RecoveryProofTests(unittest.TestCase):
 
     def test_witnesses_cannot_be_omitted_or_substituted_for_universal_proof(self) -> None:
         data = self.summary(self.witnesses)
-        for name in proof.WITNESSES:
+        for name in profiles.RECORD_WITNESSES:
             row = next(line for line in data.splitlines(True) if name.encode() in line)
             with self.subTest(name=name), self.assertRaises(proof.RecoveryProofError):
                 proof.verify_summary(data.replace(row, b""), "witnesses", self.source, self.output)
@@ -94,17 +95,17 @@ class RecoveryProofTests(unittest.TestCase):
             proof.verify_summary(data, "positive", self.source, self.output)
 
     def populate_inputs(self) -> None:
-        for relative in (proof.MODEL, proof.ARCHIVE):
+        for relative in (profiles.INDEPENDENT.model, profiles.INDEPENDENT.archive):
             destination = self.root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((proof.ROOT / relative).read_bytes())
 
     def test_model_changes_cannot_reuse_historical_certificate(self) -> None:
         self.populate_inputs()
-        model = self.root / proof.MODEL
+        model = self.root / profiles.INDEPENDENT.model
         original = model.read_bytes()
         mutations = (
-            original.replace(proof.MAIN.encode(), b"removed_main", 1),
+            original.replace(profiles.INDEPENDENT.main.encode(), b"removed_main", 1),
             original.replace(b"Ex r #x. IdentityLeak(s,r)", b"Ex other r #x. IdentityLeak(other,r)"),
             original.replace(b"\nend", b'\nrestriction DisableSnapshots:\n "not (Ex s r #i. Snapshot(s,r)@i)"\nend'),
         )
@@ -116,14 +117,14 @@ class RecoveryProofTests(unittest.TestCase):
 
     def test_changed_archive_and_missing_helper_proof_are_rejected(self) -> None:
         self.populate_inputs()
-        archive = self.root / proof.ARCHIVE
+        archive = self.root / profiles.INDEPENDENT.archive
         archive.write_bytes(archive.read_bytes() + b"changed")
         with self.assertRaisesRegex(proof.RecoveryProofError, "archive differs"):
             proof.load_inputs(self.root)
         modified = self.certificate.replace(b"lemma traffic_key_derivation_requires_prior_root", b"lemma removed", 1)
         self.assertNotEqual(self.certificate, modified)
         with self.assertRaisesRegex(proof.RecoveryProofError, "differs"):
-            proof.checked_bytes(modified, proof.CERTIFICATES["positive"][1], "certificate")
+            proof.checked_bytes(modified, profiles.INDEPENDENT.cases["positive"].sha256, "certificate")
 
     def test_exit_zero_with_incomplete_group_is_not_success(self) -> None:
         self.source = self.root / "positive-input.spthy"

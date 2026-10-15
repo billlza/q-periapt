@@ -20,54 +20,13 @@ import sys
 import time
 import zipfile
 
+import continuity_recovery_profiles as profiles
 from bounded_process import BoundedProcessError, capture_output
 from evidence_io import EvidenceIOError, fresh_output_directory, read_regular_snapshot
 from formal_toolchain_contract import FormalToolchainContractError, verify_installed
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL = "research/continuity-recovery-symbolic/protected-state.spthy"
-MODEL_SHA256 = "7802d0a937cd3f1afd75cb256c4cadc17b714f042f4894f4d471b3ea3d7bf902"
-ARCHIVE = "research/sdk-alpha1/evidence/20261015-recovery-positive-symbolic/CAPTURE.zip"
-ARCHIVE_SHA256 = "e207e57e480608b408823bff1c3ce28a805214df24e651a599b02150684dcea9"
-MAIN = "clean_reservation_recovers_symbolic_message_secrecy"
-WITNESSES = (
-    "recovery_is_executable",
-    "pre_cut_generation_reservation_remains_exposed",
-    "later_storage_access_defeats_fresh_reservations",
-)
-DEPENDENCIES = (
-    "traffic_key_derivation_requires_prior_root",
-    "message_derivation_requires_prior_traffic_key",
-    "response_confirmation_has_origin_or_prior_root",
-    "computed_root_identifies_session",
-    "accepted_root_has_origin_or_prior_derivation",
-    "signing_secret_derivation_origin",
-    "generation_secret_derivation_origin",
-    "signing_secret_origin",
-    "generation_secret_origin",
-    "encapsulation_uses_authenticated_generation",
-    "encapsulation_derivation_requires_session_leak",
-    "accepted_root_has_authenticated_origin",
-    "message_root_has_authenticated_origin",
-    "root_constructor_requires_prior_coins_or_snapshot",
-    "computed_root_derivation_requires_session_leak",
-    "message_derivation_requires_session_leak",
-    "retained_record_has_saved_origin",
-    "stored_records_follow_fresh_reservations",
-    "encapsulation_secret_requires_session_leak",
-)
-# (archive member, reviewed certificate digest, GHC heap limit)
-CERTIFICATES = {
-    "positive": (
-        "proof/final-positive-53-proof.spthy",
-        "91dd31801ee8c208d295a5a02efc1721c794fc8dd32bb1430d303fcb18199707", "12G",
-    ),
-    "witnesses": (
-        "prior/original-witnesses-export-36.spthy",
-        "3e217d9c6d535739826799f46078137328dda6bbc23d984ca88556095eacb8d2", "2G",
-    ),
-}
 MAXIMUM_BYTES = 4 * 1024 * 1024
 TIMEOUT_SECONDS = 900
 _ROW = re.compile(
@@ -90,37 +49,38 @@ def checked_bytes(data: bytes, expected: str, label: str) -> bytes:
     return data
 
 
-def load_inputs(root: Path) -> dict[str, bytes]:
+def select_profile(name: str) -> profiles.RecoveryProfile:
+    require(name in profiles.PROFILES, "unknown recovery proof profile")
+    return profiles.PROFILES[name]
+
+
+def certificate(label: str, profile: str) -> profiles.Certificate:
+    spec = select_profile(profile)
+    require(label in spec.cases, "unknown recovery proof group")
+    return spec.cases[label]
+
+
+def load_inputs(root: Path, profile: str = "independent") -> dict[str, bytes]:
     """Read bounded snapshots; never extract arbitrary archive paths."""
-    model = read_regular_snapshot(root / MODEL, maximum=MAXIMUM_BYTES, label="recovery model")
-    checked_bytes(model.data, MODEL_SHA256, "recovery model")
-    archive = read_regular_snapshot(root / ARCHIVE, maximum=MAXIMUM_BYTES, label="recovery archive")
-    checked_bytes(archive.data, ARCHIVE_SHA256, "recovery archive")
+    spec = select_profile(profile)
+    model = read_regular_snapshot(root / spec.model, maximum=MAXIMUM_BYTES, label="recovery model")
+    checked_bytes(model.data, spec.model_sha256, "recovery model")
+    archive = read_regular_snapshot(root / spec.archive, maximum=spec.archive_maximum_bytes,
+                                    label="recovery archive")
+    checked_bytes(archive.data, spec.archive_sha256, "recovery archive")
     inputs = {}
     with zipfile.ZipFile(io.BytesIO(archive.data)) as zipped:
         names = zipped.namelist()
         require(len(names) == len(set(names)), "duplicate recovery archive members")
-        for label, (member, digest, _heap) in CERTIFICATES.items():
-            require(member in names, f"missing {label} certificate")
-            require(zipped.getinfo(member).file_size <= MAXIMUM_BYTES, "oversized certificate")
-            inputs[label] = checked_bytes(zipped.read(member), digest, label)
+        for label, case in spec.cases.items():
+            require(case.member in names, f"missing {label} certificate")
+            require(zipped.getinfo(case.member).file_size <= MAXIMUM_BYTES, "oversized certificate")
+            inputs[label] = checked_bytes(zipped.read(case.member), case.sha256, label)
     return inputs
 
 
-def expected_results(label: str) -> dict[str, tuple[str, str]]:
-    if label == "positive":
-        return {
-            **{name: ("all-traces", "verified") for name in (*DEPENDENCIES, MAIN)},
-            **{name: ("exists-trace", "analysis incomplete") for name in WITNESSES},
-        }
-    require(label == "witnesses", "unknown recovery proof group")
-    return {
-        **{name: ("exists-trace", "verified") for name in WITNESSES},
-        **{name: ("all-traces", "analysis incomplete") for name in ("generation_secret_origin", MAIN)},
-    }
-
-
-def verify_summary(stdout: bytes, label: str, source: Path, output: Path) -> dict[str, int]:
+def verify_summary(stdout: bytes, label: str, source: Path, output: Path,
+                   profile: str = "independent") -> dict[str, int]:
     """Accept exactly one terminal inventory, including its non-premise placeholders."""
     text = stdout.decode("utf-8", errors="strict")
     separator = "=" * 78
@@ -142,7 +102,7 @@ def verify_summary(stdout: bytes, label: str, source: Path, output: Path) -> dic
         require(name not in actual, "duplicate recovery lemma result")
         actual[name] = (mode, status)
         steps[name] = int(count)
-    require(actual == expected_results(label), "recovery proof inventory or status differs")
+    require(actual == certificate(label, profile).expected_results(), "recovery proof inventory or status differs")
     return {name: steps[name] for name, (_mode, status) in actual.items() if status == "verified"}
 
 
@@ -161,7 +121,9 @@ def prover_environment() -> dict[str, str]:
     return {"PATH": os.environ["PATH"], "LANG": encoding_locale, "LC_ALL": encoding_locale}
 
 
-def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]) -> dict:
+def replay(label: str, data: bytes, directory: Path, environment: dict[str, str],
+           profile: str = "independent") -> dict:
+    case = certificate(label, profile)
     source = directory / f"{label}-input.spthy"
     output = directory / f"{label}-checked.spthy"
     with source.open("xb") as stream:
@@ -169,7 +131,7 @@ def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]
     argv = [
         "tamarin-prover", str(source), "--heuristic=s", "--derivcheck-timeout=60",
         "--quit-on-warning", "--output=" + str(output),
-        "+RTS", "-N2", "-M" + CERTIFICATES[label][2], "-s", "-RTS",
+        "+RTS", f"-N{case.threads}", f"-M{case.heap_gib}G", "-s", "-RTS",
     ]
     write_json(directory / f"{label}-started.json", {
         "argv": argv, "timeout_seconds": TIMEOUT_SECONDS,
@@ -186,31 +148,42 @@ def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]
     stderr = result.stderr.decode("utf-8", errors="strict")
     require(re.search(r"(?im)^\s*(?:warning|error|fatal)\b", stderr) is None,
             f"{label} emitted a diagnostic")
-    verified = verify_summary(result.stdout, label, source, output)
+    verified = verify_summary(result.stdout, label, source, output, profile)
     checked = read_regular_snapshot(output, maximum=MAXIMUM_BYTES, label="checked certificate")
     require(checked.size > 0, "empty checked certificate")
     source_after = read_regular_snapshot(source, maximum=MAXIMUM_BYTES, label="replayed input")
-    checked_bytes(source_after.data, CERTIFICATES[label][1], "replayed input")
+    checked_bytes(source_after.data, case.sha256, "replayed input")
     return {"verified": verified, "elapsed_seconds": time.monotonic() - started,
             "returncode": result.returncode, "certificate_sha256": checked.sha256}
 
 
-def run(root: Path, destination: Path) -> None:
-    inputs = load_inputs(root)
+def source_digests() -> dict[str, str]:
+    return {
+        name: read_regular_snapshot(path, maximum=MAXIMUM_BYTES, label=name).sha256
+        for name, path in (("gate_sha256", Path(__file__)),
+                           ("profile_catalog_sha256", Path(profiles.__file__)))
+    }
+
+
+def run(root: Path, destination: Path, profile: str = "independent") -> None:
+    spec = select_profile(profile)
+    inputs = load_inputs(root, profile)
     directory = fresh_output_directory(destination, within=root / "target", label="recovery replay")
     directory.mkdir(parents=True, mode=0o700)
+    sources = source_digests()
     receipt = {"accepted": False, "release_claim_eligible": False, "groups": {},
-               "model_sha256": MODEL_SHA256, "archive_sha256": ARCHIVE_SHA256,
-               "gate_sha256": read_regular_snapshot(Path(__file__), maximum=MAXIMUM_BYTES,
-                                                     label="recovery gate").sha256}
+               "profile": profile, "main_theorem": spec.main,
+               "model_sha256": spec.model_sha256, "archive_sha256": spec.archive_sha256,
+               **sources}
     try:
         # Share the repository's version authority, and remove ambient RTS overrides.
         verify_installed("tamarin")
         environment = prover_environment()
         for label, data in inputs.items():
-            print(f"Replaying recovery {label} certificate (deadline {TIMEOUT_SECONDS}s)", flush=True)
-            receipt["groups"][label] = replay(label, data, directory, environment)
-        require(load_inputs(root) == inputs, "recovery inputs changed during replay")
+            print(f"Replaying recovery {profile}/{label} certificate (deadline {TIMEOUT_SECONDS}s)", flush=True)
+            receipt["groups"][label] = replay(label, data, directory, environment, profile)
+        require(load_inputs(root, profile) == inputs, "recovery inputs changed during replay")
+        require(source_digests() == sources, "recovery checker changed during replay")
         receipt["accepted"] = True
     except (RecoveryProofError, BoundedProcessError, FormalToolchainContractError,
             EvidenceIOError, OSError, UnicodeError, zipfile.BadZipFile) as exc:
@@ -218,15 +191,19 @@ def run(root: Path, destination: Path) -> None:
         write_json(directory / "RESULT.json", receipt)
         raise
     write_json(directory / "RESULT.json", receipt)
-    print("CONTINUITY_RECOVERY_PROOF_PASS properties=20 witnesses=3 release_claim_eligible=false")
+    universals = {name for case in spec.cases.values() for name in case.verified if name in case.all_traces}
+    witnesses = {name for case in spec.cases.values() for name in case.verified if name in case.exists_traces}
+    print(f"CONTINUITY_RECOVERY_PROOF_PASS profile={profile} properties={len(universals)} "
+          f"witnesses={len(witnesses)} release_claim_eligible=false")
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--profile", choices=tuple(profiles.PROFILES), default="independent")
     args = parser.parse_args(argv)
     try:
-        run(ROOT, args.output)
+        run(ROOT, args.output, args.profile)
         return 0
     except (RecoveryProofError, BoundedProcessError, FormalToolchainContractError,
             EvidenceIOError, OSError, UnicodeError, zipfile.BadZipFile) as exc:

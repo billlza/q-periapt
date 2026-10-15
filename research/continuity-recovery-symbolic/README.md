@@ -168,8 +168,8 @@ opposite role. It shows that the premises admit useful executions; the universal
 This model still performs one exchange per session. Setup samples and publicly
 reveals an initial old root, and allocates separate wrapping keys per session.
 Arbitrary inherited-root correlations, shared journals/wrapping ownership and
-multiple epochs are not established by this result. The new certificate is not
-yet connected to the automated CI gate described below.
+multiple epochs are not established by this result. Its explicit CI profile is
+described below; a hosted pass still requires the actual terminal run.
 
 ## Original independent-identity model boundaries
 
@@ -226,27 +226,42 @@ from passing only because the model also disclosed a later traffic root.
 
 ## Reproduction
 
-### Existing CI gate for independent identities
+### CI profiles
 
-The repository CI `tamarin-proof` job currently checks the independent-identity
-model through the bounded
+The repository CI `tamarin-proof` job checks both models through the bounded
 [`continuity_recovery_proof.py`](../../artifact/continuity_recovery_proof.py)
 gate with the same pinned Tamarin 1.12.0 / Maude 3.5.1 toolchain as the existing
-handshake and migration checks:
+handshake and migration checks. The independent profile remains the CLI default;
+CI selects both profiles explicitly:
 
 ```sh
 sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
-  --output target/continuity-recovery-proof
+  --profile independent --output target/continuity-recovery-proof/independent
+sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+  --profile key-scoped --output target/continuity-recovery-proof/key-scoped
 ```
 
-The output directory must be fresh. The gate checks the canonical model and
-both certificate digests against the reviewed checkpoint, then replays the
-20-property group and the three witnesses in separate fresh prover processes,
-without `--prove`. Each process has a 900-second deadline and 4 MiB limits on
-each standard stream. Heap limits are 12 GiB for the positive group and 2 GiB
-for the witnesses. Every required verdict, trace quantifier and inventory entry
-must match; a zero exit code alone cannot pass. Results and checked certificates
-are retained as the `continuity-recovery-proof` CI artifact.
+Each output directory must be fresh. The independent profile verifies its
+20-property group and three disclosure/execution witnesses in two processes;
+the key-scoped profile verifies its own 20-property group and the attack and
+normal-execution witnesses in three processes. No process uses `--prove`.
+Each has a 900-second deadline and 4 MiB limits on both standard streams and
+certificate files. Positive groups use a 12 GiB heap; independent witnesses use
+2 GiB, and key-scoped witnesses use 6 GiB. The key-scoped profile uses one thread,
+matching its accepted complete replay.
+
+[`continuity_recovery_profiles.py`](../../artifact/continuity_recovery_profiles.py)
+keeps each model, archive, certificate and complete verdict inventory together.
+The archive-read limits are 4 MiB and 8 MiB respectively; only the named small
+certificates are read, and routine CI does not export diagnostic graphs. Every
+required verdict, trace quantifier and inventory entry must match. The checker
+and profile-catalog digests are recorded and rechecked after replay. Results and
+checked certificates are retained in separate profile directories inside the
+`continuity-recovery-proof` CI artifact.
+
+The key-scoped step can run after another proof step fails, provided pinned tools
+were verified and the job was not cancelled. All proof steps remain hard gates;
+a successful second profile does not turn an earlier failure into success.
 The prover uses an explicit UTF-8 locale (`C.UTF-8` on Linux and `en_US.UTF-8`
 on macOS), because exported certificates contain Unicode quantifiers and arrows.
 The first hosted invocation exposed a Linux decoding failure under `LC_ALL=C`;

@@ -188,4 +188,6 @@ known, so the condition does not prohibit all unrelated identity compromise.
 Per-session wrapping keys, a freshly sampled publicly disclosed old root and
 ideal primitives remain assumptions. Shared storage, arbitrary inherited roots,
 multiple epochs and the construction-specific computational argument above remain
-open. The existing automated CI gate still covers the earlier independent-key model.
+open. The automated CI gate now has explicit independent-identity and key-scoped
+profiles with separate input pins, verdict inventories and retained results;
+hosted qualification still requires completed runs of both profiles.
