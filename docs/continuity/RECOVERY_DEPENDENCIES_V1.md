@@ -162,5 +162,12 @@ now separately check record origin, its timing relative to fresh reservations,
 and content correspondence under removable observer labels. Independent replays
 and a missing-helper control pass. These facts constrain the storage side of the
 argument; attempted composition with message secrecy remains incomplete. The
-next proof work must address authenticated KEM and traffic-secret provenance,
-without replacing the unchanged recovery condition or assuming an unproved lemma.
+subsequent [crypto-provenance checkpoint](../../research/sdk-alpha1/evidence/20261015-recovery-crypto-provenance/README.md)
+checks signing/generation derivation, authenticated offer origin and the
+encapsulation contribution. Six related obligations replay together; a missing
+reusable dependency is rejected. Three observation actions erase to the
+original operational model, and all original property declarations remain
+unchanged. Root/traffic and message-level provenance still do not complete, so
+these helpers do not yet establish the positive recovery condition. Completing
+that composition must not assume an unproved helper or restrict allowed leakage
+in other sessions.

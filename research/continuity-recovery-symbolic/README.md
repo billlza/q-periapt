@@ -68,6 +68,25 @@ or security proofs. All failed attempts remain recorded. These auxiliary results
 are separate from the four original checked statements and do not extend their
 product or computational scope.
 
+## Authenticated KEM proof obligations
+
+The [crypto-provenance checkpoint](../sdk-alpha1/evidence/20261015-recovery-crypto-provenance/README.md)
+adds checked signing-key and generation-key derivation helpers, accepted-offer
+authentication and encapsulation-contribution provenance. Six related
+obligations, including the original public generated-key property, verify in
+one certificate and replay without automatic search. A removed-dependency
+control is rejected even though the remaining helpers display verified.
+An executable identity leak and a deliberately untracked-leak countermodel
+also distinguish successful execution from a false provenance statement.
+
+Three observation actions are removable; operational rules and all original
+five declarations remain unchanged under the checked projection. The internal
+`KU` helpers supplement the public `K` queries. These properties require
+modeled disclosure events but do not establish causal timing or message
+exposure bounds. Root/traffic and message-provenance searches still time out;
+none of those incomplete helpers is admitted. The canonical model remains
+unchanged, and the original all-traces positive secrecy query remains open.
+
 ## Modeled boundaries
 
 The old root is public from setup. Cut exposes both endpoints' wrapping keys.

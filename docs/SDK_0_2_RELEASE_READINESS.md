@@ -5372,3 +5372,20 @@ map accounts for all ten retained rekey phases, including the advanced active
 root before local receipt acceptance. This narrows invalid counter-based recovery
 claims; it does not close the construction-specific secrecy argument or establish
 a maximum exposure bound. No production transition or wire changed.
+
+The [crypto-provenance checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-crypto-provenance/README.md)
+now independently replays six symbolic intermediate obligations for signing,
+generation, authenticated KEM input and encapsulation provenance. Its required
+dependency group rejects an intentionally missing proof. This is progress within
+the idealized one-exchange model; message secrecy, multi-epoch recovery and the
+construction-specific argument remain open. No runtime or canonical model code
+changes in this checkpoint.
+
+The [current-source Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
+supersedes its earlier running status: run `38692152632` fails Rust Analyze at
+300 minutes, with 38 of 39 query completion markers and full `SummaryStats`
+unfinished. Normal database bundling then fails on a cache lock; the debug dump
+also shows evaluator activity after the timeout. The quality gate and Rust SARIF upload
+remain unpassed. Other language jobs succeed; push/PR CI each retain 44 of 51
+successful jobs and seven queued macOS jobs at this observation. No query or
+quality requirement is weakened, and no replacement run is started.
