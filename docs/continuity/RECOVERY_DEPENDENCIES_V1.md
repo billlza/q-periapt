@@ -176,6 +176,16 @@ shows why the independent-identity premise matters. Reusing a signing-key pair
 across two sessions admits a checked sibling-disclosure trace that violates the
 unchanged session-scoped recovery formula. Both fresh target reservations and
 the lack of target-session leak labels still hold. A separately checked key-origin
-lemma locates the disclosure in the shared identity owner's scope. A complete
-positive theorem for reused device keys remains open; the earlier independent-key
-theorem and its CI gate retain their original, narrower meaning.
+lemma locates the disclosure in the shared identity owner's scope.
+
+The [key-scoped successor](../../research/sdk-alpha1/evidence/20261015-recovery-key-scoped/README.md)
+now verifies a positive single-exchange formula with all 19 dependencies in one
+fresh replay. Signing keys may be reused across sessions and roles; exclusions
+name the actual two target keys. The model conservatively counts direct release
+and signer-file capture as identity exposure throughout the trace. A separate
+normal trace satisfies the premises while a third independent identity key is
+known, so the condition does not prohibit all unrelated identity compromise.
+Per-session wrapping keys, a freshly sampled publicly disclosed old root and
+ideal primitives remain assumptions. Shared storage, arbitrary inherited roots,
+multiple epochs and the construction-specific computational argument above remain
+open. The existing automated CI gate still covers the earlier independent-key model.

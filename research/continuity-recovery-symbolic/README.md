@@ -1,10 +1,11 @@
 # Continuity recovery transition research
 
-Status: **the original positive recovery-secrecy query is verified through a
-20-property dependency group.** Generated-key provenance, honest execution and
-two disclosure witnesses retain their separate checked evidence. This is a
-single-exchange symbolic result. The full construction, shared-device lifecycle,
-computational argument and external review remain open.
+Status: **single-exchange recovery is now checked with identity exclusions bound
+to the actual target signing keys, including reuse across sessions and roles.**
+Its 20-property group and two separate witnesses are verified. The earlier
+independent-identity result remains valid in its own model. Shared journals,
+multi-epoch recovery, computational security, SDK correspondence and external
+review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
@@ -128,18 +129,49 @@ identities. It does not contradict the positive theorem on `protected-state.spth
 where every session receives independent signing keys. Direct automatic search of
 the original universal query on the shared variant timed out at 300 seconds;
 the stronger, independently replayed existential witness establishes the failure,
-not that timeout. No changed shared-identity secrecy theorem is accepted yet.
+not that timeout. The key-scoped formulation below now has a checked positive
+result; the old session-scoped formulation remains refuted in this shared model.
 
 `shared_identity_key_origin` verifies and independently replays in 356 steps:
 knowledge of a signing key implies a modeled identity disclosure in some session
 belonging to that identity pair. It has no reusable premise and establishes no
-disclosure timing bound. A future positive argument must bind its exclusions to
+disclosure timing bound. The subsequent key-scoped model binds its exclusions to
 the actual device keys across their uses, including one-sided identity overlap
-between different pairs. This variant does not model that broader overlap,
+between different pairs. This earlier pair-based variant does not model that broader overlap,
 shared journals, multiple epochs or concrete SDK decryption. Its evidence is
 separate from the current 20-property CI gate.
 
-## Modeled boundaries
+## Recovery with reused keys
+
+[`key-scoped.spthy`](key-scoped.spthy) allocates independent signing keys that may
+be selected in either role by any number of sessions. The
+[key-scoped checkpoint](../sdk-alpha1/evidence/20261015-recovery-key-scoped/README.md)
+checks `key_scoped_reservations_recover_symbolic_message_secrecy` in eight steps
+with all 19 dependencies verified in the same fresh, no-search replay. Its
+conditions require fresh target KEM reservations after Cut, no modeled exposure
+of either target identity key anywhere in the trace, no target entropy leak, and
+no acquisition of a target record saved after Cut. Other keys may be disclosed.
+
+`IdentityKeyLeak` conservatively marks both direct key release and signer-file
+capture, including capture before unsealing. Thus these are sufficient conditions,
+not a proof that every excluded capture already reveals the key. A later identity
+exposure also falls outside this entire-trace theorem. The events are proof
+observations, not runtime key logging or detection that an attacker is gone.
+
+Two separate fresh processes replay a cross-role target-key disclosure attack
+(55 steps) and a normal execution satisfying the recovery premises despite actual
+knowledge of a third identity key (72 steps). The normal trace includes both
+target confirmations and use of the shared key to sign in another session's
+opposite role. It shows that the premises admit useful executions; the universal
+20-property group supplies the secrecy result. Neither trace is an SDK exploit.
+
+This model still performs one exchange per session. Setup samples and publicly
+reveals an initial old root, and allocates separate wrapping keys per session.
+Arbitrary inherited-root correlations, shared journals/wrapping ownership and
+multiple epochs are not established by this result. The new certificate is not
+yet connected to the automated CI gate described below.
+
+## Original independent-identity model boundaries
 
 The old root is public from setup. Cut exposes both endpoints' wrapping keys.
 Snapshot acquisition and unsealing are distinct rules: a captured protected
@@ -173,9 +205,11 @@ from passing only because the model also disclosed a later traffic root.
   [`explicit-storage.spthy`](explicit-storage.spthy) retains nested symbolic
   encryption for journals and replay tokens; no lemma is accepted for it yet.
   No equivalence/refinement between the two theories has been proved.
-- Each instance has independent signing and wrapping keys. Shared device owners,
-  several sessions in one journal, identity reuse, multi-device authorization,
-  policy expiry and revocation are not modeled.
+- The original model allocates independent signing keys; the key-scoped model
+  permits their reuse across roles and sessions. The checked projections still allocate
+  wrapping keys per session. Shared device owners, several sessions in one
+  journal, multi-device authorization, policy expiry and revocation remain outside
+  the checked scope.
 - The ideal KEM equation and hash constructors do not prove the concrete hybrid
   combiner, ML-KEM, HKDF or confirmation-MAC assumptions. Perfect signatures omit
   the auxiliary information in exposed ML-DSA signing coins. That gap is not
@@ -185,13 +219,17 @@ from passing only because the model also disclosed a later traffic root.
   records and application effects require separate correspondence and analysis.
 - Durable phases assume atomic admitted transitions. Real fsync, witness checks,
   process faults, rollback resistance and serialization are not proved.
-- This is one exchange per independently initialized pair. It proves no maximum
-  exposure bound, multi-epoch recovery, epoch-three secrecy or continuous PQ
+- Each session has one exchange after a freshly sampled old root is disclosed.
+  These results prove no maximum exposure bound, multi-epoch recovery,
+  epoch-three secrecy or continuous PQ
   recovery for the product.
 
 ## Reproduction
 
-The repository CI `tamarin-proof` job runs the bounded
+### Existing CI gate for independent identities
+
+The repository CI `tamarin-proof` job currently checks the independent-identity
+model through the bounded
 [`continuity_recovery_proof.py`](../../artifact/continuity_recovery_proof.py)
 gate with the same pinned Tamarin 1.12.0 / Maude 3.5.1 toolchain as the existing
 handshake and migration checks:
@@ -251,3 +289,13 @@ remain distinct from a verified terminal lemma. The `no_precomp` annotations
 change when sources are expanded; they do not remove rule premises. See the
 Tamarin manual on [precomputation](https://tamarin-prover.com/manual/master/book/009_precomputation.html)
 and [lemma annotations](https://tamarin-prover.com/manual/master/book/007_property-specification.html#lemma-annotations).
+
+### Key-scoped certificate
+
+Extract `experiments/final-37-proof.spthy` from the key-scoped checkpoint and
+replay without `--prove`, using pinned Tamarin 1.12.0 / Maude 3.5.1 and
+`+RTS -N1 -M12G -s -RTS`. Require every member of its 20-property group to be
+verified. The two separate witness certificates and their declarations are listed
+in that checkpoint. Use an explicit UTF-8 locale for Unicode certificate input.
+A recorded parallel GHC runtime abort motivates the retained single-thread
+reproduction; its underlying cause is not established.

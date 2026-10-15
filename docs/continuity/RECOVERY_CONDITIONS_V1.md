@@ -80,6 +80,14 @@ independently authorized revocation and replacement remains appropriate. This
 symbolic result identifies a proof-scope obligation, not an executed SDK exploit
 or a reason to treat identity compromise as ordinary traffic-state recovery.
 
+The subsequent [key-scoped proof](../../research/sdk-alpha1/evidence/20261015-recovery-key-scoped/README.md)
+checks sufficient single-exchange conditions using the actual target identity
+keys across their uses. It permits disclosure of other keys, as confirmed by a
+separate executable trace. Its identity exclusion covers both direct reveal and
+signer-file capture anywhere in the modeled trace; this conservative event does
+not establish that a captured file is readable before unsealing. Shared journals,
+multi-epoch ancestry, concrete cryptography and SDK correspondence remain required.
+
 ## Durable freshness is reservation freshness
 
 The SDK's sealed operation owner intentionally regenerates the same private key,
