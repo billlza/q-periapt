@@ -199,6 +199,11 @@ a different session, without target-session Cut or identity/entropy disclosure.
 Changing only wrapping-key allocation to independent per-session keys makes the
 same witness unreachable. A separate normal trace uses the shared key for actual
 storage in both sessions. This reinforces the device/journal ownership scope;
-it does not establish a new SDK vulnerability or a positive shared-storage recovery
-theorem. The SDK's whole-image capture must account for every retained record in
-that image; the per-record projection is not yet a proved refinement of that format.
+it does not establish a new SDK vulnerability. The
+[positive successor](../../research/sdk-alpha1/evidence/20261015-recovery-shared-storage-positive/README.md)
+now verifies all 20 properties together for this same per-record projection and
+the unchanged main formula. A separate witness exercises simultaneous signing-key
+and wrapping-key reuse in the same owner across roles. The SDK's whole-image
+capture must account for every retained record in that image; the per-record
+projection is not yet a proved refinement of that format. Arbitrary old-root
+ancestry, multiple epochs and computational/SDK correspondence remain open.

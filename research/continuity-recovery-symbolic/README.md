@@ -1,11 +1,12 @@
 # Continuity recovery transition research
 
-Status: **single-exchange recovery is now checked with identity exclusions bound
-to the actual target signing keys, including reuse across sessions and roles.**
-Its 20-property group and two separate witnesses are verified. The earlier
-independent-identity result remains valid in its own model. Shared journals,
-multi-epoch recovery, computational security, SDK correspondence and external
-review remain open.
+Status: **single-exchange recovery is checked with reused identity and wrapping
+keys and explicit per-record ciphertext disclosure.** Its 20-property group
+verifies together, and a separate witness exercises the same identity/storage
+owner across roles. Earlier independent-identity and per-session wrapping-key
+results remain valid in their own models. Whole-journal image/restore
+correspondence, multi-epoch recovery, computational security, SDK correspondence
+and external review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
@@ -183,10 +184,16 @@ with the shared key actually used by both sessions (50 / 171).
 
 This identifies a storage-owner boundary relevant to the SDK's whole-device
 journal. It is not a counterexample to the earlier main theorem's premises.
-Transferring old proof scripts leaves required helpers incomplete, so the new
-model has no admitted positive recovery certificate. Whole-image storage
+The initial transfer of old scripts left required helpers incomplete. The
+[positive follow-up](../sdk-alpha1/evidence/20261015-recovery-shared-storage-positive/README.md)
+now replays all 20 universal properties together in 739.706 seconds with the
+unchanged operational model and main formula. A new normal witness (47 / 168)
+requires the same signing key and wrapping key in the target initiator and sibling
+responder roles, a sibling response commit and both target confirmations. Scope
+mutation and missing-dependency controls are rejected. Whole-image storage
 correspondence, multiple epochs and computational/SDK refinement remain open.
-The two existing CI profiles retain their previously verified models.
+The two existing CI profiles retain their previously verified models; this newer
+certificate still needs CI integration and hosted qualification.
 
 ## Original independent-identity model boundaries
 

@@ -5415,9 +5415,13 @@ further checks wrapping-key reuse across sessions with explicit ciphertexts. One
 sibling key exposure and one target record reveal the exact target message;
 independent per-session key allocation rejects the same witness. Normal shared-key
 execution also replays with both target confirmations and actual sibling responder
-storage. The positive theorem for this extended projection remains open, as does
-its correspondence to the SDK's whole encrypted journal image. Existing qualified
-symbolic models and CI profiles are unchanged.
+storage. The [positive successor](../research/sdk-alpha1/evidence/20261015-recovery-shared-storage-positive/README.md)
+now closes its 20-property group in one fresh no-search replay, with the same
+model and complete query declarations. A new independently replayed witness
+exercises the same identity and storage owner in both roles. Whole-journal
+image/restore correspondence, root ancestry, multiple epochs and the concrete
+computational/SDK argument remain open. The existing two CI profiles are unchanged;
+the new certificate still needs integration and hosted Linux qualification.
 
 The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at

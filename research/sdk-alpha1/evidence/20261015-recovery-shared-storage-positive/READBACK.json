@@ -1,0 +1,12 @@
+{
+  "all_members_rehashed": true,
+  "capture_sha256": "9655446a492219424eee05614fd2b4589072e07c07293dc92323bbefb170c0be",
+  "carried_attack_certificate_matches_prior": true,
+  "combined_owner_witness_replayed": true,
+  "completed": true,
+  "expanded_bytes": 6991304,
+  "members": 148,
+  "positive_group_count": 20,
+  "private_sdk_runtime_data_selected": false,
+  "release_claim_eligible": false
+}
