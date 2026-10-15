@@ -310,6 +310,10 @@ different source/input identities and cycles are rejected. Global source lemmas
 are not supported by this composition and cause failure. The final manifest and
 all checked parts are retained; a single successful part never qualifies the
 group. The witness checks and model/archive/certificate pins are unchanged.
+The [composition qualification](../sdk-alpha1/evidence/20261015-recovery-composed-replay/README.md)
+retains both hosted whole-group timeouts, the rejected allocation experiment,
+all twenty conditional replays, the complete production profile and independent
+readbacks. It passes locally on `72587c2a`; hosted Linux qualification remains open.
 
 [`continuity_recovery_profiles.py`](../../artifact/continuity_recovery_profiles.py)
 keeps each model, archive, certificate and complete verdict inventory together.

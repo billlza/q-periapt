@@ -12,6 +12,13 @@ resolution failure without changing installed-package consumer contracts.
 Hosted 1.97.0/CodeQL extraction and the separate query-timeout problem remain
 open; the compiler result does not qualify either.
 
+The [shared-storage replay checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-composed-replay/README.md)
+qualifies `72587c2a`'s complete proof composition: the actual entrypoint checks
+all 20 original single-exchange properties and both witnesses, with independent
+readback, 211 related tests and the source gate. Both previous hosted 900-second
+timeouts remain recorded. Linux CI and multi-epoch recovery remain separate,
+unclosed obligations.
+
 The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
 only**, including Continuity. Intel macOS is outside this release's support
 matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in
