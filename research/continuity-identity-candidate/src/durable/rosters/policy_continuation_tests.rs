@@ -49,6 +49,7 @@ fn authenticated_policy_record_cannot_move_to_another_journal_of_the_same_owner(
         account_authority: None,
         authority_access: None,
         enrollment_completion: None,
+        roster_decode_cache: RosterDecodeCache::default(),
     };
     assert!(get(&image, &account).is_ok());
     assert!(validate_image(&image).is_ok());

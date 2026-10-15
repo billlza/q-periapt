@@ -9,7 +9,9 @@ fn id(account: &[u8; 32]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-JOURNAL-ROSTER/v1", account)
 }
 use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
+mod decode_cache;
 mod local_renewal;
+pub(super) use decode_cache::RosterDecodeCache;
 mod peer_retirement;
 mod peer_roster;
 pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
@@ -395,6 +397,13 @@ impl Stored {
     }
 }
 fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
+    decode_with_cache(key, record, None)
+}
+fn decode_with_cache(
+    key: &[u8; 32],
+    record: &Record,
+    cache: Option<&RosterDecodeCache>,
+) -> Result<Stored, DurableError> {
     if record.kind != RecordKind::Roster
         || record.phase != DurableStatus::Roster
         || !record.authorities.is_empty()
@@ -426,8 +435,13 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
         return Err(DurableError::Corrupt);
     }
     let size = u32::from_be_bytes(decoder.array()?) as usize;
-    let roster = VerifiedRoster::from_journal(decoder.take(size)?)
-        .map_err(DurableError::InvalidCheckpoint)?;
+    let encoded_roster = decoder.take(size)?;
+    let roster = match cache {
+        Some(cache) => cache.decode(encoded_roster)?,
+        None => {
+            VerifiedRoster::from_journal(encoded_roster).map_err(DurableError::InvalidCheckpoint)?
+        }
+    };
     if id(&roster.account_id()) != *key || record.context != roster.checkpoint().digest() {
         return Err(DurableError::Corrupt);
     }
@@ -542,7 +556,11 @@ fn decode(key: &[u8; 32], record: &Record) -> Result<Stored, DurableError> {
 }
 fn get(image: &Image, account: &[u8; 32]) -> Result<Stored, DurableError> {
     let key = id(account);
-    let saved = decode(&key, image.records.get(&key).ok_or(DurableError::Absent)?)?;
+    let saved = decode_with_cache(
+        &key,
+        image.records.get(&key).ok_or(DurableError::Absent)?,
+        Some(&image.roster_decode_cache),
+    )?;
     check_policy_continuation_scope(image, &saved)?;
     policy_renewal::check_scope(image, &saved)?;
     peer_retirement::check_scope(image, &saved)?;
@@ -614,7 +632,7 @@ pub(super) fn validate_image(image: &Image) -> Result<(), DurableError> {
     let mut accounts = BTreeSet::new();
     for (key, record) in &image.records {
         if record.kind == RecordKind::Roster {
-            let saved = decode(key, record)?;
+            let saved = decode_with_cache(key, record, Some(&image.roster_decode_cache))?;
             check_policy_continuation_scope(image, &saved)?;
             policy_renewal::check_scope(image, &saved)?;
             peer_retirement::check_scope(image, &saved)?;
@@ -1217,7 +1235,7 @@ impl DeviceJournal {
         image.check_account_authorities(&[roster.account_id()])?;
         let key = id(&roster.account_id());
         let updated = if let Some(saved) = image.records.get(&key) {
-            let saved = decode(&key, saved)?;
+            let saved = decode_with_cache(&key, saved, Some(&image.roster_decode_cache))?;
             saved.require_live_account()?;
             if !saved.roster.same_authority(roster) {
                 return Err(DurableError::Conflict);

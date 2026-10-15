@@ -568,6 +568,8 @@ struct Image {
     digest: [u8; 32],
     protection: Protection,
     records: BTreeMap<[u8; 32], Record>,
+    // Per-image verification memo only; never encoded or retained by Active.
+    roster_decode_cache: rosters::RosterDecodeCache,
     account_authority: Option<account_authority::Scope>,
     authority_access: Option<crate::AccountAuthorityAccess>,
     // Evidence held by the original enrollment owner; absent from encoded journal bytes.
@@ -682,6 +684,7 @@ impl DeviceJournal {
             account_authority: None,
             authority_access: None,
             enrollment_completion: None,
+            roster_decode_cache: rosters::RosterDecodeCache::default(),
         };
         let sealed = seal(&key, &image)?;
         let db = store
@@ -1282,6 +1285,7 @@ fn unseal_image(key: &JournalKey, owner: [u8; 32], wire: &[u8]) -> Result<Image,
         account_authority,
         authority_access: None,
         enrollment_completion: None,
+        roster_decode_cache: rosters::RosterDecodeCache::default(),
     };
     if let Some(scope) = image.account_authority {
         scope.check_shape(&image)?;
