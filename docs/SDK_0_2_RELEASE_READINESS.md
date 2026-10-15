@@ -5,6 +5,13 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
+qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
+cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata
+resolution failure without changing installed-package consumer contracts.
+Hosted 1.97.0/CodeQL extraction and the separate query-timeout problem remain
+open; the compiler result does not qualify either.
+
 The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
 only**, including Continuity. Intel macOS is outside this release's support
 matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in
