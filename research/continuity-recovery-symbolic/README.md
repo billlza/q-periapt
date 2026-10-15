@@ -48,6 +48,26 @@ placeholders for unselected lemmas and unused existential branches. Acceptance
 uses exact terminal lemma results, not exit zero or a search for a word. The bare
 model remains editable source; the certificate is evidence.
 
+## Retained-record proof obligations
+
+A separate [provenance checkpoint](../sdk-alpha1/evidence/20261015-recovery-record-provenance/README.md)
+checks two auxiliary statements on a lemma-only extension: every Snapshot has an
+earlier Saved event (13 steps), and fresh reservations after Cut put every record
+of that exchange after Cut (42 steps). Its operational rules and the original
+five complete declarations are unchanged. A third, observational extension
+checks that the exact content read matches an earlier write (16 steps). Erasing
+its 12 observer labels recovers the preceding model byte for byte. These labels
+are proof observations, not additional network outputs or SDK logging.
+
+Fresh processes replay the three helper proofs without automatic search. A
+control removes the 13-step proof while retaining the 42-step proof: exit zero
+and one verified helper do not admit the incomplete helper group. Ordinary,
+inductive and helper-assisted searches still do not close the main secrecy
+query. Two bounded oracle diagnostics return incomplete proof trees, not attacks
+or security proofs. All failed attempts remain recorded. These auxiliary results
+are separate from the four original checked statements and do not extend their
+product or computational scope.
+
 ## Modeled boundaries
 
 The old root is public from setup. Cut exposes both endpoints' wrapping keys.

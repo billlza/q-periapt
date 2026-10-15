@@ -156,3 +156,11 @@ positive conditions suffice. All rules and five complete declarations remain
 unchanged. The all-traces recovery-secrecy query is still unproved. Independent
 instances do not model shared-device journals, and these results do not close the
 construction-specific recovery argument required above.
+
+The [retained-record proof obligations](../../research/continuity-recovery-symbolic/README.md#retained-record-proof-obligations)
+now separately check record origin, its timing relative to fresh reservations,
+and content correspondence under removable observer labels. Independent replays
+and a missing-helper control pass. These facts constrain the storage side of the
+argument; attempted composition with message secrecy remains incomplete. The
+next proof work must address authenticated KEM and traffic-secret provenance,
+without replacing the unchanged recovery condition or assuming an unproved lemma.
