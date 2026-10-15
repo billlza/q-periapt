@@ -171,6 +171,23 @@ Arbitrary inherited-root correlations, shared journals/wrapping ownership and
 multiple epochs are not established by this result. Its explicit CI profile is
 described below; a hosted pass still requires the actual terminal run.
 
+## Shared wrapping-key disclosure
+
+[`shared-storage.spthy`](shared-storage.spthy) replaces per-session wrapping-key
+allocation and ideal unsealing flags with reusable wrapping keys and explicit
+record/signer-file ciphertexts. Its original query declarations are unchanged.
+The [shared-storage checkpoint](../sdk-alpha1/evidence/20261015-recovery-shared-storage/README.md)
+checks a sibling-key disclosure trace (36 search / 85 replay steps), an
+independent-allocation control that rejects the same trace, and normal execution
+with the shared key actually used by both sessions (50 / 171).
+
+This identifies a storage-owner boundary relevant to the SDK's whole-device
+journal. It is not a counterexample to the earlier main theorem's premises.
+Transferring old proof scripts leaves required helpers incomplete, so the new
+model has no admitted positive recovery certificate. Whole-image storage
+correspondence, multiple epochs and computational/SDK refinement remain open.
+The two existing CI profiles retain their previously verified models.
+
 ## Original independent-identity model boundaries
 
 The old root is public from setup. Cut exposes both endpoints' wrapping keys.

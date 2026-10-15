@@ -191,3 +191,14 @@ multiple epochs and the construction-specific computational argument above remai
 open. The automated CI gate now has explicit independent-identity and key-scoped
 profiles with separate input pins, verdict inventories and retained results;
 hosted qualification still requires completed runs of both profiles.
+
+The [shared-storage projection](../../research/sdk-alpha1/evidence/20261015-recovery-shared-storage/README.md)
+adds reusable wrapping keys and explicit ciphertext disclosure. A checked trace
+obtains a target message from one target record and a wrapping key exposed through
+a different session, without target-session Cut or identity/entropy disclosure.
+Changing only wrapping-key allocation to independent per-session keys makes the
+same witness unreachable. A separate normal trace uses the shared key for actual
+storage in both sessions. This reinforces the device/journal ownership scope;
+it does not establish a new SDK vulnerability or a positive shared-storage recovery
+theorem. The SDK's whole-image capture must account for every retained record in
+that image; the per-record projection is not yet a proved refinement of that format.

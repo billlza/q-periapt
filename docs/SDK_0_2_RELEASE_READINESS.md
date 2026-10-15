@@ -5410,6 +5410,15 @@ The first hosted replay of the new gate fails before proof evaluation because
 Linux rejects Unicode certificate bytes under `LC_ALL=C`. A local UTF-8 fix
 passes 190 related regressions; its hosted Linux replay remains required.
 
+The [shared-storage disclosure checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-shared-storage/README.md)
+further checks wrapping-key reuse across sessions with explicit ciphertexts. One
+sibling key exposure and one target record reveal the exact target message;
+independent per-session key allocation rejects the same witness. Normal shared-key
+execution also replays with both target confirmations and actual sibling responder
+storage. The positive theorem for this extended projection remains open, as does
+its correspondence to the SDK's whole encrypted journal image. Existing qualified
+symbolic models and CI profiles are unchanged.
+
 The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at
 300 minutes, with 38 of 39 query completion markers and full `SummaryStats`
