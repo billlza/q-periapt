@@ -5282,3 +5282,21 @@ Exact-T required-witness admission, policy-only renewal, expired-uncommitted
 joint cancellation, device/root replacement, foreign T APIs, installed current
 archives and the remaining 0.2.0 platform/security/performance/review gates remain
 required. macOS remains Apple Silicon only. No merge or release is implied.
+
+
+### Installed browser recovery through renewed traffic — 2026-10-15
+
+The [public checkpoint](../research/sdk-alpha1/evidence/20261015-browser-pending-continuation/README.md)
+binds the installed npm archive `ca30d0c531978e0f8bf5f2437f1918d6647af27a393e605dfcff22aca85e09da` to source
+`a4c023bc52f00d0c2f630a6e18bc65ce55c7be25`. Two fresh flows execute 81 Workers,
+four actual Worker terminations and two held-Query cancellations. A nonterminal
+remote R2 write remains bound to the original live session, unknown message and
+pending rekey across real policy expiry. The unapplied route uses independent
+exact completion; the applied route uses only Query confirmation. Bilateral P1
+renewal then permits original control/ciphertext replay, epoch 1 completion,
+bidirectional consumption and a distinct fresh message, with exactly two native
+effects per route. Public-only readback and substitution controls validate the
+complete behavior census. No product implementation changed. This adds actual
+traffic after recovery; it does not close PCS, independent/Linux endpoints,
+remaining lifecycle/platform admission, resource-cost, maintenance/freeze,
+external-review or hosted exact-source gates.

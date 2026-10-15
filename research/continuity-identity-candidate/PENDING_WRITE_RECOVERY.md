@@ -178,3 +178,14 @@ These checks share the same protocol engine. They do not establish an independen
 implementation, mobile-browser or power-loss equivalence. Storage-internal cuts,
 remaining binding process/cancellation and continuation paths, and complete
 lifecycle composition remain open alongside the wider 0.2.0 gates.
+
+
+The [installed browser continuation checkpoint](../sdk-alpha1/evidence/20261015-browser-pending-continuation/README.md)
+uses a nonterminal remote R2 write with an original unknown message and pending
+rekey. It preserves exact recovery across actual expiry, held-Query cancellation
+and Worker loss before/after confirmation, then independently renews both peers'
+policy authority. Identical original control/ciphertext replay, authenticated
+consumption and distinct new traffic complete on the original session. An applied
+target needs only a fresh Query; an unapplied target needs independent exact
+completion. This is separate from the older intentionally closed-session cleanup
+trace and does not establish PCS or complete platform admission.

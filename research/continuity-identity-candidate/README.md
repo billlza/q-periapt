@@ -3,21 +3,28 @@
 The [installed Rust package gate](PACKAGE_CONSUMER.md) packages this unchanged
 shared engine and exercises the public connection/recovery trace through exact
 crate archives outside the checkout. It retains the unpublished candidate boundary;
-foreign bindings and the product protocol freeze remain separate release work.
+complete foreign-distribution qualification and the product protocol freeze remain
+separate release work.
 
 [Exact ordinary-write recovery after expiry](PENDING_WRITE_RECOVERY.md) separates
 independent witness approval from historical device authentication. The original
 enrollment confirms the exact retained target before continuing its existing
 lifecycle flow. The browser owner exposes this flow without creating traffic
-permission; foreign native bindings and broader platform qualification remain open.
+permission. C/Swift/Kotlin and configured Android expose the same contract.
+[Physical Swift continuation](../sdk-alpha1/evidence/20261015-apple-pending-continuation/README.md)
+and [installed browser continuation](../sdk-alpha1/evidence/20261015-browser-pending-continuation/README.md)
+now compose exact recovery with independently approved renewal and original-session
+traffic. Broader lifecycle and platform qualification remain open.
 
 The [owned session exchange candidate](SESSION_EXCHANGE_V1.md) composes the same
 enrolled owner, archives and message state machine over an untrusted request/reply
 carrier. Establishment verifies a session acknowledgement MAC; delivery reports
 the authenticated consumption prefix. It preserves original IDs after loss and
 closes the owner on error or a dropped polled operation. The portable core is
-implemented; browser bindings and bounded network-carrier qualification remain
-separate work. It does not replace the TLS-bound carrier or establish PCS.
+implemented, including the installed browser peer transport and
+[session/rekey qualification](../sdk-alpha1/evidence/20261013-browser-session-rekey/README.md).
+Deployed carriers and complete platform qualification retain separate gates.
+This does not replace the TLS-bound carrier or establish PCS.
 
 The [browser portability checkpoint](../sdk-alpha1/evidence/20261012-browser-engine-portability/README.md)
 compiles the same engine to WebAssembly and executes dual-signature identity
@@ -109,10 +116,11 @@ Use a fresh output directory. The host also needs Chrome, the wasm32 target and
 a C compiler with WebAssembly support, as configured by `bindings-wasm`.
 
 The installed product web entry now covers original enrollment, preparation,
-witnessed activation and original public prekey recovery. Signed prekey
-publication, complete session/root/roster lifecycle,
-peer transport, HTTPS deployment and installed browser packaging remain
-integration work. The prototype
+witnessed activation, signed prekey publication, peer transport and installed
+session/rekey and renewal flows. The current
+[admission matrix](../../docs/continuity/PRODUCT_ADMISSION.md) distinguishes those
+qualified paths from complete lifecycle, managed account-root cutover, mobile
+browser and deployed HTTPS requirements. The prototype
 uses storage schema 2 and does not migrate its earlier experimental schema.
 The non-extractable vault is an API restriction, not isolation from malicious
 same-origin code or a compromised browser profile. Authenticated local metadata
