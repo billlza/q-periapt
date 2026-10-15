@@ -40,8 +40,10 @@ or timeout is relaxed. No new workflow run is started here.
 The contemporaneous [push CI](https://github.com/billlza/q-periapt/actions/runs/38692135318)
 and [PR CI](https://github.com/billlza/q-periapt/actions/runs/38692152702)
 each have 44 of 51 jobs successful, with the remaining seven macOS jobs queued.
-Those runs are preserved. A documentation-only push would not address the
-Rust query failure and could cancel these outstanding qualifications.
+Those runs are preserved. The main CI workflow has no cancellation concurrency
+group; a new push would add another qualification round to the queue. CodeQL
+has its own cancellation group, but this particular run is already terminal.
+A documentation-only push would not address the unfinished Rust query.
 
 The full Rust job log is 609,823,885 bytes. Bounded explicit byte-range requests
 retain the timeout window, tail and evaluator samples locally with ETag,

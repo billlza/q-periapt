@@ -5373,14 +5373,15 @@ root before local receipt acceptance. This narrows invalid counter-based recover
 claims; it does not close the construction-specific secrecy argument or establish
 a maximum exposure bound. No production transition or wire changed.
 
-The [session-root authentication checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-root-authentication/README.md)
-independently replays eight symbolic intermediate obligations for signing,
-generation, authenticated KEM input, encapsulation and accepted/message-root
-origin. Its required dependency group rejects an intentionally missing proof;
-a separate honest root-use witness also replays. This is progress within the
-idealized one-exchange model. Authentication does not establish root or message
-secrecy; multi-epoch recovery and the construction-specific argument remain open.
-No runtime or canonical model code changes in this checkpoint.
+The [positive symbolic recovery checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-positive-symbolic/README.md)
+now replays the original recovery-secrecy query and all 19 required auxiliary
+properties together. The main formula is unchanged; other-session leakage is
+still allowed. Missing dependencies, deleted/changed queries and added snapshot
+restrictions are rejected. A single-identity-disclosure witness also replays.
+This closes the protected-state, ideal-primitive, single-exchange symbolic query.
+Concrete cryptographic security, shared-device/multi-epoch recovery and SDK
+refinement remain open. The certificate is not yet wired into an automated release
+CI gate, and no runtime or canonical bare-model code changes in this checkpoint.
 
 The [current-source Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at

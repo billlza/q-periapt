@@ -1,10 +1,10 @@
 # Continuity recovery transition research
 
-Status: **four checked statements: generated-key provenance, an honest execution
-witness, and two specified disclosure witnesses.** The all-traces recovery-secrecy
-claim remains unproved. This directory is not a release proof gate; the full
-0.2.0 construction, shared-device lifecycle, computational argument and external
-review remain open.
+Status: **the original positive recovery-secrecy query is verified through a
+20-property dependency group.** Generated-key provenance, honest execution and
+two disclosure witnesses retain their separate checked evidence. This is a
+single-exchange symbolic result, not a release proof gate; the full construction,
+shared-device lifecycle, computational argument and external review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
@@ -39,14 +39,21 @@ successful combined run uses 4 GiB without changing the model or a query. Removi
 both disclosure proof scripts leaves their queries incomplete despite exit zero;
 six substitutions of semantic declarations are also rejected.
 
-`clean_reservation_recovers_symbolic_message_secrecy` remains **analysis
-incomplete**, and is not accepted. The historical
+The [positive recovery checkpoint](../sdk-alpha1/evidence/20261015-recovery-positive-symbolic/README.md)
+verifies `clean_reservation_recovers_symbolic_message_secrecy` in nine steps with
+all 19 auxiliary properties checked in the same fresh replay. Its unchanged
+formula requires both reservations after Cut, no target-session identity or
+entropy disclosure anywhere in the trace, and no acquired revision saved after
+Cut. Other-session leakage remains allowed. Six observation actions erase to
+the unchanged canonical model. The historical
 [execution checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic-execution/README.md)
 and [initial checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic/README.md)
 retain their earlier results and failed searches. Generated certificates contain
 placeholders for unselected lemmas and unused existential branches. Acceptance
-uses exact terminal lemma results, not exit zero or a search for a word. The bare
-model remains editable source; the certificate is evidence.
+uses exact terminal results and complete required dependencies, not exit zero or
+a word search. The three original witnesses are checked separately and are not
+reusable premises of the positive theorem. The bare model remains editable
+source; the certificate is evidence.
 
 ## Retained-record proof obligations
 
@@ -62,8 +69,8 @@ are proof observations, not additional network outputs or SDK logging.
 Fresh processes replay the three helper proofs without automatic search. A
 control removes the 13-step proof while retaining the 42-step proof: exit zero
 and one verified helper do not admit the incomplete helper group. Ordinary,
-inductive and helper-assisted searches still do not close the main secrecy
-query. Two bounded oracle diagnostics return incomplete proof trees, not attacks
+inductive and helper-assisted searches at that checkpoint did not close the main
+query. Two bounded oracle diagnostics returned incomplete proof trees, not attacks
 or security proofs. All failed attempts remain recorded. These auxiliary results
 are separate from the four original checked statements and do not extend their
 product or computational scope.
@@ -91,9 +98,16 @@ has an earlier authenticated response origin, and a message uses a root with
 that origin. Three more removable observations express those connections.
 A separate honest witness is independently replayed, and a missing-authentication
 proof is rejected. An 8 GiB replay succeeds after the identical 4 GiB input
-exhausts its heap. Root/traffic and message secrecy remain unproved; authentication
-does not establish secrecy. No incomplete helper is admitted, the canonical
-model remains unchanged, and the original positive recovery query remains open.
+exhausts its heap. Authentication alone does not establish secrecy.
+
+The positive checkpoint completes the remaining symbolic composition through
+causal root, traffic-key and message-knowledge properties. The original query and
+all 19 dependencies replay together at 12 GiB after an 8 GiB heap-exhaustion
+failure. Controls reject removing the main theorem, narrowing other-session
+leakage, adding a snapshot prohibition and admitting incomplete dependencies.
+A separate single-responder-identity-disclosure witness illustrates the need for
+the identity condition. No unproved helper is admitted. The computational and
+implementation boundaries below remain open.
 
 ## Modeled boundaries
 
@@ -146,6 +160,13 @@ from passing only because the model also disclosed a later traffic root.
   recovery for the product.
 
 ## Reproduction
+
+For the positive query, extract `proof/final-positive-53-proof.spthy` from the
+[positive checkpoint](../sdk-alpha1/evidence/20261015-recovery-positive-symbolic/README.md)
+and replay without `--prove`, using `+RTS -N2 -M12G -s -RTS`. Require every member
+of its 20-property group to be verified; the three original witnesses keep the
+separate reproduction path below. The new certificate is not yet an automated
+release CI gate.
 
 Use the pinned Tamarin 1.12.0 and Maude 3.5.1 identities. The checkpoint records
 official macOS arm64 archive URLs, exact SHA-256 values, local extraction and the

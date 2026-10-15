@@ -120,7 +120,7 @@ exposure, a bound relative to the newer peer's counter, or secrecy at epoch 3.
 The legitimate asynchronous schedule should not be disabled just to make a
 counter-based recovery claim appear true.
 
-## Positive recovery argument still required
+## Construction-specific recovery argument still required
 
 For a candidate recovery epoch, the analysis must establish that the selected
 hybrid contribution remains pseudorandom given the complete attacker view:
@@ -146,30 +146,27 @@ for the missing construction-specific argument.
 
 
 A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
-now has four checked statements under explicit ideal-primitive and protected-state
-assumptions: generated-key provenance (182 steps), honest execution (59), pre-cut
-generation-record disclosure (80), and later phase-8 disclosure (45). Both
-disclosure traces permit exactly one Snapshot and exclude extra identity or
-entropy leakage. They show why retained generation material and continued access
-to new records require distinct recovery conditions; they do not prove that the
-positive conditions suffice. All rules and five complete declarations remain
-unchanged. The all-traces recovery-secrecy query is still unproved. Independent
-instances do not model shared-device journals, and these results do not close the
-construction-specific recovery argument required above.
+now checks the original positive recovery formula through a
+[20-property dependency group](../../research/sdk-alpha1/evidence/20261015-recovery-positive-symbolic/README.md).
+The conditions require both reservations after Cut, no target-session identity
+or entropy disclosure anywhere in the trace, and no acquired revision saved after
+Cut. Other-session leakage remains allowed. Causal root/traffic/message knowledge
+properties join authenticated KEM provenance to the retained-record timing facts.
+The main query verifies in nine steps, with every dependency replayed in the same
+process. Six observer actions erase to the original rules, and all five original
+complete declarations remain unchanged.
 
-The [retained-record proof obligations](../../research/continuity-recovery-symbolic/README.md#retained-record-proof-obligations)
-now separately check record origin, its timing relative to fresh reservations,
-and content correspondence under removable observer labels. Independent replays
-and a missing-helper control pass. These facts constrain the storage side of the
-argument; attempted composition with message secrecy remains incomplete. The
-subsequent [crypto-provenance checkpoint](../../research/sdk-alpha1/evidence/20261015-recovery-crypto-provenance/README.md)
-checks signing/generation derivation, authenticated offer origin and the
-encapsulation contribution. Six related obligations replay together; a missing
-reusable dependency is rejected. Three observation actions erase to the
-original operational model, and all original property declarations remain
-unchanged. A [session-root authentication extension](../../research/sdk-alpha1/evidence/20261015-recovery-root-authentication/README.md)
-now checks accepted-root and message-root origin alongside those six proofs,
-with a separate honest execution witness. An authentic root may still be exposed:
-root/traffic and message secrecy remain unproved, and these helpers do not yet
-establish the positive recovery condition. Completing that composition must not
-assume an unproved helper or restrict allowed leakage in other sessions.
+The original generated-key provenance (182 steps), honest execution (59), pre-cut
+generation-record disclosure (80), and later phase-8 disclosure (45) retain their
+separate evidence. Both snapshot witnesses permit exactly one Snapshot and no
+extra identity/entropy leakage. A new single-identity-disclosure witness shows
+acceptance of an attacker-known root without snapshots or entropy disclosure.
+These traces distinguish which sufficient condition has been lost; they do not
+establish a maximum exposure bound.
+
+This result assumes perfect primitives and ideal protected storage, with one
+exchange per independently initialized pair. It supplies no concrete HKDF/hybrid
+argument, shared-device or multi-epoch theorem, explicit-storage equivalence or
+Rust refinement. The construction-specific argument above and the full product
+release obligations remain open. No runtime flag can infer these attacker-view
+conditions merely from protocol progress.
