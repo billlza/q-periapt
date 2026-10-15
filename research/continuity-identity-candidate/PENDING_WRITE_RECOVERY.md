@@ -162,8 +162,13 @@ adds configured pending-write recovery on the offered iPad using the actual Appl
 binary package. Its signed-witness fixed/unapplied and recoverable/applied routes
 retain a real unknown delivery through expiry, exact confirmation and pre-call
 cancellation. All 39 app launches have run-bound startup and terminal receipts.
-This is positive recovery evidence; Apple Query/process cuts and post-recovery
-operational continuation remain separate from the earlier ABI/owner checks.
+The [physical Swift interruption checkpoint](../sdk-alpha1/evidence/20261015-apple-pending-interruption/README.md)
+adds in-flight Query cancellation and two real process-loss boundaries for both
+signed/fixed/unapplied and TLS/recoverable/applied writes. Its 90 distinct app
+processes include four actual exits with mandatory container readback. Native
+code 218, exact intent, fresh Query challenges and expired-activation rejection
+remain intact. Apple post-recovery policy renewal, rekey and fresh traffic remain
+separate from these recovery and earlier ABI/owner checks.
 
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Storage-internal cuts,
