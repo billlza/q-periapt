@@ -68,7 +68,7 @@ or security proofs. All failed attempts remain recorded. These auxiliary results
 are separate from the four original checked statements and do not extend their
 product or computational scope.
 
-## Authenticated KEM proof obligations
+## Authenticated KEM and session-root proof obligations
 
 The [crypto-provenance checkpoint](../sdk-alpha1/evidence/20261015-recovery-crypto-provenance/README.md)
 adds checked signing-key and generation-key derivation helpers, accepted-offer
@@ -83,9 +83,17 @@ Three observation actions are removable; operational rules and all original
 five declarations remain unchanged under the checked projection. The internal
 `KU` helpers supplement the public `K` queries. These properties require
 modeled disclosure events but do not establish causal timing or message
-exposure bounds. Root/traffic and message-provenance searches still time out;
-none of those incomplete helpers is admitted. The canonical model remains
-unchanged, and the original all-traces positive secrecy query remains open.
+exposure bounds.
+
+The [session-root authentication checkpoint](../sdk-alpha1/evidence/20261015-recovery-root-authentication/README.md)
+extends the independently replayed group to eight obligations: an accepted root
+has an earlier authenticated response origin, and a message uses a root with
+that origin. Three more removable observations express those connections.
+A separate honest witness is independently replayed, and a missing-authentication
+proof is rejected. An 8 GiB replay succeeds after the identical 4 GiB input
+exhausts its heap. Root/traffic and message secrecy remain unproved; authentication
+does not establish secrecy. No incomplete helper is admitted, the canonical
+model remains unchanged, and the original positive recovery query remains open.
 
 ## Modeled boundaries
 

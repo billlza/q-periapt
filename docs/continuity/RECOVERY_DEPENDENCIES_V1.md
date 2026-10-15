@@ -167,7 +167,9 @@ checks signing/generation derivation, authenticated offer origin and the
 encapsulation contribution. Six related obligations replay together; a missing
 reusable dependency is rejected. Three observation actions erase to the
 original operational model, and all original property declarations remain
-unchanged. Root/traffic and message-level provenance still do not complete, so
-these helpers do not yet establish the positive recovery condition. Completing
-that composition must not assume an unproved helper or restrict allowed leakage
-in other sessions.
+unchanged. A [session-root authentication extension](../../research/sdk-alpha1/evidence/20261015-recovery-root-authentication/README.md)
+now checks accepted-root and message-root origin alongside those six proofs,
+with a separate honest execution witness. An authentic root may still be exposed:
+root/traffic and message secrecy remain unproved, and these helpers do not yet
+establish the positive recovery condition. Completing that composition must not
+assume an unproved helper or restrict allowed leakage in other sessions.
