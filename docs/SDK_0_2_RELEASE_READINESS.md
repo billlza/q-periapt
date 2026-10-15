@@ -5336,15 +5336,29 @@ uncontrolled native host. Current authority, time, scope, witness and durable
 commit checks remain; complete encoded inputs identify cached historical results.
 The original interrupted broad run and preparation failures remain recorded.
 The exact CodeQL inventory includes both new Rust files and rejects their omission.
-Current-source hosted CI and native foreign-package/device qualification of this
-implementation delta remain open alongside the existing protocol, resource, maintenance and
-external-review release gates. No merge or release is implied.
+Current-source hosted CI and remaining foreign-platform qualification of this
+implementation delta remain open alongside the existing protocol, resource,
+maintenance and external-review release gates. Apple physical qualification is
+recorded below. No merge or release is implied.
 
 The [current Apple roster-cache package checkpoint](../research/sdk-alpha1/evidence/20261015-apple-roster-cache-package/README.md)
 qualifies source `9d396755` as a fresh three-slice arm64 archive with exact
-consumer links and a real macOS owner probe. Physical SDK recovery remains open:
-the fresh iPad app never reached scene activation or SDK admission and was
-removed; an independent iPhone startup-only control passed without invoking the
-SDK. Both outcomes are retained. The frozen-database CodeQL thread comparison
-also timed out in both profiles and does not establish a fix. Current-source
-hosted checks continue separately; no release or broader device claim is made.
+consumer links and a real macOS owner probe. Its first iPad app never reached
+scene activation or SDK admission and was removed; an independent iPhone
+startup-only control passed without invoking the SDK. Both outcomes are retained.
+The frozen-database CodeQL thread comparison also timed out in both profiles and
+does not establish a fix.
+
+A [fresh physical iPad cohort](../research/sdk-alpha1/evidence/20261015-apple-roster-cache/README.md)
+now completes both continued-recovery routes with that exact package: 121 distinct
+Swift application processes, four deliberate process exits, real P0 expiry,
+independently approved P1 renewal, original-session rekey epoch 1 and a new
+consumed message. The native harness checks exactly two business effects per
+route and preserves the original effect. Public archive readback verifies all
+4128 member hashes, both linked route readers and the exact process/phase census;
+four census controls and sixteen substitutions of actual public copies pass.
+The initial post-device census launch failed on a missing Python import path;
+the unchanged tests pass through the repository bootstrap without rerunning the
+closed device state. The app is removed. This closes Apple physical qualification
+of the cache delta for these two routes, not post-compromise secrecy or the
+remaining platform, hosted, resource, maintenance and external-review gates.
