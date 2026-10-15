@@ -5362,3 +5362,13 @@ the unchanged tests pass through the repository bootstrap without rerunning the
 closed device state. The app is removed. This closes Apple physical qualification
 of the cache delta for these two routes, not post-compromise secrecy or the
 remaining platform, hosted, resource, maintenance and external-review gates.
+
+
+The [asymmetric recovery-dependency checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-ancestry/README.md)
+adds a fresh, test-only counterexample: a single responder snapshot decrypts six
+epoch-two messages while the other peer still confirms epoch zero at capture.
+Fifteen scoped tests, strict all-target Clippy and formatting pass. A source-based
+map accounts for all ten retained rekey phases, including the advanced active
+root before local receipt acceptance. This narrows invalid counter-based recovery
+claims; it does not close the construction-specific secrecy argument or establish
+a maximum exposure bound. No production transition or wire changed.

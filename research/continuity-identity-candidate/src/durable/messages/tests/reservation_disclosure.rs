@@ -123,7 +123,13 @@ impl Disclosure {
         }
     }
 
-    fn predict_traffic(&self, runtime: &Runtime, offer: &[u8], response: &[u8]) -> [Traffic; 2] {
+    fn predict_traffic(
+        &self,
+        runtime: &Runtime,
+        offer: &[u8],
+        response: &[u8],
+        expected_epoch: u64,
+    ) -> [Traffic; 2] {
         let mut wrong_key = key(self.host_key.as_bytes()).expect("negative control");
         *wrong_key.as_mut_bytes().first_mut().expect("key byte") ^= 1;
         let wrong = RecoveryKey::from_host_key(wrong_key.as_bytes()).expect("wrong wrapping key");
@@ -161,7 +167,7 @@ impl Disclosure {
                 .try_into()
                 .expect("width"),
         );
-        assert_eq!(target, 1);
+        assert_eq!(target, expected_epoch);
         let mut info =
             b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/epoch-traffic/HKDF-SHA256/ChaCha20Poly1305/"
                 .to_vec();
@@ -308,8 +314,17 @@ fn reservation_disclosure(cut: Cut) {
                 .runtime
         }
     };
-    let [mut intercept_i, mut intercept_r] = disclosed.predict_traffic(runtime, &offer, &response);
+    let intercepts = disclosed.predict_traffic(runtime, &offer, &response, 1);
     assert_eq!(complete_rekey(&mut p), 1);
+    let recovered = recover_messages(&mut p, intercepts, 1);
+    eprintln!("SEALED_RESERVATION_DISCLOSURE cut={} confirmed_epoch=1 recovered_messages={recovered} directions=2 private_input=one_snapshot", cut.stage());
+}
+
+fn recover_messages(
+    p: &mut Pair,
+    [mut intercept_i, mut intercept_r]: [Traffic; 2],
+    epoch: u64,
+) -> usize {
     p.ji.close();
     p.jr.close();
     p.ji = reopen(&p.pi, p.f.initiator_device());
@@ -339,7 +354,7 @@ fn reservation_disclosure(cut: Cut) {
             let id = sender
                 .next_message_id(sc, p.session, 150)
                 .expect("new epoch ID");
-            assert_eq!(id.epoch().expect("epoch"), 1);
+            assert_eq!(id.epoch().expect("epoch"), epoch);
             let wire = sender
                 .send_message(sc, p.session, id, &plaintext, b"application", 150)
                 .expect("committed send");
@@ -361,7 +376,7 @@ fn reservation_disclosure(cut: Cut) {
         }
     }
     assert_eq!(recovered, 6);
-    eprintln!("SEALED_RESERVATION_DISCLOSURE cut={} confirmed_epoch=1 recovered_messages={recovered} directions=2 private_input=one_snapshot", cut.stage());
+    recovered
 }
 
 #[test]
@@ -372,4 +387,143 @@ fn disclosed_key_reservation_exposes_traffic_computed_after_restart() {
 #[test]
 fn disclosed_encapsulation_reservation_exposes_traffic_computed_after_restart() {
     reservation_disclosure(Cut::EncapsulationReserved);
+}
+
+// Select the retained key-generation token from an authenticated committed
+// offer. The predictor receives neither an identity owner nor future state.
+fn capture_committed_second_offer(p: &mut Pair, offer: &[u8]) -> Disclosure {
+    let image = p.jr.image().expect("single responder snapshot");
+    let payload = &image
+        .records
+        .get(&record_id(&p.session))
+        .expect("state")
+        .payload;
+    let captured = State::decode(payload).expect("authenticated snapshot");
+    assert_eq!(
+        (
+            captured.control.confirmed_epoch(),
+            captured.send_epoch,
+            captured.receive_epoch
+        ),
+        (1, 1, 1)
+    );
+    let control = captured_control_range(payload);
+    let token_end = control.end.checked_sub(offer.len()).expect("offer width");
+    let token_start = token_end.checked_sub(277).expect("key token width");
+    assert!(token_start > control.start);
+    assert_eq!(
+        payload.get(token_start - 1),
+        Some(&3),
+        "committed offer phase"
+    );
+    assert_eq!(
+        payload.get(token_end..control.end),
+        Some(offer),
+        "exact public offer"
+    );
+    Disclosure {
+        // This selects key-generation replay, not a first-reservation cut:
+        // the token survives in phase 3 after the signed offer is committed.
+        cut: Cut::KeyReserved,
+        journal: image.id,
+        root: captured.rekey,
+        host_key: key(p.jr.active.as_ref().expect("open").key.0.as_bytes())
+            .expect("disclosed wrapping key"),
+        token: SealedOperation::from_bytes(payload.get(token_start..token_end).expect("token"))
+            .expect("sealed token"),
+    }
+}
+
+#[test]
+fn lagging_peer_confirmation_does_not_bound_second_epoch_disclosure() {
+    let mut p = Pair::new();
+    p.activate();
+    let offer =
+        p.ji.prepare_rekey_offer(&p.f.initiator, p.session, &p.f.signer_i, 150)
+            .expect("first offer");
+    let response =
+        p.jr.respond_rekey_offer(&p.f.responder, p.session, &offer, &p.f.signer_r, 150)
+            .expect("first response");
+    let final_wire =
+        p.ji.accept_rekey_response(&p.f.initiator, p.session, &response, &p.f.signer_i, 150)
+            .expect("first final");
+    let held_receipt =
+        p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150)
+            .expect("hold first receipt");
+    let lagging =
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("lagging peer");
+    assert_eq!(
+        (
+            lagging.confirmed_epoch,
+            lagging.sending_epoch,
+            lagging.receiving_epoch,
+            lagging.pending_epoch
+        ),
+        (0, 1, 0, Some(1))
+    );
+    let next_offer =
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150)
+            .expect("second offer before first receipt delivery");
+    let ahead =
+        p.jr.rekey_progress(&p.f.responder, p.session)
+            .expect("ahead peer");
+    assert_eq!(
+        (
+            ahead.confirmed_epoch,
+            ahead.sending_epoch,
+            ahead.receiving_epoch,
+            ahead.pending_epoch
+        ),
+        (1, 1, 1, Some(2))
+    );
+    assert_eq!(
+        p.jr.rekey_offer_status(&p.f.responder, p.session)
+            .expect("second offer status"),
+        RekeyOfferStatus::Committed
+    );
+    assert_eq!(
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("still lagging"),
+        lagging
+    );
+    let disclosed = capture_committed_second_offer(&mut p, &next_offer);
+    // No later private state is passed to the predictor. Restart both honest
+    // peers; only then deliver the delayed receipt and public second exchange.
+    p.ji.close();
+    p.jr.close();
+    p.ji = reopen(&p.pi, p.f.initiator_device());
+    p.jr = reopen(&p.pr, p.f.local_device());
+    assert_eq!(
+        p.ji.rekey_progress(&p.f.initiator, p.session)
+            .expect("durable lag"),
+        lagging
+    );
+    assert_eq!(
+        p.jr.rekey_progress(&p.f.responder, p.session)
+            .expect("durable lead"),
+        ahead
+    );
+    assert_eq!(
+        p.jr.prepare_rekey_offer(&p.f.responder, p.session, &p.f.signer_r, 150)
+            .expect("same second offer"),
+        next_offer
+    );
+    assert_eq!(
+        p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &held_receipt, 150)
+            .expect("delayed first receipt"),
+        1
+    );
+    let next_response =
+        p.ji.respond_rekey_offer(&p.f.initiator, p.session, &next_offer, &p.f.signer_i, 150)
+            .expect("second response");
+    let runtime =
+        &p.f.responder
+            .current_policy()
+            .expect("public policy")
+            .runtime;
+    let intercepts = disclosed.predict_traffic(runtime, &next_offer, &next_response, 2);
+    assert_eq!(complete_rekey(&mut p), 2);
+    let recovered = recover_messages(&mut p, intercepts, 2);
+    eprintln!("ASYMMETRIC_RESERVATION_DISCLOSURE lagging_confirmed=0 captured_confirmed=1 captured_pending=2 captured_phase=3 recovered_epoch=2 recovered_messages={recovered} directions=2 private_input=one_responder_snapshot");
 }

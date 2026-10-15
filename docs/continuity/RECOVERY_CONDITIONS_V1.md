@@ -14,7 +14,7 @@ progress budget permits another application send. It cannot observe an adversary
 knowledge. A valid confirmation demonstrates possession of a transcript-bound key;
 it does not demonstrate that nobody else holds that key.
 
-Four executed counterexamples make this distinction operational:
+The following executed counterexamples make this distinction operational:
 
 - The [passive state predictor](../../research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md)
   derives an additional epoch from a disclosed pending decapsulation key and later
@@ -38,6 +38,12 @@ Four executed counterexamples make this distinction operational:
   The real epoch-scoped final/receipt path now accepts new-epoch traffic after
   this trace while retaining the old floor and outbox. This repairs that specific
   namespace failure; it is not a proof of recovery from every disclosure.
+
+- The [asymmetric retained-offer trace](RECOVERY_DEPENDENCIES_V1.md) holds
+  epoch one's receipt while the responder commits an epoch-two offer. The slower
+  peer still confirms zero. One responder snapshot and later public wires decrypt
+  six new epoch-two messages after restart. Exposure therefore cannot be bounded
+  by the smaller confirmed counter plus one; the older peer need not be disclosed.
 
 These observations do not establish that every unpredicted message is secure.
 They falsify unconditional recovery labels and identify assumptions that must be
@@ -86,6 +92,11 @@ implementation correspondence for those two cuts only; the remaining phases,
 later contribution ancestry and full construction argument remain required.
 A known host wrapping key plus continuing access to later sealed records is a
 different, stronger disclosure than the experiment's one captured snapshot.
+The [phase/root dependency map](RECOVERY_DEPENDENCIES_V1.md) now distinguishes
+all ten persisted plan phases by source. In particular, phase 8 has already
+moved the new root into active state while its local confirmed counter still
+lags; phase 3 still retains the key-generation token. Only the named executed
+cuts have decryption evidence, not every row of that source-derived map.
 
 ## Control delivery and bounded continuation
 

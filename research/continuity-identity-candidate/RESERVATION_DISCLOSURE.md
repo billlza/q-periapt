@@ -77,3 +77,24 @@ later records from a known wrapping key. Host-key replacement, independent
 keystore protection and any claimed erasure/backup guarantees require their own
 explicit lifecycle. Logical removal of old tokens cannot revoke copies already
 captured by the attacker.
+
+## Asymmetric progress extension — 2026-10-15
+
+The [current dependency analysis](../../docs/continuity/RECOVERY_DEPENDENCIES_V1.md)
+adds `lagging_peer_confirmation_does_not_bound_second_epoch_disclosure` to the
+same test module. A fresh pair completes the responder's epoch-one receipt but
+withholds its delivery. The initiator still confirms zero while the responder
+commits an epoch-two offer. One responder snapshot contains its epoch-one root
+and the phase-three retained generation token. No initiator state or signer is
+disclosed. After honest restart, delayed receipt delivery and epoch-two
+completion, the predictor decrypts six newly generated messages across both
+directions. The wrong wrapping-key control still rejects the token.
+
+The original two epoch-one tests remain unchanged in their expected epoch,
+first-reservation process-kill cuts and six-message assertions. Shared message
+checking now accepts an explicit expected epoch so the new experiment can retain
+its distinct epoch-two assertion. No production transition or wire changes.
+The [public checkpoint](../sdk-alpha1/evidence/20261015-recovery-ancestry/README.md)
+records source identities, executed commands and results. This is another finite
+counterexample to a counter-based recovery rule, not a maximum exposure bound or
+a declaration that the following epoch is secure.
