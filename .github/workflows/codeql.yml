@@ -123,6 +123,13 @@ jobs:
             printf 'CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT_SRC=%s\n' "$analysis_sysroot_src"
           } >> "$GITHUB_ENV"
 
+      - name: Prepare Rust installed-consumer analysis inputs
+        id: rust_consumer_context
+        if: matrix.language == 'rust'
+        run: |
+          sh artifact/python-run.sh artifact/codeql_consumer_context.py prepare \
+            --output "${RUNNER_TEMP}/qperiapt-codeql-consumers"
+
       - name: Set up Java 25 LTS
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -213,6 +220,12 @@ jobs:
           swift build --build-tests --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
           /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
 
+      - name: Verify Rust installed-consumer analysis inputs
+        if: matrix.language == 'rust'
+        run: |
+          sh artifact/python-run.sh artifact/codeql_consumer_context.py verify \
+            --output "${RUNNER_TEMP}/qperiapt-codeql-consumers"
+
       - name: Analyze
         id: codeql_analyze
         # At dc2561f0, 38/39 queries finished and full SummaryStats exceeded
@@ -224,6 +237,23 @@ jobs:
           category: /language:${{ matrix.language }}
           upload: ${{ matrix.language == 'rust' && 'never' || 'always' }}
           upload-database: ${{ matrix.language == 'rust' && 'false' || 'true' }}
+
+      - name: Verify and remove Rust installed-consumer analysis inputs
+        if: always() && matrix.language == 'rust' && steps.rust_consumer_context.outcome == 'success'
+        run: |
+          sh artifact/python-run.sh artifact/codeql_consumer_context.py remove \
+            --output "${RUNNER_TEMP}/qperiapt-codeql-consumers"
+
+      - name: Retain Rust installed-consumer analysis receipts
+        if: always() && matrix.language == 'rust' && steps.rust_consumer_context.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-consumer-context
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-consumers/*.json
+            ${{ runner.temp }}/qperiapt-codeql-consumers/*.stdout
+            ${{ runner.temp }}/qperiapt-codeql-consumers/*.stderr
+          if-no-files-found: error
 
       - name: Reject repository-local Rust build output
         if: matrix.language == 'rust'

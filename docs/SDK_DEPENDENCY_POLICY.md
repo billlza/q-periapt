@@ -79,6 +79,14 @@ inside a host process. See the [maintenance command](../crates/q-periapt-cli/REA
   macro server caused an ABI mismatch and incomplete extraction of seven files.
   The updated pairing still must pass the complete extraction and consistency
   checks before any Rust result upload.
+- The two installed-package consumers also need their declared analysis inputs:
+  temporary per-workspace Cargo patches and locks, the C consumer's native test
+  fixture layout, and the Rust consumer's public policy vectors. The CodeQL job
+  compiles all their targets with both analysis toolchains before extraction,
+  verifies and removes only its unchanged temporary inputs, then runs the
+  existing pristine-checkout and database-quality gates. Consumer manifests and
+  package acceptance still require installed archives. This preparation does
+  not qualify a CodeQL extraction or establish the cause of its query timeout.
 
 The current source also selects native ML-KEM 2.0.0, Kotlin 2.4.20, Gradle 9.8.0,
 AGP 9.4.1, Node 26.10.0, npm 12.1.0, TypeScript 7.0.2 and Python 3.14.7.

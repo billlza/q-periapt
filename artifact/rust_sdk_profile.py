@@ -322,6 +322,19 @@ def audit_lockfile(lock: Path, output: Path, label: str, environment: dict, *, f
             "packages": report["lockfile"]["dependency-count"], "vulnerabilities": 0, "warnings": 0}
 
 
+def policy_fixture_inputs(root: Path = ROOT) -> dict[str, bytes]:
+    """Public vectors shared by installed-package tests and source analysis."""
+    inputs = {}
+    for vector, stem in zip(POLICIES, ("policy", "revoke", "enable")):
+        value = parse_strict_json_bytes(snapshot(root / "bindings" / vector).data, label=f"policy fixture {vector}")
+        inputs[f"{stem}.toml"] = value["policy_toml"].encode("utf-8")
+        signature_name = "signature.bin" if stem == "policy" else f"{stem}-signature.bin"
+        inputs[signature_name] = bytes.fromhex(value["signature"])
+        if stem == "policy":
+            inputs["root.bin"] = bytes.fromhex(value["verification_key"])
+    return inputs
+
+
 def prepare_consumer_fixture(consumer: Path) -> None:
     """Materialize the public API tests and their fixed/generated test inputs."""
     for path in (ROOT / FIXTURE).rglob("*"):
@@ -329,16 +342,9 @@ def prepare_consumer_fixture(consumer: Path) -> None:
             copy(path, consumer / path.relative_to(ROOT / FIXTURE))
     fixture_dir = consumer / "fixtures"
     fixture_dir.mkdir(exist_ok=True)
-    for vector, stem in zip(POLICIES, ("policy", "revoke", "enable")):
-        value = parse_strict_json_bytes(snapshot(ROOT / "bindings" / vector).data, label=f"policy fixture {vector}")
-        with (fixture_dir / f"{stem}.toml").open("x", encoding="utf-8") as stream:
-            stream.write(value["policy_toml"])
-        signature_name = "signature.bin" if stem == "policy" else f"{stem}-signature.bin"
-        with (fixture_dir / signature_name).open("xb") as stream:
-            stream.write(bytes.fromhex(value["signature"]))
-        if stem == "policy":
-            with (fixture_dir / "root.bin").open("xb") as stream:
-                stream.write(bytes.fromhex(value["verification_key"]))
+    for name, data in policy_fixture_inputs().items():
+        with (fixture_dir / name).open("xb") as stream:
+            stream.write(data)
 
 
 def extract_recorded_crates(consumer: Path, output: Path, records: dict) -> None:
