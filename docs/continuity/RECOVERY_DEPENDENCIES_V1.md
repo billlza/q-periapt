@@ -143,3 +143,12 @@ security proof for this composition, whose salt is a previous protocol root and
 whose context contains transcript-dependent values. A generic claim that one
 unknown input makes every subsequent key secure is therefore not substituted
 for the missing construction-specific argument.
+
+
+A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
+now machine-checks one necessary generated-key provenance lemma under explicit
+ideal-primitive and protected-state assumptions. Its complete recovery queries
+remain unproved; independent-owner instances do not model shared device journals.
+The result must not be promoted to the construction-specific recovery argument
+required above. Proof inputs, failed searches and the fixed toolchain are retained
+in the linked checkpoint.
