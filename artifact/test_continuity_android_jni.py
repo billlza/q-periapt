@@ -41,6 +41,7 @@ class AndroidJniTests(unittest.TestCase):
             jar, classes, library = root / "SDK jar", root / "test classes", root / "native library"
             driver = android._driver(root, executable, jar, classes, library)
             for mode, probe in [("pending-request", "PendingWriteProbe"), ("managed-witness-create", "WitnessProbe"),
+                                ("root-state", "RootOwnedProbe"),
                                 ("roster-witness-peer-connect", "RosterWitnessProbe"), ("enrollment-create", "EnrollmentProbe")]:
                 values = [mode, "fixed", "inputs with ' quotes", "target $(not-executed)", "output;literal"]
                 result = subprocess.run([str(driver), *values], capture_output=True, check=True, timeout=10)

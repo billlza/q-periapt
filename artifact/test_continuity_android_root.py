@@ -53,12 +53,7 @@ class AndroidRootTests(unittest.TestCase):
         finally:
             path.write_bytes(original)
 
-    def test_normal_driver_and_manifest_include_root_adapter(self):
-        with tempfile.TemporaryDirectory() as directory:
-            base = Path(directory)
-            launcher = jni._driver(base, Path("/java"), base / "classes.jar", base / "tests", base / "native")
-            self.assertTrue(launcher.is_file())
-            self.assertIn("('root-', 'RootOwnedProbe')", (base / "driver.py").read_text())
+    def test_source_manifest_includes_root_adapter(self):
         files = jni.source_files()
         for name in ("jni/root_replacement.c", "src/test/java/RootOwnedProbe.java", "src/test/java/RootControls.java",
                      "src/main/java/dev/qperiapt/continuity/android/RootOperations.java"):
