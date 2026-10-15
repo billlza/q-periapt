@@ -315,3 +315,36 @@ and collector are retained as isolated diagnostic assets. Product code, default
 allocator, entropy and cryptographic checks are unchanged. Installed packages,
 foreign async queues, network/persistence, allocator-failure injection, other
 platforms and longer controlled runs remain separate requirements.
+
+
+## Native Continuity session baseline (2026-10-15)
+
+The [source-bound native session checkpoint](../research/sdk-alpha1/evidence/20261015-continuity-session-cost/README.md)
+measures real enrolled Rust owners, fresh mutually authenticated hybrid TLS,
+encrypted journals, durable application effects and original-result recovery on
+Apple M1 Max / macOS 27.0.1. Five fresh processes per protection profile produce
+640 ordinary sends, ten rekeys and ten unknown-result recoveries. All 650 business
+files are independently checked. The SDK implementation remains unchanged at
+`1fefe0f7154ac063d8488276442a62a5095f2a6d`.
+
+| Payload | Local-only p50 / p95 (ms) | Required witness p50 / p95 (ms) |
+| --- | --- | --- |
+| 0 bytes | 129.05 / 140.41 | 229.46 / 240.24 |
+| 64 bytes | 128.88 / 138.69 | 229.87 / 239.63 |
+| 1024 bytes | 129.74 / 138.98 | 229.70 / 242.07 |
+| 16384 bytes | 132.77 / 142.90 | 232.44 / 243.87 |
+
+These are observed nearest-rank quantiles, with 80 samples per payload/profile,
+without discarded samples. The two profiles have different security contracts.
+For the required-witness group, slot lookup, send and status together use 20 Query
+and five Advance exchanges, or 183,525 framed bytes before TCP/application-TLS
+overhead. Full-process RSS ranges are 13.64–14.56 MiB locally and
+17.89–18.38 MiB with the witness; they include both peers and the observer.
+Phase, resource, maximum-latency and failure records are in the checkpoint.
+
+The host was not controlled for competing load or power. This baseline does not
+establish a release speedup, production-tail guarantee, isolated SDK peak memory,
+energy result or platform-wide performance claim. The observed fixed costs guide
+the next profile of image validation, durable transitions and witness checks;
+file length alone is not a performance diagnosis. Source/foreign/package/device
+comparisons and controlled resource/tail gates remain required.

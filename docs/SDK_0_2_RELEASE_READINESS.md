@@ -5300,3 +5300,20 @@ complete behavior census. No product implementation changed. This adds actual
 traffic after recovery; it does not close PCS, independent/Linux endpoints,
 remaining lifecycle/platform admission, resource-cost, maintenance/freeze,
 external-review or hosted exact-source gates.
+
+
+### Native Continuity session cost baseline — 2026-10-15
+
+The [current-source baseline](../research/sdk-alpha1/evidence/20261015-continuity-session-cost/README.md)
+adds 640 real-TLS/durable sends across ten fresh native processes, ten epoch-1
+rekeys and ten original unknown-result recoveries. The public reader independently
+checks 650 business outputs and rejects all 640 sample substitutions. Observed
+pooled send p50/p95 values are 130.01/141.32 ms for local-only protection and
+230.32/242.07 ms for the required-witness profile; these profiles are different
+security contracts. The latter uses 20 Query and five Advance exchanges per full
+slot-lookup/send/status group. Whole-process RSS, CPU and per-phase observations
+retain their explicit scope. The first pilot's incorrect acknowledged-send
+expectation, reader opcode correction and rejected build attempts are retained.
+No SDK implementation or security policy changed. Controlled tails, energy,
+maximum-capacity memory, foreign/device/independent hosts, construction analysis,
+maintenance/freeze, external review and exact-source hosted checks remain open.
