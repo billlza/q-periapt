@@ -170,3 +170,12 @@ argument, shared-device or multi-epoch theorem, explicit-storage equivalence or
 Rust refinement. The construction-specific argument above and the full product
 release obligations remain open. No runtime flag can infer these attacker-view
 conditions merely from protocol progress.
+
+The [shared-identity follow-up](../../research/sdk-alpha1/evidence/20261015-recovery-shared-identity/README.md)
+shows why the independent-identity premise matters. Reusing a signing-key pair
+across two sessions admits a checked sibling-disclosure trace that violates the
+unchanged session-scoped recovery formula. Both fresh target reservations and
+the lack of target-session leak labels still hold. A separately checked key-origin
+lemma locates the disclosure in the shared identity owner's scope. A complete
+positive theorem for reused device keys remains open; the earlier independent-key
+theorem and its CI gate retain their original, narrower meaning.

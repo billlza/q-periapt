@@ -109,6 +109,36 @@ A separate single-responder-identity-disclosure witness illustrates the need for
 the identity condition. No unproved helper is admitted. The computational and
 implementation boundaries below remain open.
 
+## Identity reuse across sessions
+
+[`shared-identity.spthy`](shared-identity.spthy) is a separate research variant.
+It allocates one signing-key pair and allows multiple independently initialized
+sessions to use that pair. Wrapping keys remain per session. All transitions after
+Setup, equations, restrictions and the original five complete queries are unchanged.
+The [shared-identity checkpoint](../sdk-alpha1/evidence/20261015-recovery-shared-identity/README.md)
+retains a checked counterexample (30 search steps, 53 replay steps): exactly one
+responder identity leak in a sibling session permits knowledge of an initiator
+application payload in the target session. Both target KEM reservations follow
+Cut, with no Snapshot or EntropyLeak anywhere in the trace. The sibling and target
+have different session IDs and the same identity owner. The witness does not
+require both honest peers to confirm the attacked root.
+
+This refutes extending the session-scoped secrecy formula unchanged to reused
+identities. It does not contradict the positive theorem on `protected-state.spthy`,
+where every session receives independent signing keys. Direct automatic search of
+the original universal query on the shared variant timed out at 300 seconds;
+the stronger, independently replayed existential witness establishes the failure,
+not that timeout. No changed shared-identity secrecy theorem is accepted yet.
+
+`shared_identity_key_origin` verifies and independently replays in 356 steps:
+knowledge of a signing key implies a modeled identity disclosure in some session
+belonging to that identity pair. It has no reusable premise and establishes no
+disclosure timing bound. A future positive argument must bind its exclusions to
+the actual device keys across their uses, including one-sided identity overlap
+between different pairs. This variant does not model that broader overlap,
+shared journals, multiple epochs or concrete SDK decryption. Its evidence is
+separate from the current 20-property CI gate.
+
 ## Modeled boundaries
 
 The old root is public from setup. Cut exposes both endpoints' wrapping keys.

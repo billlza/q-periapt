@@ -1,0 +1,11 @@
+{
+  "all_members_rehashed": true,
+  "capture_sha256": "58f406770e1f5f601325798eb48002d29d80845e391a66299813a4eb21db9005",
+  "completed": true,
+  "linux_utf8_replay_pending": true,
+  "local_utf8_replay_passed": true,
+  "members": 121,
+  "private_sdk_data_selected": false,
+  "release_claim_eligible": false,
+  "symbolic_witness_and_provenance_replayed": true
+}

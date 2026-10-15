@@ -5387,7 +5387,16 @@ separate existential witnesses. It runs in the existing `tamarin-proof` job and
 retains its terminal results; hosted CI success still requires an actual completed
 run. No runtime or canonical bare-model code changes in these checkpoints.
 
-The [current-source Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
+The [shared-identity checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-shared-identity/README.md)
+adds an independently replayed counterexample to extending that result unchanged
+to reused device identities, plus a checked identity-owner provenance lemma.
+It retains the independent-key theorem and identifies the required broader
+identity-disclosure scope; no shared-identity recovery theorem is claimed.
+The first hosted replay of the new gate fails before proof evaluation because
+Linux rejects Unicode certificate bytes under `LC_ALL=C`. A local UTF-8 fix
+passes 190 related regressions; its hosted Linux replay remains required.
+
+The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at
 300 minutes, with 38 of 39 query completion markers and full `SummaryStats`
 unfinished. Normal database bundling then fails on a cache lock; the debug dump

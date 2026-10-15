@@ -69,6 +69,17 @@ PQ contribution under the selected KEM assumption. A hybrid claim must state the
 combiner assumptions and preserve the complete authenticated context. Finite
 message-key comparisons do not replace that argument.
 
+Identity disclosure is scoped to the device signing key and all of its uses.
+An absence of leak events labelled with one session ID does not establish that
+the identity key used by that session is secret. The
+[shared-identity symbolic witness](../../research/sdk-alpha1/evidence/20261015-recovery-shared-identity/README.md)
+exposes a sibling session's responder identity and recovers a target-session
+payload despite fresh target KEM reservations and no extra snapshot or entropy
+disclosure. Device identity reuse is intended; the existing requirement for
+independently authorized revocation and replacement remains appropriate. This
+symbolic result identifies a proof-scope obligation, not an executed SDK exploit
+or a reason to treat identity compromise as ordinary traffic-state recovery.
+
 ## Durable freshness is reservation freshness
 
 The SDK's sealed operation owner intentionally regenerates the same private key,
