@@ -8,6 +8,14 @@ results remain valid in their own models. Whole-journal image/restore
 correspondence, multi-epoch recovery, computational security, SDK correspondence
 and external review remain open.
 
+An unproved [multi-epoch projection](multi-epoch.spthy) now preserves stable
+session/context, inherited roots, completed transcript parents, alternating
+proposers and asymmetric local confirmation across unbounded rounds. Its
+[model checkpoint](../sdk-alpha1/evidence/20261015-recovery-multi-epoch-model/README.md)
+retains six bounded searches, exact search-annotation controls and a source map.
+All searches time out without a terminal verdict; no query or witness is admitted
+for this new model. It is separate from the three checked CI profiles.
+
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
 verified by Tamarin 1.12.0 / Maude 3.5.1 using induction: 182 steps. It gives a

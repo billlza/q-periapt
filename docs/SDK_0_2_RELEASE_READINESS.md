@@ -5424,6 +5424,15 @@ computational/SDK argument remain open. CI now includes an explicit shared-stora
 profile alongside the earlier two, with separate byte pins and required witness
 inventories. Hosted Linux qualification remains required.
 
+The [multi-epoch modeling checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-multi-epoch-model/README.md)
+preserves actual root ancestry, completed transcript parents, alternating roles
+and asymmetric confirmation across unbounded rounds. It includes a source map
+and unchanged-theory search controls. All six bounded searches time out without
+terminal verdicts; the two proposed witnesses, structural inheritance property
+and arbitrary-epoch secrecy query remain unproved. Parser and archive readback
+success do not close this release gate. Product code and the three admitted CI
+proof profiles are unchanged.
+
 The [9d396755 Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at
 300 minutes, with 38 of 39 query completion markers and full `SummaryStats`
