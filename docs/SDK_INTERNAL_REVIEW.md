@@ -133,6 +133,15 @@ CodeQL alerts or qualify untested lifecycle combinations.
 
 ## Retained CodeQL inventories and scoped reviews
 
+The [SDK policy-value review](../research/sdk-alpha1/evidence/20261015-sdk-policy-codeql-review/README.md)
+checks alerts 700/537 against analysis 1930866657 and current `abc731a1` source.
+All eight supplied flows and seven named sink occurrences are retained. The
+reported boolean and fully overwritten public policy metadata do not supply the
+independent journal-key or bootstrap-nonce fields at those sinks. Five existing
+replay/authentication/revocation/entropy tests pass with the macOS feature set.
+Changed source files and the limited disposition scope are explicit; no remote
+alert, product implementation or aggregate security gate was changed.
+
 The [policy-receipt review](../research/sdk-alpha1/evidence/20261010-policy-receipt-codeql/DISPOSITIONS.json)
 disposes three specific hard-coded-value reports (indices 741, 742 and 746) from
 the 832-result Rust analysis at `e0e1dee0`. Their sources are completion booleans

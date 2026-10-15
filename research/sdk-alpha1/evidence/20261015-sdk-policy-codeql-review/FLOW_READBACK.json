@@ -1,0 +1,90 @@
+{
+  "all_flow_source_lines_available": true,
+  "auxiliary_related_locations": [
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": null,
+      "line": 1045,
+      "result_index": 789
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": null,
+      "line": 1092,
+      "result_index": 789
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "id": null,
+      "line": 97,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "id": null,
+      "line": 93,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "id": null,
+      "line": 115,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": null,
+      "line": 1045,
+      "result_index": 792
+    }
+  ],
+  "capture_sha256": "6c329672587800f89da62a7178d4b57718c5547c24b6054e18ad7ea24fca9abf",
+  "completed": true,
+  "flows_reconstructed_from_raw_sarif": 8,
+  "locations_checked": 292,
+  "named_sink_occurrences": [
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": 1,
+      "line": 1045,
+      "result_index": 789
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": 2,
+      "line": 1092,
+      "result_index": 789
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "id": 1,
+      "line": 97,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "id": 2,
+      "line": 93,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "id": 3,
+      "line": 115,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": 4,
+      "line": 1045,
+      "result_index": 792
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/durable.rs",
+      "id": 5,
+      "line": 1092,
+      "result_index": 792
+    }
+  ],
+  "scope": "Archive consistency and complete selected-flow retention, not an automated semantic proof of the dispositions."
+}
