@@ -157,7 +157,15 @@ rekey and a fresh consumed message. The already-applied TLS route also runs on
 the accepted phone. Recovery alone still grants no expired traffic permission;
 the receiver's separate renewal and both approving roots are part of this flow.
 
+The [physical Swift checkpoint](../sdk-alpha1/evidence/20261015-apple-pending-recovery/README.md)
+adds configured pending-write recovery on the offered iPad using the actual Apple
+binary package. Its signed-witness fixed/unapplied and recoverable/applied routes
+retain a real unknown delivery through expiry, exact confirmation and pre-call
+cancellation. All 39 app launches have run-bound startup and terminal receipts.
+This is positive recovery evidence; Apple Query/process cuts and post-recovery
+operational continuation remain separate from the earlier ABI/owner checks.
+
 These checks share the same protocol engine. They do not establish an independent
 implementation, mobile-browser or power-loss equivalence. Storage-internal cuts,
-remaining binding process/cancellation and continuation paths, complete lifecycle
-composition and positive Apple recovery remain open alongside the wider 0.2.0 gates.
+remaining binding process/cancellation and continuation paths, and complete
+lifecycle composition remain open alongside the wider 0.2.0 gates.
