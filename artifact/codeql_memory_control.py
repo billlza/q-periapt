@@ -2,8 +2,8 @@
 
 This is a diagnostic experiment, never a replacement for current-source CI.
 All profiles retain the original 39 queries and the same total evaluator RAM.
-The reusable-cache profile changes only the discarded-cache expectation relative
-to baseline. The earlier more-native allocation remains available for replay.
+The single-thread profile changes only evaluation concurrency relative to baseline.
+Earlier allocation and cache-expectation controls remain available for replay.
 """
 
 from __future__ import annotations
@@ -37,8 +37,9 @@ SOURCE_HEAD = "3b6547715ad69208d889be19a6e3e4852daef08c"
 SUITE_SHA = "db39d1bd280a14c89e0719e561922b13c21d7f03180db7c192d021010ed0e416"
 QUERY_PREFIX = "/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/"
 QUERY_MANIFEST = Path(__file__).with_name("codeql_memory_queries.json")
-PROFILES = {"baseline": (5788, 6898), "more-native": (3072, 9614),
-            "reusable-cache": (5788, 6898)}
+# JVM heap MiB, native evaluator MiB, execution threads.
+PROFILES = {"baseline": (5788, 6898, 4), "more-native": (3072, 9614, 4),
+            "reusable-cache": (5788, 6898, 4), "single-thread": (5788, 6898, 1)}
 EVALUATION_SECONDS = 900
 
 
@@ -183,11 +184,11 @@ def admit_tool(codeql: Path, queries: list[str], evidence: Path,
 
 
 def query_command(codeql: Path, database: Path, root: Path, profile: str) -> list[str]:
-    heap, native = PROFILES[profile]
+    heap, native, threads = PROFILES[profile]
     cache_expectation = ("--no-expect-discarded-cache" if profile == "reusable-cache"
                          else "--expect-discarded-cache")
     return [str(codeql), "execute", "queries", f"-J-Xmx{heap}M", f"--off-heap-ram={native}",
-            "--threads=4", cache_expectation, "--min-disk-free=1024",
+            f"--threads={threads}", cache_expectation, "--min-disk-free=1024",
             "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=none",
             "--verbosity=progress+", "--evaluator-log-level=5",
             f"--logdir={root / 'evidence/evaluator'}", f"--output={root / 'results'}",
@@ -244,7 +245,7 @@ def evaluate(codeql: Path, output: Path, profile: str) -> None:
     evidence = root / "evidence"
     evidence.mkdir(mode=0o700)
     report = {"kind": "qperiapt.codeql_memory_control", "completed": False,
-              "release_claim_eligible": False, "profile": profile, "threads": 4,
+              "release_claim_eligible": False, "profile": profile, "threads": PROFILES[profile][2],
               "heap_MB": PROFILES[profile][0], "off_heap_MB": PROFILES[profile][1],
               "expect_discarded_cache": profile != "reusable-cache",
               "evaluation_seconds_bound": EVALUATION_SECONDS,

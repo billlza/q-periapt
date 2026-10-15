@@ -33,7 +33,7 @@ class MemoryControlTests(unittest.TestCase):
                     for p in ('baseline', 'more-native')]
         strip_memory = lambda c: [v for v in c if not v.startswith(('-J-Xmx', '--off-heap-ram='))]
         self.assertEqual(strip_memory(commands[0]), strip_memory(commands[1]))
-        self.assertEqual({sum(pair) for pair in control.PROFILES.values()}, {12686})
+        self.assertEqual({heap + native for heap, native, _ in control.PROFILES.values()}, {12686})
         for command in commands:
             self.assertNotIn('--no-rerun', command)
             self.assertIn('--threat-model=local', command)
@@ -51,6 +51,19 @@ class MemoryControlTests(unittest.TestCase):
             for value in baseline
         ])
         self.assertNotIn('--no-rerun', reusable)
+
+    def test_single_thread_changes_only_execution_concurrency(self):
+        baseline = control.query_command(Path('/tool/codeql'), Path('/db'), Path('/case'),
+                                         'baseline')
+        single = control.query_command(Path('/tool/codeql'), Path('/db'), Path('/case'),
+                                       'single-thread')
+        self.assertEqual(baseline.count('--threads=4'), 1)
+        self.assertEqual(single, [
+            '--threads=1' if value == '--threads=4' else value for value in baseline
+        ])
+        self.assertEqual(control.PROFILES['single-thread'][:2], control.PROFILES['baseline'][:2])
+        self.assertNotIn('--no-rerun', single)
+        self.assertEqual(control.EVALUATION_SECONDS, 900)
 
     def test_manifest_retains_full_summary_and_all_query_plans(self):
         manifest = json.loads(control.QUERY_MANIFEST.read_text())
