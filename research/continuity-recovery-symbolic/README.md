@@ -1,9 +1,9 @@
 # Continuity recovery transition research
 
-Status: **two checked statements: generated-key provenance and an honest
-execution witness.** Recovery secrecy and the two specified disclosure witnesses
-remain unproved. This directory is not a release proof gate; the full 0.2.0
-construction, shared-device lifecycle, computational argument and external
+Status: **four checked statements: generated-key provenance, an honest execution
+witness, and two specified disclosure witnesses.** The all-traces recovery-secrecy
+claim remains unproved. This directory is not a release proof gate; the full
+0.2.0 construction, shared-device lifecycle, computational argument and external
 review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
@@ -14,33 +14,39 @@ generation-entropy leakage or acquisition of a phase-1/2/3 record. It is not a
 causal timing bound or a recovery-secrecy theorem. The lemma is not marked
 `reuse`; no unproved lemma is imported as an assumption.
 
-`recovery_is_executable` now has a checked 59-step witness: Cut precedes fresh
-reservations, both endpoints confirm, and an application event follows both
-confirmations, with no extra snapshot, identity or entropy leakage anywhere.
-Interactive proof-method selection follows genuine signed-flight sources. A
-fresh process then replays the exported methods **without `--prove`** and verifies
-the witness. Initial and final closed-theory exports have identical rules,
-equations, restrictions and all five complete lemma declarations, including
-quantifier kinds and annotations. No model or hypothesis was weakened.
+The checked existential statements are:
 
-A combined invocation on that same exported input verifies both provenance and
-execution. It reports **analysis incomplete** for
-`clean_reservation_recovers_symbolic_message_secrecy`,
-`pre_cut_generation_reservation_remains_exposed`, and
-`later_storage_access_defeats_fresh_reservations`. Those three are not accepted.
-The [execution checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic-execution/README.md)
-retains proof methods, independent replays, six rejected semantic substitutions
-and a missing-proof control: removing the witness still exits zero, but its
-terminal result is incomplete and is rejected. The
-[preceding checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic/README.md)
-preserves the earlier one-lemma result and failed automated searches.
+| Statement | Checked steps | What the trace establishes |
+| --- | ---: | --- |
+| `recovery_is_executable` | 59 | Cut precedes both fresh reservations; both peers confirm before an application event, with no additional leakage. |
+| `pre_cut_generation_reservation_remains_exposed` | 80 | One phase-1 capture precedes Cut; after wrapping-key exposure and a fresh response, the captured generation key permits decryption after both peers confirm. |
+| `later_storage_access_defeats_fresh_reservations` | 45 | Both reservations follow Cut; one phase-8 capture after the application event exposes the new root and permits decryption. |
 
-The exported certificate has placeholders for unselected lemmas and unused
-alternative branches. One fully solved trace suffices for this `exists-trace`
-claim; it does not discharge an `all-traces` secrecy claim. Acceptance is based
-on the exact terminal lemma results, not a grep for a word or a successful exit.
-The original bare model remains the editable source; the generated certificate
-is evidence, not additional production code.
+Each disclosure witness permits exactly one Snapshot globally and excludes
+additional identity/entropy leaks. The pre-cut trace does not obtain a later
+root snapshot: it obtains the generation key from the earlier record, decapsulates
+the public response and reconstructs the root. These are two distinct failures of
+insufficient recovery conditions, not proofs of recovery under sufficient ones.
+They also do not establish a multi-epoch exposure bound for the actual SDK.
+
+The [disclosure checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic-disclosure/README.md)
+retains 67 proof-method applications, unchanged rules/equations/restrictions and
+all five full lemma declarations. A fresh process replays all three witnesses
+without `--prove` using a 2 GiB heap limit. A combined invocation verifies all
+four statements on that same input; only provenance uses automatic proof search.
+The 2 GiB combined attempt failed with heap exhaustion and is retained. The
+successful combined run uses 4 GiB without changing the model or a query. Removing
+both disclosure proof scripts leaves their queries incomplete despite exit zero;
+six substitutions of semantic declarations are also rejected.
+
+`clean_reservation_recovers_symbolic_message_secrecy` remains **analysis
+incomplete**, and is not accepted. The historical
+[execution checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic-execution/README.md)
+and [initial checkpoint](../sdk-alpha1/evidence/20261015-recovery-symbolic/README.md)
+retain their earlier results and failed searches. Generated certificates contain
+placeholders for unselected lemmas and unused existential branches. Acceptance
+uses exact terminal lemma results, not exit zero or a search for a word. The bare
+model remains editable source; the certificate is evidence.
 
 ## Modeled boundaries
 
@@ -97,19 +103,22 @@ from passing only because the model also disclosed a later traffic root.
 Use the pinned Tamarin 1.12.0 and Maude 3.5.1 identities. The checkpoint records
 official macOS arm64 archive URLs, exact SHA-256 values, local extraction and the
 repository toolchain-contract result; no global installation or Intel target was
-added. The original provenance run can be reproduced on the bare model. To reproduce
-the execution witness, extract `proof/export-19.spthy` from the execution
-checkpoint's `CAPTURE.zip` and replay it:
+added. The original provenance run can be reproduced on the bare model. To
+reproduce the three witnesses, extract `proof/export-36.spthy` from the disclosure
+checkpoint's `CAPTURE.zip` and replay its stored proof methods:
 
 ```sh
 tamarin-prover --with-maude=/absolute/path/to/maude \
-  export-19.spthy --derivcheck-timeout=60 --quit-on-warning \
+  export-36.spthy --derivcheck-timeout=60 --quit-on-warning \
   +RTS -N2 -M2G -RTS
 ```
 
-Adding `--prove=generation_secret_origin --heuristic=s` also verifies provenance
-on the same input. Neither accepted invocation uses a proof-depth bound. Parse
-success, process exit zero, incomplete analysis, timeout and heap exhaustion
+The accepted combined invocation adds
+`--prove=generation_secret_origin --heuristic=s`, and uses `-M4G -s` in place of
+`-M2G`, to verify provenance on the same input and retain runtime statistics.
+Neither successful invocation uses a proof-depth bound. See the checkpoint for
+separate replay and resource-limited attempt outcomes. Parse success, process
+exit zero, incomplete analysis, timeout and heap exhaustion
 remain distinct from a verified terminal lemma. The `no_precomp` annotations
 change when sources are expanded; they do not remove rule premises. See the
 Tamarin manual on [precomputation](https://tamarin-prover.com/manual/master/book/009_precomputation.html)

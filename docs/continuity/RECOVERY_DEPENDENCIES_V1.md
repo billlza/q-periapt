@@ -146,10 +146,13 @@ for the missing construction-specific argument.
 
 
 A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
-now checks one necessary generated-key provenance lemma and a non-vacuous honest
-execution witness under explicit ideal-primitive and protected-state assumptions.
-A separate process replays the 59-step witness without automatic proof search;
-all rules and five complete declarations remain unchanged. Recovery secrecy and
-the two specified symbolic disclosure witnesses remain unproved. Independent-owner
-instances do not model shared device journals. These results do not close the
+now has four checked statements under explicit ideal-primitive and protected-state
+assumptions: generated-key provenance (182 steps), honest execution (59), pre-cut
+generation-record disclosure (80), and later phase-8 disclosure (45). Both
+disclosure traces permit exactly one Snapshot and exclude extra identity or
+entropy leakage. They show why retained generation material and continued access
+to new records require distinct recovery conditions; they do not prove that the
+positive conditions suffice. All rules and five complete declarations remain
+unchanged. The all-traces recovery-secrecy query is still unproved. Independent
+instances do not model shared-device journals, and these results do not close the
 construction-specific recovery argument required above.
