@@ -5380,8 +5380,12 @@ still allowed. Missing dependencies, deleted/changed queries and added snapshot
 restrictions are rejected. A single-identity-disclosure witness also replays.
 This closes the protected-state, ideal-primitive, single-exchange symbolic query.
 Concrete cryptographic security, shared-device/multi-epoch recovery and SDK
-refinement remain open. The certificate is not yet wired into an automated release
-CI gate, and no runtime or canonical bare-model code changes in this checkpoint.
+refinement remain open. The subsequent
+[bounded CI replay gate](../artifact/continuity_recovery_proof.py) checks the
+canonical-model/certificate byte pins, all 20 universal results and the three
+separate existential witnesses. It runs in the existing `tamarin-proof` job and
+retains its terminal results; hosted CI success still requires an actual completed
+run. No runtime or canonical bare-model code changes in these checkpoints.
 
 The [current-source Rust CodeQL terminal record](../research/sdk-alpha1/evidence/20261015-codeql-terminal-timeout/README.md)
 supersedes its earlier running status: run `38692152632` fails Rust Analyze at

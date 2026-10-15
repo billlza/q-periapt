@@ -2679,6 +2679,18 @@ jobs:
           MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \
             make -C formal/tamarin TAMARIN=tamarin-prover \
               DERIVCHECK_TIMEOUT=60 prove
+      - name: Replay Continuity single-exchange recovery and disclosure proofs
+        timeout-minutes: 35
+        run: |
+          sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+            --output target/continuity-recovery-proof
+      - name: Retain Continuity recovery proof results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: continuity-recovery-proof
+          path: target/continuity-recovery-proof
+          if-no-files-found: error
 
   # Second, independent symbolic prover (ProVerif) for the same handshake — assurance
   # diversity. The security events + queries are presence-gated, and the ProVerif

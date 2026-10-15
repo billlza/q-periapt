@@ -3,7 +3,7 @@
 Status: **the original positive recovery-secrecy query is verified through a
 20-property dependency group.** Generated-key provenance, honest execution and
 two disclosure witnesses retain their separate checked evidence. This is a
-single-exchange symbolic result, not a release proof gate; the full construction,
+single-exchange symbolic result; its CI replay does not qualify the full construction,
 shared-device lifecycle, computational argument and external review remain open.
 
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
@@ -161,12 +161,38 @@ from passing only because the model also disclosed a later traffic root.
 
 ## Reproduction
 
-For the positive query, extract `proof/final-positive-53-proof.spthy` from the
+The repository CI `tamarin-proof` job runs the bounded
+[`continuity_recovery_proof.py`](../../artifact/continuity_recovery_proof.py)
+gate with the same pinned Tamarin 1.12.0 / Maude 3.5.1 toolchain as the existing
+handshake and migration checks:
+
+```sh
+sh artifact/python-run.sh artifact/continuity_recovery_proof.py \
+  --output target/continuity-recovery-proof
+```
+
+The output directory must be fresh. The gate checks the canonical model and
+both certificate digests against the reviewed checkpoint, then replays the
+20-property group and the three witnesses in separate fresh prover processes,
+without `--prove`. Each process has a 900-second deadline and 4 MiB limits on
+each standard stream. Heap limits are 12 GiB for the positive group and 2 GiB
+for the witnesses. Every required verdict, trace quantifier and inventory entry
+must match; a zero exit code alone cannot pass. Results and checked certificates
+are retained as the `continuity-recovery-proof` CI artifact.
+
+The exact byte pins deliberately reject source edits, including deleted queries,
+stronger secrecy antecedents and new restrictions. Updating them requires a new
+reviewed checkpoint that re-establishes the original query declarations and the
+observer-erasure relationship; a hash update alone is not a new security argument.
+The gate's unit tests exercise these rejection paths using retained real terminal
+output. Hosted Linux replay remains a separate observation from local macOS
+replay; wiring this command into CI does not itself establish a passing CI run.
+
+For manual inspection, extract `proof/final-positive-53-proof.spthy` from the
 [positive checkpoint](../sdk-alpha1/evidence/20261015-recovery-positive-symbolic/README.md)
 and replay without `--prove`, using `+RTS -N2 -M12G -s -RTS`. Require every member
 of its 20-property group to be verified; the three original witnesses keep the
-separate reproduction path below. The new certificate is not yet an automated
-release CI gate.
+separate reproduction path below.
 
 Use the pinned Tamarin 1.12.0 and Maude 3.5.1 identities. The checkpoint records
 official macOS arm64 archive URLs, exact SHA-256 values, local extraction and the
