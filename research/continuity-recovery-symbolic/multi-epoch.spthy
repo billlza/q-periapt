@@ -17,13 +17,16 @@ rule Identity_Key:
 rule Storage_Key:
  [ Fr(~wrapping) ] --> [ !StorageKey(~wrapping) ]
 
+/* CounterState observes the counter of every produced SendState. Removing
+   these seven action facts preserves all original executions and queries. */
 rule Setup:
  let parent = h(<'genesis',~sid,context>)
  in
- [ !IdentityKey(sa), !IdentityKey(sb), !StorageKey(wa), !StorageKey(wb)
+ [ !IdentityKey(sa)[no_precomp], !IdentityKey(sb)[no_precomp], !StorageKey(wa)[no_precomp], !StorageKey(wb)[no_precomp]
  , In(context), Fr(~sid), Fr(~old) ]
  --[ Setup(~sid), SessionKeys(~sid,sa,sb), SessionStorage(~sid,wa,wb)
-   , ReadyState(~sid,'A','zero',~old,parent), ReadyState(~sid,'B','zero',~old,parent) ]->
+   , ReadyState(~sid,'A','zero',~old,parent), ReadyState(~sid,'B','zero',~old,parent)
+   , CounterState(~sid,'A','zero','zero'), CounterState(~sid,'B','zero','zero') ]->
  [ !Context(~sid,context), !Signer(~sid,'A',sa), !Signer(~sid,'B',sb)
  , !Pinned(~sid,'A',pk(sa)), !Pinned(~sid,'B',pk(sb))
  , !Wrap(~sid,'A',wa), !Wrap(~sid,'B',wb)
@@ -37,37 +40,37 @@ rule Setup:
  , Out(<~sid,context,~old,pk(sa),pk(sb)>) ]
 
 rule Cut:
- [ CutPermit(s), !Wrap(s,'A',wa), !Wrap(s,'B',wb) ]
+ [ CutPermit(s)[no_precomp], !Wrap(s,'A',wa)[no_precomp], !Wrap(s,'B',wb)[no_precomp] ]
  --[ Cut(s), WrappingKeyLeak(wa), WrappingKeyLeak(wb) ]-> [ Out(<wa,wb>) ]
 
 rule Snapshot:
- [ !Stored(s,role,epoch,phase,revision,plaintext)[no_precomp], !Wrap(s,role,wrapping) ]
+ [ !Stored(s,role,epoch,phase,revision,plaintext)[no_precomp], !Wrap(s,role,wrapping)[no_precomp] ]
  --[ Snapshot(s,role,epoch,revision), CapturedPhase(s,role,epoch,phase) ]->
  [ Out(senc(<'record',s,role,epoch,phase,revision,plaintext>,wrapping)) ]
 
 rule Reveal_Identity:
- [ !Signer(s,role,key) ] --[ IdentityLeak(s,role), IdentityKeyLeak(key) ]-> [ Out(key) ]
+ [ !Signer(s,role,key)[no_precomp] ] --[ IdentityLeak(s,role), IdentityKeyLeak(key) ]-> [ Out(key) ]
 
 rule Snapshot_Signer_File:
- [ !SignerFile(s,role,key), !Wrap(s,role,wrapping) ]
+ [ !SignerFile(s,role,key)[no_precomp], !Wrap(s,role,wrapping)[no_precomp] ]
  --[ IdentityLeak(s,role), IdentityKeyLeak(key), SignerFileCaptured(s,role) ]->
  [ Out(senc(<'signer',s,role,key>,h(<'signing-owner',wrapping>))) ]
 
 rule Reveal_Entropy:
- [ !Entropy(s,epoch,kind,coins) ]
+ [ !Entropy(s,epoch,kind,coins)[no_precomp] ]
  --[ EntropyLeak(s,epoch,kind) ]-> [ Out(coins) ]
 
 rule Key_Reservation_1:
  let epoch = succ(n)
  in
- [ Ready(s,p,n,parent,old,p)[no_precomp], !Wrap(s,p,wrapping), Fr(~key), Fr(~rev) ]
+ [ Ready(s,p,n,parent,old,p)[no_precomp], !Wrap(s,p,wrapping)[no_precomp], Fr(~key), Fr(~rev) ]
  --[ KeyReserved(s,epoch,p), GenerationSecret(s,epoch,~key)
    , RootBefore(s,p,epoch,old,parent), Saved(s,p,epoch,~rev,'1') ]->
  [ Offer1(s,p,n,parent,old,~key), !Entropy(s,epoch,'generation',~key)
  , !Stored(s,p,epoch,'1',~rev,<n,parent,old,~key>) ]
 
 rule Offer_Signing_2:
- [ Offer1(s,p,n,parent,old,key), !Wrap(s,p,wrapping), Fr(~rev) ]
+ [ Offer1(s,p,n,parent,old,key)[no_precomp], !Wrap(s,p,wrapping)[no_precomp], Fr(~rev) ]
  --[ Saved(s,p,succ(n),~rev,'2') ]->
  [ Offer2(s,p,n,parent,old,key)
  , !Stored(s,p,succ(n),'2',~rev,<n,parent,old,key>) ]
@@ -77,8 +80,8 @@ rule Offer_Commit_3:
      body = <'offer',binding,kempk(key)>
      wire = <body,sign(body,signer)>
  in
- [ Offer2(s,p,n,parent,old,key), !Context(s,context), !Signer(s,p,signer)
- , !Wrap(s,p,wrapping), Fr(~rev) ]
+ [ Offer2(s,p,n,parent,old,key)[no_precomp], !Context(s,context)[no_precomp], !Signer(s,p,signer)[no_precomp]
+ , !Wrap(s,p,wrapping)[no_precomp], Fr(~rev) ]
  --[ OfferCommitted(s,succ(n),p), Saved(s,p,succ(n),~rev,'3') ]->
  [ Offer3(s,p,n,parent,old,key,wire)
  , !Stored(s,p,succ(n),'3',~rev,<n,parent,old,key,wire>), Out(wire) ]
@@ -88,8 +91,8 @@ rule Response_Reservation_4:
      body = <'offer',binding,peer>
      wire = <body,sig>
  in
- [ Ready(s,r,n,parent,old,p)[no_precomp], !Peers(s,p,r), !Context(s,context)
- , !Pinned(s,p,vk), !Wrap(s,r,wrapping), In(wire), Fr(~coins), Fr(~rev) ]
+ [ Ready(s,r,n,parent,old,p)[no_precomp], !Peers(s,p,r)[no_precomp], !Context(s,context)[no_precomp]
+ , !Pinned(s,p,vk)[no_precomp], !Wrap(s,r,wrapping)[no_precomp], In(wire), Fr(~coins), Fr(~rev) ]
  --[ Eq(verify(sig,body,vk),true), EncapReserved(s,succ(n),r)
    , EncapsulationSecret(s,succ(n),peer,~coins), RootBefore(s,r,succ(n),old,parent)
    , Saved(s,r,succ(n),~rev,'4') ]->
@@ -102,8 +105,8 @@ rule Response_Compute_5:
      core = <'response',binding,h(offer),kemct(peer,coins)>
      root = h(<'pending-root',old,coins,h(core)>)
  in
- [ Response4(s,r,p,n,parent,old,offer,peer,coins), !Context(s,context)
- , !Wrap(s,r,wrapping), Fr(~rev) ]
+ [ Response4(s,r,p,n,parent,old,offer,peer,coins)[no_precomp], !Context(s,context)[no_precomp]
+ , !Wrap(s,r,wrapping)[no_precomp], Fr(~rev) ]
  --[ ResponseRoot(s,succ(n),r,old,root), Saved(s,r,succ(n),~rev,'5') ]->
  [ Response5(s,r,p,n,parent,old,offer,core,root)
  , !Stored(s,r,succ(n),'5',~rev,<n,parent,old,offer,core,root>) ]
@@ -112,8 +115,8 @@ rule Response_Commit_6:
  let body = <core,h(<'response-confirmation',root,core>)>
      wire = <body,sign(body,signer)>
  in
- [ Response5(s,r,p,n,parent,old,offer,core,root), !Signer(s,r,signer)
- , !Wrap(s,r,wrapping), Fr(~rev) ]
+ [ Response5(s,r,p,n,parent,old,offer,core,root)[no_precomp], !Signer(s,r,signer)[no_precomp]
+ , !Wrap(s,r,wrapping)[no_precomp], Fr(~rev) ]
  --[ ResponseCommitted(s,succ(n),r), Saved(s,r,succ(n),~rev,'6') ]->
  [ Response6(s,r,p,n,parent,old,offer,wire,root)
  , !Stored(s,r,succ(n),'6',~rev,<n,parent,old,offer,wire,root>), Out(wire) ]
@@ -127,11 +130,12 @@ rule Final_Reservation_7:
      final_core = <'final',scope(s,context,n,succ(n),p,parent),h(offer),h(response),closing>
      body = <final_core,h(<'final-confirmation',root,final_core>)>
  in
- [ Offer3(s,p,n,parent,old,key,offer), !Peers(s,p,r), !Context(s,context)
- , !Pinned(s,r,vk), !Wrap(s,p,wrapping), In(response)
- , SendState(s,p,n,old,old_offer,old_response,closing), SendPermit(s,p), Fr(~rev) ]
+ [ Offer3(s,p,n,parent,old,key,offer)[no_precomp], !Peers(s,p,r)[no_precomp], !Context(s,context)[no_precomp]
+ , !Pinned(s,r,vk)[no_precomp], !Wrap(s,p,wrapping)[no_precomp], In(response)
+ , SendState(s,p,n,old,old_offer,old_response,closing)[+,no_precomp], SendPermit(s,p)[no_precomp], Fr(~rev) ]
  --[ Eq(verify(sig,response_body,vk),true), Eq(tag,h(<'response-confirmation',root,core>))
-   , AcceptedRoot(s,succ(n),p,old,root), Saved(s,p,succ(n),~rev,'7') ]->
+   , AcceptedRoot(s,succ(n),p,old,root), Saved(s,p,succ(n),~rev,'7')
+   , CounterState(s,p,n,closing) ]->
  [ Final7(s,p,r,n,parent,old,offer,response,root,body,closing)
  , SendState(s,p,n,old,old_offer,old_response,closing)
  , !Stored(s,p,succ(n),'7',~rev,<n,parent,old,offer,response,root,body>) ]
@@ -139,11 +143,11 @@ rule Final_Reservation_7:
 rule Final_Commit_8:
  let final = <body,sign(body,signer)>
  in
- [ Final7(s,p,r,n,parent,old,offer,response,root,body,closing)
- , SendState(s,p,n,old,old_offer,old_response,closing)
- , !Signer(s,p,signer), !Wrap(s,p,wrapping), Fr(~rev) ]
+ [ Final7(s,p,r,n,parent,old,offer,response,root,body,closing)[no_precomp]
+ , SendState(s,p,n,old,old_offer,old_response,closing)[+,no_precomp]
+ , !Signer(s,p,signer)[no_precomp], !Wrap(s,p,wrapping)[no_precomp], Fr(~rev) ]
  --[ FinalCommitted(s,succ(n),p), EpochInstalled(s,p,succ(n),root)
-   , Saved(s,p,succ(n),~rev,'8') ]->
+   , Saved(s,p,succ(n),~rev,'8'), CounterState(s,p,succ(n),'zero') ]->
  [ Final8(s,p,r,n,parent,offer,response,root,final)
  , SendState(s,p,succ(n),root,offer,response,'zero'), SendPermit(s,p)
  , !ApplicationEpoch(s,succ(n))
@@ -156,11 +160,11 @@ rule Receipt_Reservation_9:
      core = <'receipt',scope(s,context,n,succ(n),r,parent),h(offer),h(response),h(final),closing>
      body = <core,h(<'receipt-confirmation',root,core>)>
  in
- [ Response6(s,r,p,n,parent,old,offer,response,root), !Context(s,context)
- , !Pinned(s,p,vk), !Wrap(s,r,wrapping), In(final)
- , SendState(s,r,n,old,old_offer,old_response,closing), SendPermit(s,r), Fr(~rev) ]
+ [ Response6(s,r,p,n,parent,old,offer,response,root)[no_precomp], !Context(s,context)[no_precomp]
+ , !Pinned(s,p,vk)[no_precomp], !Wrap(s,r,wrapping)[no_precomp], In(final)
+ , SendState(s,r,n,old,old_offer,old_response,closing)[+,no_precomp], SendPermit(s,r)[no_precomp], Fr(~rev) ]
  --[ Eq(verify(sig,final_body,vk),true), Eq(tag,h(<'final-confirmation',root,final_core>))
-   , Saved(s,r,succ(n),~rev,'9') ]->
+   , Saved(s,r,succ(n),~rev,'9'), CounterState(s,r,n,closing) ]->
  [ Receipt9(s,r,p,n,parent,old,offer,response,root,final,body,closing)
  , SendState(s,r,n,old,old_offer,old_response,closing)
  , !Stored(s,r,succ(n),'9',~rev,<n,parent,old,root,offer,response,final,body>) ]
@@ -170,11 +174,12 @@ rule Receipt_Commit_0:
      next_parent = h(<'completed-epoch',offer,response,final,receipt>)
      epoch = succ(n)
  in
- [ Receipt9(s,r,p,n,parent,old,offer,response,root,final,body,closing)
- , SendState(s,r,n,old,old_offer,old_response,closing)
- , !Signer(s,r,signer), !Wrap(s,r,wrapping), Fr(~rev) ]
+ [ Receipt9(s,r,p,n,parent,old,offer,response,root,final,body,closing)[no_precomp]
+ , SendState(s,r,n,old,old_offer,old_response,closing)[+,no_precomp]
+ , !Signer(s,r,signer)[no_precomp], !Wrap(s,r,wrapping)[no_precomp], Fr(~rev) ]
  --[ Confirmed(s,r,epoch,root,next_parent), EpochInstalled(s,r,epoch,root)
-   , ReadyState(s,r,epoch,root,next_parent), Saved(s,r,epoch,~rev,'0') ]->
+   , ReadyState(s,r,epoch,root,next_parent), Saved(s,r,epoch,~rev,'0')
+   , CounterState(s,r,epoch,'zero') ]->
  [ Ready(s,r,epoch,next_parent,root,r)
  , SendState(s,r,epoch,root,offer,response,'zero'), SendPermit(s,r)
  , !ApplicationEpoch(s,epoch)
@@ -187,8 +192,8 @@ rule Receipt_Accept_0:
      next_parent = h(<'completed-epoch',offer,response,final,receipt>)
      epoch = succ(n)
  in
- [ Final8(s,p,r,n,parent,offer,response,root,final), !Context(s,context)
- , !Pinned(s,r,vk), !Wrap(s,p,wrapping), In(receipt), Fr(~rev) ]
+ [ Final8(s,p,r,n,parent,offer,response,root,final)[no_precomp], !Context(s,context)[no_precomp]
+ , !Pinned(s,r,vk)[no_precomp], !Wrap(s,p,wrapping)[no_precomp], In(receipt), Fr(~rev) ]
  --[ Eq(verify(sig,body,vk),true), Eq(tag,h(<'receipt-confirmation',root,core>))
    , Confirmed(s,p,epoch,root,next_parent), ReadyState(s,p,epoch,root,next_parent)
    , Saved(s,p,epoch,~rev,'0') ]->
@@ -202,14 +207,39 @@ rule Application_Message:
  let traffic = h(<'traffic',s,context,epoch,role,root,h(<'traffic-transcript',offer,response>)>)
      key = h(<'message-key',traffic,counter>)
  in
- [ SendState(s,role,epoch,root,offer,response,counter), SendPermit(s,role)
- , !ApplicationEpoch(s,epoch), !Context(s,context), Fr(~payload) ]
- --[ Message(s,epoch,role,key,~payload), TrafficInput(s,epoch,role,root,key) ]->
+ [ SendState(s,role,epoch,root,offer,response,counter)[+,no_precomp], SendPermit(s,role)[no_precomp]
+ , !ApplicationEpoch(s,epoch)[no_precomp], !Context(s,context)[no_precomp], Fr(~payload) ]
+ --[ Message(s,epoch,role,key,~payload), TrafficInput(s,epoch,role,root,key), CounterState(s,role,epoch,succ(counter)) ]->
  [ SendState(s,role,epoch,root,offer,response,succ(counter)), SendPermit(s,role)
  , Out(<s,epoch,role,counter,senc(~payload,key)>) ]
 
 restriction Equality:
  "All x y #i. Eq(x,y)@i ==> x = y"
+
+/* The two counter-constructor properties have complete checked proofs.
+   The bare declarations carry no reusable assumptions; the captured joint
+   certificate retains and checks the full dependency proof explicitly. */
+lemma produced_counter_has_public_constructor [use_induction]:
+ "All s role epoch counter #produced.
+    CounterState(s,role,epoch,counter)@produced
+    ==> counter = 'zero' | (Ex previous. counter = succ(previous))"
+
+lemma application_counter_has_public_constructor [use_induction]:
+ "All s epoch role root counter context offer response payload #sent.
+    Message(s,epoch,role,
+      h(<'message-key',
+         h(<'traffic',s,context,epoch,role,root,h(<'traffic-transcript',offer,response>)>),
+         counter>),payload)@sent
+    ==> counter = 'zero' | (Ex previous. counter = succ(previous))"
+
+/* Additional derivation-origin obligation; this remains unproved. */
+lemma epoch_generation_secret_derivation_origin [use_induction]:
+ "All s epoch key #created #known.
+    GenerationSecret(s,epoch,key)@created & KU(key)@known
+    ==> (Ex #leaked. EntropyLeak(s,epoch,'generation')@leaked)
+      | (Ex role #captured. CapturedPhase(s,role,epoch,'1')@captured)
+      | (Ex role #captured. CapturedPhase(s,role,epoch,'2')@captured)
+      | (Ex role #captured. CapturedPhase(s,role,epoch,'3')@captured)"
 
 lemma two_rounds_recover_with_exposed_ancestor_is_executable:
  exists-trace
