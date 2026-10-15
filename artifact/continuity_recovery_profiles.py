@@ -16,6 +16,7 @@ class Certificate:
     all_traces: tuple[str, ...]
     exists_traces: tuple[str, ...]
     verified: tuple[str, ...]
+    compose_proofs: bool = False
 
     def expected_results(self) -> dict[str, tuple[str, str]]:
         return {
@@ -168,6 +169,7 @@ SHARED_STORAGE = RecoveryProfile(
             "experiments/final-12-proof.spthy",
             "0f0a04ec5764fec3017b3a04e0b40debce99b39f84dbba592e9c05048b2c5da6",
             12, 1, KEY_SCOPED_PROPERTIES, (*RECORD_WITNESSES, CROSS_ROLE_WITNESS), KEY_SCOPED_PROPERTIES,
+            compose_proofs=True,
         ),
         "attack": Certificate(
             "prior/sibling-replay-07-proof.spthy",

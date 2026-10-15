@@ -10,6 +10,7 @@ computational security, multi-epoch recovery or correspondence with the SDK.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import hashlib
 import io
 import json
@@ -21,6 +22,7 @@ import time
 import zipfile
 
 import continuity_recovery_profiles as profiles
+import continuity_recovery_composition as composition
 from bounded_process import BoundedProcessError, capture_output
 from evidence_io import EvidenceIOError, fresh_output_directory, read_regular_snapshot
 from formal_toolchain_contract import FormalToolchainContractError, verify_installed
@@ -79,8 +81,8 @@ def load_inputs(root: Path, profile: str = "independent") -> dict[str, bytes]:
     return inputs
 
 
-def verify_summary(stdout: bytes, label: str, source: Path, output: Path,
-                   profile: str = "independent") -> dict[str, int]:
+def _verify_summary(stdout: bytes, source: Path, output: Path,
+                    expected: dict[str, tuple[str, str]]) -> dict[str, int]:
     """Accept exactly one terminal inventory, including its non-premise placeholders."""
     text = stdout.decode("utf-8", errors="strict")
     separator = "=" * 78
@@ -102,8 +104,13 @@ def verify_summary(stdout: bytes, label: str, source: Path, output: Path,
         require(name not in actual, "duplicate recovery lemma result")
         actual[name] = (mode, status)
         steps[name] = int(count)
-    require(actual == certificate(label, profile).expected_results(), "recovery proof inventory or status differs")
+    require(actual == expected, "recovery proof inventory or status differs")
     return {name: steps[name] for name, (_mode, status) in actual.items() if status == "verified"}
+
+
+def verify_summary(stdout: bytes, label: str, source: Path, output: Path,
+                   profile: str = "independent") -> dict[str, int]:
+    return _verify_summary(stdout, source, output, certificate(label, profile).expected_results())
 
 
 def write_json(path: Path, value: object) -> None:
@@ -121,9 +128,8 @@ def prover_environment() -> dict[str, str]:
     return {"PATH": os.environ["PATH"], "LANG": encoding_locale, "LC_ALL": encoding_locale}
 
 
-def replay(label: str, data: bytes, directory: Path, environment: dict[str, str],
-           profile: str = "independent") -> dict:
-    case = certificate(label, profile)
+def _replay_once(label: str, data: bytes, directory: Path, environment: dict[str, str],
+                 case: profiles.Certificate) -> dict:
     source = directory / f"{label}-input.spthy"
     output = directory / f"{label}-checked.spthy"
     with source.open("xb") as stream:
@@ -148,7 +154,7 @@ def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]
     stderr = result.stderr.decode("utf-8", errors="strict")
     require(re.search(r"(?im)^\s*(?:warning|error|fatal)\b", stderr) is None,
             f"{label} emitted a diagnostic")
-    verified = verify_summary(result.stdout, label, source, output, profile)
+    verified = _verify_summary(result.stdout, source, output, case.expected_results())
     checked = read_regular_snapshot(output, maximum=MAXIMUM_BYTES, label="checked certificate")
     require(checked.size > 0, "empty checked certificate")
     source_after = read_regular_snapshot(source, maximum=MAXIMUM_BYTES, label="replayed input")
@@ -157,11 +163,48 @@ def replay(label: str, data: bytes, directory: Path, environment: dict[str, str]
             "returncode": result.returncode, "certificate_sha256": checked.sha256}
 
 
+def replay(label: str, data: bytes, directory: Path, environment: dict[str, str],
+           profile: str = "independent") -> dict:
+    case = certificate(label, profile)
+    if not case.compose_proofs:
+        return _replay_once(label, data, directory, environment, case)
+    nodes = composition.plan(data, case)
+    parts = directory / label
+    parts.mkdir(mode=0o700)
+    started = time.monotonic()
+    records = {}
+    for index, node in enumerate(nodes):
+        part_label = f"node-{index:02d}"
+        print(f"Replaying {label} property {index + 1}/{len(nodes)}: {node.name}", flush=True)
+        conditional = replace(case, sha256=node.sha256, verified=(node.name,), compose_proofs=False)
+        result = _replay_once(part_label, node.data, parts, environment, conditional)
+        record = {"source_certificate_sha256": case.sha256, "input_sha256": node.sha256,
+                  "dependencies": list(node.dependencies), "result": result}
+        write_json(parts / f"{part_label}-result.json", record)
+        records[node.name] = record
+    verified = composition.combine(data, records, case)
+    # Recheck earlier parts too, after the last subprocess has completed.
+    for index, node in enumerate(nodes):
+        for suffix, expected in (("input", node.sha256),
+                                 ("checked", records[node.name]["result"]["certificate_sha256"])):
+            snapshot = read_regular_snapshot(parts / f"node-{index:02d}-{suffix}.spthy",
+                                             maximum=MAXIMUM_BYTES, label="composition part")
+            checked_bytes(snapshot.data, expected, "composition part")
+    manifest = parts / "COMPOSITION.json"
+    write_json(manifest, {"source_certificate_sha256": case.sha256,
+                          "verified": verified, "nodes": records})
+    return {"verified": verified, "elapsed_seconds": time.monotonic() - started,
+            "returncode": 0, "verification_mode": "acyclic-composition",
+            "composition_sha256": read_regular_snapshot(manifest, maximum=MAXIMUM_BYTES,
+                                                          label="composition manifest").sha256}
+
+
 def source_digests() -> dict[str, str]:
     return {
         name: read_regular_snapshot(path, maximum=MAXIMUM_BYTES, label=name).sha256
         for name, path in (("gate_sha256", Path(__file__)),
-                           ("profile_catalog_sha256", Path(profiles.__file__)))
+                           ("profile_catalog_sha256", Path(profiles.__file__)),
+                           ("composition_checker_sha256", Path(composition.__file__)))
     }
 
 
@@ -180,12 +223,12 @@ def run(root: Path, destination: Path, profile: str = "independent") -> None:
         verify_installed("tamarin")
         environment = prover_environment()
         for label, data in inputs.items():
-            print(f"Replaying recovery {profile}/{label} certificate (deadline {TIMEOUT_SECONDS}s)", flush=True)
+            print(f"Replaying recovery {profile}/{label} certificate (per-process deadline {TIMEOUT_SECONDS}s)", flush=True)
             receipt["groups"][label] = replay(label, data, directory, environment, profile)
         require(load_inputs(root, profile) == inputs, "recovery inputs changed during replay")
         require(source_digests() == sources, "recovery checker changed during replay")
         receipt["accepted"] = True
-    except (RecoveryProofError, BoundedProcessError, FormalToolchainContractError,
+    except (RecoveryProofError, composition.CompositionError, BoundedProcessError, FormalToolchainContractError,
             EvidenceIOError, OSError, UnicodeError, zipfile.BadZipFile) as exc:
         receipt["error"] = str(exc)
         write_json(directory / "RESULT.json", receipt)
@@ -205,7 +248,7 @@ def main(argv: list[str]) -> int:
     try:
         run(ROOT, args.output, args.profile)
         return 0
-    except (RecoveryProofError, BoundedProcessError, FormalToolchainContractError,
+    except (RecoveryProofError, composition.CompositionError, BoundedProcessError, FormalToolchainContractError,
             EvidenceIOError, OSError, UnicodeError, zipfile.BadZipFile) as exc:
         print(f"error: continuity recovery proof: {exc}", file=sys.stderr)
         return 1

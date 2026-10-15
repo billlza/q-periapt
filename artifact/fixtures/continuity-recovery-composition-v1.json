@@ -1,0 +1,303 @@
+{
+  "nodes": {
+    "accepted_root_has_authenticated_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak"
+      ],
+      "sha256": "2bb97487d812d503433659a0c29d9227d3fb20c352fb714303af753073b95d48",
+      "steps": 371
+    },
+    "accepted_root_has_origin_or_prior_derivation": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session"
+      ],
+      "sha256": "32fd5dfd04e66b19b692537987663fb5fe9c3410947444feb9eb778ca89b8c54",
+      "steps": 8
+    },
+    "computed_root_derivation_requires_key_or_session_leak": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot"
+      ],
+      "sha256": "4c0d22e9c44bea0099b3516c8d3593cb15513ae0d5dc6fe063aaf6f728fa3152",
+      "steps": 22
+    },
+    "computed_root_identifies_session": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root"
+      ],
+      "sha256": "d6071eb7da693d6b9a4353146dab5bfe5b4d0b55b26eb086ee32d87a0d7fb319",
+      "steps": 2
+    },
+    "encapsulation_derivation_requires_key_or_session_leak": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation"
+      ],
+      "sha256": "a08e079508331fc490af1af247dfeac2e4e7fde11e1b58501348ed54ab97718d",
+      "steps": 242
+    },
+    "encapsulation_secret_requires_key_or_session_leak": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_key_or_session_leak",
+        "retained_record_has_saved_origin",
+        "stored_records_follow_fresh_reservations"
+      ],
+      "sha256": "1bbd73fe738120de325ad955f21fcb508a260a3f3189857aff1a3279e8344448",
+      "steps": 6
+    },
+    "encapsulation_uses_authenticated_generation": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin"
+      ],
+      "sha256": "93e90f44d9e0aee7a65491c89c6e4f0578d0c818655634a42aa7065d0c1f533d",
+      "steps": 194
+    },
+    "generation_secret_derivation_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin"
+      ],
+      "sha256": "3bb190e91dcf6326b4f47dfe6c131ea57f70ebf96667be62c2df689b59e5c78f",
+      "steps": 219
+    },
+    "generation_secret_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin"
+      ],
+      "sha256": "e94f7fe7ac051cd699db67d902e7b30d46ac0951a4ceb80c44edeebc76e5dbde",
+      "steps": 7
+    },
+    "key_scoped_reservations_recover_symbolic_message_secrecy": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_key_or_session_leak",
+        "retained_record_has_saved_origin",
+        "stored_records_follow_fresh_reservations",
+        "encapsulation_secret_requires_key_or_session_leak"
+      ],
+      "sha256": "a4d88b8c42ff7af026ca1ddd3dd6910cb8440f281b57599d87abf931ed6b7060",
+      "steps": 8
+    },
+    "message_derivation_requires_key_or_session_leak": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "computed_root_derivation_requires_key_or_session_leak"
+      ],
+      "sha256": "b7fc6c5af324cbe724678916238d505ee853e8893d46282f73fabfe3b562fbac",
+      "steps": 17
+    },
+    "message_derivation_requires_prior_traffic_key": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root"
+      ],
+      "sha256": "3f22d1546fe471ec57cf0d362a74f3088f28a041642b48270b4019be0c6aad81",
+      "steps": 416
+    },
+    "message_root_has_authenticated_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin"
+      ],
+      "sha256": "9359ccb3b41539992691aa7fa84c2cdc3253b9f63208a422aef478f61e9d21ff",
+      "steps": 10
+    },
+    "response_confirmation_has_origin_or_prior_root": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key"
+      ],
+      "sha256": "bcdf2b07aa6b11be43e6e99983abe799a70cbc6b4982cbf49d47a98aabefd40a",
+      "steps": 174
+    },
+    "retained_record_has_saved_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_key_or_session_leak"
+      ],
+      "sha256": "6efea06b62f2ac8ad974d54ef735d347cbeac3202ce8dc73f17b31a81150d380",
+      "steps": 16
+    },
+    "root_constructor_requires_prior_coins_or_snapshot": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin"
+      ],
+      "sha256": "5eba4a19805f60f423bf81daa12796d07da2ee6e5f689a3a4755caf8700f5999",
+      "steps": 177
+    },
+    "signing_secret_derivation_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation"
+      ],
+      "sha256": "ef754baff62269f460ec4418861791b823eba079cdad20dc694ed322b25ae3cd",
+      "steps": 215
+    },
+    "signing_secret_origin": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin"
+      ],
+      "sha256": "7454bfaf08fc53362a3f127663da963890be856ce575f6d68d8cfbd35e1fe1ea",
+      "steps": 3
+    },
+    "stored_records_follow_fresh_reservations": {
+      "dependencies": [
+        "traffic_key_derivation_requires_prior_root",
+        "message_derivation_requires_prior_traffic_key",
+        "response_confirmation_has_origin_or_prior_root",
+        "computed_root_identifies_session",
+        "accepted_root_has_origin_or_prior_derivation",
+        "signing_secret_derivation_origin",
+        "generation_secret_derivation_origin",
+        "signing_secret_origin",
+        "encapsulation_uses_authenticated_generation",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "accepted_root_has_authenticated_origin",
+        "message_root_has_authenticated_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_key_or_session_leak",
+        "retained_record_has_saved_origin"
+      ],
+      "sha256": "4c899e2bf19d4bd9d824dd2473bd5f41dd82b9ecd75ba102fcb1d9c5c30460ac",
+      "steps": 85
+    },
+    "traffic_key_derivation_requires_prior_root": {
+      "dependencies": [],
+      "sha256": "561712ce68a125ba1c3e0bbc6feac3a7580e57faa7e978e0e01b180a12e1dfc4",
+      "steps": 169
+    }
+  },
+  "source_certificate_sha256": "0f0a04ec5764fec3017b3a04e0b40debce99b39f84dbba592e9c05048b2c5da6"
+}

@@ -287,19 +287,37 @@ Each output directory must be fresh. The independent profile verifies its
 the key-scoped profile verifies its own 20-property group and the attack and
 normal-execution witnesses in three processes. The shared-storage profile checks
 its 20-property group, sibling-wrapping-key attack and combined identity/storage
-owner execution witness in three processes. No process uses `--prove`.
-Each has a 900-second deadline and 4 MiB limits on both standard streams and
+owner execution witness in 22 processes: one per universal property and one per
+witness. No process uses `--prove`.
+Each process has a 900-second deadline and 4 MiB limits on both standard streams and
 certificate files. Positive groups use a 12 GiB heap; independent witnesses use
 2 GiB, and the other witnesses use 6 GiB. The key-scoped and shared-storage
-profiles use one thread, matching their accepted complete replays.
+profiles use one thread. The existing 50-minute shared-storage CI step bounds
+the aggregate work; the positive group no longer has a single 900-second process
+budget. A timeout still fails the profile and does not skip a property.
+
+The shared-storage positive certificate uses
+[`continuity_recovery_composition.py`](../../artifact/continuity_recovery_composition.py).
+Each part preserves the pinned operational theory, every complete declaration,
+their source order and the selected original proof body. Other proof bodies are
+explicitly incomplete. An individual part is conditional because Tamarin permits
+earlier reuse declarations as premises without checking their proof status.
+The gate reconstructs those dependencies from the original pinned certificate,
+verifies every original universal property, and requires each dependency to have
+verified earlier in that same source order. This closes the conjunction by
+induction over an acyclic proof graph. Missing properties, incomplete helpers,
+different source/input identities and cycles are rejected. Global source lemmas
+are not supported by this composition and cause failure. The final manifest and
+all checked parts are retained; a single successful part never qualifies the
+group. The witness checks and model/archive/certificate pins are unchanged.
 
 [`continuity_recovery_profiles.py`](../../artifact/continuity_recovery_profiles.py)
 keeps each model, archive, certificate and complete verdict inventory together.
 The archive-read limits are 4 MiB for independent/shared-storage and 8 MiB for
 key-scoped; only the named small certificates are read, and routine CI does not
 export diagnostic graphs. Every
-required verdict, trace quantifier and inventory entry must match. The checker
-and profile-catalog digests are recorded and rechecked after replay. Results and
+required verdict, trace quantifier and inventory entry must match. The checker,
+composition helper and profile-catalog digests are recorded and rechecked after replay. Results and
 checked certificates are retained in separate profile directories inside the
 `continuity-recovery-proof` CI artifact.
 
