@@ -206,7 +206,9 @@ jobs:
           languages: rust
       - name: Compile and extract the actual target
         id: rust_prepare
-        timeout-minutes: 35
+        # Include compilation/extraction as well as the 30-minute Metrics cap.
+        # The enclosing job retains its independent six-hour deadline.
+        timeout-minutes: 55
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
         run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
