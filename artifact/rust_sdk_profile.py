@@ -35,6 +35,7 @@ from rust_publish_contract import (
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.2.0"
 PROFILE = "sdk-020"
+REPOSITORY = "https://github.com/billlza/q-periapt"
 # Normal, optional and target-specific production edges must point backwards.
 COHORT = (
     "q-periapt-mlkem-native-sys", "q-periapt-core", "q-periapt-kem", "q-periapt-sig",
@@ -134,8 +135,12 @@ def classify(metadata: dict) -> dict:
             require(package["publish"] == [], f"research/application crate must remain private: {name}")
         else:
             require(package["publish"] in (None, ["crates-io"]), f"product crate registry differs: {name}")
-            require(all(package.get(field) for field in ("license", "repository", "homepage", "readme")),
+            require(all(package.get(field) for field in ("license", "repository", "readme")),
                     f"product crate metadata incomplete: {name}")
+            require(package["repository"] == REPOSITORY, f"product repository differs: {name}")
+            # This cohort has no separate project website. Current Cargo warns
+            # when homepage duplicates repository; require the exact metadata.
+            require(package.get("homepage") is None, f"product homepage differs: {name}")
             require(package["license"] == "Apache-2.0 OR MIT", f"product license differs: {name}")
         for dependency in package["dependencies"]:
             other = dependency["name"]

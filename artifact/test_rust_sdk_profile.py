@@ -20,8 +20,8 @@ def metadata():
     for name in (*sdk.COHORT, *sorted(sdk.PRIVATE)):
         packages.append({"id": name, "name": name, "version": sdk.VERSION,
             "publish": [] if name in sdk.PRIVATE else ["crates-io"],
-            "license": "Apache-2.0 OR MIT", "repository": "https://example.invalid/repo",
-            "homepage": "https://example.invalid/repo", "readme": "README.md", "dependencies": []})
+            "license": "Apache-2.0 OR MIT", "repository": "https://github.com/billlza/q-periapt",
+            "homepage": None, "readme": "README.md", "dependencies": []})
     return {"workspace_members": [p["id"] for p in packages], "packages": packages}
 
 
@@ -110,7 +110,9 @@ class RustSDKProfileTests(unittest.TestCase):
 
     def test_workspace_metadata_and_publication_scope_fail_closed(self):
         original = metadata()
-        for key, value in (("version", "0.1.5"), ("publish", []), ("homepage", None), ("license", "unknown")):
+        for key, value in (("version", "0.1.5"), ("publish", []), ("repository", None),
+                           ("repository", "https://example.invalid/repo"),
+                           ("readme", None), ("license", "unknown")):
             changed = copy.deepcopy(original)
             changed["packages"][0][key] = value
             with self.subTest(key=key), self.assertRaises(ValueError):
@@ -121,6 +123,16 @@ class RustSDKProfileTests(unittest.TestCase):
             sdk.classify(changed)
         with self.assertRaisesRegex(ValueError, "classification differs"):
             sdk.classify({"packages": original["packages"][:-1], "workspace_members": original["workspace_members"]})
+
+    def test_current_metadata_has_one_repository_location_and_no_invented_homepage(self):
+        original = metadata()
+        packages = sdk.classify(original)
+        self.assertTrue(all(packages[name]["homepage"] is None for name in sdk.COHORT))
+        for homepage in ("", "https://github.com/billlza/q-periapt", "https://example.invalid/site"):
+            changed = copy.deepcopy(original)
+            changed["packages"][0]["homepage"] = homepage
+            with self.subTest(homepage=homepage), self.assertRaisesRegex(ValueError, "homepage"):
+                sdk.classify(changed)
 
     def test_optional_and_target_dependencies_also_constrain_publication_order(self):
         original = metadata()
