@@ -116,12 +116,13 @@ def check_tree(root: Path, state: dict) -> None:
     verify_owned(root, state["owned"])
 
 
-def prepare(root: Path, output: Path, toolchains: list[str]) -> None:
+def prepare(root: Path, output: Path, toolchains: list[str], *, environment=None) -> None:
     sdk.require(toolchains and len(toolchains) == len(set(toolchains))
                 and set(toolchains) <= {"1.97.0", "1.98.1"}, "unexpected analysis toolchain")
     output.mkdir(mode=0o700)
     state = {"commit": git_commit(root), "owned": {}, "consumers": {}, "prepared": False}
-    environment = dict(os.environ, RUSTUP_AUTO_INSTALL="0", RUSTFLAGS="-D warnings",
+    environment = dict(os.environ if environment is None else environment,
+                       RUSTUP_AUTO_INSTALL="0", RUSTFLAGS="-D warnings",
                        CARGO_TARGET_DIR=str(output / "build"))
 
     def remember(path):

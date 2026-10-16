@@ -70,30 +70,41 @@ def parse_macro_calls(rows: Sequence[Sequence[object]]) -> tuple[MacroCall, ...]
     return tuple(calls)
 
 
+def validate_active_macro_coverage(profile: MacroProfile) -> None:
+    """Reject gaps in this target before queries; inactive sources need a peer later."""
+    if not isinstance(profile.target, str) or not profile.target:
+        raise CodeQLRustQualityError("macro coverage requires a compilation target")
+    source = dict(profile.source_sha256)
+    if not source or any(not isinstance(value, str)
+                         or re.fullmatch(r"[0-9a-f]{64}", value) is None
+                         for value in source.values()):
+        raise CodeQLRustQualityError("macro coverage requires source byte identities")
+    if not profile.compiled_sources or not profile.compiled_sources <= source.keys():
+        raise CodeQLRustQualityError("compiled source inventory is empty or outside the source")
+    if any(call.path not in source for call in profile.calls):
+        raise CodeQLRustQualityError("macro census contains untracked source")
+    if (type(profile.source_macro_count) is not int or profile.source_macro_count <= 0
+            or len(profile.calls) != profile.source_macro_count):
+        raise CodeQLRustQualityError("macro entity count differs from the raw metric")
+    if (type(profile.unresolved_macro_count) is not int
+            or sum(not call.expanded for call in profile.calls) != profile.unresolved_macro_count):
+        raise CodeQLRustQualityError("unresolved macro count differs from the raw metric")
+    failures = [call.site for call in profile.calls if not call.expanded
+                and call.context == "code" and call.path in profile.compiled_sources]
+    if failures:
+        raise CodeQLRustQualityError(f"active macro has no expansion in {profile.target}: {failures[:8]}")
+
+
 def validate_macro_profiles(profiles: Sequence[MacroProfile]) -> dict[str, dict[str, int]]:
     if (len(profiles) < 2 or any(not isinstance(p.target, str) or not p.target
                                  for p in profiles)
             or len({p.target for p in profiles}) != len(profiles)):
         raise CodeQLRustQualityError("macro coverage requires distinct compilation targets")
     source = dict(profiles[0].source_sha256)
-    if not source or any(not isinstance(value, str)
-                         or re.fullmatch(r"[0-9a-f]{64}", value) is None
-                         for value in source.values()):
-        raise CodeQLRustQualityError("macro coverage requires source byte identities")
     for profile in profiles:
         if dict(profile.source_sha256) != source:
             raise CodeQLRustQualityError("macro profiles do not use the same source bytes")
-        if not profile.compiled_sources or not profile.compiled_sources <= source.keys():
-            raise CodeQLRustQualityError("compiled source inventory is empty or outside the source")
-        if any(call.path not in source for call in profile.calls):
-            raise CodeQLRustQualityError("macro census contains untracked source")
-        if (type(profile.source_macro_count) is not int or profile.source_macro_count <= 0
-                or len(profile.calls) != profile.source_macro_count):
-            raise CodeQLRustQualityError("macro entity count differs from the raw metric")
-        if (type(profile.unresolved_macro_count) is not int
-                or sum(not call.expanded for call in profile.calls)
-                != profile.unresolved_macro_count):
-            raise CodeQLRustQualityError("unresolved macro count differs from the raw metric")
+        validate_active_macro_coverage(profile)
 
     covered = {profile.target: {call.key for call in profile.calls
                                if call.expanded or (call.context == "export_name"

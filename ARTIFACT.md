@@ -37,18 +37,38 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 
 ## Rust CodeQL analysis boundary
 
-The Rust CodeQL lane uses the CodeQL 2.27.1 bundle linked to the exact pinned CodeQL Action
-commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
-with a Rust 1.97.0 analysis sysroot. The 2.27.1 extractor's process-macro
-artifacts identify Rust 1.97.0; retaining the former 1.94.0 macro server produced
-an ABI mismatch and left seven tracked sources incompletely extracted. Align the
-analysis sysroot with those artifacts and require fresh complete extraction. This is a compatibility analysis configuration, not native Rust 1.98.1
-CodeQL analysis. Before CodeQL initialization, the same commit must pass
-`cargo check --workspace --all-targets --locked` under both Rust 1.97.0 and Rust 1.98.1 with
-warnings denied, repository-external target directories, and no repository-local `target` entry.
+Rust analysis now has separate native Linux and `wasm32-unknown-unknown` jobs.
+Both select the explicit CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot, compile the
+actual target with warnings denied, and extract the complete tracked Rust source
+inventory. Per-job Cargo homes and build directories stay outside the checkout.
+The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
+request, preserving host build dependencies; compilation arguments, cfg values,
+standard streams and exit codes remain unchanged.
 
-The Rust job has a 240-minute bound, with a 180-minute limit on the upstream Analyze
-step so checkout verification, the separate quality gate and diagnostic retention can finish.
+Each profile has a 360-minute job bound and a 300-minute full-suite process bound.
+Extraction and active-source quality are checked before running all 39 pinned
+security-extended queries, including full `SummaryStats`. Query text hashes are
+fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result is
+required. Completed SARIF and quality records are retained without upload by the
+analysis jobs. A separate job verifies both profiles before publication. Reruns
+may use a completed profile from an earlier attempt of the same workflow run and
+source commit; a newer incomplete profile never falls back to an older result.
+The selected attempts remain explicit in the paired receipt.
+
+The [target coverage qualification](research/sdk-alpha1/evidence/20261016-codeql-target-coverage/README.md)
+contains real compiler and CodeQL controls, including a valid compiler-only
+export-name macro and an active macro failure that a successful peer cannot hide.
+These controls do not establish whole-repository query completion or a fix for
+the previous hosted `SummaryStats` timeout. The current hosted runs remain required.
+The other five language lanes retain their pinned linked bundle configuration.
+
+Earlier Rust lanes used CodeQL 2.27.1 with a Rust 1.97.0 analysis sysroot. Keeping
+a 1.94.0 macro server with that extractor produced an ABI mismatch and incomplete
+source extraction. Compatibility and canonical compiles, along with the resource
+controls below, were evidence for those earlier configurations.
+
+Earlier Rust jobs used a 240-minute bound and a 180-minute upstream Analyze limit
+to reserve time for checkout verification, quality checks and diagnostic retention.
 The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
 52-minute evaluation. Later full analyses reached the 90-minute step limit while still
 evaluating global taint flow. A [frozen-database resource control](https://github.com/billlza/q-periapt/actions/runs/37647177049)
@@ -80,7 +100,7 @@ still present. This does not justify a production configuration change. The
 [retained comparison](research/sdk-alpha1/evidence/20261011-codeql-memory-control/CHECKS.json)
 records the exact inputs, query hashes, failure receipts and limits of the comparison.
 
-The workflow is now named `CodeQL evaluator control`. Its latest comparison kept
+The workflow named `CodeQL evaluator control` also ran a comparison that kept
 the baseline allocation and changed only `--expect-discarded-cache` to
 `--no-expect-discarded-cache`. The hypothesis is that retaining reusable
 intermediate results can reduce repeated computation. The original memory profiles
@@ -89,11 +109,11 @@ plans, four threads, 15-minute bound and fresh-result requirement remain unchang
 The [cache comparison](research/sdk-alpha1/evidence/20261014-codeql-cache-control/CHECKS.json)
 timed out in both arms at 900 seconds, again with 38 of 39 queries complete.
 It does not establish a fix for the current 300-minute `SummaryStats` timeout;
-the production configuration remains unchanged. See the
+that experiment did not justify an evaluator configuration change. See the
 [current observation and inventory repair](research/sdk-alpha1/evidence/20261014-codeql-evaluator-control/README.md).
 
-Rust and Swift emit the pinned action's diagnostic artifacts, which can
-include source and a diagnostic database; these are troubleshooting inputs, not quality-gated
+Rust profile jobs retain their own command receipts, database bundles and logs;
+Swift retains the pinned action's diagnostics. These are troubleshooting inputs, not quality-gated
 code-scanning results or release evidence. No query is removed. On source `4fc8412a`,
 all 39 upstream queries completed, but the separate `Metrics.ql` process timed out
 at 300 seconds. An [unchanged-query bundle replay](https://github.com/billlza/q-periapt/actions/runs/37700675470)
@@ -107,27 +127,33 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-693 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
-unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
-format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
-sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
-complete, self-reconciling classification and reported as telemetry rather than required to be
-zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
-produce type-inference telemetry; this is not a claim of complete extractor semantics for that
-generated code. The canonical Rust 1.98.1 all-target compile and the separate WASM Node gate cover
-those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
-budget with a 900-second Metrics deadline and 300-second deadlines for other queries and decoding,
-plus bounded diagnostic output; a resource or
-deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
-upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
-publish results. The quality adapter accepts no environment-selected executable, database, or
-temporary path: it uses the exact Linux CodeQL 2.27.1 toolcache path and workflow database layout,
-rejects unsafe file types, requires the database paths to be current-user-owned and without
-cross-account write permission, and revalidates their open path identities around every query and
-decode.
-The evaluator budget is scoped to the public-repository Rust `ubuntu-latest` lane, currently four
-vCPUs and 16 GB. A runner-label, repository-visibility, or hosted-hardware change requires
-revalidating the fixed budget rather than lowering the quality gate or extending its deadline.
+693 tracked `.rs` files to be successfully extracted. Each profile requires zero
+extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
+inconsistencies, and source format arguments without an expression or data-flow
+node, together with non-vacuous macro and format-argument sentinels. Path and type
+inference consistency categories remain complete, self-reconciling telemetry.
+
+The full macro census preserves entity multiplicity and raw unresolved counts.
+Each profile binds actual compiler source dependencies from the depfiles selected
+by successful Cargo JSON artifacts. An unresolved executable macro in a compiled
+source fails in that profile even if another profile expands it. An inactive source
+requires coverage in a peer that actually compiles the same bytes. A compiler-only
+`export_name` attribute without a CFG node is counted separately; it cannot stand
+in for an executable macro at the same source location. Every profile must use the
+same source hashes and query hashes. The publication job also checks workflow and
+attempt identities, complete query result inventories, SARIF hashes, target
+categories, tool versions, and successful invocations. Raw results and failures
+are retained rather than rewritten to produce zero counts.
+
+The custom queries use four threads and 14,000 MB, with a 900-second Metrics limit
+and 300-second limits for other queries and decoding. Resource failures block
+publication. The fixed-path adapter uses the Linux CodeQL 2.27.2 toolcache path and
+workflow database layout, checks file types, requires current-user-owned database
+paths without cross-account write permission, and revalidates open path identities
+around queries and decoding. The budget is scoped to the Ubuntu 24.04 Rust jobs;
+runner or hardware changes require fresh qualification. Frozen 0.1.x publication
+receipts keep their original analysis categories and are not reinterpreted as
+qualification of this 0.2.0 pipeline.
 The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,
 group/other-writable, or multiply linked, so its owner, write mode, and link count are observed
 runner-image properties rather than gate conditions. Its regular-file type, executable mode, exact

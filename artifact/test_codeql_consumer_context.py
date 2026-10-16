@@ -120,21 +120,15 @@ class ConsumerContextTests(unittest.TestCase):
         self.assertFalse(state["prepared"])
         self.assertTrue(state["cleanup_completed"])
 
-    def test_workflow_keeps_consumer_context_until_analysis_then_checks_pristine_tree(self):
+    def test_workflow_runs_profile_preparation_before_queries_and_publication(self):
         source = (context.ROOT / ".github/workflows/codeql.yml").read_text()
-        before = source.index("- name: Verify Rust CodeQL checkout before initialization")
-        prepare = source.index("- name: Prepare Rust installed-consumer analysis inputs")
-        verify = source.index("- name: Verify Rust installed-consumer analysis inputs")
-        analyze = source.index("- name: Analyze\n")
-        remove = source.index("- name: Verify and remove Rust installed-consumer analysis inputs")
-        after = source.index("- name: Verify Rust CodeQL checkout after analysis")
-        quality = source.index("- name: Verify Rust CodeQL database quality")
-        self.assertEqual(sorted((before, prepare, verify, analyze, remove, after, quality)),
-                         [before, prepare, verify, analyze, remove, after, quality])
-        cleanup = source[remove:source.index("- name: Retain Rust installed-consumer analysis receipts")]
-        self.assertIn("always()", cleanup)
-        self.assertIn("steps.rust_consumer_context.outcome == 'success'", cleanup)
-        self.assertNotIn("continue-on-error", cleanup)
+        prepare = source.index("codeql_rust_profile.py prepare")
+        analyze = source.index("codeql_rust_profile.py analyze")
+        publication = source.index("codeql_rust_publication.py")
+        self.assertLess(prepare, analyze)
+        self.assertLess(analyze, publication)
+        self.assertIn("needs: rust", source)
+        self.assertNotIn("continue-on-error", source)
 
 
 if __name__ == "__main__":

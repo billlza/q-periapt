@@ -42,7 +42,7 @@ class TargetMacroCoverageTests(unittest.TestCase):
 
     def test_peer_expansion_without_actual_compilation_is_insufficient(self) -> None:
         pair = valid_pair()
-        pair[1] = dataclasses.replace(pair[1], compiled_sources=frozenset({"src/native.rs"}))
+        pair[1] = profile("wasm", "src/native.rs", [call("src/web.rs", True)])
         with self.assertRaisesRegex(CodeQLRustQualityError, "no compiled peer covers"):
             validate_macro_profiles(pair)
 

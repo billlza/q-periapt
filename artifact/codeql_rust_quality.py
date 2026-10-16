@@ -25,7 +25,7 @@ EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
 FIXED_CODEQL_BINARY = pathlib.Path(
-    "/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql"
+    "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql"
 )
 FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
@@ -668,11 +668,12 @@ def validate_unresolved_detail_count(metric: int, details: Sequence[object]) -> 
         )
 
 
-def validate_quality(
+def validate_extraction_quality(
     tracked: frozenset[str],
     extracted: frozenset[str],
     metrics: Mapping[str, int],
 ) -> None:
+    """Check extraction integrity; macro coverage requires target validation too."""
     if extracted != tracked:
         missing = sorted(tracked - extracted)
         unexpected = sorted(extracted - tracked)
@@ -687,7 +688,7 @@ def validate_quality(
                 f"{name} must equal tracked Rust source count {expected_count}, "
                 f"got {metrics[name]}"
             )
-    for name in sorted(ZERO_METRICS):
+    for name in sorted(ZERO_METRICS - {"unresolved_source_macro_calls"}):
         if metrics[name] != 0:
             raise CodeQLRustQualityError(f"{name} must be zero, got {metrics[name]}")
     for name in ("source_macro_calls", "source_format_args"):
@@ -707,6 +708,20 @@ def validate_quality(
     )
     if type_total != metrics["type_inference_inconsistencies"]:
         raise CodeQLRustQualityError("type inconsistency categories do not sum to total")
+
+
+def validate_quality(
+    tracked: frozenset[str],
+    extracted: frozenset[str],
+    metrics: Mapping[str, int],
+) -> None:
+    """Retain the original single-database contract for existing callers."""
+    validate_extraction_quality(tracked, extracted, metrics)
+    if metrics["unresolved_source_macro_calls"] != 0:
+        raise CodeQLRustQualityError(
+            "unresolved_source_macro_calls must be zero, "
+            f"got {metrics['unresolved_source_macro_calls']}"
+        )
 
 
 def main() -> None:
