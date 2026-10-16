@@ -216,6 +216,19 @@ rule Application_Message:
 restriction Equality:
  "All x y #i. Eq(x,y)@i ==> x = y"
 
+/* Independent certificates establish these structural properties without
+   earlier reusable premises. They do not establish root secrecy or agreement. */
+lemma ready_root_is_initial_or_hashed:
+ "All s role epoch root parent #ready.
+    ReadyState(s,role,epoch,root,parent)@ready
+    ==> (epoch = 'zero') | (Ex material. root = h(material))"
+
+lemma produced_state_role_and_epoch_have_public_constructors [use_induction]:
+ "All s role epoch counter #produced.
+    CounterState(s,role,epoch,counter)@produced
+    ==> ((role = 'A') | (role = 'B'))
+      & ((epoch = 'zero') | (Ex previous. epoch = succ(previous)))"
+
 /* The two counter-constructor properties have complete checked proofs.
    The bare declarations carry no reusable assumptions; the captured joint
    certificate retains and checks the full dependency proof explicitly. */
