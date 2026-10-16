@@ -9,7 +9,7 @@ to select a package, see its support status and run its first example.
 The [current readiness ledger](docs/SDK_0_2_RELEASE_READINESS.md) covers owned
 Rust/C/Swift/Kotlin/Android/WASM APIs, verified runtime objects, platform randomness,
 streaming ContextBound, and the opt-in Linux AVX2 candidate. ABI major 2 and the
-existing library identities are retained; the SDK has an exact 43-export contract,
+existing library identities are retained; the SDK has an exact 51-export contract,
 including the original nine unchanged declarations. This source is unpublished;
 the release and evidence statements below refer to the historical 0.1.5 cohort.
 
