@@ -31,6 +31,17 @@ no reusable assumptions. These are constructor-shape properties, not counter
 uniqueness, nonce safety or recovery secrecy. The added generation-secret origin
 conjecture and the original reachability/secrecy obligations remain unproved.
 
+The [structural-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-structural-invariants/README.md)
+independently checks two more facts: produced send-state roles are `A` or `B`
+and their epochs have outer form `zero` or `succ`; a non-initial Ready root has
+outer constructor `h`. Both are proved without prior reusable premises. Their
+certificates have the same execution model as the counter proofs, and the full
+four-property dependency graph is discharged. A combined replay timed out;
+the independent root replay and the complete state/counter replay are retained
+separately. No new observation, restriction or protocol round bound is added.
+The subsequent generation-origin search still times out, so these structural
+results do not establish authentication, root secrecy or multi-epoch recovery.
+
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
 verified by Tamarin 1.12.0 / Maude 3.5.1 using induction: 182 steps. It gives a
