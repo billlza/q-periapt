@@ -12,9 +12,18 @@ resolution failure without changing installed-package consumer contracts.
 That checkpoint did not qualify hosted 1.97.0/CodeQL extraction or the separate
 query-timeout problem. The later Rust analysis uses 1.98.1 and CodeQL 2.27.2.
 In [run 38861869313](https://github.com/billlza/q-periapt/actions/runs/38861869313),
-WASM completes all 39 security queries; macOS compiles and extracts successfully
-but its Metrics quality query exceeds 900 seconds. Complete Linux/macOS analysis
-and combined publication are not qualified by the WASM result or local replay.
+WASM completes all 39 pinned queries; macOS compiles and extracts successfully
+but its Metrics quality query exceeds 900 seconds. The native job also terminates
+at its 18,000-second analysis bound. Its frozen database retains 38 completed
+query results; only `queries/summary/SummaryStats.ql` is missing. The other queries
+finish within about four minutes of analysis start. The remaining full summary's
+taint-reach computation creates large intermediate relations and repeatedly
+evicts evaluator data; these are analysis costs, not SDK runtime measurements.
+The missing summary and final SARIF still prevent complete native qualification.
+The local Metrics budget/input-retention repair addresses the separate macOS
+quality-stage failure; it does not repair this native full-summary timeout.
+Complete Linux/macOS analysis and combined publication are not qualified by the
+WASM result, partial native results or local replay.
 
 The [shared-storage replay checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-composed-replay/README.md)
 qualifies `72587c2a`'s complete proof composition: the actual entrypoint checks
@@ -352,7 +361,7 @@ open; the agreed physical-device gate remains complete.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | The 2026-10-08 installed Swift/macOS and archive-derived Rust/Linux peers pass twelve cases across OS kernels with separate persistent stores. Linux runs unprivileged in a local native VM on the same Mac. Independent physical hosts and independent protocol implementations remain unqualified; prior same-OS checkpoints retain their own source scope |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe, with the agreed single-phone physical gate completed at 24ecaf46. API 36 hardware and a second phone are not release requirements. Each receipt keeps its source scope; public registries, signing and remaining platform/software scenarios stay open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The standalone `8ad598b2` checkout passes 2,984 artifact tests in 590.251 seconds with warnings as errors and no skips. The workflow-only successor `aabddbd6` passes CodeQL workflow lint and its exact-source gate. Rust analysis binds 693 tracked sources and all 39 security queries across native Linux, WASM and Apple Silicon profiles. Local fixes preserve failed-query diagnostics and finite budgets; their hosted validation, complete target analysis and remaining internal review are still required. Earlier cohort checks below retain their original source scope |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The standalone `8ad598b2` checkout passes 2,984 artifact tests in 590.251 seconds with warnings as errors and no skips. The workflow-only successor `aabddbd6` passes CodeQL workflow lint and its exact-source gate. Rust analysis binds 693 tracked sources and all 39 pinned queries across native Linux, WASM and Apple Silicon profiles. Local fixes preserve failed-query diagnostics and finite budgets; their hosted validation, complete target analysis and remaining internal review are still required. Earlier cohort checks below retain their original source scope |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
