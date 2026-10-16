@@ -53,6 +53,14 @@ argument; that argument is not a machine-checked meta-theorem. The canonical
 model and SDK runtime remain unchanged. This does not close two-round
 executability, general epoch/counter uniqueness or recovery secrecy.
 
+The [private-position checkpoint](../research/sdk-alpha1/evidence/20261016-recovery-position-invariant/README.md)
+adds a 29-step induction proof that one private phase owner and step identify
+at most one event. Independent and combined replays verify it alongside the
+285-step Ready helper, preserving all 19 complete queries. An actual unproved
+dependency control is rejected despite a conditional target success. This
+unbounded phase-step invariant is not an application-counter, nonce or epoch
+uniqueness result; two-round executability and recovery secrecy remain open.
+
 The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
 only**, including Continuity. Intel macOS is outside this release's support
 matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in

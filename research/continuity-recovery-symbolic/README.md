@@ -42,6 +42,14 @@ separately. No new observation, restriction or protocol round bound is added.
 The subsequent generation-origin search still times out, so these structural
 results do not establish authentication, root secrecy or multi-epoch recovery.
 
+The [private-position checkpoint](../sdk-alpha1/evidence/20261016-recovery-position-invariant/README.md)
+independently replays a 29-step induction proof: a private phase owner and step
+identify at most one event. Its composition also replays the 285-step Ready
+helper, with all 19 complete queries retained. A real unproved-dependency control
+is rejected. The unbounded companion step counts internal transitions; it does
+not prove application-counter or nonce uniqueness, two-round executability or
+recovery secrecy. The original protocol model and SDK remain unchanged.
+
 The [first-Ready checkpoint](../sdk-alpha1/evidence/20261016-recovery-ready-invariant/README.md)
 checks a 285-step uniqueness proof for role B's Ready event at epoch one, with
 independent replays in the isolated phase representation and its wire-observation
