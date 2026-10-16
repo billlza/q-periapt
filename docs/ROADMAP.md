@@ -5,8 +5,9 @@
 The development SDK implements verified runtime and key ownership, explicit
 purpose derivation/import, policy transitions and the bounded ContextBound
 data path across Rust, C, Swift, Kotlin/JVM, Android and product WASM. Native
-ABI major remains **2**: the SDK profile has exactly 43 C exports and preserves
-the released nine declarations, status values and library identities. The
+ABI major remains **2**: the SDK profile follows the
+[current C export contract](../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json)
+and preserves the released nine declarations, status values and library identities. The
 opt-in GNU/Linux x86_64 AVX2 candidate is implemented; native qualification is
 still required. Standard TLS interoperability and the reference connection
 are implemented as separate paths with their own authentication/policy limits.
