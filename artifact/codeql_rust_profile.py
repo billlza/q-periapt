@@ -217,19 +217,26 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     sdk.require(all(sdk.snapshot(run.root / path, maximum=5 * 1024**2).sha256 == digest for path, digest in source.items()), "analyzed Rust source changed")
     quality.require_clean_checkout(expected_commit)
     quality.require_repository_target_absent()
-    metrics = collect_quality(run, compiled, source, profile)
-    quality.require_clean_checkout(expected_commit)
-    sdk.write_json(run.evidence / "PROFILE.json", {
+    inputs = {
         "schema": 1, "profile": profile, "target": TARGETS[profile], "source_commit": expected_commit,
         "run_id": os.environ["GITHUB_RUN_ID"], "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
         "codeql_version": VERSION, "compiler": COMPILER, "source_sha256": source, "compiled_sources": compiled,
         "compiler_host": run.configuration.compiler_host,
         "query_threads": run.configuration.threads, "query_ram_mb": run.configuration.ram_mb,
-        "metrics": metrics, "macro_census_sha256": sdk.snapshot(run.evidence / "MacroCalls.json").sha256,
-        "extracted_paths_sha256": sdk.snapshot(run.evidence / "ExtractedPaths.json").sha256,
         "quality_queries_sha256": {path.name: sdk.snapshot(path).sha256 for path in sorted((run.root / "artifact/codeql-rust-quality").glob("*.ql"))},
         "quality_pack_sha256": sdk.snapshot(run.root / "artifact/codeql-rust-quality/qlpack.yml").sha256,
         "quality_lock_sha256": sdk.snapshot(run.root / "artifact/codeql-rust-quality/codeql-pack.lock.yml").sha256,
+        "active_target_quality_passed": False, "paired_target_quality_passed": False,
+    }
+    # Compiler depfiles may not survive a failed quality query. Retain their
+    # validated inventory now; only PROFILE.json can admit later analysis.
+    sdk.write_json(run.evidence / "EXTRACTION_INPUTS.json", inputs)
+    metrics = collect_quality(run, compiled, source, profile)
+    quality.require_clean_checkout(expected_commit)
+    sdk.write_json(run.evidence / "PROFILE.json", {
+        **inputs,
+        "metrics": metrics, "macro_census_sha256": sdk.snapshot(run.evidence / "MacroCalls.json").sha256,
+        "extracted_paths_sha256": sdk.snapshot(run.evidence / "ExtractedPaths.json").sha256,
         "active_target_quality_passed": True, "paired_target_quality_passed": False,
     })
 

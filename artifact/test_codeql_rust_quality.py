@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 import codeql_rust_quality
-from bounded_process import BoundedProcessError, BoundedResult
+from bounded_process import BoundedProcessError, BoundedResult, TimeoutPolicy
 from git_provenance import WorktreeInspection
 
 
@@ -1356,6 +1356,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             capture.call_args.kwargs,
             {
                 "timeout_seconds": 300,
+                "timeout_policy": TimeoutPolicy.STANDARD,
                 "maximum_bytes": 4 * 1024 * 1024,
                 "stderr": codeql_rust_quality.subprocess.STDOUT,
             },
@@ -1377,7 +1378,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         )
 
         for selected, seconds in (
-            (codeql_rust_quality.METRICS_QUERY, 900),
+            (codeql_rust_quality.METRICS_QUERY, 1800),
             (codeql_rust_quality.EXTRACTED_PATHS_QUERY, 300),
             (codeql_rust_quality.UNRESOLVED_MACROS_QUERY, 300),
         ):
@@ -1388,6 +1389,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             ):
                 codeql_rust_quality._run_query(bindings, selected, output)
             self.assertEqual(capture.call_args.kwargs["timeout_seconds"], seconds)
+            self.assertIs(capture.call_args.kwargs["timeout_policy"],
+                          TimeoutPolicy.LONG_ANALYSIS if seconds == 1800 else TimeoutPolicy.STANDARD)
             self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 4 * 1024 * 1024)
             self.assertIn("--warnings=error", capture.call_args.args[0])
             self.assertIn("--threads=4", capture.call_args.args[0])
@@ -1444,7 +1447,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         self.assertIsInstance(assignments["CODEQL_QUERY_THREADS"], ast.Constant)
         self.assertIsInstance(assignments["CODEQL_QUERY_RAM_MB"], ast.Constant)
         for name, value in (("CODEQL_COMMAND_TIMEOUT_SECONDS", 300),
-                            ("CODEQL_METRICS_TIMEOUT_SECONDS", 900)):
+                            ("CODEQL_METRICS_TIMEOUT_SECONDS", 1800)):
             self.assertIsInstance(assignments[name], ast.Constant)
             self.assertEqual(ast.literal_eval(assignments[name]), value)
 

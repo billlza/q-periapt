@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import copy
+import contextlib
+import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import unittest
@@ -21,6 +24,74 @@ def sarif(profile="native"):
 
 
 class RustProfileTests(unittest.TestCase):
+    def test_extraction_inputs_survive_quality_failure_without_certifying_profile(self) -> None:
+        for passed in (False, True):
+            with self.subTest(passed=passed), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                (root / "src").mkdir()
+                data = b"pub fn operation() {}\n"
+                (root / "src/lib.rs").write_bytes(data)
+                source = {"src/lib.rs": hashlib.sha256(data).hexdigest()}
+                locks = [f"workspace-{i}/Cargo.lock" for i in range(6)]
+                for lock in locks:
+                    path = root / lock
+                    path.parent.mkdir()
+                    path.write_text("version = 4\n")
+                sysroot = root / "sysroot"
+                (sysroot / "lib/rustlib/src/rust/library").mkdir(parents=True)
+                shutil.copytree(profile_module.ROOT / "artifact/codeql-rust-quality",
+                                root / "artifact/codeql-rust-quality")
+                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
+                def command(label, *_args, **_kwargs):
+                    return {
+                        "codeql-version": b"2.27.2\n",
+                        "rust-version": b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: aarch64-apple-darwin\n",
+                        "rust-sysroot": os.fsencode(sysroot),
+                    }.get(label, b"compiler output")
+                def check_quality(actual_run, compiled, sources, profile):
+                    inputs = json.loads((run.evidence / "EXTRACTION_INPUTS.json").read_text())
+                    self.assertIs(actual_run, run)
+                    self.assertEqual((compiled, sources, profile), (source, source, "macos"))
+                    self.assertEqual(inputs["source_sha256"], source)
+                    self.assertEqual(inputs["compiled_sources"], source)
+                    self.assertEqual(inputs["source_commit"], "a" * 40)
+                    self.assertEqual((inputs["run_id"], inputs["run_attempt"]), ("123", "1"))
+                    self.assertEqual((inputs["query_threads"], inputs["query_ram_mb"]), (2, 5500))
+                    self.assertFalse(inputs["active_target_quality_passed"])
+                    self.assertFalse(inputs["paired_target_quality_passed"])
+                    self.assertFalse((run.evidence / "PROFILE.json").exists())
+                    if not passed:
+                        raise RuntimeError("quality query timed out")
+                    for name in ("MacroCalls.json", "ExtractedPaths.json"):
+                        (run.evidence / name).write_text("[]\n")
+                    return {"checked": 1}
+                with contextlib.ExitStack() as stack:
+                    stack.enter_context(mock.patch.dict(os.environ, GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1"))
+                    for owner, name, kwargs in (
+                        (profile_module.quality, "require_repository_target_absent", {}),
+                        (profile_module.quality, "require_clean_checkout", {}),
+                        (profile_module.quality, "tracked_rust_paths", {"return_value": source}),
+                        (run, "command", {"side_effect": command}),
+                        (profile_module, "install_metadata_adapter", {}),
+                        (profile_module, "run_git_bytes", {"return_value": "\n".join(locks).encode()}),
+                        (profile_module, "prepared_consumers", {"side_effect": lambda _: contextlib.nullcontext()}),
+                        (profile_module, "collect_compiled_sources", {"return_value": source}),
+                        (profile_module, "extract_database", {}),
+                        (profile_module, "collect_quality", {"side_effect": check_quality}),
+                    ):
+                        stack.enter_context(mock.patch.object(owner, name, **kwargs))
+                    if passed:
+                        profile_module.prepare(run, "macos", "a" * 40)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "quality query timed out"):
+                            profile_module.prepare(run, "macos", "a" * 40)
+                self.assertTrue((run.evidence / "EXTRACTION_INPUTS.json").is_file())
+                self.assertEqual((run.evidence / "PROFILE.json").exists(), passed)
+                if passed:
+                    profile = json.loads((run.evidence / "PROFILE.json").read_text())
+                    self.assertTrue(profile["active_target_quality_passed"])
+                    self.assertEqual(profile["metrics"], {"checked": 1})
+
     def test_target_commands_select_actual_supported_compilation_paths(self) -> None:
         root = Path("/source")
         wasm = compiler_commands(root, "wasm")

@@ -111,6 +111,18 @@ class RustPublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "compiled peer"):
             validate_macro_profiles([self.validate("native"), self.validate("wasm")])
 
+    def test_extraction_diagnostics_cannot_replace_a_completed_profile(self) -> None:
+        directory = self.paths["macos"]
+        inputs = self.read(directory / "PROFILE.json")
+        inputs["active_target_quality_passed"] = False
+        self.write(directory / "EXTRACTION_INPUTS.json", inputs)
+        (directory / "PROFILE.json").unlink()
+        with self.assertRaisesRegex(ValueError, "PROFILE.json"):
+            self.validate("macos")
+        self.write(directory / "PROFILE.json", inputs)
+        with self.assertRaisesRegex(ValueError, "did not complete"):
+            self.validate("macos")
+
     def test_macos_requires_its_own_complete_suite_and_arm_host(self) -> None:
         directory = self.paths["macos"]
         profile = self.read(directory / "PROFILE.json")

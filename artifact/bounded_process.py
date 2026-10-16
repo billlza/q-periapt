@@ -696,6 +696,7 @@ def _stream_stdout(
     environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator | None = None,
     stdin_fd: int | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
     if coordinator is None:
         with _SignalCoordinator() as owned_coordinator:
@@ -706,11 +707,12 @@ def _stream_stdout(
                 "stderr": stderr,
                 "environment": environment,
                 "coordinator": owned_coordinator,
+                "timeout_policy": timeout_policy,
             }
             if stdin_fd is not None:
                 recursive_arguments["stdin_fd"] = stdin_fd
             return _stream_stdout(argv, **recursive_arguments)
-    timeout = _validated_timeout(timeout_seconds)
+    timeout = _validated_timeout(timeout_seconds, policy=timeout_policy)
     maximum = _validated_maximum(maximum_bytes)
     process: subprocess.Popen[bytes] | None = None
     stdout_pipe: BinaryIO | None = None
@@ -879,8 +881,9 @@ def capture_stdout(
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
     output_sink: Callable[[bytes], None] | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
-    """Capture stdout without allowing the producer to exceed the byte limit."""
+    """Capture bounded stdout; long analyses explicitly opt into a finite budget."""
 
     chunks: list[bytes] = []
 
@@ -897,6 +900,7 @@ def capture_stdout(
         "write_chunk": retain_chunk,
         "stderr": stderr,
         "environment": environment,
+        "timeout_policy": timeout_policy,
     }
     if stdin_fd is not None:
         stream_arguments["stdin_fd"] = stdin_fd

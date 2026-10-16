@@ -13,7 +13,7 @@ import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 
-from bounded_process import BoundedProcessError, capture_stdout
+from bounded_process import BoundedProcessError, TimeoutPolicy, capture_stdout
 from evidence_io import EvidenceIOError, parse_strict_json_bytes
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_bytes
 
@@ -34,9 +34,10 @@ FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Exact tracked Rust inventory, including native, C and browser lifecycle sources.
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = 693
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
-# The unchanged Metrics query took 304 seconds on the pinned frozen database.
-# Keep lighter queries/decoding bounded separately; this is not a quality bypass.
-CODEQL_METRICS_TIMEOUT_SECONDS = 900
+# The whole-program Metrics query exceeded 900 seconds on hosted Apple Silicon;
+# its frozen database completed locally in 670 seconds with the same 2-thread,
+# 5500-MB budget. Keep the extended deadline finite and lighter queries unchanged.
+CODEQL_METRICS_TIMEOUT_SECONDS = 1800
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
@@ -538,6 +539,11 @@ def _run_query(
                 CODEQL_METRICS_TIMEOUT_SECONDS
                 if query == METRICS_QUERY
                 else CODEQL_COMMAND_TIMEOUT_SECONDS
+            ),
+            timeout_policy=(
+                TimeoutPolicy.LONG_ANALYSIS
+                if query == METRICS_QUERY
+                else TimeoutPolicy.STANDARD
             ),
             maximum_bytes=MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES,
             stderr=subprocess.STDOUT,
