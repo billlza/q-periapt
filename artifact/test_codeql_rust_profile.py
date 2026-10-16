@@ -28,10 +28,41 @@ class RustProfileTests(unittest.TestCase):
         self.assertIn("browser-continuity", wasm[0][2])
         self.assertIn("--tests", wasm[1][2])
         native = compiler_commands(root, "native")
+        self.assertEqual(compiler_commands(root, "macos"), native)
         self.assertEqual({label for label, _cwd, _args in native},
                          {"workspace", "engine", "spqr", "whole-kem", "continuity-c", "sdk-rust"})
         with self.assertRaisesRegex(ValueError, "unknown"):
             compiler_commands(root, "unexpected")
+
+    def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
+            with mock.patch.object(run, "command") as command:
+                extract_database(run, root / "database-cluster/rust")
+            argv = command.call_args.args[1]
+            self.assertIn("--threads=2", argv)
+            self.assertIn("--ram=5500", argv)
+            self.assertNotIn("--ram=14000", argv)
+
+    def test_macos_rejects_an_intel_compiler_before_fetch_or_extraction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
+            compiler = b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-apple-darwin\n"
+            with mock.patch.object(profile_module.quality, "require_repository_target_absent"), \
+                    mock.patch.object(profile_module.quality, "require_clean_checkout"), \
+                    mock.patch.object(profile_module.quality, "tracked_rust_paths", return_value=[]), \
+                    mock.patch.object(run, "command", side_effect=[b"2.27.2\n", compiler]) as command:
+                with self.assertRaisesRegex(ValueError, "compiler or host"):
+                    profile_module.prepare(run, "macos", "a" * 40)
+            self.assertEqual([call.args[0] for call in command.call_args_list], ["codeql-version", "rust-version"])
+
+    def test_profile_host_selection_never_falls_back_for_unknown_profiles(self) -> None:
+        self.assertEqual(profile_module.profile_host("macos"), "darwin")
+        self.assertEqual(profile_module.profile_host("wasm"), "linux")
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            profile_module.profile_host("intel-mac")
 
     def test_nonzero_child_preserves_outputs_and_never_reports_success(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

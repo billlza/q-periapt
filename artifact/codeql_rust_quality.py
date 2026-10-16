@@ -99,6 +99,33 @@ class CodeQLRustQualityError(ValueError):
     """The CodeQL database cannot support a complete Rust analysis claim."""
 
 
+@dataclasses.dataclass(frozen=True)
+class HostedConfiguration:
+    platform: str
+    compiler_host: str
+    codeql: pathlib.Path
+    database: pathlib.Path
+    runner_temp: pathlib.Path
+    threads: int
+    ram_mb: int
+
+
+def hosted_configuration(host: str) -> HostedConfiguration:
+    """Select reviewed hosted paths and budgets; never accept environment paths."""
+    if host == "linux":
+        return HostedConfiguration(host, "x86_64-unknown-linux-gnu", FIXED_CODEQL_BINARY,
+                                   FIXED_CODEQL_DATABASE, FIXED_RUNNER_TEMP,
+                                   CODEQL_QUERY_THREADS, CODEQL_QUERY_RAM_MB)
+    if host == "darwin":
+        temporary = pathlib.Path("/Users/runner/work/_temp")
+        return HostedConfiguration(
+            host, "aarch64-apple-darwin",
+            pathlib.Path("/Users/runner/hostedtoolcache/CodeQL/2.27.2/arm64/codeql/codeql"),
+            temporary / "qperiapt-codeql-database/rust", temporary, 2, 5500,
+        )
+    raise CodeQLRustQualityError("unsupported hosted Rust analysis platform")
+
+
 def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
     """Preserve control exceptions; otherwise expose cleanup in the domain error."""
 
@@ -151,6 +178,8 @@ class _FixedCodeQLPathBindings:
     database_identity: _PathIdentity
     database_metadata_identity: _PathIdentity
     runner_temp_identity: _PathIdentity
+    threads: int = CODEQL_QUERY_THREADS
+    ram_mb: int = CODEQL_QUERY_RAM_MB
 
 
 def _identity(metadata: os.stat_result) -> _PathIdentity:
@@ -219,22 +248,26 @@ def _require_database_metadata(metadata: os.stat_result) -> None:
         )
 
 
-def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
-    if sys.platform != "linux":
+def _open_fixed_codeql_bindings(*, host: str = "linux") -> _FixedCodeQLPathBindings:
+    configuration = hosted_configuration(host)
+    if sys.platform != configuration.platform:
         raise CodeQLRustQualityError(
-            "fixed Rust CodeQL path bindings require the Linux analysis lane"
+            "fixed Rust CodeQL path bindings require the selected analysis platform"
         )
+    codeql = configuration.codeql
+    database = configuration.database
+    runner_temp = configuration.runner_temp
     codeql_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_BINARY, "fixed CodeQL binary"
+        codeql, "fixed CodeQL binary"
     )
     database_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_DATABASE, "fixed Rust CodeQL database"
+        database, "fixed Rust CodeQL database"
     )
     runner_temp_path_metadata = _canonical_fixed_metadata(
-        FIXED_RUNNER_TEMP, "fixed CodeQL temporary parent"
+        runner_temp, "fixed CodeQL temporary parent"
     )
     try:
-        FIXED_CODEQL_DATABASE.relative_to(FIXED_RUNNER_TEMP)
+        database.relative_to(runner_temp)
     except ValueError as exc:
         raise CodeQLRustQualityError(
             "fixed Rust CodeQL database must be under the fixed temporary parent"
@@ -244,7 +277,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
     database_metadata_descriptor = -1
     runner_temp_descriptor = -1
     try:
-        codeql_descriptor = os.open(FIXED_CODEQL_BINARY, _file_open_flags())
+        codeql_descriptor = os.open(codeql, _file_open_flags())
         codeql_metadata = os.fstat(codeql_descriptor)
         _require_codeql_metadata(codeql_metadata)
         if _identity(codeql_metadata) != _identity(codeql_path_metadata):
@@ -253,7 +286,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             )
 
         database_descriptor = os.open(
-            FIXED_CODEQL_DATABASE, _directory_open_flags()
+            database, _directory_open_flags()
         )
         database_metadata = os.fstat(database_descriptor)
         _require_owned_directory_metadata(
@@ -283,7 +316,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "Rust CodeQL database metadata changed while it was being opened"
             )
 
-        runner_temp_descriptor = os.open(FIXED_RUNNER_TEMP, _directory_open_flags())
+        runner_temp_descriptor = os.open(runner_temp, _directory_open_flags())
         runner_temp_metadata = os.fstat(runner_temp_descriptor)
         _require_owned_directory_metadata(
             runner_temp_metadata, "fixed CodeQL temporary parent"
@@ -293,9 +326,9 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "fixed CodeQL temporary parent changed while it was being opened"
             )
         return _FixedCodeQLPathBindings(
-            codeql=FIXED_CODEQL_BINARY,
-            database=FIXED_CODEQL_DATABASE,
-            runner_temp=FIXED_RUNNER_TEMP,
+            codeql=codeql,
+            database=database,
+            runner_temp=runner_temp,
             codeql_descriptor=codeql_descriptor,
             database_descriptor=database_descriptor,
             database_metadata_descriptor=database_metadata_descriptor,
@@ -304,6 +337,8 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             database_identity=_identity(database_metadata),
             database_metadata_identity=_identity(database_file_metadata),
             runner_temp_identity=_identity(runner_temp_metadata),
+            threads=configuration.threads,
+            ram_mb=configuration.ram_mb,
         )
     except BaseException as primary:
         cleanup_error: BaseException | None = None
@@ -492,8 +527,8 @@ def _run_query(
                 "query",
                 "run",
                 "--warnings=error",
-                f"--threads={CODEQL_QUERY_THREADS}",
-                f"--ram={CODEQL_QUERY_RAM_MB}",
+                f"--threads={bindings.threads}",
+                f"--ram={bindings.ram_mb}",
                 f"--database={bindings.database}",
                 f"--output={output}",
                 "--",

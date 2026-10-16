@@ -22,7 +22,7 @@ class RustPublicationTests(unittest.TestCase):
         self.root = self.base / "source"
         (self.root / "src").mkdir(parents=True)
         self.sources = {}
-        for name in ("native", "web"):
+        for name in ("native", "web", "macos"):
             path = self.root / "src" / (name + ".rs")
             path.write_text("pub fn operation() {}\n")
             self.sources[path.relative_to(self.root).as_posix()] = self.digest(path)
@@ -33,14 +33,15 @@ class RustPublicationTests(unittest.TestCase):
         shutil.copyfile(original / "codeql_rust_queries.json", self.root / "artifact/codeql_rust_queries.json")
         self.inventory = self.read(self.root / "artifact/codeql_rust_queries.json")["queries"]
         self.paths = {}
-        for name, own, other in (("native", "native", "web"), ("wasm", "web", "native")):
+        for name, own in (("native", "native"), ("wasm", "web"), ("macos", "macos")):
             directory = self.artifacts / ("codeql-rust-profile-" + name + "-1")
             directory.mkdir()
             metrics = {key: 0 for key in quality.EXPECTED_METRICS}
-            metrics.update(extracted_files=2, successfully_extracted_files=2,
-                           source_macro_calls=2, unresolved_source_macro_calls=1, source_format_args=1)
+            metrics.update(extracted_files=3, successfully_extracted_files=3,
+                           source_macro_calls=3, unresolved_source_macro_calls=2, source_format_args=1)
             rows = [[f"src/{own}.rs", 3, 5, "format!...", "expanded", "code", {"label": "format!..."}],
-                    [f"src/{other}.rs", 3, 5, "format!...", "unresolved", "code", {"label": "format!..."}]]
+                    *[[f"src/{other}.rs", 3, 5, "format!...", "unresolved", "code", {"label": "format!..."}]
+                      for other in ("native", "web", "macos") if other != own]]
             self.write(directory / "MacroCalls.json", rows)
             self.write(directory / "ExtractedPaths.json", [[path] for path in sorted(self.sources)])
             self.write(directory / "Metrics.json", list(map(list, metrics.items())))
@@ -56,6 +57,8 @@ class RustPublicationTests(unittest.TestCase):
                        "quality_pack_sha256": self.digest(self.root / "artifact/codeql-rust-quality/qlpack.yml"),
                        "quality_lock_sha256": self.digest(self.root / "artifact/codeql-rust-quality/codeql-pack.lock.yml"),
                        "active_target_quality_passed": True, "paired_target_quality_passed": False}
+            host = quality.hosted_configuration(publication.profile_host(name))
+            profile.update(compiler_host=host.compiler_host, query_threads=host.threads, query_ram_mb=host.ram_mb)
             self.write(directory / "PROFILE.json", profile)
             self.write(directory / "ANALYSIS.json", {"completed": True, "codeql_version": publication.VERSION,
                        "query_pack": publication.QUERY_VERSION, "upload_performed": False,
@@ -90,14 +93,39 @@ class RustPublicationTests(unittest.TestCase):
         analysis["profile_sha256"] = self.digest(directory / "PROFILE.json")
         self.write(directory / "ANALYSIS.json", analysis)
 
-    def test_both_completed_profiles_are_required(self) -> None:
+    def test_all_three_completed_profiles_are_required(self) -> None:
         selected = publication.latest_profile_directories(self.artifacts, 1)
         self.assertEqual(selected, self.paths)
-        result = validate_macro_profiles([self.validate("native"), self.validate("wasm")])
-        self.assertEqual(result[publication.TARGETS["native"]]["inactive_with_compiled_peer"], 1)
-        shutil.rmtree(self.paths["wasm"])
-        with self.assertRaisesRegex(ValueError, "both native and WASM"):
-            publication.latest_profile_directories(self.artifacts, 1)
+        result = validate_macro_profiles([self.validate(name) for name in publication.TARGETS])
+        self.assertEqual(result[publication.TARGETS["native"]]["inactive_with_compiled_peer"], 2)
+        for name, path in self.paths.items():
+            parked = self.base / "parked"
+            path.rename(parked)
+            try:
+                with self.subTest(name=name), self.assertRaisesRegex(ValueError, "artifacts are all required"):
+                    publication.latest_profile_directories(self.artifacts, 1)
+            finally:
+                parked.rename(path)
+
+    def test_linux_and_wasm_cannot_certify_macos_only_code(self) -> None:
+        with self.assertRaisesRegex(ValueError, "compiled peer"):
+            validate_macro_profiles([self.validate("native"), self.validate("wasm")])
+
+    def test_macos_requires_its_own_complete_suite_and_arm_host(self) -> None:
+        directory = self.paths["macos"]
+        profile = self.read(directory / "PROFILE.json")
+        for key, value in (("compiler_host", "x86_64-apple-darwin"), ("query_ram_mb", 14000),
+                           ("query_threads", 4), ("query_threads", True)):
+            with self.subTest(key=key, value=value):
+                self.rebind_profile("macos", dict(profile, **{key: value}))
+                with self.assertRaisesRegex(ValueError, "host or resource budget"):
+                    self.validate("macos")
+        self.rebind_profile("macos", profile)
+        analysis = self.read(directory / "ANALYSIS.json")
+        del analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"]
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "census is incomplete"):
+            self.validate("macos")
 
     def test_latest_failed_attempt_cannot_fall_back_to_old_success(self) -> None:
         newer = self.artifacts / "codeql-rust-profile-native-2"
@@ -151,7 +179,7 @@ class RustPublicationTests(unittest.TestCase):
         rows[0][4] = "unresolved"
         self.write(directory / "MacroCalls.json", rows)
         profile = self.read(directory / "PROFILE.json")
-        profile["metrics"]["unresolved_source_macro_calls"] = 2
+        profile["metrics"]["unresolved_source_macro_calls"] = 3
         self.write(directory / "Metrics.json", list(map(list, profile["metrics"].items())))
         profile["macro_census_sha256"] = self.digest(directory / "MacroCalls.json")
         self.rebind_profile("native", profile)

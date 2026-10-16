@@ -22,15 +22,22 @@ from git_provenance import run_git_bytes
 import rust_sdk_profile as sdk
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown"}
+TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown",
+           "macos": "aarch64-apple-darwin"}
 VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
 COMPILER = "1.98.1"
 
 
+def profile_host(profile: str) -> str:
+    sdk.require(profile in TARGETS, "unknown Rust analysis profile")
+    return "darwin" if profile == "macos" else "linux"
+
+
 class ProfileRun:
-    def __init__(self, root: Path, output: Path, codeql: Path, environment: dict[str, str], *, resume=False):
+    def __init__(self, root: Path, output: Path, codeql: Path, environment: dict[str, str], *, resume=False, host="linux"):
         self.root, self.output, self.codeql, self.environment = root, output, codeql, environment
+        self.configuration = quality.hosted_configuration(host)
         self.evidence = output / "evidence"
         if resume:
             sdk.require(self.evidence.is_dir(), "analysis evidence directory is missing")
@@ -137,7 +144,7 @@ def prepared_consumers(run: ProfileRun):
 
 
 def collect_quality(run: ProfileRun, compiled: dict[str, str], source: dict[str, str], profile: str):
-    bindings = quality._open_fixed_codeql_bindings()
+    bindings = quality._open_fixed_codeql_bindings(host=run.configuration.platform)
     rows = {}
     try:
         for name in ("ExtractedPaths", "Metrics", "MacroCalls"):
@@ -164,7 +171,8 @@ def extract_database(run: ProfileRun, database: Path) -> None:
     database.parent.mkdir(mode=0o700)
     run.command("extract", [str(run.codeql), "database", "create", str(database),
                             "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
-                            "--threads=4", "--ram=14000", "--common-caches=" + str(run.output / "cache")])
+                            f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
+                            "--common-caches=" + str(run.output / "cache")])
 
 
 def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
@@ -176,7 +184,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     sdk.require(version == VERSION, "unexpected CodeQL version")
     compiler = run.command("rust-version", ["rustc", "+" + COMPILER, "-vV"]).decode()
     sdk.require(compiler.startswith("rustc 1.98.1 (48a229cea 2026-09-01)\n")
-                and "host: x86_64-unknown-linux-gnu\n" in compiler, "unexpected analysis compiler or host")
+                and f"host: {run.configuration.compiler_host}\n" in compiler, "unexpected analysis compiler or host")
     sysroot = Path(run.command("rust-sysroot", ["rustc", "+" + COMPILER, "--print", "sysroot"]).decode().strip()).resolve(strict=True)
     library = sysroot / "lib/rustlib/src/rust/library"
     sdk.require(library.is_dir(), "analysis compiler source is missing")
@@ -189,7 +197,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
         targets = run.command("clang-targets", [clang, "--print-targets"])
         sdk.require(b"wasm32" in targets, "clang does not support the WASM target")
         run.environment["CC_wasm32_unknown_unknown"] = clang
-    install_metadata_adapter(run, sysroot, TARGETS["native"])
+    install_metadata_adapter(run, sysroot, run.configuration.compiler_host)
     locks = run_git_bytes(run.root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines()
     sdk.require(len(locks) == 6, "tracked workspace lock inventory differs")
     lock_hashes = {path: sdk.snapshot(run.root / path).sha256 for path in locks}
@@ -204,7 +212,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
                     "--locked", "--offline", "--message-format=json-render-diagnostics"]
             stdout = run.command("compile-" + label, argv, cwd=cwd)
             compiled.update(collect_compiled_sources(run.root, cwd, stdout, source))
-        extract_database(run, quality.FIXED_CODEQL_DATABASE)
+        extract_database(run, run.configuration.database)
     sdk.require(all(sdk.snapshot(run.root / path).sha256 == digest for path, digest in lock_hashes.items()), "workspace lock changed")
     sdk.require(all(sdk.snapshot(run.root / path, maximum=5 * 1024**2).sha256 == digest for path, digest in source.items()), "analyzed Rust source changed")
     quality.require_clean_checkout(expected_commit)
@@ -215,6 +223,8 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
         "schema": 1, "profile": profile, "target": TARGETS[profile], "source_commit": expected_commit,
         "run_id": os.environ["GITHUB_RUN_ID"], "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
         "codeql_version": VERSION, "compiler": COMPILER, "source_sha256": source, "compiled_sources": compiled,
+        "compiler_host": run.configuration.compiler_host,
+        "query_threads": run.configuration.threads, "query_ram_mb": run.configuration.ram_mb,
         "metrics": metrics, "macro_census_sha256": sdk.snapshot(run.evidence / "MacroCalls.json").sha256,
         "extracted_paths_sha256": sdk.snapshot(run.evidence / "ExtractedPaths.json").sha256,
         "quality_queries_sha256": {path.name: sdk.snapshot(path).sha256 for path in sorted((run.root / "artifact/codeql-rust-quality").glob("*.ql"))},
@@ -235,6 +245,9 @@ def validate_query_inventory(inventory: dict[str, str], expected: object) -> Non
 def analyze(run: ProfileRun, query_pack: Path) -> None:
     profile_path = run.evidence / "PROFILE.json"
     profile = parse_strict_json_bytes(sdk.snapshot(profile_path).data, label="Rust analysis profile")
+    sdk.require(profile.get("target") == TARGETS.get(profile.get("profile"))
+                and profile_host(profile["profile"]) == run.configuration.platform,
+                "analysis profile belongs to a different host or target")
     sdk.require(profile["active_target_quality_passed"] is True, "active target quality has not passed")
     quality.require_clean_checkout(profile["source_commit"])
     suite = query_pack / "codeql-suites/rust-security-extended.qls"
@@ -250,14 +263,15 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     validate_query_inventory(inventory, expected)
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
-    run.command("analyze", [str(run.codeql), "database", "analyze", str(quality.FIXED_CODEQL_DATABASE), str(suite),
-                            "--format=sarif-latest", "--output=" + str(sarif), "--threads=4", "--ram=14000",
+    run.command("analyze", [str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
+                            "--format=sarif-latest", "--output=" + str(sarif),
+                            f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
                             "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
                             "--sarif-category=/language:rust/target:" + profile["profile"]], seconds=18000,
                 timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
     results = {}
     for relative in inventory:
-        path = quality.FIXED_CODEQL_DATABASE / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
+        path = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
         results[relative] = sdk.snapshot(path, maximum=64 * 1024**2).sha256
     data = parse_strict_json_bytes(sdk.snapshot(sarif, maximum=64 * 1024**2).data, label="Rust SARIF")
     validate_sarif(data, profile["profile"])
@@ -275,19 +289,22 @@ def main() -> None:
     parser.add_argument("action", choices=("prepare", "analyze"))
     parser.add_argument("--profile", choices=tuple(TARGETS), required=True)
     args = parser.parse_args()
-    sdk.require(sys.platform == "linux", "Rust hosted profiles require Linux")
-    sdk.require(os.environ.get("CODEQL_BINARY") == str(quality.FIXED_CODEQL_BINARY), "unexpected CodeQL binary path")
+    host = profile_host(args.profile)
+    configuration = quality.hosted_configuration(host)
+    sdk.require(sys.platform == host, "Rust hosted profile requires its selected platform")
+    sdk.require(os.environ.get("CODEQL_BINARY") == str(configuration.codeql), "unexpected CodeQL binary path")
+    sdk.require(os.environ.get("RUNNER_TEMP") == str(configuration.runner_temp), "unexpected runner temporary path")
     for name in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
         sdk.require(re.fullmatch(r"[1-9][0-9]*", os.environ.get(name, "")) is not None, "missing workflow identity")
-    output = quality.FIXED_RUNNER_TEMP / ("qperiapt-codeql-" + args.profile)
+    output = configuration.runner_temp / ("qperiapt-codeql-" + args.profile)
     environment = dict(os.environ, RUSTUP_TOOLCHAIN=COMPILER, RUSTUP_AUTO_INSTALL="0", RUSTFLAGS="-D warnings",
                        CARGO_HOME=str(output / "cargo-home"), CARGO_TARGET_DIR=str(output / "compile"), CARGO_NET_OFFLINE="false")
     sdk.require("CARGO_BUILD_TARGET" not in environment, "unexpected implicit Cargo build target")
     if args.action == "prepare":
-        run = ProfileRun(ROOT, output, quality.FIXED_CODEQL_BINARY, environment)
+        run = ProfileRun(ROOT, output, configuration.codeql, environment, host=host)
         prepare(run, args.profile, os.environ.get("CODEQL_EXPECTED_COMMIT", ""))
     else:
-        run = ProfileRun(ROOT, output, quality.FIXED_CODEQL_BINARY, environment, resume=True)
+        run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=True, host=host)
         pack = run.codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
         analyze(run, pack.resolve(strict=True))
 

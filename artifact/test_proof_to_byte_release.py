@@ -1395,8 +1395,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("tools: linked", other_languages)
         self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
 
-        self.assertIn("runs-on: ubuntu-24.04", rust)
-        self.assertIn("profile: [native, wasm]", rust)
+        self.assertIn("runs-on: ${{ matrix.runner }}", rust)
+        for entry in ("- profile: native\n            runner: ubuntu-24.04\n            bundle: linux64",
+                      "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64",
+                      "- profile: macos\n            runner: macos-26\n            bundle: osx64"):
+            self.assertIn(entry, rust)
         self.assertIn("fail-fast: false", rust)
         self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", rust)
         self.assertIn(PINNED_CANONICAL_RUST_ACTION, rust)
@@ -1406,9 +1409,12 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn(action.format(action="setup-codeql"), rust)
         self.assertIn(
             "tools: https://github.com/github/codeql-action/releases/download/"
-            "codeql-bundle-v2.27.2/codeql-bundle-linux64.tar.gz", rust)
-        # Analysis has no upload authority. Both independently successful
-        # targets and the paired validator must precede either publication.
+            "codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
+        dependencies = extract_named_workflow_step(rust, "Install macOS analysis build dependencies")
+        self.assertIn("if: runner.os == 'macOS'", dependencies)
+        self.assertIn('test "$(uname -m)" = arm64', dependencies)
+        # Every independently successful target and the coverage validator
+        # must precede publication. Analysis has no upload authority.
         self.assertNotIn("security-events:", rust)
         self.assertNotIn("upload-sarif", rust)
         self.assertNotIn(action.format(action="analyze"), rust)
@@ -1435,8 +1441,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("artifact/codeql_rust_publication.py", gate)
         self.assertNotIn("        if:", gate)
         uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
-        self.assertEqual(len(uploads), 2)
-        for step, target in zip(uploads, ("native", "wasm")):
+        self.assertEqual(len(uploads), 3)
+        for step, target in zip(uploads, ("native", "wasm", "macos")):
             self.assertNotIn("        if:", step)
             self.assertIn("category: /language:rust/target:" + target, step)
             self.assertIn("sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/" + target + ".sarif", step)
@@ -1456,7 +1462,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
-        self.assertIn("separate native Linux and `wasm32-unknown-unknown` jobs", normalized)
+        self.assertIn("separate native Linux, Apple Silicon macOS and `wasm32-unknown-unknown` jobs", normalized)
         self.assertIn("CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot", normalized)
         self.assertIn("actual target with warnings denied", normalized)
         self.assertIn(
@@ -1465,7 +1471,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         for boundary in (
             "all 39 pinned security-extended queries, including full `SummaryStats`",
             "every expected fresh BQRS result is required",
-            "A separate job verifies both profiles before publication",
+            "A separate job verifies all three profiles before publication",
             "a newer incomplete profile never falls back to an older result",
             "zero extraction warnings, extraction errors, unextracted elements",
             "complete, self-reconciling telemetry",

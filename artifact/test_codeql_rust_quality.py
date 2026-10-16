@@ -28,6 +28,41 @@ def clean_metrics(source_count: int = 2) -> dict[str, int]:
 
 
 class CodeQLRustQualityTests(unittest.TestCase):
+    def test_host_configuration_is_fixed_and_unknown_hosts_are_rejected(self) -> None:
+        mac = codeql_rust_quality.hosted_configuration("darwin")
+        self.assertEqual(mac.compiler_host, "aarch64-apple-darwin")
+        self.assertEqual(str(mac.codeql), "/Users/runner/hostedtoolcache/CodeQL/2.27.2/arm64/codeql/codeql")
+        self.assertEqual(str(mac.database), "/Users/runner/work/_temp/qperiapt-codeql-database/rust")
+        self.assertEqual((mac.threads, mac.ram_mb), (2, 5500))
+        with mock.patch.dict(os.environ, {"CODEQL_BINARY": "/untrusted/codeql", "RUNNER_TEMP": "/untrusted"}):
+            self.assertEqual(codeql_rust_quality.hosted_configuration("darwin"), mac)
+        with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+            codeql_rust_quality.hosted_configuration("win32")
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            mac.threads = 4
+
+    def test_macos_bindings_enforce_the_same_metadata_and_open_identity_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, metadata = self._fixed_layout(root)
+            mac = dataclasses.replace(codeql_rust_quality.hosted_configuration("darwin"),
+                                      codeql=binary, database=database, runner_temp=runner_temp)
+            with mock.patch.object(codeql_rust_quality, "hosted_configuration", return_value=mac), \
+                    mock.patch.object(codeql_rust_quality.sys, "platform", "darwin"):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings(host="darwin")
+                try:
+                    self.assertEqual((bindings.threads, bindings.ram_mb), (2, 5500))
+                    codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
+                    metadata.rename(database / "old-metadata.yml")
+                    metadata.write_text("name: replacement\n")
+                    with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "changed"):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+                metadata.chmod(0o666)
+                with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "database metadata"):
+                    codeql_rust_quality._open_fixed_codeql_bindings(host="darwin")
+
     def _fixed_layout(
         self, root: pathlib.Path
     ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]:
@@ -537,7 +572,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(
                     codeql_rust_quality.CodeQLRustQualityError,
-                    "require the Linux analysis lane",
+                    "require the selected analysis platform",
                 ),
             ):
                 codeql_rust_quality._open_fixed_codeql_bindings()
@@ -1216,6 +1251,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         with mock.patch.object(
             codeql_rust_quality,
@@ -1238,6 +1274,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")
@@ -1300,6 +1337,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")

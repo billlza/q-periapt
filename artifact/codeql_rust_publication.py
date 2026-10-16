@@ -1,4 +1,4 @@
-"""Accept both target profiles and their complete suites before SARIF publication."""
+"""Accept every target profile and its complete suite before SARIF publication."""
 from __future__ import annotations
 
 import argparse
@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 import codeql_rust_quality as quality
-from codeql_rust_profile import COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION, validate_sarif
+from codeql_rust_profile import COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION, profile_host, validate_sarif
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage, validate_macro_profiles
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
@@ -28,13 +28,13 @@ def latest_profile_directories(parent: Path, attempt: int) -> dict[str, Path]:
     entries = list(parent.iterdir())
     sdk.require(len(entries) <= 100, "too many profile artifacts")
     for path in entries:
-        match = re.fullmatch(r"codeql-rust-profile-(native|wasm)-([1-9][0-9]*)", path.name)
+        match = re.fullmatch(r"codeql-rust-profile-(native|wasm|macos)-([1-9][0-9]*)", path.name)
         sdk.require(match is not None and path.is_dir() and not path.is_symlink(), "unexpected profile artifact")
         name, generation = match[1], int(match[2])
         sdk.require(generation <= attempt, "profile artifact is from a future run attempt")
         if name not in selected or generation > selected[name][0]:
             selected[name] = (generation, path)
-    sdk.require(set(selected) == set(TARGETS), "both native and WASM artifacts are required")
+    sdk.require(set(selected) == set(TARGETS), "Linux, WASM and macOS artifacts are all required")
     # A failed newer artifact is never replaced by an older successful result.
     return {name: item[1] for name, item in selected.items()}
 
@@ -55,6 +55,11 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
     sdk.require(profile.get("codeql_version") == analysis.get("codeql_version") == VERSION
                 and profile.get("compiler") == COMPILER and analysis.get("query_pack") == QUERY_VERSION,
                 "analysis toolchain identity differs")
+    configuration = quality.hosted_configuration(profile_host(name))
+    sdk.require(profile.get("compiler_host") == configuration.compiler_host
+                and type(profile.get("query_threads")) is int and profile["query_threads"] == configuration.threads
+                and type(profile.get("query_ram_mb")) is int and profile["query_ram_mb"] == configuration.ram_mb,
+                "analysis host or resource budget differs")
     sdk.require(profile.get("active_target_quality_passed") is True
                 and profile.get("paired_target_quality_passed") is False
                 and analysis.get("completed") is True and analysis.get("upload_performed") is False,

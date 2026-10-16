@@ -37,8 +37,8 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 
 ## Rust CodeQL analysis boundary
 
-Rust analysis now has separate native Linux and `wasm32-unknown-unknown` jobs.
-Both select the explicit CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot, compile the
+Rust analysis now has separate native Linux, Apple Silicon macOS and
+`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot, compile the
 actual target with warnings denied, and extract the complete tracked Rust source
 inventory. Per-job Cargo homes and build directories stay outside the checkout.
 The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
@@ -52,7 +52,7 @@ fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result i
 required. The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
 the reduced result cannot replace a missing full result. Completed SARIF and
 quality records are retained without upload by the
-analysis jobs. A separate job verifies both profiles before publication. Reruns
+analysis jobs. A separate job verifies all three profiles before publication. Reruns
 may use a completed profile from an earlier attempt of the same workflow run and
 source commit; a newer incomplete profile never falls back to an older result.
 The selected attempts remain explicit in the paired receipt.
@@ -147,12 +147,17 @@ attempt identities, complete query result inventories, SARIF hashes, target
 categories, tool versions, and successful invocations. Raw results and failures
 are retained rather than rewritten to produce zero counts.
 
-The custom queries use four threads and 14,000 MB, with a 900-second Metrics limit
-and 300-second limits for other queries and decoding. Resource failures block
-publication. The fixed-path adapter uses the Linux CodeQL 2.27.2 toolcache path and
-workflow database layout, checks file types, requires current-user-owned database
+The Ubuntu 24.04 Rust jobs use four threads and 14,000 MB. The Apple Silicon
+`macos-26` job uses two threads and 5,500 MB within the standard runner's
+[3 CPU / 7 GB allocation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+These budgets apply to extraction, quality queries and the complete security suite.
+Both platforms retain the 900-second Metrics limit and 300-second limits for other queries and decoding.
+Resource failures block publication. The fixed-path adapter selects the platform's
+CodeQL 2.27.2 toolcache path and workflow database layout, checks file types, requires current-user-owned database
 paths without cross-account write permission, and revalidates open path identities
-around queries and decoding. The budget is scoped to the Ubuntu 24.04 Rust jobs;
+around queries and decoding. The compiler host is pinned to Linux x86_64 or macOS arm64;
+the macOS analysis does not add Intel Mac support. Each target must complete its own
+suite, including the macOS-only tests and test support which Linux/WASM cannot compile;
 runner or hardware changes require fresh qualification. Frozen 0.1.x publication
 receipts keep their original analysis categories and are not reinterpreted as
 qualification of this 0.2.0 pipeline.
