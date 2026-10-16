@@ -11,21 +11,49 @@ checkpoint below does not mark the required product protocol complete.
 > that implementation. Product protocol freeze, construction analysis, complete
 > authority lifecycle and current-source platform qualification remain required.
 
-New native integrations start with the explicit configuration and registration
-entry points: [C](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration),
-[Swift](../../bindings/swift/ContinuityPackageConsumer/README.md), or
-[Kotlin/JVM](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration-unpublished-candidate).
-These entries generate their own installation wrapping key and device signing
-identity after independently supplied inputs are admitted. Account approval,
-credential issuance and required-witness enrollment remain host-authorized steps.
-The [product admission record](PRODUCT_ADMISSION.md) separates these implemented
-paths from the remaining platform, protocol and release requirements.
-
 This directory separates candidate specification text from the high-level research
 plan in [`../CONTINUITY_RESEARCH.md`](../CONTINUITY_RESEARCH.md). A file appearing
 here is not automatically frozen. G1 closes only when all required artifacts are
 marked frozen, hashed by a future `SPEC_LOCK.json`, and the open-decision register is
 empty.
+
+## Start an integration
+
+Choose the entry for the host that will own the persistent state. The native
+language bindings use the unpublished `qpc-owner/1` candidate separately
+from the ordinary ABI 2 SDK; Rust uses the candidate crate directly. The browser
+lifecycle uses the product WASM web entry; its Node entry does not expose browser
+device storage. Use the matching package and source cohort described by each guide.
+
+| Host | Installation and first use |
+| --- | --- |
+| Rust | [Candidate crate consumption](../../research/continuity-identity-candidate/PACKAGE_CONSUMER.md) and [native enrollment inputs](../../research/continuity-identity-candidate/ENROLLMENT.md#inputs-and-first-use). The native API requires explicit one-time wrapping-key provisioning and canonical private paths. |
+| C | [Explicit configuration and registration](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration). |
+| Swift / Apple Silicon macOS / iOS | [Swift package, configuration and ownership](../../bindings/swift/ContinuityPackageConsumer/README.md). The guide includes the iOS private-container and Data Protection requirements. |
+| Kotlin/JVM | [First-use configuration](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration-unpublished-candidate). |
+| Android | [AAR configuration and registration](../../bindings/android/ContinuityPackageConsumer/README.md). Run blocking opening work off the UI thread and close owners explicitly. |
+| Browser | [Product WASM lifecycle](../../crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle). Persistent operations require a dedicated Worker, secure origin, IndexedDB, Web Locks and OPFS synchronous access handles. |
+
+Supply independently trusted SDK and protocol policies, account identity and
+current account checkpoint; native network configuration also needs the host's
+TLS identity. The C, Swift, Kotlin and Android configuration entries generate
+their installation wrapping key and signing identity after input admission.
+Browser creation retains its original keys in browser storage. Account approval,
+credential issuance and required-witness enrollment remain host-authorized steps;
+example keys and fixtures cannot supply production trust.
+
+Follow the original operation through creation, registration request, independent
+approval, acceptance, storage preparation, any required witness enrollment and
+activation. An unknown result can follow a durable commit. Reopen the original
+state and recover the same operation identity; an error never authorizes a new
+identity or deletion of published state. Fresh activation still checks current
+policy, membership and required-witness authority. The individual guides define
+their ownership, cancellation and error APIs.
+
+The [product admission record](PRODUCT_ADMISSION.md) records the implemented
+platform lifecycles and accepted device cohorts. These entries do not freeze
+the protocol or establish continuous recovery security; the required G1 work
+below remains open.
 
 ## Current artifacts
 

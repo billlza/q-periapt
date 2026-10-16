@@ -16,10 +16,18 @@ crates.io `0.1.5` packages remain the existing releases; r4 does not replace the
 | --- | --- |
 | Library/package `0.2.0` | Current development SDK with runtime, key and secret owners. |
 | Native ABI **2** | Calling conventions, original nine declarations, existing status values and library identities remain compatible. |
-| SDK export profile | The `sdk-020` packages contain exactly 43 C exports. The released 0.1.5 profile contains nine. New wrappers require the SDK exports. |
+| SDK export profile | The current `sdk-020` contract contains exactly 51 C exports, including native policy recovery. The released 0.1.5 profile contains nine. New wrappers require the matching SDK exports. |
 | Platform revision `r4` | Packaging/runtime maintenance for library 0.1.5; it is neither ABI 4 nor library 0.2.0. |
 
 ## Choose your language
+
+For owned keys, standard TLS or the bounded SDK request/response connection, use
+the packages below. For persistent sessions, multi-device operations and their
+recovery lifecycle, start with the [Continuity integration entries](continuity/README.md#start-an-integration).
+Continuity is required for 0.2.0 but remains an unpublished candidate with a
+separate interface and package contract; installing the ABI 2 SDK alone does not
+install its native device interface. The browser entry is in the product WASM
+package and has its own storage and Worker requirements.
 
 The package names and commands below target the local 0.2.0 candidate.
 Observations tied to earlier commits and checkpoints retain their alpha.1
@@ -31,9 +39,9 @@ own qualification, as recorded in the [readiness ledger](SDK_0_2_RELEASE_READINE
 | --- | --- | --- |
 | Rust | [Rust package guide](SDK_RUST_PACKAGE.md); [public API consumer](../bindings/rust/SDKPackageConsumer/src/lib.rs). Use source path dependencies for development, or the exact supplied `.crate` cohort with the guide's external-consumer setup. | The minimum compiler is Rust 1.90; the pinned development and release compiler is 1.98.1. Current-source platform qualification is tracked in the release-readiness document. |
 | C | Extract the [C SDK archive](SDK_C_PACKAGE.md), then link `qperiapt-abi2` through pkg-config or `QPeriaptABI2` through CMake. Windows uses its [separate SDK profile](SDK_WINDOWS_PACKAGE.md). Start from the shipped `sdk_smoke.c`. | Installed shared/static macOS ARM64 consumers run. Hosted `2493ffe` and `921cada` also pass native GNU/Linux x86_64/ARM64 and Windows package consumers; both Windows toolchains cover extracted direct/CMake calls and archive-only reconsumption. Minimum-OS/device coverage remains open. |
-| Swift | Extract `QPeriapt-Swift-SDK-0.2.0.zip`, add its `QPeriapt` folder as a local Swift package, and select `QPeriaptSDK`. See the [Swift guide](SDK_SWIFT_PACKAGE.md). | Installed macOS ARM64 calls and TCP connection run. macOS 13/iOS 16 are build floors; minimum-OS and physical-device execution remain open. |
+| Swift | Extract `QPeriapt-Swift-SDK-0.2.0.zip`, add its `QPeriapt` folder as a local Swift package, and select `QPeriaptSDK`. See the [Swift guide](SDK_SWIFT_PACKAGE.md). | Installed macOS ARM64 calls and TCP connection run. The readiness ledger records accepted current-OS iPhone/iPad SDK cohorts with their exact source identities. macOS 13/iOS 16 are build floors, not minimum-OS runtime receipts. macOS support is Apple Silicon only. |
 | Kotlin/JVM | Add the supplied local Maven repository and `dev.qperiapt:q-periapt-hybrid:0.2.0`; supply its matching ABI 2 native library. See [JVM installation](../bindings/kotlin/PackageREADME.md). | JDK 25 installed Maven consumer runs on macOS ARM64. Other native platforms remain open. |
-| Android | Use the supplied AAR or local Maven coordinate `dev.qperiapt:q-periapt-android:0.2.0`. See [Android installation](../bindings/android/PackageREADME.md). | Four native ABIs packaged. Full/minimal R8 consumers complete ART, cleanup and export replay on the hosted API 35 / 16 KiB / x86_64 emulator at `2493ffe` and `921cada`. API 23, ARM64 runtime and physical-device execution remain open. |
+| Android | Use the supplied AAR or local Maven coordinate `dev.qperiapt:q-periapt-android:0.2.0`. See [Android installation](../bindings/android/PackageREADME.md). | Four native ABIs packaged. Hosted API 23 / 4 KiB and API 35 / 16 KiB cohorts have runtime records in the readiness ledger. The [API 37 ARM64 phone checkpoint](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json) completes both full/minimal installed SDK consumers, cleanup and export checks. That one phone satisfies the agreed physical-device scope; API 36 hardware or a second phone is not required. |
 | JavaScript/TypeScript | `npm install ./q-periapt-sdk-wasm-0.2.0.tgz`; use the [Node/browser quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md). | Node 24.0.0/26.3.0 and Chrome 153/Firefox 156 have installed-package execution on macOS ARM64, including browser windows and dedicated module Workers. [Browser evidence and limits](SDK_BROWSER_RUNTIME.md) include Firefox host diagnostics and Safari's disabled automation setting. Other hosts, mobile/minimum browsers, bundlers and other Worker types remain open. |
 
 The older `QPeriaptHybrid` compatibility API and deterministic WASM test surface
@@ -68,9 +76,12 @@ For an authenticated connection, choose the
 [standard TLS entry](SDK_STANDARD_TLS.md) when the peer implements standard
 TLS 1.3/X25519MLKEM768. Choose the [reference SDK connection](SDK_CONNECTION.md)
 when both peers implement Q-Periapt's separate application-policy confirmation.
-The reference is a bounded request/response connection; it does not provide the
-future Continuity recovery protocol. The required installed Swift/macOS to
-Rust/Linux reference execution remains open.
+The reference is a bounded request/response connection. Persistent session and
+device recovery use the separate [Continuity lifecycle](continuity/README.md#start-an-integration).
+The [installed Swift/macOS to Rust/Linux checkpoint](../research/sdk-alpha1/evidence/20261008-installed-macos-linux-connection/README.md)
+passes twelve connection cases with separate persistent stores. Its Linux peer
+runs natively in a local VM on the same physical Mac; independent physical hosts
+and an independent implementation of the application protocol remain unqualified.
 
 The [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records the remaining release
 work. Package creation and the local checks above do not complete the platform
