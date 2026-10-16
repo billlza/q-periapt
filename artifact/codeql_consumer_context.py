@@ -17,6 +17,7 @@ import sys
 import tomllib
 
 import rust_sdk_profile as sdk
+from evidence_io import parse_strict_json_bytes
 from git_provenance import git_commit, run_git_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,8 +151,9 @@ def prepare(root: Path, output: Path, toolchains: list[str], *, environment=None
         for label, relative in CONSUMERS.items():
             consumer = root / relative
             cargo = ["cargo", "+" + toolchains[0]]
-            original = json.loads(command([*cargo, "metadata", "--no-deps", "--frozen", "--format-version", "1"],
-                                          label + "-targets", consumer))["packages"][0]
+            original = parse_strict_json_bytes(command(
+                [*cargo, "metadata", "--no-deps", "--frozen", "--format-version", "1"],
+                label + "-targets", consumer), label=label + " target metadata")["packages"][0]
             selected = providers(root, label)
             config = "[patch.crates-io]\n" + "".join(
                 name + " = { path = " + json.dumps(str(manifest.parent)) + " }\n"
@@ -167,8 +169,9 @@ def prepare(root: Path, output: Path, toolchains: list[str], *, environment=None
             else:
                 for name, data in sdk.policy_fixture_inputs(root).items():
                     write(consumer / "fixtures" / name, data)
-            metadata = json.loads(command([*cargo, "metadata", "--format-version", "1", "--all-features", "--offline"],
-                                          label + "-resolve", consumer))
+            metadata = parse_strict_json_bytes(command(
+                [*cargo, "metadata", "--format-version", "1", "--all-features", "--offline"],
+                label + "-resolve", consumer), label=label + " resolved metadata")
             remember(lock)  # Cargo is the declared writer during resolution only.
             check_metadata(metadata, original, selected)
             sdk.require(external_packages(sdk.snapshot(lock).data) <= admitted,
@@ -176,8 +179,9 @@ def prepare(root: Path, output: Path, toolchains: list[str], *, environment=None
             for toolchain in toolchains:
                 prefix = label + "-" + toolchain.replace(".", "_")
                 argv = ["cargo", "+" + toolchain]
-                replay = json.loads(command([*argv, "metadata", "--format-version", "1", "--all-features", "--locked", "--offline"],
-                                            prefix + "-metadata", consumer))
+                replay = parse_strict_json_bytes(command(
+                    [*argv, "metadata", "--format-version", "1", "--all-features", "--locked", "--offline"],
+                    prefix + "-metadata", consumer), label=prefix + " locked metadata")
                 check_metadata(replay, original, selected)
                 command([*argv, "check", "--all-targets", "--all-features", "--locked", "--offline"],
                         prefix + "-check", consumer)
@@ -210,7 +214,8 @@ def main() -> None:
     if args.action == "prepare":
         prepare(ROOT, output, args.toolchain or ["1.97.0", "1.98.1"])
     else:
-        state = json.loads(sdk.snapshot(output / "STATE.json").data)
+        state = parse_strict_json_bytes(sdk.snapshot(output / "STATE.json").data,
+                                        label="analysis consumer state")
         sdk.require(state["prepared"], "analysis context was not prepared")
         check_tree(ROOT, state)
         if args.action == "remove":

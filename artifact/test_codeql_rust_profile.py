@@ -11,7 +11,7 @@ from unittest import mock
 
 from bounded_process import BoundedProcessError
 import codeql_rust_profile as profile_module
-from codeql_rust_profile import ProfileRun, compiler_commands, prepared_consumers, validate_sarif
+from codeql_rust_profile import ProfileRun, compiler_commands, extract_database, prepared_consumers, validate_sarif
 
 
 def sarif(profile="native"):
@@ -58,6 +58,32 @@ class RustProfileTests(unittest.TestCase):
             root = Path(temporary)
             with self.assertRaisesRegex(ValueError, "missing"):
                 ProfileRun(root, root / "missing", Path(sys.executable), dict(os.environ), resume=True)
+
+    def test_database_parent_exists_before_codeql_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            database = root / "database-cluster" / "rust"
+            def check_parent(_label, argv):
+                self.assertTrue(database.parent.is_dir())
+                self.assertFalse(database.exists())
+                self.assertIn(str(database), argv)
+            with mock.patch.object(run, "command", side_effect=check_parent) as command:
+                extract_database(run, database)
+            command.assert_called_once()
+
+    def test_database_parent_is_not_reused_or_overwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            database = root / "database-cluster" / "rust"
+            database.parent.mkdir()
+            marker = database.parent / "existing-state"
+            marker.write_text("preserve")
+            with mock.patch.object(run, "command") as command, self.assertRaises(FileExistsError):
+                extract_database(run, database)
+            command.assert_not_called()
+            self.assertEqual(marker.read_text(), "preserve")
 
     def test_consumer_inputs_survive_extraction_and_are_removed_on_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

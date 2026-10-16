@@ -1332,7 +1332,6 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 ("c-cpp", "none", "ubuntu-latest"),
                 ("java-kotlin", "manual", "ubuntu-latest"),
                 ("python", "none", "ubuntu-latest"),
-                ("rust", "none", "ubuntu-latest"),
                 ("swift", "manual", "macos-latest"),
             ],
         )
@@ -1349,7 +1348,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common, source)
         self.assertLess(source.index("          swift build --build-tests" + swift_common),
                         source.index("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common))
-        self.assertIn("          debug: ${{ matrix.language == 'rust' || matrix.language == 'swift' }}", source)
+        self.assertIn("          debug: ${{ matrix.language == 'swift' }}", source)
         self.assertIn("          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics", source)
         # Kotlin builds its host library; the 0.2.0 Swift tracer and static
         # archive are both explicitly bound to Apple Silicon macOS.
@@ -1387,246 +1386,108 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
-        self.assertEqual(
-            source.count(PINNED_CODEQL_ACTION.format(action="init")), 1
-        )
-        self.assertEqual(
-            source.count(PINNED_CODEQL_ACTION.format(action="analyze")), 1
-        )
-        self.assertNotIn("github/codeql-action/init@7188fc", source)
-        self.assertNotIn("github/codeql-action/analyze@7188fc", source)
+        other_languages = extract_workflow_job(source, "analyze")
+        rust = extract_workflow_job(source, "rust")
+        publication = extract_workflow_job(source, "rust-publication")
+        action = PINNED_CODEQL_ACTION.split(" #", 1)[0]
+        self.assertEqual(other_languages.count(action.format(action="init")), 1)
+        self.assertEqual(other_languages.count(action.format(action="analyze")), 1)
+        self.assertIn("tools: linked", other_languages)
+        self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
 
-        compatibility = extract_named_workflow_step(
-            source, "Set up Rust CodeQL compatibility toolchain"
-        )
-        self.assertIn("        if: matrix.language == 'rust'\n", compatibility)
-        self.assertIn(f"        uses: {PINNED_CANONICAL_RUST_ACTION}\n", compatibility)
-        self.assertIn("          toolchain: 1.97.0\n", compatibility)
-        self.assertIn("          components: rust-src\n", compatibility)
+        self.assertIn("runs-on: ubuntu-24.04", rust)
+        self.assertIn("profile: [native, wasm]", rust)
+        self.assertIn("fail-fast: false", rust)
+        self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", rust)
+        self.assertIn(PINNED_CANONICAL_RUST_ACTION, rust)
+        self.assertIn("toolchain: 1.98.1", rust)
+        self.assertIn("components: rust-src", rust)
+        self.assertIn("targets: wasm32-unknown-unknown", rust)
+        self.assertIn(action.format(action="setup-codeql"), rust)
+        self.assertIn(
+            "tools: https://github.com/github/codeql-action/releases/download/"
+            "codeql-bundle-v2.27.2/codeql-bundle-linux64.tar.gz", rust)
+        # Analysis has no upload authority. Both independently successful
+        # targets and the paired validator must precede either publication.
+        self.assertNotIn("security-events:", rust)
+        self.assertNotIn("upload-sarif", rust)
+        self.assertNotIn(action.format(action="analyze"), rust)
+        for job in (rust, publication):
+            self.assertNotIn("continue-on-error", job)
+            self.assertNotIn("|| true", job)
+        prepare = extract_named_workflow_step(rust, "Compile and extract the actual target")
+        analyze = extract_named_workflow_step(rust, "Run every security-extended query")
+        for step, command in ((prepare, "prepare"), (analyze, "analyze")):
+            self.assertNotIn("        if:", step)
+            self.assertIn("CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}", step)
+            self.assertIn('artifact/codeql_rust_profile.py ' + command + ' --profile "$RUST_PROFILE"', step)
+        self.assertLess(rust.index(prepare), rust.index(analyze))
+        evidence = extract_named_workflow_step(rust, "Retain profile evidence before bundling diagnostics")
+        bundle = extract_named_workflow_step(rust, "Bundle the completed or partial database")
+        self.assertIn("if: always()", evidence)
+        self.assertIn("if-no-files-found: error", evidence)
+        self.assertLess(rust.index(evidence), rust.index(bundle))
+        self.assertIn("needs: rust", publication)
+        self.assertIn("security-events: write", publication)
+        self.assertIn("pattern: codeql-rust-profile-*", publication)
+        gate = extract_named_workflow_step(publication, "Require matching source, compiler coverage and complete suites")
+        self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", gate)
+        self.assertIn("artifact/codeql_rust_publication.py", gate)
+        self.assertNotIn("        if:", gate)
+        uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
+        self.assertEqual(len(uploads), 2)
+        for step, target in zip(uploads, ("native", "wasm")):
+            self.assertNotIn("        if:", step)
+            self.assertIn("category: /language:rust/target:" + target, step)
+            self.assertIn("sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/" + target + ".sarif", step)
+            self.assertIn("wait-for-processing: true", step)
+            self.assertLess(publication.index(gate), publication.index(step))
 
-        compile_step = extract_named_workflow_step(
-            source,
-            "Compile all Rust targets with compatibility and canonical toolchains",
-        )
-        self.assertEqual(
-            compile_step.count("          test ! -e target && test ! -L target\n"), 2
-        )
-        self.assertIn(
-            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.97.0"',
-            compile_step,
-        )
-        self.assertIn(
-            "cargo +1.97.0 check --workspace --all-targets --locked",
-            compile_step,
-        )
-        self.assertIn(
-            'CARGO_TARGET_DIR="${RUNNER_TEMP}/qperiapt-rust-check-1.98.1"',
-            compile_step,
-        )
-        self.assertIn(
-            "cargo +1.98.1 check --workspace --all-targets --locked",
-            compile_step,
-        )
-        self.assertEqual(compile_step.count("          RUSTFLAGS='-D warnings' \\\n"), 2)
+        quality_source = (ROOT / "artifact/codeql_rust_quality.py").read_text(encoding="utf-8")
+        for name in ("CODEQL_BINARY", "CODEQL_DATABASE_LOCATIONS", "CODEQL_RUNNER_TEMP"):
+            self.assertNotIn('os.environ.get("' + name + '"', quality_source)
+        self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_BINARY),
+                         "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql")
+        self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_DATABASE),
+                         "/home/runner/work/_temp/qperiapt-codeql-database/rust")
+        self.assertEqual(str(codeql_rust_quality.FIXED_RUNNER_TEMP), "/home/runner/work/_temp")
 
-        sysroot_step = extract_named_workflow_step(
-            source, "Bind Rust CodeQL to the compatible analysis sysroot"
-        )
-        self.assertIn("rustc 1.97.0 (2d8144b78 2026-07-07)", sysroot_step)
-        self.assertIn("CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT=%s", sysroot_step)
-        self.assertIn("CODEQL_EXTRACTOR_RUST_OPTION_SYSROOT_SRC=%s", sysroot_step)
-        self.assertIn("RUSTUP_TOOLCHAIN=%s", sysroot_step)
-
-        initialize = extract_named_workflow_step(source, "Initialize CodeQL")
-        self.assertIn("        id: codeql_init\n", initialize)
-        self.assertIn(
-            "          db-location: ${{ runner.temp }}/qperiapt-codeql-database\n",
-            initialize,
-        )
-        exact_bundle = extract_named_workflow_step(source, "Verify linked CodeQL bundle")
-        self.assertIn(
-            "          CODEQL_BINARY: "
-            "${{ steps.codeql_init.outputs.codeql-path }}\n",
-            exact_bundle,
-        )
-        self.assertIn(
-            'run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"',
-            exact_bundle,
-        )
-        fixed_bundle = extract_named_workflow_step(
-            source, "Bind Rust quality gate to the linked CodeQL bundle"
-        )
-        self.assertIn("        if: matrix.language == 'rust'\n", fixed_bundle)
-        self.assertIn(
-            "          CODEQL_BINARY: "
-            "${{ steps.codeql_init.outputs.codeql-path }}\n",
-            fixed_bundle,
-        )
-        self.assertIn(
-            "          fixed_codeql=/opt/hostedtoolcache/CodeQL/2.27.1/x64/"
-            "codeql/codeql\n",
-            fixed_bundle,
-        )
-        self.assertIn(
-            '          test "$CODEQL_BINARY" = "$fixed_codeql"\n', fixed_bundle
-        )
-        self.assertIn(
-            "          stat --format='CODEQL_TOOLCACHE_STAT type=%F mode=%a "
-            "uid=%u gid=%g nlink=%h' \\\n",
-            fixed_bundle,
-        )
-        self.assertIn('            -- "$fixed_codeql"\n', fixed_bundle)
-        self.assertNotIn("|| true", fixed_bundle)
-        self.assertNotIn("continue-on-error:", fixed_bundle)
-        self.assertEqual(initialize.count("          tools: linked\n"), 1)
-        analyze = extract_named_workflow_step(source, "Analyze")
-        self.assertIn("        id: codeql_analyze\n", analyze)
-        self.assertIn(
-            "          upload: "
-            "${{ matrix.language == 'rust' && 'never' || 'always' }}\n",
-            analyze,
-        )
-        self.assertIn(
-            "          upload-database: "
-            "${{ matrix.language == 'rust' && 'false' || 'true' }}\n",
-            analyze,
-        )
-        reject_target = extract_named_workflow_step(
-            source, "Reject repository-local Rust build output"
-        )
-        self.assertEqual(
-            reject_target.count("test ! -e target && test ! -L target"), 1
-        )
-        checkout_before = extract_named_workflow_step(
-            source, "Verify Rust CodeQL checkout before initialization"
-        )
-        checkout_after = extract_named_workflow_step(
-            source, "Verify Rust CodeQL checkout after analysis"
-        )
-        for checkout in (checkout_before, checkout_after):
-            self.assertIn("          CODEQL_EXPECTED_COMMIT: ${{ github.sha }}\n", checkout)
-            self.assertIn(
-                "        run: sh artifact/python-run.sh "
-                "artifact/codeql_rust_checkout.py\n",
-                checkout,
-            )
-        self.assertLess(source.index(checkout_before), source.index(initialize))
-        self.assertLess(source.index(fixed_bundle), source.index(exact_bundle))
-        self.assertLess(source.index(exact_bundle), source.index(analyze))
-        self.assertGreater(source.index(checkout_after), source.index(analyze))
-
-        quality = extract_named_workflow_step(
-            source, "Verify Rust CodeQL database quality"
-        )
-        self.assertIn("        if: matrix.language == 'rust'\n", quality)
-        self.assertIn("          CODEQL_EXPECTED_COMMIT: ${{ github.sha }}\n", quality)
-        self.assertNotIn("CODEQL_BINARY", quality)
-        self.assertNotIn("CODEQL_DATABASE_LOCATIONS", quality)
-        self.assertNotIn("CODEQL_RUNNER_TEMP", quality)
-        self.assertIn(
-            "        run: sh artifact/python-run.sh "
-            "artifact/codeql_rust_quality.py\n",
-            quality,
-        )
-        self.assertNotIn("continue-on-error:", quality)
-        self.assertNotIn("|| true", quality)
-        upload = extract_named_workflow_step(
-            source, "Upload quality-gated Rust CodeQL results"
-        )
-        self.assertIn("        if: matrix.language == 'rust'\n", upload)
-        self.assertIn(
-            f"        uses: {PINNED_CODEQL_ACTION.format(action='upload-sarif')}\n",
-            upload,
-        )
-        self.assertIn(
-            "          sarif_file: "
-            "${{ steps.codeql_analyze.outputs.sarif-output }}\n",
-            upload,
-        )
-        self.assertIn("          wait-for-processing: true\n", upload)
-        self.assertGreater(source.index(upload), source.index(quality))
-        self.assertLess(source.index(checkout_after), source.index(quality))
-
-        quality_source = (ROOT / "artifact" / "codeql_rust_quality.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertEqual(
-            quality_source.count("        require_clean_checkout(expected_commit)\n"),
-            2,
-        )
-        self.assertEqual(
-            quality_source.count("        require_repository_target_absent()\n"),
-            2,
-        )
-        self.assertNotIn('os.environ.get("CODEQL_BINARY"', quality_source)
-        self.assertNotIn(
-            'os.environ.get("CODEQL_DATABASE_LOCATIONS"', quality_source
-        )
-        self.assertNotIn('os.environ.get("CODEQL_RUNNER_TEMP"', quality_source)
-        self.assertIn(
-            '"/opt/hostedtoolcache/CodeQL/2.27.1/x64/codeql/codeql"',
-            quality_source,
-        )
-        self.assertIn(
-            '"/home/runner/work/_temp/qperiapt-codeql-database/rust"',
-            quality_source,
-        )
-        self.assertIn(
-            'FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")',
-            quality_source,
-        )
-
-    def test_rust_codeql_compatibility_and_upload_boundary_is_documented(self) -> None:
+    def test_rust_codeql_targets_and_upload_boundary_are_documented(self) -> None:
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
-        self.assertIn("not native Rust 1.98.1 CodeQL analysis", normalized)
-        self.assertIn("under both Rust 1.97.0 and Rust 1.98.1 with", normalized)
-        # Taken from the gate's own constant, never a second literal: this
-        # audit read 93 while the gate enforced 105, so the stale sentence it
-        # was meant to catch passed it.
+        self.assertIn("separate native Linux and `wasm32-unknown-unknown` jobs", normalized)
+        self.assertIn("CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot", normalized)
+        self.assertIn("actual target with warnings denied", normalized)
         self.assertIn(
-            f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} "
-            "tracked `.rs` files",
-            normalized,
-        )
-        self.assertIn(
-            "reported as telemetry rather than required to be zero", normalized
-        )
-        self.assertIn("`wasm_bindgen`-generated `Abi` type mentions", normalized)
-        self.assertIn("raw database upload disabled", normalized)
-        self.assertIn("only an explicit SARIF upload after the quality", normalized)
-        self.assertIn(
-            "accepts no environment-selected executable, database, or temporary path",
-            normalized,
-        )
-        self.assertIn("trusted-runner integrity checks", normalized)
-        self.assertIn("not isolation from hostile code", normalized)
-        self.assertIn("path-identity snapshots", normalized)
-        self.assertIn("remain trusted inputs used by pathname", normalized)
-        self.assertIn("inherited process environment and OS runtime are trusted", normalized)
-        self.assertIn(
-            "Each custom query receives a fixed four-thread, 14,000 MB evaluator "
-            "budget with a 900-second Metrics deadline and 300-second deadlines "
-            "for other queries and decoding, plus bounded diagnostic output; a "
-            "resource or deadline failure blocks publication.",
-            normalized,
-        )
-        self.assertIn("public-repository Rust `ubuntu-latest` lane", normalized)
-        self.assertIn(
-            "runner-label, repository-visibility, or hosted-hardware change requires "
-            "revalidating the fixed budget",
-            normalized,
-        )
+            f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} tracked `.rs` files",
+            normalized)
         for boundary in (
-            "foreign-owned",
-            "group/other-writable",
-            "multiply linked",
-            "original inode",
-            "alternate hard link",
-            "separate account alone is insufficient",
+            "all 39 pinned security-extended queries, including full `SummaryStats`",
+            "every expected fresh BQRS result is required",
+            "A separate job verifies both profiles before publication",
+            "a newer incomplete profile never falls back to an older result",
+            "zero extraction warnings, extraction errors, unextracted elements",
+            "complete, self-reconciling telemetry",
+            "unresolved executable macro in a compiled source fails in that profile",
+            "peer that actually compiles the same bytes",
+            "No query is removed",
+            "These controls do not establish whole-repository query completion",
+            "four threads and 14,000 MB",
+            "900-second Metrics limit and 300-second limits for other queries and decoding",
+            "Resource failures block publication",
+            "Ubuntu 24.04 Rust jobs",
+            "runner or hardware changes require fresh qualification",
+            "trusted-runner integrity checks",
+            "not isolation from hostile code",
+            "path-identity snapshots",
+            "remain trusted inputs used by pathname",
+            "inherited process environment and OS runtime are trusted",
+            "foreign-owned", "group/other-writable", "multiply linked",
+            "original inode", "alternate hard link", "separate account alone is insufficient",
         ):
-            self.assertIn(boundary, normalized)
+            with self.subTest(boundary=boundary):
+                self.assertIn(boundary, normalized)
 
     def test_dependency_monitoring_and_private_reporting_policy_are_explicit(
         self,

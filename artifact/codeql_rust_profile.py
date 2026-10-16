@@ -156,6 +156,15 @@ def collect_quality(run: ProfileRun, compiled: dict[str, str], source: dict[str,
     return metrics
 
 
+def extract_database(run: ProfileRun, database: Path) -> None:
+    # setup-codeql installs the CLI but does not create init's database parent.
+    # Require a fresh owned parent; existing analysis state must not be reused.
+    database.parent.mkdir(mode=0o700)
+    run.command("extract", [str(run.codeql), "database", "create", str(database),
+                            "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
+                            "--threads=4", "--ram=14000", "--common-caches=" + str(run.output / "cache")])
+
+
 def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     quality.require_repository_target_absent()
     quality.require_clean_checkout(expected_commit)
@@ -193,9 +202,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
                     "--locked", "--offline", "--message-format=json-render-diagnostics"]
             stdout = run.command("compile-" + label, argv, cwd=cwd)
             compiled.update(collect_compiled_sources(run.root, cwd, stdout, source))
-        run.command("extract", [str(run.codeql), "database", "create", str(quality.FIXED_CODEQL_DATABASE),
-                                "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
-                                "--threads=4", "--ram=14000", "--common-caches=" + str(run.output / "cache")])
+        extract_database(run, quality.FIXED_CODEQL_DATABASE)
     sdk.require(all(sdk.snapshot(run.root / path).sha256 == digest for path, digest in lock_hashes.items()), "workspace lock changed")
     sdk.require(all(sdk.snapshot(run.root / path, maximum=5 * 1024**2).sha256 == digest for path, digest in source.items()), "analyzed Rust source changed")
     quality.require_clean_checkout(expected_commit)

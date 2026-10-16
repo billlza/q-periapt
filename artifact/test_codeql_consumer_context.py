@@ -130,6 +130,46 @@ class ConsumerContextTests(unittest.TestCase):
         self.assertIn("needs: rust", source)
         self.assertNotIn("continue-on-error", source)
 
+    def test_ambiguous_state_is_rejected_before_verify_or_cleanup(self):
+        output = self.root / "receipts"
+        output.mkdir()
+        marker = self.root / "retained-input"
+        marker.write_bytes(b"keep")
+        for action in ("verify", "remove"):
+            with self.subTest(action=action):
+                (output / "STATE.json").write_bytes(
+                    b'{"prepared":false,"prepared":true,"commit":"test","owned":{}}')
+                with mock.patch.object(context, "ROOT", self.root / "checkout"), \
+                     mock.patch.object(context.sys, "argv", ["context", action, "--output", str(output)]), \
+                     mock.patch.object(context, "check_tree") as check, \
+                     mock.patch.object(context, "remove_owned") as remove:
+                    with self.assertRaisesRegex(ValueError, "duplicate"):
+                        context.main()
+                check.assert_not_called()
+                remove.assert_not_called()
+                self.assertEqual(marker.read_bytes(), b"keep")
+                self.assertFalse((output / "REMOVED.json").exists())
+
+    def test_ambiguous_cargo_metadata_fails_before_creating_consumer_inputs(self):
+        (self.root / "Cargo.lock").write_text('package = []\n')
+        candidate = self.root / context.CANDIDATE
+        candidate.mkdir(parents=True)
+        (candidate / "Cargo.lock").write_text('package = []\n')
+        output = self.root / "receipts"
+        with mock.patch.object(context, "git_commit", return_value="a" * 40), \
+             mock.patch.object(context, "run_git_bytes", return_value=b""), \
+             mock.patch.object(context, "allowed_paths", return_value=set()), \
+             mock.patch.object(sdk, "command", return_value=b'{"packages":[],"packages":[]}') as cargo, \
+             mock.patch.object(context, "providers") as providers:
+            with self.assertRaisesRegex(ValueError, "duplicate"):
+                context.prepare(self.root, output, ["1.98.1"])
+        cargo.assert_called_once()
+        providers.assert_not_called()
+        state = json.loads((output / "STATE.json").read_text())
+        self.assertFalse(state["prepared"])
+        self.assertTrue(state["cleanup_completed"])
+        self.assertEqual(state["owned"], {})
+
 
 if __name__ == "__main__":
     unittest.main()
