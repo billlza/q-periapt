@@ -280,6 +280,61 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(b"", nonzero.stdout)
         self.assertEqual(b"failure", nonzero.stderr)
 
+    def test_long_analysis_budget_requires_explicit_finite_policy(self) -> None:
+        with mock.patch.object(bounded_process, "_start_process") as start:
+            with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+                bounded_process.capture_output(
+                    ["unused"], timeout_seconds=901,
+                    maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+                )
+            self.assertEqual(raised.exception.kind, "arguments")
+            start.assert_not_called()
+        for seconds, policy in (
+            (18001, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (0, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (True, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (1, "LONG_ANALYSIS"),
+        ):
+            with self.subTest(seconds=seconds, policy=policy), \
+                 mock.patch.object(bounded_process, "_start_process") as start:
+                with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+                    bounded_process.capture_output(
+                        ["unused"], timeout_seconds=seconds, timeout_policy=policy,
+                        maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+                    )
+                self.assertEqual(raised.exception.kind, "arguments")
+                start.assert_not_called()
+        result = bounded_process.capture_output(
+            self.python("print('analysis'); raise SystemExit(7)"),
+            timeout_seconds=18000,
+            timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+            maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (7, b"analysis\n", b""))
+
+    def test_long_analysis_preserves_output_limits_and_timeout_cleanup(self) -> None:
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_output(
+                self.python("import sys; sys.stderr.write('x' * 33)"),
+                timeout_seconds=18000,
+                timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        pid_path = self.root / "analysis.pid"
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_output(
+                self.python("import os,pathlib,time; "
+                            f"pathlib.Path({str(pid_path)!r}).write_text(str(os.getpid())); "
+                            "time.sleep(60)"),
+                timeout_seconds=1,
+                timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+            )
+        self.assertEqual(raised.exception.kind, "timeout")
+        self.assertFalse(raised.exception.cleanup_ambiguous)
+        self.assert_process_group_gone(int(pid_path.read_text()))
+
     def test_capture_output_rejects_either_stream_over_limit(self) -> None:
         for stream in ("stdout", "stderr"):
             with (

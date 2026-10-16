@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 import os
 import pathlib
 import re
@@ -23,11 +24,19 @@ except ImportError:
 
 
 MAX_TIMEOUT_SECONDS = 900
+MAX_ANALYSIS_TIMEOUT_SECONDS = 18000
 MAX_OUTPUT_BYTES = 512 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 REAP_TIMEOUT_SECONDS = 5
 MAX_OUTPUT_NAME_BYTES = 128
 _OUTPUT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+class TimeoutPolicy(enum.Enum):
+    """Explicit finite budgets; ordinary commands retain the 900-second cap."""
+
+    STANDARD = MAX_TIMEOUT_SECONDS
+    LONG_ANALYSIS = MAX_ANALYSIS_TIMEOUT_SECONDS
 
 ErrorKind = Literal[
     "arguments",
@@ -222,15 +231,20 @@ def _validated_argv(argv: Sequence[str]) -> list[str]:
     return list(argv)
 
 
-def _validated_timeout(timeout_seconds: int) -> int:
+def _validated_timeout(
+    timeout_seconds: int, *, policy: TimeoutPolicy = TimeoutPolicy.STANDARD
+) -> int:
+    if not isinstance(policy, TimeoutPolicy):
+        raise BoundedProcessError("arguments", "unknown timeout policy")
+    maximum = policy.value
     if (
         isinstance(timeout_seconds, bool)
         or not isinstance(timeout_seconds, int)
-        or not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS
+        or not 1 <= timeout_seconds <= maximum
     ):
         raise BoundedProcessError(
             "arguments",
-            f"timeout must be an integer from 1 through {MAX_TIMEOUT_SECONDS}",
+            f"timeout must be an integer from 1 through {maximum}",
         )
     return timeout_seconds
 
@@ -898,10 +912,11 @@ def capture_output(
     maximum_stderr_bytes: int,
     stdin_fd: int | None = None,
     environment: Mapping[str, str] | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
-    """Capture stdout and stderr concurrently under independent hard limits."""
+    """Capture both streams; long analyses explicitly opt into a finite budget."""
 
-    timeout = _validated_timeout(timeout_seconds)
+    timeout = _validated_timeout(timeout_seconds, policy=timeout_policy)
     limits = {
         "stdout": _validated_maximum(maximum_stdout_bytes),
         "stderr": _validated_maximum(maximum_stderr_bytes),

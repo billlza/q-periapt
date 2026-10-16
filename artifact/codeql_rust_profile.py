@@ -12,7 +12,7 @@ import shutil
 import sys
 import time
 
-from bounded_process import BoundedProcessError, capture_output
+from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 import codeql_consumer_context as consumers
 from codeql_compiler_sources import collect_compiled_sources
 import codeql_rust_quality as quality
@@ -37,13 +37,15 @@ class ProfileRun:
         else:
             self.evidence.mkdir(parents=True)
 
-    def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900):
+    def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900,
+                timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD):
         started = time.monotonic()
         record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds}
         try:
             with contextlib.chdir(cwd or self.root):
                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
-                                        maximum_stderr_bytes=16 * 1024**2, environment=self.environment)
+                                        maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
+                                        timeout_policy=timeout_policy)
         except BoundedProcessError as exc:
             sdk.write_json(self.evidence / (label + ".json"), {
                 **record, "completed": False, "boundary": exc.kind, "reason": str(exc),
@@ -222,6 +224,14 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     })
 
 
+def validate_query_inventory(inventory: dict[str, str], expected: object) -> None:
+    # Upstream includes both summary queries. Require the full one and every
+    # pinned query, rather than mistaking Reduced's presence for substitution.
+    sdk.require("queries/summary/SummaryStats.ql" in inventory, "full summary query is missing")
+    sdk.require(expected == {"codeql_version": VERSION, "query_pack": QUERY_VERSION, "queries": inventory},
+                "resolved query bytes differ from the pinned full suite")
+
+
 def analyze(run: ProfileRun, query_pack: Path) -> None:
     profile_path = run.evidence / "PROFILE.json"
     profile = parse_strict_json_bytes(sdk.snapshot(profile_path).data, label="Rust analysis profile")
@@ -235,17 +245,16 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
         path = Path(value).resolve(strict=True)
         sdk.require(path.is_relative_to(query_pack) and path.suffix == ".ql", "query outside pinned Rust pack")
         inventory[path.relative_to(query_pack).as_posix()] = sdk.snapshot(path).sha256
-    sdk.require("queries/summary/SummaryStats.ql" in inventory and "queries/summary/SummaryStatsReduced.ql" not in inventory, "full summary query has been substituted")
     expected = parse_strict_json_bytes(sdk.snapshot(run.root / "artifact/codeql_rust_queries.json").data,
                                       label="pinned Rust query inventory")
-    sdk.require(expected == {"codeql_version": VERSION, "query_pack": QUERY_VERSION, "queries": inventory},
-                "resolved query bytes differ from the pinned full suite")
+    validate_query_inventory(inventory, expected)
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
     run.command("analyze", [str(run.codeql), "database", "analyze", str(quality.FIXED_CODEQL_DATABASE), str(suite),
                             "--format=sarif-latest", "--output=" + str(sarif), "--threads=4", "--ram=14000",
                             "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
-                            "--sarif-category=/language:rust/target:" + profile["profile"]], seconds=18000)
+                            "--sarif-category=/language:rust/target:" + profile["profile"]], seconds=18000,
+                timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
     results = {}
     for relative in inventory:
         path = quality.FIXED_CODEQL_DATABASE / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")

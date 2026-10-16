@@ -11,7 +11,7 @@ from unittest import mock
 
 from bounded_process import BoundedProcessError
 import codeql_rust_profile as profile_module
-from codeql_rust_profile import ProfileRun, compiler_commands, extract_database, prepared_consumers, validate_sarif
+from codeql_rust_profile import ProfileRun, compiler_commands, extract_database, prepared_consumers, validate_query_inventory, validate_sarif
 
 
 def sarif(profile="native"):
@@ -48,10 +48,31 @@ class RustProfileTests(unittest.TestCase):
             root = Path(temporary)
             run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
             with self.assertRaises(BoundedProcessError):
-                run.command("timeout", [sys.executable, "-c", "import time;time.sleep(5)"], seconds=0.05)
+                run.command("timeout", [sys.executable, "-c", "import time;time.sleep(5)"], seconds=1)
             record = json.loads((run.evidence / "timeout.json").read_text())
             self.assertFalse(record["completed"])
-            self.assertIn("cleanup_ambiguous", record)
+            self.assertEqual(record["boundary"], "timeout")
+            self.assertFalse(record["cleanup_ambiguous"])
+
+    def test_full_and_reduced_summary_queries_are_both_required_by_the_pinned_suite(self) -> None:
+        pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+        inventory = pinned["queries"]
+        self.assertEqual(len(inventory), 39)
+        self.assertIn("queries/summary/SummaryStatsReduced.ql", inventory)
+        validate_query_inventory(inventory, pinned)
+        missing_full = dict(inventory)
+        del missing_full["queries/summary/SummaryStats.ql"]
+        with self.assertRaisesRegex(ValueError, "full summary query is missing"):
+            validate_query_inventory(missing_full, dict(pinned, queries=missing_full))
+        for path in ("queries/summary/SummaryStatsReduced.ql", "queries/summary/SummaryStats.ql"):
+            changed = dict(inventory)
+            changed[path] = "0" * 64
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, "query bytes differ"):
+                validate_query_inventory(changed, pinned)
+        missing_reduced = dict(inventory)
+        del missing_reduced["queries/summary/SummaryStatsReduced.ql"]
+        with self.assertRaisesRegex(ValueError, "query bytes differ"):
+            validate_query_inventory(missing_reduced, pinned)
 
     def test_resumption_requires_existing_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -49,7 +49,9 @@ Each profile has a 360-minute job bound and a 300-minute full-suite process boun
 Extraction and active-source quality are checked before running all 39 pinned
 security-extended queries, including full `SummaryStats`. Query text hashes are
 fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result is
-required. Completed SARIF and quality records are retained without upload by the
+required. The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
+the reduced result cannot replace a missing full result. Completed SARIF and
+quality records are retained without upload by the
 analysis jobs. A separate job verifies both profiles before publication. Reruns
 may use a completed profile from an earlier attempt of the same workflow run and
 source commit; a newer incomplete profile never falls back to an older result.
