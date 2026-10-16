@@ -42,6 +42,14 @@ separately. No new observation, restriction or protocol round bound is added.
 The subsequent generation-origin search still times out, so these structural
 results do not establish authentication, root secrecy or multi-epoch recovery.
 
+The [first-Ready checkpoint](../sdk-alpha1/evidence/20261016-recovery-ready-invariant/README.md)
+checks a 285-step uniqueness proof for role B's Ready event at epoch one, with
+independent replays in the isolated phase representation and its wire-observation
+extension. Rule/query comparisons and mutation controls support the explicit
+representation argument, which is not a machine-checked equivalence theorem.
+The canonical model is unchanged; the result does not establish arbitrary-epoch
+uniqueness, two-round executability or recovery secrecy.
+
 [`protected-state.spthy`](protected-state.spthy) is an unchanged symbolic projection
 of one identity-authenticated rekey exchange. `generation_secret_origin` is
 verified by Tamarin 1.12.0 / Maude 3.5.1 using induction: 182 steps. It gives a

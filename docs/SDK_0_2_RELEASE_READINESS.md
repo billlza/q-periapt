@@ -36,6 +36,14 @@ fails acceptance. The standalone source gate passes. Counter uniqueness, nonce
 safety, generation-secret origin, two-round witnesses, multi-epoch message secrecy
 and SDK correspondence are not established by these structural properties.
 
+The [first-Ready invariant checkpoint](../research/sdk-alpha1/evidence/20261016-recovery-ready-invariant/README.md)
+adds a 285-step proof and independent replays for uniqueness of role B's first
+positive-epoch Ready event in an isolated phase-state representation. Complete
+rule/query comparisons and negative controls support the stated correspondence
+argument; that argument is not a machine-checked meta-theorem. The canonical
+model and SDK runtime remain unchanged. This does not close two-round
+executability, general epoch/counter uniqueness or recovery secrecy.
+
 The 2026-10-04 platform decision makes 0.2.0 macOS **Apple Silicon (arm64)
 only**, including Continuity. Intel macOS is outside this release's support
 matrix. Linux/Windows x86_64 and the existing iOS simulator targets remain in
