@@ -9,15 +9,23 @@ The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/202
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata
 resolution failure without changing installed-package consumer contracts.
-Hosted 1.97.0/CodeQL extraction and the separate query-timeout problem remain
-open; the compiler result does not qualify either.
+That checkpoint did not qualify hosted 1.97.0/CodeQL extraction or the separate
+query-timeout problem. The later Rust analysis uses 1.98.1 and CodeQL 2.27.2.
+In [run 38861869313](https://github.com/billlza/q-periapt/actions/runs/38861869313),
+WASM completes all 39 security queries; macOS compiles and extracts successfully
+but its Metrics quality query exceeds 900 seconds. Complete Linux/macOS analysis
+and combined publication are not qualified by the WASM result or local replay.
 
 The [shared-storage replay checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-composed-replay/README.md)
 qualifies `72587c2a`'s complete proof composition: the actual entrypoint checks
 all 20 original single-exchange properties and both witnesses, with independent
 readback, 211 related tests and the source gate. Both previous hosted 900-second
-timeouts remain recorded. Linux CI and multi-epoch recovery remain separate,
-unclosed obligations.
+timeouts remain recorded. The subsequent [hosted Linux replay](https://github.com/billlza/q-periapt/actions/runs/38861869698/job/116845750662)
+completes all three single-exchange profiles at merge `b3e1a711` (the same tree
+as branch `9f1c7f62`): 20 universal properties per profile and 3/2/2 witnesses.
+Independent public-artifact readback checks all 27 terminal summaries and the
+proof dependency graph. Multi-epoch recovery, computational security and SDK
+correspondence remain open.
 
 The [multi-epoch counter checkpoint](../research/sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 qualifies `1c9e66f3`'s observation-preserving model extension. Complete independent
@@ -336,7 +344,7 @@ open; the agreed physical-device gate remains complete.
 | Full reference connection | Actual Swift/macOS client and Rust/Linux server packages; first connect/reconnect, auth, policy confirmation, failure/cancel/concurrency | The 2026-10-08 installed Swift/macOS and archive-derived Rust/Linux peers pass twelve cases across OS kernels with separate persistent stores. Linux runs unprivileged in a local native VM on the same Mac. Independent physical hosts and independent protocol implementations remain unqualified; prior same-OS checkpoints retain their own source scope |
 | Coherent install and distribution | One current version/ABI/package revision matrix; actual installed consumers and current-source devices for supported targets | Version/ABI/package profiles and independent installed consumers are implemented. Named cohorts cover Rust, macOS C/JVM, Apple architecture links, WASM Node/Chrome/Firefox, native Linux C and Windows C packages. Both Windows runner package jobs pass at 830e381, including extracted direct/CMake consumers and archive-only reconsumption. Both Android full/minimal ART, retirement and export gates pass at 2493ffe, with the agreed single-phone physical gate completed at 24ecaf46. API 36 hardware and a second phone are not release requirements. Each receipt keeps its source scope; public registries, signing and remaining platform/software scenarios stay open |
 | Security review and proofs | Updated threat/assurance boundaries, KAT/differential/CT/formal gates appropriate to changed source; internal security review | Local and hosted conformance, differential, binary CT and formal outputs are retained per cohort with their finite/model scopes. Internal boundary review remains required |
-| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The clean 2493ffe snapshot passes 2,250 artifact tests in 482.705 seconds without skips and its post-test source gate. Hosted 830e381 passes 2,246 artifact tests with three macOS-only ACL skips, the source gate, workspace checks and installed C consumers. The later package-query diagnostic passes 171 command tests locally. The full workflow retains the pre-existing runner-catalogue lint diagnostic. The tracked Rust inventory at c46695b6 contains 261 files, including isolated candidates; final exact-source CI/CodeQL and internal review remain required |
+| Quality and maintainability | Dependency direction, explicit errors/ownership, no duplicate primitive paths, API documentation; required build/lint/tests and internal critical-path review | The standalone `8ad598b2` checkout passes 2,984 artifact tests in 590.251 seconds with warnings as errors and no skips. The workflow-only successor `aabddbd6` passes CodeQL workflow lint and its exact-source gate. Rust analysis binds 693 tracked sources and all 39 security queries across native Linux, WASM and Apple Silicon profiles. Local fixes preserve failed-query diagnostics and finite budgets; their hosted validation, complete target analysis and remaining internal review are still required. Earlier cohort checks below retain their original source scope |
 | Release transaction | Coordinated crate versions, frozen schemas/export lists, exact-source CI, signed packages where required, install/device evidence and maintenance policy | The twelve-crate 0.2.0 coordinator validates the clean producer, exact archives and closed dependency order, then uses the shared lock, durable journal and API+sparse reconciliation. Hosted `57334d4` produces the real cohort and passes the source-bound dry-run. Final platform, signing and publication requirements remain open; readiness alone does not authorize publication |
 
 ## Latest qualification checkpoints
