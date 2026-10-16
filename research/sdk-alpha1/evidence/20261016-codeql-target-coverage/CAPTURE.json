@@ -1,0 +1,333 @@
+{
+  "analyzed_rust_source_commit": "6c13c486e9aa3a1ac852f2127fc4cbb30c5e63d5",
+  "archive_bytes": 929297,
+  "archive_sha256": "d634868f5cfaa56b11291e534c0f1ce79047c0967a9de1ec7b9431ca3058985b",
+  "expanded_bytes": 10311015,
+  "full_security_extended_qualified": false,
+  "implementation_commit": "5358c90db5abda29f97f71b624a6c536f2a0c3d1",
+  "members": {
+    "compilers/native-engine-compiler-64.json": {
+      "bytes": 408,
+      "sha256": "a4d642a401f5a8c184584a950da7d35e35d1dd51a7389db5fa50885acede4c45"
+    },
+    "compilers/native-engine-compiler-64.stderr": {
+      "bytes": 72,
+      "sha256": "0b53209db424367e80c52cd8cde8b75e37af110438a0efde777104a1463956de"
+    },
+    "compilers/native-engine-compiler-64.stdout": {
+      "bytes": 160006,
+      "sha256": "67f27328dfc2c5fa98d2048c6936d4f64ac1e9d995e0fde0dae7215caf2c76b2"
+    },
+    "compilers/native-root-compiler-64.json": {
+      "bytes": 460,
+      "sha256": "79a5990b7f5796c3c7f5ac2de7669c405e618d5ee585a1577180f7b5a6e4d7b3"
+    },
+    "compilers/native-root-compiler-64.stderr": {
+      "bytes": 72,
+      "sha256": "a16685927daa0790a2b357e2b56df170e7bad259186d3c802d6d441422dfd0cf"
+    },
+    "compilers/native-root-compiler-64.stdout": {
+      "bytes": 267908,
+      "sha256": "125d817640aa0e66b393fb0c1d44b9c8dd73bd77af3c0f439bc9cf7c2f794907"
+    },
+    "compilers/wasm-legacy-compiler-64.json": {
+      "bytes": 442,
+      "sha256": "f1faac2f35f8a741cb98c91748ec0fac0838616e75af9867080917f55a056124"
+    },
+    "compilers/wasm-legacy-compiler-64.stderr": {
+      "bytes": 72,
+      "sha256": "fecede7c2157efe2f16c8c8b9dce94b0fb4dd384dca8207046c8bf7636eb0ffe"
+    },
+    "compilers/wasm-legacy-compiler-64.stdout": {
+      "bytes": 107292,
+      "sha256": "19612b6d7e33ce9cd9ba344285eae18643c53f5bf86c885ad7f27f53bd2d4455"
+    },
+    "compilers/wasm-sdk-compiler-64.json": {
+      "bytes": 452,
+      "sha256": "ba82b71cdd5b42cf24c7036275f2db192d3f9952e7bafc155366fb40294cfc9f"
+    },
+    "compilers/wasm-sdk-compiler-64.stderr": {
+      "bytes": 72,
+      "sha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a"
+    },
+    "compilers/wasm-sdk-compiler-64.stdout": {
+      "bytes": 110464,
+      "sha256": "3cdbe79b3f80a4275dd77f8e306d8cc307eba1b62da8de5fed700cff5d89b1dc"
+    },
+    "export-control/Cargo.lock": {
+      "bytes": 169,
+      "sha256": "6408fcb6587994f8d3ac01996666b9d63ffdc45710ba89718de93e9a66ec6294"
+    },
+    "export-control/Cargo.toml": {
+      "bytes": 148,
+      "sha256": "a8e728a71205df26900fa83cfdf808b9ae8227bc22c42966c36e68fa2d67fb76"
+    },
+    "export-control/browser.wasm": {
+      "bytes": 1721446,
+      "sha256": "0f5f96eee6e91e40facbd1aff3b3a5951f33a5fa9409adfaa5546d6be023f6c7"
+    },
+    "export-control/native.dylib": {
+      "bytes": 430848,
+      "sha256": "a8b7bf7c09043e528c1a7746179d7ec88b43ab6df8ed45381fd21947f1d93a84"
+    },
+    "export-control/src/lib.rs": {
+      "bytes": 132,
+      "sha256": "edd2107c5c2a6da9982c20d552ee558a45ccb0b0bcb887e9932f02542681525f"
+    },
+    "implementation/artifact/codeql-rust-quality/MacroCalls.ql": {
+      "bytes": 1018,
+      "sha256": "2f24bfac0d0dcacacd5e960400afd905e0c070510d83845cd9079273a63be29b"
+    },
+    "implementation/artifact/codeql_compiler_sources.py": {
+      "bytes": 6351,
+      "sha256": "57ef0cbd9ff83fbfbe00f1a01052233112cb9d3137d55e25f5c3ab2191a480fc"
+    },
+    "implementation/artifact/codeql_target_coverage.py": {
+      "bytes": 6053,
+      "sha256": "b68d2a3fcb81e840e3f1b1e694616d969c3790e5b4704f1c30db303d4d6cffcc"
+    },
+    "implementation/artifact/test_codeql_compiler_sources.py": {
+      "bytes": 5263,
+      "sha256": "c7448b0c55155ea6ce3fb85e550cec9cd09687c0b103dbe51f8e7c448ed19972"
+    },
+    "implementation/artifact/test_codeql_target_coverage.py": {
+      "bytes": 6864,
+      "sha256": "470dbf63564e3a8863576bf1e673e5f53f53049a7342b95e84219220b7136915"
+    },
+    "queries/control-native-census.json": {
+      "bytes": 484,
+      "sha256": "c2acb2626bab8c90c8239813b6fefab93a8dc22a68dfa61f25dce44bfa659eba"
+    },
+    "queries/control-wasm-census.json": {
+      "bytes": 484,
+      "sha256": "c2acb2626bab8c90c8239813b6fefab93a8dc22a68dfa61f25dce44bfa659eba"
+    },
+    "queries/native-census.json": {
+      "bytes": 4045835,
+      "sha256": "1a20cb1237d68904ba518e10a96772d0794ae6ebc34b172c183c10171395b2fc"
+    },
+    "queries/wasm-census.json": {
+      "bytes": 3058551,
+      "sha256": "8cbbe29a43c86469eb2eaaa83633f6a14db3d664150f9b2e28f1bd1d159326c2"
+    },
+    "receipts/ARCHIVE_VERIFIED_02.json": {
+      "bytes": 642,
+      "sha256": "99c70479edc8ec9fc7b9379602dbf2d4ae7e91bbb47f95ecd10590f7d10c1f7c"
+    },
+    "receipts/ATTRIBUTE_PROBE_CERTIFIED_59.json": {
+      "bytes": 1008,
+      "sha256": "98d9854091141c5c447b93d89dd3b4ddb3f5b7af383af73ebe61d2c0599f30a7"
+    },
+    "receipts/ATTRIBUTE_PROBE_RESULTS_57.json": {
+      "bytes": 5952,
+      "sha256": "acf52aa5e0cd8b16dcdf1489a089dfbf22e6618c9ff359b0b78ae3c67c700660"
+    },
+    "receipts/CHECKER_MODULES_QUALIFIED_67.json": {
+      "bytes": 1524,
+      "sha256": "aa30be03a9808f7002c6197b808cde4ce4c1d41f256f39704d03571d085bde95"
+    },
+    "receipts/CHECKER_SOURCE_COMMITTED_68.json": {
+      "bytes": 865,
+      "sha256": "8dbd32ba24409a8831f39bb03f7a1c625ab9da4a3b8faa00f418da7b89afd7c9"
+    },
+    "receipts/COMPILER_SOURCES_COLLECTED_64.json": {
+      "bytes": 110123,
+      "sha256": "b51d412b3b63856cecd28a514c0aa56b0748ad1f956189beabf2366cd12c90fd"
+    },
+    "receipts/REPOSITORY_EXTRACTED_24.json": {
+      "bytes": 100155,
+      "sha256": "d7f5efd72e598ced9a824f8eb2dbd772a8981901c2feaf672275aaf53511159a"
+    },
+    "receipts/REPOSITORY_EXTRACTED_45.json": {
+      "bytes": 100306,
+      "sha256": "968f375cc58a14c054ff514fcaf7aa2877bebf3088e0ab353572bd9f2b69afd5"
+    },
+    "receipts/TARGET_CENSUS_QUERIED_63.json": {
+      "bytes": 989,
+      "sha256": "9fdf2269a4181334b2ac18f2b8bdd4125f2dbcbcc9d0a643ad078ecd54dd0abe"
+    },
+    "receipts/TARGET_VALIDATOR_VERIFIED_65.json": {
+      "bytes": 1369,
+      "sha256": "1c7b2f96708cd30bd0cdcf73b243e69af3ebcf498b9da6e3d94d75378085cbda"
+    },
+    "receipts/WASM_TOOLCHAIN_29.json": {
+      "bytes": 870,
+      "sha256": "bc15da6865f6f2e3be507c369d369251fac0e425f0aeff39e6b2f2cf78e8b3a0"
+    },
+    "receipts/certify-attribute-probe-59.py": {
+      "bytes": 4016,
+      "sha256": "bc951a6a8954c5ab677128151bc8066fab118a4f89ffa8d8318bcf2c23efdabe"
+    },
+    "receipts/checker-regressions-66.json": {
+      "bytes": 405,
+      "sha256": "ec3539e82377631a8cbf2a4c074b75368483a03c59988adb8aa6422d82ce8a1c"
+    },
+    "receipts/checker-regressions-66.stderr": {
+      "bytes": 15416,
+      "sha256": "be1e4fc2c95416abedee86281b005a943f74aad6e448a80b3a68beceaa48348d"
+    },
+    "receipts/checker-regressions-67.json": {
+      "bytes": 585,
+      "sha256": "bb3073460e55c6b400e2b4c53fafaf068151ecc2774851b1b96b7b9fe2805b14"
+    },
+    "receipts/checker-regressions-67.stderr": {
+      "bytes": 11411,
+      "sha256": "875aab4130f910514ff3012b35b843bc59140c2f6b47b4d3f3e533f15bfbfabe"
+    },
+    "receipts/checker-regressions-67.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/collect-real-compiler-sources-64.py": {
+      "bytes": 2976,
+      "sha256": "980983b0e5c170636afb560fbeca585bc00c7a3b9562928838af1aad8e4a9a82"
+    },
+    "receipts/control-native-census-decode-63.json": {
+      "bytes": 684,
+      "sha256": "e8d3abe6b36e86ad3e6b100574a7357583467927c34b555c4fb175b449d9195f"
+    },
+    "receipts/control-native-census-decode-63.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/control-native-census-decode-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/control-native-census-query-63.json": {
+      "bytes": 886,
+      "sha256": "e64ce2a968783b5d0b0a4c8cba1ca25ab1a951134807794c2ccf5e5d41455280"
+    },
+    "receipts/control-native-census-query-63.stderr": {
+      "bytes": 763,
+      "sha256": "f6b977f710fcd1b38c30ecfebb5ebd5e0c36eea5a9076f39e5a51882d48b7e11"
+    },
+    "receipts/control-native-census-query-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/control-wasm-census-decode-63.json": {
+      "bytes": 680,
+      "sha256": "85545a23e12d298e1d5aaeaf31eedea3a71841f53b9520519710bf1c7a269be3"
+    },
+    "receipts/control-wasm-census-decode-63.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/control-wasm-census-decode-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/control-wasm-census-query-63.json": {
+      "bytes": 882,
+      "sha256": "4c783c4c6295e9d817e55b60c627ab9bead2027d2b6001c19717c5ceae6c730c"
+    },
+    "receipts/control-wasm-census-query-63.stderr": {
+      "bytes": 759,
+      "sha256": "c98daac62432f418987cd7f2c6775df9e132c9e784d78eab8f152db1a8a4dfdd"
+    },
+    "receipts/control-wasm-census-query-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/native-census-decode-63.json": {
+      "bytes": 667,
+      "sha256": "0ab136b4cd21057a22031d503f93dfc0f0bda6a2a24b8c59126257fec4f893b8"
+    },
+    "receipts/native-census-decode-63.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/native-census-decode-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/native-census-query-62.json": {
+      "bytes": 875,
+      "sha256": "950bb6b7969282c521eae5b1bc7b61f287eeea1029430c6142b772874985f16b"
+    },
+    "receipts/native-census-query-62.stderr": {
+      "bytes": 503,
+      "sha256": "7419bf6c7f2567b1e5da79d63123ea901ccaee9590ed0df48fa7a9378683e36a"
+    },
+    "receipts/native-census-query-62.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/native-census-query-63.json": {
+      "bytes": 876,
+      "sha256": "27878264f4fe433b806074ce7928f8aa4edc9843666b7bfc309daf78d0235894"
+    },
+    "receipts/native-census-query-63.stderr": {
+      "bytes": 757,
+      "sha256": "2864ace60e572eeb330aef42bc1a1f76f6d7964478344e0c512af482a65d194d"
+    },
+    "receipts/native-census-query-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/native-export-symbols-59.json": {
+      "bytes": 334,
+      "sha256": "db80727bd561ea19f4cc3bc249e99108e4f349af7b3e1911d8fe121a8b629c46"
+    },
+    "receipts/native-export-symbols-59.stdout": {
+      "bytes": 44,
+      "sha256": "e3719c1a174479706463f8927ffe4bba414e70cb33c6e313b60189fc1e82683e"
+    },
+    "receipts/read-target-census-63.py": {
+      "bytes": 2945,
+      "sha256": "2b8d79a6af20c217d8513a450be8aa2db1a3c98b59b7f785757f2c2f26e6304d"
+    },
+    "receipts/repository-Metrics-25.json": {
+      "bytes": 1059,
+      "sha256": "51daa085a14dce9c82860d271b1f8663089b75d851d794997b1779b6ccf737b4"
+    },
+    "receipts/source-gate-checkers-68.json": {
+      "bytes": 747,
+      "sha256": "15a913207bea34c1eb4705a620a12c188af56db8bc5fd1c9da447e5680523112"
+    },
+    "receipts/source-gate-checkers-68.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/source-gate-checkers-68.stdout": {
+      "bytes": 252,
+      "sha256": "7ffd969dec42e167fe14a1d2d0b40f9fa54d30a0127f2565b07717f2ccf11cd2"
+    },
+    "receipts/verify-target-validator-65.py": {
+      "bytes": 3973,
+      "sha256": "18eb1c91e7f003d06b2f755ff4196972d955f3d1fa1b12cc38b7c2ecee95f569"
+    },
+    "receipts/wasm-Metrics-51.json": {
+      "bytes": 1062,
+      "sha256": "e5c8fb24d78362483bbe6ae3846d7bc33cb3d1d392f090dd2beab7163e2b90e9"
+    },
+    "receipts/wasm-census-decode-63.json": {
+      "bytes": 663,
+      "sha256": "564b651930ba8d5954713983daecfebb6499e63b52bdf520619024696cfd46f7"
+    },
+    "receipts/wasm-census-decode-63.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/wasm-census-decode-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "receipts/wasm-census-query-63.json": {
+      "bytes": 873,
+      "sha256": "6dcefba901a2476440d0a0b6d0aef12972b99ebb3241a29ec1eda6e444de38b8"
+    },
+    "receipts/wasm-census-query-63.stderr": {
+      "bytes": 753,
+      "sha256": "cf4e054ab82497b3a3ef259276a62b6ed70237b08d0cf217711963ec384a43f9"
+    },
+    "receipts/wasm-census-query-63.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "production_workflow_changed": false,
+  "regression_test_count": 67,
+  "runtime_cohort_executed": false
+}
