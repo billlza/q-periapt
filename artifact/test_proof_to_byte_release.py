@@ -122,7 +122,7 @@ EXPECTED_SDK_SOURCE_STEP = (
     "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
     "            ci-source-gate --profile sdk-020 \\\n"
     "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
-    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false\"\n"
+    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=256 historical_proof_inputs=249 release_claim_eligible=false\"\n"
     "          if [ \"$source_gate\" = \"$expected_gate\" ]; then\n"
     "            printf '%s\\n' \"$source_gate\"\n"
     "          else\n"

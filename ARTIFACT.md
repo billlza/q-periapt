@@ -129,7 +129,7 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-693 tracked `.rs` files to be successfully extracted. Each profile requires zero
+695 tracked `.rs` files to be successfully extracted. Each profile requires zero
 extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
 inconsistencies, and source format arguments without an expression or data-flow
 node, together with non-vacuous macro and format-argument sentinels. Path and type
@@ -420,15 +420,15 @@ signed release provenance, device-energy evidence, or cross-implementation perfo
 
 `artifact/source_results_assembler.py` is the stable-source proof-input state machine,
 not a general-purpose release finalizer. Its `finalize` command performs the
-190-to-254 proof-input migration once per source line: once the generated results-only
-successor R is installed, the 254 baseline makes that mode inapplicable, and re-running it
+190-to-256 proof-input migration once per source line: once the generated results-only
+successor R is installed, the 256 baseline makes that mode inapplicable, and re-running it
 is expected to fail closed because `require_initial=True` requires the exact
 pre-migration shape. That failure must not be bypassed by relabelling or hand-editing
 `artifact/results.json`. The only supported way back is the reviewed `reopen-source`
 reverse transform, which re-arms `finalize` for the next line. It requires a fully
-installed 254-key manifest and validates every publication leaf fail-closed *before*
+installed 256-key manifest and validates every publication leaf fail-closed *before*
 removing any, then emits a 190-key initial candidate that recomputes the retained
-proof-input digests from the current source tree while dropping the fixed 64-key delta,
+proof-input digests from the current source tree while dropping the fixed 66-key delta,
 and reduces `release_publications` to exactly the five frozen historical leaves. It drops
 only in-flight pending publication candidates and refuses outright on any leaf outside
 that frozen floor that is not pending, so a published-immutable receipt is never silently
@@ -448,7 +448,7 @@ that floor; absent that, the durable record of that line's publication is its im
 public release and registry material plus its annotated verified-cohort tag, not `main`'s
 results. Do not physically edit, extract, or delete the assembler between R and verified
 publication Q; doing so would create a new source change after the evidence freeze. Retain
-`verify-installed` and the exact CI dispatch until their durable 254-key
+`verify-installed` and the exact CI dispatch until their durable 256-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
 
@@ -457,9 +457,9 @@ the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
 `e855315ef2eec1aea0ff8b128933ac9673b9bb46c0e2e10e005c6f2480409c0a`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
-and fixed 64-key delta, requires a clean expected commit/tree identity, and samples
-the complete 254-key input authority twice before emitting
-`SOURCE_TRANSITION_READINESS_PASS`. For an exact 254-key installed map it emits
+and fixed 66-key delta, requires a clean expected commit/tree identity, and samples
+the complete 256-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 256-key installed map it emits
 only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
 Malformed, mixed, or changing states fail; an initial-readiness failure never falls
 back to the installed path.

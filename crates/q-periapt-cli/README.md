@@ -119,6 +119,10 @@ the content read, including growth after the initial metadata check. Oversized
 or unreadable files make the scan incomplete: JSON reports `complete: false`
 and the command exits 1. The scanner does not report a truncated file as a
 complete scan. A changing directory tree is not an atomic filesystem snapshot.
+Traversal retains open directory handles and opens each child without following
+symbolic links. Replacing a file or directory with a symlink after its metadata
+check makes the scan incomplete; it cannot redirect that traversal outside the
+selected tree. The path supplied as the root is the caller's explicit choice.
 
 ## Example
 

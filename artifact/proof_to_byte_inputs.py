@@ -32,8 +32,9 @@ class ProofToByteInputsError(ValueError):
 
 # Every site that asserts this map's size rather than deriving it, to be moved
 # in the same commit that adds or removes a key (on an open line the new key
-# also joins INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, so the installed
-# 190-key baseline is untouched):
+# also joins INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS and, for SDK additions,
+# SDK_NEW_PROOF_INPUT_KEYS, so the 190-key initial and 249-key historical
+# baselines are untouched):
 #   * artifact/source_results_assembler.py -- the readiness check, the gate
 #     markers, the reopen transform, and the docstrings that name the total;
 #   * .github/workflows/ci.yml -- both expected marker strings -- and their
@@ -295,6 +296,8 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "license_mit_sha256": "LICENSES/MIT.txt",
     "qperiapt_cli_cargo_sha256": "crates/q-periapt-cli/Cargo.toml",
     "qperiapt_cli_lib_sha256": "crates/q-periapt-cli/src/lib.rs",
+    "qperiapt_cli_scanner_sha256": "crates/q-periapt-cli/src/scanner.rs",
+    "qperiapt_cli_scanner_tests_sha256": "crates/q-periapt-cli/src/scanner/tests.rs",
     "qperiapt_cli_main_sha256": "crates/q-periapt-cli/src/main.rs",
 
     "proof_to_byte_inputs_sha256": "artifact/proof_to_byte_inputs.py",

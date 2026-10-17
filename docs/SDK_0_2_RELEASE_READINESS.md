@@ -5501,3 +5501,20 @@ also shows evaluator activity after the timeout. The quality gate and Rust SARIF
 remain unpassed. Other language jobs succeed; push/PR CI each retain 44 of 51
 successful jobs and seven queued macOS jobs at this observation. No query or
 quality requirement is weakened, and no replacement run is started.
+
+### Scanner filesystem race closure — 2026-10-17
+
+The [scanner boundary checkpoint](../research/sdk-alpha1/evidence/20261017-cli-scanner/README.md)
+reproduces two metadata/open races in the old CLI using synthetic outside-tree
+files, then verifies handle-relative traversal with no-follow opens. Eleven
+scanner boundary tests, all 23 default CLI package tests, all-feature strict
+Clippy, Rust 1.90 compilation, seven installed-command cases and 224 artifact
+contract tests pass on Apple Silicon. The CLI source module is separated from
+inventory/matching code without changing its public API or claiming a speedup.
+Current source qualification now requires both new files: 695 tracked Rust
+sources and 256 proof inputs. The frozen 249-input publication record remains
+unchanged and cannot qualify these new binaries. License inventories for Linux,
+Windows and Apple Silicon are verified; Linux/Windows execution and current-source
+hosted checks remain pending. The existing protocol, resource, maintenance and
+external-review requirements remain open, and accepted physical-device cohorts
+are not reopened by this CLI-only change.

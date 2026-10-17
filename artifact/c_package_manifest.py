@@ -89,6 +89,8 @@ SOURCE_INPUT_PATHS = {
     "mlkem_native_inventory": "crates/q-periapt-mlkem-native-sys/vendor/INVENTORY.sha256",
     "qperiapt_cli_cargo": "crates/q-periapt-cli/Cargo.toml",
     "qperiapt_cli_lib": "crates/q-periapt-cli/src/lib.rs",
+    "qperiapt_cli_scanner": "crates/q-periapt-cli/src/scanner.rs",
+    "qperiapt_cli_scanner_tests": "crates/q-periapt-cli/src/scanner/tests.rs",
     "qperiapt_cli_main": "crates/q-periapt-cli/src/main.rs",
 }
 C_PROFILES = ("legacy", "sdk-020")

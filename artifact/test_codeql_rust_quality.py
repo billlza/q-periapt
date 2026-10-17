@@ -1732,6 +1732,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            'crates/q-periapt-cli/src/scanner.rs',
+            'crates/q-periapt-cli/src/scanner/tests.rs',
             'bindings/c/ContinuityPackageConsumer/tests/common/android_account.rs',
             'bindings/c/ContinuityPackageConsumer/tests/common/android_account_recovery.rs',
             'bindings/c/ContinuityPackageConsumer/tests/common/android_replacement_traffic.rs',

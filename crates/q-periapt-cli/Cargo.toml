@@ -40,6 +40,10 @@ q-periapt-policy = { version = "=0.2.0", path = "../q-periapt-policy" }
 q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
+# Keep scanner traversal relative to opened directories on Unix and Windows.
+# The no-follow extensions close metadata/open races without unsafe platform code.
+cap-std = "=4.0.3"
+cap-fs-ext = "=4.0.3"
 q-periapt-rustls = { version = "=0.2.0", path = "../q-periapt-rustls", features = ["reference-connection"], optional = true }
 rustls = { version = "0.23.46", default-features = false, optional = true }
 q-periapt-host-store = { version = "=0.2.0", path = "../q-periapt-host-store", optional = true }

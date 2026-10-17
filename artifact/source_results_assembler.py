@@ -6,7 +6,7 @@ never edits ``artifact/results.json``.  A successful finalize operation emits a
 private, no-replace ``target/source-results-successors/transaction.*/results.json``
 candidate for an explicit results-only commit.
 
-The finalize command is deliberately a one-time 190-to-254 proof-input
+The finalize command is deliberately a one-time 190-to-256 proof-input
 migration.  Once that successor is installed, this entrypoint must be retired
 or replaced by an explicitly reviewed current-to-current state machine; it is
 not a general-purpose release finalizer.
@@ -147,6 +147,8 @@ _MUTABLE_TOP_LEVEL = frozenset(
 
 INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
     {
+        "qperiapt_cli_scanner_sha256",
+        "qperiapt_cli_scanner_tests_sha256",
         "migration_agent_filesystem_adapter_sha256",
         "host_store_manifest_sha256",
         "host_store_lib_sha256",
@@ -216,7 +218,7 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 
 # One-shot Level-1 integrity pin for the only authorized 190-key migration
 # baseline. It detects an unintended or unauthorized results-baseline change;
-# installed 254-key successors are intentionally not constrained by this value.
+# installed 256-key successors are intentionally not constrained by this value.
 # The 0.1.4 opening repinned this authority for the first time: 0.1.3 is the
 # first line that published for real, so its committed verified manifest —
 # with the 59 declared-missing proof-input keys deleted — became the frozen
@@ -246,6 +248,8 @@ SDK_HISTORICAL_RESULTS_SHA256 = (
     "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda"
 )
 SDK_NEW_PROOF_INPUT_KEYS = frozenset({
+    "qperiapt_cli_scanner_sha256",
+    "qperiapt_cli_scanner_tests_sha256",
     "migration_agent_filesystem_adapter_sha256",
     "host_store_manifest_sha256",
     "host_store_lib_sha256",
@@ -602,9 +606,9 @@ def source_ci_gate(
         )
         authority = capture_proof_input_digests(REPOSITORY_ROOT)
         _require(
-            len(authority) == 254
+            len(authority) == 256
             and set(authority) == current_keys
-            and len(current_keys - baseline_keys) == 64,
+            and len(current_keys - baseline_keys) == 66,
             "source transition proof-input authority differs",
         )
         _require(
@@ -687,7 +691,7 @@ def _sdk_source_ci_gate(expected_results_sha256: str, expected_commit: str) -> S
     except (EvidenceIOError, UnicodeError, tomllib.TOMLDecodeError, c_abi_contract.CAbiContractError) as exc:
         raise SourceResultsAssemblerError("SDK source contract was rejected") from exc
     authority = capture_proof_input_digests(REPOSITORY_ROOT)
-    _require(len(authority) == 254, "SDK current proof-input inventory differs")
+    _require(len(authority) == 256, "SDK current proof-input inventory differs")
     _load_pinned_baseline(expected_results_sha256)
     _require(
         capture_proof_input_digests(REPOSITORY_ROOT) == authority,
@@ -2242,7 +2246,7 @@ def _build_reopen_candidate(
 ) -> dict[str, Any]:
     """Pure reverse transform: a fully installed manifest -> an initial baseline.
 
-    Requires a 254-key installed input; returns a 190-key/five-leaf initial
+    Requires a 256-key installed input; returns a 190-key/five-leaf initial
     candidate. The source identity (proof_source_tree_sha256 / snapshot_commit)
     is carried over UNCHANGED from the installed manifest: it names the frozen
     stable source S the line descends from -- a reachable, tree-consistent
@@ -2262,7 +2266,7 @@ def _build_reopen_candidate(
     )
     _require(
         set(installed_inputs) == canonical_keys,
-        "reopen requires a fully installed 254-key results baseline",
+        "reopen requires a fully installed 256-key results baseline",
     )
     _require(
         set(current_digests) == canonical_keys,
@@ -2281,7 +2285,7 @@ def _build_reopen_candidate(
 
     candidate = copy.deepcopy(installed)
 
-    # 1) proof_to_byte_inputs 254 -> 190, faithfully from the current tree.
+    # 1) proof_to_byte_inputs 256 -> 190, faithfully from the current tree.
     candidate["proof_to_byte_inputs"] = {
         key: current_digests[key]
         for key in current_digests
@@ -2325,14 +2329,14 @@ def reopen_source_results(
 
     This is the reverse of ``finalize`` and the reviewed replacement for its
     retired one-time forward migration: it returns a frozen, fully installed
-    254-key results manifest to the 190-key source-transition-ready baseline for
+    256-key results manifest to the 190-key source-transition-ready baseline for
     the CURRENT source tree, reopening development for the next line. It needs no
     producer evidence because the initial baseline is validated without
     ``validate_declared_currentness`` -- the carried-over declared sections are
     never re-checked in initial mode.
 
     Exactly two things change relative to the installed manifest:
-      * ``proof_to_byte_inputs`` 254 -> 190 (drop the 64
+      * ``proof_to_byte_inputs`` 256 -> 190 (drop the 66
         INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, recomputed from the current
         tree so the retained 190 are faithful to it);
       * ``release_publications`` reduced to exactly the five frozen historical
@@ -2398,19 +2402,19 @@ def run(args: argparse.Namespace) -> None:
             print(
                 "SDK_SOURCE_READINESS_PASS profile=sdk-020 "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false"
+                "current_proof_inputs=256 historical_proof_inputs=249 release_claim_eligible=false"
             )
         elif mode == "initial":
             print(
                 "SOURCE_TRANSITION_READINESS_PASS mode=initial "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=254 declared_delta=64"
+                "proof_inputs=256 declared_delta=66"
             )
         elif mode == "installed":
             print(
                 "SOURCE_CI_GATE_MODE mode=installed "
                 f"commit={source.commit} results_sha256={args.expected_results_sha256} "
-                "proof_inputs=254"
+                "proof_inputs=256"
             )
         else:
             _fail("source CI gate returned an unsupported mode")
