@@ -111,8 +111,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
     target_os = "android"
 ))]
 use super::{
-    open_locked_database, open_private_parent, validate_private_directory, validate_regular_file,
-    DatabaseOpenMode, OwnedPrivateDirectory, PrivateDatabaseError,
+    open_locked_database, open_private_parent, publication_ops as ops, DatabaseOpenMode,
+    OwnedPrivateDirectory, PrivateDatabaseError,
 };
 #[cfg(any(
     target_os = "macos",
@@ -120,7 +120,7 @@ use super::{
     target_os = "linux",
     target_os = "android"
 ))]
-use std::{ffi::OsStr, fs::File, io::Write, os::fd::OwnedFd};
+use std::{ffi::OsStr, fs::File, io::Write};
 
 #[cfg(any(
     target_os = "macos",
@@ -159,27 +159,12 @@ fn admission() -> io::Error {
     target_os = "linux",
     target_os = "android"
 ))]
-fn same_leaf(parent: &OwnedPrivateDirectory, leaf: &OsStr, original: &OwnedFd) -> io::Result<()> {
-    use rustix::fs::{fstat, openat, Mode, OFlags};
-    validate_private_directory(&parent.descriptor).map_err(|_| admission())?;
-    validate_regular_file(original).map_err(|_| admission())?;
-    let named = openat(
-        &parent.descriptor,
-        leaf,
-        OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )?;
-    validate_regular_file(&named).map_err(|_| admission())?;
-    let original = fstat(original)?;
-    let named = fstat(&named)?;
-    if original.st_nlink != 1
-        || named.st_nlink != 1
-        || original.st_dev != named.st_dev
-        || original.st_ino != named.st_ino
-    {
-        return Err(admission());
-    }
-    Ok(())
+fn same_leaf(
+    parent: &OwnedPrivateDirectory,
+    leaf: &OsStr,
+    original: &ops::Descriptor,
+) -> io::Result<()> {
+    ops::same_file(parent, leaf, original)
 }
 
 /// Internal publication capability. The descriptor is a plain probe only: never
@@ -194,7 +179,7 @@ pub(super) struct StagedFile {
     parent: OwnedPrivateDirectory,
     destination: std::ffi::OsString,
     name: std::ffi::OsString,
-    descriptor: OwnedFd,
+    descriptor: ops::Descriptor,
 }
 #[cfg(any(
     target_os = "macos",
@@ -204,32 +189,14 @@ pub(super) struct StagedFile {
 ))]
 impl StagedFile {
     pub(super) fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
-        use rustix::fs::{openat, statat, AtFlags, Mode, OFlags};
         let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
-        // This avoids staging for known-existing destinations; NOREPLACE below
-        // still decides concurrent winners.
-        match statat(&parent.descriptor, destination, AtFlags::SYMLINK_NOFOLLOW) {
-            Ok(_) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::AlreadyExists,
-                    "private destination already exists",
-                )
-                .into())
-            }
-            Err(rustix::io::Errno::NOENT) => {}
-            Err(error) => return Err(io::Error::from(error).into()),
-        }
+        // Avoid staging for an already-existing name; NOREPLACE still decides races.
+        ops::require_absent(&parent, destination)?;
         let mut token = [0u8; 16];
         getrandom::fill(&mut token).map_err(io::Error::other)?;
         let token: String = token.iter().map(|b| format!("{b:02x}")).collect();
         let name = std::ffi::OsString::from(format!(".private-publication-{token}"));
-        let descriptor = openat(
-            &parent.descriptor,
-            &name,
-            OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::RUSR | Mode::WUSR,
-        )
-        .map_err(io::Error::from)?;
+        let descriptor = ops::create_file(&parent, &name)?;
         let staged = Self {
             parent,
             destination: destination.to_owned(),
@@ -246,10 +213,7 @@ impl StagedFile {
         }
     }
     pub(super) fn file(&self) -> Result<File, PrivatePublicationError> {
-        self.descriptor
-            .try_clone()
-            .map(File::from)
-            .map_err(|e| self.error(e))
+        ops::clone_file(&self.descriptor).map_err(|e| self.error(e))
     }
     pub(super) fn publish(&self) -> Result<(), PrivatePublicationError> {
         let file = self.file()?;
@@ -267,17 +231,16 @@ impl StagedFile {
             hook(Step::FileSynced, &self.parent, &self.name, file)?;
             hook(Step::BeforeRename, &self.parent, &self.name, file)?;
             same_leaf(&self.parent, &self.name, &self.descriptor)?;
-            rustix::fs::renameat_with(
-                &self.parent.descriptor,
+            ops::rename_file(
+                &self.parent,
                 &self.name,
-                &self.parent.descriptor,
                 &self.destination,
-                rustix::fs::RenameFlags::NOREPLACE,
+                &self.descriptor,
             )?;
             hook(Step::Published, &self.parent, &self.name, file)?;
             same_leaf(&self.parent, &self.destination, &self.descriptor)?;
             hook(Step::BeforeDirectorySync, &self.parent, &self.name, file)?;
-            rustix::fs::fsync(&self.parent.descriptor)?;
+            ops::sync_directory(&self.parent)?;
             hook(Step::DirectorySynced, &self.parent, &self.name, file)?;
             same_leaf(&self.parent, &self.destination, &self.descriptor)?;
             Ok(())

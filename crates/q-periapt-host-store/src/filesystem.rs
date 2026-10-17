@@ -7,6 +7,13 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 mod publication;
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "android"
+))]
+mod publication_ops;
 pub use publication::{publish_private_bytes, PrivatePublicationError};
 mod directory_publication;
 pub use directory_publication::publish_private_directory;

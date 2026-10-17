@@ -53,7 +53,7 @@ where
     target_os = "linux",
     target_os = "android"
 ))]
-use super::{open_private_parent, validate_private_directory, OwnedPrivateDirectory};
+use super::{open_private_parent, publication_ops as ops, OwnedPrivateDirectory};
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -115,40 +115,18 @@ struct Staging {
 ))]
 impl Staging {
     fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
-        use rustix::fs::{mkdirat, openat, statat, AtFlags, Mode, OFlags};
         let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
-        match statat(&parent.descriptor, destination, AtFlags::SYMLINK_NOFOLLOW) {
-            Ok(_) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::AlreadyExists,
-                    "private destination already exists",
-                )
-                .into())
-            }
-            Err(rustix::io::Errno::NOENT) => {}
-            Err(error) => return Err(io::Error::from(error).into()),
-        }
+        ops::require_absent(&parent, destination)?;
         let mut token = [0u8; 16];
         getrandom::fill(&mut token).map_err(io::Error::other)?;
         let token: String = token.iter().map(|byte| format!("{byte:02x}")).collect();
         let name = std::ffi::OsString::from(format!(".private-tree-{token}"));
         let staged_error = |error: io::Error| PrivatePublicationError::staged(error, name.clone());
-        mkdirat(&parent.descriptor, &name, Mode::RWXU)
-            .map_err(io::Error::from)
-            .map_err(staged_error)?;
-        let descriptor = openat(
-            &parent.descriptor,
-            &name,
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::empty(),
-        )
-        .map_err(io::Error::from)
-        .map_err(staged_error)?;
-        validate_private_directory(&descriptor).map_err(|_| staged_error(admission()))?;
+        let directory = ops::create_directory(&parent, &name).map_err(staged_error)?;
         let staged_path = path.parent().ok_or_else(admission)?.join(&name);
         Ok(Self {
             parent,
-            directory: OwnedPrivateDirectory { descriptor },
+            directory,
             name,
             destination: destination.into(),
             path: staged_path,
@@ -156,22 +134,7 @@ impl Staging {
     }
 
     fn same(&self, name: &OsStr) -> io::Result<()> {
-        use rustix::fs::{fstat, openat, Mode, OFlags};
-        validate_private_directory(&self.parent.descriptor).map_err(|_| admission())?;
-        validate_private_directory(&self.directory.descriptor).map_err(|_| admission())?;
-        let named = openat(
-            &self.parent.descriptor,
-            name,
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::empty(),
-        )?;
-        validate_private_directory(&named).map_err(|_| admission())?;
-        let original = fstat(&self.directory.descriptor)?;
-        let observed = fstat(&named)?;
-        if (original.st_dev, original.st_ino) != (observed.st_dev, observed.st_ino) {
-            return Err(admission());
-        }
-        Ok(())
+        ops::same_directory(&self.parent, name, &self.directory)
     }
 
     fn error(&self, error: io::Error) -> PrivatePublicationError {
@@ -203,21 +166,20 @@ where
         hook(Step::Initialized, &staging)?;
         staging.same(&staging.name)?;
         hook(Step::BeforeStagingSync, &staging)?;
-        rustix::fs::fsync(&staging.directory.descriptor)?;
+        ops::sync_directory(&staging.directory)?;
         hook(Step::StagingSynced, &staging)?;
         hook(Step::BeforeRename, &staging)?;
         staging.same(&staging.name)?;
-        rustix::fs::renameat_with(
-            &staging.parent.descriptor,
+        ops::rename_directory(
+            &staging.parent,
             &staging.name,
-            &staging.parent.descriptor,
             &staging.destination,
-            rustix::fs::RenameFlags::NOREPLACE,
+            &staging.directory,
         )?;
         hook(Step::Published, &staging)?;
         staging.same(&staging.destination)?;
         hook(Step::BeforeParentSync, &staging)?;
-        rustix::fs::fsync(&staging.parent.descriptor)?;
+        ops::sync_directory(&staging.parent)?;
         hook(Step::ParentSynced, &staging)?;
         staging.same(&staging.destination)
     })();
