@@ -1,11 +1,19 @@
 /* Native Windows API observations, using only disposable public test bytes. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winternl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+
+/* The SDK supplies IO_STATUS_BLOCK. The documented native entry point is
+   imported from ntdll for user mode, with FileRenameInformation = 10. */
+NTSYSAPI NTSTATUS NTAPI NtSetInformationFile(HANDLE, PIO_STATUS_BLOCK, PVOID,
+                                            ULONG, FILE_INFORMATION_CLASS);
+
+enum rename_method { WIN32_RELATIVE, WIN32_ABSOLUTE, NT_RELATIVE };
 
 static int failures = 0;
 
@@ -72,8 +80,10 @@ static BOOL exact_bytes(const WCHAR *path, const char *expected, DWORD length) {
     return same;
 }
 
-static BOOL rename_relative(HANDLE file, HANDLE directory, const WCHAR *leaf, DWORD *error) {
-    size_t characters = wcslen(leaf);
+static BOOL rename_file(HANDLE file, HANDLE directory, const WCHAR *leaf,
+                        const WCHAR *absolute, enum rename_method method, DWORD *error) {
+    const WCHAR *name = method == WIN32_ABSOLUTE ? absolute : leaf;
+    size_t characters = wcslen(name);
     if (characters == 0 || characters > 255) {
         *error = ERROR_INVALID_PARAMETER;
         return FALSE;
@@ -84,11 +94,22 @@ static BOOL rename_relative(HANDLE file, HANDLE directory, const WCHAR *leaf, DW
     FILE_RENAME_INFO *info = (FILE_RENAME_INFO *)calloc(1, size);
     if (info == NULL) { *error = ERROR_OUTOFMEMORY; return FALSE; }
     info->ReplaceIfExists = FALSE;
-    info->RootDirectory = directory;
+    info->RootDirectory = method == WIN32_ABSOLUTE ? NULL : directory;
     info->FileNameLength = (DWORD)(characters * sizeof(WCHAR));
-    memcpy(info->FileName, leaf, info->FileNameLength);
-    BOOL ok = SetFileInformationByHandle(file, FileRenameInfo, info, (DWORD)size);
-    *error = ok ? ERROR_SUCCESS : GetLastError();
+    memcpy(info->FileName, name, info->FileNameLength);
+    BOOL ok;
+    if (method == NT_RELATIVE) {
+        IO_STATUS_BLOCK status_block = { 0 };
+        NTSTATUS status = NtSetInformationFile(file, &status_block, info, (ULONG)size,
+                                               (FILE_INFORMATION_CLASS)10);
+        if (printf("{\"operation\":\"native_rename_status\",\"ntstatus\":%lu,\"io_status\":%lu}\n",
+                   (unsigned long)status, (unsigned long)status_block.Status) < 0) failures++;
+        ok = status == 0 && status_block.Status == 0;
+        *error = ok ? ERROR_SUCCESS : RtlNtStatusToDosError(status == 0 ? status_block.Status : status);
+    } else {
+        ok = SetFileInformationByHandle(file, FileRenameInfo, info, (DWORD)size);
+        *error = ok ? ERROR_SUCCESS : GetLastError();
+    }
     free(info);
     return ok;
 }
@@ -124,7 +145,12 @@ static void pin_directory_control(const WCHAR *root) {
 }
 
 int wmain(int argc, WCHAR **argv) {
-    if (argc != 2) { fputs("expected a new disposable fixture directory\n", stderr); return 2; }
+    if (argc != 3) { fputs("expected a new disposable fixture directory and rename method\n", stderr); return 2; }
+    enum rename_method method;
+    if (wcscmp(argv[2], L"win32-relative") == 0) method = WIN32_RELATIVE;
+    else if (wcscmp(argv[2], L"win32-absolute") == 0) method = WIN32_ABSOLUTE;
+    else if (wcscmp(argv[2], L"nt-relative") == 0) method = NT_RELATIVE;
+    else { fputs("unknown rename method\n", stderr); return 2; }
     BOOL ok = CreateDirectoryW(argv[1], NULL);
     DWORD error = ok ? ERROR_SUCCESS : GetLastError();
     observe("fresh_fixture_directory", ok, error);
@@ -180,14 +206,14 @@ int wmain(int argc, WCHAR **argv) {
         BY_HANDLE_FILE_INFORMATION before, after;
         BOOL before_ok = GetFileInformationByHandle(src, &before);
         require("original_file_identity_observed", before_ok);
-        ok = rename_relative(src, parent, L"existing.bin", &error);
-        observe("relative_rename_existing_attempt", ok, error);
+        ok = rename_file(src, parent, L"existing.bin", target, method, &error);
+        observe("rename_existing_attempt", ok, error);
         require("existing_destination_refused", !ok && (error == ERROR_ALREADY_EXISTS || error == ERROR_FILE_EXISTS));
         require("refused_source_bytes_preserved", exact_bytes(source, source_bytes, sizeof(source_bytes)));
         require("refused_destination_bytes_preserved", exact_bytes(target, target_bytes, sizeof(target_bytes)));
 
-        ok = rename_relative(src, parent, L"published.bin", &error);
-        observe("relative_rename_absent_attempt", ok, error);
+        ok = rename_file(src, parent, L"published.bin", published, method, &error);
+        observe("rename_absent_attempt", ok, error);
         if (!ok) failures++;
         if (ok) {
             BOOL after_ok = GetFileInformationByHandle(src, &after);

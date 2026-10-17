@@ -28,9 +28,19 @@ the complete structure's trailing storage and a terminating NUL. The next
 revision corrects that probe input before drawing an API-support conclusion;
 the original failed controls remain in history and in their uploaded artifacts.
 
+The padded-buffer revision (`ad98a73`, run `39059932782`) still returned error
+87 on both images. Padding alone therefore does not explain the failure. The
+next comparison retains that failing Win32 relative route unchanged and adds
+Win32 absolute-name and native `NtSetInformationFile` relative-name routes,
+each with fresh files and the same no-replacement/identity/byte assertions.
+The failing route still fails its own CI job. No expected-error substitution
+is used to produce an overall passing matrix.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
 - [FlushFileBuffers requirements](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers)
 - [FILE_RENAME_INFO relative directory and no-replace behavior](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
 - [SetFileInformationByHandle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfileinformationbyhandle)
+- [Native rename structure](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information)
+- [NtSetInformationFile, including user-mode entry point](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntsetinformationfile)

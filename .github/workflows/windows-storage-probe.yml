@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, windows-2025]
+        method: [win32-relative, win32-absolute, nt-relative]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 8
     steps:
@@ -18,12 +19,14 @@ jobs:
           persist-credentials: false
       - name: Observe native namespace and flush behavior
         shell: pwsh
-        run: ./run.ps1
+        env:
+          RENAME_METHOD: ${{ matrix.method }}
+        run: ./run.ps1 -Method $env:RENAME_METHOD
       - name: Retain all observations and failed controls
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: windows-private-storage-${{ matrix.os }}
+          name: windows-private-storage-${{ matrix.os }}-${{ matrix.method }}
           path: |
             out/environment.json
             out/build.stdout
