@@ -1,0 +1,44 @@
+{
+  "completed_component_checks": true,
+  "release_claim_eligible": false,
+  "browser_connection_api_completed": false,
+  "independent_implementation": false,
+  "base_commit": "96e39bf606b60a85a26cf977f2eedb19cd19327d",
+  "source_overlay": {
+    "ARTIFACT.md": "6d3f9f16ca988cdaa132ac4829e0e45c4d465ebdf35c7269891e78f195c3803e",
+    "artifact/codeql_rust_quality.py": "6e15dca7ce32d88f3e239c85aee3b2e0fd614336a85f97be4d0e81050b28e64b",
+    "artifact/test_codeql_rust_quality.py": "8abc405da7fb1cf3f0e2edcae12af307166a4962bcceb677afbd640afd191899",
+    "research/continuity-identity-candidate/README.md": "a790482e7983502dea729fd53ab20cd77b31e14e5558d053730792cb58124565",
+    "research/continuity-identity-candidate/src/durable.rs": "3a09f4f106ce2c478773b502f4a914a85bbdd252921ea9cab2e951d85b4da84c",
+    "research/continuity-identity-candidate/src/durable/messages.rs": "8dca3b3d88a52440903a5588835f99d58fd0f63e611f1e62ffcdf27bd47880c4",
+    "research/continuity-identity-candidate/src/durable/messages/delivery.rs": "022e7d7dee740f1efdf61d57752c729c5d971341e695374eb31f4ad1e5e75b77",
+    "research/continuity-identity-candidate/src/lib.rs": "67ee38f727fe89a121c168ca93adcc69c35461b9cb54e51021ca26f84b9c7e9e",
+    "research/continuity-identity-candidate/SESSION_EXCHANGE_V1.md": "24c1167c99ae7f29985a13cbd703aa966df988460ad705ceed2adb2916bdf5bb",
+    "research/continuity-identity-candidate/src/session_exchange.rs": "ddd8f6264a7c73f0848dd71b6b5708cd9a58efd55ac38afe756ac7cdebefa8fb",
+    "research/continuity-identity-candidate/src/session_exchange/client.rs": "23ba5e777397873660d58513721f9a517f124c3aa4b090741b16fc25a6e0f254",
+    "research/continuity-identity-candidate/src/session_exchange/codec.rs": "e77daf5b27f5c193670e0a517f8b295e03c8cbd36f1797b1856660bf7fa1bfce",
+    "research/continuity-identity-candidate/src/session_exchange/server.rs": "41b5ac24e7d8aad937f1bb3f34f4f8a7d12c564339f0e525be037d4d325e0326",
+    "research/continuity-identity-candidate/src/session_exchange/tests.rs": "d18c67e40386e287fb3578e0366c8a1c87926f97ff2fc544f63a7b5e2e107208"
+  },
+  "new_core_tests": 7,
+  "existing_tls_suite_tests": 11,
+  "existing_tls_helper_entrypoints": 2,
+  "source_inventory_tests": 44,
+  "tracked_rust_source_count": 603,
+  "rust_native_minimum": "1.90.0-aarch64-apple-darwin with connection-tls",
+  "rust_wasm_minimum": "1.90.0 wasm32-unknown-unknown product browser-continuity entry, locked/offline -D warnings",
+  "terminal_sessions": {
+    "wasm_clippy_native_tls_native_msrv": 17820,
+    "native_tests": 76738,
+    "native_clippy": 91957,
+    "source_inventory": 98896,
+    "isolated_msrv_install": 29467,
+    "wasm_msrv": 22750
+  },
+  "limits": [
+    "New core tests use actual signatures, KEMs, encrypted native journals and reopen, with an in-process byte carrier and simulated host effects; no browser network/runtime or independent implementation claim.",
+    "Existing native TLS regression uses real network/process cuts but retains its own QPCNET01 protocol and is not QPCXCH01 network qualification.",
+    "A reopened Session descriptor is original local state, not a new peer-liveness/establishment receipt. Failed establishment retries its original initiation ID.",
+    "Bindings, bounded browser carrier, deployment, rekey/renewal integration, installed-current-source qualification and whole-release/PCS evidence remain open."
+  ]
+}

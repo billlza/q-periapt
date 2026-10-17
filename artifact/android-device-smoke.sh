@@ -44,14 +44,13 @@ need keytool
 need python3
 
 ANDROID_CONSUMER_PROFILE=${QPERIAPT_ANDROID_CONSUMER_PROFILE:-legacy_full}
+ANDROID_RUNTIME_PROFILE=${QPERIAPT_ANDROID_RUNTIME_PROFILE:-api35-16k}
 case "$ANDROID_CONSUMER_PROFILE" in
 	legacy_full) ;;
-	agp_full_release | agp_minimal_release)
+	agp_full_release | agp_minimal_release | agp_sdk_full_release | agp_sdk_minimal_release)
 		if [ "${QPERIAPT_ANDROID_RELEASE_MODE:-0}" != "1" ] || \
-			[ "${QPERIAPT_ANDROID_BOOT_AVD:-0}" != "1" ] || \
-			[ "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" != "emulator" ] || \
 			[ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "0" ]; then
-			printf 'error: AGP consumers require clean release mode and the owned emulator profile\n' >&2
+			printf 'error: AGP consumers require clean release mode\n' >&2
 			exit 2
 		fi
 		;;
@@ -60,6 +59,42 @@ case "$ANDROID_CONSUMER_PROFILE" in
 		exit 2
 		;;
 esac
+
+ANDROID_PROFILE_SELECTION=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" "$ANDROID_RUNTIME_PROFILE" \
+    "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" "${QPERIAPT_ANDROID_BOOT_AVD:-0}" \
+    "${QPERIAPT_ANDROID_EXPECT_SDK:-}" "${QPERIAPT_ANDROID_EXPECT_PAGE_SIZE:-}" <<'PY'
+import sys
+from android_agp_consumer_contract import AndroidAgpConsumerError, profile_spec, runtime_target
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, capture_runtime_profile
+try:
+    selected = capture_runtime_profile(sys.argv[3])
+    if sys.argv[1] == "legacy_full":
+        if sys.argv[3] != DEFAULT_RUNTIME_PROFILE:
+            raise ValueError("legacy Android capture must retain its runtime profile")
+        aar_profile = "legacy"
+    else:
+        target = runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
+        if sys.argv[4] != target["kind"]:
+            raise ValueError("AGP capture kind differs from the explicitly selected runtime target")
+        if sys.argv[5] != ("1" if target["kind"] == "emulator" else "0"):
+            raise ValueError("AGP runtime target and owned-emulator selection differ")
+        if sys.argv[6:8] != [str(target["sdk"]), str(target["page_size"])]:
+            raise ValueError("AGP capture requires exact expected SDK and page size")
+        aar_profile = profile_spec(sys.argv[1]).aar_profile
+    print(f"{aar_profile}:{selected.sdk}:{selected.page_size}:"
+          f"{selected.page_size_operation}:{selected.clock_operation}")
+except (AndroidAgpConsumerError, ValueError) as error:
+    raise SystemExit(f"error: {error}") from error
+PY
+)
+ANDROID_AAR_PROFILE=${ANDROID_PROFILE_SELECTION%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_PROFILE_SELECTION#*:}
+ANDROID_RUNTIME_SDK=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_RUNTIME_PAGE_SIZE=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_PROBES=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_PAGE_SIZE_OPERATION=${ANDROID_RUNTIME_PROBES%:*}
+ANDROID_CLOCK_OPERATION=${ANDROID_RUNTIME_PROBES#*:}
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -229,17 +264,16 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
-	# The canonical release profile pins the emulator's exact device shape;
-	# a physical release capture keeps the collection discipline while the
-	# hardware supplies its own page size and SDK.
+	# Emulator profiles pin their shape here. SDK physical selection was pinned
+	# before lane acquisition; legacy physical capture retains caller expectations.
 	case "$EXPECTED_DEVICE_KIND" in
 		emulator)
-			if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
+			if [ "$EXPECTED_PAGE_SIZE" != "$ANDROID_RUNTIME_PAGE_SIZE" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=%s\n' "$ANDROID_RUNTIME_PAGE_SIZE" >&2
 				exit 2
 			fi
-			if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
+			if [ "$EXPECTED_DEVICE_SDK" != "$ANDROID_RUNTIME_SDK" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=%s\n' "$ANDROID_RUNTIME_SDK" >&2
 				exit 2
 			fi
 			if [ "$ANDROID_BOOT_AVD" != "1" ]; then
@@ -434,16 +468,22 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	ANDROID_AVD_NAME=$(PYTHONPATH=artifact python3 \
 		artifact/android_bounded_command.py runtime-avd-name \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI")
 	python3 artifact/android_device_proof.py verify-avd-home \
 		--avd-home "$ANDROID_AVD_HOME" \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" >/dev/null
 fi
 
 android_command() {
 	operation=$1
 	shift
+	case "$operation" in
+		page-size) operation=$ANDROID_PAGE_SIZE_OPERATION ;;
+		device-time) operation=$ANDROID_CLOCK_OPERATION ;;
+	esac
 	PYTHONPATH=artifact python3 artifact/android_bounded_command.py invoke \
 		"$operation" --run-id "$RUN_ID" "$@"
 }
@@ -628,8 +668,14 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.5" ]; then
-	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.5\n' "$VERSION" >&2
+EXPECTED_VERSION=$(python3 - "$ANDROID_AAR_PROFILE" <<'PY'
+import sys
+from android_elf import package_profile
+print(package_profile(sys.argv[1]).version)
+PY
+)
+if [ "$VERSION" != "$EXPECTED_VERSION" ]; then
+	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected %s\n' "$VERSION" "$EXPECTED_VERSION" >&2
 	exit 1
 fi
 
@@ -696,6 +742,7 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 	set -- "$@" --require-release-manifest
 fi
 PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
+	--profile "$ANDROID_AAR_PROFILE" \
 	--aar "$AAR_PATH" \
 	--llvm-nm "$LLVM_NM" \
 	--llvm-readelf "$LLVM_READELF" \
@@ -1175,7 +1222,7 @@ observe_installed_package_sample() {
 		retryable:*)
 			ownership_reason=${ownership_result#retryable:}
 			case "$ownership_reason" in
-				package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
+				package-unavailable | transport-absent | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
 				*)
 					printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
 					remove_installed_apk_copy || return 2
@@ -1236,12 +1283,15 @@ observe_owned_installed_package() {
 				ownership_transport_recovery_eligible=0
 				if [ "$ownership_phase" = "postinstall" ] && \
 					[ "$ownership_invocation" = "1" ] && \
-					[ "$OWNERSHIP_SAMPLE_RETRY_REASON" = "package-unavailable" ] && \
-					[ "$ownership_consecutive_exact" -eq 1 ] && \
 					[ "$ANDROID_BOOT_AVD" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && \
 					[ "$EMULATOR_STARTED" = "1" ] && \
 					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ]; then
-					ownership_transport_recovery_eligible=1
+					case "$OWNERSHIP_SAMPLE_RETRY_REASON:$ownership_consecutive_exact" in
+						# A missing transport is independently observed in the private
+						# ADB table; package-unavailable alone is not that evidence.
+						transport-absent:* | package-unavailable:1)
+							ownership_transport_recovery_eligible=1 ;;
+					esac
 				fi
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=
@@ -1252,7 +1302,7 @@ observe_owned_installed_package() {
 					recovery_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery postinstall \
-						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt"; then
+						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt" "$ownership_deadline"; then
 						continue
 					else
 						ownership_recovery_status=$?
@@ -1280,11 +1330,39 @@ observe_owned_installed_package() {
 	return 1
 }
 
+capture_recovered_emulator_evidence() {
+	# One-shot recovery creates a short observation window. These captures use
+	# its caller's existing absolute deadline and never authorize uninstall.
+	for recovery_observation_operation in capture-emulator-recovery-state capture-emulator-recovery-logcat; do
+		if ! recovery_observation_timeout=$(remaining_bounded_timeout "$recovery_deadline" 5); then
+			printf 'phase=%s invocation=%s attempt=%s recovery-observation=deadline-exhausted\n' \
+				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" >>"$PACKAGE_OBSERVATION_LOG"
+			return 1
+		fi
+		if android_command "$recovery_observation_operation" --timeout-seconds "$recovery_observation_timeout" \
+			>"$DIST/$recovery_observation_operation.stdout" 2>"$DIST/$recovery_observation_operation.err"; then
+			recovery_observation_status=0
+		else
+			recovery_observation_status=$?
+		fi
+		printf 'phase=%s invocation=%s attempt=%s recovery-observation=%s exit=%s\n' \
+			"$recovery_phase" "$recovery_invocation" "$recovery_attempt" \
+			"$recovery_observation_operation" "$recovery_observation_status" >>"$PACKAGE_OBSERVATION_LOG"
+		case "$recovery_observation_status" in
+			0) ;;
+			129 | 130 | 143) return "$recovery_observation_status" ;;
+			*) return 1 ;;
+		esac
+	done
+	return 0
+}
+
 attempt_owned_emulator_transport_recovery() {
 	recovery_phase=$1
 	recovery_timeout=$2
 	recovery_invocation=$3
 	recovery_attempt=$4
+	recovery_deadline=$5
 	recovery_phase_valid=0
 	case "$recovery_phase" in
 		postinstall)
@@ -1365,7 +1443,8 @@ attempt_owned_emulator_transport_recovery() {
 			printf 'phase=%s invocation=%s attempt=%s transport-recovery=%s\n' \
 				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_result" \
 				>>"$PACKAGE_OBSERVATION_LOG"
-			return 0
+			capture_recovered_emulator_evidence
+			return "$?"
 			;;
 		retryable:transport-inconclusive | retryable:registration-failed | retryable:post-state-unavailable)
 			recovery_reason=${recovery_result#retryable:}
@@ -1517,7 +1596,7 @@ cleanup_android_app() {
 					recovery_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery cleanup \
-						"$recovery_timeout" "$cleanup_invocation" "$attempt"; then
+						"$recovery_timeout" "$cleanup_invocation" "$attempt" "$cleanup_deadline"; then
 						absent_observations=0
 						cleanup_ownership_consecutive_exact=0
 						cleanup_ownership_previous_path_sha256=
@@ -1982,6 +2061,40 @@ for line in text.splitlines():
 PY
 }
 
+capture_emulator_failure_logs() {
+	if [ "$DEVICE_KIND" = "emulator" ]; then
+		# Capture the original process's exit record before app removal can clear it.
+		# Missing/unsupported diagnostics never change the primary runtime failure.
+		if android_command capture-emulator-app-exit-info 2>"$DIST/emulator-app-exit-info.err"; then
+			:
+		else
+			printf 'error: owned emulator app exit-info capture also failed\n' >&2
+		fi
+		if android_command capture-emulator-failure-state 2>"$DIST/emulator-state-failure.err"; then
+			:
+		else
+			printf 'error: owned emulator state capture also failed\n' >&2
+		fi
+		if android_command capture-emulator-diagnostics; then
+			:
+		else
+			printf 'error: owned emulator crash-log capture also failed\n' >&2
+		fi
+	fi
+}
+
+fail_runtime_with_logs() {
+	# Keep the original failure authoritative even if its device has disappeared.
+	# Physical-device diagnostics remain restricted to the run's smoke tag.
+	if capture_app_logcat >"$DIST/logcat.txt"; then
+		:
+	else
+		printf 'error: failed Android runtime smoke-log capture also failed\n' >&2
+	fi
+	capture_emulator_failure_logs
+	exit "$1"
+}
+
 select_serial_or_empty() {
 	set +e
 	selected=$(choose_device_serial)
@@ -2230,6 +2343,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		"$QPERIAPT_PYTHON_BOOTSTRAP" artifact/android_bounded_command.py \
 		emulator-nodaemon \
 		--run-id "$RUN_ID" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" \
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
@@ -2336,6 +2450,8 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
+# The bounded query requires the full framework after any FDE transition;
+# sys.boot_completed alone can describe the temporary encryption framework.
 BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)
 booted=
 while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLINE" 15); do
@@ -2349,7 +2465,7 @@ while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLIN
 	fi
 done
 if [ "$booted" != "1" ]; then
-	printf 'error: Android device did not complete boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
+	printf 'error: Android device did not complete full-framework boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
 	exit 1
 fi
 qemu=$(android_command qemu-kind | tr -d '\r')
@@ -2454,21 +2570,8 @@ else
 	preinstall_observation_status=$?
 	exit "$preinstall_observation_status"
 fi
-ANDROID_APP_CLEANUP_ARMED=1
-if ! android_command install-apk >"$DIST/adb-install.log"; then
-	printf 'error: Android smoke APK installation failed\n' >&2
-	exit 1
-fi
-POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
-if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
-	:
-else
-	postinstall_ownership_status=$?
-	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
-		"$postinstall_ownership_status" >&2
-	exit "$postinstall_ownership_status"
-fi
-ANDROID_APP_INSTALL_CONFIRMED=1
+# Start the bounded diagnostic window before installation: the package may be
+# committed even when its service fails before replying to the install command.
 if android_command device-time 2>"$DIST/adb-device-time.err"; then
 	:
 else
@@ -2477,15 +2580,54 @@ else
 		"$device_time_status" "$DIST/adb-device-time.err" >&2
 	exit 1
 fi
-LOGCAT_START_EPOCH=$(tr -d '\r\n ' <"$DIST/adb-device-time.txt")
-python3 - "$LOGCAT_START_EPOCH" <<'PY'
-import re
+LOGCAT_START_TIME=$(tr -d '\r\n' <"$DIST/adb-device-time.txt")
+python3 - "$LOGCAT_START_TIME" <<'PY'
 import sys
+from android_bounded_command import AndroidCommandError, canonical_logcat_start_time
+from android_runtime_state import AndroidRuntimeStateError
 
-value = sys.argv[1]
-if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
-    raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
+try:
+    canonical_logcat_start_time(sys.argv[1])
+except (AndroidCommandError, AndroidRuntimeStateError) as error:
+    raise SystemExit(f"error: Android device returned an invalid logcat start time: {error}") from error
 PY
+if [ "$DEVICE_KIND" = "emulator" ]; then
+	if [ "$ANDROID_RUNTIME_PROFILE" = "api35-16k" ]; then
+		if android_command capture-emulator-memory-runtime 2>"$DIST/emulator-memory-runtime.err"; then
+			:
+		else
+			emulator_memory_runtime_status=$?
+			printf 'error: owned emulator memory-runtime capture failed (exit=%s); see %s and retained output %s\n' \
+				"$emulator_memory_runtime_status" "$DIST/emulator-memory-runtime.err" "$DIST/emulator-memory-runtime.txt" >&2
+			capture_emulator_failure_logs
+			exit "$emulator_memory_runtime_status"
+		fi
+	fi
+	if android_command capture-emulator-baseline 2>"$DIST/emulator-state-before.err"; then
+		:
+	else
+		emulator_baseline_status=$?
+		printf 'error: owned emulator baseline capture failed (exit=%s); see %s\n' \
+			"$emulator_baseline_status" "$DIST/emulator-state-before.err" >&2
+		capture_emulator_failure_logs
+		exit "$emulator_baseline_status"
+	fi
+fi
+ANDROID_APP_CLEANUP_ARMED=1
+if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then
+	printf 'error: Android smoke APK installation failed; see %s\n' "$DIST/adb-install.log" >&2
+	fail_runtime_with_logs 1
+fi
+POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
+if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
+	:
+else
+	postinstall_ownership_status=$?
+	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
+		"$postinstall_ownership_status" >&2
+	fail_runtime_with_logs "$postinstall_ownership_status"
+fi
+ANDROID_APP_INSTALL_CONFIRMED=1
 # This is a newly installed package: absence and exact APK ownership were
 # already established above. Its only component is this explicit activity, and
 # the result must match the fresh run ID. No pre-launch force-stop is needed.
@@ -2496,7 +2638,7 @@ else
 	start_app_status=$?
 	printf 'error: Android runtime activity start failed (exit=%s); see %s\n' \
 		"$start_app_status" "$DIST/adb-start.log" >&2
-	exit 1
+	fail_runtime_with_logs 1
 fi
 RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
 while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
@@ -2531,13 +2673,17 @@ test -f "$RESULT_TXT" || {
 android_command read-result-json
 else
 	if ! android_command run-instrumentation; then
-		capture_app_logcat >"$DIST/logcat.txt"
 		printf 'error: AGP Release Instrumentation command failed; see %s\n' "$DIST/adb-instrumentation.txt" >&2
-		exit 1
+		fail_runtime_with_logs 1
 	fi
-	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
+	if PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
 		--input "$DIST/adb-instrumentation.txt" --run-id "$RUN_ID" \
-		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"
+		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"; then
+		:
+	else
+		instrumentation_status=$?
+		fail_runtime_with_logs "$instrumentation_status"
+	fi
 fi
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
@@ -2549,6 +2695,9 @@ if cleanup_android_app; then
 else
 	app_cleanup_status=$?
 	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
+	# Preserve the completed workload's app log; collect the system failure
+	# before the EXIT trap retries cleanup and retires the owned emulator.
+	capture_emulator_failure_logs
 	exit "$app_cleanup_status"
 fi
 
@@ -2767,8 +2916,12 @@ if current_source_tree_sha256 != source_tree_sha256:
         "error: canonical execution-input tree changed while Android runtime proof was running: "
         f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
     )
-from android_device_proof import SOURCE_INPUTS
-source_paths = {name: root / path for name, path in SOURCE_INPUTS.items()}
+from android_device_proof import RuntimeResultProfile, source_inputs, result_package_profile
+from android_elf import package_profile
+consumer_profile = sys.argv[43]
+result_profile = RuntimeResultProfile(consumer_profile)
+source_paths = {name: root / path for name, path in source_inputs(result_profile).items()}
+abi_contract = package_profile(result_package_profile(result_profile)).contract
 
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
@@ -2854,8 +3007,8 @@ payload = {
     },
     "abi": {
         "major": 2,
-        "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
-        "contract_sha256": sha256(root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"),
+        "contract_path": abi_contract,
+        "contract_sha256": sha256(root / abi_contract),
         "runtime_library": "libq_periapt_ffi_abi2.so",
         "jni_library": "libqperiapt_jni_abi2.so",
         "legacy_library_names_present": False,
@@ -2882,19 +3035,17 @@ payload = {
     },
     "source_hashes": {name + "_sha256": sha256(path) for name, path in source_paths.items()},
 }
-consumer_profile = sys.argv[43]
 if consumer_profile != "legacy_full":
-    from android_agp_consumer_contract import PROOF_KIND, PROFILES
+    from android_agp_consumer_contract import profile_spec
     from android_agp_consumer import INSTRUMENTATION
-    if consumer_profile not in PROFILES:
-        raise SystemExit("error: unknown AGP proof profile")
+    consumer_spec = profile_spec(consumer_profile)
     build_receipt = pathlib.Path(sys.argv[44])
     instrumentation_output = pathlib.Path(sys.argv[45])
     def evidence_record(path):
         data = path.read_bytes()
         return {"path": rel(path), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
     payload["schema"] = 1
-    payload["kind"] = PROOF_KIND
+    payload["kind"] = consumer_spec.proof_kind
     payload["consumer"] = {
         "profile": consumer_profile,
         "build_receipt": evidence_record(build_receipt),
@@ -2987,11 +3138,17 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
 else
+	set --
+	if [ "$ANDROID_AAR_PROFILE" = "sdk-020" ]; then
+		set -- --export-to "$DIST/agp-evidence"
+	fi
 	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py verify \
 		--root "$ROOT" --proof "$PROOF_JSON" --profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
 		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
 		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
-		--expected-source-commit "$AGP_SOURCE_COMMIT"
+		--expected-source-commit "$AGP_SOURCE_COMMIT" \
+		--expected-runtime-profile "$ANDROID_RUNTIME_PROFILE" \
+		--expected-device-abi "$EXPECTED_DEVICE_ABI" "$@"
 fi
 if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
 	printf 'error: refusing to confirm Android evidence before runtime cleanup\n' >&2

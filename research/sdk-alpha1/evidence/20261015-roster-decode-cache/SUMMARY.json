@@ -1,0 +1,592 @@
+{
+  "blocks": [
+    {
+      "block": 0,
+      "load_after": [
+        7.2744140625,
+        6.43994140625,
+        5.5234375
+      ],
+      "load_before": [
+        6.318359375,
+        6.22021484375,
+        5.43603515625
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 14336000,
+        "real_seconds": 11.5,
+        "system_seconds": 0.35,
+        "user_seconds": 2.88
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 140047666,
+        "min": 122674584,
+        "p50": 130015667,
+        "p95": 137674542
+      },
+      "variant": "baseline"
+    },
+    {
+      "block": 0,
+      "load_after": [
+        6.38818359375,
+        6.28662109375,
+        5.48388671875
+      ],
+      "load_before": [
+        7.2744140625,
+        6.43994140625,
+        5.5234375
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 15073280,
+        "real_seconds": 10.63,
+        "system_seconds": 0.46,
+        "user_seconds": 1.61
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 147838625,
+        "min": 103925000,
+        "p50": 118805292,
+        "p95": 133469916
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 0,
+      "load_after": [
+        5.28662109375,
+        6.0439453125,
+        5.41064453125
+      ],
+      "load_before": [
+        6.38818359375,
+        6.28662109375,
+        5.48388671875
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 18530304,
+        "real_seconds": 18.2,
+        "system_seconds": 0.75,
+        "user_seconds": 5.47
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 235955667,
+        "min": 201891625,
+        "p50": 214951709,
+        "p95": 224877083
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 0,
+      "load_after": [
+        4.4150390625,
+        5.796875,
+        5.33642578125
+      ],
+      "load_before": [
+        5.28662109375,
+        6.0439453125,
+        5.41064453125
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 19562496,
+        "real_seconds": 19.59,
+        "system_seconds": 0.75,
+        "user_seconds": 6.79
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 349188334,
+        "min": 218303459,
+        "p50": 231243666,
+        "p95": 244050042
+      },
+      "variant": "baseline"
+    },
+    {
+      "block": 1,
+      "load_after": [
+        4.05712890625,
+        5.62939453125,
+        5.28662109375
+      ],
+      "load_before": [
+        4.4150390625,
+        5.796875,
+        5.33642578125
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 18956288,
+        "real_seconds": 19.55,
+        "system_seconds": 0.75,
+        "user_seconds": 6.76
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 243789458,
+        "min": 222304333,
+        "p50": 230995584,
+        "p95": 242330625
+      },
+      "variant": "baseline"
+    },
+    {
+      "block": 1,
+      "load_after": [
+        3.57421875,
+        5.4111328125,
+        5.21533203125
+      ],
+      "load_before": [
+        4.05712890625,
+        5.62939453125,
+        5.28662109375
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 18907136,
+        "real_seconds": 18.96,
+        "system_seconds": 0.76,
+        "user_seconds": 5.51
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 250775333,
+        "min": 205296583,
+        "p50": 219418542,
+        "p95": 238829125
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 1,
+      "load_after": [
+        3.25146484375,
+        5.28173828125,
+        5.17138671875
+      ],
+      "load_before": [
+        3.57421875,
+        5.4111328125,
+        5.21533203125
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 14630912,
+        "real_seconds": 10.33,
+        "system_seconds": 0.4,
+        "user_seconds": 1.39
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 136558250,
+        "min": 102730834,
+        "p50": 111870708,
+        "p95": 134001375
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 1,
+      "load_after": [
+        3.13232421875,
+        5.189453125,
+        5.1396484375
+      ],
+      "load_before": [
+        3.25146484375,
+        5.28173828125,
+        5.17138671875
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 14172160,
+        "real_seconds": 11.75,
+        "system_seconds": 0.37,
+        "user_seconds": 2.94
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 142496417,
+        "min": 122789000,
+        "p50": 131521959,
+        "p95": 139692375
+      },
+      "variant": "baseline"
+    },
+    {
+      "block": 2,
+      "load_after": [
+        3.02880859375,
+        5.06494140625,
+        5.095703125
+      ],
+      "load_before": [
+        3.13232421875,
+        5.189453125,
+        5.1396484375
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 14532608,
+        "real_seconds": 11.91,
+        "system_seconds": 0.4,
+        "user_seconds": 2.97
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 148019667,
+        "min": 123435291,
+        "p50": 132908750,
+        "p95": 141276917
+      },
+      "variant": "baseline"
+    },
+    {
+      "block": 2,
+      "load_after": [
+        2.95654296875,
+        4.98046875,
+        5.06494140625
+      ],
+      "load_before": [
+        3.02880859375,
+        5.06494140625,
+        5.095703125
+      ],
+      "profile": "local",
+      "resources": {
+        "max_rss_bytes": 14843904,
+        "real_seconds": 10.76,
+        "system_seconds": 0.48,
+        "user_seconds": 1.65
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 146385500,
+        "min": 101709584,
+        "p50": 116822583,
+        "p95": 134119000
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 2,
+      "load_after": [
+        2.7998046875,
+        4.84912109375,
+        5.0166015625
+      ],
+      "load_before": [
+        2.95654296875,
+        4.98046875,
+        5.06494140625
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 18776064,
+        "real_seconds": 18.16,
+        "system_seconds": 0.74,
+        "user_seconds": 5.47
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 230933875,
+        "min": 199750667,
+        "p50": 212301917,
+        "p95": 224397250
+      },
+      "variant": "optimized"
+    },
+    {
+      "block": 2,
+      "load_after": [
+        2.8330078125,
+        4.72802734375,
+        4.96826171875
+      ],
+      "load_before": [
+        2.7998046875,
+        4.84912109375,
+        5.0166015625
+      ],
+      "profile": "witness",
+      "resources": {
+        "max_rss_bytes": 18612224,
+        "real_seconds": 19.62,
+        "system_seconds": 0.74,
+        "user_seconds": 6.85
+      },
+      "send_ns": {
+        "count": 64,
+        "max": 252679917,
+        "min": 219530333,
+        "p50": 230931292,
+        "p95": 245360000
+      },
+      "variant": "baseline"
+    }
+  ],
+  "completed": true,
+  "hot_sends": 768,
+  "limitations": [
+    "One native implementation and one uncontrolled macOS host.",
+    "Nearest-rank observed sample quantiles do not establish production tails or a non-regression guarantee.",
+    "Whole-process RSS includes both SDK peers, witness where required, and observer buffers.",
+    "No energy, independent implementation, packaged foreign consumer or physical-device performance claim."
+  ],
+  "profiles": {
+    "local": {
+      "baseline": {
+        "max_rss_bytes": [
+          14336000,
+          14172160,
+          14532608
+        ],
+        "payloads": {
+          "0": {
+            "count": 48,
+            "max": 142634833,
+            "min": 122674584,
+            "p50": 130079666,
+            "p95": 139910000
+          },
+          "1024": {
+            "count": 48,
+            "max": 142256875,
+            "min": 122960834,
+            "p50": 131027875,
+            "p95": 140047666
+          },
+          "16384": {
+            "count": 48,
+            "max": 148019667,
+            "min": 124742584,
+            "p50": 133306167,
+            "p95": 140113500
+          },
+          "64": {
+            "count": 48,
+            "max": 140063167,
+            "min": 122789000,
+            "p50": 131403709,
+            "p95": 138209666
+          }
+        },
+        "send_ns": {
+          "count": 192,
+          "max": 148019667,
+          "min": 122674584,
+          "p50": 131422292,
+          "p95": 139910000
+        },
+        "slot_lookup_ns": {
+          "count": 192,
+          "max": 4368708,
+          "min": 3140625,
+          "p50": 3924291,
+          "p95": 4188875
+        },
+        "status_ns": {
+          "count": 192,
+          "max": 994792,
+          "min": 612875,
+          "p50": 819708,
+          "p95": 959958
+        }
+      },
+      "observed_p50_reduction_percent": 11.635075577589227,
+      "optimized": {
+        "max_rss_bytes": [
+          15073280,
+          14630912,
+          14843904
+        ],
+        "payloads": {
+          "0": {
+            "count": 48,
+            "max": 128939292,
+            "min": 102847583,
+            "p50": 111882375,
+            "p95": 128672041
+          },
+          "1024": {
+            "count": 48,
+            "max": 147838625,
+            "min": 102730834,
+            "p50": 116300958,
+            "p95": 135012375
+          },
+          "16384": {
+            "count": 48,
+            "max": 146385500,
+            "min": 106294375,
+            "p50": 119618417,
+            "p95": 138485250
+          },
+          "64": {
+            "count": 48,
+            "max": 129446083,
+            "min": 101709584,
+            "p50": 114882500,
+            "p95": 127869041
+          }
+        },
+        "send_ns": {
+          "count": 192,
+          "max": 147838625,
+          "min": 101709584,
+          "p50": 116131209,
+          "p95": 134119000
+        },
+        "slot_lookup_ns": {
+          "count": 192,
+          "max": 2224250,
+          "min": 627875,
+          "p50": 1039833,
+          "p95": 1379625
+        },
+        "status_ns": {
+          "count": 192,
+          "max": 2070541,
+          "min": 605750,
+          "p50": 1019708,
+          "p95": 1354875
+        }
+      }
+    },
+    "witness": {
+      "baseline": {
+        "max_rss_bytes": [
+          19562496,
+          18956288,
+          18612224
+        ],
+        "payloads": {
+          "0": {
+            "count": 48,
+            "max": 245360000,
+            "min": 220452125,
+            "p50": 231096791,
+            "p95": 242701708
+          },
+          "1024": {
+            "count": 48,
+            "max": 277532334,
+            "min": 220596416,
+            "p50": 229717625,
+            "p95": 241159583
+          },
+          "16384": {
+            "count": 48,
+            "max": 349188334,
+            "min": 220916333,
+            "p50": 232130958,
+            "p95": 245790459
+          },
+          "64": {
+            "count": 48,
+            "max": 247943208,
+            "min": 218303459,
+            "p50": 230278416,
+            "p95": 243587292
+          }
+        },
+        "send_ns": {
+          "count": 192,
+          "max": 349188334,
+          "min": 218303459,
+          "p50": 231080750,
+          "p95": 243587292
+        },
+        "slot_lookup_ns": {
+          "count": 192,
+          "max": 15521375,
+          "min": 6811250,
+          "p50": 8468500,
+          "p95": 10486292
+        },
+        "status_ns": {
+          "count": 192,
+          "max": 6055125,
+          "min": 2141541,
+          "p50": 3135667,
+          "p95": 4513542
+        }
+      },
+      "observed_p50_reduction_percent": 6.566228904830885,
+      "optimized": {
+        "max_rss_bytes": [
+          18530304,
+          18907136,
+          18776064
+        ],
+        "payloads": {
+          "0": {
+            "count": 48,
+            "max": 233311458,
+            "min": 201983625,
+            "p50": 213982708,
+            "p95": 229900708
+          },
+          "1024": {
+            "count": 48,
+            "max": 230933875,
+            "min": 199750667,
+            "p50": 215009375,
+            "p95": 225791625
+          },
+          "16384": {
+            "count": 48,
+            "max": 250775333,
+            "min": 204764459,
+            "p50": 219228250,
+            "p95": 238829125
+          },
+          "64": {
+            "count": 48,
+            "max": 239664917,
+            "min": 200821792,
+            "p50": 215489042,
+            "p95": 230642541
+          }
+        },
+        "send_ns": {
+          "count": 192,
+          "max": 250775333,
+          "min": 199750667,
+          "p50": 215907459,
+          "p95": 231661125
+        },
+        "slot_lookup_ns": {
+          "count": 192,
+          "max": 9306000,
+          "min": 4226792,
+          "p50": 5680375,
+          "p95": 7730333
+        },
+        "status_ns": {
+          "count": 192,
+          "max": 7379958,
+          "min": 2253333,
+          "p50": 3210792,
+          "p95": 4636667
+        }
+      }
+    }
+  },
+  "public_effects_verified": 780,
+  "release_claim_eligible": false,
+  "sample_substitutions_rejected": 768,
+  "source_commit": "0037d195e2342c0c03ced5653d30b9762a5528be"
+}

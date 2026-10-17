@@ -1,0 +1,119 @@
+{
+  "source_head": "034cfd8b47353600a7e392b504e07a8388e2105c",
+  "analysis_checkout": "f931943c576639f6b5fe918036c15cd11a7f5a0c",
+  "git_tree": "ed3ec866ef9a618555b1218d29c31173fc86807b",
+  "same_head_and_merge_tree": true,
+  "run": 38037903199,
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/38037903199",
+  "conclusion": "success",
+  "languages": {
+    "Analyze (actions)": "success",
+    "Analyze (c-cpp)": "success",
+    "Analyze (java-kotlin)": "success",
+    "Analyze (python)": "success",
+    "Analyze (swift)": "success",
+    "Analyze (rust)": "success"
+  },
+  "rust_job": 114172082617,
+  "quality_and_timing": {
+    "quality_pass": {
+      "tracked_rs": 452,
+      "source_macro_calls": 23743,
+      "source_format_args": 708
+    },
+    "telemetry": {
+      "path_multiple_canonical_paths": 144,
+      "path_multiple_path_resolutions": 543,
+      "path_multiple_record_fields": 0,
+      "path_multiple_resolved_targets": 128,
+      "path_multiple_tuple_fields": 0,
+      "path_resolution_inconsistencies": 815,
+      "type_ill_formed_mention": 22,
+      "type_inference_inconsistencies": 25,
+      "type_missing_parameter_id": 0,
+      "type_nonfunctional_parameter_id": 0,
+      "type_noninjective_parameter_id": 0,
+      "type_nonunique_certain_information": 3
+    },
+    "step_seconds": {
+      "Analyze": 9694,
+      "Verify Rust CodeQL database quality": 339,
+      "Upload quality-gated Rust CodeQL results": 8
+    },
+    "summary_stats_seconds": 9424,
+    "log_control_sequences_rendered": false
+  },
+  "sarif": {
+    "Rust_results": 838,
+    "Swift_results": 0,
+    "all_findings_cleared": false
+  },
+  "scoped_review": "Four new primary sinks in account_replacement_tests.rs are controlled test-only path/current-executable handoffs. Exact source hashes, inclusion gates, input origins and disposition are retained. Other results/dataflows are not cleared by this review.",
+  "timing_interpretation": "This run completed Analyze in 161m34s, beyond the former 150-minute bound and within 180 minutes. SummaryStats took 157m04s. This is one source-bound CI observation, not a query-speed improvement or a guarantee that future runs fit.",
+  "semantic_limit": "The declared strict source/AST/CFG/SSA/dataflow/macro checks passed. Nonzero classified path/type internal-consistency telemetry is retained; passing this gate does not prove complete extractor semantics or complete protocol security.",
+  "diagnostics": {
+    "Rust": {
+      "id": 11668203086,
+      "name": "codeql-rust-diagnostics-none-rust-ubuntu-latest",
+      "returncode": 0,
+      "bytes": 473671506,
+      "sha256": "6a14e24bec21a4689889584f7d2015b73f7b05ba20ec7e83a189975f1b7e9b83",
+      "expected_bytes": 473671506,
+      "expected_digest": "sha256:6a14e24bec21a4689889584f7d2015b73f7b05ba20ec7e83a189975f1b7e9b83",
+      "verified": true
+    },
+    "Swift": {
+      "id": 11664798628,
+      "returncode": 0,
+      "bytes": 15852681,
+      "sha256": "d22ffb88dac563c89d18c3feea38ff9c129807a0bdbfa93ea45a95a9027d9fa8",
+      "expected_digest": "sha256:d22ffb88dac563c89d18c3feea38ff9c129807a0bdbfa93ea45a95a9027d9fa8",
+      "seconds": 6.262917208019644,
+      "verified": true
+    },
+    "Rust_job_log": {
+      "job": 114172082617,
+      "returncode": 0,
+      "bytes": 712990676,
+      "sha256": "0ffffeb0c6380ac52fc1820009c9279d5b488788d06c6aaf9da82f5ffe1ed874",
+      "seconds": 416.71310404106043,
+      "remote_digest_available": false,
+      "raw_output_redirected_to_regular_file": true,
+      "first_attempt": "Retained as RUST_JOB_DOWNLOAD.json and rust-job-download.stderr; gh refused ANSI control sequences even though output was redirected."
+    }
+  },
+  "retention_scope": "Complete Rust (473671506 bytes) and Swift (15852681 bytes) diagnostic ZIPs verified against GitHub digests and retained under ignored target/codeql-034c-current. Complete Rust job log (712990676 bytes) retained there with local SHA256; no remote log digest was available. This compact capsule retains metadata and selected report/trace evidence, not those large payloads.",
+  "log_capture_failure": "The first gh log request refused terminal escape sequences and published zero bytes. The bounded retry explicitly preserved raw bytes only in a regular file; only parsed statistics were rendered. Both attempt records remain retained.",
+  "remaining": [
+    "This qualifies CodeQL source 034cfd8b, not the later native parent-fence commits.",
+    "Remaining SARIF dispositions, independent security review, managed root lifecycle and other 0.2.0 gates remain open.",
+    "Current-source installed Rust/C/Swift validation remains independently in progress."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 16950,
+    "sha256": "433224e264c95bf71b4fd4eae83ff37e714a7625e51ff88457a4fd1065219a56",
+    "members": {
+      "RUN.json": "00fcbad1741df7e608355e28319abb41686fdd3339bb673068ce32b8a545f0a5",
+      "JOBS.json": "2d96489132071627427d0bf2cd6e9bcc7a5e2b6ba122d68c0bb6d8b1596fb36c",
+      "RUST_JOB.json": "f0a5abb39db5daf4fe9af8674c0ca9b14b1cf5ca9f3c817677217a17173dd83e",
+      "ARTIFACTS.json": "a74d3788ad0411797edde13e2e8eb3ee4cdbebd15e98e0d2e3d95601bfdeea5b",
+      "RUST_DOWNLOAD.json": "5eb2601f76ab5e167e7bb9d8ba5dd5d70d72ecb59aeb28fc3779d17c754b046a",
+      "SWIFT_ARTIFACT.json": "9cf517350884dca9e127eac20dd5926e327675602fcd8a37a1b300a2640b88e6",
+      "SWIFT_DOWNLOAD.json": "2fae6832572d899401f4f4a5af38ed1eb35c701af38b848dc8f8d1632195abbb",
+      "RUST_JOB_DOWNLOAD.json": "6de0fe317f522c4b01e48a40ce25b44bed7592ac9e9b086ad8c76039f7ddd48f",
+      "RUST_JOB_DOWNLOAD_02.json": "64377d96224d5da6cbc0f4737ba7b8a8fd404416ecb5b955a47d0d94107bdc72",
+      "rust-job-download.stderr": "8b6407b2fdbca54bf3d53fb93e79a3560dbe59567fa5044cfee4bed1b5b6e467",
+      "COLLECTION.json": "61d7e8a3adb0f90338976563b2566653579fa1c5cb6eba25500f6ece3e03ecf1",
+      "SARIF_SUMMARY.json": "2893eff787c7b7fb9fa3d7a9b35a5787c6f8029d1ff630924ca6e64171bed059",
+      "QUALITY_AND_TIMING.json": "33744838c9ed3d6977a9c6a35174fd126bea271d5aa2d0f60d8285d078684d95",
+      "SUMMARY_QUERY_EVENTS.json": "8c6e00d38fd6317304b56e35ea20b581480c3595354a9a061eb726924b89c385",
+      "NEW_TEST_FINDINGS.json": "7edf906ab1fbd97fbf2ca342221fe2e8eb253a1bb6afd8bf5cc17db03a0a5cc9",
+      "NEW_TEST_DISPOSITIONS.json": "f0d02625c042d6a65237cf657e8fc85f9c8abfa2ef4a2b9fe3407c413165aa76",
+      "collect-terminal.py": "fffe06af1775052c18c5e57442c99c178dceafa31923684410b8de61450a0301",
+      "retry-job-log.py": "0f1d3d2dc85a78d08b3459832f40819508ed2a8ab3a25ca33ad6840199013c9e",
+      "SOURCE_TREE_IDENTITY.json": "08ed67a8f8e3fc970a4a4c5ce70a03c138a9c45de34367ee2d4e166f70859ed9"
+    }
+  }
+}

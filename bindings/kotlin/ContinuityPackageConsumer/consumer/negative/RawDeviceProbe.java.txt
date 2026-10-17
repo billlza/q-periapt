@@ -1,0 +1,7 @@
+import dev.qperiapt.continuity.ContinuityDevice;
+
+public final class RawDeviceProbe {
+    public static void main(String[] args) {
+        new ContinuityDevice(null);
+    }
+}

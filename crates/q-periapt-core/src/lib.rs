@@ -540,6 +540,29 @@ pub fn encode_policy_bound_context(
 /// nonzero policy version, or context that X-Wing cannot bind.
 pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<Secret, Error> {
     profile.validate_operation_inputs(input.suite_id, input.policy_version, input.context)?;
+    combine_validated::<X>(profile, input, None)
+}
+
+/// ContextBound combination with the canonical signed-policy context wrapper.
+///
+/// `input.context` is the application context. Absorbs exactly the bytes produced
+/// by [`encode_policy_bound_context`] without allocating or copying that wrapper.
+/// Empty application contexts are valid; the encoded context remains nonempty.
+/// The digest is metadata, not proof of policy authentication: product runtimes
+/// must obtain it from a verified policy and enforce their own lifecycle.
+pub fn combine_policy_bound<X: Xof256>(
+    input: &CombineInput<'_>,
+    policy_digest: &[u8; SHARED_SECRET_LEN],
+) -> Result<Secret, Error> {
+    policy_bound_context_len(input.context.len()).ok_or(Error::InvalidLength)?;
+    combine_validated::<X>(Profile::ContextBound, input, Some(policy_digest))
+}
+
+fn combine_validated<X: Xof256>(
+    profile: Profile,
+    input: &CombineInput<'_>,
+    policy_digest: Option<&[u8; SHARED_SECRET_LEN]>,
+) -> Result<Secret, Error> {
     let mut x = X::new();
     match profile {
         // X-Wing: SHA3-256(ss_M || ss_X || ct_X || pk_X || label). All four
@@ -572,6 +595,12 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
         // cross-profile separation; suite_id + policy_version are bound
         // first-class for downgrade/substitution resistance.
         Profile::ContextBound => {
+            let context_len = match policy_digest {
+                Some(_) => {
+                    policy_bound_context_len(input.context.len()).ok_or(Error::InvalidLength)?
+                }
+                None => input.context.len(),
+            };
             // The mandatory non-empty-context semantic guard is checked before XOF
             // construction by `validate_operation_inputs`. Fixed-width length prefixes
             // would encode an empty field injectively, but callers must make protocol /
@@ -589,7 +618,7 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
                 input.pk_pq.len(),
                 input.ct_trad.len(),
                 input.pk_trad.len(),
-                input.context.len(),
+                context_len,
             ]
             .into_iter()
             .try_fold(0usize, |size, field_len| {
@@ -606,7 +635,14 @@ pub fn combine<X: Xof256>(profile: Profile, input: &CombineInput<'_>) -> Result<
             absorb_public_lp(&mut x, input.pk_pq);
             absorb_public_lp(&mut x, input.ct_trad);
             absorb_public_lp(&mut x, input.pk_trad);
-            absorb_secret_lp(&mut x, input.context);
+            if let Some(digest) = policy_digest {
+                x.absorb_public(&(context_len as u64).to_be_bytes());
+                absorb_public_lp(&mut x, POLICY_CONTEXT_DOMAIN);
+                absorb_public_lp(&mut x, digest);
+                absorb_secret_lp(&mut x, input.context);
+            } else {
+                absorb_secret_lp(&mut x, input.context);
+            }
         }
     }
     Ok(Secret::from_bytes(x.squeeze32()))

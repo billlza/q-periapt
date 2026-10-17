@@ -1,0 +1,29 @@
+{
+  "source": "a671719eec6d48139075e1a9ff2e309cf2b19f9e",
+  "push_job": 113805908369,
+  "pr_job": 113806720320,
+  "pr_replay_job": 113812088286,
+  "actual_pr_checkout": "ff88b0332d44d758a351c94391e176b9704335bc",
+  "same_tree": "e0b4f27cb3af4b12b70fbf82f565200b5a46ba83",
+  "failure_phase": "full profile postinstall ownership validation before instrumentation",
+  "copy_bytes": [
+    261632,
+    0
+  ],
+  "expected_bytes": 13723600,
+  "root_cause": "unresolved",
+  "cleanup": "unresolved",
+  "captured_members": 148,
+  "capture_sha256": "3e055886f257cba3d2c85528f4edc52d07e9af5720d1b0b47430946c447b91b7",
+  "capture_bytes": 263014,
+  "success_archive": {
+    "artifact_id": 11614702851,
+    "sha256": "c89eb60813621519878027b4deb61483fbef418b3d8e92e20910183f87b36575",
+    "bytes": 73252400,
+    "local_path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/android-16k-a671-failure/PR_RUNTIME.zip",
+    "digest_verified": true,
+    "selected_instrumentation_and_receipt_hashes_verified": true,
+    "local_full_replay_rerun": false
+  },
+  "release_claim_eligible": false
+}

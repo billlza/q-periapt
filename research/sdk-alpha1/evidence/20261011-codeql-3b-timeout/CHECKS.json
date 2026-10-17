@@ -1,0 +1,35 @@
+{
+  "run": 38122738417,
+  "job": 114420648255,
+  "source_head": "3b6547715ad69208d889be19a6e3e4852daef08c",
+  "conclusion": "failure",
+  "rust_sarif_uploaded": false,
+  "step": "Analyze",
+  "timeout_minutes": 180,
+  "queries": {
+    "started": 39,
+    "completed_before_timeout": 38,
+    "unfinished": [
+      "codeql/rust-queries/queries/summary/SummaryStats"
+    ],
+    "last_completion": "2026-10-11T08:08:06.3561854Z [38/39 eval 4m51s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.",
+    "step_timeout_minutes": 180
+  },
+  "diagnostic_archive": {
+    "artifact_id": 11699924502,
+    "bytes": 712661923,
+    "sha256": "bc69588523d9e5d05d300caac226121efe95db99968489261d451ddc6a629920"
+  },
+  "raw_log": {
+    "bytes": 551892141,
+    "sha256": "39c2ef54344090558ea23fd191c54e1e3fd382d6076c147d4a63bd4fb7a35cf0"
+  },
+  "observation": "Evaluator log repeatedly evicts about 215 MiB ARRAYS and about 217 MiB VITAL entries; no full SummaryStats completion. Root cause beyond cache churn remains to verify. No query, timeout or quality requirement relaxed.",
+  "release_claim_eligible": false,
+  "raw_assets_retained_locally": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/c-root-process-current/codeql-3b",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 6296,
+    "sha256": "4d41a452efe9177ec262c889771a0e3e2cfe19871312fe04a8526a583ca48bf1"
+  }
+}

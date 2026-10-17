@@ -1,0 +1,27 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-c",
+    "import unittest; unittest.main(module=None, argv=[\"unittest\", \"-v\", \"test_codeql_rust_quality\"], warnings=\"error\")"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004",
+  "source_commit": "7d92d80a4b6b217c7f571ff336df68bf80edbdfc",
+  "source_hashes": {
+    "artifact/codeql_rust_quality.py": "7e989303d921c0fdcc9a3bf89bec81a453fd1fa545f4f5c25fcb76434ab617e1",
+    "artifact/test_codeql_rust_quality.py": "cf1b1fea5b36f6dfb1a741a26280cd849da421cf975ee9f2240bb27991c85c2e",
+    "ARTIFACT.md": "930d36a02a1e251b60684bbed100340cd54d26c52d5809240691645f7aff89e8"
+  },
+  "returncode": 0,
+  "observed_test_summary": [
+    [
+      "43",
+      "0.103"
+    ]
+  ],
+  "completed": true,
+  "seconds": 0.6221461250679567,
+  "log_sha256": "907c9d14a6e2152c678d4be0efb6911b6bae483e679996e215edddd23d8b957a",
+  "tracked_rust_sources": 315,
+  "release_claim_eligible": false
+}

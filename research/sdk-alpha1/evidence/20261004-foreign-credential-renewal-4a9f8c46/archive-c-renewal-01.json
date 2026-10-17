@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/enrollment-native-test",
+    "credential_renewal::",
+    "--nocapture"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+  "exit": 0,
+  "seconds": 79.90553258301225
+}

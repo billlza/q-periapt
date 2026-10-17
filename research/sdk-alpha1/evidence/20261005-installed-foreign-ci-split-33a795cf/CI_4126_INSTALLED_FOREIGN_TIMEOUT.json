@@ -1,0 +1,4335 @@
+{
+  "head": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "merge_commit": "edc5650f1067d875192f3cde06c040e9ec83db8f",
+  "run": 37236532231,
+  "job": 111538402271,
+  "job_conclusion": "cancelled",
+  "authoritative_reason": "The job has exceeded the maximum execution time of 2h0m0s",
+  "artifact": {
+    "id": 11318458313,
+    "bytes": 169180270,
+    "sha256": "25890f8746478c6e5408a7d7fbb1e770c6df51b68b4140d206450f32bc6bae0d",
+    "entries": 79805
+  },
+  "selected_reports": {
+    "C_CONSUMER.json": {
+      "bytes": 6607702,
+      "sha256": "ebb73b7c33a016223ce13534a7c7390ee1f48af002d07857579d181a5d5d9176",
+      "zip_mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        6
+      ],
+      "completed": true
+    },
+    "SWIFT_CONSUMER.json": {
+      "bytes": 6869889,
+      "sha256": "44d46a28bfb9e293a71c476674b5162b3e1e465bed2e8e045526e47c850cb422",
+      "zip_mtime": [
+        2026,
+        10,
+        4,
+        22,
+        51,
+        30
+      ],
+      "completed": true
+    },
+    "KOTLIN_WITNESSED_POLICY_EXPIRY_RELEASE_G1.json": {
+      "bytes": 56427,
+      "sha256": "b89c032c23f3b27d9d60d5889188678f114fb299323f46b2fb9dd05468b37ace",
+      "zip_mtime": [
+        2026,
+        10,
+        4,
+        23,
+        40,
+        58
+      ],
+      "completed": true
+    },
+    "kotlin-witnessed-policy-expiry-release-g1.json": {
+      "bytes": 458,
+      "sha256": "2c1f06a9e7b40b5a3c398c914983e44d09bf7d1fd0c65b67c96c4534bc5e2cc7",
+      "zip_mtime": [
+        2026,
+        10,
+        4,
+        23,
+        40,
+        58
+      ]
+    },
+    "kotlin-witnessed-policy-expiry-release-g1.stdout": {
+      "bytes": 1130,
+      "sha256": "1df3eeab34ab26d57dc54dec890b9de17cd0124c747cb81919208cedf444b893",
+      "zip_mtime": [
+        2026,
+        10,
+        4,
+        23,
+        40,
+        58
+      ]
+    }
+  },
+  "command_results": [
+    {
+      "file": "build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        46,
+        28
+      ],
+      "sha256": "94612f4bd4d8e5082bd14b1f75345c019bdad59664e83cf2843c4eefa1436e95"
+    },
+    {
+      "file": "build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        48,
+        48
+      ],
+      "sha256": "c97006c8ccf3737623e5931e4a9581889cacf81530c9a7cabbbd74448fa55c44"
+    },
+    {
+      "file": "c-account-cleanup-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        0,
+        46
+      ],
+      "sha256": "d528e53a22b683953a4cf3a89680cb993f0a8b996ee9f2f8c0221c33e0e39625"
+    },
+    {
+      "file": "c-account-cleanup-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        18,
+        54
+      ],
+      "sha256": "5bea553c93295bfe4e3da28a0d22cfdc72461fb1da54685ff67081c833b46db6"
+    },
+    {
+      "file": "c-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        20
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        2
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        30
+      ],
+      "sha256": "2b35a61b6047f9f810a258a46a83bf313150761282e72f78799cdf9255db96d3"
+    },
+    {
+      "file": "c-account-delivery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        12
+      ],
+      "sha256": "db6327a9022649a6197b2e21b36bca3179d77c772a55949b41fec991d60a01e1"
+    },
+    {
+      "file": "c-account-tls-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        2
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-account-tls-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        44
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        12
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        54
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        20
+      ],
+      "sha256": "8f4ea6be301986393a2bd2bb7e0fe1c633bc5d4c763bc3a49d4a3da000029d45"
+    },
+    {
+      "file": "c-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        2
+      ],
+      "sha256": "a32124206d740a986d0855750359adb29e058d3f898a4ce833458535413d1b34"
+    },
+    {
+      "file": "c-account-tls-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        12
+      ],
+      "sha256": "2925eeb34fd7fd386ed8b58ffbf6419bc84d23a13c2f380013c806e58e5aa57d"
+    },
+    {
+      "file": "c-account-tls-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        52
+      ],
+      "sha256": "951410595c84cf204e374764f530c28bba511aec3529feafb7b718e08a9face1"
+    },
+    {
+      "file": "c-account-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        0
+      ],
+      "sha256": "7d90da5f4de0235a316570e0152a5a44cdc8db94b00e52fa7d6f07bb162b1286"
+    },
+    {
+      "file": "c-account-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        8
+      ],
+      "sha256": "02f36c97cc2bf44751ffdd32350d216f9a01f7b33c28a4b65c85ff55a6be8711"
+    },
+    {
+      "file": "c-account-witness-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        0,
+        54
+      ],
+      "sha256": "8b500985aae9ff6b3c0e3ed1492d3b8e76761f5fbf33933193fa7cb330e37f84"
+    },
+    {
+      "file": "c-account-witness-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        34
+      ],
+      "sha256": "69c85dad0ff5107f958ecc0764801ae2441c5c097f10837947119cf58382b002"
+    },
+    {
+      "file": "c-account-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        0,
+        54
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-account-witness-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        34
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-account-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        2
+      ],
+      "sha256": "30130723d381aa89c30902b6ead25220967b74318140cc3311cad13f31cc705f"
+    },
+    {
+      "file": "c-account-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        19,
+        44
+      ],
+      "sha256": "e1980e089d34df9493b246d42ee14a0eaa4986e296a90299860ea335bb6ae5cd"
+    },
+    {
+      "file": "c-admission-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        6
+      ],
+      "sha256": "fd3e791ff8087786e7e3559198d5547e4884e0dc478611e08e03d95fdf586858"
+    },
+    {
+      "file": "c-admission-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        7,
+        18
+      ],
+      "sha256": "714b462fc9d1c8b358e9ac1ef8b1e62ef5da4348606d8eb4434d9b979bb9323d"
+    },
+    {
+      "file": "c-admission-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        6
+      ],
+      "sha256": "ecce1cca2158cc9f90a8b27897a292d3085c7ec863b270146b119dc56e381ee1"
+    },
+    {
+      "file": "c-admission-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        7,
+        18
+      ],
+      "sha256": "6edb8fa0cb5611352ebc0453727f79a2fe6b7bacc0bfd88a774a84e32cbf8dc2"
+    },
+    {
+      "file": "c-cc-path.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        18
+      ],
+      "sha256": "004a5e7eedfd62412c33b8081b68a056413128310257fe61f9472887ba2f3f6d"
+    },
+    {
+      "file": "c-cc-version.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        18
+      ],
+      "sha256": "a5bf143a9167afb1710d48ace1085ccea379debaaf2156384f3f1d05ec73a2c1"
+    },
+    {
+      "file": "c-clippy.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        6
+      ],
+      "sha256": "c7627b8baf6a134a398417da8077019cb90371c98039f254c3b1d0698d17e9ed"
+    },
+    {
+      "file": "c-compile-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        56
+      ],
+      "sha256": "16f54e02e9677c0470dedc3e5c3ab6165468532b7e64d3f290a3554e5d1b4bf6"
+    },
+    {
+      "file": "c-compile-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        5,
+        32
+      ],
+      "sha256": "7e40d88906ff05794ed4cbf994984ab9b834adc6f3880b1f56825f0b9a91ebff"
+    },
+    {
+      "file": "c-credential-renewal-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        52,
+        28
+      ],
+      "sha256": "4beb40c0ab6fadf3a2d05e599b00b6d97bc54c3194d6e87fd6a6fcadeabc862d"
+    },
+    {
+      "file": "c-credential-renewal-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        9,
+        6
+      ],
+      "sha256": "0e58c05f2ae395be85d7dc060ed7efdd9cc7d227c37f2fa939b3e7a041b8d0aa"
+    },
+    {
+      "file": "c-dependencies-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        58
+      ],
+      "sha256": "f1a33f8aa5b7a9517a4d746476571f33bf90b7878eb95aec2f82013ff4d49372"
+    },
+    {
+      "file": "c-dependencies-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        5,
+        32
+      ],
+      "sha256": "d9d38a5bf73cd7deaae733a8745c4a604cdae215a929b65790ebf1011f6e59c8"
+    },
+    {
+      "file": "c-device-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        58,
+        56
+      ],
+      "sha256": "7fcc3452bee672bb6850f1a5e19d293619d207a074bcb6204b24f4cd33d5ad3c"
+    },
+    {
+      "file": "c-device-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        4
+      ],
+      "sha256": "5c2f54295f2337bc6ca79044e5778b01eaa28031ecacf0bca3a58630c9fa2d07"
+    },
+    {
+      "file": "c-device-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        3,
+        58
+      ],
+      "sha256": "b86411d4928ab80ce0c5c7a94e7a82fa78774ef111344d32608a4338924436b1"
+    },
+    {
+      "file": "c-device-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        28
+      ],
+      "sha256": "e95cd1c047a5bcffa8806b1ce3557ecc29fd89654e52bf99cd68c9c6068632c7"
+    },
+    {
+      "file": "c-enrollment-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        10
+      ],
+      "sha256": "b66d307edad732a0dd9501b722b1cd27611cdb55c51281b62e8bcf39fd0df9d6"
+    },
+    {
+      "file": "c-enrollment-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        7,
+        48
+      ],
+      "sha256": "08764037d7144b2e1515ce056fcd673419bdc4580e0f4948cd6f6a4af14b56d3"
+    },
+    {
+      "file": "c-enrollment-mutual-tls-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        52,
+        36
+      ],
+      "sha256": "73a178694188244649f7b14d3e10e0dc619a9be3e7dd2b70038ed3b0b069ef0d"
+    },
+    {
+      "file": "c-enrollment-mutual-tls-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        9,
+        44
+      ],
+      "sha256": "bbb8689b666f0a27d3e67d60441aa1963163fa4ac2c7a1033d0fdd240af675a8"
+    },
+    {
+      "file": "c-enrollment-signed-tcp-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        52,
+        34
+      ],
+      "sha256": "fe7b3ce1d2cdcacf660ed29964bac1860e0d8e6795e58abb2ec3fa2e9a40a1a9"
+    },
+    {
+      "file": "c-enrollment-signed-tcp-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        9,
+        42
+      ],
+      "sha256": "3fd28cf6c288bde8d326df5ae2b0d552b0c7e12c4d2456f05bdcd015bfdcde83"
+    },
+    {
+      "file": "c-enrollment-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        12
+      ],
+      "sha256": "1fcf5df2522a7481c5e24b5956279551cf5a174a203b16950e4620cab52d8154"
+    },
+    {
+      "file": "c-enrollment-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        7,
+        50
+      ],
+      "sha256": "acd4f06c9ed2ab46cca7999939dfd67241f7e8f1bea9dc5b54ab5a0d1e9f31a9"
+    },
+    {
+      "file": "c-enrollment-witness-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        52,
+        32
+      ],
+      "sha256": "4dc7828d5ad73a421d9172e9fce793bee7e9ce649b7988afa0750c57e95e8782"
+    },
+    {
+      "file": "c-enrollment-witness-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        9,
+        38
+      ],
+      "sha256": "04498653af81e4bad6ee0a8b5dfde081e70da5f2e8366ad0505be393f1eb332b"
+    },
+    {
+      "file": "c-exports-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        58
+      ],
+      "sha256": "955ae415112bfb244130e789685a82a39aae84f8dcf8add50a95d5453c1c2aaf"
+    },
+    {
+      "file": "c-exports-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        5,
+        32
+      ],
+      "sha256": "ee31ecabbc6e4ca2c0b155a8eb048e9f21718c3778b13c3d95ad1d9d9fed1ec6"
+    },
+    {
+      "file": "c-fault-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        28
+      ],
+      "sha256": "fb4bba572bdbedaabd40bb5e0a9386a596bdb41575aa2c75d5497da60ab80a70"
+    },
+    {
+      "file": "c-fault-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        17,
+        4
+      ],
+      "sha256": "1cda576052f8ea873ea8c3d3c55f2c5f94cddf26926dffe3faa138ae038a69ae"
+    },
+    {
+      "file": "c-fault-probe-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        28
+      ],
+      "sha256": "7579b5c90cbfeeba6d5373ed1696cea1a12d25d96ad8e28dac61212133fe4f57"
+    },
+    {
+      "file": "c-fault-probe-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        17,
+        4
+      ],
+      "sha256": "cdb3d595df3cc1b0302159da941227f0d68403d33d9a269c34a9c2b0c402f565"
+    },
+    {
+      "file": "c-fault-smoke-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        28
+      ],
+      "sha256": "e57ee2e33dd9c7edc5b3a5855f1185161ece1c3e70605bd5927c2aead303aa22"
+    },
+    {
+      "file": "c-fault-smoke-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        17,
+        4
+      ],
+      "sha256": "f32788243fbd42321bfc88ca072e1bae714abf34dc9553d757dae080b450def4"
+    },
+    {
+      "file": "c-library-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        56
+      ],
+      "sha256": "ae7a6aa48500fc5420fc13664e494c333b703087e3b0323baf6ac8f9984c6ff9"
+    },
+    {
+      "file": "c-library-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        5,
+        30
+      ],
+      "sha256": "dc29619a9c3a84b3eca5a22bafb29bdc007fec8eaa6f486a71675c9fc58fa6f3"
+    },
+    {
+      "file": "c-loader-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        58
+      ],
+      "sha256": "e5681f5b3a43dec5b79de3c5288c9f389d8c036897d3c57c5c054d72137a17d7"
+    },
+    {
+      "file": "c-loader-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        5,
+        32
+      ],
+      "sha256": "846fb53d86ba16f053bcc5e4ffa18482114827d8f2b4c7606e827b6110ce2b5b"
+    },
+    {
+      "file": "c-metadata.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        18
+      ],
+      "sha256": "b2c23d0a419438384a077aec9edd966a55ebabd80e5562fa441af354cf69c50f"
+    },
+    {
+      "file": "c-opening-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        0
+      ],
+      "sha256": "414387152469c3d95e544239b4df71932b597855f43b77a032ff0f69261a8bca"
+    },
+    {
+      "file": "c-opening-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        30
+      ],
+      "sha256": "511fbde6eb91f4f7ba7887842f269f006ae5e3f83e15fecedf8b8acae9e1a234"
+    },
+    {
+      "file": "c-own-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        30
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-own-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        12
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-own-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        40
+      ],
+      "sha256": "615d56322e91c05e203b1e9595ea9479395a96a0b2636611add58116c04f2e4b"
+    },
+    {
+      "file": "c-own-account-delivery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        20
+      ],
+      "sha256": "1a5cf0fd8d499e4d9de044096bbc0aee744c20c7789b6e4f551ad68f129dd84d"
+    },
+    {
+      "file": "c-own-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        40
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "c-own-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        20
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "c-own-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        48
+      ],
+      "sha256": "1e7d1a4ceb57533c5d40e21a8444f775d74d7f44dd2c7387b72beb40e82a1de5"
+    },
+    {
+      "file": "c-own-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        20,
+        30
+      ],
+      "sha256": "f113ec850bd347a3b8ff659c2a04834083b7999c60d81edbd832cd81e71352a0"
+    },
+    {
+      "file": "c-recovery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        24
+      ],
+      "sha256": "103c1bfd156c4a701605ea6e15f39e310bb10d377dff0c81ce0ef757f5227a77"
+    },
+    {
+      "file": "c-recovery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        34
+      ],
+      "sha256": "8328a73484d982aba8d9e635b1b8a6bda35ad7cc8647851bdce0c31b215527bb"
+    },
+    {
+      "file": "c-restore-opening-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        4
+      ],
+      "sha256": "bf6915b8804e87161bed77a2a5a23029c95f4eb7b4b4ca0b5449130d757d18d3"
+    },
+    {
+      "file": "c-restore-opening-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        34
+      ],
+      "sha256": "ed1ae9e015764c3c43e61b50313c558481a332c85ee58ef1944b60302f69fffc"
+    },
+    {
+      "file": "c-restore-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        26
+      ],
+      "sha256": "aa93f06c35cf372849fe7b1a76c3c91b2f9915d81705ef8aa975f83951d40b0f"
+    },
+    {
+      "file": "c-restore-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        34
+      ],
+      "sha256": "1852188837474aaa94edd5f04ad4eb5daa1238065ab2beae384a848285295913"
+    },
+    {
+      "file": "c-sdk-path.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        18
+      ],
+      "sha256": "5770adec80cef76d7258de9887222495a20768ec50c51097ac25b4b88eb7beb9"
+    },
+    {
+      "file": "c-server-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        59,
+        22
+      ],
+      "sha256": "3c109faa9a8d0784d926688281f17e1f53d814bfcf1f31cda19ed7f83e8e82cb"
+    },
+    {
+      "file": "c-server-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        32
+      ],
+      "sha256": "26aa65b1bfd23d5d3c16f44b4d28c8b8347ae4e824013503d2948f40a13a15ed"
+    },
+    {
+      "file": "c-setup-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        50
+      ],
+      "sha256": "f9bae770a9307f92654b01a95d5a0d40361f80b13aa7292deaa060969efdf2de"
+    },
+    {
+      "file": "c-setup-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        0
+      ],
+      "sha256": "9c65146a9320868b236e74e85c13c55ed709f05d047e1a4c11367219cd83ef16"
+    },
+    {
+      "file": "c-setup-fault-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        54
+      ],
+      "sha256": "b5fb5b5c67d91265d4b21f46ca1faf0b3f2d72eb56c7e754e096271c9ea82c6e"
+    },
+    {
+      "file": "c-setup-fault-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        32
+      ],
+      "sha256": "2d3b513f9fd415ada407ac6ab3d4531b2cb9d10af168ab63188fd31caff0e131"
+    },
+    {
+      "file": "c-setup-local-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        50
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "c-setup-local-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        0
+      ],
+      "sha256": "42814a204a537306b1e10dfa9b18f6342c7d4ebeb2e696ff7c6be14bf0c49183"
+    },
+    {
+      "file": "c-setup-local-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        50
+      ],
+      "sha256": "e2eff02b6def9e242255c702599709f9e4193688d7b02ac73e167022e57dcb7b"
+    },
+    {
+      "file": "c-setup-local-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        0
+      ],
+      "sha256": "210f689132cfbf80dff8ac4482c66491b1f35ed5381e78aedcda393cc71f0b20"
+    },
+    {
+      "file": "c-setup-witness-fault-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        2,
+        22
+      ],
+      "sha256": "bea310fd5c01a0101ae93fc50be78be950a9b90ee6a7b8ed14b6fea3ee25779d"
+    },
+    {
+      "file": "c-setup-witness-fault-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        22,
+        30
+      ],
+      "sha256": "71b8f324004e166253acdd46695c783c70df46e080bb1fae83c4ddd2c0793657"
+    },
+    {
+      "file": "c-setup-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        50
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "c-setup-witness-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        0
+      ],
+      "sha256": "42814a204a537306b1e10dfa9b18f6342c7d4ebeb2e696ff7c6be14bf0c49183"
+    },
+    {
+      "file": "c-setup-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        1,
+        52
+      ],
+      "sha256": "8d90e4f426eefeee889f32894526773e1c469632836d9763c24c67c794870694"
+    },
+    {
+      "file": "c-setup-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        21,
+        2
+      ],
+      "sha256": "271ba83555d95e3d5d7b4a80071f18eafcab00525ed1853e3ff9e013bcb01309"
+    },
+    {
+      "file": "c-trace-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        2
+      ],
+      "sha256": "aca09b87bdb04add7236e5c4b3845910211699a14d5c16b1920f1e83a25955a5"
+    },
+    {
+      "file": "c-trace-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        6,
+        20
+      ],
+      "sha256": "78d0be7dfc86f038b683a65febe53eb078771be8e2895b052f02e71c3631e4ce"
+    },
+    {
+      "file": "c-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        51,
+        8
+      ],
+      "sha256": "07fa5687589536c90e02b0799ed20684c1ee1f9b6a9ab62b7e5bd6d3a3597b86"
+    },
+    {
+      "file": "c-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        7,
+        20
+      ],
+      "sha256": "db1f9a893872c9aac3422710e3176e4b9296fdb1a613bd0d07097cade1713b97"
+    },
+    {
+      "file": "c-witness-build-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        3,
+        56
+      ],
+      "sha256": "22e4f56b7fdb882ac3f30c82468d34ed3c5e3571c9d057b5d15e659725e07839"
+    },
+    {
+      "file": "c-witness-build-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        26
+      ],
+      "sha256": "c004f1cd6234dd77ce5e8fd7734c5d71e73bc61ac1389f4324d78ed16f7b3973"
+    },
+    {
+      "file": "c-witness-openssl-client-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        20
+      ],
+      "sha256": "b37828e8010e6502a49c9eed2463722c4aadf305d33964b2d1d49330408d1954"
+    },
+    {
+      "file": "c-witness-openssl-client-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        50
+      ],
+      "sha256": "fecb3d38dd71776fbccf0a5417e8b90132f12ea4807a1faee7b6399bc7bb9920"
+    },
+    {
+      "file": "c-witness-openssl-compile-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        16
+      ],
+      "sha256": "8ee8de10d5eb3235af483663e260a31e317853d5553ae4a5d622be2bd3b257e7"
+    },
+    {
+      "file": "c-witness-openssl-compile-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        46
+      ],
+      "sha256": "a99bfd8e24b3bbabb5d4b65e59035dac4efb999912fa930521b4ea156bbd17cf"
+    },
+    {
+      "file": "c-witness-openssl-identity-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        16
+      ],
+      "sha256": "a9f3ff245b3f0745e18cc93e452786202548ff1181cfa4f608953548765b6e88"
+    },
+    {
+      "file": "c-witness-openssl-identity-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        46
+      ],
+      "sha256": "53dd5b0e30cbfdc17dde5db5b7880039463e5777459f5890706a6c4af5ed5b6f"
+    },
+    {
+      "file": "c-witness-openssl-linked-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        16
+      ],
+      "sha256": "46ab29765f1a16e1780a771c9ad90ae75d1696e184971d733777858a7c0bb4e3"
+    },
+    {
+      "file": "c-witness-openssl-linked-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        46
+      ],
+      "sha256": "5689804ed1a3ee36b1e664778b842eff6e58b77f3d3d6a26cd84b9dc344a551c"
+    },
+    {
+      "file": "c-witness-openssl-rejections-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        22
+      ],
+      "sha256": "f052041fdf253bed3eba4c9b61776075027f32362b5c23203510435b84a20184"
+    },
+    {
+      "file": "c-witness-openssl-rejections-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        52
+      ],
+      "sha256": "e59f51e760f110a39ab35f2ea07a2a33ebbaba2c990afb9b319acb0dbf4f6247"
+    },
+    {
+      "file": "c-witness-openssl-server-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        20
+      ],
+      "sha256": "09215aa44a5bb71f971fc9b821953112b77c34f37dfa62b7035a266af1680969"
+    },
+    {
+      "file": "c-witness-openssl-server-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        50
+      ],
+      "sha256": "c352b9682d545a69aee45a2ec848e573c6da4bbee519d58fb97f1b2f76faab61"
+    },
+    {
+      "file": "c-witness-openssl-version-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        16
+      ],
+      "sha256": "d8bc390cb5a801bbd3857db91ac519e453f5287380dfe8312b03e4688107fe86"
+    },
+    {
+      "file": "c-witness-openssl-version-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        46
+      ],
+      "sha256": "d8bc390cb5a801bbd3857db91ac519e453f5287380dfe8312b03e4688107fe86"
+    },
+    {
+      "file": "c-witness-tls-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        16
+      ],
+      "sha256": "ca10af48e1c04733b111b99e3ccab96c16217984419168e35cb17b33e147cdbc"
+    },
+    {
+      "file": "c-witness-tls-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        46
+      ],
+      "sha256": "28b0d1f5bdf544d85171067e009c71d5b6903dee442e3ab7cde972e2bce7146d"
+    },
+    {
+      "file": "c-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        4,
+        10
+      ],
+      "sha256": "9a27df3d710f1297f925e999a19d8f5b3f54ab3d23f84185054e93c1f4a54c0c"
+    },
+    {
+      "file": "c-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        24,
+        42
+      ],
+      "sha256": "b12ecdb1687e94e84b6572aebe5ef67c884f971bbbd97e026663bdea5f1521da"
+    },
+    {
+      "file": "c-witnessed-cancellation-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        56,
+        50
+      ],
+      "sha256": "c29e79b5c16fedb6eda429da54c3d178db302cd58157c9c6c12a255f8a6a1106"
+    },
+    {
+      "file": "c-witnessed-cancellation-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        14,
+        0
+      ],
+      "sha256": "3ee5c77286ec40193faf80e39d6ffe6aa6a01f37c1a5ce5a708dedbca9083aab"
+    },
+    {
+      "file": "c-witnessed-commit-error-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        58,
+        52
+      ],
+      "sha256": "b6e5df0317d196094f318ca9bc6aa03efee5b5a3a12ab567b960a4d8334f2ca8"
+    },
+    {
+      "file": "c-witnessed-commit-error-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        16,
+        2
+      ],
+      "sha256": "a2dd92c0023ce3199b73b192e33b0561c73a0d8fda53a88c7b2e399274cd4ae8"
+    },
+    {
+      "file": "c-witnessed-credential-renewal-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        52,
+        46
+      ],
+      "sha256": "c2367e343b8f420b565af4bf8561007f6b5bfb34c1d314ed2becbe0d5f6574b9"
+    },
+    {
+      "file": "c-witnessed-credential-renewal-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        9,
+        54
+      ],
+      "sha256": "523940b3e25f4b13bdb765bf44ab42a1a44e820e7300b8a1ed1e4f49ef70d485"
+    },
+    {
+      "file": "c-witnessed-policy-expiry-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        54,
+        48
+      ],
+      "sha256": "9f7c3b966bafc3e888bfb2a16aadb72bb6cfd0c4f222da601b28e67f82fea16f"
+    },
+    {
+      "file": "c-witnessed-policy-expiry-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        11,
+        56
+      ],
+      "sha256": "be675c11c0902e23785408fba474e4de2252723b7a1ebdd1297310d439e8cb49"
+    },
+    {
+      "file": "consumer-clippy.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        50,
+        16
+      ],
+      "sha256": "7c1d8a594d8af3d3234c45a2603fa4383d6d7b0ce907db19dcdbfc41ece79333"
+    },
+    {
+      "file": "consumer-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        46,
+        32
+      ],
+      "sha256": "721cd5d25291de4f8556718073cc056fbd8a5c5fde90660163f1570e0166226b"
+    },
+    {
+      "file": "consumer-metadata.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        46,
+        2
+      ],
+      "sha256": "a2e9cdc680f04caac3655d95392b75e5b005cf3cdacfc7053d31eea45e33c6f1"
+    },
+    {
+      "file": "consumer-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        48,
+        52
+      ],
+      "sha256": "00598107066c3f8e8929ef90ff12739534015f2d9dc21733b758afe5ddd1e065"
+    },
+    {
+      "file": "fetch.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        42,
+        30
+      ],
+      "sha256": "70c2f537fed0d011cb51fe031c30f5b59bef1c623c109f4ca0563ffe07e8a5b8"
+    },
+    {
+      "file": "kotlin-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        56
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        10
+      ],
+      "sha256": "2b35a61b6047f9f810a258a46a83bf313150761282e72f78799cdf9255db96d3"
+    },
+    {
+      "file": "kotlin-account-g1-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        11,
+        34
+      ],
+      "sha256": "1dc43b43b837b9962b52b0cadc6e4b133139372140ace3a50e1d33c5ac971e3d"
+    },
+    {
+      "file": "kotlin-account-serial-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        11,
+        22
+      ],
+      "sha256": "1dc43b43b837b9962b52b0cadc6e4b133139372140ace3a50e1d33c5ac971e3d"
+    },
+    {
+      "file": "kotlin-account-tls-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        30
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        44
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        56
+      ],
+      "sha256": "8f4ea6be301986393a2bd2bb7e0fe1c633bc5d4c763bc3a49d4a3da000029d45"
+    },
+    {
+      "file": "kotlin-account-tls-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        44
+      ],
+      "sha256": "2925eeb34fd7fd386ed8b58ffbf6419bc84d23a13c2f380013c806e58e5aa57d"
+    },
+    {
+      "file": "kotlin-account-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        18
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-account-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        18,
+        30
+      ],
+      "sha256": "30130723d381aa89c30902b6ead25220967b74318140cc3311cad13f31cc705f"
+    },
+    {
+      "file": "kotlin-build-sdk.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        52,
+        8
+      ],
+      "sha256": "f0916c9cebb09ea8a7b613a2f4ef78fd094b932db1dbc379c170d40f6f92aa8b"
+    },
+    {
+      "file": "kotlin-client-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        14
+      ],
+      "sha256": "d318fb5282efa379f6dd64ac57fee39522d7fd3d68efdd6b5c514e0e918b31b0"
+    },
+    {
+      "file": "kotlin-client-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        27,
+        32
+      ],
+      "sha256": "8b8199cb78b04758a50a345e7efc1d581a07ab69f3a514f968571e673a2bacb1"
+    },
+    {
+      "file": "kotlin-credential-renewal-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        4,
+        14
+      ],
+      "sha256": "e0fac8906effcdb8955a244bc1f6f797b882fd5b21536651263c2d4e33957afe"
+    },
+    {
+      "file": "kotlin-credential-renewal-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        55,
+        34
+      ],
+      "sha256": "e0fac8906effcdb8955a244bc1f6f797b882fd5b21536651263c2d4e33957afe"
+    },
+    {
+      "file": "kotlin-credential-renewal-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        38,
+        22
+      ],
+      "sha256": "8bc7f1a1f2db3b4c055cf55a0ff99da3aa9143b7fd172880720ad3508b6b2a84"
+    },
+    {
+      "file": "kotlin-credential-renewal-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        29,
+        44
+      ],
+      "sha256": "8bc7f1a1f2db3b4c055cf55a0ff99da3aa9143b7fd172880720ad3508b6b2a84"
+    },
+    {
+      "file": "kotlin-enrollment-local-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        58
+      ],
+      "sha256": "f5072995ff4b0d70dca3833b6657566ea4f57a3eb9c1f6f5826e410c3ac34880"
+    },
+    {
+      "file": "kotlin-enrollment-local-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        2,
+        46
+      ],
+      "sha256": "f5072995ff4b0d70dca3833b6657566ea4f57a3eb9c1f6f5826e410c3ac34880"
+    },
+    {
+      "file": "kotlin-enrollment-local-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        36,
+        52
+      ],
+      "sha256": "050a1ee7b0569e811f1e759882a29f3c32f9d5096a723d0bca3839898693a4ac"
+    },
+    {
+      "file": "kotlin-enrollment-local-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        28,
+        12
+      ],
+      "sha256": "050a1ee7b0569e811f1e759882a29f3c32f9d5096a723d0bca3839898693a4ac"
+    },
+    {
+      "file": "kotlin-enrollment-mutual-tls-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        2,
+        56
+      ],
+      "sha256": "cde0d3cf075248db5f24841650f7f42b0ce1406ed33b813be806b3d934d042c4"
+    },
+    {
+      "file": "kotlin-enrollment-mutual-tls-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        54,
+        16
+      ],
+      "sha256": "cde0d3cf075248db5f24841650f7f42b0ce1406ed33b813be806b3d934d042c4"
+    },
+    {
+      "file": "kotlin-enrollment-mutual-tls-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        37,
+        4
+      ],
+      "sha256": "0c9bfae4b8b05886e96eae835f6750c81141b5915e8987d20179350bf4ebc938"
+    },
+    {
+      "file": "kotlin-enrollment-mutual-tls-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        28,
+        26
+      ],
+      "sha256": "0c9bfae4b8b05886e96eae835f6750c81141b5915e8987d20179350bf4ebc938"
+    },
+    {
+      "file": "kotlin-enrollment-signed-tcp-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        2,
+        52
+      ],
+      "sha256": "e4ee8e457d473731a2da680fd3276879d8b639e30dba2781c447cc7403f8b63e"
+    },
+    {
+      "file": "kotlin-enrollment-signed-tcp-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        54,
+        8
+      ],
+      "sha256": "e4ee8e457d473731a2da680fd3276879d8b639e30dba2781c447cc7403f8b63e"
+    },
+    {
+      "file": "kotlin-enrollment-signed-tcp-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        36,
+        58
+      ],
+      "sha256": "6190355037388258e48d5d716bffd8b1a77de378f992962db3d8aabf87f26663"
+    },
+    {
+      "file": "kotlin-enrollment-signed-tcp-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        28,
+        20
+      ],
+      "sha256": "6190355037388258e48d5d716bffd8b1a77de378f992962db3d8aabf87f26663"
+    },
+    {
+      "file": "kotlin-gc-g1-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        8
+      ],
+      "sha256": "5017e0932ce77bfaa21b290088eafcb29cbb57189fafc04f1e41fc24339113a2"
+    },
+    {
+      "file": "kotlin-gc-g1-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        27,
+        28
+      ],
+      "sha256": "b5c356cd9cfcacbed2fa2c80164c73d25455a3cd1ea31824daed5f87d2aa7973"
+    },
+    {
+      "file": "kotlin-gc-serial-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        6
+      ],
+      "sha256": "60f6dc8ad26fe28a0ad50c9da1872046f9127ee50db8cf7f65a922b02aa79b01"
+    },
+    {
+      "file": "kotlin-gc-serial-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        27,
+        26
+      ],
+      "sha256": "03c7b1e01822dba4a0b602f595b9b880fb0e08de16b4650adeb083a75696f620"
+    },
+    {
+      "file": "kotlin-gradle-version.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        51,
+        32
+      ],
+      "sha256": "28b0b12b04c75ff2d8de0c1ba6621b3f099715956f641b16df0b56fbb2a8af83"
+    },
+    {
+      "file": "kotlin-incompatible-library-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        38
+      ],
+      "sha256": "e5dabd58e98c54ca2bef8b53c22245aa1917257258754e40e374a45ec0683ab5"
+    },
+    {
+      "file": "kotlin-inflight-g1-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        12,
+        58
+      ],
+      "sha256": "37c444efcf7a1059a92e1bb57d026f86d312aecded717038457f90f283d92542"
+    },
+    {
+      "file": "kotlin-inflight-serial-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        12,
+        18
+      ],
+      "sha256": "37c444efcf7a1059a92e1bb57d026f86d312aecded717038457f90f283d92542"
+    },
+    {
+      "file": "kotlin-install-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        52,
+        40
+      ],
+      "sha256": "6dd58cddb534c7d9ca87acc3c24394c126638bf8b32956347a4cfaa09d02a6ae"
+    },
+    {
+      "file": "kotlin-install-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        27,
+        2
+      ],
+      "sha256": "d4b8ea995359d33a9fb43e86919b536d10d37d6b79ae8307e257c1577f0270a0"
+    },
+    {
+      "file": "kotlin-java-module-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        38
+      ],
+      "sha256": "81ff9eb0114860ad318e29e7150edd2d07630d2a4e7670660890ec3508fbed4f"
+    },
+    {
+      "file": "kotlin-java-version.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        51,
+        30
+      ],
+      "sha256": "640983ecc0a8c6711f9730fb62e55166fc5257766e14b1836336e1bb53e774f9"
+    },
+    {
+      "file": "kotlin-javac-version.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        51,
+        30
+      ],
+      "sha256": "9356ae085f5955dd663aa5a72bda4d0ebd94320a5456fe24b9d625148555693b"
+    },
+    {
+      "file": "kotlin-native-license-metadata.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        52,
+        10
+      ],
+      "sha256": "a6dc4f61b8480aa4409f9a0828fddbc87fd3e9cea88b67afee700a0e9ddcb5c8"
+    },
+    {
+      "file": "kotlin-negative-denied-native-access-debug.json",
+      "returncode": 1,
+      "expected_rejection": "IllegalCallerException",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "d60b77403c7b54a87ec37d7c35aea25461e29c54137537d8b4840a37e4a0f067"
+    },
+    {
+      "file": "kotlin-negative-directory-library-debug.json",
+      "returncode": 1,
+      "expected_rejection": "absolute regular file",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "1601745ec15544341f5a67b45e0478788b4ab36eb2f1eb7c7873fce819193421"
+    },
+    {
+      "file": "kotlin-negative-missing-library-debug.json",
+      "returncode": 1,
+      "expected_rejection": "absolute regular file",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "c3cb4175fca60c00868a35232f0976ca651dbc0ad9cfe45e1b0cf7a53867008c"
+    },
+    {
+      "file": "kotlin-negative-missing-property-debug.json",
+      "returncode": 1,
+      "expected_rejection": "qperiapt.continuity.lib must select",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        38
+      ],
+      "sha256": "df33524bff0d04bcbdf3cd1d662a81ecba7634ffd305aa732016a3764f8a8f23"
+    },
+    {
+      "file": "kotlin-negative-missing-symbol-debug.json",
+      "returncode": 1,
+      "expected_rejection": "NoSuchElementException",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "b625d0f5e59d2d3747cffa1dc75b78fe55871c04fb71d86ac19bec2bc0e7e71e"
+    },
+    {
+      "file": "kotlin-negative-raw-device-debug.json",
+      "returncode": 1,
+      "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityDevice(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityDevice",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "3eeae91bb2d0d25ef578cc869500e05013261093324898738272fa40fc966877"
+    },
+    {
+      "file": "kotlin-negative-raw-enrollment-debug.json",
+      "returncode": 1,
+      "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityEnrollment",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        42
+      ],
+      "sha256": "f6f3a0ec47b3498dcb251cf036e506b28d02db02b6fe53752b412810f3fb3528"
+    },
+    {
+      "file": "kotlin-negative-raw-native-owner-debug.json",
+      "returncode": 1,
+      "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.NativeOwner(long,dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.NativeOwner",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        42
+      ],
+      "sha256": "8809efd3e1d857bc974db3d9b2e7b3d9fff9ed6e377322f20a43288c7a19be9e"
+    },
+    {
+      "file": "kotlin-negative-raw-owner-debug.json",
+      "returncode": 1,
+      "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityOwner(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityOwner",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "309a55efe06bb8262d79d0b31f07f1d6db3cb46864d2782300cb7e8a42d0b27f"
+    },
+    {
+      "file": "kotlin-negative-raw-setup-debug.json",
+      "returncode": 1,
+      "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuitySetup(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuitySetup",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        42
+      ],
+      "sha256": "7b150530b550894703421ee4296e8bc91fba3123eec08b061524633cb3f14e3a"
+    },
+    {
+      "file": "kotlin-negative-relative-path-debug.json",
+      "returncode": 1,
+      "expected_rejection": "absolute regular file",
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        26,
+        40
+      ],
+      "sha256": "f3700327955a654ff311116938e79aeac1538bbe0e75f718880c6d6e693a0e1e"
+    },
+    {
+      "file": "kotlin-own-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        10
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-own-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        24
+      ],
+      "sha256": "615d56322e91c05e203b1e9595ea9479395a96a0b2636611add58116c04f2e4b"
+    },
+    {
+      "file": "kotlin-own-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        24
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "kotlin-own-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        38
+      ],
+      "sha256": "1e7d1a4ceb57533c5d40e21a8444f775d74d7f44dd2c7387b72beb40e82a1de5"
+    },
+    {
+      "file": "kotlin-owner-tests-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        4
+      ],
+      "sha256": "6311fd3d9b61ec4a34075a0fe8e144aa9364bd83c23fccc639afaf2a71adf32a"
+    },
+    {
+      "file": "kotlin-owner-tests-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        27,
+        24
+      ],
+      "sha256": "633b81a083fa663e12564993c215c88c218b22eb1fcb6c9067eadfb1a18cd43e"
+    },
+    {
+      "file": "kotlin-recovery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        48
+      ],
+      "sha256": "4e03935ca192fc0c9e0333dd8001c011dfcd789051870054877051a4c56bcd5a"
+    },
+    {
+      "file": "kotlin-recovery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        28,
+        4
+      ],
+      "sha256": "f76309b407cfe551f0c3d92ba1133561a026bbee0ddc04d4200a0eb5534fbcf1"
+    },
+    {
+      "file": "kotlin-restore-opening-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        13,
+        38
+      ],
+      "sha256": "34fda4b177cfaba1bac7468c85558480a21d700af41c61d01c6f056b932850b2"
+    },
+    {
+      "file": "kotlin-restore-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        11,
+        38
+      ],
+      "sha256": "07840acc033fd6332025e43e31d06dde5e79ac9e50e48067dbc647da81404614"
+    },
+    {
+      "file": "kotlin-server-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        53,
+        42
+      ],
+      "sha256": "37c444efcf7a1059a92e1bb57d026f86d312aecded717038457f90f283d92542"
+    },
+    {
+      "file": "kotlin-server-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        28,
+        0
+      ],
+      "sha256": "a8fe2f4d1c772dc623f7a11b6770ce72a8a23e64c000e5d7759fbf972b84f96a"
+    },
+    {
+      "file": "kotlin-setup-local-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        38
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "kotlin-setup-local-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        42
+      ],
+      "sha256": "e2eff02b6def9e242255c702599709f9e4193688d7b02ac73e167022e57dcb7b"
+    },
+    {
+      "file": "kotlin-setup-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        42
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "kotlin-setup-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        19,
+        46
+      ],
+      "sha256": "8d90e4f426eefeee889f32894526773e1c469632836d9763c24c67c794870694"
+    },
+    {
+      "file": "kotlin-witness-mutual-tls-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        13,
+        32
+      ],
+      "sha256": "a33d394444d4b84db2932787810c2fce8cf01be740283dfd9a070c0b5b302eaa"
+    },
+    {
+      "file": "kotlin-witness-opening-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        13,
+        4
+      ],
+      "sha256": "45b690ba39a79aacfc2353a4a062069014bd7c57f441a407bf4a1be9fdf2de34"
+    },
+    {
+      "file": "kotlin-witness-opening-interrupt-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        13,
+        10
+      ],
+      "sha256": "45b690ba39a79aacfc2353a4a062069014bd7c57f441a407bf4a1be9fdf2de34"
+    },
+    {
+      "file": "kotlin-witnessed-cancellation-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        9,
+        4
+      ],
+      "sha256": "a1a42856c263fa736a8971c6643708928f9b39edecbdc4a2613931434157d54e"
+    },
+    {
+      "file": "kotlin-witness-signed-tcp-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        13,
+        22
+      ],
+      "sha256": "a3288feaf641ef9f71b7057e8783e1fadb10f1e88125197777a94f3f3aa67545"
+    },
+    {
+      "file": "kotlin-witnessed-cancellation-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        0,
+        36
+      ],
+      "sha256": "a1a42856c263fa736a8971c6643708928f9b39edecbdc4a2613931434157d54e"
+    },
+    {
+      "file": "kotlin-witnessed-cancellation-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        34,
+        42
+      ],
+      "sha256": "4cda579f8300a895cd9c2848408898dbf91235c7b266322fcd38811cda079ed4"
+    },
+    {
+      "file": "kotlin-witnessed-commit-error-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        11,
+        8
+      ],
+      "sha256": "0077b4cceb6cbd46fbdbdb6eddb26ca4edfd50e6860d76d83b0f8536ac852208"
+    },
+    {
+      "file": "kotlin-witnessed-commit-error-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        2,
+        40
+      ],
+      "sha256": "0077b4cceb6cbd46fbdbdb6eddb26ca4edfd50e6860d76d83b0f8536ac852208"
+    },
+    {
+      "file": "kotlin-witnessed-commit-error-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        36,
+        44
+      ],
+      "sha256": "4687caa53d5024078673f8ae41de34fe5ce01e9860a8d8ef8ae0ffaabf8c1cb3"
+    },
+    {
+      "file": "kotlin-witnessed-credential-renewal-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        4,
+        42
+      ],
+      "sha256": "27db7e665baeab084b0f0644b3d7d508aa85fcb9d8a539b9bdd7ca3eb03694cb"
+    },
+    {
+      "file": "kotlin-witnessed-credential-renewal-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        56,
+        8
+      ],
+      "sha256": "27db7e665baeab084b0f0644b3d7d508aa85fcb9d8a539b9bdd7ca3eb03694cb"
+    },
+    {
+      "file": "kotlin-witnessed-credential-renewal-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        38,
+        48
+      ],
+      "sha256": "2a131b280f54a15b0d2b3e9732065db6f6703bc937a0688a0400b5ac4eed794a"
+    },
+    {
+      "file": "kotlin-witnessed-credential-renewal-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        30,
+        18
+      ],
+      "sha256": "2a131b280f54a15b0d2b3e9732065db6f6703bc937a0688a0400b5ac4eed794a"
+    },
+    {
+      "file": "kotlin-witnessed-policy-expiry-debug-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        6,
+        52
+      ],
+      "sha256": "0b94801725df949d3f1c7229ebf5c4d72f3c21e3f91754df200ceb138f22f4c4"
+    },
+    {
+      "file": "kotlin-witnessed-policy-expiry-debug-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        58,
+        20
+      ],
+      "sha256": "0b94801725df949d3f1c7229ebf5c4d72f3c21e3f91754df200ceb138f22f4c4"
+    },
+    {
+      "file": "kotlin-witnessed-policy-expiry-release-g1.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        40,
+        58
+      ],
+      "sha256": "2c1f06a9e7b40b5a3c398c914983e44d09bf7d1fd0c65b67c96c4534bc5e2cc7"
+    },
+    {
+      "file": "kotlin-witnessed-policy-expiry-release-serial.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        23,
+        32,
+        28
+      ],
+      "sha256": "2c1f06a9e7b40b5a3c398c914983e44d09bf7d1fd0c65b67c96c4534bc5e2cc7"
+    },
+    {
+      "file": "package-list.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        42,
+        30
+      ],
+      "sha256": "dd6e67346cac8fdd50fb2b6f6cd0473c9ccc270e898ce8163de84f2402d0b275"
+    },
+    {
+      "file": "package.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        46,
+        0
+      ],
+      "sha256": "de3ff8333f045776c034243a95ef913bead3dd3e508eee8e67588579c4fc35aa"
+    },
+    {
+      "file": "rustc.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        42,
+        26
+      ],
+      "sha256": "a625cdb33b1ac59738f19eb3445168efe67fb683a7b91342e96b49dc9fc8effa"
+    },
+    {
+      "file": "swift-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        12
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        2
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        22
+      ],
+      "sha256": "2b35a61b6047f9f810a258a46a83bf313150761282e72f78799cdf9255db96d3"
+    },
+    {
+      "file": "swift-account-delivery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        12
+      ],
+      "sha256": "db6327a9022649a6197b2e21b36bca3179d77c772a55949b41fec991d60a01e1"
+    },
+    {
+      "file": "swift-account-tls-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        35,
+        54
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-account-tls-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        48,
+        46
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        4
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        48,
+        54
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        12
+      ],
+      "sha256": "8f4ea6be301986393a2bd2bb7e0fe1c633bc5d4c763bc3a49d4a3da000029d45"
+    },
+    {
+      "file": "swift-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        2
+      ],
+      "sha256": "a32124206d740a986d0855750359adb29e058d3f898a4ce833458535413d1b34"
+    },
+    {
+      "file": "swift-account-tls-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        4
+      ],
+      "sha256": "2925eeb34fd7fd386ed8b58ffbf6419bc84d23a13c2f380013c806e58e5aa57d"
+    },
+    {
+      "file": "swift-account-tls-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        48,
+        54
+      ],
+      "sha256": "951410595c84cf204e374764f530c28bba511aec3529feafb7b718e08a9face1"
+    },
+    {
+      "file": "swift-account-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        30
+      ],
+      "sha256": "40f87bf54396226cfe8fcd446a7f1422880607c7f352c791fbece427f9dc0484"
+    },
+    {
+      "file": "swift-account-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        46,
+        44
+      ],
+      "sha256": "5ff167b458bb405f412a6c1b7ccd04892023b6bf479c0d86356f016f6a76756d"
+    },
+    {
+      "file": "swift-account-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        35,
+        44
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-account-witness-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        48,
+        36
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-account-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        35,
+        54
+      ],
+      "sha256": "30130723d381aa89c30902b6ead25220967b74318140cc3311cad13f31cc705f"
+    },
+    {
+      "file": "swift-account-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        48,
+        46
+      ],
+      "sha256": "e1980e089d34df9493b246d42ee14a0eaa4986e296a90299860ea335bb6ae5cd"
+    },
+    {
+      "file": "swift-binary-path-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        44
+      ],
+      "sha256": "757e00e31af2b2b87f60a0648d3db25375a102598d9b6e2d7b32b3622f14e48e"
+    },
+    {
+      "file": "swift-binary-path-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        4
+      ],
+      "sha256": "07e11df3c179f790c20e7fc3bf30b136bbfd394df0d04677f47a01e3aef054fe"
+    },
+    {
+      "file": "swift-credential-renewal-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        27,
+        8
+      ],
+      "sha256": "6ace38904ad398e132c5040049f107874b6edab407dd02781b52790fae5ad3e9"
+    },
+    {
+      "file": "swift-credential-renewal-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        40,
+        26
+      ],
+      "sha256": "9f5e86ce296ca30ea4e43feac0eddc86d9b2956b4ec5fe0a50a1194f45c7a422"
+    },
+    {
+      "file": "swift-dependencies-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        44
+      ],
+      "sha256": "03503b4c6bd1e8143dceb911f9b75a72ef665bebae74443e2b6f377d2430911c"
+    },
+    {
+      "file": "swift-dependencies-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        4
+      ],
+      "sha256": "c941b3e0d50ed10bd3b2d47a99e698e535f397c5f315808d0ec6496c3fc808fc"
+    },
+    {
+      "file": "swift-enrollment-local-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        48
+      ],
+      "sha256": "8d7216b77a27317e5fd73cc39bb86dd62a39cbee762c2b32e5cfaf93c5d1c8f6"
+    },
+    {
+      "file": "swift-enrollment-local-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        8
+      ],
+      "sha256": "c51a61972dc3b0f47f421e5d8e4393c05666cdb3afad1479efaacaa904d82ea7"
+    },
+    {
+      "file": "swift-enrollment-mutual-tls-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        52
+      ],
+      "sha256": "7bec9f5101dbf2ada4d1c29e0cae1c2fe90379ecc2e55775075779d0d7130bf5"
+    },
+    {
+      "file": "swift-enrollment-mutual-tls-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        10
+      ],
+      "sha256": "5e16dfe18a5340bc381c05bf3e6ddece5ab04bd86feab398089242cb2631fd50"
+    },
+    {
+      "file": "swift-enrollment-signed-tcp-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        52
+      ],
+      "sha256": "7aed14962f42335b7fef522b7cdab916d65ea729a7e9ba4e6b421b84a772b137"
+    },
+    {
+      "file": "swift-enrollment-signed-tcp-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        10
+      ],
+      "sha256": "f0b80d1f1cc9a3a1ba1a3d060941e2fe1b37152c4cfdb2bedf001ce5c2b1cc2a"
+    },
+    {
+      "file": "swift-license-metadata.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        10
+      ],
+      "sha256": "8a13f9f456ad2ca1474c7787f40411e7d6fcbbc4dfca188e8c997a90319960c9"
+    },
+    {
+      "file": "swift-loader-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        44
+      ],
+      "sha256": "f02e5cb6c34212c274114b6ccb16755a456896f13bae0ca01b45692631b859e7"
+    },
+    {
+      "file": "swift-loader-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        4
+      ],
+      "sha256": "8efd4a73c6dd5943f1b7eb0fbbb2463e9599ac0eb93f70eda6729b723ae67400"
+    },
+    {
+      "file": "swift-own-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        22
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-own-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        12
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-own-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        32
+      ],
+      "sha256": "615d56322e91c05e203b1e9595ea9479395a96a0b2636611add58116c04f2e4b"
+    },
+    {
+      "file": "swift-own-account-delivery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        22
+      ],
+      "sha256": "1a5cf0fd8d499e4d9de044096bbc0aee744c20c7789b6e4f551ad68f129dd84d"
+    },
+    {
+      "file": "swift-own-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        32
+      ],
+      "sha256": "3a059a3a31353c91829c86d27c93ef889858adc82c3d46d2c44c13b7ee9cc77a"
+    },
+    {
+      "file": "swift-own-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        22
+      ],
+      "sha256": "6560bbf001e90da2ee665560d4a0b27a7cbfb4590262d12f3d8d76563a12f913"
+    },
+    {
+      "file": "swift-own-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        40
+      ],
+      "sha256": "1e7d1a4ceb57533c5d40e21a8444f775d74d7f44dd2c7387b72beb40e82a1de5"
+    },
+    {
+      "file": "swift-own-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        30
+      ],
+      "sha256": "f113ec850bd347a3b8ff659c2a04834083b7999c60d81edbd832cd81e71352a0"
+    },
+    {
+      "file": "swift-recovery-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        56
+      ],
+      "sha256": "a90279eed0fef9dcac5350100e75791b376ea47f70b92162a982917268ae78a0"
+    },
+    {
+      "file": "swift-recovery-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        8
+      ],
+      "sha256": "246e70e9609044ffe5b7db166676797ca8ff9cdb32c69bb4689190c6054f416e"
+    },
+    {
+      "file": "swift-restore-opening-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        34,
+        16
+      ],
+      "sha256": "5e690d2e7157692165434ef4b0600c2cb1fc1fd35feb2b6c886098953e838d73"
+    },
+    {
+      "file": "swift-restore-opening-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        26
+      ],
+      "sha256": "09725d77ed276a7564d28ec07a81f844427d6ddccc5f48ffb8ec941748c86ef3"
+    },
+    {
+      "file": "swift-restore-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        56
+      ],
+      "sha256": "43d07010de56458582e662e156853a9695691bd6a5e8ad89ed97c349862e4ab0"
+    },
+    {
+      "file": "swift-restore-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        10
+      ],
+      "sha256": "f766aac868b3b27491af82899cb585bdf0220ba411d19d5878f2cc0f19e46da3"
+    },
+    {
+      "file": "swift-server-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        54
+      ],
+      "sha256": "3a4e8753523d75cda5642c9867c80fe91e1dfbe64a30e455c011557157cc3fc0"
+    },
+    {
+      "file": "swift-server-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        6
+      ],
+      "sha256": "f162f8fd404a67174d2e8979e1ed43b5441537cf8d1825adad8a9fb726156c1a"
+    },
+    {
+      "file": "swift-setup-local-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        40
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "swift-setup-local-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        30
+      ],
+      "sha256": "42814a204a537306b1e10dfa9b18f6342c7d4ebeb2e696ff7c6be14bf0c49183"
+    },
+    {
+      "file": "swift-setup-local-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        40
+      ],
+      "sha256": "e2eff02b6def9e242255c702599709f9e4193688d7b02ac73e167022e57dcb7b"
+    },
+    {
+      "file": "swift-setup-local-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        30
+      ],
+      "sha256": "210f689132cfbf80dff8ac4482c66491b1f35ed5381e78aedcda393cc71f0b20"
+    },
+    {
+      "file": "swift-setup-witness-inventory-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        40
+      ],
+      "sha256": "e39038763212b3a69eaa8fe4094371c461da672d4775e80d8bf48e12a4cff31d"
+    },
+    {
+      "file": "swift-setup-witness-inventory-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        30
+      ],
+      "sha256": "42814a204a537306b1e10dfa9b18f6342c7d4ebeb2e696ff7c6be14bf0c49183"
+    },
+    {
+      "file": "swift-setup-witness-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        36,
+        42
+      ],
+      "sha256": "8d90e4f426eefeee889f32894526773e1c469632836d9763c24c67c794870694"
+    },
+    {
+      "file": "swift-setup-witness-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        49,
+        32
+      ],
+      "sha256": "271ba83555d95e3d5d7b4a80071f18eafcab00525ed1853e3ff9e013bcb01309"
+    },
+    {
+      "file": "swift-tests-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        44
+      ],
+      "sha256": "69ef5656009a927296ae2d87eae1a7bdd56280112f56997b674b42ebdb14135d"
+    },
+    {
+      "file": "swift-tests-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        2
+      ],
+      "sha256": "a8ae28b6b26116b41d6eb2ebeec51b3a86f1697cee0861a83c53cef57aeb4f68"
+    },
+    {
+      "file": "swift-tool-path.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        10
+      ],
+      "sha256": "d5236762b8e4a8faa4d07a864dd7ed3dc61593839b4da6d37e35330018836daa"
+    },
+    {
+      "file": "swift-tool-version.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        10
+      ],
+      "sha256": "3a39c5cf51c7c4382ea4c4e5be7a5e4589bd75e95bc22425815e5980b148d8fd"
+    },
+    {
+      "file": "swift-trace-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        25,
+        48
+      ],
+      "sha256": "20a3238b1d0280924cf2c8606783250fa881863ca8b9e5c7a610bba75b3e9e0d"
+    },
+    {
+      "file": "swift-trace-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        39,
+        6
+      ],
+      "sha256": "31916b12490eb225d7cb674c3f702c6d699b6f7c45fa6682a23fef5109d97d31"
+    },
+    {
+      "file": "swift-witness-mutual-tls-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        34,
+        12
+      ],
+      "sha256": "dd4304d05b485b46de49de3467991e9608b70a6a89a578cb23b54d920f02a7b6"
+    },
+    {
+      "file": "swift-witness-mutual-tls-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        24
+      ],
+      "sha256": "60c28438c9201e0dd0dece66d9ff90bbf4386a8332d9054d7a87d5345853f6cd"
+    },
+    {
+      "file": "swift-witness-opening-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        58
+      ],
+      "sha256": "799d76e1498f19d2a0a276992cad1093d7dccb5d1c1df82e5c8bb58fd1bbc146"
+    },
+    {
+      "file": "swift-witness-opening-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        12
+      ],
+      "sha256": "07156a90ed85850be037722b892f03983aef3026eaebe83b3a4f19b2f2583e97"
+    },
+    {
+      "file": "swift-witness-signed-tcp-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        34,
+        6
+      ],
+      "sha256": "60fe10ac4a312be61f62b9efac5ba71f539e82c198e9d543f41e3000f385e487"
+    },
+    {
+      "file": "swift-witness-signed-tcp-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        47,
+        18
+      ],
+      "sha256": "b45db9994ac015d080b417fd9ef00845e087a0709ee1d0780417f631a9a1b9c4"
+    },
+    {
+      "file": "swift-witnessed-cancellation-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        31,
+        24
+      ],
+      "sha256": "4b7055787ead82eda0fe0fb61da6cdc0f11fa11bb2a2eacc8277e056bd0e17ee"
+    },
+    {
+      "file": "swift-witnessed-cancellation-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        44,
+        38
+      ],
+      "sha256": "2b589f5e54441e2534113ff862b172024efe76c3f4a06441f27ee81a3359e810"
+    },
+    {
+      "file": "swift-witnessed-commit-error-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        33,
+        26
+      ],
+      "sha256": "da3b81ff81d8b72210d8f8c4132574e540870101c6362f6bbbd65c552d66fcbd"
+    },
+    {
+      "file": "swift-witnessed-commit-error-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        46,
+        40
+      ],
+      "sha256": "dd2679b4c35752e9389328828b1ce57b3315030568fa51790ac6fa13b31e4307"
+    },
+    {
+      "file": "swift-witnessed-credential-renewal-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        27,
+        18
+      ],
+      "sha256": "278b9cb1388aca714283e9acdbaf15a81c150b57cced9c4f21a1f600ad804a8e"
+    },
+    {
+      "file": "swift-witnessed-credential-renewal-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        40,
+        36
+      ],
+      "sha256": "f33520ac72a628069fea865987a71ea842033f37cf34576a24d81b4886be4b91"
+    },
+    {
+      "file": "swift-witnessed-policy-expiry-debug.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        29,
+        20
+      ],
+      "sha256": "590ae9e3fa45459997aba77f33c1273e85a6c7e5bc19b7fe053675626cd77f07"
+    },
+    {
+      "file": "swift-witnessed-policy-expiry-release.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        22,
+        42,
+        36
+      ],
+      "sha256": "4b2c60faf726fbd5690d0e6d9867d74fce8ff71f126ac509635029fbf2b6d7a4"
+    },
+    {
+      "file": "workspace-metadata.json",
+      "returncode": 0,
+      "expected_rejection": null,
+      "mtime": [
+        2026,
+        10,
+        4,
+        21,
+        42,
+        26
+      ],
+      "sha256": "aa0236b7186cd051678700e6b3d780443019391c27fccc4ae9fa286a7fcdd157"
+    }
+  ],
+  "missing_final_reports": [
+    "KOTLIN_CONSUMER.json",
+    "CONTINUITY_PACKAGE.json",
+    "sources-after.json",
+    "KOTLIN_WITNESSED_CANCELLATION_RELEASE_G1.json",
+    "KOTLIN_WITNESSED_COMMIT_ERROR_RELEASE_G1.json"
+  ],
+  "qualification": "C/Swift component reports complete; final whole-package source/tool/archive recheck absent; Kotlin unfinished",
+  "diagnosis": "Observed serial progress until 118m32s after first Rust record; no evidence to classify final live case as hung",
+  "change": "Independent Swift and Kotlin matrix legs; each retains full Rust+C prerequisites, all original profiles/workloads, runtime/command/120-minute job bounds and complete artifact whitelist",
+  "runtime_admitted_to_product": false,
+  "release_claim_eligible": false
+}

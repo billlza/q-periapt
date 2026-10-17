@@ -35,9 +35,7 @@ and primitive-agnostic so it can be audited in isolation.
 
 This is part of the `0.1.5` stable-version ABI 2 source/crate contract — the
 successor of the published `0.1.4` release line, with `0.1.5` registry
-publication still pending — and **not a production-readiness claim**:
-there is no third-party cryptographic
-or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.
+publication still pending — and **not a production-readiness claim**.
 Do not deploy.
 
 ML-KEM backend selection is below this byte contract. Exactly the little-endian

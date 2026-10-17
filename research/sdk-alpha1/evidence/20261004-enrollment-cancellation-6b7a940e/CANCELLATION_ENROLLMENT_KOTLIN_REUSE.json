@@ -1,0 +1,35 @@
+{
+  "original_receipt": "policy-expiry-kotlin-consumer-01.json",
+  "original_receipt_sha256": "c308f3a90cb71d0960364fca6bcdf1280047c3c1a4f8b3fe511b9afe4ab08dcc",
+  "current_wrapper_and_consumer_sources_match_original": true,
+  "runtime_closure": {
+    "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0": {
+      "resolved": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/kotlin-maven/dev/qperiapt/q-periapt-continuity-kotlin/0.0.0/q-periapt-continuity-kotlin-0.0.0.jar",
+      "installed": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-policy-expiry-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+      "sha256": "b8a553584fda315850f96dd957a5c61b33023eb43de6ed266f8807e5c968d911"
+    },
+    "org.jetbrains.kotlin:kotlin-stdlib:2.4.20": {
+      "resolved": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/gradle-home/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.20/94c1451890d164aed65d43b3db0b7ecef7c183e7/kotlin-stdlib-2.4.20.jar",
+      "installed": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-policy-expiry-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar",
+      "sha256": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f"
+    },
+    "org.jetbrains:annotations:13.0": {
+      "resolved": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/gradle-home/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+      "installed": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-policy-expiry-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/annotations-13.0.jar",
+      "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+    }
+  },
+  "current_native_library_sha256": "37ee73fa2c51584bd0062f66d7b97df7a42f6fb0a47a94b0408a5e4beedf10c5",
+  "scope": "Existing privately published Kotlin wrapper and CLI bytes reverified; no new cancellation FFI",
+  "native_library_sha256": "a9977be222343a0eefaa7e0b5240d964bbe2812dd1550968563ab077952b7ba0",
+  "log_sha256": "10bc200c6668742d18c95fa3faa5a84f1850e9f03129f7716fd7bdcc336cb88e",
+  "prior_sealed_binary_manifest": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration/research/sdk-alpha1/evidence/20261004-policy-expiry-0411862b/QUALIFICATION.json",
+  "prior_sealed_binary_manifest_sha256": "29568e6e0b116db4bb3c2b80dc611623e3690664d5b891f115d36b410d0212cf",
+  "actual_runtime_jar_sha256": {
+    "kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+    "annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+    "q-periapt-continuity-kotlin-0.0.0.jar": "b8a553584fda315850f96dd957a5c61b33023eb43de6ed266f8807e5c968d911",
+    "continuity-installed-consumer.jar": "f531687458d06528f37b4872b9052bf53273f868bcbdd265641a901f89ddfe4f"
+  },
+  "launcher_sha256": "72dba77b57628bc41e6c2856fed7596895752c2bef2f7794d2c7165f2c77ee9a"
+}

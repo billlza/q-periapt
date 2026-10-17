@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.codeql_memory_control_evidence",
+  "experiment_commit": "e84a960443d922e9963e8b9493a5a78046a52ba1",
+  "strict_json_fix_commit": "b8dbc9328e81ae8117805c674500f79ca2ccdc0f",
+  "run": "https://github.com/billlza/q-periapt/actions/runs/38138322247",
+  "run_conclusion": "failure",
+  "completed": false,
+  "release_claim_eligible": false,
+  "query_count": 39,
+  "both_arms_timed_out_seconds": 900,
+  "both_children_reaped_without_ambiguity": true,
+  "production_config_changed": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "c69be6c841f96e4280a6c07d97f4d1ae0558983b05c5b2fa60ad49724aee2bc1",
+    "bytes": 97881,
+    "members": 20
+  },
+  "full_logs_retained_locally": {
+    "baseline_sha256": "cce7fb030506398d550be7d760b24eb2b65228ebf4a7b0c850eb79afbb3fdcac",
+    "more_native_sha256": "28646d966486a9ad0bb867a7e93210f444740725c3d8dd87da60874a4ee5b738"
+  },
+  "introduced_regression": {
+    "kind": "New diagnostic used json.loads instead of the shared strict evidence JSON parser.",
+    "failed_windows_jobs": [
+      114466742436,
+      114466742517
+    ],
+    "fix": "Use parse_strict_json_bytes for all five inputs and include the existing parser regression suite in diagnostic preflight.",
+    "focused_tests_passed": 42
+  },
+  "local_full_suite": {
+    "initial": "Linked-worktree run failed: 2727 tests, 6 failures and 98 errors. It included the introduced strict-JSON violation, rejected .git-file provenance and a pre-existing adjacent bytecode cache. Full failure log retained locally.",
+    "clean_full_checkout_rerun": {
+      "source_commit": "b8dbc9328e81ae8117805c674500f79ca2ccdc0f",
+      "completed": true,
+      "passed": true,
+      "tests": 2727,
+      "seconds": 514.977,
+      "log_sha256": "c80c390d8a627027035a06f0420cf00b47a1697fad9521a77ff3465b3e62048e",
+      "source_clean_after_run": true
+    }
+  },
+  "limits": [
+    "No complete BQRS set or semantic comparison; the 38/39 figures are evaluator progress logs.",
+    "Iteration is a selected predicate diagnostic, not percent complete or an ETA.",
+    "Eviction counts differ in volume and work performed; they do not alone measure efficiency.",
+    "Separate hosted runners; hardware equivalence beyond recorded OS, CPU count and meminfo was not established.",
+    "Identical retained database/cache, not cold current-source extraction.",
+    "No production configuration or quality gate is changed by this result."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "updated_utc": "2026-10-04T21:58:10.072694+00:00",
+  "product_head": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "run": 37236532231,
+  "job": 111538020250,
+  "merge_checkout": "edc5650f1067d875192f3cde06c040e9ec83db8f",
+  "parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "4126bb5bc18dbe8c16c331859155b1f689b613f3"
+  ],
+  "failure_archive": {
+    "artifact": 11315804271,
+    "bytes": 65818,
+    "sha256": "8023f5e36bb58548cd1ef375f9aa1d8300e25e117ffaadd01bfeae0fdd865b2b"
+  },
+  "failure_phase": "Second agp_sdk_minimal_release streamedAPKinstall; Brokenpipe32. Firstagp_sdk_full_release completed its runtimeproof; wholejobfailed.",
+  "guest_evidence": "system_server551 android.ui573 SIGSEGV0x18; services.odex UidObserverController.dispatchUidsChanged+676 BuildIdd252778afdcd06d3834ad876c5147792af2ee8d0. Beforestate551andcrash_dump; afterstate3362. No claim samecauseaspreviousClassCastException/rawcopy.",
+  "agent_review": "lifecycle_gap currentlyreadonlyreviewingthisexactfailureboundary andofficialsources",
+  "release_claim_eligible": false,
+  "verified_ordering": {
+    "method": "Program order plus matching crash-dumper PID; not host/guest timestamp comparison",
+    "before_install_baseline_has_system_server": 551,
+    "before_install_baseline_has_crash_dump64": 3056,
+    "same_crash_dump_reports_sigsegv_of_system_server": 551,
+    "after_failure_system_server": 3362,
+    "conclusion": "The earliest capturedsystem_server fault was alreadybeingdumped before thisconfiguration invokedSDKAPKinstallation. Installationdidnotinitiatethatfirstfault.",
+    "code_lines": {
+      "baseline_capture": 2606,
+      "install_apk": 2617
+    },
+    "evidence_sha256": {
+      "emulator-state-before.txt": "32a530b1ac176ce7db28a67ca4f33fda92f1b2d5e0080d27c1bd23c80b369a73",
+      "emulator-state-before.err": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "emulator-state-failure.txt": "ebb7f5841ea8c62c28e2457ca3deae25de2bea06477e0471437d5fbc7922ad47",
+      "emulator-crash-logcat.txt": "ca717c9f71d6e45bee36e460f40813dba83324df2e49f3c86232174a44c021e5",
+      "adb-install.log": "d0cacecdd1796ba63f226f1d866bd4ef1eb63d9bf9566794f53219bf7234e225",
+      "adb-package-state-observation.log": "28d99cc47c88b7f9bb454c3037520b2c019b875f595b7fd47d1002709d8f981f"
+    }
+  },
+  "unresolved": [
+    "Cause of guest SIGSEGV and whether memory pressure or compiled framework code matters",
+    "No sameness claim with earlier PackageManager ClassCastException or uninstalled rawcopy/offline"
+  ]
+}

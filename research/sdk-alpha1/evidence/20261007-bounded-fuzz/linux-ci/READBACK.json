@@ -1,0 +1,56 @@
+{
+  "run": 37680568824,
+  "job": 112995221137,
+  "run_commit": "d59a45b72d5f4d84e8803247629083d569aa8d00",
+  "product_source_commit": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+  "exact_nonworkflow_tree_and_job_binding": "EXPERIMENT.json",
+  "completed": true,
+  "artifact_id": 11509615102,
+  "archive_bytes": 83238,
+  "archive_sha256": "926c3a6651261b9d064d9433a61436e87700902315ca24bf5cf390341ebaf2e0",
+  "service_digest_matched": true,
+  "all_zip_crc_verified": true,
+  "targets": [
+    {
+      "target": "combine",
+      "executed_units": 2675310,
+      "sha256": "462eadf9c44ed0ebad46a55299fcc5d4d537f7e2f6053900ecb7c53df7a165a7",
+      "statistics": [
+        "stat::number_of_executed_units: 2675310",
+        "stat::average_exec_per_sec:     43857",
+        "stat::new_units_added:          747",
+        "stat::slowest_unit_time_sec:    0",
+        "stat::peak_rss_mb:              530"
+      ],
+      "entry": "target/fuzz-execution/combine.log"
+    },
+    {
+      "target": "mlkem_decapsulate",
+      "executed_units": 1889328,
+      "sha256": "97c1e2e029b85cf8f86889faf99863c80f5341c02975c39e1996e24fabab1196",
+      "statistics": [
+        "stat::number_of_executed_units: 1889328",
+        "stat::average_exec_per_sec:     30972",
+        "stat::new_units_added:          25",
+        "stat::slowest_unit_time_sec:    0",
+        "stat::peak_rss_mb:              386"
+      ],
+      "entry": "target/fuzz-execution/mlkem_decapsulate.log"
+    },
+    {
+      "target": "transport",
+      "executed_units": 53807935,
+      "sha256": "b4cc27bec1696b009525d316f0604100e11df778f0bc5143eddeedc6335df4e9",
+      "statistics": [
+        "stat::number_of_executed_units: 53807935",
+        "stat::average_exec_per_sec:     882097",
+        "stat::new_units_added:          172",
+        "stat::slowest_unit_time_sec:    0",
+        "stat::peak_rss_mb:              516"
+      ],
+      "entry": "target/fuzz-execution/transport.log"
+    }
+  ],
+  "count_scope": "Fuzz callback invocations; malformed input may return before a cryptographic operation.",
+  "scope": "Linux x86_64 isolated job; not full product CI, current uncommitted FFI hardening or release qualification."
+}

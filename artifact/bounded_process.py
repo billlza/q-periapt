@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 import os
 import pathlib
 import re
@@ -23,11 +24,19 @@ except ImportError:
 
 
 MAX_TIMEOUT_SECONDS = 900
+MAX_ANALYSIS_TIMEOUT_SECONDS = 18000
 MAX_OUTPUT_BYTES = 512 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 REAP_TIMEOUT_SECONDS = 5
 MAX_OUTPUT_NAME_BYTES = 128
 _OUTPUT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+class TimeoutPolicy(enum.Enum):
+    """Explicit finite budgets; ordinary commands retain the 900-second cap."""
+
+    STANDARD = MAX_TIMEOUT_SECONDS
+    LONG_ANALYSIS = MAX_ANALYSIS_TIMEOUT_SECONDS
 
 ErrorKind = Literal[
     "arguments",
@@ -222,15 +231,20 @@ def _validated_argv(argv: Sequence[str]) -> list[str]:
     return list(argv)
 
 
-def _validated_timeout(timeout_seconds: int) -> int:
+def _validated_timeout(
+    timeout_seconds: int, *, policy: TimeoutPolicy = TimeoutPolicy.STANDARD
+) -> int:
+    if not isinstance(policy, TimeoutPolicy):
+        raise BoundedProcessError("arguments", "unknown timeout policy")
+    maximum = policy.value
     if (
         isinstance(timeout_seconds, bool)
         or not isinstance(timeout_seconds, int)
-        or not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS
+        or not 1 <= timeout_seconds <= maximum
     ):
         raise BoundedProcessError(
             "arguments",
-            f"timeout must be an integer from 1 through {MAX_TIMEOUT_SECONDS}",
+            f"timeout must be an integer from 1 through {maximum}",
         )
     return timeout_seconds
 
@@ -682,6 +696,7 @@ def _stream_stdout(
     environment: Mapping[str, str] | None = None,
     coordinator: _SignalCoordinator | None = None,
     stdin_fd: int | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
     if coordinator is None:
         with _SignalCoordinator() as owned_coordinator:
@@ -692,11 +707,12 @@ def _stream_stdout(
                 "stderr": stderr,
                 "environment": environment,
                 "coordinator": owned_coordinator,
+                "timeout_policy": timeout_policy,
             }
             if stdin_fd is not None:
                 recursive_arguments["stdin_fd"] = stdin_fd
             return _stream_stdout(argv, **recursive_arguments)
-    timeout = _validated_timeout(timeout_seconds)
+    timeout = _validated_timeout(timeout_seconds, policy=timeout_policy)
     maximum = _validated_maximum(maximum_bytes)
     process: subprocess.Popen[bytes] | None = None
     stdout_pipe: BinaryIO | None = None
@@ -865,8 +881,9 @@ def capture_stdout(
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
     output_sink: Callable[[bytes], None] | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
-    """Capture stdout without allowing the producer to exceed the byte limit."""
+    """Capture bounded stdout; long analyses explicitly opt into a finite budget."""
 
     chunks: list[bytes] = []
 
@@ -883,6 +900,7 @@ def capture_stdout(
         "write_chunk": retain_chunk,
         "stderr": stderr,
         "environment": environment,
+        "timeout_policy": timeout_policy,
     }
     if stdin_fd is not None:
         stream_arguments["stdin_fd"] = stdin_fd
@@ -898,10 +916,11 @@ def capture_output(
     maximum_stderr_bytes: int,
     stdin_fd: int | None = None,
     environment: Mapping[str, str] | None = None,
+    timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
-    """Capture stdout and stderr concurrently under independent hard limits."""
+    """Capture both streams; long analyses explicitly opt into a finite budget."""
 
-    timeout = _validated_timeout(timeout_seconds)
+    timeout = _validated_timeout(timeout_seconds, policy=timeout_policy)
     limits = {
         "stdout": _validated_maximum(maximum_stdout_bytes),
         "stderr": _validated_maximum(maximum_stderr_bytes),
@@ -1228,9 +1247,10 @@ def _write_stdout_impl(
     stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
+    retain_nonzero: bool = False,
     coordinator: _SignalCoordinator,
 ) -> BoundedResult:
-    """Atomically replace output only after a bounded command exits successfully."""
+    """Commit complete output; diagnostic callers may retain nonzero exits."""
 
     target_name = _validated_output_name(output_name)
     directory_fd = _owned_private_directory_fd(output_directory_fd)
@@ -1263,7 +1283,7 @@ def _write_stdout_impl(
                 stream_arguments["stdin_fd"] = stdin_fd
             result = _stream_stdout(argv, **stream_arguments)
             coordinator.raise_if_requested()
-            if result.returncode != 0:
+            if result.returncode != 0 and not retain_nonzero:
                 return result
             os.fsync(temporary_fd)
             os.close(temporary_fd)
@@ -1338,9 +1358,17 @@ def write_stdout_at(
     stdin_fd: int | None = None,
     stderr: int | None = None,
     environment: Mapping[str, str] | None = None,
+    retain_nonzero: bool = False,
 ) -> BoundedResult:
-    """Atomically replace output only after a bounded command exits successfully."""
+    """Atomically store completed output, returning the unchanged child status.
 
+    By default only exit zero replaces the destination. Diagnostic callers may
+    explicitly retain nonzero exits. Timeout, output-limit, I/O and interruption
+    handling still use the same transaction and child-cleanup rules.
+    """
+
+    if type(retain_nonzero) is not bool:
+        raise BoundedProcessError("arguments", "retain_nonzero must be a boolean")
     with _SignalCoordinator() as coordinator:
         return _write_stdout_impl(
             argv,
@@ -1351,5 +1379,6 @@ def write_stdout_at(
             stdin_fd=stdin_fd,
             stderr=stderr,
             environment=environment,
+            retain_nonzero=retain_nonzero,
             coordinator=coordinator,
         )

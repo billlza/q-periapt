@@ -18,10 +18,22 @@ fn all_zero(bytes: &[u8]) -> bool {
 fn implementation_identity_is_exact() {
     assert!(matches!(
         IMPLEMENTATION_ID,
-        "mlkem-native-1.2.0/portable-c"
-            | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
-            | "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
+        "mlkem-native-2.0.0/portable-c"
+            | "mlkem-native-2.0.0/aarch64-native-arith+fips202-v8a-scalar"
+            | "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a"
+            | "mlkem-native-2.0.0/x86_64-avx2+portable-dispatch"
     ));
+    #[cfg(not(qpn_mlkem_x86_dispatch))]
+    assert_eq!(active_implementation_id(), IMPLEMENTATION_ID);
+    #[cfg(qpn_mlkem_x86_dispatch)]
+    assert_eq!(
+        active_implementation_id(),
+        if raw::avx2_available() {
+            "mlkem-native-2.0.0/x86_64-native-arith+fips202-avx2"
+        } else {
+            "mlkem-native-2.0.0/portable-c"
+        }
+    );
 }
 
 macro_rules! parameter_set_test {
@@ -232,22 +244,28 @@ fn raw_status_codes_are_mapped_without_fallback() {
 
     assert_eq!(map_call(CallResult::Aliasing), Err(Error::Aliasing));
     assert_eq!(
-        map_call(CallResult::Status(Operation::Keypair, MLK_ERR_FAIL)),
+        map_call(CallResult::Status(Operation::Keypair, MLK_ERR_PCT_FAIL)),
         Err(Error::KeyGenerationFailed)
     );
     assert_eq!(
-        map_call(CallResult::Status(Operation::Encapsulate, MLK_ERR_FAIL)),
+        map_call(CallResult::Status(
+            Operation::Encapsulate,
+            MLK_ERR_INVALID_PK
+        )),
         Err(Error::InvalidPublicKey)
     );
     assert_eq!(
         map_call(CallResult::Status(
             Operation::CheckEmbeddedPublicKey,
-            MLK_ERR_FAIL
+            MLK_ERR_INVALID_PK
         )),
         Err(Error::InvalidDecapsulationKey)
     );
     assert_eq!(
-        map_call(CallResult::Status(Operation::Decapsulate, MLK_ERR_FAIL)),
+        map_call(CallResult::Status(
+            Operation::Decapsulate,
+            MLK_ERR_INVALID_SK
+        )),
         Err(Error::InvalidDecapsulationKey)
     );
     assert_eq!(
@@ -261,6 +279,20 @@ fn raw_status_codes_are_mapped_without_fallback() {
         map_call(CallResult::Status(Operation::Decapsulate, -3)),
         Err(Error::UnexpectedStatus(-3))
     );
+    // Codes reserved for a different operation and the obsolete generic failure
+    // are not reclassified as a valid input error or silently accepted.
+    for (operation, status) in [
+        (Operation::Keypair, MLK_ERR_INVALID_PK),
+        (Operation::Encapsulate, MLK_ERR_INVALID_SK),
+        (Operation::CheckEmbeddedPublicKey, MLK_ERR_INVALID_SK),
+        (Operation::Decapsulate, MLK_ERR_PCT_FAIL),
+        (Operation::Decapsulate, -1),
+    ] {
+        assert_eq!(
+            map_call(CallResult::Status(operation, status)),
+            Err(Error::UnexpectedStatus(status))
+        );
+    }
     assert_eq!(
         map_call(CallResult::Status(Operation::Keypair, 7)),
         Err(Error::UnexpectedStatus(7))

@@ -61,10 +61,10 @@ IMPLEMENTATIONS = ("native", "portable")
 RELEASE_EVIDENCE_MODE = "release_evidence"
 PROFILE_DIAGNOSTIC_MODE = "profile_diagnostic"
 NATIVE_IMPLEMENTATION_ID = (
-    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
+    "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a"
 )
 PORTABLE_REFERENCE_IMPLEMENTATION_ID = (
-    "mlkem-native-1.2.0/portable-c/evidence-only-reference"
+    "mlkem-native-2.0.0/portable-c/evidence-only-reference"
 )
 PORTABLE_REFERENCE_SCOPE = "evidence_only_non_product_reference"
 IMPLEMENTATION_SURFACE = "hybrid_core"
@@ -77,7 +77,7 @@ PORTABLE_REFERENCE_SOURCE_RELATIVE = pathlib.PurePosixPath(
 )
 PORTABLE_REFERENCE_ARCHIVE_STEM = "qperiapt_mlkem_portable_evidence"
 PORTABLE_REFERENCE_SYMBOLS = tuple(
-    f"qpn_mlkem_bridge_v1_2_0_{parameter}_{operation}"
+    f"qpn_mlkem_bridge_v2_0_0_{parameter}_{operation}"
     for parameter in ("512", "768", "1024")
     for operation in (
         "keypair_derand",

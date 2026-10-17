@@ -1,0 +1,30 @@
+{
+  "completed": true,
+  "observed_test_summary": [
+    [
+      90,
+      14.486
+    ]
+  ],
+  "log_sha256": "38baf1c898bf80efa9a54954dcf9614b463bcebefa2d30e79fc21521061640b2",
+  "source_hashes": {
+    "artifact/codeql_rust_quality.py": "a8ee83e522b87752194e0e5d52be43d645bd919ce47a815b13be6eb9b0057d6d",
+    "artifact/continuity_c_consumer.py": "02c7ab061db02a26975770ce851c5b5361f15a8949e4447aad1612651e9f9572",
+    "artifact/continuity_c_enrollment.py": "cdc924adbdb2d775420d6f666ead089ef3d4372d07bccbe0d7b330a389147370",
+    "artifact/continuity_package.py": "164fbf073820ade7156577952086b34e9b4bd4e785f23f33edc902b6e8ef7fe5",
+    "artifact/continuity_witnessed_cancellation.py": "2b4b82e213ce106630b87457ec3712c1734c09dc729f3a4e4fbe501b8e8220b4",
+    "artifact/continuity_witnessed_policy_expiry.py": "e7cc16cb137a9d3084c05f4bba2d35ca10359a7caf78c145590a9d23b5b02998",
+    "artifact/continuity_witnessed_renewal.py": "7ade91ad317db09c611ad035545bde59b7f9d3a8bebc1b0bfa046d5677e46b7e",
+    "artifact/test_codeql_rust_quality.py": "eaad3017460aec04d3f0dd1b2864749e8bce3c40a053e5a35ab639dca809bc7a",
+    "artifact/test_continuity_c_enrollment.py": "7d45788e87742695a34d445969ba91bcbe6a6ded6fab9c7a79378c2409443ab3",
+    "artifact/test_continuity_package.py": "a0fdd4409df3a26bab8bac4799cbd0f54a4388a913d8d127bacfbb1ab250a895",
+    "artifact/test_continuity_witnessed_cancellation.py": "e76d6c401916f392498a8144da6a9a65777568ca4a2c5d1d49e48bef7f567629",
+    "artifact/test_continuity_witnessed_policy_expiry.py": "c7d3e62136bac09594fb1de99f3c7d92d4ef0615ce7d3a5e4d296e0eb0439ade",
+    "artifact/test_continuity_witnessed_renewal.py": "0693b47e5ef9d72ec5f1d60ce21f660cdba292717519166ba1ee53f8176c3e3f",
+    "artifact/continuity_witnessed_commit_error.py": "fa495539e85b18478ec19076c4cbc3543e01c0971888480f5d53e9d7761c3dab",
+    "artifact/test_continuity_witnessed_commit_error.py": "ac705a89ed70f3ef790949b0584f177a256e878ea18e1c7d69f4b81f2c809821",
+    "ARTIFACT.md": "68484fc74bb993832c67083818f72aaf46057b6314afe5bffcdfd9da70e19aeb"
+  },
+  "scope": "Six new synthetic Commit-error negative controls plus existing related reader/cohort/package and43CodeQL-boundary tests; not cryptographic or release qualification",
+  "release_claim_eligible": false
+}

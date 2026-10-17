@@ -1,0 +1,69 @@
+{
+  "base_head": "3a386bbfad3500c28356d547c8ae8122fe0628f4",
+  "reproduction_ancestor": "d9ad622c779e14cb808ddd5225a4ce651f3eabf0",
+  "experiment_head": "c99ec43787c1a0698521150f9dba20947fdc475d",
+  "scope": "Isolated native same-process two-account fixture on macOS arm64. Real durable journals, cryptography and witness-store operations; no independent protocol implementation, installed language or network-carrier qualification. Product source unchanged by this experiment.",
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--manifest-path",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/account-root-peer-boundary-current/source/research/continuity-identity-candidate/Cargo.toml",
+    "--all-features",
+    "--locked",
+    "--offline",
+    "-j",
+    "2",
+    "--lib",
+    "account_root_peer_observation_boundary",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "returncode": 0,
+  "seconds": 158.7996975830756,
+  "source_clean": true,
+  "head_unchanged": true,
+  "test_entries_passed": 1,
+  "other_tests_filtered": 847,
+  "observed": [
+    "Existing bootstrap fixture already uses independently rooted initiator and responder accounts (deterministic test roots 90 and 94). Explicit assertions distinguish both account IDs and exclude the sender subject from the retiring account proposal.",
+    "An actual original ciphertext is accepted by the responder before retirement. The responder journal is locally fenced and the witness account-root replacement commits; ordinary responder opening is refused.",
+    "The sender verifies the authentic exact purpose-22 retirement receipt. Its own distinct subject still receives an authenticated Current reply from the same witness.",
+    "Before an explicit local authority mutation, the sender can release its exact old cached ciphertext and create another ciphertext under the existing old-peer context. No delivery or decryption of the latter is claimed.",
+    "As a positive control, explicitly installing a valid newer empty roster for the old peer account makes cached ciphertext release fail with DurableError::Protocol(Error::Scope)."
+  ],
+  "interpretation": [
+    "Pure verification has no hidden journal mutation; that behavior is appropriate and must not be converted into an implicit global revocation side effect.",
+    "The missing product operation is a separately approved, durable local peer-root transition applied across cached/bootstrap/session/fanout and reopen/import paths. Observed remote retirement alone is not that transaction.",
+    "The positive-control empty roster is signed with the old test root. It tests the existing roster authorization path; it is not independent approval or a recovery construction for old-root compromise.",
+    "This experiment does not show message confidentiality compromise, unauthorized new enrollment, global revocation propagation, or complete managed root replacement."
+  ],
+  "remaining": [
+    "Independently retained application-account association, expected authority revision and exact successor approval.",
+    "Current local peer-authority transaction and original-operation recovery, covering cached owners and original delivery accounting.",
+    "Cross-language/platform integration, independent security analysis and full 0.2.0 release qualification."
+  ],
+  "reproduce": "Start at reproduction_ancestor d9ad622c, overlay the five base-source/ Rust files and apply EXPERIMENT.patch. These reconstruct the tested native component inputs from preview 3a386bbf. Run the retained exact Cargo command with the selected environment/toolchain, adjusting only local paths. CI inventory/document metadata of the preview is described in PARENT_BASE_INPUTS.json and is not a claim that this isolated command runs source-quality gates.",
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 34750,
+    "sha256": "1e26a1d0ef1f0ca56b97252cc5fc90558fc6d1e7c29a984e3612a8d553fbdd1f",
+    "members": {
+      "BASE_SOURCE.json": "53155436cc970a61f4a1f1a4ac4c0ac5f9ed72d0d1d2636309241df4e413385b",
+      "SOURCE.json": "ae959e308e784f8938c8a23cd8d2ff1205fb3865270c9e8e856ddf19cb30c75a",
+      "START.json": "7b7657474b17e1644599e35413978f12dfe02afc87dbe3f4f1ce8d3e0ab80e19",
+      "RESULT.json": "746a466507e3e83af2ed547226cb47f6fe6cf629f2ac1e117770a8eb68d382a7",
+      "EXPERIMENT.patch": "3b8fe050cb8e1cfb8a1c195210bb0e72821517ff61334c155b26667e09368353",
+      "run.py": "14babae773cf2711b10cef528638da7f02074352507f9b31531512a0f2becc46",
+      "stdout": "9faa3b3016ed166f1217be530b1307ca1377afa65bff13a84e7ba1eded5aed1f",
+      "stderr": "c21ea47c03e4edc4f037794d0009af92aad45e0af8012c3d10a717ed36065b32",
+      "PARENT_BASE_INPUTS.json": "4ff73e0ae95f16417d5dfad613301e200acc73d8783acde068b9882d35aeddb0",
+      "base-source/research/continuity-identity-candidate/src/enrollment.rs": "24d45f6f515209b18a21e5bd66320812a9aa3c45aab86aa1a93597ab1c3c52e0",
+      "base-source/research/continuity-identity-candidate/src/enrollment/account_root.rs": "9c0c57ea302375c63d187e1ae3346b273e28db50c403470f3dca9e9fbf93d130",
+      "base-source/research/continuity-identity-candidate/src/enrollment/account_root/process.rs": "0390423d28be26e895afc2fe2e49ff441fa6cfd248cfd8ac0dc7e8be6a104532",
+      "base-source/research/continuity-identity-candidate/src/enrollment/account_root/tests.rs": "3f696d6ddc77d527cbb2e55ec12c6020dd99b67dc2c57acf5e5a0add8ff93d99",
+      "base-source/research/continuity-identity-candidate/src/lib.rs": "eb0c49dc34e55f2141f8fa97929555b3f6e1b99ad7c7a131593f3a3fb862892d"
+    }
+  }
+}

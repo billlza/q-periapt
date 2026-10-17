@@ -51,10 +51,10 @@ fn drive(client: &mut ClientConnection, server: &mut ServerConnection) {
     panic!("handshake did not converge");
 }
 
-fn tls13_round_trip(
+fn connections(
     server_provider: CryptoProvider,
     client_provider: CryptoProvider,
-) -> NamedGroup {
+) -> (ClientConnection, ServerConnection) {
     let (cert, key) = self_signed();
 
     let server_config = rustls::ServerConfig::builder_with_provider(Arc::new(server_provider))
@@ -72,13 +72,20 @@ fn tls13_round_trip(
         .with_root_certificates(roots)
         .with_no_client_auth();
 
-    let mut client = ClientConnection::new(
+    let client = ClientConnection::new(
         Arc::new(client_config),
         ServerName::try_from("localhost").unwrap(),
     )
     .unwrap();
-    let mut server = ServerConnection::new(Arc::new(server_config)).unwrap();
+    let server = ServerConnection::new(Arc::new(server_config)).unwrap();
+    (client, server)
+}
 
+fn tls13_round_trip(
+    server_provider: CryptoProvider,
+    client_provider: CryptoProvider,
+) -> NamedGroup {
+    let (mut client, mut server) = connections(server_provider, client_provider);
     drive(&mut client, &mut server);
 
     assert!(!client.is_handshaking() && !server.is_handshaking());
@@ -109,6 +116,50 @@ fn tls13_round_trip(
     let n = client.reader().read(&mut buf).unwrap();
     assert_eq!(&buf[..n], b"hello from the PQ/T server");
     group
+}
+
+// Regression for RUSTSEC-2026-0285: a complete plaintext EncryptedExtensions
+// must not ride in the ServerHello record across the handshake-key transition.
+#[test]
+fn rejects_plaintext_encrypted_extensions_in_the_server_hello_record() {
+    let (mut client, mut server) =
+        connections(q_periapt_rustls::provider(), q_periapt_rustls::provider());
+    let mut hello = Vec::new();
+    while client.wants_write() {
+        client.write_tls(&mut hello).unwrap();
+    }
+    let mut input = hello.as_slice();
+    while !input.is_empty() {
+        assert!(server.read_tls(&mut input).unwrap() > 0);
+        server.process_new_packets().unwrap();
+    }
+    let mut flight = Vec::new();
+    while server.wants_write() {
+        server.write_tls(&mut flight).unwrap();
+    }
+    assert!(flight.len() >= 9);
+    assert_eq!(flight[0], 22); // handshake record
+    assert_eq!(flight[5], 2); // ServerHello handshake type
+    let length = usize::from(u16::from_be_bytes([flight[3], flight[4]]));
+    assert!(flight.len() >= 5 + length);
+    let mut record = flight[..5 + length].to_vec();
+    // Complete, syntactically valid EE containing an empty extension list.
+    record.extend_from_slice(&[8, 0, 0, 2, 0, 0]);
+    record[3..5].copy_from_slice(&u16::try_from(length + 6).unwrap().to_be_bytes());
+    assert_eq!(
+        client.read_tls(&mut record.as_slice()).unwrap(),
+        record.len()
+    );
+    let error = client
+        .process_new_packets()
+        .expect_err("TLS accepted plaintext handshake data across a key change");
+    assert!(
+        matches!(
+            error,
+            rustls::Error::PeerMisbehaved(rustls::PeerMisbehaved::KeyEpochWithPendingFragment)
+        ),
+        "unexpected rejection: {error:?}"
+    );
 }
 
 #[test]

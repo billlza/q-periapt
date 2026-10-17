@@ -1,0 +1,155 @@
+{
+  "archive": {
+    "bytes": 21905308,
+    "file": "QPeriaptContinuity-Apple-candidate.zip",
+    "sha256": "5ce4baf49e64f77d29117503fd62dca193962bf5a4565c08df1c15854f055eae"
+  },
+  "archive_bytes": 4386713,
+  "archive_sha256": "8280057c8a59718e40cd88f44ee008bc40ab1e78e020d71398e3759543181088",
+  "completed": true,
+  "device_processes": 186,
+  "initial_device_failure": "activate-expired exited 1 without a diagnostic; unclassified and retained; later fresh routes do not retroactively resolve it",
+  "members": 5066,
+  "release_claim_eligible": false,
+  "retained_failures": [
+    {
+      "accepted": false,
+      "attempt": "01",
+      "case": "fbe3b08ad6741181ad919e1b4a7a55c4",
+      "driver_terminal": true,
+      "failure": "CoreDevice 1010: unexpected EOF reading socket ID; no SDK operation completion receipt",
+      "fresh_retry_attempt": "02",
+      "launch_run": "19aa27192fc54aaeaeec92379b336161",
+      "route": "signed-recoverable"
+    },
+    {
+      "accepted": false,
+      "attempt": "02",
+      "case": "e2bef7851ba7d3ee8d30ab2ea920e81d",
+      "driver_terminal": true,
+      "failure": "CoreDevice reported app exit1, no startup clock or durable failure receipt; startup outcome unclassified",
+      "launch_run": "deccb761c1bfa9e6350cec57232e4f29",
+      "route": "signed-recoverable"
+    },
+    {
+      "accepted": false,
+      "attempt": "01",
+      "case": "d78875798d1a279dcc7211a42aef97db",
+      "driver_terminal": true,
+      "failure": "Startup acknowledged; durable app diagnostic NSCocoaErrorDomain512 / POSIX EIO while saving a file; CoreDevice10004 could not determine finished process ID",
+      "launch_run": "59f31a97700e720b54e9b146ebf369d6",
+      "route": "signed-recoverable",
+      "user_intervention_before_retry": "User confirmed iPad unlocked and keeping screen on for next ten minutes; fresh attempt02"
+    }
+  ],
+  "routes": {
+    "ipad/signed-fixed": {
+      "business_effects": 1,
+      "case": "4e9be92c152b086663e93331863d46a4",
+      "completed": true,
+      "credential_operation": "acabf5817e9a37c66e281737009966508fb54b180e753e6462bd79334102d8bb",
+      "language": "Swift",
+      "original_message": "00000000000000000000000000000000fe02ee37d84c84ab747b80ea54f0cda5",
+      "original_request_sha256": "dc57bfc3784ec1e3f41839e0d60755c5e3e4551a5c4cb6409555dbc29cdcb019",
+      "original_session": "4f333a0049f7f15759765ec540c709786295ac33f6709299ae4dcf392263a27d",
+      "physical_processes": 47,
+      "policy_operation": "2fcf15a5b4d739e87dfc18aa97605ed5f6466b507e1508365227065cae8a91d3",
+      "release_claim_eligible": false,
+      "route": "signed-fixed",
+      "stage": "ipad-02"
+    },
+    "ipad/signed-recoverable": {
+      "business_effects": 1,
+      "case": "aaa5924bca9ba9c221c0144da69ba333",
+      "completed": true,
+      "credential_operation": "eec4282370388e8e50b0b5ebc27b435fcc8f828c3d4dd61c7d8e4798ceeb9f0f",
+      "language": "Swift",
+      "original_message": "00000000000000000000000000000000e0d830c8f2d05d62ddaae136d4a930fd",
+      "original_request_sha256": "4e732a71e3a0a6043db067be3bf708064411506976a420390000cc1bc27bc5cd",
+      "original_session": "c69548065d158d0be7b393986ced50152e632eb5b7cda97f6c880eacaf439401",
+      "physical_processes": 47,
+      "policy_operation": "bbb316d51f1fc1485fc7d40c6dbf2168d3f476a7c1cd11e7986bad4eb2292525",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable",
+      "stage": "ipad-04"
+    },
+    "ipad/tls-fixed": {
+      "business_effects": 1,
+      "case": "183aabb9d509b75d6247eb97c53e6358",
+      "completed": true,
+      "credential_operation": "2b3e6873f0b1836b8fdb065fb9cb79c173b283ab0466d09019dc236efa9e9d5d",
+      "language": "Swift",
+      "original_message": "0000000000000000000000000000000067ca243d594216d272e7b5c2207a10b8",
+      "original_request_sha256": "ae1e5b5c98d8206a0406276647fdff69835386e847182d24a5eab7106b34a759",
+      "original_session": "0c8864bb9ef6301459a9541f5bfaa647c8c856110c5d9360462d734cd0e651cb",
+      "physical_processes": 46,
+      "policy_operation": "dcf1cd5fb012e19eb24d216d2e82e0b1e88eb7aedb9bf4d5d23010673eed73ab",
+      "release_claim_eligible": false,
+      "route": "tls-fixed",
+      "stage": "ipad-04"
+    },
+    "ipad/tls-recoverable": {
+      "business_effects": 1,
+      "case": "3dd09a3f4c07d77319f81a272fb560cc",
+      "completed": true,
+      "credential_operation": "f46a7b1add493096ddc7cd70b5ca59d8a59a7a6dbabbdb6a718d5cfc5b07ad1e",
+      "language": "Swift",
+      "original_message": "00000000000000000000000000000000ae96b7f75503e7b4dd7ae17c74bb40e5",
+      "original_request_sha256": "b53de7f7278dd326718ffd8fe0f47d7602050db37ba6704b661d0cdd0e2f0bcf",
+      "original_session": "5f58d2fcd01c0636fa5aeed8e50c135a555a2bff0f7ce165b7b73979786d7cd4",
+      "physical_processes": 46,
+      "policy_operation": "d0a424e14bc0746c9d94ddf2cd7e430255a920299180de71562c4ad925435970",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable",
+      "stage": "ipad-03"
+    },
+    "macos/signed-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "04ad91cd6fe4acdf3e0d98efb795af1d357b48fec091e570d04b1918911e7e3f",
+      "language": "Swift",
+      "original_message": "000000000000000000000000000000000d944f969ebbba59b80fe4a999f653e7",
+      "original_request_sha256": "7ccd05f880921dbc0cbcbeed1b99088f57dd801a7cf053a0b6187924fe964ed8",
+      "original_session": "cf3c0ace9b6b4b936a6b9ae1ddf58d67cfd6c74677b13368737a738f217c683a",
+      "policy_operation": "5ea2a353e9ca8511630980667fddc9ad07c7e1b718571e2dd4c622e8b3d30f2e",
+      "release_claim_eligible": false,
+      "route": "signed-fixed"
+    },
+    "macos/signed-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "cbf3d769497e9e61b580c48d05b3e2e5a60ee52c75d877d5e66c3144229b74bd",
+      "language": "Swift",
+      "original_message": "000000000000000000000000000000006e2fc8f833dc78570629c6f2522e9d56",
+      "original_request_sha256": "0d28aee918cb65953736996bacd033ab79a4db7e0dad9a89569f2dba19a0084d",
+      "original_session": "6ab6ec6baa82cda1849b17c719804c1d3136fa03d4de95018b4572bc8417de29",
+      "policy_operation": "543fcf4ed8c684c0a5916d8f5f63f19ad282908fe9c3c6e1723a25b0f544776f",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable"
+    },
+    "macos/tls-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "57991ac77a059f4c737871e7f24b0f92587c538a16bbbc133350b8e109621dce",
+      "language": "Swift",
+      "original_message": "00000000000000000000000000000000916b5725ab95acc66cf33424e51e5080",
+      "original_request_sha256": "6deeb15571110450f7eee499460ebb2973b0e9917684453b092612536a2598f2",
+      "original_session": "58fb058ecfb886c7fee4076958c3629729078a27783c93419b15e674bd6d6790",
+      "policy_operation": "9c460f2a0f7999df68672691dfb95bce514611a8d85c434f1b18b9510eaa373e",
+      "release_claim_eligible": false,
+      "route": "tls-fixed"
+    },
+    "macos/tls-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "3ef7387302d9620b1987ddf93f587c2bfa68bc885822c6a1d701ba681ed5528d",
+      "language": "Swift",
+      "original_message": "000000000000000000000000000000005710ead490ab7f2001b20c49ab1fde40",
+      "original_request_sha256": "b9c7ccd0fe5e1955ebb2b6c1e42bff70ca3070577680ad72e5d0f5ba836bade3",
+      "original_session": "b1519e991db2e04cfd34c7173fdaae336a18d08cbc41a8e7f0bde715ea9ee71a",
+      "policy_operation": "9a5f2b3a2fd7c247d110db079ee16867969dc04bb44a046f9fb0a33773d7b87a",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable"
+    }
+  }
+}

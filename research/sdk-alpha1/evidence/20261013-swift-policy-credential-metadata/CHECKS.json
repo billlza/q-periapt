@@ -1,0 +1,19 @@
+{
+  "base_commit": "986ef66c13624e4b8203d1523ed4c350669ec6e2",
+  "capture_sha256": "ac49de117a6518cdb6e9cea41a2bb517a9ad170159f433f8bb7828850587395c",
+  "completed": true,
+  "inventory_controls": 7,
+  "native_sha256": "6692912f730e093b498c4c39a4fcdba21cc004950a7dd934392f42cc00798d69",
+  "red_failure": "valid retained-P metadata rejected as malformedOutput",
+  "release_claim_eligible": false,
+  "scope": "source-linked Swift canonical metadata and owner regression; not installed package lifecycle or physical-device qualification",
+  "source_overlay": {
+    "artifact/continuity_swift_consumer.py": "4722f4710b39dfe257826c7728d02e15a458a8cc943df8756ce368f6ca514ac4",
+    "artifact/test_continuity_swift_consumer.py": "d2a212acf9a224abc9d375497f5396afed4a8c2353d9681e5ade6265d046aa61",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/CredentialRenewal.swift": "936d4fc142fcf5522c63d8923fa000151b99df0c51b7ab81320ee5b5813e94ff",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Enrollment.swift": "553d69be5cd2b47d76a4a94752317d3e3debd83bcdf5684c1b4c7192c187b8f4",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/PolicyContinuation.swift": "74ade644f6595e0f195760e830628546da40c2d001e8963f3d8a3614b1f6694d",
+    "bindings/swift/ContinuityPackageConsumer/Tests/QPeriaptContinuityTests/PolicyContinuationTests.swift": "c8cc492f95fbeb9a6566542acdc2a6572a0f20b119dfe1b2de185537fdad8933"
+  },
+  "swift_tests": 71
+}

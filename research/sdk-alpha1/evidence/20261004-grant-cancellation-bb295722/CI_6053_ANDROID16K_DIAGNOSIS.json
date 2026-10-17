@@ -1,0 +1,44 @@
+{
+  "updated_at_utc": "2026-10-04T16:48:00.099654+00:00",
+  "head": "6053faef42053070429fe241cf06d9a9f8e040ac",
+  "run": 37216203029,
+  "job": 111478842487,
+  "failure": "Full-profile application tests passed; cleanup could not establish two consecutive exact APK identity observations because owned emulator transport went offline twice.",
+  "main_log_sha256": "5c44d5246b6c3d4e01046805bdc4fbf3458190286ed5dc31cf62f3f888a9a4b5",
+  "diagnostic_artifact": 11308364694,
+  "diagnostic_zip_sha256": "aba4e8397856b530f7ac148b4eb502a4e8c313b0a9f887cfa8ee57c5b2313429",
+  "observed": {
+    "test_status": "3 full-profile instrumentation cases passed; runtime closure failed; minimal profile not executed",
+    "disconnects_utc": [
+      "2026-10-04T16:33:45.573Z",
+      "2026-10-04T16:34:03.005Z"
+    ],
+    "cleanup_budget_seconds": 45,
+    "authorized_recoveries": 1,
+    "exact_observations_after_recovery": 1,
+    "adbd_pid_before_and_after_first_disconnect": 435,
+    "guest_memory_before": {
+      "MemTotal_kB": 2532420,
+      "MemAvailable_kB": 1375120
+    },
+    "guest_memory_after_recovery": {
+      "MemTotal_kB": 2532420,
+      "MemAvailable_kB": 1413208
+    },
+    "final_error": "owned adb server validation deadline expired mapped to structural-error; this is the terminal budget condition, not the first disconnect cause"
+  },
+  "historical_comparison": {
+    "bbd_PR_job": 111467446366,
+    "bbd_PR_result": "success",
+    "bbd_push_job": 111466805180,
+    "bbd_push_result": "same after-copy offline during minimal cleanup; full cleanup and minimal instrumentation had passed; agent-read comparison, not independently downloaded by root"
+  },
+  "changed_relevant_source_paths": [],
+  "not_proven": [
+    "root cause of adb transport disconnect",
+    "adbd death or memory pressure as disconnect cause",
+    "fixed emulator stability"
+  ],
+  "next_discriminating_experiment": "Same immutable API35 16KiB image/APK: bounded package-state-only versus full APK copy plus after-copy path query, correlated host/guest ADB transport and process/memory observations. Preserve exact package/signer/cleanup requirements and single-recovery bound; no blind retry as a fix.",
+  "release_claim_eligible": false
+}

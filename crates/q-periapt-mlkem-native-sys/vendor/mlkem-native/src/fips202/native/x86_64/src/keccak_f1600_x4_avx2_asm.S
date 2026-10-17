@@ -6,6 +6,40 @@
 
 #if defined(MLK_FIPS202_X86_64_NEED_X4_AVX2) && \
     !defined(MLK_CONFIG_MULTILEVEL_NO_SHARED)
+/*yaml
+  Name: keccak_f1600_x4_avx2_asm
+  Description: x86_64 AVX2 Keccak-f[1600] permutation for four sequential states
+  Signature: void mlk_keccak_f1600_x4_avx2_asm(uint64_t states[100], const uint64_t rc[24], const uint64_t rho8[4], const uint64_t rho56[4])
+  ABI:
+    Architecture: x86_64
+    CallingConvention: SysV
+    Features: [AVX2]
+    rdi:
+      type: buffer
+      size_bytes: 800
+      permissions: read/write
+      c_parameter: uint64_t states[100]
+      description: Four sequential Keccak states (4 x 25 x uint64_t)
+    rsi:
+      type: buffer
+      size_bytes: 192
+      permissions: read-only
+      c_parameter: const uint64_t rc[24]
+      description: Round constants (24 x uint64_t)
+    rdx:
+      type: buffer
+      size_bytes: 32
+      permissions: read-only
+      c_parameter: const uint64_t rho8[4]
+      description: Rotation constant rho8 (4 x uint64_t)
+    rcx:
+      type: buffer
+      size_bytes: 32
+      permissions: read-only
+      c_parameter: const uint64_t rho56[4]
+      description: Rotation constant rho56 (4 x uint64_t)
+*/
+
 
 /*
  * WARNING: This file is auto-derived from the mlkem-native source file
@@ -119,7 +153,7 @@ MLK_ASM_FN_SYMBOL(keccak_f1600_x4_avx2_asm)
         vinserti128 $0x1, %xmm0, %ymm1, %ymm2
         movq $0x0, %r10
 
-LLkeccak_f1600_x4_avx2:
+LLmlk_keccak_f1600_x4_avx2:
         vmovdqu 0xa0(%rsp), %ymm4
         vpxor 0x1c0(%rsp), %ymm9, %ymm0
         vmovdqu %ymm9, 0x200(%rsp)
@@ -343,7 +377,7 @@ LLkeccak_f1600_x4_avx2:
         addq $0x8, %rsi
         addq $0x1, %r10
         cmpq $0x18, %r10
-        jne LLkeccak_f1600_x4_avx2
+        jne LLmlk_keccak_f1600_x4_avx2
         vmovdqu (%rsp), %ymm4
         vmovdqu 0x40(%rsp), %ymm5
         vmovdqu 0x20(%rsp), %ymm0

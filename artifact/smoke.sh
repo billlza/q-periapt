@@ -3,7 +3,7 @@
 #
 #   sh artifact/smoke.sh
 #
-# Requires only a Rust toolchain (cargo >= 1.85) and a C compiler (for the FFI link smoke).
+# Requires only a Rust toolchain (cargo >= 1.90) and a C compiler (for the FFI link smoke).
 # No Docker, wasm-pack, Node, or network beyond cargo's first dependency fetch. A few minutes.
 #
 # It exercises, end to end: the core composition unit tests; the shared/reference combiner

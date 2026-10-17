@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "qualified_at_utc": "2026-10-04T08:29:57.990209+00:00",
+  "base_commit": "4a9f8c4630a0d1308f6dd9085a15d8b9a05a4ef2",
+  "host": "macOS arm64",
+  "profile": "Debug",
+  "same_native_engine": true,
+  "archives": {
+    "q-periapt-continuity-kotlin-0.0.0-debug.zip": {
+      "path": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/q-periapt-continuity-kotlin-0.0.0-debug.zip",
+      "sha256": "52931296f37b6e9e7c1183bc0a1ddddc4fd4f074163b8ca4a85cccd9828318f0",
+      "bytes": 14383234
+    },
+    "q-periapt-continuity-swift-0.0.0-debug.zip": {
+      "path": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/q-periapt-continuity-swift-0.0.0-debug.zip",
+      "sha256": "759d55488fdea2f7a3471e4c0c16addb22156c6695b80c8cad4c9f8697eb97d8",
+      "bytes": 14259107
+    },
+    "q-periapt-continuity-identity-candidate-0.0.0.crate": {
+      "path": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/q-periapt-continuity-identity-candidate-0.0.0.crate",
+      "sha256": "341dbd75827e936b921649591755a8705dc02e4d4b4c6c9d7510e9c9ee500ac6",
+      "bytes": 608155
+    }
+  },
+  "native_C_library_sha256": "9a3d08d8d79c71d42ded2bac67f2c17c2b2d255c732aab098a8a70f5c211ea3d",
+  "checks": {
+    "native_archive": "Cargo package --locked --offline --all-features, including Cargo verification of unpacked candidate",
+    "archive_C": "3 renewal cases plus original enrollment/TLS/unknown-delivery regression; strict C11 build; exact 68 exports",
+    "Swift": "26 owner/parser tests and 3 actual host-clock renewal cases from unpacked ZIP",
+    "Kotlin": "23 owner/parser tests, strictly verified local Maven artifact and installed runtime closure; 3 renewal cases under each of Serial and G1",
+    "collector_parser_controls": 24,
+    "native_source": "118 Rust files remain identical to the prior integrated 422-case qualification"
+  },
+  "limitations": [
+    "Only Debug on current macOS arm64 and current selected toolchains",
+    "New foreign methods preserve original owners; no raw handles added for test access; C-only raw output-buffer assertions are not claimed for Swift/Kotlin",
+    "No application delivery over TLS after credential renewal yet",
+    "No language-boundary journal commit fault/cancellation qualification for renewal yet",
+    "Required-witness local credential/subject renewal remains refused",
+    "No independent Continuity engine, current/minimum physical platform evidence, retained-secret recovery proof, controlled performance or external release review implied"
+  ],
+  "full_goal_complete": false,
+  "release_claim_eligible": false,
+  "publication_performed": false
+}

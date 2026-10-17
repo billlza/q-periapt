@@ -1,0 +1,50 @@
+{
+  "recorded_at": "2026-10-09T11:31:44.703013+00:00",
+  "source_head": "b1006eb3ce3082f13a785c283b18f9b23a1b0f5f",
+  "merge": "54c5409379e9c596944253e0c8c01721143ed582",
+  "rust_job": 113743698090,
+  "run": 37907286669,
+  "rust_job_conclusion": "success",
+  "aggregate_check": 113744976445,
+  "aggregate_conclusion": "failure",
+  "reported_new_alerts": 1617,
+  "reported_new_severity": {
+    "critical": 181,
+    "high": 1390,
+    "medium": 46
+  },
+  "open_pr_alerts": 1626,
+  "raw_rust_results": 819,
+  "rust_rules": {
+    "rust/path-injection": 560,
+    "rust/uncontrolled-allocation-size": 2,
+    "rust/cleartext-logging": 35,
+    "rust/command-line-injection": 122,
+    "rust/hard-coded-cryptographic-value": 54,
+    "rust/log-injection": 46
+  },
+  "new_dispositions": 0,
+  "previous_review_scope": "Nine dispositions refer to separate67e809-result analysis; not automatically transferred.",
+  "retained_diagnostics": {
+    "source_head": "b1006eb3ce3082f13a785c283b18f9b23a1b0f5f",
+    "job": 113743698090,
+    "run": 37907286669,
+    "artifact_id": 11612582703,
+    "file": "target/foreign-device-retirement-current/codeql-b1006eb3-preserved/RUST_DIAGNOSTICS.zip",
+    "bytes": 474691041,
+    "sha256": "38bb9c606659b0610d828fa958b87ea72f0814bde07baa3f5a5380dd797bbd6c",
+    "download_seconds": 283.20251470804214,
+    "sarif_member": "rust.sarif",
+    "sarif_sha256": "f13c142d5a640c9e95a26c8289de5af9e58bcd7bf46ee778a25198562fefb434",
+    "raw_results": 819,
+    "new_dispositions": 0,
+    "scope": "Successful Rust analysis/quality/upload and hash-verified diagnostic retention, not a passing aggregate security review."
+  },
+  "release_claim_eligible": false,
+  "inventory_archive": {
+    "file": "INVENTORY.zip",
+    "bytes": 535141,
+    "sha256": "8e8f836869f4c33e856bfe97d911456c4536371f09d9e0fd1d83a924f5f4352d",
+    "members": 10
+  }
+}

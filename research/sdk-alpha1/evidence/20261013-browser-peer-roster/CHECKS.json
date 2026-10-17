@@ -1,0 +1,61 @@
+{
+  "boundary_rejections_per_cohort": {
+    "closed-policy": "Closed",
+    "closed-runtime": "Closed",
+    "family": "Conflict",
+    "fork": "Checkpoint",
+    "local": "Conflict",
+    "rollback": "Checkpoint",
+    "signature": "Authentication",
+    "unknown": "Absent"
+  },
+  "capture": {
+    "bytes": 4199030,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "04314eb96038c1d1974cb99a56e4f2532980f697cbbf20233bb7d5d1a0544b9b",
+    "members": 1501,
+    "sha256": "17573400ee2b1609b760ad08b32275c6d0ac8485d773aa4f434143d26fb2b470"
+  },
+  "case_count": 4,
+  "cases": [
+    "after",
+    "before",
+    "cancel",
+    "happy"
+  ],
+  "coercion_hooks": 0,
+  "completed": true,
+  "fault_scope": "Fault arming occurs after activation, immediately before the target API. Before drops the first selected request without native witness dispatch, not an asserted unprocessed Commit. After and hold process the first actual head advance, then lose/hold its reply; hold is cancelled by owner.close. Each result closes the owner and the same canonical signed target recovers on original reopen.",
+  "package": {
+    "manifest_sha256": "911ebf10d11244c0c412e84656e4f08bc508e5571bac2c5da85e628c837f87c6",
+    "sha256": "0b6973ad75fb7c734f73b10da7f2c323ef0727e682fe46e4c39c0655584d3d78",
+    "source_bound": true,
+    "sources_unchanged": true,
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "release_claim_eligible": false,
+  "scalar_rejections_per_cohort": 5,
+  "scope": "Real installed npm browser package, Chrome Workers with IndexedDB/Web Locks/OPFS, loopback native counterpart and signed witness sharing the Rust engine. Explicit peer roster admission/revocation is demonstrated; automatic roster distribution, account-root/credential/policy transitions, deployment, independent implementation, representative performance, PCS and full-release qualification are not established.",
+  "semantics": "An original active device accepts only an independently pinned, valid, known remote-account roster. Identical retries remain subject to current local/runtime authority. Original session and bidirectional consumption survive a membership-preserving update. An empty next roster rejects sends through an already held session and rejects later reopen, without peer dispatch. Old target cannot roll back revocation; canonical revocation retry remains available. Local account still requires original enrollment R.",
+  "source": {
+    "base_commit": "5bfb879954428fbc7de7f90c5cc76211c8cb903e",
+    "overlay": {
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "66e54a981aa7002e9d5a2afd95892b911893481376a4949846c87a5788b612a8",
+      "crates/q-periapt-sdk-wasm/src/continuity/roster.rs": "eca28a4618fd23faf3b7ee9c60a4877fcc2a752eee8c5046a6ea9197ef054cec",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "346e0306343b1753dfece8e96de99b92adb28c481edc9333d61ae7ffd21afda0",
+      "research/continuity-identity-candidate/src/browser/roster.rs": "20c6b828f752b9eafd087a7be3b8a27d90554db333f0f5bae4bdef7828a62f9d"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "trace_policy": "Full raw witness/native traffic remains in task-local closed runs and is hashed in FULL_RAW_TRACE_MANIFEST.json. Complete peer traffic, public inputs, operation logs/results, witness metadata and raw traces adjacent to fault cuts are archived. Private signing/wrapping keys, stores and browser profiles are excluded.",
+  "validation": {
+    "artifact_controls": 53,
+    "base_browser_cases": 10,
+    "browser": "155.0.8059.40",
+    "format": "passed",
+    "native_clippy": "all targets -D warnings passed",
+    "native_peer_roster_cases": 8,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "Rust1.90.0 passed"
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "completed": true,
+  "release_claim_eligible": false,
+  "base_commit": "d2b057486593ae384c957daa3ff75ae533d1fa6d",
+  "capture": {
+    "sha256": "ca6b7a3d46ec18b831a712a197d2fcd592cf66edbfbcd0627522ddb656c2217b",
+    "members": 2623,
+    "bytes": 6916922
+  },
+  "cases": [
+    {
+      "case": "healthy",
+      "requests": 51,
+      "rejected": null,
+      "prekey_sha256": "4670475c7485337ea8f81180f7c4bd45c975f66df73738ced5d3e91113fd36dc"
+    },
+    {
+      "case": "precancel",
+      "requests": 33,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Closed"
+      },
+      "prekey_sha256": "e34e86be64e56a418d754c5b7c5a7d4e4ab1192db26b10967fc01736fda45fdd"
+    },
+    {
+      "case": "wrong-pin",
+      "requests": 33,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Protocol(Scope)"
+      },
+      "prekey_sha256": "616b09095355ab659d5c04a417a1ce2b83ec8394635678109cc59f3b485a234b"
+    },
+    {
+      "case": "drop",
+      "requests": 41,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: Other, error: \"browser witness transport: Network\" }))"
+      },
+      "prekey_sha256": "17d474454c23faf41099623373421d4d086a2c75ad77f9e9959cfab9b603ff41"
+    },
+    {
+      "case": "timeout",
+      "requests": 41,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: TimedOut, error: \"browser witness transport: Timeout\" }))"
+      },
+      "prekey_sha256": "4f5be61e6b2483de269a954b1cb573cb1aae1e381d1d969570317927734a1fe9"
+    },
+    {
+      "case": "cancel",
+      "requests": 41,
+      "rejected": {
+        "cancellationRequested": true,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: Interrupted, error: \"browser witness transport: Cancelled\" }))"
+      },
+      "prekey_sha256": "62447b8a0625b38b1527d13aa410a924607a87ab6826345f78195be819267a25"
+    },
+    {
+      "case": "corrupt",
+      "requests": 34,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Verification(Authentication))"
+      },
+      "prekey_sha256": "c78c447e07a7bf0321792a1c816ba0d9d2e5dfb5e043c5457ea53f042985f566"
+    },
+    {
+      "case": "oversized",
+      "requests": 34,
+      "rejected": {
+        "cancellationRequested": false,
+        "done": true,
+        "error": "Error: Anchor(Transport(Custom { kind: InvalidData, error: \"browser witness transport: InvalidResponse\" }))"
+      },
+      "prekey_sha256": "1808a59a591128cc94e9706bc7d25820257a0aee7f1a3ca6691bd192cdbbdf70"
+    }
+  ],
+  "concurrent_request_controls": 8,
+  "actual_witness_requests": 308,
+  "base_browser_cases": 10,
+  "native_verified_creation_requests": 19,
+  "package_archives": [
+    {
+      "sha256": "71c5b9d54e659195e9b82a5eb288e0afea569c21898fb03680b3199412c5c26e",
+      "manifest_sha256": "553f7c38e32069fee1489ddad828336f8dce649d7037f956942fe0e6ae2f3ead",
+      "installed_node_tests": "passed",
+      "typescript": "7.0.2 strict NodeNext passed",
+      "license_packages": 103,
+      "node_version": "v26.3.0"
+    },
+    {
+      "sha256": "0f4c55ee53087056e59e13ec5a41c45353528cdcaa6d2fa65178bca32dae0a02",
+      "manifest_sha256": "cfc71ba6a8869febfb17c519ff1c48eae4e56969859124726350034d4a3a6d71",
+      "installed_node_tests": "passed",
+      "typescript": "7.0.2 strict NodeNext passed",
+      "license_packages": 103,
+      "node_version": "v26.3.0"
+    }
+  ],
+  "runtime_equivalence": {
+    "equal": true,
+    "from": "product-package-02",
+    "to": "product-package-03",
+    "scope": "complete web/ and node/ runtime payloads, including facades and host modules; manifests and consumer fixtures retain separate identities",
+    "files": {
+      "web/q_periapt_sdk_wasm.js": "6576df9a25cd42046278fc65a77be6ffdc62f4a68e1ef1069ab010951e77e56a",
+      "web/policy-database.js": "82e9376eebc3a8d20ee95cfea310b5a92fe5a05bfe4494e91e43cb337c3037cd",
+      "web/storage-root.js": "92a4d473553abbf5a85f5ea8ed08173bf8d78ab0b84a417c008fbdfe2bf7d72d",
+      "web/storage-catalogue.js": "df919845353aeb4f20e570eccc98228976dd4132704fd13225cea7cbeabb80ed",
+      "web/storage-io.js": "e5e4be3695332dd6afb4f5e7b1345adb06e7974272f081b517f474f311f10388",
+      "web/index.js": "0b2a10efaf1ccdc88be8fc9404797e0647d8f86e6a9be8661888f13735c91e06",
+      "web/expert.js": "940deb6e8c65c654008b5b9c0acf27ec185f9f3cec45235cd38dd50724f3df4c",
+      "web/expert.d.ts": "1da7993423c89413f10b7175a123e16787ca5fc35b6375aed1a0d0601a61bbe9",
+      "web/q_periapt_sdk_wasm_bg.wasm": "857bf96c0cb3ff7cc79f08975491aa3a3f582d564c838879ad9b484a62e8d775",
+      "web/q_periapt_sdk_wasm.d.ts": "8bdae0a19ef073e9585261491cfabd659a14f14e438920fb4938e0c2b1ee2ebc",
+      "web/witness-fetch.js": "a30b2e5fc3fd02433e1e13f7fad9d868f1259be47fdd057f93b7bf0f822f5c67",
+      "web/storage-database.js": "03eaea77e21cb5d8716b52550f10d02ca1dba9d8165b16d38a95a3148e66fac9",
+      "web/index.d.ts": "9ea38d7aab38c8d278cd96dc94913d74500f1876107fab8e432d012be0c14bf0",
+      "web/storage.d.ts": "ccac19d922d4c475323c4e3bf4854cf986309d7bb17645d3501332b1cc827411",
+      "web/storage.js": "ea0537e75957ab3980fd1378778099913363ebe029cd572b723041c38ca1a500",
+      "node/q_periapt_sdk_wasm.js": "707d4f6317b42ead48db3e319edf59c514024f4b3062dc9593d48e7b05b1da05",
+      "node/q_periapt_sdk_wasm_bg.wasm": "5524678a59decd853539d06e9b1de27df98228f5097cb27798116c07a122059e",
+      "node/q_periapt_sdk_wasm.d.ts": "33df7fba982809be17a6f67d25bf99f90a189bac567cd65c36c755f6adfe4761",
+      "node/package.json": "d18f120db5a99372058690f86a1332484253e3cdbdbddbc0f5effa6a392b26e0"
+    }
+  },
+  "checks": {
+    "engine_wasm_clippy": true,
+    "product_wasm_clippy": true,
+    "product_native_clippy": true,
+    "rustfmt": true,
+    "artifact_tests": 22
+  },
+  "not_yet_qualified": [
+    "deployed HTTPS",
+    "complete session/publication/root/roster and migration browser APIs",
+    "stable recovery-status and structured error surface",
+    "new browser build on minimum Rust compiler",
+    "full 0.2.0 release scope"
+  ],
+  "note": "Isolated native authority/witness only; browser calls installed public npm web exports without an experimental WASM adapter. Existing 19108614 Rust/C/Swift package producer remains separate and live."
+}

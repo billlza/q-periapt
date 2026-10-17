@@ -1,0 +1,6 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling q-periapt-continuity-c-consumer v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/consumer)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.43s
+     Running unittests src/lib.rs (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/consumer-build/debug/deps/q_periapt_continuity_c_consumer-047ccc8599fad65a)

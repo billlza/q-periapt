@@ -13,7 +13,7 @@ import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 
-from bounded_process import BoundedProcessError, capture_stdout
+from bounded_process import BoundedProcessError, TimeoutPolicy, capture_stdout
 from evidence_io import EvidenceIOError, parse_strict_json_bytes
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_bytes
 
@@ -25,14 +25,19 @@ EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
 FIXED_CODEQL_BINARY = pathlib.Path(
-    "/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"
+    "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql"
 )
 FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 106
+# Exact tracked Rust inventory, including native, C and browser lifecycle sources.
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = 698
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
+# The whole-program Metrics query exceeded 900 seconds on hosted Apple Silicon;
+# its frozen database completed locally in 670 seconds with the same 2-thread,
+# 5500-MB budget. Keep the extended deadline finite and lighter queries unchanged.
+CODEQL_METRICS_TIMEOUT_SECONDS = 1800
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
@@ -95,6 +100,33 @@ class CodeQLRustQualityError(ValueError):
     """The CodeQL database cannot support a complete Rust analysis claim."""
 
 
+@dataclasses.dataclass(frozen=True)
+class HostedConfiguration:
+    platform: str
+    compiler_host: str
+    codeql: pathlib.Path
+    database: pathlib.Path
+    runner_temp: pathlib.Path
+    threads: int
+    ram_mb: int
+
+
+def hosted_configuration(host: str) -> HostedConfiguration:
+    """Select reviewed hosted paths and budgets; never accept environment paths."""
+    if host == "linux":
+        return HostedConfiguration(host, "x86_64-unknown-linux-gnu", FIXED_CODEQL_BINARY,
+                                   FIXED_CODEQL_DATABASE, FIXED_RUNNER_TEMP,
+                                   CODEQL_QUERY_THREADS, CODEQL_QUERY_RAM_MB)
+    if host == "darwin":
+        temporary = pathlib.Path("/Users/runner/work/_temp")
+        return HostedConfiguration(
+            host, "aarch64-apple-darwin",
+            pathlib.Path("/Users/runner/hostedtoolcache/CodeQL/2.27.2/arm64/codeql/codeql"),
+            temporary / "qperiapt-codeql-database/rust", temporary, 2, 5500,
+        )
+    raise CodeQLRustQualityError("unsupported hosted Rust analysis platform")
+
+
 def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
     """Preserve control exceptions; otherwise expose cleanup in the domain error."""
 
@@ -147,6 +179,8 @@ class _FixedCodeQLPathBindings:
     database_identity: _PathIdentity
     database_metadata_identity: _PathIdentity
     runner_temp_identity: _PathIdentity
+    threads: int = CODEQL_QUERY_THREADS
+    ram_mb: int = CODEQL_QUERY_RAM_MB
 
 
 def _identity(metadata: os.stat_result) -> _PathIdentity:
@@ -215,22 +249,26 @@ def _require_database_metadata(metadata: os.stat_result) -> None:
         )
 
 
-def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
-    if sys.platform != "linux":
+def _open_fixed_codeql_bindings(*, host: str = "linux") -> _FixedCodeQLPathBindings:
+    configuration = hosted_configuration(host)
+    if sys.platform != configuration.platform:
         raise CodeQLRustQualityError(
-            "fixed Rust CodeQL path bindings require the Linux analysis lane"
+            "fixed Rust CodeQL path bindings require the selected analysis platform"
         )
+    codeql = configuration.codeql
+    database = configuration.database
+    runner_temp = configuration.runner_temp
     codeql_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_BINARY, "fixed CodeQL binary"
+        codeql, "fixed CodeQL binary"
     )
     database_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_DATABASE, "fixed Rust CodeQL database"
+        database, "fixed Rust CodeQL database"
     )
     runner_temp_path_metadata = _canonical_fixed_metadata(
-        FIXED_RUNNER_TEMP, "fixed CodeQL temporary parent"
+        runner_temp, "fixed CodeQL temporary parent"
     )
     try:
-        FIXED_CODEQL_DATABASE.relative_to(FIXED_RUNNER_TEMP)
+        database.relative_to(runner_temp)
     except ValueError as exc:
         raise CodeQLRustQualityError(
             "fixed Rust CodeQL database must be under the fixed temporary parent"
@@ -240,7 +278,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
     database_metadata_descriptor = -1
     runner_temp_descriptor = -1
     try:
-        codeql_descriptor = os.open(FIXED_CODEQL_BINARY, _file_open_flags())
+        codeql_descriptor = os.open(codeql, _file_open_flags())
         codeql_metadata = os.fstat(codeql_descriptor)
         _require_codeql_metadata(codeql_metadata)
         if _identity(codeql_metadata) != _identity(codeql_path_metadata):
@@ -249,7 +287,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             )
 
         database_descriptor = os.open(
-            FIXED_CODEQL_DATABASE, _directory_open_flags()
+            database, _directory_open_flags()
         )
         database_metadata = os.fstat(database_descriptor)
         _require_owned_directory_metadata(
@@ -279,7 +317,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "Rust CodeQL database metadata changed while it was being opened"
             )
 
-        runner_temp_descriptor = os.open(FIXED_RUNNER_TEMP, _directory_open_flags())
+        runner_temp_descriptor = os.open(runner_temp, _directory_open_flags())
         runner_temp_metadata = os.fstat(runner_temp_descriptor)
         _require_owned_directory_metadata(
             runner_temp_metadata, "fixed CodeQL temporary parent"
@@ -289,9 +327,9 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "fixed CodeQL temporary parent changed while it was being opened"
             )
         return _FixedCodeQLPathBindings(
-            codeql=FIXED_CODEQL_BINARY,
-            database=FIXED_CODEQL_DATABASE,
-            runner_temp=FIXED_RUNNER_TEMP,
+            codeql=codeql,
+            database=database,
+            runner_temp=runner_temp,
             codeql_descriptor=codeql_descriptor,
             database_descriptor=database_descriptor,
             database_metadata_descriptor=database_metadata_descriptor,
@@ -300,6 +338,8 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             database_identity=_identity(database_metadata),
             database_metadata_identity=_identity(database_file_metadata),
             runner_temp_identity=_identity(runner_temp_metadata),
+            threads=configuration.threads,
+            ram_mb=configuration.ram_mb,
         )
     except BaseException as primary:
         cleanup_error: BaseException | None = None
@@ -488,14 +528,23 @@ def _run_query(
                 "query",
                 "run",
                 "--warnings=error",
-                f"--threads={CODEQL_QUERY_THREADS}",
-                f"--ram={CODEQL_QUERY_RAM_MB}",
+                f"--threads={bindings.threads}",
+                f"--ram={bindings.ram_mb}",
                 f"--database={bindings.database}",
                 f"--output={output}",
                 "--",
                 str(query),
             ],
-            timeout_seconds=CODEQL_COMMAND_TIMEOUT_SECONDS,
+            timeout_seconds=(
+                CODEQL_METRICS_TIMEOUT_SECONDS
+                if query == METRICS_QUERY
+                else CODEQL_COMMAND_TIMEOUT_SECONDS
+            ),
+            timeout_policy=(
+                TimeoutPolicy.LONG_ANALYSIS
+                if query == METRICS_QUERY
+                else TimeoutPolicy.STANDARD
+            ),
             maximum_bytes=MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES,
             stderr=subprocess.STDOUT,
         )
@@ -660,11 +709,12 @@ def validate_unresolved_detail_count(metric: int, details: Sequence[object]) -> 
         )
 
 
-def validate_quality(
+def validate_extraction_quality(
     tracked: frozenset[str],
     extracted: frozenset[str],
     metrics: Mapping[str, int],
 ) -> None:
+    """Check extraction integrity; macro coverage requires target validation too."""
     if extracted != tracked:
         missing = sorted(tracked - extracted)
         unexpected = sorted(extracted - tracked)
@@ -679,7 +729,7 @@ def validate_quality(
                 f"{name} must equal tracked Rust source count {expected_count}, "
                 f"got {metrics[name]}"
             )
-    for name in sorted(ZERO_METRICS):
+    for name in sorted(ZERO_METRICS - {"unresolved_source_macro_calls"}):
         if metrics[name] != 0:
             raise CodeQLRustQualityError(f"{name} must be zero, got {metrics[name]}")
     for name in ("source_macro_calls", "source_format_args"):
@@ -699,6 +749,20 @@ def validate_quality(
     )
     if type_total != metrics["type_inference_inconsistencies"]:
         raise CodeQLRustQualityError("type inconsistency categories do not sum to total")
+
+
+def validate_quality(
+    tracked: frozenset[str],
+    extracted: frozenset[str],
+    metrics: Mapping[str, int],
+) -> None:
+    """Retain the original single-database contract for existing callers."""
+    validate_extraction_quality(tracked, extracted, metrics)
+    if metrics["unresolved_source_macro_calls"] != 0:
+        raise CodeQLRustQualityError(
+            "unresolved_source_macro_calls must be zero, "
+            f"got {metrics['unresolved_source_macro_calls']}"
+        )
 
 
 def main() -> None:

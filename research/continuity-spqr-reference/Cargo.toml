@@ -1,0 +1,28 @@
+[package]
+name = "q-periapt-spqr-reference"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "AGPL-3.0-only"
+description = "Isolated pinned upstream SPQR trace comparison executable"
+
+[workspace]
+resolver = "2"
+members = ["."]
+
+[dependencies]
+spqr = { git = "https://github.com/signalapp/SparsePostQuantumRatchet", rev = "f2589fef855c10f39d72634dab3d14654dd410bf", features = ["test-utils"] }
+rand = "=0.9.1"
+prost = "=0.14.1"
+serde_json = "=1.0.140"
+sha2 = "=0.10.8"
+hkdf = "=0.12.4"
+libcrux-ml-kem = { version = "=0.0.8", default-features = false, features = ["incremental", "mlkem768"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"

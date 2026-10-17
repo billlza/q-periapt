@@ -365,7 +365,7 @@ fn witness_store_refuses_a_clean_foreign_database_without_touching_it() -> TestR
         .map_err(|_| io::Error::other("failed to create the private foreign fixture"))?;
     let database = redb::Database::builder().create_file(file)?;
     let mut transaction = database.begin_write()?;
-    transaction.set_durability(redb::Durability::Immediate);
+    transaction.set_durability(redb::Durability::Immediate)?;
     transaction.set_two_phase_commit(true);
     {
         let table: redb::TableDefinition<&str, &[u8]> =
@@ -411,7 +411,7 @@ fn witness_admission_preserves_valid_head_and_continuous_lock_ownership() -> Tes
     let before = fs::read(&path)?;
     let file =
         open_private_file(&path, false).map_err(|_| io::Error::other("lock source open failed"))?;
-    let locked = redb::backends::FileBackend::new(file)?;
+    let locked = q_periapt_host_store::filesystem::LockedFileBackend::new(file)?;
     assert_eq!(
         crate::witness::test_support::open_head(&path),
         Err(WitnessError::Persistence)
@@ -428,7 +428,7 @@ fn witness_admission_preserves_valid_head_and_continuous_lock_ownership() -> Tes
         let competitor = open_private_file(&path, false)
             .map_err(|_| io::Error::other("competing source open failed"))?;
         assert!(matches!(
-            redb::backends::FileBackend::new(competitor),
+            q_periapt_host_store::filesystem::LockedFileBackend::new(competitor),
             Err(redb::DatabaseError::DatabaseAlreadyOpen)
         ));
         assert_eq!(fs::read_dir(directory.path())?.count(), 1);

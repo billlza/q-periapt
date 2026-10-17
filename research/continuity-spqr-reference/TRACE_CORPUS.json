@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "upstream_revision": "f2589fef855c10f39d72634dab3d14654dd410bf",
+  "messages_per_scenario": 2048,
+  "test_seed": 5855612250732250438,
+  "chunk_bytes": 32,
+  "claim": "Deterministic public-byte regression corpus, not a PCS proof or product protocol",
+  "traces": [
+    {
+      "scenario": "ping_pong",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 5813,
+          "epoch": 24,
+          "send_epoch": 23
+        },
+        "final_b": {
+          "bytes": 5224,
+          "epoch": 23,
+          "send_epoch": 23
+        },
+        "peak_serialized_state_bytes": 6327,
+        "peak_wire_bytes": 37,
+        "scenario": "ping_pong",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 65843
+      },
+      "trace_sha256": "645b8e799649af82e9f8a8e93957c51227841ffaeb50adbb767b27faca1f5c4b"
+    },
+    {
+      "scenario": "lossy",
+      "summary": {
+        "delivered": 1843,
+        "dropped": 205,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 5222,
+          "epoch": 20,
+          "send_epoch": 20
+        },
+        "final_b": {
+          "bytes": 6009,
+          "epoch": 21,
+          "send_epoch": 20
+        },
+        "peak_serialized_state_bytes": 6725,
+        "peak_wire_bytes": 37,
+        "scenario": "lossy",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 65447
+      },
+      "trace_sha256": "098008ec7c11ce1ba6ea164d3c6c58685920600f8fb215789ad415baf9cc92bf"
+    },
+    {
+      "scenario": "reordered",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 4710,
+          "epoch": 18,
+          "send_epoch": 18
+        },
+        "final_b": {
+          "bytes": 5047,
+          "epoch": 19,
+          "send_epoch": 18
+        },
+        "peak_serialized_state_bytes": 6263,
+        "peak_wire_bytes": 37,
+        "scenario": "reordered",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 65282
+      },
+      "trace_sha256": "b074a3bdf60255b819a8e224a3b34d572d390e4a68d03d23dfd299c6c51874c0"
+    },
+    {
+      "scenario": "duplicates",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 158,
+        "event": "summary",
+        "final_a": {
+          "bytes": 5813,
+          "epoch": 24,
+          "send_epoch": 23
+        },
+        "final_b": {
+          "bytes": 5224,
+          "epoch": 23,
+          "send_epoch": 23
+        },
+        "peak_serialized_state_bytes": 6327,
+        "peak_wire_bytes": 37,
+        "scenario": "duplicates",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 65843
+      },
+      "trace_sha256": "0323afe3a9df8b1c3673612eb28f1ae0a156183784eeb89bac8b820a240f111a"
+    },
+    {
+      "scenario": "asymmetric",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 4498,
+          "epoch": 6,
+          "send_epoch": 5
+        },
+        "final_b": {
+          "bytes": 4805,
+          "epoch": 5,
+          "send_epoch": 5
+        },
+        "peak_serialized_state_bytes": 6728,
+        "peak_wire_bytes": 39,
+        "scenario": "asymmetric",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 48145
+      },
+      "trace_sha256": "7e0f4ab03f6d6d41791a7d16e2a1144f0a036fc8a226016823d658537d5f898f"
+    },
+    {
+      "scenario": "offline_then_exchange",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 5542,
+          "epoch": 20,
+          "send_epoch": 20
+        },
+        "final_b": {
+          "bytes": 6071,
+          "epoch": 21,
+          "send_epoch": 20
+        },
+        "peak_serialized_state_bytes": 6327,
+        "peak_wire_bytes": 39,
+        "scenario": "offline_then_exchange",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 67495
+      },
+      "trace_sha256": "7c2689270ae595a6a1632ebbdfc3f396d2d3b25f24598f00396d7703f6054ae9"
+    },
+    {
+      "scenario": "one_way",
+      "summary": {
+        "delivered": 2048,
+        "dropped": 0,
+        "duplicates_rejected": 0,
+        "event": "summary",
+        "final_a": {
+          "bytes": 3928,
+          "epoch": 0,
+          "send_epoch": 0
+        },
+        "final_b": {
+          "bytes": 303,
+          "epoch": 0,
+          "send_epoch": 0
+        },
+        "peak_serialized_state_bytes": 3928,
+        "peak_wire_bytes": 39,
+        "scenario": "one_way",
+        "sent": 2048,
+        "unique_message_keys": 2048,
+        "wire_bytes": 79617
+      },
+      "trace_sha256": "5d914fb6702a01a018fe509287eee6e5050e9e4cc7e47ef4e03baf225a6b076a"
+    }
+  ]
+}

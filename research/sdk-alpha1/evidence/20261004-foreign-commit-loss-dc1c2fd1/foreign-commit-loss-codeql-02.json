@@ -1,0 +1,17 @@
+{
+  "completed": true,
+  "observed_test_summary": [
+    [
+      43,
+      0.109
+    ]
+  ],
+  "log_sha256": "3d7500f311942641de4bbd713ed47bff345f85d91c21e94275660901fccfd1d5",
+  "source_hashes": {
+    "artifact/codeql_rust_quality.py": "6485f8992d8ac20fa6ca7b6e8dc11311e2ba3d5b466493e1ce8c85bd9a6ee6f4",
+    "artifact/test_codeql_rust_quality.py": "c2721ff7cca97b24de98a6f048a6a3fff85d44ae12417536d15ba1f3791a576e",
+    "ARTIFACT.md": "2efde215f272db7ff4afc1ca8886281916fd452b92866c7612089c74dd7291c7"
+  },
+  "scope": "Local recorded Python boundary tests; no hosted or release claim",
+  "release_claim_eligible": false
+}

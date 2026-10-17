@@ -1,0 +1,344 @@
+{
+  "schema": 1,
+  "implementation_commit": "1d0669445f256fea5547be17b0c9cf1cffd6daf8",
+  "release_claim_eligible": false,
+  "scope": "same-host installed compiled C root controller on default pthread attributes, 14 child processes and eight SIGKILL cuts after public calls; real signed-TCP witness query loss; three same-engine native readbacks. Not in-commit storage fault injection, application traffic, transition/adoption process variants, independent implementation or full release.",
+  "root_cause": "Unoptimized by-value recovery/plan captures accumulated large stack frames across the foreign admission and panic boundaries. The default pthread hit its guard during roster ML-DSA verification while resuming a frozen original root.",
+  "fix": "Keep the original recovery input and public plan in Box ownership until the native consuming call. No new thread, enlarged caller stack, skipped signature verification or storage format change.",
+  "red_green": {
+    "red": "fifth-debug: freeze-retry terminated by SIGBUS on the default C pthread; owned crash metadata records stack-guard protection failure",
+    "same_original_storage": "same-state-replay: same failed original registry/enrollment/journal and approved public inputs, unchanged C source, fixed library returned root-stage-pass:freeze-retry",
+    "fresh_workloads": {
+      "debug": {
+        "completed": true,
+        "processes": 14,
+        "sigkill_cuts": 8,
+        "witness_exchanges": 109,
+        "native_readbacks": 3,
+        "binaries": {
+          "root-3432ea88db7421c5": "083c3427a8c84625d907218efe05e0451aad17abbdbc7f6b1f2d432859eecfd2",
+          "qpc-c-root-client": "b0ce23b4bb3ff03bad3803370bcba048e68c51b9bdea520aad3ab2ec9da5fc02",
+          "libq_periapt_continuity_c_consumer.dylib": "67d0f84a02fc0273ccff7e961abfbfa84303e88c72f9de3b351f184d88b5aba2"
+        },
+        "stacks": {
+          "begin": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "preparing": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "activation-unknown": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "inventory": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-ack": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "journal": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "signer": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "verify": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          }
+        }
+      },
+      "release": {
+        "completed": true,
+        "processes": 14,
+        "sigkill_cuts": 8,
+        "witness_exchanges": 109,
+        "native_readbacks": 3,
+        "binaries": {
+          "root-9b7064d6097bd46e": "f021b88759e9970418a73fedddc2bd668c40cabdb5d4977e3a1b4fa88e30ac50",
+          "qpc-c-root-client": "2747cc6b2cc6223ee588cad5b335d93a60deb00a36ae59009647664f5d86e15f",
+          "libq_periapt_continuity_c_consumer.dylib": "78ebe3ca73d5bf05569ae21b4b7efeefcfe795b9be34f0d1fe5cd3fcdf0f65c0"
+        },
+        "stacks": {
+          "begin": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "preparing": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "activation-unknown": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "inventory": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-ack": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "journal": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "signer": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "verify": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          }
+        }
+      },
+      "minimum-debug": {
+        "completed": true,
+        "processes": 14,
+        "sigkill_cuts": 8,
+        "native_readbacks": 3,
+        "witness_exchanges": 109,
+        "library_sha256": "b2b0f46a99ba507feca3db9597b8fe2ea3c9f700de722fd4fcb1ed950829e77b",
+        "client_sha256": "63b8251d94b1886f83e24cc39ca638f73e2a0e05d859cecb3979b5f93c922c77",
+        "stacks": {
+          "begin": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "preparing": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "freeze-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "retain-retry": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "activation-unknown": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "inventory": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "report": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "prepare-ack": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "journal": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "signer": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          },
+          "verify": {
+            "system_default_bytes": 524288,
+            "observed_bytes": 536576
+          }
+        }
+      }
+    }
+  },
+  "static_evidence": "Captured before/after disassembly for 15 matching C adapter frames. One qpc_root_v1_resume closure changes explicit stack subtraction from 0xd5f0 bytes to 0x1b0 bytes; this is a compiled frame observation, not whole-thread peak usage or a latency benchmark.",
+  "validation": [
+    {
+      "label": "process-fix-admission",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "tests": 55,
+      "seconds": 108.63628687500022,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "process-fix-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "tests": null,
+      "seconds": 7.187268457841128,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "process-fix-min-root",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "root_foreign_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "tests": 7,
+      "seconds": 33.3493184580002,
+      "completed": true,
+      "source_matches_implementation": true
+    },
+    {
+      "label": "process-fix-min-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-c-root-v1szadml/c-consumer/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "tests": null,
+      "seconds": 9.379331375006586,
+      "completed": true,
+      "source_matches_implementation": true
+    }
+  ],
+  "exports": {
+    "debug": {
+      "exports": 151,
+      "library_sha256": "67d0f84a02fc0273ccff7e961abfbfa84303e88c72f9de3b351f184d88b5aba2"
+    },
+    "release": {
+      "exports": 151,
+      "library_sha256": "78ebe3ca73d5bf05569ae21b4b7efeefcfe795b9be34f0d1fe5cd3fcdf0f65c0"
+    },
+    "msrv-debug": {
+      "exports": 151,
+      "library_sha256": "b2b0f46a99ba507feca3db9597b8fe2ea3c9f700de722fd4fcb1ed950829e77b"
+    }
+  },
+  "tracked_rust_sources": 546,
+  "source_gate": "SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=1d0669445f256fea5547be17b0c9cf1cffd6daf8 results_sha256=9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false",
+  "installed_rustfmt": true,
+  "tool_tests": {
+    "inventory": 44,
+    "consumer": 13,
+    "package": 15
+  },
+  "adversarial_public_replays": 6,
+  "native_package_provenance": "Native candidate archive 90684e636f83632b84f6c49080fac6ea44268c96a1da06fb0290599c4c43f51e and the prior SDK archives are unchanged; only the C adapter and qualification paths changed. Original archive qualification retained in 20261011-c-root-controller.",
+  "limitations": [
+    "Same-host macOS arm64; signed TCP witness and the same native engine. No Intel Mac support added. No physical-device or independent-implementation claim.",
+    "The eight SIGKILL cuts follow public-call returns. They do not replace the separate native in-commit fault campaign.",
+    "Compiled-C transition/adoption process variants, application TLS traffic after root cutover and Swift/Kotlin root controllers remain open.",
+    "Policy/credential expiry, other hosts, independent interoperability, external review, full proof/performance/upgrade and remaining release requirements remain open as scoped gates.",
+    "CodeQL run 38122738417 failed at the 180-minute full SummaryStats query; diagnostics preserved separately, no new push or gate relaxation in this component. Android emulator investigation remains sealed."
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 6022164,
+    "members": 697,
+    "sha256": "bc4cb30cfe061cd455c2f7a6990fa377b70bb545885dcd93556b31b7be6cdbfd"
+  }
+}

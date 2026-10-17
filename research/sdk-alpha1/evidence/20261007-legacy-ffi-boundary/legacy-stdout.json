@@ -1,0 +1,4 @@
+{
+  "sha256": "669b526982489b5326bea4ebb65367256890da9c026d3ce54d1248ed21d0c7c4",
+  "text": "Q-Periapt ABI 2 product C smoke\nmetadata ................................ PASS\noverflowing input regions ................ PASS\nsigned policy / ABI1 hard cut ........... PASS\nOS-random product roundtrip / atomicity .. PASS\nALL PASS\n"
+}

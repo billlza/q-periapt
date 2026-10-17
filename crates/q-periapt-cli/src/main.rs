@@ -6,6 +6,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+#[cfg(all(
+    feature = "policy-store-migration",
+    any(target_os = "macos", target_os = "linux")
+))]
+mod policy_store_upgrade;
+
 #[derive(Parser)]
 #[command(
     name = "qperiapt",
@@ -19,8 +25,24 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Offline format-2 to format-3 upgrade of an existing v1 host policy store.
+    /// Requires a policy-store-migration build on macOS or Linux.
+    PolicyStoreUpgrade {
+        /// Existing private store. Missing storage is never created.
+        path: PathBuf,
+        /// Independently retained ML-DSA-65 root verification key (raw bytes).
+        #[arg(long)]
+        root: PathBuf,
+        /// Independently retained exact 36-byte trusted state; never read it from the target store.
+        #[arg(long)]
+        expected_state: PathBuf,
+    },
     /// Emit a CycloneDX CBOM (crypto bill of materials) of the suite's assets.
     Cbom {
+        /// Catalogue the native owned SDK and configured TLS provider. Requires
+        /// a build with --features sdk-cbom; never falls back to backend-only data.
+        #[arg(long)]
+        native_sdk: bool,
         /// Write to FILE instead of stdout.
         #[arg(long)]
         out: Option<PathBuf>,
@@ -127,7 +149,57 @@ fn print_scan_errors(errors: &[ScanError]) {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Cbom { out } => emit(&cbom(), out.as_deref()),
+        Cmd::PolicyStoreUpgrade {
+            path,
+            root,
+            expected_state,
+        } => {
+            #[cfg(all(
+                feature = "policy-store-migration",
+                any(target_os = "macos", target_os = "linux")
+            ))]
+            {
+                match policy_store_upgrade::run(&path, &root, &expected_state) {
+                    Ok(report) => emit(&report, None),
+                    Err(error) => {
+                        eprintln!("error: policy-store upgrade failed: {error}; preserve the file and retry only with the original independent trust and state; no runtime was returned");
+                        ExitCode::FAILURE
+                    }
+                }
+            }
+            #[cfg(not(all(
+                feature = "policy-store-migration",
+                any(target_os = "macos", target_os = "linux")
+            )))]
+            {
+                let _ = (path, root, expected_state);
+                eprintln!("error: policy-store-upgrade requires --features policy-store-migration on macOS or Linux");
+                ExitCode::FAILURE
+            }
+        }
+        Cmd::Cbom {
+            out,
+            native_sdk: false,
+        } => emit(&cbom(), out.as_deref()),
+        Cmd::Cbom {
+            out,
+            native_sdk: true,
+        } => {
+            #[cfg(feature = "sdk-cbom")]
+            match q_periapt_cli::native_sdk_cbom() {
+                Ok(document) => emit(&document, out.as_deref()),
+                Err(error) => {
+                    eprintln!("error: cannot emit native SDK CBOM: {error}");
+                    ExitCode::FAILURE
+                }
+            }
+            #[cfg(not(feature = "sdk-cbom"))]
+            {
+                let _ = out;
+                eprintln!("error: native SDK CBOM requires --features sdk-cbom");
+                ExitCode::FAILURE
+            }
+        }
         Cmd::Sbom { lock, out } => match std::fs::read_to_string(&lock) {
             Ok(text) => emit(&sbom(&text), out.as_deref()),
             Err(e) => {

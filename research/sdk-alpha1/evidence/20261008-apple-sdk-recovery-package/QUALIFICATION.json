@@ -1,0 +1,491 @@
+{
+  "at_utc": "2026-10-08T01:39:33.634869+00:00",
+  "source_commit": "4d253e72399dcde331ec4da06b7d0f7bd0d0d676",
+  "release_claim_eligible": false,
+  "full_package_pass": true,
+  "source_clean_after": true,
+  "abi_major": 2,
+  "exports_per_architecture": 50,
+  "targets": [
+    "aarch64-apple-darwin",
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios"
+  ],
+  "artifacts": {
+    "swift_sdk_package": {
+      "bytes": 15649723,
+      "contents_manifest_sha256": "56f4ed012c14cca1732f5b4f9ad523d10f8d48151017ddaced8a1e20e4690e0d",
+      "path": "QPeriapt-Swift-SDK-0.2.0.zip",
+      "sha256": "3fb15050c6335ac565da5239afa6f90d811d7b9a85ccfd27d9b94a18b9ed093d",
+      "xcframework_zip_sha256": "f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86"
+    },
+    "xcframework_info_plist_sha256": "710141cc102c46a2a0dde86adb2d2bee9ff30d1f7897c3c34db3df0e7a8baed7",
+    "xcframework_zip": {
+      "path": "CQPeriapt.xcframework.zip",
+      "sha256": "f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86",
+      "swiftpm_checksum": "f6857fca21f73174af1ae61965e7f020195200aac134af547539c520def4cc86"
+    }
+  },
+  "consumer_verification": {
+    "installed_swift_sdk": {
+      "archive_sha256": "3fb15050c6335ac565da5239afa6f90d811d7b9a85ccfd27d9b94a18b9ed093d",
+      "executed_tests": 5,
+      "failures": 0,
+      "kind": "qperiapt.swift_sdk_installed_consumer",
+      "log_sha256": {
+        "link-probe.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "swift-bin.log": "ba17d6800a52a2f546aeefb15fa4ef077fa492fd767c884c2f5a2243227b6a36",
+        "swift-test.log": "4eb5b0f22220df9638322f8009496c42e3d6606d73df892841431e850f896013"
+      },
+      "outside_source_checkout": true,
+      "probe_sha256": "012408752cde35870a5b905322031e0074504dcfcb4926a5b14008fff3faaa25",
+      "selected_static_archive_sha256": "b3acbfccbe586a5b18c1f6afdfd97816cf492483d51612cdd3bcd44fea60ae0e",
+      "warning_or_error_diagnostics": 0
+    },
+    "ios_consumer_scheme_inventory_sha256": "81e38cb70fa0bf262316c1afc56a29b22bfeedc9c8b57320417e3362ee89ed5d",
+    "ios_device_link": {
+      "architectures": [
+        "arm64"
+      ],
+      "deployment_target": "16.0",
+      "log_sha256": "993ba60ce31bb18992e67b7d306390b0178b00a39e4b40aacf7ba8b67f87239c",
+      "platform": "IOS",
+      "warning_or_error_diagnostics": 0
+    },
+    "ios_simulator_link": {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "16.0",
+      "log_sha256": "7e537cb05ef9f9a154a9df3874fb3abdf4b8f77b3d628aae934adbd1a259e7fb",
+      "platform": "IOSSIMULATOR",
+      "warning_or_error_diagnostics": 0
+    },
+    "macos_link": {
+      "architectures": [
+        "arm64"
+      ],
+      "deployment_target": "13.0",
+      "link_map_sha256": {
+        "arm64": "84d672a2f4384f94d9f0e644cade22cf941bbbd816d2adfaebeacba178cf2d98"
+      },
+      "logs_sha256": {
+        "arm64": "685ed7973bc9f438cabc3e677582f65dfc30f7d2d79e230ca87861a33cc0641c"
+      },
+      "platform": "MACOS",
+      "warning_or_error_diagnostics": 0
+    },
+    "macos_runtime_tests": {
+      "executed": 5,
+      "failures": 0,
+      "log_sha256": "ed6611b90bb7374b2fc141d9353dfc95c4750c314512877335ead97ee5b5bc65",
+      "warning_or_error_diagnostics": 0
+    }
+  },
+  "toolchain": {
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "rust_host": "aarch64-apple-darwin",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1) Target: arm64-apple-macosx27.0.0",
+    "xcode": [
+      "Xcode 27.0",
+      "Build version 27A266a"
+    ]
+  },
+  "regressions": {
+    "swift_checksum": "Actual Swift6.4 default creates root .build; explicit scratch path keeps cache under owned build directory and yields identical hash",
+    "source_drift": "Old unsigned guard accepts untracked cache; actual Git regression fails before fix and all97 related tests pass after fix",
+    "non_qualifying_attempts": "toolchain-01 --no-update left requested targets absent despite exit0; source-drift-red-01 had a fixture canonical-path setup error; full-01 consumers passed but post-run clean-source assertion failed. None treated as final success."
+  },
+  "simulator": {
+    "scope": "Installed SDK package on an owned iOS 27 ARM64 simulator only; not physical/current-minimum-device acceptance or durable iOS storage",
+    "source_head": "4d253e72399dcde331ec4da06b7d0f7bd0d0d676",
+    "archive_sha256": "3fb15050c6335ac565da5239afa6f90d811d7b9a85ccfd27d9b94a18b9ed093d",
+    "source_hashes": {
+      "bindings/apple-device/Sources/QPeriaptDeviceRunner/DeviceSmoke.swift": "4135e20798cdd54fc2949672c7cb6a358e70dc87818a867a8ba44ebe3d88ed1f",
+      "bindings/apple-device/Sources/QPeriaptDeviceRunner/SDKDeviceSmoke.swift": "abfadc25d63df082551be1a961e6dfba54c60954edd1d4542736d3d074999d6b",
+      "bindings/apple-device/Sources/QPeriaptDeviceRunner/main.swift": "b08c00cd2b5887365b61cc62a85b4fd4d114d84ee683df11e27a71890ef5eeeb"
+    },
+    "packaged_simulator_archive_sha256": "5dc868c125946fb8728d2c30e637ad00e95fdf419e6b564ae4d67a08e38f6d5a",
+    "app_executable_sha256": "b01b433e31177ee1340a61c1b4fe05488e810d5a8f66c31c0e7bb8bc220e8970",
+    "workload_pass": true,
+    "physical_device_qualified": false,
+    "runtime": "iOS 27.0 arm64 simulator",
+    "adaptation": "Source-identical SDK from archive; existing four-group device workloads gain only module imports. Entry point changes marker/environment/file names to simulator-specific forms. No physical proof emitted.",
+    "groups": [
+      "compatibilitySignedPolicy",
+      "ownedKeysAndPurposeDerivation",
+      "expertTransferAndPolicyRevocation",
+      "resourceLimitsAndCancellation"
+    ],
+    "steps": [
+      {
+        "label": "generate",
+        "returncode": 0,
+        "seconds": 0.139842625008896,
+        "stdout_sha256": "1987a355a24458ccbc557d49d6c6f9f8fda4afc599824919671e14aaef77a71e",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "build",
+        "returncode": 0,
+        "seconds": 7.188445999985561,
+        "stdout_sha256": "fdf3a37d24b7c07048be35ff8168eadd2afcc00bdf78cc825c28c5d7e0e99444",
+        "stderr_sha256": "4b990ff133c9f04f15d9369c7a92d708f8875c4d229b22da5522fba0ffbd2b4b"
+      },
+      {
+        "label": "create-simulator",
+        "returncode": 0,
+        "seconds": 0.31483416678383946,
+        "stdout_sha256": "de167516e05e142660261140f6eb5c96aae6c956b2ad06a7a559b1127dacf647",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "boot",
+        "returncode": 0,
+        "seconds": 1.292047749971971,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "boot-status",
+        "returncode": 0,
+        "seconds": 28.004129125038162,
+        "stdout_sha256": "6807bc35cc4867401c0711b7132478247c79c85c6b6cb5cd1c33b790c4063860",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "install",
+        "returncode": 0,
+        "seconds": 14.038606042042375,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "launch",
+        "returncode": 0,
+        "seconds": 1.9500005829613656,
+        "stdout_sha256": "556f31b6fb648bab207ce84eb3f21ae1639d9fe62cce7813849c34391788856a",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "container",
+        "returncode": 0,
+        "seconds": 0.48095816699787974,
+        "stdout_sha256": "912ba8f5115899ad36638d4c99cb288cc323db7170c39ed74d0305ca20fb31b4",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "cleanup-uninstall",
+        "returncode": 0,
+        "seconds": 0.4797365409322083,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "cleanup-shutdown",
+        "returncode": 0,
+        "seconds": 3.3920465828850865,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "cleanup-delete",
+        "returncode": 0,
+        "seconds": 0.20761516690254211,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "cleanup-inventory",
+        "returncode": 0,
+        "seconds": 0.20568150002509356,
+        "stdout_sha256": "bc26c32e369d721c82764d00feb97c029722ecf7b738a517fe75905ee2c9e824",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "cleanup": {
+      "returncodes": [
+        0,
+        0,
+        0
+      ],
+      "owned_simulator_absent": true
+    },
+    "marker_sha256": "f94cf51a0b18e8f6f4488253d196305f56839a7af11117157e374f80ff26ee8b",
+    "raw_evidence": "Private local simulator-01 records retained; raw device identifiers and container paths are not included here."
+  },
+  "limits": [
+    "No Intel macOS",
+    "iOS device and x86_64 simulator linkage, not physical execution",
+    "Actual simulator workload is iOS27 ARM64 only, not minimum-supported iOS16 runtime",
+    "Persistent iOS policy store remains unsupported; workload policy transitions use a test-only in-memory slot",
+    "No signing/provisioning/publication/merge or on-device binary attestation claim",
+    "Two paired physical Apple devices observed unavailable; private inventory retained",
+    "Current exact-head hosted CI remains open; running1caRustCodeQL preserved"
+  ],
+  "files": {
+    "toolchain-01/RESULT.json": {
+      "sha256": "0469b391f97211b5a2c0089a1a46948faabd1326db7e59de8c841aaa05fad583",
+      "original_bytes": 1384,
+      "original_sha256": "0469b391f97211b5a2c0089a1a46948faabd1326db7e59de8c841aaa05fad583"
+    },
+    "toolchain-01/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "toolchain-01/stdout.log": {
+      "sha256": "f92b20b62d853b6f6ec9a13ebc9d9e4e626b315fc2ba00e4cf2e476dd791204e",
+      "original_bytes": 80,
+      "original_sha256": "f92b20b62d853b6f6ec9a13ebc9d9e4e626b315fc2ba00e4cf2e476dd791204e"
+    },
+    "toolchain-02/RESULT.json": {
+      "sha256": "641603782e31cc29dc841f2b59d71cb4763573ef8163e182ab97bb38b8a50cab",
+      "original_bytes": 1447,
+      "original_sha256": "641603782e31cc29dc841f2b59d71cb4763573ef8163e182ab97bb38b8a50cab"
+    },
+    "toolchain-02/stderr.log": {
+      "sha256": "734626684b46c93190b78c4e9fca17b3a1d3acf8696dec26ade394f4366c7240",
+      "original_bytes": 216,
+      "original_sha256": "734626684b46c93190b78c4e9fca17b3a1d3acf8696dec26ade394f4366c7240"
+    },
+    "toolchain-02/stdout.log": {
+      "sha256": "f0a4d9ccb8e933ca4e348f56bfd728f129e18bb930044d5fe940258fc5ee5e4e",
+      "original_bytes": 121,
+      "original_sha256": "f0a4d9ccb8e933ca4e348f56bfd728f129e18bb930044d5fe940258fc5ee5e4e"
+    },
+    "full-01/GENERATED_CACHE.json": {
+      "sha256": "709b378e34619878d98849d265da4a87a5c6d4b1304ad2c7f8aa757346f74808",
+      "original_bytes": 679,
+      "original_sha256": "709b378e34619878d98849d265da4a87a5c6d4b1304ad2c7f8aa757346f74808"
+    },
+    "full-01/RESULT.json": {
+      "sha256": "e7a6734894fe56b2466e11afc830778c7f222e0b4c88e2df3de5bb110a86ae18",
+      "original_bytes": 1501,
+      "original_sha256": "e7a6734894fe56b2466e11afc830778c7f222e0b4c88e2df3de5bb110a86ae18"
+    },
+    "full-01/START.json": {
+      "sha256": "acc9a96b0108c72901f31a8071b271e10180024e7a77d360c67265ff9a1f43b3",
+      "original_bytes": 950,
+      "original_sha256": "acc9a96b0108c72901f31a8071b271e10180024e7a77d360c67265ff9a1f43b3"
+    },
+    "full-01/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "full-01/stdout.log.gz": {
+      "sha256": "ead1025db44a8f04075ff29725d4bbe15c1209c1efd79f61f3a8c762a2190d0d",
+      "original_bytes": 21295,
+      "original_sha256": "ccc303283cdd208da8557a77fab5fc73709ecaebeaeb7955437a3e29334e50de"
+    },
+    "full-02/RESULT.json": {
+      "sha256": "9bc430000b4524ac3bc76bee298dab68f3e7ad0866eae772e8fb84bbfe39fb59",
+      "original_bytes": 1502,
+      "original_sha256": "9bc430000b4524ac3bc76bee298dab68f3e7ad0866eae772e8fb84bbfe39fb59"
+    },
+    "full-02/START.json": {
+      "sha256": "10c5af1a92b8dd7be8d79b39c9a4e44e7acb893f7d966c398b237f4de523eea5",
+      "original_bytes": 950,
+      "original_sha256": "10c5af1a92b8dd7be8d79b39c9a4e44e7acb893f7d966c398b237f4de523eea5"
+    },
+    "full-02/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "full-02/stdout.log": {
+      "sha256": "ab6f96ccb2200bbe7a2c47019a00a02767d6e5e6ddf09e4ea80ea100f9edf765",
+      "original_bytes": 8847,
+      "original_sha256": "ab6f96ccb2200bbe7a2c47019a00a02767d6e5e6ddf09e4ea80ea100f9edf765"
+    },
+    "source-drift-red-01/RESULT.json": {
+      "sha256": "a83669ab109a04db2e78b13b6711d26f181d03effe98c50fe2d0cf970ebfa50f",
+      "original_bytes": 333,
+      "original_sha256": "a83669ab109a04db2e78b13b6711d26f181d03effe98c50fe2d0cf970ebfa50f"
+    },
+    "source-drift-red-01/stderr.log": {
+      "sha256": "0cbe7fe60b6627c1386fbb70e4187493ed68684b0d243e8f2c906ac1241abd95",
+      "original_bytes": 1282,
+      "original_sha256": "0cbe7fe60b6627c1386fbb70e4187493ed68684b0d243e8f2c906ac1241abd95"
+    },
+    "source-drift-red-01/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "source-drift-red-02/RESULT.json": {
+      "sha256": "a83669ab109a04db2e78b13b6711d26f181d03effe98c50fe2d0cf970ebfa50f",
+      "original_bytes": 333,
+      "original_sha256": "a83669ab109a04db2e78b13b6711d26f181d03effe98c50fe2d0cf970ebfa50f"
+    },
+    "source-drift-red-02/stderr.log": {
+      "sha256": "e8529ce2c6f82d631a5dc86f4ac0b4db65750b417856b2f94b2d6fd06a799e4e",
+      "original_bytes": 1256,
+      "original_sha256": "e8529ce2c6f82d631a5dc86f4ac0b4db65750b417856b2f94b2d6fd06a799e4e"
+    },
+    "source-drift-red-02/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "source-drift-green-01/RESULT.json": {
+      "sha256": "d0ffbd358f7e966f60644aefb827614443aee0a81b4da980213cb0d6382bed1c",
+      "original_bytes": 290,
+      "original_sha256": "d0ffbd358f7e966f60644aefb827614443aee0a81b4da980213cb0d6382bed1c"
+    },
+    "source-drift-green-01/stderr.log": {
+      "sha256": "6d785654d874ca27097407ad0127c27bd26da7881b569a923a7d8cc8df7a8d95",
+      "original_bytes": 17224,
+      "original_sha256": "6d785654d874ca27097407ad0127c27bd26da7881b569a923a7d8cc8df7a8d95"
+    },
+    "source-drift-green-01/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "checksum-control-01/version.stderr": {
+      "sha256": "bbc8b176d3c74d4c5a7fd00b40280f98168e116d5272273bfe8e71407625540e",
+      "original_bytes": 30,
+      "original_sha256": "bbc8b176d3c74d4c5a7fd00b40280f98168e116d5272273bfe8e71407625540e"
+    },
+    "checksum-control-01/RESULT.json": {
+      "sha256": "0a9965be2ad17587c9aea1a0fb0e4b7fda50afce22934b9d6acea51f6d56c6b1",
+      "original_bytes": 1497,
+      "original_sha256": "0a9965be2ad17587c9aea1a0fb0e4b7fda50afce22934b9d6acea51f6d56c6b1"
+    },
+    "checksum-control-01/version.stdout": {
+      "sha256": "04630ab8fa201f57c63c59730e638135e32584a97e16e004a417eb8ed283dc83",
+      "original_bytes": 98,
+      "original_sha256": "04630ab8fa201f57c63c59730e638135e32584a97e16e004a417eb8ed283dc83"
+    },
+    "checksum-control-01/scratch.stdout": {
+      "sha256": "1edea7fe8ec77e86ede0a32efa87d4313d164c7df79a85cdeac1ab1ddb58ca3d",
+      "original_bytes": 65,
+      "original_sha256": "1edea7fe8ec77e86ede0a32efa87d4313d164c7df79a85cdeac1ab1ddb58ca3d"
+    },
+    "checksum-control-01/default.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "checksum-control-01/scratch.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "checksum-control-01/default.stdout": {
+      "sha256": "1edea7fe8ec77e86ede0a32efa87d4313d164c7df79a85cdeac1ab1ddb58ca3d",
+      "original_bytes": 65,
+      "original_sha256": "1edea7fe8ec77e86ede0a32efa87d4313d164c7df79a85cdeac1ab1ddb58ca3d"
+    },
+    "drivers/run.py": {
+      "sha256": "45991c5d403a6bcc5b7092b823b59a683303186dcfd334f8186d38604a0d12b2",
+      "original_bytes": 2687,
+      "original_sha256": "45991c5d403a6bcc5b7092b823b59a683303186dcfd334f8186d38604a0d12b2"
+    },
+    "drivers/run-simulator.py": {
+      "sha256": "1e8db47d77c23097f5c74ffe42d8a9df31b7da2aae70f1b9322f557b9f3abf4c",
+      "original_bytes": 8537,
+      "original_sha256": "1e8db47d77c23097f5c74ffe42d8a9df31b7da2aae70f1b9322f557b9f3abf4c"
+    },
+    "package/aarch64-apple-darwin-build.log": {
+      "sha256": "92e06e4842c2fa9a2139c34892b15d58451290c4ed4fe3a60c23f8f551bc9ec1",
+      "original_bytes": 62,
+      "original_sha256": "92e06e4842c2fa9a2139c34892b15d58451290c4ed4fe3a60c23f8f551bc9ec1"
+    },
+    "package/aarch64-apple-ios-build.log": {
+      "sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a",
+      "original_bytes": 62,
+      "original_sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a"
+    },
+    "package/aarch64-apple-ios-sim-build.log": {
+      "sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a",
+      "original_bytes": 62,
+      "original_sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a"
+    },
+    "package/x86_64-apple-ios-build.log": {
+      "sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a",
+      "original_bytes": 62,
+      "original_sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a"
+    },
+    "package/SOURCE_INPUTS.before.json.gz": {
+      "sha256": "fa9141a6da29214186af60badb6a34fa30b5f5d9e5953ea2aae7ba6df6a8e827",
+      "original_bytes": 36707,
+      "original_sha256": "d5001116fbe46810a91adabd2888f921f0b3efb1dd05eadd05ac72e77d8ba41d"
+    },
+    "package/SOURCE_INPUTS.after.json.gz": {
+      "sha256": "fa9141a6da29214186af60badb6a34fa30b5f5d9e5953ea2aae7ba6df6a8e827",
+      "original_bytes": 36707,
+      "original_sha256": "d5001116fbe46810a91adabd2888f921f0b3efb1dd05eadd05ac72e77d8ba41d"
+    },
+    "package/swift-binary-consumer.log": {
+      "sha256": "ed6611b90bb7374b2fc141d9353dfc95c4750c314512877335ead97ee5b5bc65",
+      "original_bytes": 3184,
+      "original_sha256": "ed6611b90bb7374b2fc141d9353dfc95c4750c314512877335ead97ee5b5bc65"
+    },
+    "package/MANIFEST.json": {
+      "sha256": "2d020c6eaa1c08b54d21090b0fefe11e1f4a50d7180344b3a883dec437696dea",
+      "original_bytes": 45434,
+      "original_sha256": "2d020c6eaa1c08b54d21090b0fefe11e1f4a50d7180344b3a883dec437696dea"
+    },
+    "package/SHA256SUMS": {
+      "sha256": "001b6aed3770ac4e7e7cac15b97399c4b4220388f3fc0d80c50b5456e6d9570f",
+      "original_bytes": 267,
+      "original_sha256": "001b6aed3770ac4e7e7cac15b97399c4b4220388f3fc0d80c50b5456e6d9570f"
+    },
+    "package/consumer/MACOS_ARM64-arm64.linkmap.gz": {
+      "sha256": "fb51164c087687cf9184b0e1313f2bfdecb85cf0ab9a477b806dc7102a57c944",
+      "original_bytes": 2252296,
+      "original_sha256": "84d672a2f4384f94d9f0e644cade22cf941bbbd816d2adfaebeacba178cf2d98"
+    },
+    "package/consumer/IOS_SIMULATOR.log.gz": {
+      "sha256": "9fb020a6b50970239072db3f608b9a19171c83d46f8efc0c10719247dc7e33f9",
+      "original_bytes": 286949,
+      "original_sha256": "7e537cb05ef9f9a154a9df3874fb3abdf4b8f77b3d628aae934adbd1a259e7fb"
+    },
+    "package/consumer/IOS_DEVICE.log.gz": {
+      "sha256": "60908c4ea081488be78e78b38e6082328b012c646ba2957c5d285329e65b626b",
+      "original_bytes": 151780,
+      "original_sha256": "993ba60ce31bb18992e67b7d306390b0178b00a39e4b40aacf7ba8b67f87239c"
+    },
+    "package/consumer/SCHEMES.json": {
+      "sha256": "81e38cb70fa0bf262316c1afc56a29b22bfeedc9c8b57320417e3362ee89ed5d",
+      "original_bytes": 114,
+      "original_sha256": "81e38cb70fa0bf262316c1afc56a29b22bfeedc9c8b57320417e3362ee89ed5d"
+    },
+    "package/consumer/MACOS_ARM64-arm64.log": {
+      "sha256": "685ed7973bc9f438cabc3e677582f65dfc30f7d2d79e230ca87861a33cc0641c",
+      "original_bytes": 510,
+      "original_sha256": "685ed7973bc9f438cabc3e677582f65dfc30f7d2d79e230ca87861a33cc0641c"
+    },
+    "package/consumer/SCHEMES.log": {
+      "sha256": "a2fe462e72ba920fa3aace7a7819fb4419fabf2ff51527434b7006a1dcb8d2b0",
+      "original_bytes": 146,
+      "original_sha256": "a2fe462e72ba920fa3aace7a7819fb4419fabf2ff51527434b7006a1dcb8d2b0"
+    },
+    "package/installed/swift-test.log": {
+      "sha256": "4eb5b0f22220df9638322f8009496c42e3d6606d73df892841431e850f896013",
+      "original_bytes": 3161,
+      "original_sha256": "4eb5b0f22220df9638322f8009496c42e3d6606d73df892841431e850f896013"
+    },
+    "package/installed/link-probe.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "package/installed/swift-bin.log": {
+      "sha256": "ba17d6800a52a2f546aeefb15fa4ef077fa492fd767c884c2f5a2243227b6a36",
+      "original_bytes": 112,
+      "original_sha256": "ba17d6800a52a2f546aeefb15fa4ef077fa492fd767c884c2f5a2243227b6a36"
+    },
+    "simulator/SUMMARY.json": {
+      "sha256": "b152a519dd5fbacaf16611b787cf904fd44db68dd7b669919a61b9cc440850f5",
+      "original_bytes": 5199,
+      "original_sha256": "b152a519dd5fbacaf16611b787cf904fd44db68dd7b669919a61b9cc440850f5"
+    }
+  }
+}

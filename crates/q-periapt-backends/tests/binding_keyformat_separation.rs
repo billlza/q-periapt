@@ -34,7 +34,7 @@ use q_periapt_backends::{
     MlKem768, Sha3_256Xof, ML_KEM_768_CT_LEN, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN,
 };
 use q_periapt_core::{combine, CombineInput, Kem, Profile};
-use sha3::{
+use shake::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
 };

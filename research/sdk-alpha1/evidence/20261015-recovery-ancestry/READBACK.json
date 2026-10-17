@@ -1,0 +1,9 @@
+{
+  "capture_sha256": "8d5423aa16f7bc2d5738e590fca3b70cfc18524576cae232c204ae57d596cda5",
+  "completed": true,
+  "exact_public_markers": 3,
+  "members": 36,
+  "private_states_reopened": false,
+  "source_files": 13,
+  "tests_passed": 15
+}

@@ -1,0 +1,31 @@
+{
+  "completed": true,
+  "profile_processes": {
+    "debug": 2147,
+    "release": 2147
+  },
+  "lifecycle_processes_per_profile": {
+    "debug": 2146,
+    "release": 2146
+  },
+  "JNI_boundary_processes_per_profile": 1,
+  "total_host_Java_processes": 4294,
+  "root_host_processes": 724,
+  "root_process_cuts": 124,
+  "root_export_routes": 20,
+  "all_root_public_exports_reread": true,
+  "retirement_export_routes": 4,
+  "retirement_host_processes": 128,
+  "retirement_process_cuts": 12,
+  "roster_export_routes": 44,
+  "roster_export_host_processes": 1960,
+  "archive_members": 15965,
+  "capture_sha256": "bea56f920e37b462b48619273e139ec34555f2ad8977963df05a0e1bc4100953",
+  "source_before_after_equal": true,
+  "all_archive_member_hashes_verified": true,
+  "all_roster_public_exports_reread": true,
+  "all_retirement_public_exports_reread": true,
+  "private_keys_or_journals_archived": false,
+  "agreed_phone_gate": "already passed; recorded separately",
+  "release_claim_eligible": false
+}

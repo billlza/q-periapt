@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "clean",
+    "--locked",
+    "--offline",
+    "-p",
+    "q-periapt-continuity-c-consumer",
+    "-p",
+    "q-periapt-continuity-identity-candidate"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-consumer",
+  "exit": 0,
+  "seconds": 1.5680412920191884
+}

@@ -1,0 +1,35 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/Cargo.toml",
+    "--all-features",
+    "--lib",
+    "anchor::store::tests",
+    "--",
+    "--nocapture"
+  ],
+  "returncode": 0,
+  "completed": true,
+  "source_commit": "af55fbf7a0fcd80c7ad04f8d49e72dc382ac8903",
+  "seconds": 30.843665500055067,
+  "log_sha256": "1c219a3bb63cb09d4cd22052febd6b1b8f1fdb71ab930accb4eb24229c10d45e",
+  "probe_sha256": "3e5657157e40c880da9f3527f08d71aaa450043e3acff3b6e59515aa2e7fceac",
+  "patcher_sha256": "0757b065af64811a3e06d17abb104bae7a11ba0f3226c16b0e0e87373b2ec105",
+  "release_patch_sha256": "30c60b20324ec8b4a7cc314b79ba270c4c8e3804d028b3dde267971b2fc521fd",
+  "mode": "anchor",
+  "modified_source_hashes": {
+    "src/anchor.rs": "162cf7f13313cf60cd4a485bd787d1c5e4cf95d65fafa45f7968a7afc67bb7e5",
+    "src/anchor/store.rs": "cb6b5c1b2cf2c96e4c78a85ba74cf6fb211ba6645b1f416a1a0c4ce4b24f17da",
+    "src/anchor/store/renewal.rs": "eb5e8c7d825f3e2aaf3dfae106d8eff21dcccbe99b50495f9d75816f6fab3bfa",
+    "src/anchor/store/renewal_tests.rs": "0917274ecd4430f239bef884c137816107a475ebcb89d05fdc73ea383d467cb2",
+    "src/enrollment/witness_renewal_tests.rs": "f7ba5150842e18645c7a5984605f56a3cc24acc097738750dcb3bda5a42844df",
+    "src/durable/anchoring.rs": "5b2801b6a9520516dc27c9c03721f7fe56e1eefba2427225af9efae144fafd12",
+    "src/durable/rosters.rs": "d2dd4228415622cb08b06afbd39fc73acc46833c102849aa73182d73d4157f6c"
+  },
+  "modified_test_sha256": "0917274ecd4430f239bef884c137816107a475ebcb89d05fdc73ea383d467cb2",
+  "scope": "Isolated persistent witness authorization binding using existing credential transactions and store-only target heads. New opcode/schema are experimental. The optional release patch requires the exact journal-derived credential statement at native owner release and denies legacy op4 after adoption. Policy renewal and old-schema migration are not implemented.",
+  "release_claim_eligible": false
+}

@@ -1,0 +1,70 @@
+{
+  "at_utc": "2026-10-07T21:45:37.220501+00:00",
+  "product_commit": "6e520a99210e1be254fb95ae2a4b4ce546ab8d14",
+  "policy_regression_commit": "050b6eab42e325a43ade8c97c1f282a1574d6a6f",
+  "platform": "macOS Apple Silicon",
+  "test_tree_matches_committed_crates": true,
+  "debug_FFI_tests": 43,
+  "release_FFI_tests": 43,
+  "host_store_tests": 37,
+  "clippy_warnings_denied": true,
+  "ABI_contract_tests": 3,
+  "header_declarations_unchanged": true,
+  "exact_dynamic_exports": 43,
+  "old_guard_cases": 10,
+  "old_guard_result": "all terminated by SIGBUS (-10); inputs violated the old complete-structure contract",
+  "new_guard_cases": 10,
+  "new_guard_result": "all returned LIMITS with untouched output",
+  "installed_guard_cases": 20,
+  "installed_guard_result": "all shared/static calls returned LIMITS with untouched output",
+  "package_source_clean_before_and_after": true,
+  "package_producer": {
+    "at_utc": "2026-10-07T21:43:57.388210+00:00",
+    "head": "6e520a99210e1be254fb95ae2a4b4ce546ab8d14",
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/package-source",
+    "source_clean_before_and_after": true,
+    "command": [
+      "sh",
+      "artifact/c-package.sh",
+      "--profile",
+      "sdk-020"
+    ],
+    "returncode": 0,
+    "seconds": 168.47274970915169,
+    "stdout_sha256": "f806a9653a827e85c9a4b8a95cd0b27cb9ec79d065efbb107882ec6e809e37df",
+    "stderr_sha256": "63bb9c7c3bd5e37c8e90051adac8fdcb4af0947c6eb3ebbfee58676d24c82a6e",
+    "allow_dirty": false,
+    "package_output": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/package-source/target/installed-sdk-c"
+  },
+  "public_revalidation": {
+    "at_utc": "2026-10-07T21:44:17.682752+00:00",
+    "head": "6e520a99210e1be254fb95ae2a4b4ce546ab8d14",
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/package-source",
+    "source_clean_before_and_after": true,
+    "command": [
+      "sh",
+      "artifact/c-package.sh",
+      "--profile",
+      "sdk-020"
+    ],
+    "returncode": 0,
+    "seconds": 9.493981665931642,
+    "stdout_sha256": "a000738312d8b522d82d0eb286803ee56a961e637858a0fac1e9fd8979fafdb1",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "allow_dirty": false,
+    "public_archive_expected": {
+      "QPERIAPT_C_PACKAGE_EXPECTED_SHA256": "3401b6c3c79a504c5fc79bbb8d2734fbcd77c9f9fb919c74324fc1f0a96f82db",
+      "QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256": "bb4362e08160177f7974e8732275088a4f0afaa940f66e671be3cfbee07e8857",
+      "QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256": "11bd27c7aa2096ec73cd112208ef4bef470b24247805a52cf04a1dd368d4f149",
+      "QPERIAPT_C_PACKAGE_EXPECTED_TARGET": "aarch64-apple-darwin",
+      "QPERIAPT_C_PACKAGE_EXPECTED_VERSION": "0.2.0"
+    },
+    "package_output": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/package-source/target/public-verified-sdk-c"
+  },
+  "archive": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/package-source/target/installed-sdk-c/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz",
+  "archive_bytes": 6108020,
+  "archive_sha256": "3401b6c3c79a504c5fc79bbb8d2734fbcd77c9f9fb919c74324fc1f0a96f82db",
+  "manifest_sha256": "bb4362e08160177f7974e8732275088a4f0afaa940f66e671be3cfbee07e8857",
+  "scope": "Prefix rejection plus durable exhaustion characterization. No arbitrary-pointer validation, prefix compatibility acceptance, root-recovery implementation, remote current-source CI, Linux/Windows runtime or full release qualification.",
+  "release_claim_eligible": false
+}

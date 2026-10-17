@@ -1,0 +1,80 @@
+{
+  "observed_at": "2026-10-10T13:48:27.404194+00:00",
+  "native": {
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/account-root-peer-boundary-current/source",
+    "preview_head": "3e2cf03d0a83e2011129ca51061b0817de03b493",
+    "source_sha256": {
+      "ARTIFACT.md": "642ff19d7529252ac47ab47141e36c62d8ed0040b48e3c8c6934df80394f05fd",
+      "artifact/codeql_rust_quality.py": "2e6448006d801c249fd26dd6363359c5b310eb5d033f753054fe44b5ab9650d7",
+      "artifact/test_codeql_rust_quality.py": "c91ab1508fd142a87da625559547fdf0a7569d5b38dea3926492d01e123713b5",
+      "research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md": "9b0995efcb7507e25b8db3c87363fa4178558d5556c6ddd3e48e79ef3fce7890",
+      "research/continuity-identity-candidate/src/durable/rosters.rs": "e7f611296c8eb434c59bfe7336a57515d43a494f0e5c71506ac0b13426b3da57",
+      "research/continuity-identity-candidate/src/durable/rosters/peer_retirement.rs": "ad890bd401b6c0f662591825802d8351e02225077ecfdcb554d5e2c3814bbf84",
+      "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs": "7c1257031a31e7a750b3ec428c0086e8823fe4d06e988a551653e27b6aefbbed",
+      "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests.rs": "01595865a146610a574ecc08f4bd8540d9f97b5e9dec6083289c1d638001e72c",
+      "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "9c35cab866265e5bb09da22cabd821b69c178f63f27f18030c9cebd8c3835bc8",
+      "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/support.rs": "69deb2a12120593bca4064c6bba148a49b9f93343be7c2f44adcf62c6ade6ab6",
+      "research/continuity-identity-candidate/src/installation/reopen.rs": "632122fcdeb4a4582539114ee347737a3c7a678a600d1b26395a9760f92a20e5"
+    },
+    "completed": true,
+    "returncode": 0,
+    "timed_out": false,
+    "seconds": 3724.7205893751234,
+    "source_clean": true,
+    "head_unchanged": true,
+    "inputs_unchanged": true
+  },
+  "native_test_count": 854,
+  "installed": {
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/android-control-29ec-current/console-routing-fix/gate-source",
+    "head": "3a386bbfad3500c28356d547c8ae8122fe0628f4",
+    "completed": true,
+    "seconds": 10873.434909250122,
+    "returncode": 0,
+    "timed_out": false,
+    "source_clean": true,
+    "head_unchanged": true
+  },
+  "installed_profiles": [
+    "Rust Debug",
+    "Rust Release",
+    "C Debug",
+    "C Release",
+    "Swift Debug",
+    "Swift Release"
+  ],
+  "report_readback": "Terminal producer success, exact embedded C/Swift equality, profile completion, pinned source and retained archive byte/hash/CRC checks; no second independent execution claimed.",
+  "scope": [
+    "Native full regression includes the committed peer-account retirement production change; later SIGKILL test additions were verified separately.",
+    "Installed packages are frozen 3a386bbf parent-enrollment baseline and do not include later peer-account retirement.",
+    "Same macOS arm64 host/shared engine; no Kotlin, independent engine, minimum OS, physical device, other-platform or complete managed account transition claim."
+  ],
+  "previous_failure_preserved": true,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 5023171,
+    "sha256": "11ead40db338611fb00816298f716e92b525cea65efad01ac96ff425c738c7ce",
+    "members": {
+      "installed/CONTINUITY_PACKAGE.json": "5846bdc8321ad3d07715f666259f7164ad7c77bf8bc9532e0e878ed5b0fa6f28",
+      "installed/C_CONSUMER.json": "8c7fa8dbb7d2ed8afd0be740b35bba9b877a28ae81942636d4eff26fcdf88ddf",
+      "installed/PREFLIGHT.json": "0d30950664fac6f482ee6d1ab8ea1c1c79c6f15b306594ea13af68e63d471bbd",
+      "installed/SWIFT_CONSUMER.json": "dfdb04f7bd0f6885c165edbf79694fcc4e722491001d1f4b15b50ce558992459",
+      "installed/failed-attempt-01/RESULT.json": "dc335d7767fdfd9120839bbaaca94b405b82b2531187697b581ae8a30741b417",
+      "installed/failed-attempt-01/stderr": "3e874293486b7f0152d662040efed673fb5bec0e9e4d7239289c5024e5b189ed",
+      "installed/failed-attempt-01/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed/producer/RESULT.json": "40da0b56dadf499c1d0fc891dfa1dbe9ca444903152dd92d69d4b9eab8a51dbc",
+      "installed/producer/START.json": "20abec74a19edbe06fe7d44c5a59409b2d2f98629fa3d7f3d78cffc083983c1f",
+      "installed/producer/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed/producer/stdout": "6b71d118dda36694d21c1c70fc5e37e68074f1daa5ec12e7466dfcdabeffb3e4",
+      "installed/run.py": "972bff984f66e7c32e6440d4a4b574fcc21a1ed1cf20312f92be4df900594c63",
+      "native/FROZEN_SOURCE.json": "ebb05dbfb522a3d799c3c3d120deda011f9b7ccb88b7136cd8eac217d35ccddc",
+      "native/producer/RESULT.json": "d65c3d79674f021f10dbc505862e169afac183b4230e85443d0f63d593522b4f",
+      "native/producer/START.json": "71b01933006d092a5960240332a6f23b59c9f080904be2f38dd7cb40ebfc651b",
+      "native/producer/stderr": "c3d65be7839f6d958e91d7e5108c8be212ff6ffee383c9f12f563aa077ef6fb5",
+      "native/producer/stdout": "7a52ab889cb6818b4bab30c27985c97b0274765674f76d1113e5d6fa26e8f3a9",
+      "native/run.py": "41dcc44100f0445e851cfea04221638e9887468acc81e38a6e39df5cdc30aa86"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "sha256": "367773c9e4b527105b72740622b74413d621618399509406758d730d8e061695",
+  "text": "   Compiling powerfmt v0.2.0\n   Compiling deranged v0.5.8\n   Compiling time-core v0.1.9\n   Compiling num-conv v0.2.2\n   Compiling base64 v0.23.1\n   Compiling pem v4.0.0\n   Compiling time v0.3.55\n   Compiling fastrand v2.5.0\n   Compiling tempfile v3.27.0\n   Compiling yasna v0.6.0\n   Compiling q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)\n   Compiling rcgen v0.14.10\n    Finished `release` profile [optimized] target(s) in 31.85s\n     Running unittests src/lib.rs (target/native-stack-debug/build/release/deps/q_periapt_ffi_abi2-a5031cbcee42164d)\n   Doc-tests q_periapt_ffi_abi2\n"
+}

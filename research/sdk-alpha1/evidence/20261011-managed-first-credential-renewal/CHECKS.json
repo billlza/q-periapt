@@ -1,0 +1,222 @@
+{
+  "source_commit": "a33aa20bef3cc032ae7d55667670b2da98dbac8e",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Installed C first-use managed credential renewal after real-clock expiry, lost applied Commit reply, historical recovery and original-message completion; same-host C peers sharing the native engine.",
+  "identity": "C clients, headers and Rust harness byte-match the code commit. Native implementation remains unchanged from the immutable 6d70c614 archive; exact Debug/Release native library hashes are recorded. This component composition is not full current-distribution qualification.",
+  "native_archive": {
+    "sha256": "cf640e4c1df89890edac083d35d7d4cc537359b826b5ced9e014b4e2753ecbca",
+    "bytes": 1331903,
+    "members": 406
+  },
+  "validation": {
+    "credential_scenarios": 8,
+    "managed_policy_regression_scenarios": 8,
+    "ordinary_regression_scenarios": 12,
+    "reader_and_inventory_tests": 72,
+    "tracked_Rust_sources": 515,
+    "strict_Clippy": [
+      "1.90.0",
+      "1.98.1"
+    ],
+    "strict_C_compile": "both profiles, warnings as errors, ABI offset assertions",
+    "short_header_guard": "both profiles",
+    "source_gate": "passed"
+  },
+  "profiles": {
+    "debug": {
+      "scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "expiry_observations": {
+        "signed-fixed": {
+          "credential_until": 1791686193,
+          "observed_at": 1791686193,
+          "policy_until": 1791689730,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "signed-recoverable": {
+          "credential_until": 1791686267,
+          "observed_at": 1791686267,
+          "policy_until": 1791689804,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "tls-fixed": {
+          "credential_until": 1791686336,
+          "observed_at": 1791686336,
+          "policy_until": 1791689874,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "tls-recoverable": {
+          "credential_until": 1791686404,
+          "observed_at": 1791686404,
+          "policy_until": 1791689942,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        }
+      },
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/debug/deps/first_configuration-9a6d137abe215445",
+          "sha256": "86e6ba48c6fa74b5b20c348c14812757e37717047bff368e17b02f0ec1dd537a",
+          "bytes": 14502088
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-debug-05/qpc-first-configuration-client",
+          "sha256": "e471f9c2e53ddff8ca3293be739d6b16a1c1fe8188640abee5be57dd23514583",
+          "bytes": 56784
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-debug-05/qpc-c-client",
+          "sha256": "64557a10215e7e4d6b51ff3b2d299d913dd6431928b276c05d1091863766d8b7",
+          "bytes": 176160
+        }
+      },
+      "native_library": {
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-debug-05/libq_periapt_continuity_c_consumer.dylib",
+        "sha256": "e323b3f77f45a18862bd5bb43b169e9505d9ce8f87604dc66fd5bd13e8f8360d"
+      }
+    },
+    "release": {
+      "scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "expiry_observations": {
+        "signed-fixed": {
+          "credential_until": 1791686470,
+          "observed_at": 1791686470,
+          "policy_until": 1791690009,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "signed-recoverable": {
+          "credential_until": 1791686536,
+          "observed_at": 1791686536,
+          "policy_until": 1791690074,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "tls-fixed": {
+          "credential_until": 1791686602,
+          "observed_at": 1791686602,
+          "policy_until": 1791690140,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        },
+        "tls-recoverable": {
+          "credential_until": 1791686668,
+          "observed_at": 1791686668,
+          "policy_until": 1791690207,
+          "new_commits": 1,
+          "historical_exchanges": 2,
+          "historical_new_commits": 0
+        }
+      },
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/release/deps/first_configuration-15dc71aaec87a777",
+          "sha256": "7a798b329bcfa9e80d6ebf7b6bbc1c1c23b8df8dc051d9b1a92741265c1da592",
+          "bytes": 8694240
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-release-05/qpc-first-configuration-client",
+          "sha256": "53e5764e72584ac128059a7d1581a8e6e3eccea913c6351984b95552a231bac6",
+          "bytes": 55232
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-release-05/qpc-c-client",
+          "sha256": "068a11e0ab210f058cac38ee2c329cd207b849b8e8f19e1549b91c1d14d58ee4",
+          "bytes": 212608
+        }
+      },
+      "native_library": {
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/first-credential-installed-release-05/libq_periapt_continuity_c_consumer.dylib",
+        "sha256": "e22c4b7b1533916800f059032b31f740538d0bd6979d78a17577ede58a1e0b8b"
+      }
+    }
+  },
+  "invariants": [
+    "Expired original intent still refuses both fresh request and old credential activation (104)",
+    "Independent signed grant extends the same key and device under the original account",
+    "Missing/closed registry refuses new Commit dispatch (211/202) and failed C outputs remain untouched",
+    "Exactly one real Commit is applied; its signed TCP or encrypted TLS reply is lost (218)",
+    "Exact historical reconcile and terminal retry work without registry, with two signed exchanges and no new Commit",
+    "Historical recovery does not grant activation: missing registry still returns 211",
+    "Original signer, journal, session, message and one host business effect survive renewal",
+    "Peer independently admits the signed renewal before reopening the retained session"
+  ],
+  "maintainability": "Credential issuance, staging, commit/recovery and public export are separate helper functions. Existing registration, transport, ABI, witness and message engines are reused. No performance improvement is claimed from source length.",
+  "diagnostics": [
+    {
+      "run": "first-debug-01",
+      "cause": "Test client called current enrollment request before every operation, so the expired request blocked renewal before it ran. Kept request validity strict and used existing enrollment status for historical identity."
+    },
+    {
+      "run": "first-debug-02",
+      "cause": "New test decoder incorrectly used policy-status offset 8. Credential operation is at offset 4; C offsetof guards and named-field serialization now exclude padding."
+    },
+    {
+      "run": "first-debug-03",
+      "cause": "Receiver fixture shortcut validated the expired peer before using saved grants. The existing device/peer owner reopen path completes the original session with the admitted renewal."
+    }
+  ],
+  "parser_fixture": {
+    "file": "artifact/fixtures/first-credential-public-v1.zip",
+    "sha256": "b4ff5b8aa153e50278579077556c818c977e0b5c83ab4a6618907d982ce0157d",
+    "scope": "Actual prototype-04 public C Debug records; parser mutation controls, not independent signature verification"
+  },
+  "limits": [
+    "Swift/Kotlin first-use credential integration still pending",
+    "Same host and shared native engine; no independent endpoint or physical-device claim",
+    "No full SDK policy replacement, account replacement or release claim",
+    "No throughput, RSS or energy claim"
+  ],
+  "ci": [
+    {
+      "conclusion": "",
+      "databaseId": 38095891542,
+      "headSha": "252eb9540599d573c79af74797db22e3138dca51",
+      "name": "ci",
+      "status": "in_progress",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/38095891542"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 38095891553,
+      "headSha": "252eb9540599d573c79af74797db22e3138dca51",
+      "name": "CodeQL",
+      "status": "completed",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/38095891553"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 38095885467,
+      "headSha": "252eb9540599d573c79af74797db22e3138dca51",
+      "name": "ci",
+      "status": "in_progress",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/38095885467"
+    }
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 3567888,
+    "sha256": "5eb82b32f19fdc18cb0103fbd9dd4e79081164e64296e3ec3965e63e7c712eaf",
+    "members": 1823
+  }
+}

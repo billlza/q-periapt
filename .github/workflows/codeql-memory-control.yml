@@ -1,0 +1,59 @@
+name: CodeQL evaluator control
+
+on:
+  push:
+    branches: [lza/sdk-020-alpha1]
+    paths:
+      - .github/workflows/codeql-memory-control.yml
+      - artifact/codeql_memory_control.py
+      - artifact/codeql_memory_queries.json
+      - artifact/test_codeql_memory_control.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evaluate:
+    name: Frozen database, ${{ matrix.profile }} evaluator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        # Earlier allocation and cache controls did not complete SummaryStats.
+        # Test whether lower concurrency reduces the retained evaluator's cache
+        # pressure, keeping query plans, RAM and the execution bound identical.
+        profile: [baseline, single-thread]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Check archive admission, strict JSON and child cleanup
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_memory_control test_evidence_io
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        id: codeql
+        with:
+          tools: linked
+          languages: rust
+      - name: Evaluate all 39 original queries under a 15-minute bound
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEQL_BINARY: ${{ steps.codeql.outputs.codeql-path }}
+          CASE_PROFILE: ${{ matrix.profile }}
+        run: |
+          # Bound individual evaluator files as well as the Python-captured stream.
+          ulimit -f 2097152
+          sh artifact/python-run.sh artifact/codeql_memory_control.py \
+            --codeql "$CODEQL_BINARY" --profile "$CASE_PROFILE" \
+            --output "$RUNNER_TEMP/codeql-memory-$CASE_PROFILE"
+      - name: Retain evidence, including failures and incomplete evaluations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: codeql-memory-${{ matrix.profile }}
+          path: ${{ runner.temp }}/codeql-memory-${{ matrix.profile }}/evidence/**
+          if-no-files-found: error
+          retention-days: 14

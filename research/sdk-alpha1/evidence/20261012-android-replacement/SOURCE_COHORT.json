@@ -1,0 +1,10 @@
+{
+  "completed": true,
+  "host_and_ART_consumer_source_files": 90,
+  "library_rebuilt": false,
+  "consumer_only_changes": [
+    "src/androidTest/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java"
+  ],
+  "aar_sha256": "a75fee2406ee4716e39a5c557c774f9b39f366c28b99766281ff46ed5407aa30",
+  "native_engine_sha256": "305ec06391ad7bffe596a4ce8305729f9666af1dd4d45f944ba70fd152f27eaa"
+}

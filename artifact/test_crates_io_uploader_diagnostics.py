@@ -47,7 +47,8 @@ class UploaderDiagnosticTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        root = pathlib.Path(temporary.name)
+        # macOS can spell this owned directory through /var -> /private/var.
+        root = pathlib.Path(temporary.name).resolve(strict=True)
         self.root = root
         handoff = _write_cohort(root)
         output = root / "uploader"

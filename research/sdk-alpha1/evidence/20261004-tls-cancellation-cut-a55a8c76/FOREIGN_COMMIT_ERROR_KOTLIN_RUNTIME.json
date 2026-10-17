@@ -1,0 +1,11 @@
+{
+  "launcher": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/kotlin-client-commit-error-01",
+  "launcher_sha256": "8fe9ac0f1f5ded12726ea839395c800f25cdfc8a3b2b18b67be6a29bc27d1678",
+  "runtime_jars": {
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-foreign-commit-error-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-foreign-commit-error-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "655bc75dd7292cd4461adcc0b95ccac41e7a6f4198cc7143b2d528cee52dbf91",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-foreign-commit-error-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/consumer-foreign-commit-error-kotlin-consumer-01/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "c92882615b60cd19412e559fb7ac25e2bc26cb5c958eb7c305d30593ec07ef08"
+  },
+  "consumer_receipt": "foreign-commit-error-kotlin-consumer-01.json"
+}

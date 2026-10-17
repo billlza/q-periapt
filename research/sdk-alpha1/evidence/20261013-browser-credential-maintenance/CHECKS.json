@@ -1,0 +1,76 @@
+{
+  "capture": {
+    "bytes": 12250459,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "2bb42ef215e39db34247fd4a14926efbddbd07be171455229ff2bed832848c38",
+    "members": 5681,
+    "sha256": "d3faf67dd8acc347b6b9f060c9cc35d8044672bdcb1c7cd5e04db0e3511bfabe"
+  },
+  "case_count": 11,
+  "cases": [
+    "applied",
+    "cancel",
+    "cancel-unprepared",
+    "close-after-commit",
+    "closed",
+    "drop-ack",
+    "drop-commit",
+    "expired-original",
+    "local",
+    "unprepared",
+    "local-expired"
+  ],
+  "ci": {
+    "conclusion": "failure",
+    "quality_gate_reached": false,
+    "run": 38367781556,
+    "rust_job": 115198746245,
+    "unfinished_query": "SummaryStats"
+  },
+  "completed": true,
+  "package": {
+    "manifest_sha256": "dfb61fff497cd5b8ee0520c9125fceda063ddd3bfdf22d2b16ff222753e0460d",
+    "sha256": "ebdfd04a3858ec9b7cce231549a5a659d7dd12e2f6174e305fe2b97d862444d2",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "release_claim_eligible": false,
+  "scope": "Installed browser original same-key credential maintenance, required signed witness and local expiry. Original journal/prekey and actual credential predecessor inspected. Native issuer/witness share Rust implementation and loopback. Original established-session traffic across G, actual browser process-kill cuts, independent implementation, device/performance/PCS and full release remain separate qualification.",
+  "source": {
+    "base_commit": "2f46daa0d82fdc4e7905da3895db4c50be46a69d",
+    "overlay": {
+      "ARTIFACT.md": "46c7f3ee6f5a4ed20bd711e1fbee922262ff916d5a007bfa0a8830b6657c9552",
+      "artifact/codeql_rust_quality.py": "9f73e0212d1f05a354b1d459b59d950b4124d42762eeae549b40ae24da6d1e4d",
+      "artifact/test_codeql_rust_quality.py": "14e81d19489c790e321395dda9d9301b60eddacc5058519681cbd88ce1fc663d",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "4204e39bb67199fd4f36de18a5a1fe5ee6151e87b40344b8117f5dbc2d2f2430",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "931b9fa2658a2e12bb027a6d134ca859b8ada20cccb53d66b9000f0a8fd6c81f",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "13d7f2dc9b3950b86389cfbe978435c1e66abf4145ee8c17581275a79086fcd9",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "b8be02f97e2721844cf24aca2346990d0d0945f99af7eaf74e0b02adf48624d7",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs": "1a2f299c83b306a143815c6cb060d9af2ad48544a6213551da8b66b7b7f0bbc9",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs": "9a093daf5ac448609a962fc72dc72d000d47a5a4c0085471918848be26b5ee31",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "b79bd408bb36899c5ce9674ba260bc86069515b4f0aa198ef8a7d53f9eb82c1f",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "f41df6217bdb8d8b9a5ef4d30574f85e69690dd3d993443007cb9e6ea4de76b2",
+      "research/continuity-identity-candidate/src/anchor/store/retired_cleanup_tests.rs": "84a9505da975229de2c1a6e494dc77af61639a6fab6c714ef971367651d38258",
+      "research/continuity-identity-candidate/src/browser.rs": "d2680e781bdaf62ef4237904e15c8dd7640ee0ffca0de2764a25b91bab2d133b",
+      "research/continuity-identity-candidate/src/browser/credentials.rs": "b74ac76c173675f52e4b840032d1b5c22f628f4cb4773ff8acaa1cc8ec314e97",
+      "research/continuity-identity-candidate/src/durable/write_intent.rs": "a0801a1bc226b7890298c70fecfea2e82e104409daf9ae078f1ad0bee4784034",
+      "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs": "86e03d8bdb4c5fb19a531ff564eb5ce5f83bce7fc419a5170eeaef9f91f4a076",
+      "research/continuity-identity-candidate/src/enrollment.rs": "419ae37a575029caa6ddcfc8515b0e758b97700eca69c56882434253bda10cf8",
+      "research/continuity-identity-candidate/src/enrollment/renewal.rs": "9d98eca66daa843b10eccb7301df6ed339e418b0afa780588130f1199cc35068",
+      "research/continuity-identity-candidate/src/enrollment/renewal/storage.rs": "0998625752d23ec146179be39b26efab8e2538299923fb1528c0ff571add5d2e",
+      "research/continuity-identity-candidate/src/enrollment/renewal/witness.rs": "12e48f9ed96ff206d967574bdce4d103bc6bf5686829ceff3acab0599da9158d"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "browser": "155.0.8059.40",
+    "format": "passed",
+    "installed_base_browser_modes": 10,
+    "native_cancellation_inventory_cases": 1,
+    "native_clippy": "all targets -D warnings passed",
+    "native_witness_renewal_cases": 101,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "1.90.0 passed"
+  }
+}

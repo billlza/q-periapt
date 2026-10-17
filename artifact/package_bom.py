@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import pathlib
+from enum import Enum
 import re
 import stat
 import tomllib
 from typing import Any
 
-from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot
+from evidence_io import EvidenceIOError, load_json_object_snapshot, read_regular_snapshot, parse_strict_json_bytes
 
 
 MAX_BOM_BYTES = 16 * 1024 * 1024
@@ -36,6 +37,48 @@ EXPECTED_CRYPTO_ASSETS = frozenset(
         "SHA3-256",
         "SHAKE-256",
     }
+)
+
+
+class BomProfile(Enum):
+    """Closed reviewed inventories; new native packages cannot reuse the old nine."""
+
+    BACKENDS_V0_1_5 = "backends-v0.1.5"
+    NATIVE_SDK_020 = "native-sdk-020"
+
+
+def _native_sdk_algorithms() -> dict[str, tuple[str, frozenset[str], int | None]]:
+    rows = {}
+    for parameter, level in ((512, 1), (768, 3), (1024, 5)):
+        rows[f"ML-KEM-{parameter}"] = ("kem", frozenset(("keygen", "encapsulate", "decapsulate")), level)
+    for parameter, level in ((44, 2), (65, 3), (87, 5)):
+        rows[f"ML-DSA-{parameter}"] = ("signature", frozenset(("keygen", "sign", "verify")), level)
+    rows["X25519"] = ("key-agree", frozenset(("keygen", "keyderive")), 0)
+    rows["X25519MLKEM768"] = ("combiner", frozenset(("keygen", "encapsulate", "decapsulate")), None)
+    rows["Q-Periapt-ContextBound"] = ("combiner", frozenset(("keyderive",)), None)
+    for name in ("SHA-256", "SHA-384", "SHA-512", "SHA3-256", "SHAKE-256"):
+        rows[name] = ("xof" if name == "SHAKE-256" else "hash", frozenset(("digest",)), None)
+    for hash_name in ("SHA-256", "SHA-384"):
+        rows[f"HMAC-{hash_name}"] = ("mac", frozenset(("tag",)), None)
+        rows[f"HKDF-{hash_name}"] = ("kdf", frozenset(("keyderive",)), None)
+    for name in ("AES-128-GCM", "AES-256-GCM", "ChaCha20-Poly1305"):
+        rows[name] = ("ae", frozenset(("encrypt", "decrypt", "tag")), None)
+    for curve, signing_hash in (("P256", 256), ("P384", 384), ("P521", 512)):
+        for digest in (256, 384, 512):
+            functions = ("sign", "verify") if digest == signing_hash else ("verify",)
+            rows[f"ECDSA-{curve}-SHA-{digest}"] = ("signature", frozenset(functions), 0)
+    rows["Ed25519"] = ("signature", frozenset(("sign", "verify")), 0)
+    for digest in (256, 384, 512):
+        rows[f"RSA-PSS-SHA-{digest}"] = ("signature", frozenset(("sign", "verify")), 0)
+        rows[f"RSA-PKCS1v1.5-SHA-{digest}"] = ("signature", frozenset(("verify",)), 0)
+    return rows
+
+
+NATIVE_SDK_ALGORITHMS = _native_sdk_algorithms()
+NATIVE_TLS_SNAPSHOT_SHA256 = "d7ba7c197ae2820495a63b230a007536351c0745dfee050897bd53d494ba0bed"
+NATIVE_INVENTORY_SCOPE = (
+    "product algorithms and backend catalogue; not a census of transitive provider internals or OS RNG; "
+    "not a negotiated-session or security-validation claim"
 )
 
 
@@ -131,9 +174,54 @@ def _cargo_lock_components(cargo_lock: pathlib.Path) -> set[tuple[str, str, str]
     return expected
 
 
-def verify(package_root: pathlib.Path, *, cargo_lock: pathlib.Path | None) -> dict[str, int]:
+def _verify_native_sdk_cbom(document: dict, components: list[dict]) -> None:
+    metadata = document["metadata"]
+    _require(metadata["component"].get("version") == "0.2.0", "SDK CBOM version differs")
+    properties = metadata.get("properties")
+    _require(isinstance(properties, list) and len(properties) == 3, "SDK CBOM profile metadata differs")
+    facts = {}
+    for item in properties:
+        _require(isinstance(item, dict) and set(item) == {"name", "value"}, "SDK CBOM property differs")
+        _require(isinstance(item["name"], str) and isinstance(item["value"], str), "invalid SDK CBOM property")
+        _require(item["name"] not in facts, "duplicate SDK CBOM property")
+        facts[item["name"]] = item["value"]
+    _require(set(facts) == {"qperiapt:cbom-profile", "qperiapt:configured-tls-provider", "qperiapt:inventory-scope"}, "SDK CBOM property names differ")
+    _require(facts["qperiapt:cbom-profile"] == BomProfile.NATIVE_SDK_020.value, "SDK CBOM profile differs")
+    _require(facts["qperiapt:inventory-scope"] == NATIVE_INVENTORY_SCOPE, "SDK CBOM scope differs")
+    try:
+        reference = read_regular_snapshot(pathlib.Path(__file__).parent / "fixtures/sdk-native-020-tls-inventory.json",
+                                          maximum=65536, label="reviewed SDK TLS inventory")
+        _require(reference.sha256 == NATIVE_TLS_SNAPSHOT_SHA256, "reviewed TLS inventory identity differs")
+        expected = parse_strict_json_bytes(reference.data, label="reviewed SDK TLS inventory")
+        actual = parse_strict_json_bytes(facts["qperiapt:configured-tls-provider"].encode(), label="SDK TLS inventory")
+    except EvidenceIOError as exc:
+        raise PackageBomError(str(exc)) from exc
+    _require(actual == expected, "SDK configured TLS inventory differs")
+    _require({c["name"] for c in components} == set(NATIVE_SDK_ALGORITHMS), "SDK cryptographic asset inventory differs")
+    for component in components:
+        name = component["name"]
+        primitive, functions, level = NATIVE_SDK_ALGORITHMS[name]
+        algorithm = component["cryptoProperties"]["algorithmProperties"]
+        fields = {"primitive", "parameterSetIdentifier", "executionEnvironment", "implementationPlatform", "cryptoFunctions"}
+        if level is not None:
+            fields.add("nistQuantumSecurityLevel")
+            _require(type(algorithm.get("nistQuantumSecurityLevel")) is int and algorithm["nistQuantumSecurityLevel"] == level,
+                     f"SDK quantum category differs for {name}")
+        _require(set(algorithm) == fields, f"SDK algorithm fields differ for {name}")
+        _require(algorithm["primitive"] == primitive, f"SDK primitive differs for {name}")
+        declared = algorithm["cryptoFunctions"]
+        _require(all(isinstance(f, str) for f in declared) and len(declared) == len(functions) and set(declared) == functions,
+                 f"SDK functions differ for {name}")
+        _require(algorithm["executionEnvironment"] == "software-plain-ram" and algorithm["implementationPlatform"] == "generic",
+                 f"SDK execution scope differs for {name}")
+        _require(component.get("bom-ref") == "crypto/" + name.lower(), f"SDK asset reference differs for {name}")
+
+
+def verify(package_root: pathlib.Path, *, cargo_lock: pathlib.Path | None,
+           profile: BomProfile = BomProfile.BACKENDS_V0_1_5) -> dict[str, int]:
     """Verify exact crypto assets and, when supplied, the complete Cargo.lock SBOM."""
 
+    _require(isinstance(profile, BomProfile), "unknown BOM verification profile")
     original = pathlib.Path(package_root)
     try:
         metadata = original.lstat()
@@ -163,8 +251,12 @@ def verify(package_root: pathlib.Path, *, cargo_lock: pathlib.Path | None) -> di
         _require(isinstance(algorithm.get("primitive"), str) and algorithm["primitive"], f"CBOM primitive is missing for {name}")
         _require(algorithm.get("parameterSetIdentifier") == name, f"CBOM parameter set differs for {name}")
         _require(isinstance(algorithm.get("cryptoFunctions"), list) and algorithm["cryptoFunctions"], f"CBOM functions are missing for {name}")
-        _require(type(algorithm.get("nistQuantumSecurityLevel")) is int, f"CBOM NIST level is missing for {name}")
-    _require(seen_crypto == EXPECTED_CRYPTO_ASSETS, "CBOM cryptographic asset inventory differs")
+        if profile is BomProfile.BACKENDS_V0_1_5:
+            _require(type(algorithm.get("nistQuantumSecurityLevel")) is int, f"CBOM NIST level is missing for {name}")
+    if profile is BomProfile.NATIVE_SDK_020:
+        _verify_native_sdk_cbom(cbom, cbom_components)
+    else:
+        _require(seen_crypto == EXPECTED_CRYPTO_ASSETS, "CBOM cryptographic asset inventory differs")
 
     actual_sbom: set[tuple[str, str, str]] = set()
     for component in sbom_components:

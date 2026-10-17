@@ -1,0 +1,67 @@
+use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN};
+use q_periapt_core::ZeroizingBytes;
+use q_periapt_host_store::{PolicyRecoveryAuthorization, PolicyRecoveryOutcome, PolicyRecoveryRequest, PolicyRecoveryTrust, PolicyStore, StoreError};
+use q_periapt_policy::policy_signature_message;
+use q_periapt_sdk::{Error, Limits};
+use q_periapt_sig::Signer;
+use std::path::PathBuf;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut args=std::env::args().skip(1);
+    let phase=args.next().ok_or("phase required")?;
+    let dir=PathBuf::from(args.next().ok_or("private output directory required")?).canonicalize()?;
+    if args.next().is_some(){return Err("unexpected argument".into());}
+    // Public deterministic test genesis. The independent incoming/recovery
+    // private keys are held only by the separate OpenSSL test controller.
+    let (initial_key, initial_root)=MlDsa65::generate([91;32]);
+    let initial_key=ZeroizingBytes::from_bytes(initial_key);
+    let recovery=std::fs::read(dir.join("recovery.raw"))?;
+    let incoming=std::fs::read(dir.join("incoming.raw"))?;
+    let trust=PolicyRecoveryTrust::new([50;32],&initial_root,&recovery)?;
+    let old=format!("schema_version = 1\npolicy_version = {}\nmin_nist_level = 3\ndefault_profile = \"ContextBound\"\nallowed_kems = [\"ML-KEM-768\", \"X25519\"]\nallowed_sigs = [\"ML-DSA-65\"]\ndeprecated = []\n",u32::MAX).into_bytes();
+    let mut old_signature=vec![0;ML_DSA_65_SIG_LEN];
+    MlDsa65.sign(initial_key.as_bytes(),&policy_signature_message(&old),&[0;32],&mut old_signature).map_err(Error::from)?;
+    let path=dir.join("policy.redb");
+    match phase.as_str() {
+        "messages" => {
+            let policy=b"schema_version = 1\npolicy_version = 1\nmin_nist_level = 3\ndefault_profile = \"ContextBound\"\nallowed_kems = [\"ML-KEM-1024\", \"X25519\"]\nallowed_sigs = [\"ML-DSA-65\"]\ndeprecated = []\n";
+            std::fs::write(dir.join("initial-policy.toml"),&old)?;
+            std::fs::write(dir.join("initial.raw"),initial_root)?;
+            std::fs::write(dir.join("target.toml"),policy)?;
+            std::fs::write(dir.join("policy-message.bin"),policy_signature_message(policy))?;
+            std::fs::write(dir.join("enrollment-message.bin"),trust.enrollment_message())?;
+            println!("PUBLIC_MESSAGES_READY");
+        }
+        "prepare" => {
+            let store=PolicyStore::provision_recoverable(&path,&old,&old_signature,&trust,&std::fs::read(dir.join("enrollment.sig"))?,Limits::default())?;
+            let request=store.prepare_authority_recovery([17;32],&std::fs::read(dir.join("target.toml"))?,&std::fs::read(dir.join("policy.sig"))?,&incoming)?;
+            std::fs::write(dir.join("request.bin"),request.to_bytes())?;
+            std::fs::write(dir.join("authorization-message.bin"),request.authorization_message())?;
+            std::fs::write(dir.join("possession-message.bin"),request.possession_message())?;
+            println!("OPENSSL_ENROLLMENT_AND_POLICY_ACCEPTED");
+        }
+        "apply" => {
+            let request=PolicyRecoveryRequest::from_bytes(&std::fs::read(dir.join("request.bin"))?)?;
+            let approval=std::fs::read(dir.join("authorization.sig"))?;
+            let possession=std::fs::read(dir.join("possession.sig"))?;
+            let auth=PolicyRecoveryAuthorization::new(request.clone(),&approval,&possession)?;
+            let wrong=PolicyRecoveryAuthorization::new(request,&possession,&approval)?;
+            let policy=std::fs::read(dir.join("target.toml"))?;
+            let signature=std::fs::read(dir.join("policy.sig"))?;
+            let mut store=PolicyStore::open_recoverable(&path,&trust,Limits::default())?;
+            let old=store.runtime()?;
+            assert!(old.is_enabled()?);
+            assert!(matches!(store.recover_authority(&wrong,&policy,&signature),Err(StoreError::RecoveryDenied)));
+            assert!(old.is_enabled()?);
+            assert_eq!(store.recover_authority(&auth,&policy,&signature)?,PolicyRecoveryOutcome::Applied);
+            assert!(matches!(old.is_enabled(),Err(Error::Closed)));
+            assert!(!store.runtime()?.is_enabled()?);
+            store.close();
+            let (store,status)=PolicyStore::open_recovering(&path,&trust,&auth,&policy,&signature,Limits::default())?;
+            assert_eq!(status,PolicyRecoveryOutcome::AlreadyApplied);
+            assert!(!store.runtime()?.is_enabled()?);
+            println!("OPENSSL_ROOT_RECOVERY_APPLIED_AND_REOPENED; SWAPPED_ROLES_REJECTED");
+        }
+        _=>return Err("unknown phase".into()),
+    }
+    Ok(())
+}

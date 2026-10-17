@@ -1,0 +1,9 @@
+{
+  "capture_sha256": "f61b032f2d7c6c626d57bd208901d1f02d61335c716f120f2c38d6d457975955",
+  "checked_obligations": 8,
+  "completed": true,
+  "honest_witness_independently_replayed": true,
+  "main_secrecy_verified": false,
+  "members": 148,
+  "private_sdk_runtime_data_selected": false
+}

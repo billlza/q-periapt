@@ -1275,7 +1275,7 @@ class CAbiContractTests(unittest.TestCase):
                         ),
                         row(
                             "q_periapt_ffi_abi2.object.o",
-                            "qpn_mlkem_bridge_v1_2_0_768_decapsulate",
+                            "qpn_mlkem_bridge_v2_0_0_768_decapsulate",
                         ),
                     ]
                     if platform == "windows":

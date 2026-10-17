@@ -3,6 +3,11 @@
 
 [CmdletBinding()]
 param(
+    [ValidateSet("legacy", "sdk-020")]
+    [string] $Profile = "legacy",
+
+    [string] $OutputRoot = "",
+
     [ValidateSet("Build", "VerifyArchive")]
     [string] $Mode = "Build",
 
@@ -22,21 +27,53 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $PSNativeCommandUseErrorActionPreference = $false
+$Profile = $Profile.ToLowerInvariant()
 
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 Set-Location -LiteralPath $Root
 
 $Version = "0.1.5"
 $Target = "x86_64-pc-windows-msvc"
-$PackageName = "q-periapt-c-abi2-$Version-$Target"
 $OutRoot = Join-Path $Root "target/qperiapt-windows-package"
+$ContractRelative = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+$EmbeddedContract = "share/q-periapt/abi/q-periapt-c-abi-v2.json"
+if ($Profile -eq "sdk-020") {
+    $Version = "0.2.0"
+    $ContractRelative = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+    $EmbeddedContract = "share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
+    $OutRoot = Join-Path $Root "target/qperiapt-windows-sdk-020"
+    if ($OutputRoot) {
+        $OutRoot = [System.IO.Path]::GetFullPath($OutputRoot)
+        $targetPrefix = [System.IO.Path]::GetFullPath((Join-Path $Root "target")) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $OutRoot.StartsWith($targetPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "SDK output must be under this checkout's target directory"
+        }
+    }
+    if ($Mode -eq "Build" -and (Test-Path -LiteralPath $OutRoot)) {
+        throw "SDK output already exists; retain the attempt and select a fresh -OutputRoot"
+    }
+} elseif ($OutputRoot) {
+    throw "-OutputRoot is available only with -Profile sdk-020"
+}
+$PackageName = "q-periapt-c-abi2-$Version-$Target"
 $PackageRoot = Join-Path $OutRoot $PackageName
 $DefaultArchive = Join-Path $OutRoot "$PackageName.zip"
 $VerifyRoot = Join-Path $OutRoot "verify-$PackageName"
 $DynamicTarget = Join-Path $Root "target/qperiapt-windows-dynamic"
 $StaticTarget = Join-Path $Root "target/qperiapt-windows-static"
+if ($Profile -eq "sdk-020") {
+    $DynamicTarget = Join-Path $OutRoot "native-dynamic"
+    $StaticTarget = Join-Path $OutRoot "native-static"
+    $VerifyRoot = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) (
+        "qperiapt-windows-sdk-consumer-" + [System.Guid]::NewGuid().ToString("N")
+    )))
+    if ($VerifyRoot.StartsWith($Root + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "installed SDK consumers must be outside the checkout"
+    }
+    Write-Host "WINDOWS_SDK_CONSUMER_ROOT=$VerifyRoot"
+}
 $Header = Join-Path $Root "crates/q-periapt-ffi/include/q_periapt.h"
-$Contract = Join-Path $Root "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+$Contract = Join-Path $Root $ContractRelative
 $Fixture = Join-Path $Root "bindings/c/signed_policy_fixture.h"
 $Smoke = Join-Path $Root "bindings/c/smoke.c"
 $MsvcVersionProbe = Join-Path $Root "artifact/msvc-version-probe.c"
@@ -49,10 +86,15 @@ function Invoke-Captured {
         [AllowEmptyCollection()]
         [string[]] $Arguments,
         [switch] $Echo,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        # Only use with a tool mode whose entire output is explicitly public.
+        [switch] $PublicOutput
     )
 
     $process = $null
+    $stdout = ""
+    $stderr = ""
+    $exitStatus = "not-started"
     try {
         $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
         $startInfo.FileName = $FilePath
@@ -73,7 +115,8 @@ function Invoke-Captured {
         $process.WaitForExit()
         $stdout = $stdoutTask.GetAwaiter().GetResult()
         $stderr = $stderrTask.GetAwaiter().GetResult()
-        if ($Echo -and -not $RedactArguments) {
+        $exitStatus = [string] $process.ExitCode
+        if ($Echo -and (-not $RedactArguments -or $PublicOutput)) {
             if ($stdout.Length -gt 0) { [Console]::Out.Write($stdout) }
             if ($stderr.Length -gt 0) { [Console]::Error.Write($stderr) }
         }
@@ -84,6 +127,9 @@ function Invoke-Captured {
             $detail = ($stderr + "`n" + $stdout).Trim()
             throw "native command failed ($($process.ExitCode)): $FilePath $($Arguments -join ' ')`n$detail"
         }
+        if ($Profile -eq "sdk-020" -and ($stdout + "`n" + $stderr) -match '(?im)\b(?:warning|error)(?:\s+[A-Z]+\d+)?\s*:|\bCMake (?:Deprecation )?(?:Warning|Error)\b') {
+            throw "SDK command emitted a warning or error despite its zero exit status"
+        }
         return [pscustomobject]@{
             Stdout = $stdout
             Stderr = $stderr
@@ -91,8 +137,10 @@ function Invoke-Captured {
     }
     catch {
         if ($RedactArguments) {
+            $detail = if ($PublicOutput) { "`n" + ($stderr + "`n" + $stdout).Trim() } else { "" }
+            $redactionLabel = if ($PublicOutput) { "<redacted invocation>" } else { "<redacted invocation and output>" }
             throw [System.InvalidOperationException]::new(
-                "native command failed: <redacted invocation and output>"
+                "native command failed (exit=$exitStatus): $redactionLabel$detail"
             )
         }
         throw
@@ -110,19 +158,22 @@ function Invoke-Checked {
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
         [string[]] $Arguments,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        [switch] $PublicOutput
     )
     [void] (Invoke-Captured `
         -FilePath $FilePath `
         -Arguments $Arguments `
         -Echo `
-        -RedactArguments:$RedactArguments)
+        -RedactArguments:$RedactArguments `
+        -PublicOutput:$PublicOutput)
 }
 
 function Invoke-PythonChecked {
     param(
         [Parameter(Mandatory)] [string[]] $Arguments,
-        [switch] $RedactArguments
+        [switch] $RedactArguments,
+        [switch] $PublicOutput
     )
 
     $invocationArguments = @(
@@ -131,7 +182,8 @@ function Invoke-PythonChecked {
     Invoke-Checked `
         -FilePath $Python `
         -Arguments $invocationArguments `
-        -RedactArguments:$RedactArguments
+        -RedactArguments:$RedactArguments `
+        -PublicOutput:$PublicOutput
 }
 
 function Get-TrimmedOutput {
@@ -226,6 +278,7 @@ function Assert-TrustedBuildEnvironment {
         '^(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)_.+$|' +
         '^.+_(?:AR|ARFLAGS|CC|CFLAGS|CPPFLAGS|CXX|CXXFLAGS|RANLIB|RANLIBFLAGS)$|' +
         '^CARGO_PROFILE_.+$|' +
+        '^AWS_LC_(?:FIPS_)?SYS_.+$|' +
         '^CARGO_TARGET_.+_(?:AR|LINKER|RUNNER|RUSTDOCFLAGS|RUSTFLAGS)$|' +
         '^GIT_CONFIG_(?:KEY|VALUE)_[0-9]+$',
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
@@ -314,6 +367,113 @@ function Assert-NoAmbientCargoConfiguration {
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) {
             throw "Windows package tooling rejects ambient Cargo configuration files"
+        }
+    }
+}
+
+function New-SdkCargoHome {
+    # Keep the cache separate from the checkout so every compiler remap has a
+    # distinct root. Leave it in place for inspection, including failed builds.
+    $privateCache = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) (
+        "qperiapt-windows-sdk-cargo-" + [System.Guid]::NewGuid().ToString("N")
+    )))
+    New-Item -ItemType Directory -Path $privateCache | Out-Null
+    return $privateCache
+}
+
+function Get-SdkStaticSymbolEntries {
+    param([Parameter(Mandatory)] [string] $Nm, [Parameter(Mandatory)] [string] $Library)
+    $text = Get-TrimmedOutput -FilePath $Nm -Arguments @("--extern-only", "--format=posix", $Library)
+    $entries = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in ($text -split "`r?`n")) {
+        if (-not $line -or $line.EndsWith(':', [System.StringComparison]::Ordinal)) { continue }
+        $record = [regex]::Match($line, '^(\S+)\s+([A-Za-z?])\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)$')
+        if (-not $record.Success) { throw "LLVM external symbol entry has an unexpected format" }
+        [void] $entries.Add(($record.Groups[1..4].Value -join ' '))
+    }
+    if ($entries.Count -eq 0) { throw "SDK static archive has no external symbol entries" }
+    return $entries -join "`n"
+}
+
+function New-SdkStaticDistributionLibrary {
+    param(
+        [Parameter(Mandatory)] [string] $Source,
+        [Parameter(Mandatory)] [string] $Destination,
+        [Parameter(Mandatory)] [string] $Strip,
+        [Parameter(Mandatory)] [string] $Ar,
+        [Parameter(Mandatory)] [string] $Nm
+    )
+    if (Test-Path -LiteralPath $Destination) { throw "SDK static distribution output already exists" }
+    $sourceHash = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash
+    $before = Get-SdkStaticSymbolEntries -Nm $Nm -Library $Source
+    # Preserve the compiler archive. First normalize FILE filenames, then let
+    # LLVM strip copied CodeView-bearing NASM objects. Plain objects and short
+    # imports stay byte-identical when LLVM rebuilds the archive index.
+    $filenameCopy = $Destination + ".filenames"
+    Invoke-PythonChecked -Arguments @(
+        "artifact/windows_package.py", "create-static-distribution-copy",
+        "--source", $Source, "--destination", $filenameCopy
+    )
+    Invoke-PythonChecked -Arguments @(
+        "artifact/windows_package.py", "strip-static-debug",
+        "--source", $filenameCopy, "--destination", $Destination,
+        "--llvm-strip", $Strip, "--llvm-ar", $Ar
+    )
+    $after = Get-SdkStaticSymbolEntries -Nm $Nm -Library $Destination
+    if (-not $before -or $before -cne $after) { throw "SDK static debug copy changed external symbol entries" }
+    if ((Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash -cne $sourceHash) {
+        throw "SDK static debug copy changed its source archive"
+    }
+    Write-Host "WINDOWS_SDK_STATIC_DEBUG_COPY_PASS"
+}
+
+function Get-WindowsShortPath {
+    param([Parameter(Mandatory)] [string] $Path)
+    if (-not [System.OperatingSystem]::IsWindows()) { throw "Windows path aliases require Windows" }
+    if (-not ("QPeriapt.BuildPathNames" -as [type])) {
+        Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+using System.Text;
+namespace QPeriapt {
+    public static class BuildPathNames {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        public static extern uint GetShortPathNameW(string path, StringBuilder buffer, uint capacity);
+    }
+}
+'@
+    }
+    $capacity = [QPeriapt.BuildPathNames]::GetShortPathNameW($Path, $null, 0)
+    if ($capacity -eq 0 -or $capacity -gt 32768) { throw "Windows short path size query failed" }
+    $buffer = [System.Text.StringBuilder]::new([int] $capacity)
+    $length = [QPeriapt.BuildPathNames]::GetShortPathNameW($Path, $buffer, $capacity)
+    if ($length -eq 0 -or $length -ge $capacity) { throw "Windows short path changed or could not be resolved" }
+    return $buffer.ToString()
+}
+
+function Assert-SdkCPathRemapping {
+    param(
+        [Parameter(Mandatory)] [string] $Compiler,
+        [Parameter(Mandatory)] [string[]] $Flags,
+        [Parameter(Mandatory)] [string] $OutputDirectory,
+        [Parameter(Mandatory)] [string] $CargoDirectory
+    )
+    foreach ($probe in @(
+        @{ Scope = "source"; Directory = $OutputDirectory; Prefix = "qperiapt-source" },
+        @{ Scope = "cargo"; Directory = $CargoDirectory; Prefix = "qperiapt-cargo-home" }
+    )) {
+        $path = Join-Path $probe.Directory "qperiapt-pathmap-probe.c"
+        Write-Utf8File -Path $path -Content "__FILE__`n"
+        foreach ($spelling in @(
+            @{ Kind = "long"; Path = $path },
+            @{ Kind = "short"; Path = (Get-WindowsShortPath -Path $path) }
+        )) {
+            $literal = Get-TrimmedOutput -FilePath $Compiler -Arguments (@("/nologo", "/EP") + $Flags + @($spelling.Path))
+            try { $mappedPath = ConvertFrom-Json -InputObject $literal -NoEnumerate }
+            catch { throw "MSVC path remap probe emitted noncanonical preprocessing output" }
+            $mapped = $mappedPath -is [string] -and $mappedPath.Replace('/', '\').StartsWith(
+                $probe.Prefix + '\', [System.StringComparison]::Ordinal)
+            Write-Host "WINDOWS_SDK_C_PATHMAP scope=$($probe.Scope) spelling=$($spelling.Kind) mapped=$mapped"
+            if (-not $mapped) { throw "MSVC $($probe.Scope) path remapping did not affect __FILE__" }
         }
     }
 }
@@ -1060,14 +1220,12 @@ function Initialize-MsvcEnvironment {
     return $installation
 }
 
-function Assert-ImportLibrary {
+function Assert-ImportLibrarySymbols {
     param(
-        [Parameter(Mandatory)] [string] $ImportLibrary,
-        [Parameter(Mandatory)] [string] $Dumpbin
+        [Parameter(Mandatory)] [string] $Output
     )
 
-    $output = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/linkermember:1", $ImportLibrary)).Stdout
-    if ($output -notmatch '__IMPORT_DESCRIPTOR_q_periapt_ffi_abi2') {
+    if ($Output -notmatch '__IMPORT_DESCRIPTOR_q_periapt_ffi_abi2\b') {
         throw "import library is not bound to q_periapt_ffi_abi2.dll"
     }
     $expected = @(
@@ -1081,14 +1239,40 @@ function Assert-ImportLibrary {
         "q_periapt_status_name",
         "q_periapt_version"
     )
+    if ($Profile -eq "sdk-020") {
+        $contractDocument = Get-Content -LiteralPath $Contract -Raw | ConvertFrom-Json
+        $expected = @($contractDocument.abi.exports | ForEach-Object { $_.name } | Sort-Object -CaseSensitive)
+        if ($expected.Count -ne 51 -or @($expected | Sort-Object -Unique -CaseSensitive).Count -ne 51) {
+            throw "SDK import-library contract export inventory differs"
+        }
+        # /LINKERMEMBER:1 emits each public symbol with its member offset.
+        # Both the callable thunk and its import-address symbol are required.
+        foreach ($prefix in @("", "__imp_")) {
+            $pattern = '(?m)^[ \t]*[0-9A-Fa-f]+[ \t]+' + $prefix + '(?<name>q_periapt_[^\s]+)[ \t]*\r?$'
+            $observed = @([regex]::Matches($Output, $pattern) | ForEach-Object { $_.Groups["name"].Value } | Sort-Object -CaseSensitive)
+            if ($observed.Count -ne $expected.Count -or ($observed -join ",") -cne ($expected -join ",")) {
+                throw "SDK import-library public symbols differ from the exact 51-export contract"
+            }
+        }
+    }
     foreach ($symbol in $expected) {
-        if ($output -notmatch "(?m)\b$([regex]::Escape($symbol))\b") {
+        if ($Output -notmatch "(?m)\b$([regex]::Escape($symbol))\b") {
             throw "import library is missing ABI2 symbol: $symbol"
         }
     }
-    if ($output -match '(?m)\bq_periapt_(?:combine|hybrid_|mlkem|x25519)') {
+    if ($Output -match '(?m)\bq_periapt_(?:combine|hybrid_|mlkem|x25519)') {
         throw "import library exposes a forbidden legacy/raw symbol"
     }
+}
+
+function Assert-ImportLibrary {
+    param(
+        [Parameter(Mandatory)] [string] $ImportLibrary,
+        [Parameter(Mandatory)] [string] $Dumpbin
+    )
+
+    $output = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/linkermember:1", $ImportLibrary)).Stdout
+    Assert-ImportLibrarySymbols -Output $output
 }
 
 function Assert-IncompatibleStaticCrtRejected {
@@ -1159,7 +1343,7 @@ function Assert-NativePackage {
     Assert-ImportLibrary -ImportLibrary $importLibrary -Dumpbin $Dumpbin
     Invoke-PythonChecked -Arguments @(
         "artifact/c_abi_contract.py",
-        "--contract", (Join-Path $Extracted "share/q-periapt/abi/q-periapt-c-abi-v2.json"),
+        "--contract", (Join-Path $Extracted $EmbeddedContract),
         "--header", (Join-Path $Extracted "include/qperiapt/abi2/q_periapt.h"),
         "--library", $dll,
         "--static-library", $staticLibrary,
@@ -1168,6 +1352,7 @@ function Assert-NativePackage {
     )
     $manifestVerificationArguments = @(
         "artifact/windows_package.py", "verify",
+        "--profile", $Profile,
         "--package-root", $Extracted,
         "--repository-root", $Root,
         "--dumpbin", $Dumpbin,
@@ -1189,9 +1374,17 @@ function Assert-NativePackage {
     New-Item -ItemType Directory -Path $ConsumerRoot -Force | Out-Null
     $dynamicExe = Join-Path $ConsumerRoot "dynamic-smoke.exe"
     $staticExe = Join-Path $ConsumerRoot "static-smoke.exe"
+    $legacyInclude = Join-Path $Extracted "include/qperiapt/abi2"
+    if ($Profile -eq "sdk-020") {
+        $legacyInclude = Join-Path $Extracted "share/q-periapt/legacy"
+        # Put the selected archive's DLL beside the executable, ahead of the
+        # working directory and PATH in Windows' normal DLL search order.
+        Copy-Item -LiteralPath $dll -Destination (Join-Path $ConsumerRoot "q_periapt_ffi_abi2.dll")
+    }
     Invoke-Checked -FilePath $Cl -Arguments @(
         "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", "/MD",
         (Join-Path $Extracted "share/q-periapt/smoke.c"),
+        "/I$legacyInclude",
         "/I$Extracted\include\qperiapt\abi2",
         "/Fe:$dynamicExe", "/Fo:$ConsumerRoot\dynamic-smoke.obj",
         "/link", "/WX", $importLibrary
@@ -1208,6 +1401,7 @@ function Assert-NativePackage {
     $staticArguments = @(
         "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", "/MD",
         (Join-Path $Extracted "share/q-periapt/smoke.c"),
+        "/I$legacyInclude",
         "/I$Extracted\include\qperiapt\abi2",
         "/Fe:$staticExe", "/Fo:$ConsumerRoot\static-smoke.obj",
         "/link", "/WX", $staticLibrary
@@ -1231,6 +1425,33 @@ function Assert-NativePackage {
         -StaticLibrary $staticLibrary `
         -NativeStaticLibraries $NativeStaticLibraries `
         -ConsumerRoot $ConsumerRoot
+
+    if ($Profile -eq "sdk-020") {
+        foreach ($linkage in @("dynamic", "static")) {
+            $sdkExe = Join-Path $ConsumerRoot "sdk-$linkage-smoke.exe"
+            $sdkLibrary = if ($linkage -eq "dynamic") { $importLibrary } else { $staticLibrary }
+            $sdkArguments = @(
+                "/nologo", "/std:c11", "/W4", "/WX", "/utf-8", "/MD",
+                (Join-Path $Extracted "share/q-periapt/sdk_smoke.c"),
+                "/I$Extracted\include\qperiapt\abi2",
+                "/Fe:$sdkExe", "/Fo:$ConsumerRoot\sdk-$linkage-smoke.obj",
+                "/link", "/WX", $sdkLibrary
+            )
+            if ($linkage -eq "static") { $sdkArguments += $NativeStaticLibraries }
+            Invoke-Checked -FilePath $Cl -Arguments $sdkArguments
+            $savedPath = $env:PATH
+            try {
+                $env:PATH = "$env:SystemRoot\System32"
+                Invoke-Checked -FilePath $sdkExe -Arguments @()
+            } finally {
+                $env:PATH = $savedPath
+            }
+            $sdkDependencies = (Invoke-Captured -FilePath $Dumpbin -Arguments @("/nologo", "/dependents", $sdkExe)).Stdout
+            if (($linkage -eq "static") -and ($sdkDependencies -match '(?i)q_periapt_ffi_abi2\.dll')) {
+                throw "static SDK consumer unexpectedly depends on q_periapt_ffi_abi2.dll"
+            }
+        }
+    }
 
     $cmakeSource = Join-Path $VerifyRoot "cmake-consumer-source"
     $cmakeBuild = Join-Path $VerifyRoot "cmake-consumer-build"
@@ -1268,6 +1489,34 @@ enable_testing()
 add_test(NAME dynamic-smoke COMMAND dynamic-smoke)
 add_test(NAME static-smoke COMMAND static-smoke)
 '@.Replace("@VERSION@", $Version)
+    if ($Profile -eq "sdk-020") {
+        Copy-Item -LiteralPath (Join-Path $Extracted "share/q-periapt/sdk_smoke.c") -Destination (Join-Path $cmakeSource "sdk_smoke.c")
+        Copy-Item -LiteralPath (Join-Path $Extracted "share/q-periapt/legacy/q_periapt.h") -Destination (Join-Path $cmakeSource "q_periapt.h")
+        # The old smoke uses the frozen header next to its source. Keep the SDK
+        # source in its own directory so it sees the new imported include path.
+        $sdkSource = Join-Path $cmakeSource "sdk"
+        New-Item -ItemType Directory -Path $sdkSource | Out-Null
+        Move-Item -LiteralPath (Join-Path $cmakeSource "sdk_smoke.c") -Destination (Join-Path $sdkSource "sdk_smoke.c")
+        $cmakeLists += @'
+
+foreach(linkage IN ITEMS dynamic static)
+  add_executable(sdk-${linkage}-smoke sdk/sdk_smoke.c)
+  set_property(TARGET sdk-${linkage}-smoke PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+  target_compile_features(sdk-${linkage}-smoke PRIVATE c_std_11)
+  target_compile_options(sdk-${linkage}-smoke PRIVATE /W4 /WX)
+  target_link_options(sdk-${linkage}-smoke PRIVATE /WX)
+  if(linkage STREQUAL "dynamic")
+    target_link_libraries(sdk-${linkage}-smoke PRIVATE QPeriaptABI2::qperiapt)
+    add_custom_command(TARGET sdk-${linkage}-smoke POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:QPeriaptABI2::qperiapt>" "$<TARGET_FILE_DIR:sdk-${linkage}-smoke>")
+  else()
+    target_link_libraries(sdk-${linkage}-smoke PRIVATE QPeriaptABI2::qperiapt_static)
+  endif()
+  add_test(NAME sdk-${linkage}-smoke COMMAND sdk-${linkage}-smoke)
+endforeach()
+'@
+    }
     Write-Utf8File -Path (Join-Path $cmakeSource "CMakeLists.txt") -Content $cmakeLists
     Invoke-Checked -FilePath "cmake.exe" -Arguments @(
         "-S", $cmakeSource, "-B", $cmakeBuild, "-A", "x64",
@@ -1279,6 +1528,13 @@ add_test(NAME static-smoke COMMAND static-smoke)
     )
     Invoke-Checked -FilePath "cmake.exe" -Arguments @("--build", $cmakeBuild, "--config", "Release")
     Invoke-Checked -FilePath "ctest.exe" -Arguments @("--test-dir", $cmakeBuild, "-C", "Release", "--output-on-failure")
+    if ($Profile -eq "sdk-020") {
+        $testList = (Get-TrimmedOutput -FilePath "ctest.exe" -Arguments @("--test-dir", $cmakeBuild, "-C", "Release", "--show-only=json-v1")) | ConvertFrom-Json
+        $testNames = @($testList.tests | ForEach-Object { $_.name } | Sort-Object)
+        if (($testNames -join ",") -cne "dynamic-smoke,sdk-dynamic-smoke,sdk-static-smoke,static-smoke") {
+            throw "Windows SDK CMake consumer test inventory differs"
+        }
+    }
 
     $negativeSource = Join-Path $VerifyRoot "cmake-negative-source"
     $negativeBuild = Join-Path $VerifyRoot "cmake-negative-build"
@@ -1297,6 +1553,18 @@ endif()
         "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
         "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF"
     )
+    if ($Profile -eq "sdk-020") {
+        $originalDll = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+        foreach ($consumerDll in @(
+            (Join-Path $ConsumerRoot "q_periapt_ffi_abi2.dll"),
+            (Join-Path $cmakeBuild "Release/q_periapt_ffi_abi2.dll")
+        )) {
+            if ((Get-FileHash -LiteralPath $consumerDll -Algorithm SHA256).Hash -cne $originalDll) {
+                throw "Windows SDK consumer selected different DLL bytes"
+            }
+        }
+        Invoke-PythonChecked -Arguments ([string[]] $manifestVerificationArguments) -RedactArguments
+    }
 }
 
 function Verify-WindowsArchive {
@@ -1316,6 +1584,7 @@ function Verify-WindowsArchive {
         throw "Windows package archive is missing: $ArchivePath"
     }
     if (Test-Path -LiteralPath $VerifyRoot) {
+        if ($Profile -eq "sdk-020") { throw "SDK consumer directory already exists; retain the previous attempt" }
         Remove-Item -LiteralPath $VerifyRoot -Recurse -Force
     }
     $extracted = Join-Path $VerifyRoot $PackageName
@@ -1335,12 +1604,22 @@ function Verify-WindowsArchive {
         -ProducerRoots $ProducerRoots `
         -TrustedGitCommit $TrustedGitCommit `
         -TrustedGitTree $TrustedGitTree)
+    if ((Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedArchiveSha256) {
+        throw "Windows archive changed during consumer execution"
+    }
     Write-Host "WINDOWS_C_ABI_PACKAGE_VERIFY_PASS"
 }
 
 Assert-TrustedBuildEnvironment
 $CargoHome = Resolve-CargoHome
+$OriginalCargoHome = $CargoHome
 Assert-NoAmbientCargoConfiguration -SourceRoot $Root -CargoHome $CargoHome
+if ($Profile -eq "sdk-020" -and $Mode -eq "Build") {
+    # Do not inherit ambient Cargo configuration or credentials. Both Rust and
+    # C dependency paths receive their own explicit compiler remap below.
+    $CargoHome = New-SdkCargoHome
+    Write-Host "WINDOWS_SDK_CARGO_HOME=$CargoHome"
+}
 $MsvcInstallation = Initialize-MsvcEnvironment
 Assert-TrustedBuildEnvironment
 $MsvcTools = Resolve-TrustedMsvcX64Tools -MsvcInstallation $MsvcInstallation
@@ -1348,7 +1627,7 @@ $Cl = $MsvcTools.Cl
 $Dumpbin = $MsvcTools.Dumpbin
 $Linker = $MsvcTools.Linker
 [void] (Set-TrustedMsvcPath -TrustedBin $MsvcTools.Bin -Linker $Linker)
-$RustSysrootText = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--print", "sysroot")
+$RustSysrootText = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--print", "sysroot")
 if (-not [System.IO.Path]::IsPathFullyQualified($RustSysrootText)) {
     throw "Rust sysroot must be absolute"
 }
@@ -1367,29 +1646,47 @@ $WindowsDirectory = [System.IO.Path]::GetFullPath(
         [System.Environment+SpecialFolder]::Windows
     )
 )
-$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "-vV")
+$RustHostOutput = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "-vV")
 $RustHostMatch = [regex]::Match($RustHostOutput, '(?m)^host:\s*(?<host>\S+)\s*$')
 if (-not $RustHostMatch.Success) {
     throw "cannot determine the Rust host triple"
 }
-$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
-if ($RustcVersion -cne "rustc 1.97.0 (2d8144b78 2026-07-07)") {
-    throw "Windows release package requires rustc 1.97.0: $RustcVersion"
+$RustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--version")
+if ($RustcVersion -cne "rustc 1.98.1 (48a229cea 2026-09-01)") {
+    throw "Windows release package requires rustc 1.98.1: $RustcVersion"
 }
-$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
-if ($CargoVersion -cne "cargo 1.97.0 (c980f4866 2026-06-30)") {
-    throw "Windows release package requires cargo 1.97.0: $CargoVersion"
+$CargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "--version")
+if ($CargoVersion -cne "cargo 1.98.1 (797e8a9bc 2026-08-05)") {
+    throw "Windows release package requires cargo 1.98.1: $CargoVersion"
 }
 $RustLlvmTools = Resolve-TrustedRustLlvmTools `
     -RustSysroot $RustSysroot `
     -RustHost $RustHostMatch.Groups['host'].Value
 $LlvmAr = $RustLlvmTools.Ar
 $LlvmNm = $RustLlvmTools.Nm
+if ($Profile -eq "sdk-020" -and $Mode -eq "Build") {
+    $LlvmStrip = Resolve-TrustedToolchainFile `
+        -Path (Join-Path $RustLlvmTools.Bin "llvm-strip.exe") `
+        -TrustedRoot $RustLlvmTools.Bin -ExpectedName "llvm-strip.exe"
+}
 $ProducerRoots = Get-ReleaseProducerRoots `
     -SourceRoot $Root `
     -CargoHome $CargoHome `
     -RustSysroot $RustSysroot `
     -MsvcInstallation $MsvcInstallation
+if ($Profile -eq "sdk-020") {
+    # aws-lc-sys 0.45 converts its manifest/output paths with GetShortPathNameW.
+    # Map and scan both spellings; never assume the compiler sees Cargo's long
+    # path. Keep the original cache in the scan to diagnose unexpected reuse.
+    $SdkShortSourceRoot = Get-WindowsShortPath -Path $Root
+    $SdkShortCargoHome = Get-WindowsShortPath -Path $CargoHome
+    $SdkShortOriginalCargoHome = Get-WindowsShortPath -Path $OriginalCargoHome
+    $sdkProducerRoots = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in @($ProducerRoots) + @(
+        $SdkShortSourceRoot, $SdkShortCargoHome, $OriginalCargoHome, $SdkShortOriginalCargoHome
+    )) { [void] $sdkProducerRoots.Add($path.Replace('/', '\').TrimEnd([char[]] @('\', '/'))) }
+    $ProducerRoots = [string[]] @($sdkProducerRoots | Sort-Object -CaseSensitive)
+}
 
 if ($Mode -eq "VerifyArchive") {
     if (-not $Archive) {
@@ -1409,8 +1706,9 @@ if ($Mode -eq "VerifyArchive") {
             throw "VerifyArchive requires trusted lowercase hexadecimal Git commit and tree identities"
         }
     }
-    $manifestScratch = Join-Path $OutRoot "verify-input"
+    $manifestScratch = if ($Profile -eq "sdk-020") { "$VerifyRoot-input" } else { Join-Path $OutRoot "verify-input" }
     if (Test-Path -LiteralPath $manifestScratch) {
+        if ($Profile -eq "sdk-020") { throw "SDK verification input directory already exists" }
         Remove-Item -LiteralPath $manifestScratch -Recurse -Force
     }
     New-Item -ItemType Directory -Path $OutRoot -Force | Out-Null
@@ -1426,7 +1724,7 @@ if ($Mode -eq "VerifyArchive") {
     if ($actualManifestSha256 -cne $ExpectedManifestSha256) {
         throw "extracted Windows MANIFEST.json SHA-256 differs from the trusted distribution manifest"
     }
-    $actualContractSha256 = (Get-FileHash -LiteralPath (Join-Path $scratchExtract "share/q-periapt/abi/q-periapt-c-abi-v2.json") -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualContractSha256 = (Get-FileHash -LiteralPath (Join-Path $scratchExtract $EmbeddedContract) -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actualContractSha256 -cne $ExpectedContractSha256) {
         throw "extracted Windows ABI contract SHA-256 differs from the trusted distribution manifest"
     }
@@ -1439,7 +1737,7 @@ if ($Mode -eq "VerifyArchive") {
     if ($nativeLibraries.Count -eq 0) {
         throw "extracted CMake config contains no native static libraries"
     }
-    Remove-Item -LiteralPath $manifestScratch -Recurse -Force
+    if ($Profile -eq "legacy") { Remove-Item -LiteralPath $manifestScratch -Recurse -Force }
     Verify-WindowsArchive `
         -ArchivePath ([System.IO.Path]::GetFullPath($Archive)) `
         -ExpectedArchiveSha256 $ExpectedSha256 `
@@ -1494,7 +1792,7 @@ if ($SourceDateEpochText -notmatch '^(0|[1-9][0-9]*)$') {
     throw "source commit timestamp is malformed: $SourceDateEpochText"
 }
 $SourceDateEpoch = [int64] $SourceDateEpochText
-$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
+$metadata = (Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "metadata", "--locked", "--format-version", "1", "--no-deps")) | ConvertFrom-Json
 $ffiPackage = @($metadata.packages | Where-Object { $_.name -eq "q-periapt-ffi" })
 if ($ffiPackage.Count -ne 1 -or $ffiPackage[0].version -ne $Version) {
     throw "q-periapt-ffi package version must be $Version"
@@ -1507,7 +1805,11 @@ foreach ($path in @($OutRoot, $DynamicTarget, $StaticTarget)) {
         throw "refusing to mutate a path outside target: $full"
     }
     if (Test-Path -LiteralPath $full) {
-        Remove-Item -LiteralPath $full -Recurse -Force
+        if ($Profile -eq "legacy") {
+            Remove-Item -LiteralPath $full -Recurse -Force
+        } elseif ($full -cne $OutRoot) {
+            throw "SDK native build directory already exists; retain the previous attempt"
+        }
     }
 }
 New-Item -ItemType Directory -Path $PackageRoot -Force | Out-Null
@@ -1538,11 +1840,30 @@ $savedCc = $env:CC
 $savedCFlags = $env:CFLAGS
 $savedAr = $env:AR
 $savedCargoTermColor = $env:CARGO_TERM_COLOR
+$savedShellEscapedCFlags = $env:CC_SHELL_ESCAPED_FLAGS
+$savedCargoNetOffline = $env:CARGO_NET_OFFLINE
 $targetCompilerEnvironment = @{
     "AR_x86_64-pc-windows-msvc" = $LlvmAr
     "AR_x86_64_pc_windows_msvc" = $LlvmAr
     "CC_x86_64-pc-windows-msvc" = $Cl
     "CC_x86_64_pc_windows_msvc" = $Cl
+}
+if ($Profile -eq "sdk-020") {
+    $sdkCompilerArguments = [string[]] @(
+        "/experimental:deterministic", "/WX",
+        "/pathmap:$Root=qperiapt-source", "/pathmap:$CargoHome=qperiapt-cargo-home"
+    )
+    if ($SdkShortSourceRoot -cne $Root) { $sdkCompilerArguments += "/pathmap:$SdkShortSourceRoot=qperiapt-source" }
+    if ($SdkShortCargoHome -cne $CargoHome) { $sdkCompilerArguments += "/pathmap:$SdkShortCargoHome=qperiapt-cargo-home" }
+    $sdkCompilerFlags = ($sdkCompilerArguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
+    # AWS-LC is a private static dependency of this DLL. Its bundled jitter
+    # header declares dllexport even for static builds. Remove only that
+    # storage-class modifier in AWS-LC's x64 MSVC compilation; dllimport,
+    # alignment, noinline and every entropy/crypto operation stay intact.
+    # Rust's 51 public exports are unaffected. The final export gate is exact.
+    $targetCompilerEnvironment["AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc"] = "1"
+    $targetCompilerEnvironment["AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc"] = "0"
+    $targetCompilerEnvironment["AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc"] = $sdkCompilerFlags + ' /Ddllexport='
 }
 $savedTargetCompilerEnvironment = @{}
 foreach ($name in $targetCompilerEnvironment.Keys) {
@@ -1565,6 +1886,14 @@ try {
     $env:CARGO_TERM_COLOR = "never"
     $env:CC = $Cl
     $env:CFLAGS = "/experimental:deterministic /pathmap:$Root=qperiapt-source"
+    if ($Profile -eq "sdk-020") {
+        $env:CC_SHELL_ESCAPED_FLAGS = "1"
+        $env:CFLAGS = $sdkCompilerFlags
+        Assert-SdkCPathRemapping -Compiler $Cl -Flags $sdkCompilerArguments `
+            -OutputDirectory $OutRoot -CargoDirectory $CargoHome
+        Invoke-Checked -FilePath "cargo.exe" -Arguments @("+1.98.1", "fetch", "--locked")
+        $env:CARGO_NET_OFFLINE = "true"
+    }
     $env:AR = $LlvmAr
     foreach ($name in $targetCompilerEnvironment.Keys) {
         [System.Environment]::SetEnvironmentVariable(
@@ -1585,7 +1914,7 @@ try {
         -WindowsDirectory $WindowsDirectory `
         -NormalizePath
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
+        "+1.98.1", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "cdylib", "--",
         "-Clinker=link.exe", "--print", "link-args=$linkArgumentsLog", "-Cstrip=debuginfo",
         "-Clink-arg=/WX", "-Clink-arg=/DEBUG:NONE",
         "-Clink-arg=/Brepro", "-Clink-arg=/NOCOFFGRPINFO",
@@ -1610,7 +1939,7 @@ try {
     )
     $env:CARGO_TARGET_DIR = $StaticTarget
     $staticBuild = Invoke-Captured -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
+        "+1.98.1", "rustc", "-p", "q-periapt-ffi", "--release", "--locked", "--crate-type", "staticlib", "--",
         "--print", "native-static-libs", "-Cstrip=debuginfo"
     ) -Echo
     $nativeStaticLibrariesLog = Join-Path $OutRoot "native-static-libraries.txt"
@@ -1620,6 +1949,7 @@ try {
     $nativeLibrariesJson = Get-TrimmedOutput -FilePath $Python -Arguments @(
         "-I", "-S", "-B", "-W", "error", "artifact/python_bootstrap.py",
         "artifact/windows_package.py", "parse-native-static-libraries",
+        "--profile", $Profile,
         "--compiler-output", $nativeStaticLibrariesLog
     )
     $decodedNativeStaticLibraries = ConvertFrom-Json `
@@ -1636,6 +1966,11 @@ try {
         "dbghelp.lib",
         "msvcrt.lib"
     )
+    if ($Profile -eq "sdk-020") {
+        $expectedNativeStaticLibraries = [string[]] @(
+            "bcrypt.lib", "advapi32.lib"
+        ) + $expectedNativeStaticLibraries
+    }
     if ($decodedNativeStaticLibraries.Count -ne $expectedNativeStaticLibraries.Count) {
         throw "Python verifier emitted an unexpected native static library count"
     }
@@ -1674,8 +2009,10 @@ finally {
     $env:CARGO_INCREMENTAL = $savedCargoIncremental
     $env:CC = $savedCc
     $env:CFLAGS = $savedCFlags
+    $env:CC_SHELL_ESCAPED_FLAGS = $savedShellEscapedCFlags
     $env:AR = $savedAr
     $env:CARGO_TERM_COLOR = $savedCargoTermColor
+    $env:CARGO_NET_OFFLINE = $savedCargoNetOffline
     foreach ($name in $savedTargetCompilerEnvironment.Keys) {
         [System.Environment]::SetEnvironmentVariable(
             $name,
@@ -1694,8 +2031,32 @@ foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
         throw "expected Rust Windows build output is missing: $path"
     }
 }
+if ($Profile -eq "sdk-020") {
+    $distributionStaticLibrary = Join-Path $OutRoot "q_periapt_ffi_abi2_static.lib"
+    New-SdkStaticDistributionLibrary -Source $staticLibrary -Destination $distributionStaticLibrary `
+        -Strip $LlvmStrip -Ar $LlvmAr -Nm $LlvmNm
+    $staticLibrary = $distributionStaticLibrary
+}
 $compilerRootScanArguments = [System.Collections.Generic.List[string]]::new()
+if ($Profile -eq "sdk-020") {
+    foreach ($known in @(
+        @{ Kind = "source"; Value = $Root }, @{ Kind = "cargo"; Value = $CargoHome },
+        @{ Kind = "rust-sysroot"; Value = $RustSysroot },
+        @{ Kind = "source-short"; Value = $SdkShortSourceRoot },
+        @{ Kind = "cargo-short"; Value = $SdkShortCargoHome },
+        @{ Kind = "original-cargo"; Value = $OriginalCargoHome },
+        @{ Kind = "original-cargo-short"; Value = $SdkShortOriginalCargoHome }
+    )) {
+        $knownPath = $known.Value.Replace('/', '\').TrimEnd([char[]] @('\', '/'))
+        $indices = @(for ($index = 0; $index -lt $ProducerRoots.Count; $index++) {
+            if ([string]::Equals($ProducerRoots[$index], $knownPath, [System.StringComparison]::OrdinalIgnoreCase)) { $index }
+        })
+        if ($indices.Count -ne 1) { throw "producer scan root index is missing or ambiguous" }
+        Write-Host "WINDOWS_RELEASE_ROOT_INDEX kind=$($known.Kind) index=$($indices[0])"
+    }
+}
 [void] $compilerRootScanArguments.Add("artifact/release_binary_scan.py")
+[void] $compilerRootScanArguments.Add("--redact-paths")
 foreach ($path in @($dynamicDll, $dynamicImport, $staticLibrary)) {
     [void] $compilerRootScanArguments.Add($path)
 }
@@ -1705,7 +2066,7 @@ foreach ($path in $ProducerRoots) {
 }
 Invoke-PythonChecked `
     -Arguments ([string[]] $compilerRootScanArguments) `
-    -RedactArguments
+    -RedactArguments -PublicOutput
 Write-Host "WINDOWS_RELEASE_PRODUCER_ROOT_SCAN_PASS"
 $unexpectedPdbs = @(
     Get-ChildItem `
@@ -1733,38 +2094,59 @@ Copy-Item -LiteralPath $dynamicImport -Destination (Join-Path $PackageRoot "lib/
 Copy-Item -LiteralPath $staticLibrary -Destination (Join-Path $PackageRoot "lib/q_periapt_ffi_abi2_static.lib")
 Copy-Item -LiteralPath $Header -Destination (Join-Path $PackageRoot "include/qperiapt/abi2/q_periapt.h")
 Copy-Item -LiteralPath $Fixture -Destination (Join-Path $PackageRoot "include/qperiapt/abi2/signed_policy_fixture.h")
-Copy-Item -LiteralPath $Contract -Destination (Join-Path $PackageRoot "share/q-periapt/abi/q-periapt-c-abi-v2.json")
+Copy-Item -LiteralPath $Contract -Destination (Join-Path $PackageRoot $EmbeddedContract)
 Copy-Item -LiteralPath $Smoke -Destination (Join-Path $PackageRoot "share/q-periapt/smoke.c")
 Copy-Item -LiteralPath (Join-Path $Root "LICENSE") -Destination (Join-Path $PackageRoot "LICENSE")
 Copy-Item -LiteralPath (Join-Path $Root "LICENSES/Apache-2.0.txt") -Destination (Join-Path $PackageRoot "LICENSES/Apache-2.0.txt")
 Copy-Item -LiteralPath (Join-Path $Root "LICENSES/MIT.txt") -Destination (Join-Path $PackageRoot "LICENSES/MIT.txt")
+if ($Profile -eq "sdk-020") {
+    New-Item -ItemType Directory -Path (Join-Path $PackageRoot "share/q-periapt/legacy") | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Root "bindings/c/sdk_smoke.c") -Destination (Join-Path $PackageRoot "share/q-periapt/sdk_smoke.c")
+    Copy-Item -LiteralPath (Join-Path $Root "bindings/c/sdk_policy_update_fixture.h") -Destination (Join-Path $PackageRoot "include/qperiapt/abi2/sdk_policy_update_fixture.h")
+    Copy-Item -LiteralPath (Join-Path $Root "crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h") -Destination (Join-Path $PackageRoot "share/q-periapt/legacy/q_periapt.h")
+    $rustNotice = Join-Path $Root "LICENSES/Rust-1.98.1-library.html"
+    if ((Get-FileHash -LiteralPath $rustNotice -Algorithm SHA256).Hash -cne
+        (Get-FileHash -LiteralPath (Join-Path $RustSysroot "share/doc/rust/COPYRIGHT-library.html") -Algorithm SHA256).Hash) {
+        throw "Windows Rust standard-library notice differs from the exact build toolchain"
+    }
+    Copy-Item -LiteralPath $rustNotice -Destination (Join-Path $PackageRoot "LICENSES/Rust-1.98.1-library.html")
+}
 foreach ($name in @("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md")) {
     Copy-Item -LiteralPath (Join-Path $Root "crates/q-periapt-mlkem-native-sys/vendor/$name") -Destination (Join-Path $PackageRoot "THIRD_PARTY/mlkem-native/$name")
 }
 $savedBomRustFlags = $env:RUSTFLAGS
 $savedBomCargoIncremental = $env:CARGO_INCREMENTAL
+$savedBomCargoHome = $env:CARGO_HOME
+$savedBomCargoNetOffline = $env:CARGO_NET_OFFLINE
 try {
     $env:RUSTFLAGS = "-D warnings"
     $env:CARGO_INCREMENTAL = "0"
+    if ($Profile -eq "sdk-020") {
+        $env:CARGO_HOME = $CargoHome
+        $env:CARGO_NET_OFFLINE = "true"
+    }
+    $cbomArguments = @("+1.98.1", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt")
+    if ($Profile -eq "sdk-020") { $cbomArguments += @("--features", "sdk-cbom") }
+    $cbomArguments += @("--", "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json"))
+    if ($Profile -eq "sdk-020") { $cbomArguments += @("--native-sdk") }
+    Invoke-Checked -FilePath "cargo.exe" -Arguments $cbomArguments
     Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
-        "cbom", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/cbom.cdx.json")
-    )
-    Invoke-Checked -FilePath "cargo.exe" -Arguments @(
-        "+1.97.0", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
+        "+1.98.1", "run", "--locked", "--quiet", "-p", "q-periapt-cli", "--bin", "qperiapt", "--",
         "sbom", "--lock", "Cargo.lock", "--out", (Join-Path $PackageRoot "share/q-periapt/bom/sbom.cdx.json")
+    )
+    Invoke-PythonChecked -Arguments @(
+        "artifact/third_party_licenses.py", "create",
+        "--root", $Root,
+        "--package-root", $PackageRoot,
+        "--target", $Target
     )
 }
 finally {
     $env:RUSTFLAGS = $savedBomRustFlags
     $env:CARGO_INCREMENTAL = $savedBomCargoIncremental
+    $env:CARGO_HOME = $savedBomCargoHome
+    $env:CARGO_NET_OFFLINE = $savedBomCargoNetOffline
 }
-Invoke-PythonChecked -Arguments @(
-    "artifact/third_party_licenses.py", "create",
-    "--root", $Root,
-    "--package-root", $PackageRoot,
-    "--target", $Target
-)
 
 $nativeCmake = ($NativeStaticLibraries | ForEach-Object { '"' + $_ + '"' }) -join " "
 $configTemplate = @'
@@ -1844,6 +2226,25 @@ not modify a consuming target automatically; apply that value to its
 library. Metadata strings returned by the ABI are library-owned static storage
 and must not be freed; all operation buffers remain caller-owned.
 '@
+if ($Profile -eq "sdk-020") {
+    $readmeTemplate += @'
+
+## Owned SDK (alpha)
+
+This unpublished candidate uses ABI 2 with the exact 51-export SDK surface,
+including the original nine declarations. sdk_smoke.c exercises verified
+runtime owners, platform randomness, expert transfer, purpose derivation,
+revocation and failure handling. The supplied policies are public test data;
+applications must pin their own trust roots and persist policy state.
+
+Windows persistent-store entry points explicitly return
+Q_PERIAPT_ERR_UNSUPPORTED_PLATFORM; no weaker filesystem fallback is used.
+The caller owns transport and durable policy storage. This package includes
+the 37-asset native SDK CBOM and notices for the exact Rust 1.98.1 library.
+Authenticode trust and release readiness require their respective verification
+receipts. See the repository's docs/SDK_WINDOWS_PACKAGE.md for qualification.
+'@
+}
 Write-Utf8File -Path (Join-Path $PackageRoot "README.md") -Content $readmeTemplate.Replace("@VERSION@", $Version)
 
 $packagedDll = Join-Path $PackageRoot "bin/q_periapt_ffi_abi2.dll"
@@ -1852,7 +2253,7 @@ Assert-ImportLibrary `
     -Dumpbin $Dumpbin
 Invoke-PythonChecked -Arguments @(
     "artifact/c_abi_contract.py",
-    "--contract", (Join-Path $PackageRoot "share/q-periapt/abi/q-periapt-c-abi-v2.json"),
+    "--contract", (Join-Path $PackageRoot $EmbeddedContract),
     "--header", (Join-Path $PackageRoot "include/qperiapt/abi2/q_periapt.h"),
     "--library", $packagedDll,
     "--static-library", (Join-Path $PackageRoot "lib/q_periapt_ffi_abi2_static.lib"),
@@ -1873,13 +2274,14 @@ if ($clVersion -cnotmatch '^MSVC [1-9][0-9]\.[0-9]{2}\.(0|[1-9][0-9]{0,4})\.(0|[
     throw "MSVC compiler version inspector returned a malformed contract"
 }
 Assert-SourceSnapshot -ExpectedCommit $GitCommit -ExpectedTree $GitTree
-$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.97.0", "--version")
-$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.97.0", "--version")
+$ManifestRustcVersion = Get-TrimmedOutput -FilePath "rustc.exe" -Arguments @("+1.98.1", "--version")
+$ManifestCargoVersion = Get-TrimmedOutput -FilePath "cargo.exe" -Arguments @("+1.98.1", "--version")
 if ($ManifestRustcVersion -cne $RustcVersion -or $ManifestCargoVersion -cne $CargoVersion) {
     throw "Windows Rust toolchain changed during release package construction"
 }
 $manifestArguments = @(
     "artifact/windows_package.py", "create",
+    "--profile", $Profile,
     "--package-root", $PackageRoot,
     "--repository-root", $Root,
     "--package-name", $PackageName,

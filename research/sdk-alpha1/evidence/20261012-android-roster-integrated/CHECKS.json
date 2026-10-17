@@ -1,0 +1,23 @@
+{
+  "completed": true,
+  "profile_processes": {
+    "debug": 1721,
+    "release": 1721
+  },
+  "lifecycle_processes_per_profile": {
+    "debug": 1720,
+    "release": 1720
+  },
+  "JNI_boundary_processes_per_profile": 1,
+  "total_host_Java_processes": 3442,
+  "roster_export_routes": 44,
+  "roster_export_host_processes": 1960,
+  "archive_members": 12903,
+  "capture_sha256": "90efd739f1fddf0bd582ecbd63c332f3f82af3b0058c922c8124e8d466170cc3",
+  "source_before_after_equal": true,
+  "all_archive_member_hashes_verified": true,
+  "all_roster_public_exports_reread": true,
+  "private_keys_or_journals_archived": false,
+  "agreed_phone_gate": "already passed; recorded separately",
+  "release_claim_eligible": false
+}

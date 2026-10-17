@@ -1,0 +1,34 @@
+[
+  {
+    "head": "046c0e4ccdea88b3bea619c41d771d9faf2c38c5",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "artifact/test_apple_sdk_profile.py"
+    ],
+    "returncode": 0,
+    "seconds": 1.4168783749919385,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "2e03b0145521622e4f686548b4b2c462e76f60864cab3ae25f4c3759dc574937"
+  },
+  {
+    "head": "046c0e4ccdea88b3bea619c41d771d9faf2c38c5",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "artifact/source_results_assembler.py",
+      "ci-source-gate",
+      "--profile",
+      "sdk-020",
+      "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+      "046c0e4ccdea88b3bea619c41d771d9faf2c38c5"
+    ],
+    "returncode": 0,
+    "seconds": 3.6060399170964956,
+    "stdout_sha256": "9ec6399bb843bfe3155f8a82ccc283a11f9b0a3417be3df023abb5f6bccb8b15",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

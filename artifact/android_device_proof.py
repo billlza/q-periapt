@@ -21,10 +21,16 @@ import zipfile
 from typing import Any
 
 import android_runtime_state as runtime_state
-from android_agp_consumer_contract import PROFILE_TESTS
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, runtime_profile, capture_runtime_profile
+from android_agp_consumer_contract import (
+    BASE_BUNDLE_FILE_PATHS, BASE_PROOF_PATH_KEYS, BUNDLE_FILE_PATHS,
+    EMULATOR_BUNDLE_FILE_PATHS, EMULATOR_CONTROL_PATH_KEYS, PROOF_PATH_KEYS,
+    PROFILE_TESTS, profile_spec,
+)
 from android_elf import (
     AndroidVerificationError,
     audit_aar,
+    package_profile,
     verify_aar,
     verify_ndk_r29,
 )
@@ -124,51 +130,6 @@ PRIVATE_ADB_STATUS_REGISTERED_LEAF = "adb-server-status-registered.txt"
 PRIVATE_ADB_LISTENER_REGISTERED_LEAF = "adb-listener-registered.txt"
 NATIVE_NOTIFIER_MODE = NATIVE_ADB_NOTIFIER_MODE
 
-BASE_PROOF_PATH_KEYS = (
-    "aar",
-    "aar_manifest",
-    "smoke_apk",
-    "apksigner_verify",
-    "zipalign_verify",
-    "result_txt",
-    "result_json",
-    "logcat",
-)
-EMULATOR_CONTROL_PATH_KEYS = (
-    "adb_isolation_emulator_pre_exec",
-    "adb_isolation_emulator_post_registration",
-    "adb_isolation_runtime_pre_cleanup",
-    "adb_isolation_runtime_post_cleanup",
-    "emulator_routing",
-)
-PROOF_PATH_KEYS = BASE_PROOF_PATH_KEYS + EMULATOR_CONTROL_PATH_KEYS
-BASE_BUNDLE_FILE_PATHS = {
-    "proof": "qperiapt-android-device-proof.json",
-    "aar": "artifacts/q-periapt-android-0.1.5.aar",
-    "aar_manifest": "artifacts/q-periapt-android-0.1.5.MANIFEST.json",
-    "smoke_apk": "artifacts/qperiapt-android-smoke.apk",
-    "apksigner_verify": "evidence/apksigner-verify.txt",
-    "zipalign_verify": "evidence/zipalign-verify.txt",
-    "result_txt": "evidence/qperiapt-android-device-result.txt",
-    "result_json": "evidence/qperiapt-android-device-result.json",
-    "logcat": "evidence/logcat.txt",
-}
-EMULATOR_BUNDLE_FILE_PATHS = {
-    "adb_isolation_emulator_pre_exec": (
-        "evidence/adb-isolation-emulator-pre-exec.json"
-    ),
-    "adb_isolation_emulator_post_registration": (
-        "evidence/adb-isolation-emulator-post-registration.json"
-    ),
-    "adb_isolation_runtime_pre_cleanup": (
-        "evidence/adb-isolation-runtime-pre-cleanup.json"
-    ),
-    "adb_isolation_runtime_post_cleanup": (
-        "evidence/adb-isolation-runtime-post-cleanup.json"
-    ),
-    "emulator_routing": "evidence/emulator-routing.json",
-}
-BUNDLE_FILE_PATHS = {**BASE_BUNDLE_FILE_PATHS, **EMULATOR_BUNDLE_FILE_PATHS}
 BUNDLE_MANIFEST_PATH = "MANIFEST.json"
 
 # Immutable platform-r2 history.  Every schema-v1/schema-3 shape below is an
@@ -308,20 +269,20 @@ class RuntimeResultProfile(str, enum.Enum):
     LEGACY_FULL = "legacy_full"
     AGP_FULL_RELEASE = "agp_full_release"
     AGP_MINIMAL_RELEASE = "agp_minimal_release"
+    AGP_SDK_FULL_RELEASE = "agp_sdk_full_release"
+    AGP_SDK_MINIMAL_RELEASE = "agp_sdk_minimal_release"
 
 
 def result_tests(profile: RuntimeResultProfile) -> list[str]:
     if profile is RuntimeResultProfile.LEGACY_FULL:
         return list(EXPECTED_TESTS)
-    if profile in (
-        RuntimeResultProfile.AGP_FULL_RELEASE,
-        RuntimeResultProfile.AGP_MINIMAL_RELEASE,
-    ):
+    if isinstance(profile, RuntimeResultProfile) and profile.value in PROFILE_TESTS:
         return list(PROFILE_TESTS[profile.value])
     raise ValueError("unknown Android result profile")
 
 
 SOURCE_INPUTS = {
+    "android_runtime_profile": "artifact/android_runtime_profile.py",
     "bounded_process": "artifact/bounded_process.py",
     "process_identity": "artifact/process_identity.py",
     "android_emulator_control": "artifact/android_emulator_control.py",
@@ -343,6 +304,23 @@ SOURCE_INPUTS = {
     "c_abi_contract": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
     "signed_policy_vectors": "bindings/signed-policy-vectors.json",
 }
+
+
+def result_package_profile(profile: RuntimeResultProfile) -> str:
+    result_tests(profile)
+    return "legacy" if profile is RuntimeResultProfile.LEGACY_FULL else profile_spec(profile.value).aar_profile
+
+
+def source_inputs(profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL) -> dict[str, str]:
+    inputs = dict(SOURCE_INPUTS)
+    if result_package_profile(profile) == "sdk-020":
+        inputs.update({
+            "c_abi_contract": package_profile("sdk-020").contract,
+            "sdk_abi_spec": "artifact/sdk_abi2_spec.py",
+            "android_sdk": "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java",
+            "android_agp_contract": "artifact/android_agp_consumer_contract.py",
+        })
+    return inputs
 
 REQUIRED_NATIVE_ABIS = ("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
 
@@ -826,6 +804,7 @@ def verify_avd_home(args: argparse.Namespace) -> None:
         runtime_state.validate_runtime_avd_selection(
             args.adb_profile,
             args.device_abi,
+            args.runtime_profile,
         )
     except runtime_state.AndroidRuntimeStateError as exc:
         raise SystemExit(f"error: {exc}") from exc
@@ -1348,7 +1327,10 @@ def verify_proof_schema(proof: dict[str, Any]) -> None:
     verify_runtime_record_shape(proof)
 
 
-def verify_runtime_record_shape(proof: dict[str, Any]) -> None:
+def verify_runtime_record_shape(
+    proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     exact_object(proof.get("device"), PROOF_DEVICE_FIELDS, "Android proof device")
     exact_object(
         proof.get("paths"), expected_proof_path_keys(proof), "Android proof path"
@@ -1371,7 +1353,7 @@ def verify_runtime_record_shape(proof: dict[str, Any]) -> None:
         )
     exact_object(
         proof.get("source_hashes"),
-        {name + "_sha256" for name in SOURCE_INPUTS},
+        {name + "_sha256" for name in source_inputs(result_profile)},
         "Android proof source hash",
     )
 
@@ -2460,13 +2442,17 @@ def validate_device_sdk(raw_value: str) -> int:
     return int(raw_value)
 
 
-def verify_source_hashes(root: pathlib.Path, proof: dict[str, Any]) -> None:
+def verify_source_hashes(
+    root: pathlib.Path, proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
+    inputs = source_inputs(result_profile)
     expected = exact_object(
         proof.get("source_hashes"),
-        {name + "_sha256" for name in SOURCE_INPUTS},
+        {name + "_sha256" for name in inputs},
         "Android proof source hash",
     )
-    for name, rel in SOURCE_INPUTS.items():
+    for name, rel in inputs.items():
         got = sha256_file(root / rel)
         require(
             expected.get(name + "_sha256") == got,
@@ -2580,7 +2566,10 @@ def verify_artifact_hashes(
     )
 
 
-def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) -> None:
+def verify_native_hashes(
+    paths: dict[str, pathlib.Path], proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     artifacts = exact_object(
         proof.get("artifacts"), PROOF_ARTIFACT_FIELDS, "Android proof artifact"
     )
@@ -2588,7 +2577,7 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         artifacts.get("native"), set(REQUIRED_NATIVE_ABIS), "Android proof native ABI"
     )
     try:
-        aar_entries, _ = audit_aar(paths["aar"])
+        aar_entries, _ = audit_aar(paths["aar"], profile=result_package_profile(result_profile))
     except AndroidVerificationError as exc:
         require(False, f"Android proof AAR audit failed: {exc}")
     for abi in REQUIRED_NATIVE_ABIS:
@@ -2607,9 +2596,12 @@ def verify_native_hashes(paths: dict[str, pathlib.Path], proof: dict[str, Any]) 
         )
 
 
-def verify_abi_metadata(root: pathlib.Path, proof: dict[str, Any]) -> None:
+def verify_abi_metadata(
+    root: pathlib.Path, proof: dict[str, Any],
+    result_profile: RuntimeResultProfile = RuntimeResultProfile.LEGACY_FULL,
+) -> None:
     abi = exact_object(proof.get("abi"), PROOF_ABI_FIELDS, "Android proof ABI")
-    contract_relative = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+    contract_relative = package_profile(result_package_profile(result_profile)).contract
     require(abi.get("major") == 2, "Android proof ABI major is not 2")
     require(
         abi.get("contract_path") == contract_relative,
@@ -2641,7 +2633,12 @@ def verify_device_metadata(
     expected_page_size: int | None = None,
     expected_device_sdk: int | None = None,
     require_release_mode: bool = False,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> None:
+    try:
+        selected_runtime = capture_runtime_profile(expected_runtime_profile)
+    except ValueError as error:
+        raise SystemExit(f"error: {error}") from error
     device = proof.get("device")
     require(isinstance(device, dict), "proof lacks device metadata")
     require(
@@ -2671,6 +2668,20 @@ def verify_device_metadata(
             f"expected Android device kind {expected_device_kind}, got {kind}",
         )
 
+    if selected_runtime.kind == "physical":
+        require(expected_device_kind == "physical" and kind == "physical",
+                "physical SDK target requires an explicit physical device")
+        require(type(expected_page_size) is int and type(expected_device_sdk) is int
+                and expected_page_size == selected_runtime.page_size
+                and expected_device_sdk == selected_runtime.sdk,
+                "physical SDK target requires its exact expected SDK and page size")
+        try:
+            selected_runtime.target(expected_device_abi)
+        except ValueError as error:
+            raise SystemExit(f"error: {error}") from error
+    elif expected_runtime_profile != DEFAULT_RUNTIME_PROFILE:
+        require(kind == "emulator", "owned emulator profile cannot qualify a physical capture")
+
     device_abi = device.get("abi")
     require(
         device_abi in REQUIRED_NATIVE_ABIS, f"invalid Android device ABI: {device_abi}"
@@ -2697,14 +2708,13 @@ def verify_device_metadata(
     )
     release_mode = proof.get("release_candidate_mode")
     require(type(release_mode) is bool, "proof lacks release_candidate_mode")
-    # The canonical release profile pins the emulator's exact device shape.
-    # A physical release capture keeps the same collection discipline but
-    # carries the hardware's own page size and SDK, so those pins apply only
-    # to the emulator kind.
+    # Emulator profiles pin their exact shape here. The explicit physical SDK
+    # profile was pinned above; legacy physical captures retain their caller's
+    # independently supplied hardware expectations.
     if require_release_mode and kind == "emulator":
         require(
-            expected_device_sdk == ANDROID_RELEASE_SDK,
-            f"release verification requires expected Android device SDK {ANDROID_RELEASE_SDK}",
+            expected_device_sdk == selected_runtime.sdk,
+            f"release verification requires expected Android device SDK {selected_runtime.sdk}",
         )
     if expected_device_sdk is not None:
         require(
@@ -2722,17 +2732,22 @@ def verify_device_metadata(
             "release verification requires an explicit expected Android device ABI",
         )
         if kind == "emulator":
+            if expected_runtime_profile != DEFAULT_RUNTIME_PROFILE:
+                try:
+                    selected_runtime.target(expected_device_abi)
+                except ValueError as error:
+                    raise SystemExit(f"error: {error}") from error
             require(
-                expected_page_size == 16384,
-                "release verification requires expected Android page size 16384",
+                expected_page_size == selected_runtime.page_size,
+                f"release verification requires expected Android page size {selected_runtime.page_size}",
             )
             require(
-                page_size == 16384,
-                "Android release proof did not run on a 16 KiB page-size device",
+                page_size == selected_runtime.page_size,
+                "Android release proof did not run on the selected page-size device",
             )
             require(
-                device_sdk == ANDROID_RELEASE_SDK,
-                f"Android release proof did not run on device SDK {ANDROID_RELEASE_SDK}",
+                device_sdk == selected_runtime.sdk,
+                f"Android release proof did not run on device SDK {selected_runtime.sdk}",
             )
 
     android = proof.get("android")
@@ -2836,7 +2851,13 @@ def verify_runtime_contents(
     require_release_mode: bool = False,
     allow_dirty_proof: bool = False,
     bundled: bool = False,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> None:
+    require(
+        expected_runtime_profile == DEFAULT_RUNTIME_PROFILE
+        or result_package_profile(result_profile) == "sdk-020",
+        "legacy Android verification must retain its runtime profile",
+    )
     require(
         set(paths) == expected_proof_path_keys(proof),
         "selected Android evidence path fields differ",
@@ -2868,14 +2889,15 @@ def verify_runtime_contents(
         expected_page_size=expected_page_size,
         expected_device_sdk=expected_device_sdk,
         require_release_mode=require_release_mode,
+        expected_runtime_profile=expected_runtime_profile,
     )
     verify_emulator_control(proof, require_release_mode=require_release_mode)
     verify_emulator_control_evidence(proof, paths, bundled=bundled)
-    verify_source_hashes(root, proof)
-    verify_abi_metadata(root, proof)
+    verify_source_hashes(root, proof, result_profile)
+    verify_abi_metadata(root, proof, result_profile)
     verify_result_files(paths, run_id, result_profile)
     verify_artifact_hashes(paths, proof, result_profile)
-    verify_native_hashes(paths, proof)
+    verify_native_hashes(paths, proof, result_profile)
 
 
 def verify_results_manifest_projection(
@@ -4178,6 +4200,8 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("arm64-v8a", "x86_64"),
     )
     avd_home_parser.set_defaults(func=verify_avd_home)
+    avd_home_parser.add_argument("--runtime-profile", choices=tuple(RUNTIME_PROFILES),
+                                default=DEFAULT_RUNTIME_PROFILE)
 
     default_adb_parser = sub.add_parser(
         "assert-default-adb-server-absent",

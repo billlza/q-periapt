@@ -2,22 +2,19 @@ package dev.qperiapt
 
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_BYTE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.foreign.ValueLayout.JAVA_LONG
-import java.nio.file.Files
-import java.nio.file.Path
 
 /**
- * Kotlin product face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
+ * Legacy byte-oriented face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
  * Function & Memory API (Project Panama, JDK 25+). It reuses the Rust core but obtains
  * randomness inside the native ABI, so tests assert semantic parity rather than deterministic
  * byte replay — see bindings/README.md.
  *
+ * New integrations should use [QPeriaptRuntime] and its native key owners.
  * Returned secret arrays are caller-owned. Invoke [EncapsulationResult.wipeSecret]
  * or `fill(0)` on every secret/key array after use; JVM and OS copies remain outside
  * this binding's control.
@@ -110,19 +107,8 @@ object QPeriaptHybrid {
         ) + digest
     }
 
-    private val linker = Linker.nativeLinker()
-    // Product code must bind a specific native library path, then verify ABI/suite metadata below.
-    private val lookup: SymbolLookup = run {
-        val explicit = System.getProperty("qperiapt.lib")
-            ?: error("qperiapt.lib must be set to an absolute q-periapt native library path")
-        val path = Path.of(explicit)
-        require(path.isAbsolute) { "qperiapt.lib must be an absolute path: $explicit" }
-        require(Files.isRegularFile(path)) { "qperiapt.lib does not name a regular file: $explicit" }
-        SymbolLookup.libraryLookup(path, Arena.global())
-    }
-
     private fun handle(name: String, desc: FunctionDescriptor) =
-        linker.downcallHandle(lookup.findOrThrow(name), desc)
+        QPeriaptNative.handle(name, desc)
 
     private val abiVersionFn = handle("q_periapt_abi_version", FunctionDescriptor.of(JAVA_INT))
     private val versionFn = handle("q_periapt_version", FunctionDescriptor.of(ADDRESS))

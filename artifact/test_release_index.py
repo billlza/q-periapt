@@ -783,7 +783,7 @@ with release_index._release_pointer_lock(pointer):
         swift_producer = (
             self.repository_root / "artifact/swift-xcframework.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn('"schema_version": 5', swift_producer)
+        self.assertIn('"schema_version": 6 if package_profile == "sdk-020" else 5', swift_producer)
         self.assertIn('"kind": "qperiapt.swift_xcframework_manifest"', swift_producer)
 
     def test_each_face_accepts_only_its_exact_current_schema(self) -> None:

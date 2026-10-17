@@ -1,0 +1,173 @@
+{
+  "source_commit": "9f402bc3a61ed01bd34e5052cf5ee094928db0c9",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Swift account registry ownership and managed first-use component, plus existing ordinary configuration regression; same-host Swift initiator and C receiver sharing the native engine",
+  "native_archive": {
+    "sha256": "cf640e4c1df89890edac083d35d7d4cc537359b826b5ced9e014b4e2753ecbca",
+    "bytes": 1331903,
+    "members": 406
+  },
+  "native_archive_scope": "Immutable installed archive built at 6d70c614; native executable source and C ABI are unchanged by these Swift/consumer/collector changes. Not a complete current Swift distribution qualification.",
+  "tests": {
+    "Swift_Debug": 66,
+    "Swift_Release": 66,
+    "inventory_and_readers": 66,
+    "Rust_1_90_all_target_Clippy": "passed",
+    "source_gate": "passed at code commit",
+    "Rust_1_98_all_target_Clippy": "passed"
+  },
+  "managed_profiles": {
+    "debug": {
+      "scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "registry_lifetime_probes": [
+        "registry-closed",
+        "registry-released"
+      ],
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+          "sha256": "bbf75c8ae790d7373d776f1b10095e8ddadc7c269c2e863d75f06333c57eb904",
+          "bytes": 14165320
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-debug/.build/out/Products/Debug/FirstConfigurationClient",
+          "sha256": "014776bc2a7e0b21a1227c1f425e0bd4d674713b94d4681c2495c80c53b1c46a",
+          "bytes": 1657520
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+          "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+          "bytes": 176128
+        }
+      },
+      "native_library": {
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-debug/native/lib/libq_periapt_continuity_c_consumer.dylib",
+        "sha256": "e323b3f77f45a18862bd5bb43b169e9505d9ce8f87604dc66fd5bd13e8f8360d"
+      }
+    },
+    "release": {
+      "scenarios": [
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "registry_lifetime_probes": [
+        "registry-closed",
+        "registry-released"
+      ],
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+          "sha256": "75b7de5120e776270c0fc1cbdbee622e8573b015400570d0e866445c7d8fc6f0",
+          "bytes": 8578944
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-release/.build/out/Products/Release/FirstConfigurationClient",
+          "sha256": "7944849a4ec36528e4187137c0ef2e3dd082f999bbed7f3d7453db6a9fbc09a1",
+          "bytes": 948424
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+          "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+          "bytes": 212016
+        }
+      },
+      "native_library": {
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-release/native/lib/libq_periapt_continuity_c_consumer.dylib",
+        "sha256": "e22c4b7b1533916800f059032b31f740538d0bd6979d78a17577ede58a1e0b8b"
+      }
+    }
+  },
+  "ordinary_profiles": {
+    "debug": {
+      "scenarios": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+          "sha256": "bbf75c8ae790d7373d776f1b10095e8ddadc7c269c2e863d75f06333c57eb904",
+          "bytes": 14165320
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-debug/.build/out/Products/Debug/FirstConfigurationClient",
+          "sha256": "014776bc2a7e0b21a1227c1f425e0bd4d674713b94d4681c2495c80c53b1c46a",
+          "bytes": 1657520
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+          "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+          "bytes": 176128
+        }
+      }
+    },
+    "release": {
+      "scenarios": [
+        "local-fixed",
+        "local-recoverable",
+        "signed-fixed",
+        "signed-recoverable",
+        "tls-fixed",
+        "tls-recoverable"
+      ],
+      "binaries": {
+        "helper": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+          "sha256": "75b7de5120e776270c0fc1cbdbee622e8573b015400570d0e866445c7d8fc6f0",
+          "bytes": 8578944
+        },
+        "client": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/swift-authority-release/.build/out/Products/Release/FirstConfigurationClient",
+          "sha256": "7944849a4ec36528e4187137c0ef2e3dd082f999bbed7f3d7453db6a9fbc09a1",
+          "bytes": 948424
+        },
+        "receiver": {
+          "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+          "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+          "bytes": 212016
+        }
+      }
+    }
+  },
+  "C_shared_harness_regression": [
+    "debug",
+    "release"
+  ],
+  "invariants": [
+    "First real request precedes independent account association",
+    "No registry on activation returns 211",
+    "Explicit registry close and final ARC release each make activation return 202",
+    "Children do not keep registry alive; new opens use original registration/session/message",
+    "Swift positively verifies idempotent association and checkpoint readback through the real C ABI",
+    "Host deduplicates retry after effect persistence; no automatic exactly-once claim",
+    "Shared reader refuses missing or changed lifetime probes and binary replacement during managed execution"
+  ],
+  "CI_retention": "Added managed-configuration-public and c-managed-public paths to both native and foreign upload selections, with explicit regression assertions",
+  "not_claimed": [
+    "Kotlin registry ownership",
+    "Direct managed existing-owner Swift constructors",
+    "Managed policy-renewal or complete account replacement controller",
+    "Independent protocol implementation or cross-host/device qualification",
+    "Throughput, RSS or energy benefit",
+    "0.2.0 release completion"
+  ],
+  "swift_source_identity": "All Swift executable/library/test sources and bridge files byte-match the code commit. Documentation was subsequently updated; this is not a complete current Swift package receipt.",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 2197983,
+    "sha256": "99d730450e3c0127bac5e15757300f1579c6809c00e125e03eac506fddd64272",
+    "members": 1150
+  }
+}

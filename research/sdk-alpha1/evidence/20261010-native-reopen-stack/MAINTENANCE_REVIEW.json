@@ -1,0 +1,138 @@
+{
+  "head": "4d25db50be568a2b79c13e3f39713116d45e8e07",
+  "scope": "Maintainability assessment followed by one targeted native reopen fix under the active 0.2.0 implementation goal; no broad refactoring or throughput claim",
+  "methods": [
+    "tracked-file census, excluding vendor/generated paths",
+    "Python AST function spans and heuristic branch counts",
+    "Rust syn syntax spans, skipping test-only modules and test/bench/vendor paths; macros not expanded",
+    "manual checks of selected execution paths"
+  ],
+  "source_sha256": {
+    "artifact/continuity_c_consumer.py": "9dbbdf27d58ed3fac52984cc306fd4fe45ff66c66d70fa5383a83415e4d9144e",
+    "artifact/continuity_kotlin_consumer.py": "018b2bc8141777708370c8ddd8d5b3d8cb3a79ad7422430d37185c88ac21e369",
+    "artifact/rust_publish_contract.py": "42f1385fba51fcf8fab1b922eebd53d15193b3001dc3c799547aee718249b06f",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "156eb901e43408b5fd73655cbeb381322e929c2034cf969ece28beb49809b41e",
+    "research/continuity-identity-candidate/src/anchor/store.rs": "a7aed907309678b0076ae704c9e624a637fd2b7cbfe4bb758bc637911d562ce7",
+    "research/continuity-identity-candidate/src/contract.rs": "9fd0aab34a297e6b2050f2701c6a5ddbbeb27055bdbe8310758d73d8b989d16e",
+    "research/continuity-identity-candidate/src/durable/messages/fanout.rs": "bbb20f89e9d4db9a5f670b27c982d92efad6c0d4b3c3a1709eaacf0c5be0ce19",
+    "research/continuity-identity-candidate/src/durable/messages/traffic.rs": "27c17dc25fe7415801292ca77cff9b9d09c74fd3eaf6261e45e0f5ad53fe2988",
+    "research/continuity-identity-candidate/src/enrollment.rs": "61c005104af2aa5b038fd061538ae70365e5cf190dd1c0bed27cb0fc74ea9d18",
+    "research/continuity-identity-candidate/src/identity.rs": "d79fb3bdf63a310a06cde8c91f22c6f62a1f7df1374e89db8e3c1a2419eada69",
+    "services/q-periapt-policy-agent/src/service/lease.rs": "d6e3e1e5be1691fa7da6de1744d8c456b9abcfa41b28bfc9d7a1e7289cf7417a"
+  },
+  "maintenance_findings": [
+    {
+      "path": "artifact/continuity_c_consumer.py",
+      "line": 398,
+      "function_lines": 416,
+      "observation": "One function mixes source extraction, environment/toolchain selection, debug/release build/install and many distinct runtime qualifications",
+      "recommendation": "Extract build/install and coherent qualification phases; preserve one typed result and fail-closed publication status",
+      "performance": "No SDK runtime performance claim; this is qualification tooling"
+    },
+    {
+      "path": "artifact/continuity_kotlin_consumer.py",
+      "line": 390,
+      "function_lines": 400,
+      "observation": "Large qualification coordinator with build/runtime/evidence responsibilities",
+      "recommendation": "Use the same phase boundaries as C/Swift; avoid a generic workflow framework or duplicating validation"
+    },
+    {
+      "path": "artifact/rust_publish_contract.py",
+      "line": 1847,
+      "function_lines": 486,
+      "observation": "Many diagnostic, canonical-marker, phase-order and final receipt checks in one parser",
+      "recommendation": "Separate lexical admission, ordered phase verification and receipt assembly while retaining rejection controls"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/anchor/store.rs",
+      "line": 838,
+      "function_lines": 254,
+      "observation": "Version membership tests are repeated across a decoder that supports multiple historical layouts",
+      "recommendation": "A validated format-feature descriptor and per-entry parser could concentrate version knowledge; retain exact old-format acceptance/rejection tests; do not remove compatibility"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment.rs",
+      "line": 1174,
+      "function_lines": 237,
+      "observation": "Database schema checks, MAC verification, nested version tags and semantic validation share one function",
+      "recommendation": "Separate authenticated payload decoding from table admission, keeping authenticated bytes and final phase checks explicit"
+    },
+    {
+      "path": "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt",
+      "line": 24,
+      "file_lines": 1631,
+      "observation": "Layouts, symbol descriptors and domain marshalling are concentrated in one internal native boundary",
+      "recommendation": "Extract domain marshalling after common error/arena/symbol primitives; preserve one lifetime/error boundary and internal handles"
+    }
+  ],
+  "performance_candidates": [
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout.rs",
+      "line": 357,
+      "observation": "Reservation owns plaintext and AD copies for each recipient, then encodes every recipient state before one durable aggregate persist. Maximum input bounds imply up to 32 * (16384 + 1024) = 557056 bytes of these payload copies, before other state and serialization",
+      "claim_limit": "Static input-copy accounting only; not measured live peak memory and not a bottleneck ranking",
+      "recommendation": "Measure actual installed send/resume allocation and sync cost versus recipient count; any shared representation must preserve durable original input/recovery/zeroization contracts"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+      "line": 378,
+      "observation": "Current reserved-send path borrows pending plaintext/AD instead of cloning both merely to enter send; ciphertext creation still allocates a mutable buffer",
+      "claim_limit": "Do not repeat an old claim that every recovery entry point still clones both inputs; encryption output storage is not automatically avoidable"
+    }
+  ],
+  "counterexamples": [
+    {
+      "path": "artifact/platform_publication_contract.py",
+      "line": 56,
+      "function_lines": 628,
+      "observation": "Largest Python function is frozen literal receipt data with no branch points, not a control-flow hotspot"
+    },
+    {
+      "path": "services/q-periapt-policy-agent/src/service/lease.rs",
+      "file_lines": 2001,
+      "largest_function_lines": 154,
+      "observation": "Long file is already cohesive around one exclusive lease state machine with bounded reconciliation. Optional internal module split can improve navigation, but length alone does not justify changing its ordering or safety checks"
+    },
+    {
+      "path": "crates/q-periapt-ffi/src/lib.rs",
+      "file_lines": 2915,
+      "observation": "File total includes a large inline test module; total file LOC must not be reported as runtime code LOC"
+    }
+  ],
+  "next_order": [
+    "resolve actual installed Swift native crash with controlled build settings",
+    "phase extraction when touching current qualification flows, backed by existing negative controls",
+    "measure fanout input/serialization/persistence costs before changing representation"
+  ],
+  "not_measured": [
+    "end-to-end p50/p95/p99",
+    "peak RSS",
+    "native and foreign heap allocations for complete fanout",
+    "power/energy"
+  ],
+  "product_files_modified": true,
+  "runtime_fix": {
+    "path": "bindings/c/ContinuityPackageConsumer/src/owner.rs",
+    "line": 233,
+    "problem": "Combined bootstrap/reopen temporaries produced a 176336-byte outer Debug frame while reopening on Swift worker stack; original installed binary failed with SIGBUS",
+    "change": "Separate Bootstrap and Existing activation stages returning final heap-owned NativeOwner, without changing thread stacks, flags, protocol, authorization or persistence",
+    "evidence": "Same original Swift binary with same CARGO_INCREMENTAL=0 native settings fails before fix; split passes complete original case; restoring 44352 bytes of caller stack pressure causes the same pre-readiness failure",
+    "outer_frame_before": 176336,
+    "outer_frame_after": 28688,
+    "reopen_helper_frame": 103296,
+    "selected_two_frame_reduction_bytes": 44352,
+    "limits": "Static frame comparison plus behavior controls, not total stack, peak RSS, throughput, or all platform qualification",
+    "validation": {
+      "Swift_unit_tests": 62,
+      "Swift_original_failed_tests_now_passed": 3,
+      "Swift_account_scenarios": 9,
+      "C_actual_owner_connection_regression": true,
+      "strict_Clippy_all_targets": true,
+      "release_build": "passed",
+      "full_pipeline": "pending",
+      "Swift_release_unit_tests": 62,
+      "Swift_release_account_scenarios": 9,
+      "Rust_1_90_all_targets": "passed"
+    }
+  }
+}

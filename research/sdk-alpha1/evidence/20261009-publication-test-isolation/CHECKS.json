@@ -1,0 +1,68 @@
+{
+  "admission-isolated-debug-01": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--lib"
+    ],
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/consumer",
+    "returncode": 0,
+    "seconds": 77.30061108409427
+  },
+  "admission-isolated-release-01": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--release",
+      "--lib"
+    ],
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/consumer",
+    "returncode": 0,
+    "seconds": 92.27314070891589
+  },
+  "isolation-clippy-01": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/consumer",
+    "returncode": 0,
+    "seconds": 2.209170375019312
+  },
+  "isolation-format-01": {
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/consumer",
+    "returncode": 0,
+    "seconds": 0.7596877908799797
+  },
+  "full_artifact_regression": {
+    "head": "9882e9773b80ed024066cc45446764fd491b9695",
+    "tests": 2673,
+    "returncode": 0,
+    "result_sha256": "fdf3e548048223705bb3a596f22d765e53cfa15e369639bdf9e977c393133632"
+  }
+}

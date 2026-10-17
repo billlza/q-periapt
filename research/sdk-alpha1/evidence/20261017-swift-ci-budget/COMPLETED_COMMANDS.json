@@ -1,0 +1,1826 @@
+[
+  {
+    "label": "rustc",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:38:48",
+    "test_seconds": 0
+  },
+  {
+    "label": "workspace-metadata",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:38:48",
+    "test_seconds": 0
+  },
+  {
+    "label": "fetch",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:38:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "package-list",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:38:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "consumer-metadata",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:42:00",
+    "test_seconds": 0
+  },
+  {
+    "label": "package",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:42:00",
+    "test_seconds": 0
+  },
+  {
+    "label": "build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:42:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "consumer-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:42:34",
+    "test_seconds": 13.49
+  },
+  {
+    "label": "build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:45:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "consumer-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:46:00",
+    "test_seconds": 14.78
+  },
+  {
+    "label": "consumer-clippy",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:47:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-cc-path",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:47:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-cc-version",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:47:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-metadata",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:47:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-sdk-path",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:47:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:08",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-library-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:08",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-effect-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-effect-contract-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-exports-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-trace-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:14",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-admission-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-admission-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:50",
+    "test_seconds": 29.63
+  },
+  {
+    "label": "c-root-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:52",
+    "test_seconds": 1.9
+  },
+  {
+    "label": "c-root-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:48:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:08",
+    "test_seconds": 13.67
+  },
+  {
+    "label": "c-root-debug-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:24",
+    "test_seconds": 15.83
+  },
+  {
+    "label": "c-root-debug-bound-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:40",
+    "test_seconds": 14.59
+  },
+  {
+    "label": "c-authority-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-debug-adoption",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:54",
+    "test_seconds": 13.93
+  },
+  {
+    "label": "c-managed-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:49:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:06",
+    "test_seconds": 6.69
+  },
+  {
+    "label": "c-configuration-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-guard-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:50:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-c-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T09:56:22",
+    "test_seconds": 372.16
+  },
+  {
+    "label": "c-managed-configuration-c-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:00:32",
+    "test_seconds": 249.63
+  },
+  {
+    "label": "c-managed-credential-configuration-c-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:04:48",
+    "test_seconds": 256.08
+  },
+  {
+    "label": "c-policy-credential-c-debug-signed-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:07:54",
+    "test_seconds": 185.86
+  },
+  {
+    "label": "c-policy-credential-c-debug-signed-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:11:00",
+    "test_seconds": 185.09
+  },
+  {
+    "label": "c-policy-credential-c-debug-tls-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:14:06",
+    "test_seconds": 185.59
+  },
+  {
+    "label": "c-policy-credential-c-debug-tls-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:10",
+    "test_seconds": 184.99
+  },
+  {
+    "label": "c-enrollment-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-enrollment-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:18",
+    "test_seconds": 1.29
+  },
+  {
+    "label": "c-peer-configuration-guard-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-peer-configuration-c-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:20",
+    "test_seconds": 1.1
+  },
+  {
+    "label": "c-peer-configuration-device-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:22",
+    "test_seconds": 2.02
+  },
+  {
+    "label": "c-publication-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:22",
+    "test_seconds": 1.35
+  },
+  {
+    "label": "c-retirement-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:24",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-retirement-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:17:34",
+    "test_seconds": 9.84
+  },
+  {
+    "label": "c-credential-renewal-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:23:26",
+    "test_seconds": 352.07
+  },
+  {
+    "label": "c-independent-policy-roster-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:25:00",
+    "test_seconds": 93.03
+  },
+  {
+    "label": "c-enrollment-witness-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:25:04",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-enrollment-signed-tcp-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:25:06",
+    "test_seconds": 2.41
+  },
+  {
+    "label": "c-enrollment-mutual-tls-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:25:08",
+    "test_seconds": 1.82
+  },
+  {
+    "label": "c-witnessed-credential-renewal-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:25:16",
+    "test_seconds": 8.48
+  },
+  {
+    "label": "c-witnessed-policy-expiry-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:27:18",
+    "test_seconds": 121.33
+  },
+  {
+    "label": "c-witnessed-cancellation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:29:20",
+    "test_seconds": 121.71
+  },
+  {
+    "label": "c-witnessed-commit-error-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:31:22",
+    "test_seconds": 120.92
+  },
+  {
+    "label": "c-witnessed-policy-continuation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:31:28",
+    "test_seconds": 6.0
+  },
+  {
+    "label": "c-witnessed-policy-cancellation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:33:30",
+    "test_seconds": 122.14
+  },
+  {
+    "label": "c-device-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:33:32",
+    "test_seconds": 1.66
+  },
+  {
+    "label": "c-account-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:33:34",
+    "test_seconds": 3.09
+  },
+  {
+    "label": "c-recovery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:33:58",
+    "test_seconds": 1.25
+  },
+  {
+    "label": "c-server-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:33:58",
+    "test_seconds": 22.83
+  },
+  {
+    "label": "c-restore-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:34:00",
+    "test_seconds": 1.0
+  },
+  {
+    "label": "c-fault-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:34:02",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-fault-probe-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:34:02",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-fault-smoke-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:34:02",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-cleanup-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:06",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-tls-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:26",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:26",
+    "test_seconds": 9.8
+  },
+  {
+    "label": "c-account-tls-loss-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:36",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-tls-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:36",
+    "test_seconds": 9.32
+  },
+  {
+    "label": "c-account-delivery-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-tls-loss-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:46",
+    "test_seconds": 9.75
+  },
+  {
+    "label": "c-account-delivery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:54",
+    "test_seconds": 9.45
+  },
+  {
+    "label": "c-own-account-delivery-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:35:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-own-account-delivery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:04",
+    "test_seconds": 9.47
+  },
+  {
+    "label": "c-own-account-tls-loss-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:04",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-own-account-tls-loss-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:14",
+    "test_seconds": 10.11
+  },
+  {
+    "label": "c-setup-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-local-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-local-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:18",
+    "test_seconds": 0.49
+  },
+  {
+    "label": "c-setup-witness-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:20",
+    "test_seconds": 1.35
+  },
+  {
+    "label": "c-setup-fault-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:22",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-witness-fault-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:36:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-build-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-device-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:24",
+    "test_seconds": 3.43
+  },
+  {
+    "label": "c-opening-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:26",
+    "test_seconds": 2.13
+  },
+  {
+    "label": "c-restore-opening-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:30",
+    "test_seconds": 3.69
+  },
+  {
+    "label": "c-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:38",
+    "test_seconds": 7.64
+  },
+  {
+    "label": "c-witness-openssl-compile-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:42",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-tls-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:42",
+    "test_seconds": 4.99
+  },
+  {
+    "label": "c-witness-openssl-identity-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:44",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-linked-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:44",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-version-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:44",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-server-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:46",
+    "test_seconds": 3.28
+  },
+  {
+    "label": "c-witness-openssl-client-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:48",
+    "test_seconds": 1.13
+  },
+  {
+    "label": "c-witness-openssl-rejections-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:38:48",
+    "test_seconds": 1.2
+  },
+  {
+    "label": "c-peer-tls-preprocessing-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:39:00",
+    "test_seconds": 10.42
+  },
+  {
+    "label": "c-library-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-effect-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-effect-contract-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-exports-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:40:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-trace-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:41:02",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-admission-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:00",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-admission-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:36",
+    "test_seconds": 35.56
+  },
+  {
+    "label": "c-root-contract-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:38",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:38",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:38",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:38",
+    "test_seconds": 1.98
+  },
+  {
+    "label": "c-root-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:40",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-contract-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:40",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:40",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:42:40",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:43:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:43:32",
+    "test_seconds": 14.69
+  },
+  {
+    "label": "c-root-release-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:43:46",
+    "test_seconds": 14.1
+  },
+  {
+    "label": "c-root-release-bound-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:00",
+    "test_seconds": 14.59
+  },
+  {
+    "label": "c-authority-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-authority-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-root-release-adoption",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:16",
+    "test_seconds": 14.56
+  },
+  {
+    "label": "c-managed-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:48",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-managed-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:44:56",
+    "test_seconds": 7.35
+  },
+  {
+    "label": "c-configuration-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:45:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:45:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:45:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-guard-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:45:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:45:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-configuration-c-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:51:38",
+    "test_seconds": 370.35
+  },
+  {
+    "label": "c-managed-configuration-c-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T10:55:50",
+    "test_seconds": 251.51
+  },
+  {
+    "label": "c-managed-credential-configuration-c-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:00:04",
+    "test_seconds": 253.14
+  },
+  {
+    "label": "c-policy-credential-c-release-signed-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:03:10",
+    "test_seconds": 185.39
+  },
+  {
+    "label": "c-policy-credential-c-release-signed-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:06:16",
+    "test_seconds": 186.33
+  },
+  {
+    "label": "c-policy-credential-c-release-tls-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:09:22",
+    "test_seconds": 185.79
+  },
+  {
+    "label": "c-policy-credential-c-release-tls-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:12:28",
+    "test_seconds": 185.36
+  },
+  {
+    "label": "c-enrollment-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:04",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-enrollment-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:04",
+    "test_seconds": 1.27
+  },
+  {
+    "label": "c-peer-configuration-guard-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:04",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-peer-configuration-c-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:06",
+    "test_seconds": 1.19
+  },
+  {
+    "label": "c-peer-configuration-device-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:08",
+    "test_seconds": 1.8
+  },
+  {
+    "label": "c-publication-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:10",
+    "test_seconds": 1.6
+  },
+  {
+    "label": "c-retirement-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:36",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-retirement-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:13:44",
+    "test_seconds": 9.83
+  },
+  {
+    "label": "c-credential-renewal-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:19:38",
+    "test_seconds": 352.18
+  },
+  {
+    "label": "c-independent-policy-roster-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:21:12",
+    "test_seconds": 95.22
+  },
+  {
+    "label": "c-enrollment-witness-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:21:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-enrollment-signed-tcp-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:21:48",
+    "test_seconds": 2.52
+  },
+  {
+    "label": "c-enrollment-mutual-tls-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:21:50",
+    "test_seconds": 1.92
+  },
+  {
+    "label": "c-witnessed-credential-renewal-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:22:00",
+    "test_seconds": 8.37
+  },
+  {
+    "label": "c-witnessed-policy-expiry-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:24:02",
+    "test_seconds": 121.92
+  },
+  {
+    "label": "c-witnessed-cancellation-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:26:04",
+    "test_seconds": 122.5
+  },
+  {
+    "label": "c-witnessed-commit-error-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:28:06",
+    "test_seconds": 121.56
+  },
+  {
+    "label": "c-witnessed-policy-continuation-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:28:12",
+    "test_seconds": 5.36
+  },
+  {
+    "label": "c-witnessed-policy-cancellation-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:16",
+    "test_seconds": 123.06
+  },
+  {
+    "label": "c-device-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:18",
+    "test_seconds": 2.22
+  },
+  {
+    "label": "c-account-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:22",
+    "test_seconds": 3.85
+  },
+  {
+    "label": "c-server-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:44",
+    "test_seconds": 23.05
+  },
+  {
+    "label": "c-recovery-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:46",
+    "test_seconds": 1.46
+  },
+  {
+    "label": "c-restore-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:30:48",
+    "test_seconds": 1.32
+  },
+  {
+    "label": "c-fault-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:31:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-fault-probe-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:31:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-fault-smoke-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:31:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-cleanup-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:32:44",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-tls-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:36",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-witness-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:36",
+    "test_seconds": 8.89
+  },
+  {
+    "label": "c-account-tls-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:44",
+    "test_seconds": 8.31
+  },
+  {
+    "label": "c-account-tls-loss-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-delivery-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-account-tls-loss-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:33:54",
+    "test_seconds": 8.94
+  },
+  {
+    "label": "c-account-delivery-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:04",
+    "test_seconds": 9.16
+  },
+  {
+    "label": "c-own-account-delivery-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:04",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-own-account-delivery-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:12",
+    "test_seconds": 9.52
+  },
+  {
+    "label": "c-own-account-tls-loss-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:14",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-own-account-tls-loss-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:22",
+    "test_seconds": 9.24
+  },
+  {
+    "label": "c-setup-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:56",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-local-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:56",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-local-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:58",
+    "test_seconds": 0.55
+  },
+  {
+    "label": "c-setup-witness-inventory-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-witness-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:34:58",
+    "test_seconds": 1.23
+  },
+  {
+    "label": "c-setup-fault-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:35:32",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-setup-witness-fault-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:36:32",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-build-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:36",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-device-witness-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:38",
+    "test_seconds": 3.13
+  },
+  {
+    "label": "c-opening-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:42",
+    "test_seconds": 2.02
+  },
+  {
+    "label": "c-restore-opening-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:44",
+    "test_seconds": 3.67
+  },
+  {
+    "label": "c-witness-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:52",
+    "test_seconds": 7.39
+  },
+  {
+    "label": "c-witness-openssl-compile-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-identity-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-linked-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-openssl-version-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:58",
+    "test_seconds": 0
+  },
+  {
+    "label": "c-witness-tls-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:38:58",
+    "test_seconds": 4.91
+  },
+  {
+    "label": "c-witness-openssl-server-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:39:00",
+    "test_seconds": 2.53
+  },
+  {
+    "label": "c-witness-openssl-client-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:39:02",
+    "test_seconds": 1.09
+  },
+  {
+    "label": "c-witness-openssl-rejections-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:39:02",
+    "test_seconds": 1.11
+  },
+  {
+    "label": "c-peer-tls-preprocessing-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:39:12",
+    "test_seconds": 8.78
+  },
+  {
+    "label": "c-clippy",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:39:28",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-license-metadata",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-tool-path",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-tool-version",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-binary-path-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-tests-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:46",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-configuration-dependencies-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:48",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-configuration-loader-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:48",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:49:48",
+    "test_seconds": 1.6
+  },
+  {
+    "label": "swift-configuration-swift-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T11:56:02",
+    "test_seconds": 374.48
+  },
+  {
+    "label": "swift-managed-configuration-swift-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:00:14",
+    "test_seconds": 252.45
+  },
+  {
+    "label": "swift-managed-credential-configuration-swift-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:04:32",
+    "test_seconds": 257.83
+  },
+  {
+    "label": "swift-policy-credential-swift-debug-signed-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:07:40",
+    "test_seconds": 187.17
+  },
+  {
+    "label": "swift-policy-credential-swift-debug-signed-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:10:50",
+    "test_seconds": 188.72
+  },
+  {
+    "label": "swift-policy-credential-swift-debug-tls-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:13:58",
+    "test_seconds": 188.37
+  },
+  {
+    "label": "swift-policy-credential-swift-debug-tls-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:06",
+    "test_seconds": 188.28
+  },
+  {
+    "label": "swift-peer-configuration-swift-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:10",
+    "test_seconds": 2.53
+  },
+  {
+    "label": "swift-peer-configuration-swift-debug-lifetime",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:10",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-retirement-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:20",
+    "test_seconds": 10.1
+  },
+  {
+    "label": "swift-enrollment-local-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:24",
+    "test_seconds": 2.27
+  },
+  {
+    "label": "swift-enrollment-signed-tcp-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:26",
+    "test_seconds": 3.29
+  },
+  {
+    "label": "swift-enrollment-mutual-tls-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:30",
+    "test_seconds": 2.68
+  },
+  {
+    "label": "swift-publication-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:17:32",
+    "test_seconds": 2.76
+  },
+  {
+    "label": "swift-credential-renewal-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:23:38",
+    "test_seconds": 365.68
+  },
+  {
+    "label": "swift-account-reconciliation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:24:58",
+    "test_seconds": 79.0
+  },
+  {
+    "label": "swift-independent-policy-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:25:14",
+    "test_seconds": 15.94
+  },
+  {
+    "label": "swift-witnessed-roster-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:25:48",
+    "test_seconds": 35.68
+  },
+  {
+    "label": "swift-peer-tls-preprocessing-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:26:02",
+    "test_seconds": 13.52
+  },
+  {
+    "label": "swift-witnessed-credential-renewal-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:26:16",
+    "test_seconds": 12.41
+  },
+  {
+    "label": "swift-witnessed-policy-expiry-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:28:18",
+    "test_seconds": 123.13
+  },
+  {
+    "label": "swift-witnessed-cancellation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:30:22",
+    "test_seconds": 123.33
+  },
+  {
+    "label": "swift-witnessed-commit-error-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:32:24",
+    "test_seconds": 121.46
+  },
+  {
+    "label": "swift-witnessed-policy-continuation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:32:34",
+    "test_seconds": 8.5
+  },
+  {
+    "label": "swift-witnessed-policy-cancellation-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:34:38",
+    "test_seconds": 124.71
+  },
+  {
+    "label": "swift-account-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:34:42",
+    "test_seconds": 3.99
+  },
+  {
+    "label": "swift-server-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:06",
+    "test_seconds": 22.96
+  },
+  {
+    "label": "swift-recovery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:08",
+    "test_seconds": 1.58
+  },
+  {
+    "label": "swift-restore-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:08",
+    "test_seconds": 1.21
+  },
+  {
+    "label": "swift-witness-opening-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:12",
+    "test_seconds": 2.17
+  },
+  {
+    "label": "swift-witness-signed-tcp-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:18",
+    "test_seconds": 7.35
+  },
+  {
+    "label": "swift-witness-mutual-tls-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:24",
+    "test_seconds": 5.43
+  },
+  {
+    "label": "swift-restore-opening-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:35:28",
+    "test_seconds": 4.06
+  },
+  {
+    "label": "swift-account-witness-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:36:44",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-account-tls-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:36:54",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-account-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:36:54",
+    "test_seconds": 8.88
+  },
+  {
+    "label": "swift-account-tls-loss-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:02",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-account-tls-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:02",
+    "test_seconds": 8.95
+  },
+  {
+    "label": "swift-account-delivery-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:12",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-account-tls-loss-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:12",
+    "test_seconds": 8.74
+  },
+  {
+    "label": "swift-account-delivery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:20",
+    "test_seconds": 8.34
+  },
+  {
+    "label": "swift-own-account-delivery-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:20",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-own-account-delivery-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:30",
+    "test_seconds": 9.12
+  },
+  {
+    "label": "swift-own-account-tls-loss-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:30",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-own-account-tls-loss-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:38",
+    "test_seconds": 7.75
+  },
+  {
+    "label": "swift-setup-local-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:38",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-setup-local-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:38",
+    "test_seconds": 0.51
+  },
+  {
+    "label": "swift-setup-witness-inventory-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:38",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-setup-witness-trace-debug",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:37:40",
+    "test_seconds": 1.36
+  },
+  {
+    "label": "swift-root-debug-original",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:39:56",
+    "test_seconds": 14.61
+  },
+  {
+    "label": "swift-root-debug-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:40:10",
+    "test_seconds": 14.76
+  },
+  {
+    "label": "swift-root-debug-bound-transition",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:40:26",
+    "test_seconds": 14.72
+  },
+  {
+    "label": "swift-root-debug-adoption",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:40:40",
+    "test_seconds": 14.77
+  },
+  {
+    "label": "swift-binary-path-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-tests-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:16",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-configuration-dependencies-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-configuration-loader-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:18",
+    "test_seconds": 0
+  },
+  {
+    "label": "swift-trace-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:41:18",
+    "test_seconds": 1.62
+  },
+  {
+    "label": "swift-configuration-swift-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:47:30",
+    "test_seconds": 372.35
+  },
+  {
+    "label": "swift-managed-configuration-swift-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:51:38",
+    "test_seconds": 248.81
+  },
+  {
+    "label": "swift-managed-credential-configuration-swift-release",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:55:52",
+    "test_seconds": 253.18
+  },
+  {
+    "label": "swift-policy-credential-swift-release-signed-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T12:58:58",
+    "test_seconds": 185.11
+  },
+  {
+    "label": "swift-policy-credential-swift-release-signed-recoverable",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T13:02:04",
+    "test_seconds": 186.41
+  },
+  {
+    "label": "swift-policy-credential-swift-release-tls-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T13:05:10",
+    "test_seconds": 185.58
+  }
+]

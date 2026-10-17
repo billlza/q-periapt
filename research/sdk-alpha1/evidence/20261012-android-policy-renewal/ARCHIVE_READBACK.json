@@ -1,0 +1,13 @@
+{
+  "archives": {
+    "AAR_BUILD_CAPTURE.zip": "56bb49b9e65b13db02e53341eed19d68031ad611844eefde85360a6b2e81e174",
+    "ADAPTER_BOUNDARY_CAPTURE.zip": "e128881e367c7e530391e2c7ef88564ca1df79a2bd8c6f2d937a641a439d9a53",
+    "ART_CAPTURE.zip": "e34e0cbc0149a619572b07abcfb49e9e825a4848f74ec74fd9d1880aaa08a879",
+    "FOCUSED_CAPTURE.zip": "ec6328e67e27ea834c68aa7f99df9673e31a1ba223658d293cc907e6fce029bb",
+    "HOST_CAPTURE.zip": "dea296a382435120c2d40c201620dc5c376851e4755aee58923c18626e51856d"
+  },
+  "art_processes": 234,
+  "code_commit": "b8c8226c64ed8ab928c36bd303f3a3fb96bde5d0",
+  "completed": true,
+  "host_java_processes": 1482
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "qualified_at_utc": "2026-10-04T07:42:37.118851+00:00",
+  "baseline_commit": "e72f6e9a260bffb3adaffe1ff71a33cb0c699029",
+  "native_source_files": 118,
+  "native_source_identity": "All 118 Rust source files match the qualified isolated 422-case candidate; all integrated SDK compiled sources match its sealed dependency cohort.",
+  "checks": [
+    "integrated-native-regression-01",
+    "integrated-native-clippy-01",
+    "integrated-native-format-check-01"
+  ],
+  "passed": 422,
+  "failed": 0,
+  "ignored": 0,
+  "binary_path": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/integrated-native-test",
+  "binary_sha256": "9f85d088ae1807cef9a906094e17fd22652a5876ed671503df7e762e1622f718",
+  "scope": "Current Rust 1.98.1 macOS arm64 native lifecycle integration; source hashes bind this evidence, not a later branch HEAD.",
+  "release_claim_eligible": false,
+  "remaining": [
+    "C/Swift/Kotlin installed renewal package consumers",
+    "Required-witness local renewal",
+    "Independent engine and platform persistence/device qualification",
+    "Retained-secret PQ recovery proof and controlled performance",
+    "Full 0.2.0 release, review and maintenance goal"
+  ],
+  "log_encoding": "gzip preserves exact raw command logs including trailing blank lines"
+}

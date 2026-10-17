@@ -1,0 +1,16 @@
+{
+  "completed_host_routes": [
+    "noncommit"
+  ],
+  "host_processes": 164,
+  "actual_process_cuts": 28,
+  "archive_members": 915,
+  "archive_sha256": "e42b336ffba0c3ff108050a557afc0bb26e86f1f5d74e28a700c1fba5bc22270",
+  "all_member_hashes_verified": true,
+  "public_bindings_reread": 4,
+  "private_keys_or_journals_archived": false,
+  "ART_root_qualified": false,
+  "main_integrated": false,
+  "additional_phone_required": false,
+  "scope": "Android API-owned identities; independently approved original and distinct replacement targets; native issuer/witness, existing C counterparty. Public archive readback does not authenticate signatures or MACs; native execution does."
+}

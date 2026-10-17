@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "completed_local": true,
+  "ci_execution_observed": false,
+  "base_commit": "8f9afcef5587dc3c4d527548f39ef8e732cd6164",
+  "counts": {
+    "combine": 2560042,
+    "mlkem_decapsulate": 2255246,
+    "transport_initial": 52403318,
+    "transport_complete_boundary_seed": 54971791
+  },
+  "count_scope": "Fuzz callback invocations; malformed or short inputs can return early. Not a count of full KEM operations.",
+  "budgets": {
+    "seconds_per_target": 60,
+    "input_timeout_seconds": 10,
+    "rss_limit_mb": 1024,
+    "allocation_limit_mb": 128,
+    "max_input_bytes": 65536,
+    "seed": 1
+  },
+  "final_source_differences_from_captures": {
+    "run-03": [
+      "crates/q-periapt-backends/examples/gen_fuzz_corpus.rs",
+      ".github/workflows/ci.yml"
+    ],
+    "run-04": [
+      ".github/workflows/ci.yml"
+    ]
+  },
+  "difference_explanation": "Run04 reran the transport target after the seed was made a complete low-32-bit message. Final CI-only RUSTFLAGS entries now match the -D warnings used in every local capture; product and fuzz target source bytes are unchanged.",
+  "tests": {
+    "codeql_quality": 44,
+    "source_gate": 37,
+    "workflow_guard_positive": 1,
+    "workflow_guard_negative": 4
+  },
+  "limits": [
+    "Local arm64 macOS; CI Linux execution remains unobserved.",
+    "Native C ASan imports verified; assembly and prebuilt Rust standard/system libraries are outside instrumentation.",
+    "No stateful Continuity fuzzing, whole SDK API coverage, constant-time property or exhaustive security claim.",
+    "Prior Cargo nightly homepage warnings were reproduced in pre-change CI; the new job itself passes actionlint. Full local actionlint retains two pre-existing unknown Ubuntu26.04 label diagnostics."
+  ],
+  "release_claim_eligible": false,
+  "files": {
+    "README.md": "fac231b456f5f74368d8f855400608673d9b06d3b1764cbe62793f19b52dbdcd",
+    "asan-object.json": "6427943ade062579eb81205ac231a73d3e036c76007a849f5456d68b7f537385",
+    "codeql_rust_quality-tests.json": "1a3b14c66cbf0857180e707e9a6e597d78063932aaf46218c31b257e47a13787",
+    "prior-nightly-warnings.json": "42e75bed338e8b1e27b75ab1bf76a4acbc1e99b547dc9f25d20c8a52706612b8",
+    "quality-checks.json": "296469d84f9bc343ac50ba2811d7734bf1a1586114a2337541549fd587cd309d",
+    "run-01-build.stderr.json": "4132aa41332c26f8dbd192117c91ddef0890ee2ad24139be2ea6f7a356b973f2",
+    "run-01-nightly-version.stdout.json": "b484ebaae71c733ea126f96e137dba2241494752370ed7f3254f19677c21f36f",
+    "run-01-result.json": "669298d23a6cf6141eca0cae5d9165a9f55fa67d72d25daf56e262a7f9173575",
+    "run-02-build.stderr.json": "1be3e2691a4640c107cdb96463e27060b9e7a06128e2b457a48e5f337f50810d",
+    "run-02-nightly-version.stdout.json": "b484ebaae71c733ea126f96e137dba2241494752370ed7f3254f19677c21f36f",
+    "run-02-result.json": "33cf457809a3198786ce4a207774c09218bd1598a1fc85fc308996842da7e827",
+    "run-03-build.stderr.json": "171802947a2273df7b88041457b6176941301f3fcb72b5fd96865b87dedcec2d",
+    "run-03-combine.stderr.json": "59ddbc04b425c970eacd02222dca042b2973dc4c48620a992f6dda11c751ecc9",
+    "run-03-mlkem_decapsulate.stderr.json": "25ff21b277ba4f839bc62ca538990d8a068c090a967205e0d241fd350045bdc8",
+    "run-03-nightly-version.stdout.json": "b484ebaae71c733ea126f96e137dba2241494752370ed7f3254f19677c21f36f",
+    "run-03-result.json": "7a080a721240211831a550389a21d4a3808c2cc66cc7c04f905a39e8eff8a918",
+    "run-03-transport.stderr.json": "22a5d7a2ca34ae8657fc564d5e2e2f04162e0621e768ff339f8a6a3927b13dba",
+    "run-04-build.stderr.json": "9460df66f6f36bd510b5b2d5e6aeab3cca9b04d52f460c87ea51e18acefc02df",
+    "run-04-nightly-version.stdout.json": "b484ebaae71c733ea126f96e137dba2241494752370ed7f3254f19677c21f36f",
+    "run-04-result.json": "0b2f849e3f0c867de50b24bc9962208386140f35bc4db5dcf35f391e6841381b",
+    "run-04-transport.stderr.json": "95718224af00129d3729db093651841804e677e0256478f35cc9df82db961994",
+    "source_results_assembler-tests.json": "c061e20101d6b638f09f627dace90188d0c79250d52d8d4f2f61f65f0d7d2668",
+    "statistics-guard.json": "d74407f77d4d51b29c58639421bf1565c1e40c66710fec58ed81f95711d14b1d",
+    "workflow-check.json": "6379c17d798191f995d43b0950ea7787779fe29c9af7354b25de37a514ff207d"
+  }
+}

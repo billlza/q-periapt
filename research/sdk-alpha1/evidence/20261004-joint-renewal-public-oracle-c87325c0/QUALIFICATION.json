@@ -1,0 +1,28 @@
+{
+  "completed": true,
+  "source_base_commit": "c87325c0282c5a3fc1739c33dc4a5abdd82947c7",
+  "scope": "Native-generated public bytes independently checked by Python and OpenSSL3.6.4; wire conformance and signatures, not an independent protocol engine or installed local recovery",
+  "anchor_envelopes": 57,
+  "anchor_signature_negative_controls": 285,
+  "anchor_requests": 26,
+  "bootstrap_envelopes": 20,
+  "bootstrap_signature_negative_controls": 100,
+  "signed_fixture_mutations": 4,
+  "compiler_checks": [
+    "Strict all-targets/all-features Clippy1.90.0 and1.98.1",
+    "Canonical format",
+    "40 metadata tests",
+    "7 write-intent and10 renewal preparation tests after equivalent boolean simplification"
+  ],
+  "previous_full_native_regression": "449 tests at c87325c0; only crash-hook boolean expression changed afterward, covered by the17 focused tests",
+  "red_green": "Rust1.90 reproduces the hosted nonminimal_bool diagnostic on c87325c0; equivalent named predicates pass with -D warnings and no suppression",
+  "runner_errors": "Initial local oracle launcher passed unsupported -W to hardened runner. Changed only the invocation to warnings.simplefilter(error) via supported -c; both actual oracles then passed.",
+  "public_fixture_files": 227,
+  "public_fixture_sha256": "77dede4b7bfaa21ace349ae2a4befc644703a67b0f423f82d70c55ae5770ab3a",
+  "remaining": [
+    "Dedicated local exact apply and terminal/config recovery",
+    "Required-witness installed foreign flow",
+    "Platform/device qualification and complete0.2release goal"
+  ],
+  "release_claim_eligible": false
+}

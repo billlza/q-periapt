@@ -58,7 +58,9 @@ fn decode_hex<const N: usize>(value: &str) -> Result<[u8; N], String> {
     }
     let decoded: Vec<u8> = value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let high = decode_nibble(
                 *pair

@@ -2,10 +2,11 @@
 """Verify the frozen Q-Periapt C ABI 2 header and packaged runtime identity.
 
 For a dynamic library the contract compares every named, defined export against
-the nine-symbol allowlist. Toolchain support or internal bridge symbols are not
+the closed version-specific allowlist (nine for 0.1.5, 51 for 0.2.0).
+Toolchain support or internal bridge symbols are not
 permitted to escape merely because they use another namespace. For a static
 archive, the reserved public ``q_periapt_*`` namespace must contain exactly the
-same nine definitions; other static implementation symbols remain outside the
+same version-specific definitions; other static implementation symbols remain outside the
 public contract.
 """
 
@@ -23,6 +24,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import sdk_abi2_spec
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Callable, Iterator, NoReturn
 
@@ -397,16 +399,24 @@ def _validate_contract_document(document: dict[str, Any]) -> None:
     _require_exact(document["kind"], CONTRACT_KIND, "contract kind")
 
     abi = document["abi"]
+    package = document["package"]
+    is_sdk = isinstance(package, dict) and package.get("semver") == sdk_abi2_spec.PACKAGE_SEMVER
+    expected_macros = {**EXPECTED_MACROS, **(sdk_abi2_spec.MACROS if is_sdk else {})}
+    expected_status = {**EXPECTED_STATUS_CODES, **(sdk_abi2_spec.STATUS_CODES if is_sdk else {})}
+    expected_exports = EXPECTED_EXPORTS + (sdk_abi2_spec.EXPORTS if is_sdk else ())
+    expected_package = {**EXPECTED_PACKAGE, "semver": sdk_abi2_spec.PACKAGE_SEMVER} if is_sdk else EXPECTED_PACKAGE
     if not isinstance(abi, dict):
         _fail("contract abi must be an object")
     _require_exact_keys(
         abi,
-        {"major", "macros", "status_codes", "layouts", "exports", "forbidden_exports"},
+        {"major", "macros", "status_codes", "layouts", "exports", "forbidden_exports"} | ({"native_structs"} if is_sdk else set()),
         "contract abi",
     )
     _require_exact(abi["major"], ABI_MAJOR, "ABI major")
-    _require_exact(abi["macros"], EXPECTED_MACROS, "ABI macros")
-    _require_exact(abi["status_codes"], EXPECTED_STATUS_CODES, "ABI status codes")
+    _require_exact(abi["macros"], expected_macros, "ABI macros")
+    _require_exact(abi["status_codes"], expected_status, "ABI status codes")
+    if is_sdk:
+        _require_exact(abi["native_structs"], sdk_abi2_spec.NATIVE_STRUCTS, "ABI native structs")
     if not isinstance(abi["layouts"], dict):
         _fail("ABI layouts must be an object")
     for name, layout in abi["layouts"].items():
@@ -425,18 +435,18 @@ def _validate_contract_document(document: dict[str, Any]) -> None:
         if not all(isinstance(value, str) and value for value in values):
             _fail(f"ABI export {index} fields must be non-empty strings")
         normalized_exports.append(values)
-    _require_exact(tuple(normalized_exports), EXPECTED_EXPORTS, "ABI exports")
+    _require_exact(tuple(normalized_exports), expected_exports, "ABI exports")
     forbidden_exports = abi["forbidden_exports"]
     if not isinstance(forbidden_exports, list) or not all(
         isinstance(name, str) and name for name in forbidden_exports
     ):
         _fail("forbidden exports must be an array of non-empty strings")
     _require_exact(tuple(forbidden_exports), FORBIDDEN_EXPORTS, "forbidden exports")
-    if set(abi["forbidden_exports"]) & {item[0] for item in EXPECTED_EXPORTS}:
+    if set(abi["forbidden_exports"]) & {item[0] for item in expected_exports}:
         _fail("an ABI symbol is both exported and forbidden")
 
     _require_exact(document["migration"], EXPECTED_MIGRATION, "ABI migration policy")
-    _require_exact(document["package"], EXPECTED_PACKAGE, "ABI package identity")
+    _require_exact(document["package"], expected_package, "ABI package identity")
 
 
 def load_contract(path: pathlib.Path) -> CAbiContract:
@@ -526,6 +536,33 @@ def verify_header(contract: CAbiContract, header_path: pathlib.Path) -> None:
     except (EvidenceIOError, UnicodeDecodeError) as exc:
         raise CAbiContractError(f"cannot read strict UTF-8 C ABI header: {exc}") from exc
     stripped = _without_comments(text, "C ABI header")
+    expected_structs = contract.document["abi"].get("native_structs", {})
+    if expected_structs:
+        # For native-by-value SDK structs, packing or conditional compilation is
+        # part of the ABI. Reject unreviewed directives before checking fields.
+        allowed = {
+            f"#ifndef {HEADER_GUARD}", f"#define {HEADER_GUARD}", "#pragma once", "#endif",
+            "#include <stdarg.h>", "#include <stdbool.h>", "#include <stdint.h>", "#include <stdlib.h>",
+        }
+        for line in stripped.splitlines():
+            normalized = re.sub(r"\s+", " ", line.strip())
+            if normalized.startswith("#") and normalized not in allowed and _DEFINE_RE.fullmatch(normalized) is None:
+                _fail("SDK header contains an unsupported preprocessor directive")
+        native_re = re.compile(r"typedef\s+struct\s*\{[^{}]*\}\s*(?P<name>[A-Za-z_]\w*)\s*;", re.DOTALL)
+        observed_structs = {}
+        for match in native_re.finditer(stripped):
+            name = match.group("name")
+            if name in observed_structs:
+                _fail("SDK header contains a duplicate native struct")
+            observed_structs[name] = _normalize_fragment(match.group())
+        expected = {name: _normalize_fragment(declaration) for name, declaration in expected_structs.items()}
+        if observed_structs != expected or len(re.findall(r"\bstruct\b", stripped)) != len(expected):
+            _fail("SDK native struct declarations differ from contract")
+        remainder = native_re.sub("", stripped)
+        remainder = _DECLARATION_RE.sub("", remainder)
+        remainder = "\n".join(line for line in remainder.splitlines() if not line.lstrip().startswith("#"))
+        if remainder.strip():
+            _fail("SDK header contains unreviewed declaration or attribute tokens")
     if len(re.findall(rf"^\s*#\s*ifndef\s+{HEADER_GUARD}\s*$", stripped, re.MULTILINE)) != 1:
         _fail(f"header must have exactly one #ifndef {HEADER_GUARD}")
     macros = _parse_header_macros(stripped)
@@ -1414,7 +1451,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--contract",
         type=pathlib.Path,
-        default=root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
+        default=root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
     )
     parser.add_argument(
         "--header",
@@ -1462,7 +1499,7 @@ def main() -> int:
         "static_library": (
             str(args.static_library) if args.static_library is not None else None
         ),
-        "package_semver": PACKAGE_SEMVER,
+        "package_semver": contract.document["package"]["semver"],
         "platform": args.platform,
         "status": "pass",
     }

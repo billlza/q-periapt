@@ -1,0 +1,132 @@
+{
+  "source_head": "4b1e975caa6018c7d065c99b24da5ad62b0e2d0a",
+  "analysis_checkout": "840b064eb686ef22581dcfbf66da14fd07d08635",
+  "analysis_tree": "d468d7ebda57202d49768dc27a04ca3760a55617",
+  "head": "4b1e975caa6018c7d065c99b24da5ad62b0e2d0a",
+  "head_tree": "d468d7ebda57202d49768dc27a04ca3760a55617",
+  "same_tree": true,
+  "run": 38049950563,
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/38049950563",
+  "conclusion": "success",
+  "languages": {
+    "Analyze (actions)": "success",
+    "Analyze (c-cpp)": "success",
+    "Analyze (java-kotlin)": "success",
+    "Analyze (python)": "success",
+    "Analyze (swift)": "success",
+    "Analyze (rust)": "success"
+  },
+  "quality_and_timing": {
+    "quality_pass": {
+      "tracked_rs": 458,
+      "source_macro_calls": 23908,
+      "source_format_args": 717
+    },
+    "telemetry": {
+      "path_multiple_canonical_paths": 144,
+      "path_multiple_path_resolutions": 543,
+      "path_multiple_record_fields": 0,
+      "path_multiple_resolved_targets": 130,
+      "path_multiple_tuple_fields": 0,
+      "path_resolution_inconsistencies": 817,
+      "type_ill_formed_mention": 22,
+      "type_inference_inconsistencies": 25,
+      "type_missing_parameter_id": 0,
+      "type_nonfunctional_parameter_id": 0,
+      "type_noninjective_parameter_id": 0,
+      "type_nonunique_certain_information": 3
+    },
+    "step_seconds": {
+      "Analyze": 9081,
+      "Verify Rust CodeQL database quality": 396,
+      "Upload quality-gated Rust CodeQL results": 8
+    },
+    "summary_stats_seconds": 8766,
+    "raw_log_control_sequences_rendered": false
+  },
+  "sarif": {
+    "Rust_results": 853,
+    "Swift_results": 0,
+    "all_findings_cleared": false
+  },
+  "scoped_review": {
+    "baseline_results": 838,
+    "current_results": 853,
+    "new_primary_fingerprints": 15,
+    "removed_primary_fingerprints": 0,
+    "existing_primary_messages_changed": 27
+  },
+  "review_scope": "New primary test-harness sinks and newly contributed dataflows were reviewed against exact source. Baseline alerts and independent security review remain open.",
+  "diagnostics": {
+    "Rust": {
+      "id": 11673261240,
+      "name": "codeql-rust-diagnostics-none-rust-ubuntu-latest",
+      "returncode": 0,
+      "bytes": 479571081,
+      "sha256": "680f136de2626a043429718522105b6d8c47ea2512ac5018ef111900eae84c31",
+      "expected_bytes": 479571081,
+      "expected_digest": "sha256:680f136de2626a043429718522105b6d8c47ea2512ac5018ef111900eae84c31",
+      "verified": true
+    },
+    "Swift": {
+      "id": 11669867840,
+      "name": "codeql-swift-diagnostics-manual-swift-macos-latest",
+      "returncode": 0,
+      "bytes": 16175513,
+      "sha256": "6ab9abbc383dcaa38f846019d58c945bd0b2d73546ca6aa371fbefa3ea765ed7",
+      "expected_bytes": 16175513,
+      "expected_digest": "sha256:6ab9abbc383dcaa38f846019d58c945bd0b2d73546ca6aa371fbefa3ea765ed7",
+      "seconds": 12.454169125063345,
+      "verified": true
+    },
+    "Rust_job_log": {
+      "job": 114206893355,
+      "returncode": 0,
+      "bytes": 715545342,
+      "sha256": "e2166d1e6e1a82a14fbdb4612ca800726938b7b2063c219e56c94d3a23edf4d9",
+      "remote_digest_available": false
+    }
+  },
+  "retention_scope": "Complete diagnostic ZIPs and Rust job log retained under target/codeql-4b1e-current. This capsule includes complete Rust/Swift SARIF plus metadata, scoped review and inspected source; it omits large diagnostic logs already retained in raw ZIPs.",
+  "limits": [
+    "This qualifies source 4b1e975c; it does not qualify later main or experimental authority-journal commits.",
+    "Strict declared source/AST/CFG/SSA/dataflow/macro gates passed; nonzero classified path/type telemetry is retained and does not prove complete extractor semantics.",
+    "Measured durations are a single CI observation, not a query-speed or protocol-performance claim.",
+    "Full managed lifecycle, independent implementation/security review, physical platforms and other 0.2.0 acceptance remain incomplete."
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 489832,
+    "sha256": "5fd1afac91d1ce22d2dfeed3fcdcc7bcff8cd2e01c138b992bfdc6835b8c4d55",
+    "members": {
+      "ARTIFACTS.json": "d5f53938257c4222991dd1930b982fe7ed6934a788e8743a2f30d04b6d88ed9d",
+      "CHANGED_FLOW_RESULTS.json": "044488a5edd20eb93bbc3b5f1d60b168dfdc0c48238a4d54fa6852fd57a497ac",
+      "COLLECTION.json": "732cdc9b5bbcec33752b7fa3505d49f531b4d751927ac29c752f98cee3670745",
+      "COLLECTOR_ATTEMPT_01.json": "73e54af41f65b19cea9209a6f0f13079137c14dc709a83667d4b8b96b7daaaf7",
+      "DELTA_REVIEW.json": "28ce1599db397227b705e25c2b25cb881c182ccb2bd7c7c8ec1ff706e68559ee",
+      "FLOW_DELTA_LOCATIONS.json": "ebcd71b20449379bbb54133989a4a138b47186e55388c77267d697d6a1234955",
+      "JOBS.json": "061ab6616c85dabeb153008f26ba5ec6debd586ed8b3af7705b270f032bbc390",
+      "NEW_PRIMARY_RESULTS.json": "6dc7f2598e9e269a2a7fc0abea4cfb31f79eb3c38d7c7fad3889042f1e75a617",
+      "QUALITY_AND_TIMING.json": "f7f336871d0efb87e4d8abee6d8dbc825e7a03d523791e0b0eec1987a5c276d3",
+      "QUALITY_LOG_LINES.json": "5d38c61b79a8692531dffaa87a65d2a1674f83da76fb2a29b382a004237d4e89",
+      "RUN.json": "dd4a9904e61741c4e83b6eb4b05d559bce74f64ad467d3d9a0bc47fe760cb2a3",
+      "RUST_DOWNLOAD.json": "10abf1317146c4fc49826221dd3d9219d3cf974d865419f761b4b75a428bf424",
+      "RUST_JOB.json": "83a8f067de8442b20f70bb0dcffd64dca9aa19377cf210cdf322cbbc6888931f",
+      "RUST_JOB_DOWNLOAD.json": "a74f333c728af1b2b16f9e3721107d69159fe644720fe4976e522deb6b125a21",
+      "SWIFT_DOWNLOAD.json": "622c30ed0cd57742d916255b7dc5a37521129d58a80d70be79e6b0e558e721f1",
+      "TREE_MATCH.json": "49c0053e5ce54e5245dd9dba7f856dad4468d6dd7dab0df39227334a06b2f529",
+      "rust.sarif": "e4741344ce0a16bf73e5f135c8b329833ccaa5da94f0435966ac069f98f49afe",
+      "source/crates/q-periapt-core/src/lib.rs": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "source/research/continuity-identity-candidate/src/durable.rs": "c8e0af7d22219436ea1b656e140ac9b8b438daa3d66b2c6c2a414486243ba536",
+      "source/research/continuity-identity-candidate/src/durable/write_intent/account_root.rs": "b9d1c0805f9e7f3899e836f7e8226723ec74dd486bf1939eef7ef530849a8446",
+      "source/research/continuity-identity-candidate/src/durable/write_intent/account_root/tests.rs": "5bfb1dff9cfbc435d41bbc3d3cef7d3c3edf990821924288b98b018b764f41de",
+      "source/research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/support.rs": "32589ffb32798772bacbb77bec245d775fe4c31528062fa9c57850f3b96a8e85",
+      "source/research/continuity-identity-candidate/src/enrollment.rs": "24d45f6f515209b18a21e5bd66320812a9aa3c45aab86aa1a93597ab1c3c52e0",
+      "source/research/continuity-identity-candidate/src/enrollment/account_root.rs": "9c0c57ea302375c63d187e1ae3346b273e28db50c403470f3dca9e9fbf93d130",
+      "source/research/continuity-identity-candidate/src/enrollment/account_root/process.rs": "0390423d28be26e895afc2fe2e49ff441fa6cfd248cfd8ac0dc7e8be6a104532",
+      "source/research/continuity-identity-candidate/src/enrollment/account_root/tests.rs": "3f696d6ddc77d527cbb2e55ec12c6020dd99b67dc2c57acf5e5a0add8ff93d99",
+      "swift.sarif": "bf81341a2fa6e80c448be874898458dbeb52a06cbbf78e4654bf21a947b9f930"
+    }
+  },
+  "release_claim_eligible": false
+}

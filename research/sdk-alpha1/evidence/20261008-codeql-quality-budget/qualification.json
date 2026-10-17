@@ -1,0 +1,75 @@
+{
+  "at_utc": "2026-10-07T23:25:31.357644+00:00",
+  "control": {
+    "all_original_assertions_pass": true,
+    "artifact": 11518185071,
+    "artifact_bytes": 7632653,
+    "artifact_sha256": "5c795d28e0b31e3ed010812e90c968d56397f9017916436b83baf6a641f57ea1",
+    "commit": "58eb92849b0be16a55432845731b82729abef389",
+    "conclusion": "success",
+    "input_artifact": 11515742809,
+    "input_artifact_sha256": "85559c1778f4d43bedb889a6184a86d4a8fd5d4facdddd467519caa19dcbc3a6",
+    "input_database_sha256": "d263dedda807fde1c2b3a5aca053ff1f99148c8ce39392495771fb58d6677550",
+    "query_seconds": {
+      "ExtractedPaths": 42.00570109099999,
+      "Metrics": 304.052077223,
+      "UnresolvedMacros": 28.002898390999917
+    },
+    "run": 37700675470,
+    "scope": "Unchanged queries/validator, CodeQL 2.27.1, 4 threads/14000 MB, standard finalized old-source bundle with trimmed cache. Not original full evaluator cache, cold extraction, current-source CI or security-alert disposition.",
+    "tracked_rs": 418
+  },
+  "first_control": {
+    "artifact": 11516453878,
+    "artifact_sha256": "43df573ebec2e9e37414c376c841f35c57e5982e47c611052383e401d09ae5c6",
+    "commit": "9daef191710f90e1c96b13cd93becbfcbd82c915",
+    "conclusion": "failure",
+    "reason": "Controller assumed partial-archive root/temp layout. Failed at database admission before any query. Corrected against the downloaded verified finalized bundle.",
+    "run": 37700011796
+  },
+  "focused_after_fixes": {
+    "actionlint_pass": true,
+    "clean_source_before_and_after": true,
+    "commit": "f88e89a805a2a423522f34679a0f13e4486ef68d",
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "source_gate_pass": true,
+    "tests": 114
+  },
+  "full_artifact_before_fixes": {
+    "commit": "1efbc99c70ce9b79b5b9eb0fafec3aae489cf904",
+    "failures": 2,
+    "failures_identified": [
+      "binding contract bypassed shared strict JSON parser",
+      "host-store q-periapt-sig production edge missing from publication topology"
+    ],
+    "seconds": 599.0951743330806,
+    "subsequent_full_suite_run_locally": false,
+    "tests": 2647
+  },
+  "original_CodeQL": {
+    "Analyze": "success; all 39 queries completed",
+    "SARIF_results": 777,
+    "SARIF_security_triage_complete": false,
+    "head": "4fc8412a02084bb6d5de003d99eeaab2aa79079b",
+    "job_log_sha256": "1fb3f4c0aae07ad6471b2050a5b7551970a6ef2c3c64195c0df56f2357936256",
+    "merge": "605de309dbcf5ebdca6652e1487e9425c6e38a4b",
+    "quality": "Metrics command exceeded 300 seconds; SARIF upload withheld",
+    "run": 37680196785
+  },
+  "other_current_changes": {
+    "FFI_cleanup_failure_characterization": "44 tests and strict Clippy passed; availability interruption remains; recovery from next state tested in memory only",
+    "legacy_deprecation": "Public docs and generated headers deprecate four stateless operations for new integrations; five metadata/status functions remain; all 43 signatures/exports retained"
+  },
+  "product_change": {
+    "Analyze_minutes": 150,
+    "Metrics_seconds": 900,
+    "Rust_job_minutes": 210,
+    "decode_seconds": 300,
+    "other_query_seconds": 300,
+    "query_or_quality_assertion_removed": false
+  },
+  "product_source_commit": "f88e89a805a2a423522f34679a0f13e4486ef68d",
+  "release_claim_eligible": false
+}

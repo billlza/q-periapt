@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T16:15:42.886439+00:00",
+  "base_commit": "737ca3ec25c7979d10578219e27843678686c415",
+  "source_files": {
+    ".github/workflows/ci.yml": "e6648c5c669a484b5dc1aa1c767901cf7b64e1cd478360b0c6af843e3dceea6c",
+    "artifact/continuity_c_consumer.py": "e8aa7dd88f94182ed62374076c7c4641b2732154493c752bf33f93656e04baa9",
+    "artifact/continuity_device_retirement.py": "67c32f193a895405281ad4ef52d84bfde1d7c1295c20e8b569c80cc3e5617460",
+    "artifact/test_continuity_c_consumer.py": "d0ebd23dc5c026f33a801eb6a46eb84caa7d95c1f885e0861b9acb8b9db39a03",
+    "artifact/test_continuity_device_retirement.py": "d7bc1841312723c4eae6b1c407c386ae6bd4a2a9400aff5e828a06660ee47ffb",
+    "bindings/c/ContinuityPackageConsumer/README.md": "d6ac5afbfb2021751c8f1356d4a9a3a3402874aeecad625344e8b0d5c4e0a222",
+    "bindings/c/ContinuityPackageConsumer/client.c": "d97a62e428929fd4ac6203c20b3a5b81b0b2a8512ab893a774d64b5275638fb3",
+    "bindings/c/ContinuityPackageConsumer/enrollment_client.c": "c1e9f574ab3cd87a099ff31979f9de12053f84cd3317b78023c92b847ebe817e",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "ce75062bfdc13b7c89f00a41c180a6a515325900331f3f50196facd525f4d6f7",
+    "bindings/c/ContinuityPackageConsumer/retirement_client.c": "806acbf35461044c7b5c834dcb00e77f5fedefe153e326c20d55a1a422b4ea8a",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment.rs": "2e0025f8e3c6a7ec6d27be2c54ac76fbb119bc00985d8621f9cfd09b98f8c608",
+    "bindings/c/ContinuityPackageConsumer/src/lib.rs": "5d304fb3063931b5dcf422056a72a5b224566ba102e559d612ce90ae3f283d0c",
+    "bindings/c/ContinuityPackageConsumer/src/opening.rs": "09687ec317bf2b4e2055179ac44fdef44829177393d158c5e470407dcf628de3",
+    "bindings/c/ContinuityPackageConsumer/src/retirement.rs": "918a3ef1b29a05ec8c6e0b3509c244d656f319566529342e70b074a1f8c6c9b1",
+    "bindings/c/ContinuityPackageConsumer/tests/retirement.rs": "39dc6e00c2fb13d3fd2285d5b6ef0f06d0064012e280002ce1ea366850bfd2d5",
+    "docs/continuity/PRODUCT_ADMISSION.md": "1ecd6ebccbc42e77f292c8928462baf7b46c95aa6b75c0fb9c2a3c04f361b15d",
+    "research/continuity-identity-candidate/tests/owned_connection.rs": "7a53bfe029f98e3382db143fc8d5ce6b2481201c59cc622803a9ada00e84a80c",
+    "research/continuity-identity-candidate/tests/owned_connection/retirement.rs": "eeb9adfc476e4ec3f0ed2689e7e7fd6949069d8aef64c302df8c0da1d25f5be3"
+  },
+  "development_source_consumption": true,
+  "installed_archive_qualified": false,
+  "required_passes": [
+    "build-04",
+    "retirement-test-build-debug",
+    "retirement-test-build-release",
+    "runtime-target-debug",
+    "runtime-target-release",
+    "enrollment-test-build-debug",
+    "registration-target-debug",
+    "native-regression-debug",
+    "unit-02",
+    "clippy-03",
+    "msrv-02",
+    "artifact-tests-03"
+  ],
+  "c_export_count": 119,
+  "runtime": {
+    "runtime-target-debug": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 9.41114562493749,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f": "df351cbaffb34494cdb6cbb90be3c76f6a5fa4c6c733fd71adc44c8c6db4f1b0",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/qpc-c-client": "46520ad094f12ef7c46b09b7f0bdf7de1700295491ab27b2e29dbde6bcf66b40",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59"
+      },
+      "binaries_unchanged": true
+    },
+    "runtime-target-release": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0",
+        "--exact",
+        "c_retired_enrollment_preserves_complete_report_and_original_erasure_across_processes",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 9.943921791855246,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/release/deps/retirement-657ef92a299440b0": "a692d71e31a1efb8992e1f89d31c3c13f735885212699f90f6a8fddfb1d5940b",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-durable/qpc-c-client": "ba45d31199a02125846c5f52a0bdd873b4ac9de82398cc8e02e22422d5477bf8",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/release-durable/libq_periapt_continuity_c_consumer.dylib": "ef57655b4bba36447623b60af55c27d882cf50bc4d5cac0cfe99519d08049901"
+      },
+      "binaries_unchanged": true
+    },
+    "registration-target-debug": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/enrollment-830774afbdf9d0b6",
+        "--exact",
+        "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 6.221937666879967,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/enrollment-830774afbdf9d0b6": "205c68636335889820b216aee920e22985bf1df8b0bee54139ca898ee2a51d45",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/qpc-c-client": "46520ad094f12ef7c46b09b7f0bdf7de1700295491ab27b2e29dbde6bcf66b40",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59"
+      },
+      "binaries_unchanged": true
+    },
+    "native-regression-debug": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f",
+        "--exact",
+        "fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 23.97300612507388,
+      "binaries_before": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/build/debug/deps/retirement-4867cbdc44d5245f": "df351cbaffb34494cdb6cbb90be3c76f6a5fa4c6c733fd71adc44c8c6db4f1b0",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/qpc-c-client": "46520ad094f12ef7c46b09b7f0bdf7de1700295491ab27b2e29dbde6bcf66b40",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/artifacts/debug-durable/libq_periapt_continuity_c_consumer.dylib": "67e95293005b2fd9cb1ffcfe7118c77dcfa775d042b47a6d45c741ceac29ee59"
+      },
+      "binaries_unchanged": true
+    }
+  },
+  "checks": {
+    "unit-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--lib",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 1.9770127919036895
+    },
+    "clippy-03": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 1.5697405422106385
+    },
+    "msrv-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--all-targets",
+        "--locked",
+        "--offline"
+      ],
+      "returncode": 0,
+      "seconds": 2.0461273330729455
+    },
+    "artifact-tests-03": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_continuity_c_consumer\",\"artifact.test_continuity_device_retirement\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 1.1845184999983758
+    }
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "7c1dfe2c2e0b05a0fc821d60e85df6ef174e529536923bb30300eb869d768e91",
+    "bytes": 479481,
+    "members": 266
+  },
+  "observed_failures": [
+    {
+      "label": "build-01",
+      "cause": "Existing consumer lock lacked current host-store dependency edges. Offline metadata adjustment preserved external package versions, sources and checksums."
+    },
+    {
+      "label": "runtime-01",
+      "cause": "Runner-created parent mode 0755 was refused by the native private-directory contract. A fresh 0700 evidence parent was used; failed directory retained."
+    },
+    {
+      "label": "registration-regression-01",
+      "cause": "Actual registration passed but its unchanged reader refused the added enrollment-test census. New retirement workload moved to a standalone target; final registration passed the unchanged 27-filtered gate."
+    }
+  ],
+  "scope": "Eight C cleanup processes after native Rust enrollment/replacement; complete native readback, original host report/ACK, logical journal/signer erasure. Same host/implementation. Native fresh-generation TLS. No Swift/Kotlin retirement, independent implementation, physical erasure, physical-device or complete foreign replacement claim.",
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

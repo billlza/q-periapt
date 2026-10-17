@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-witness-head-01/candidate/Cargo.toml",
+    "--all-features",
+    "--lib",
+    "policy_witness_head_probe",
+    "--",
+    "--nocapture"
+  ],
+  "returncode": 101,
+  "completed": false,
+  "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+  "seconds": 5.637638958054595,
+  "log_sha256": "41efd0fd4138e1400f7700aef1ff63f0e21d2e95aff3221cc1b37e1b87c0c2fe",
+  "probe_sha256": "409d13786afa242e164ddb39fe269b768945f9a0f204f408bc824d9a13e2e7e6",
+  "modified_test_sha256": "aa30a32bdfe3fb5641dc5e1ad31bd71b22b187f4f6d88ed6d3a2ee530a8d7778",
+  "scope": "Existing witness opaque-target semantic observation with real sealed pending image and real durable AnchorStore; existing honest recovery refusal is a required control. No policy transition or arbitrary local-state forgery claim.",
+  "release_claim_eligible": false
+}

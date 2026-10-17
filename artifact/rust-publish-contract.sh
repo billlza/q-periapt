@@ -12,6 +12,18 @@ ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
+if [ "$#" -gt 0 ]; then
+	if [ "$#" -ge 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
+		shift 2
+		python3 "$ROOT/artifact/rust_sdk_profile.py" "$@"
+		exit $?
+	fi
+	printf 'error: supported explicit Rust package profile is --profile sdk-020 --output DIR\n' >&2
+	exit 2
+fi
+
+# The ten-crate maintenance producer keeps its historical compiler contract.
+# SDK 0.2 dispatches above to rust_sdk_profile.py and uses Rust 1.98.1.
 PUBLISHABLE_CRATES="
 q-periapt-mlkem-native-sys
 q-periapt-core
@@ -1109,15 +1121,16 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tomllib
 
 from bounded_process import BoundedProcessError, capture_stdout
 from evidence_io import EvidenceIOError, read_regular_snapshot
 from rust_publish_contract import (
     RustPublishContractError,
     parse_mlkem_archive_defined_symbols,
-    validate_mlkem_native_build_surface,
+    validate_mlkem_native_manifest_features,
+    validate_packaged_mlkem_native_source_contract,
     validate_mlkem_native_archive_contract,
-    validate_packaged_mlkem_native_local_source_digests,
     validate_packaged_mlkem_native_local_sources,
 )
 
@@ -1222,7 +1235,9 @@ with tarfile.open(archive, mode="r:gz") as packaged:
         if member.isfile() and member.name.startswith(prefix + "src/")
     }
     try:
-        validate_packaged_mlkem_native_local_sources(packaged_local_sources)
+        validate_packaged_mlkem_native_local_sources(
+            packaged_local_sources, package_version=version
+        )
     except RustPublishContractError as source:
         raise SystemExit(f"error: {source}") from source
 
@@ -1247,11 +1262,18 @@ with tarfile.open(archive, mode="r:gz") as packaged:
         return data
 
     try:
-        validate_packaged_mlkem_native_local_source_digests(
+        packaged_manifest = tomllib.loads(read_file("Cargo.toml").decode("utf-8"))
+        if packaged_manifest["package"]["version"] != version:
+            raise RustPublishContractError("normalized sys package version differs")
+        validate_mlkem_native_manifest_features(
+            packaged_manifest.get("features", {}), package_version=version
+        )
+        validate_packaged_mlkem_native_source_contract(
             {
                 relative: read_file(relative)
                 for relative in sorted({"build.rs"} | packaged_local_sources)
-            }
+            },
+            package_version=version,
         )
     except RustPublishContractError as source:
         raise SystemExit(f"error: {source}") from source
@@ -1385,29 +1407,6 @@ with tarfile.open(archive, mode="r:gz") as packaged:
                 f"{relative_name} expected={inventory[relative_name]} actual={actual}"
             )
 
-    build_rs = read_file("build.rs").decode("utf-8")
-    build_support = read_file("src/build_support.rs").decode("utf-8")
-    bridge_c = read_file("src/mlkem_bridge.c").decode("utf-8")
-    bridge_native_c = read_file("src/mlkem_bridge_native.c").decode("utf-8")
-    bridge_portable_c = read_file("src/mlkem_bridge_portable.c").decode("utf-8")
-    bridge_asm = read_file("src/mlkem_bridge_asm.S").decode("utf-8")
-    bridge_h = read_file("src/mlkem_bridge.h").decode("utf-8")
-    local_config = read_file("src/mlkem_config.h").decode("utf-8")
-    aarch64_fips202 = read_file("src/mlkem_fips202_aarch64.h").decode("utf-8")
-    try:
-        validate_mlkem_native_build_surface(
-            build_rs=build_rs,
-            build_support=build_support,
-            bridge_c=bridge_c,
-            bridge_native_c=bridge_native_c,
-            bridge_portable_c=bridge_portable_c,
-            bridge_asm=bridge_asm,
-            bridge_h=bridge_h,
-            local_config=local_config,
-            aarch64_fips202=aarch64_fips202,
-        )
-    except RustPublishContractError as source:
-        raise SystemExit(f"error: {source}") from source
 
 
 def required_tool(name: str) -> str:

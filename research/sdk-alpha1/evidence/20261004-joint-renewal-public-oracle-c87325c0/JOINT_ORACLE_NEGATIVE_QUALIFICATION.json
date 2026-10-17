@@ -1,0 +1,30 @@
+{
+  "completed": true,
+  "cases": [
+    {
+      "case": "stale-authentic-reply",
+      "returncode": 1,
+      "reason": "joint reply exact observation",
+      "log_sha256": "53e50bab0e56f6e032a63da2037b4e1190faea61a762b525bc1f13f77dc7bcd9"
+    },
+    {
+      "case": "nonadjacent-proposal",
+      "returncode": 1,
+      "reason": "adjacent proposal expectations",
+      "log_sha256": "8ff6297f95d1234e4d44cbef248ec6f21833e4da886cc92e8646a3042f7be28d"
+    },
+    {
+      "case": "authentic-predecessor-as-target",
+      "returncode": 1,
+      "reason": "successor same-key extension",
+      "log_sha256": "6bca623cf560e760bf8b18c44788d0ec6d1eef930447bb11a112ac62a13c03fd"
+    },
+    {
+      "case": "missing-joint-vectors",
+      "returncode": 1,
+      "reason": "No such file or directory",
+      "log_sha256": "2a3433f1d3db557135501a6c9923236476f08f92e657294b563e304ddc053d4b"
+    }
+  ],
+  "scope": "Four actual signed-fixture mutations are rejected at their intended boundaries; no signatures or verifier calls are mocked"
+}

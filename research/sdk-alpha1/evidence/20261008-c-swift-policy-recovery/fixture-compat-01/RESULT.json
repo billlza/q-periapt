@@ -1,0 +1,22 @@
+{
+  "prior_contract_sha256": "11bd27c7aa2096ec73cd112208ef4bef470b24247805a52cf04a1dd368d4f149",
+  "current_contract_sha256": "3d0c047a3668c5f57aaf94dbbed52eae47180957c1d54e2c3db8532fa8f05d94",
+  "retained_43_exports_structs_macros": true,
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "run",
+    "--offline",
+    "--locked",
+    "-p",
+    "q-periapt-host-store",
+    "--example",
+    "recovery_fixture",
+    "--",
+    "/private/tmp/qperiapt-public-vectors-8pq8_87h"
+  ],
+  "returncode": 0,
+  "seconds": 0.7169941251631826,
+  "stdout_sha256": "0ae50b5a5c7954d0b44e9687d76aa6ba2958f33c06030164df6778c43e055394",
+  "stderr_sha256": "dfe9e9c696bff8814bbcf59d8e29e70a5cde546437b22d0ad1ed327ddf3ade4e",
+  "fixture_exactly_reproduced": true
+}

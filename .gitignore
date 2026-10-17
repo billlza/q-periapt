@@ -12,6 +12,8 @@ __pycache__/
 
 # Ephemeral review/render outputs are never execution or release inputs.
 /tmp/
+/.playwright-cli/
+/output/playwright/
 
 # Binding build artifacts
 bindings/swift/.build/

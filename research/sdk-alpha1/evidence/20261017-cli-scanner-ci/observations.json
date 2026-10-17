@@ -1,0 +1,40 @@
+{
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Native Apple Silicon tests/strict lint and actual isolated workspace plus fuzz audits. Windows ERROR_SHARING_VIOLATION and post-close rename still require hosted Windows execution.",
+  "source_sha256": {
+    "Cargo.lock": "8e1bebf9c4c84a9b78de769dcf88f2f61af251ed0915d7a6b4b9a5626aab38aa",
+    "artifact/rust_publish_contract.py": "674a16c33700794a2434dd22d4e14129ceb7340670a29d0ebf161215b92f5491",
+    "artifact/test_rust_publish_contract.py": "48897a28bea3c40375c73039719fac5cdd10116722148250b153416b96e0cb53",
+    "crates/q-periapt-cli/src/scanner.rs": "be9ff7d5c57ba741bfad349ac533098ded257474c0921fecf670eeffc3c1811d",
+    "crates/q-periapt-cli/src/scanner/tests.rs": "b97932ff5142a56d5ae473f0a8a6e673aba500e893fba381449c80e9a96bdf2a"
+  },
+  "source_parent": "3df45b849012334190f764aecc73ac558b3eb712",
+  "hosted_failures": [
+    {
+      "job": 117397671523,
+      "name": "windows",
+      "observed": "12 CLI library tests pass; rename protection test returns ERROR_SHARING_VIOLATION 32, mapped to Uncategorized. Both symlink substitution controls pass."
+    },
+    {
+      "job": 117397671609,
+      "name": "audit",
+      "observed": "Sparse-index preflight rejects 271 registry packages under stale 259-entry workspace bound; no vulnerability result was reached."
+    },
+    {
+      "job": 117397671535,
+      "name": "check",
+      "observed": "2984 artifact tests run, three skipped, one error in the live workspace/fuzz inventory test at the same stale bound."
+    }
+  ],
+  "corrections": [
+    "Admit Windows sharing-violation 32 in the fixture; require original-directory scan and successful rename after closing the retained handle.",
+    "Increase only reviewed workspace registry count from259 to271; retain normalized/fuzz256, all byte/time bounds, exact checksums and strict advisory handling. Existing tests accept271 and reject272."
+  ],
+  "validation_counts": {
+    "native_cli_tests": 23,
+    "audit_contract_tests": 80
+  },
+  "source_note": "Product scanner runtime is byte-identical to3df45b84. Only its platform regression assertion and audit inventory contract change.",
+  "remaining": "Corrected assertion needs actual hosted Windows execution; this is not a completed current-source CI claim."
+}

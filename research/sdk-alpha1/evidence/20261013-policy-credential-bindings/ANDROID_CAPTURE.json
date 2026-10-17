@@ -1,0 +1,111 @@
+{
+  "abi": "arm64-v8a",
+  "accepted_device_count": 1,
+  "api_level": 37,
+  "bytes": 781291,
+  "completed": true,
+  "members": 664,
+  "observed_kernel_page_bytes": 4096,
+  "physical_processes": 166,
+  "release_claim_eligible": false,
+  "routes": {
+    "local-recoverable": {
+      "aar_sha256": "b5094947eb3789e3a27791ac3a59bfae23b7e490962ecc62ba69afb42707c42c",
+      "apk_sha256": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+      "cleanup": true,
+      "completed": true,
+      "inputs": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/consumer.apk": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/device-driver.py": "60fb910bf0650812dcaa03532267c965340691c708ba04dd4d0a9c0702d9853b",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/integration-target/debug/deps/android-6b9d6aa21d6883bd": "32f18d9315c3c319c1d2ba1dad6679c58862dabe2a088af25100e9099e37f795",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/libq_periapt_continuity_c_consumer.dylib": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-c-client": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-configuration-client": "57ebcdfdcb77d6a28a53b5fdf282352749aacac897cf8e54fc0f065b9e543728"
+      },
+      "inputs_unchanged": true,
+      "physical_processes": 46,
+      "release_claim_eligible": false,
+      "result": {
+        "business_effects": 1,
+        "credential_renewed": true,
+        "foreign_processes": 46,
+        "independent_policy_renewed": true,
+        "issuer_request_from_public_owner": true,
+        "next_issuer_predecessor_advanced": true,
+        "operation": "00657b47a8400398d68dba5e0d1b92ef7518c98d0802fff8bd1a47b5c21c5d86",
+        "original_message": "000000000000000000000000000000001247bea11d7e8e79df795cb73eec1b09",
+        "original_request_sha256": "d2a77002f83aee47b868e5414d57a443a5e2a3e3316b8e762ff9471378c6a1f0",
+        "original_session": "640e2e1925fc83b37a5b77136376b835502c3269fdd847ff03accdde8c9976c2",
+        "policy_expired": true
+      },
+      "route": "local-recoverable",
+      "scope": "Accepted API37 physical phone, actual R8 APK containing current AAR, source-linked C peer and independent host issuer/witness; original application message; no independent protocol implementation claim"
+    },
+    "signed-fixed": {
+      "aar_sha256": "b5094947eb3789e3a27791ac3a59bfae23b7e490962ecc62ba69afb42707c42c",
+      "apk_sha256": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+      "cleanup": true,
+      "completed": true,
+      "inputs": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/consumer.apk": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/device-driver.py": "60fb910bf0650812dcaa03532267c965340691c708ba04dd4d0a9c0702d9853b",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/integration-target/debug/deps/android-6b9d6aa21d6883bd": "32f18d9315c3c319c1d2ba1dad6679c58862dabe2a088af25100e9099e37f795",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/libq_periapt_continuity_c_consumer.dylib": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-c-client": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-configuration-client": "57ebcdfdcb77d6a28a53b5fdf282352749aacac897cf8e54fc0f065b9e543728"
+      },
+      "inputs_unchanged": true,
+      "physical_processes": 60,
+      "release_claim_eligible": false,
+      "result": {
+        "business_effects": 1,
+        "credential_renewed": true,
+        "foreign_processes": 60,
+        "independent_policy_renewed": true,
+        "issuer_request_from_public_owner": true,
+        "next_issuer_predecessor_advanced": true,
+        "operation": "003ef0d3557c2a5dd511fbb2b691a959c6ce8231a0fb24c8adaf3be74a96e019",
+        "original_message": "000000000000000000000000000000005ce528ecbb25378a1fbddeb6928557fb",
+        "original_request_sha256": "70ade09428ec6f981ac68bc58a78f71745ee6aeae2eb2aaa195c08de2e8a3401",
+        "original_session": "2c925d37642c1d01921b60d4d92264052329305d29ab49afe35e51be912d6ac7",
+        "policy_expired": true
+      },
+      "route": "signed-fixed",
+      "scope": "Accepted API37 physical phone, actual R8 APK containing current AAR, source-linked C peer and independent host issuer/witness; original application message; no independent protocol implementation claim"
+    },
+    "tls-recoverable": {
+      "aar_sha256": "b5094947eb3789e3a27791ac3a59bfae23b7e490962ecc62ba69afb42707c42c",
+      "apk_sha256": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+      "cleanup": true,
+      "completed": true,
+      "inputs": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/consumer.apk": "2a7af4929bd7a2b48ad8c5fafffca385183178aed6355abb78b03f0851442e5d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/device-android-02/device-driver.py": "60fb910bf0650812dcaa03532267c965340691c708ba04dd4d0a9c0702d9853b",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/integration-target/debug/deps/android-6b9d6aa21d6883bd": "32f18d9315c3c319c1d2ba1dad6679c58862dabe2a088af25100e9099e37f795",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/libq_periapt_continuity_c_consumer.dylib": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-c-client": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed/qpc-configuration-client": "57ebcdfdcb77d6a28a53b5fdf282352749aacac897cf8e54fc0f065b9e543728"
+      },
+      "inputs_unchanged": true,
+      "physical_processes": 60,
+      "release_claim_eligible": false,
+      "result": {
+        "business_effects": 1,
+        "credential_renewed": true,
+        "foreign_processes": 60,
+        "independent_policy_renewed": true,
+        "issuer_request_from_public_owner": true,
+        "next_issuer_predecessor_advanced": true,
+        "operation": "6b3a92368964cbe8ec9aa0bdb04ea0c3e6cd89e88e3f147b3d358f5e7db8fee2",
+        "original_message": "00000000000000000000000000000000eabad8f92caf2b209a85ef4b6b647b77",
+        "original_request_sha256": "050bb7913e0277139c43db3a59885f1ab2771a5fd341c1be25297d8b2d5a7fb8",
+        "original_session": "0d23858ab534fbf038cd0a172f48ce3dad9df26034924ef2a3f1aed6b753d203",
+        "policy_expired": true
+      },
+      "route": "tls-recoverable",
+      "scope": "Accepted API37 physical phone, actual R8 APK containing current AAR, source-linked C peer and independent host issuer/witness; original application message; no independent protocol implementation claim"
+    }
+  },
+  "sha256": "2c2439e8dc03c7bbdcc3fcf0b4145087e3fadef1ff6262d96f9b84109f98eafe",
+  "transport": "ADB reverse mappings to native peer and witness, removed after each invocation"
+}

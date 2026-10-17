@@ -1,0 +1,48 @@
+{
+  "swift_test_count": 74,
+  "artifact_test_count": 58,
+  "host_route_count": 6,
+  "host_foreign_processes": 332,
+  "scope": "C and Swift request output plus Android extended G/P bindings; source-linked host native engine; no complete release claim",
+  "current_head_before_changes": "3b6133d8f62225b75d381b2c74305a2db63fed4c",
+  "original_failures": [
+    {
+      "route": "local-fixed-01",
+      "cause": "test incorrectly used joint G/T reconciliation for independent P then G; preserved core refusal"
+    },
+    {
+      "route": "signed-fixed-01",
+      "cause": "test armed partial committed reply without required hold marker"
+    },
+    {
+      "route": "local-fixed-02",
+      "cause": "test read status through consumed/transferred enrollment owner"
+    },
+    {
+      "route": "signed-fixed-02 and tls-recoverable-02 readback",
+      "cause": "reader had flag/statement offsets swapped; native execution succeeded and was retained"
+    }
+  ],
+  "native_library_sha256": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+  "current_swift_sources_equal_tested_inputs": true,
+  "commands": {
+    "clippy": [
+      "sh",
+      "target/continuity-browser-credential-renewal/cargo.sh",
+      "clippy",
+      "--locked",
+      "--offline",
+      "--lib",
+      "--manifest-path",
+      "target/continuity-policy-credential-interop/integration-consumer-02/Cargo.toml",
+      "--target-dir",
+      "target/continuity-policy-credential-interop/lint-target",
+      "-j2",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "host": "run-host-03.py for local-fixed, local-recoverable, signed-recoverable, tls-fixed; run-host-02.py plus corrected public readback for signed-fixed and tls-recoverable",
+    "swift": "exact argv and outputs retained in checks/swift-request-all-01.*"
+  }
+}

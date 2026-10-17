@@ -11,6 +11,9 @@ replacement and pass its canonical physical path when the operating system
 exposes an alias such as macOS ``/var``.  The implementation rejects every
 observed ancestor symlink and Windows reparse point, and uses no-replace
 commits for the caller-visible archive or extraction target.
+Tar callers may supply exact regular-file paths that must have mode 0755. Without
+that explicit policy all regular files remain canonical mode 0644. Executable
+permissions are never inferred from untrusted archive headers.
 """
 
 from __future__ import annotations
@@ -281,13 +284,27 @@ def _snapshot_file(path: pathlib.Path, limits: ArchiveLimits, label: str) -> byt
     return snapshot.data
 
 
+def _validate_executable_paths(root_name: str, paths: frozenset[str]) -> None:
+    if not isinstance(paths, frozenset):
+        _fail("executable paths must be an explicit immutable set")
+    for path in paths:
+        if not isinstance(path, str):
+            _fail("executable path is not a string")
+        _canonical_archive_path(path, "executable path")
+        if not path.startswith(root_name + "/"):
+            _fail("executable path must name a file below the archive root")
+
+
 def _source_entries(
     source_dir: pathlib.Path,
     root_name: str,
     limits: ArchiveLimits,
+    *,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> tuple[_MaterializedEntry, ...]:
     _validate_limits(limits)
     root_name = _validate_root_name(root_name)
+    _validate_executable_paths(root_name, executable_paths)
     source = pathlib.Path(source_dir)
     try:
         source_metadata = source.lstat()
@@ -356,9 +373,12 @@ def _source_entries(
             total += len(data)
             if total > limits.maximum_total_bytes:
                 _fail("archive source logical contents exceed the total size limit")
-            entries.append(_MaterializedEntry(archive_path, kind, 0o644, data))
+            mode = 0o755 if archive_path in executable_paths else 0o644
+            entries.append(_MaterializedEntry(archive_path, kind, mode, data))
         else:
             entries.append(_MaterializedEntry(archive_path, kind, 0o755, b""))
+    if not executable_paths <= {entry.path for entry in entries if entry.kind == "file"}:
+        _fail("executable path is missing or does not name a regular file")
     return tuple(entries)
 
 
@@ -708,15 +728,16 @@ def create_tar_gz(
     root_name: str,
     mtime: int,
     limits: ArchiveLimits = DEFAULT_LIMITS,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> ArchiveAudit:
     """Create one deterministic USTAR-in-gzip archive and audit final bytes."""
 
     mtime = _validate_mtime(mtime)
-    entries = _source_entries(source_dir, root_name, limits)
+    entries = _source_entries(source_dir, root_name, limits, executable_paths=executable_paths)
     archive_data = _gzip_bytes(_tar_bytes(entries, mtime), mtime)
     if len(archive_data) > limits.maximum_archive_bytes:
         _fail("created tar.gz exceeds the archive size limit")
-    audit = _audit_tar_snapshot(archive_data, root_name, mtime, limits)
+    audit = _audit_tar_snapshot(archive_data, root_name, mtime, limits, executable_paths=executable_paths)
     _write_atomic(pathlib.Path(output), archive_data)
     return audit
 
@@ -746,7 +767,10 @@ def _parse_tar(
     root_name: str,
     expected_mtime: int | None,
     limits: ArchiveLimits,
+    *,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> tuple[int, tuple[_MaterializedEntry, ...]]:
+    _validate_executable_paths(root_name, executable_paths)
     if len(payload) < len(_TAR_END) or len(payload) % _BLOCK_SIZE:
         _fail("tar payload is truncated or not block aligned")
     entries: list[_MaterializedEntry] = []
@@ -793,7 +817,7 @@ def _parse_tar(
             mode = 0o755
         elif typeflag == b"0":
             kind = "file"
-            mode = 0o644
+            mode = 0o755 if path in executable_paths else 0o644
         else:
             _fail("tar contains a symlink, hardlink, sparse, or special member")
         if header[100:108] != _octal(mode, 8):
@@ -836,6 +860,8 @@ def _parse_tar(
         _fail("tar root or member ordering is not canonical")
     if common_mtime is None:
         _fail("tar contains no timestamped members")
+    if not executable_paths <= {entry.path for entry in entries if entry.kind == "file"}:
+        _fail("executable path is missing or does not name a regular file")
     return common_mtime, tuple(entries)
 
 
@@ -857,6 +883,8 @@ def _audit_tar_snapshot(
     root_name: str,
     expected_mtime: int | None,
     limits: ArchiveLimits,
+    *,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> ArchiveAudit:
     _validate_limits(limits)
     root_name = _validate_root_name(root_name)
@@ -887,7 +915,7 @@ def _audit_tar_snapshot(
         payload += flushed
         if len(payload) > raw_limit:
             _fail("gzip decompressed tar exceeds the structural size limit")
-    tar_mtime, entries = _parse_tar(payload, root_name, expected_mtime, limits)
+    tar_mtime, entries = _parse_tar(payload, root_name, expected_mtime, limits, executable_paths=executable_paths)
     if tar_mtime != mtime:
         _fail("gzip and tar mtimes differ")
     return ArchiveAudit(
@@ -924,12 +952,13 @@ def audit_tar_gz(
     mtime: int | None = None,
     expected_sha256: str | None = None,
     limits: ArchiveLimits = DEFAULT_LIMITS,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> ArchiveAudit:
     """Audit one tar.gz snapshot without extracting it."""
 
     data = _archive_snapshot(pathlib.Path(archive), limits, "deterministic tar.gz")
     _require_snapshot_sha256(data, expected_sha256)
-    return _audit_tar_snapshot(data, root_name, mtime, limits)
+    return _audit_tar_snapshot(data, root_name, mtime, limits, executable_paths=executable_paths)
 
 
 def _zip_datetime(mtime: int) -> tuple[int, int, int, int, int, int]:
@@ -1306,11 +1335,13 @@ def _entries_from_tar_snapshot(
     root_name: str,
     mtime: int | None,
     limits: ArchiveLimits,
+    *,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> tuple[ArchiveAudit, tuple[_MaterializedEntry, ...]]:
-    audit = _audit_tar_snapshot(data, root_name, mtime, limits)
+    audit = _audit_tar_snapshot(data, root_name, mtime, limits, executable_paths=executable_paths)
     decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
     payload = decoder.decompress(data)
-    _, entries = _parse_tar(payload, root_name, mtime, limits)
+    _, entries = _parse_tar(payload, root_name, mtime, limits, executable_paths=executable_paths)
     return audit, entries
 
 
@@ -1427,12 +1458,13 @@ def extract_tar_gz(
     mtime: int | None = None,
     expected_sha256: str | None = None,
     limits: ArchiveLimits = DEFAULT_LIMITS,
+    executable_paths: frozenset[str] = frozenset(),
 ) -> ArchiveAudit:
     """Audit a single tar.gz snapshot completely, then extract it transactionally."""
 
     data = _archive_snapshot(pathlib.Path(archive), limits, "deterministic tar.gz")
     _require_snapshot_sha256(data, expected_sha256)
-    audit, entries = _entries_from_tar_snapshot(data, root_name, mtime, limits)
+    audit, entries = _entries_from_tar_snapshot(data, root_name, mtime, limits, executable_paths=executable_paths)
     _extract_entries(entries, pathlib.Path(destination), audit.mtime)
     return audit
 
@@ -1483,6 +1515,10 @@ def _parser() -> argparse.ArgumentParser:
         extract.add_argument("--root", required=True)
         extract.add_argument("--mtime", type=int)
         extract.add_argument("--sha256")
+        if archive_format == "tar-gz":
+            for operation in (create, audit, extract):
+                operation.add_argument("--executable", action="append", default=[],
+                    help="exact archive path of a required regular executable (repeatable)")
     return parser
 
 
@@ -1490,13 +1526,15 @@ def main() -> int:
     args = _parser().parse_args()
     try:
         if args.command == "create-tar-gz":
-            result = create_tar_gz(args.source, args.output, root_name=args.root, mtime=args.mtime)
+            result = create_tar_gz(args.source, args.output, root_name=args.root, mtime=args.mtime,
+                                   executable_paths=frozenset(args.executable))
         elif args.command == "audit-tar-gz":
             result = audit_tar_gz(
                 args.archive,
                 root_name=args.root,
                 mtime=args.mtime,
                 expected_sha256=args.sha256,
+                executable_paths=frozenset(args.executable),
             )
         elif args.command == "extract-tar-gz":
             result = extract_tar_gz(
@@ -1505,6 +1543,7 @@ def main() -> int:
                 root_name=args.root,
                 mtime=args.mtime,
                 expected_sha256=args.sha256,
+                executable_paths=frozenset(args.executable),
             )
         elif args.command == "create-zip":
             result = create_zip(args.source, args.output, root_name=args.root, mtime=args.mtime)

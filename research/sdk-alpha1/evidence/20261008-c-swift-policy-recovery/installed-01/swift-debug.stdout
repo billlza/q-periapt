@@ -1,0 +1,23 @@
+Test Suite 'All tests' started at 2026-10-08 01:42:57.610.
+Test Suite 'QPeriaptSDKBinaryConsumerTests.xctest' started at 2026-10-08 01:42:57.611.
+Test Suite 'QPeriaptSDKBinaryConsumerTests' started at 2026-10-08 01:42:57.611.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledConnectionRejectsInvalidIdentity]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledConnectionRejectsInvalidIdentity]' passed (0.004 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledExpertTransferAndSignedPolicyTransition]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledExpertTransferAndSignedPolicyTransition]' passed (0.004 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledMetadataOwnersDerivationAndRevocation]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledMetadataOwnersDerivationAndRevocation]' passed (0.002 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPersistentPolicyRestart]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPersistentPolicyRestart]' passed (0.165 seconds).
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPolicyAuthorityRecoveryAndAdvancedReplay]' started.
+Test Case '-[QPeriaptSDKBinaryConsumerTests.QPeriaptSDKBinaryConsumerTests testInstalledPolicyAuthorityRecoveryAndAdvancedReplay]' passed (0.126 seconds).
+Test Suite 'QPeriaptSDKBinaryConsumerTests' passed at 2026-10-08 01:42:57.914.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.302 (0.303) seconds
+Test Suite 'QPeriaptSDKBinaryConsumerTests.xctest' passed at 2026-10-08 01:42:57.915.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.302 (0.303) seconds
+Test Suite 'All tests' passed at 2026-10-08 01:42:57.915.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.302 (0.304) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

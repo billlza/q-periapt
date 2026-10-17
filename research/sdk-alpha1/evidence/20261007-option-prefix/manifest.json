@@ -1,0 +1,56 @@
+{
+  "kind": "qperiapt.options-prefix-and-policy-exhaustion-evidence",
+  "product_commit": "6e520a99210e1be254fb95ae2a4b4ce546ab8d14",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3207,
+      "sha256": "128434e0765490fd1201d8f1bc4c39abd11bcb90dee5b13ef23bb28dfb73f894"
+    },
+    {
+      "path": "guard-current.json",
+      "bytes": 9679,
+      "sha256": "bf634f1d84ca671ed24fe744c9a0ef2d3a7c98cec20b18fcf38dad4d89f83b07"
+    },
+    {
+      "path": "guard-installed.json",
+      "bytes": 10384,
+      "sha256": "ef47a6d2d4ab47d9ec3574731ad93390bc51844031237b6f3f0cab0b1c051b7d"
+    },
+    {
+      "path": "guard-old.json",
+      "bytes": 2602,
+      "sha256": "63c9a08a804d9a19871350f50516c9b7821f0ba0144d14a1bbecb66dba3380d3"
+    },
+    {
+      "path": "guard.c",
+      "bytes": 1703,
+      "sha256": "fa81b5b4679d9e2c5622e1136047ddd06a935820702284e332ec2c2658a6e2f6"
+    },
+    {
+      "path": "package-consumers.json",
+      "bytes": 444,
+      "sha256": "6287aaf5719a84779f75e80cf17494d0b166bc65bfe08cd1715c4f6f6dfdabe0"
+    },
+    {
+      "path": "package-manifest.json",
+      "bytes": 43308,
+      "sha256": "bb4362e08160177f7974e8732275088a4f0afaa940f66e671be3cfbee07e8857"
+    },
+    {
+      "path": "public-consumers.json",
+      "bytes": 443,
+      "sha256": "e65dfd1d5bbc956b9872caba30d51aa977522d3230644a0b475b9cfb30778517"
+    },
+    {
+      "path": "qualification.json",
+      "bytes": 3706,
+      "sha256": "7144457f03001836906fcc7a7ee7dcce5122f021b365a11387db233408c4aed0"
+    },
+    {
+      "path": "raw-records.json",
+      "bytes": 186975,
+      "sha256": "7a5ab2185503f67b5bf0f19f6660c277dae47b986f483e11c295a6307813edbf"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "archive": {
+    "bytes": 230221,
+    "members": 125,
+    "sha256": "a6bcb3d2b7d111bc96e8dcf353f5bee04ef06d56e0328b40b102530b0312cea0"
+  },
+  "changes": "Shared traffic fixture, second-adoption original-message recovery, exact outcome reader and source inventory",
+  "full_nine_regressions": {
+    "c": {
+      "client_sha256": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+      "harness_sha256": "02e9cf0fc34af6695380133a44a4cca0925737276a10f1dcd44bab06f5ac8b42",
+      "passed": true
+    },
+    "kotlin-g1": {
+      "client_sha256": "4136d80cfbf07974e03886588f93a9ce57c85e8337d59b122bbd455c6c2e3a0e",
+      "harness_sha256": "02e9cf0fc34af6695380133a44a4cca0925737276a10f1dcd44bab06f5ac8b42",
+      "passed": true
+    },
+    "kotlin-serial": {
+      "client_sha256": "208b18960c9d262b64da6a4098e4ca84d824086fe37ac2d78b1ae198d3d228b9",
+      "harness_sha256": "02e9cf0fc34af6695380133a44a4cca0925737276a10f1dcd44bab06f5ac8b42",
+      "passed": true
+    },
+    "swift": {
+      "client_sha256": "695ea80f8577e0499bbda660c9b11586921c530e79df890cdba5426a065611fa",
+      "harness_sha256": "02e9cf0fc34af6695380133a44a4cca0925737276a10f1dcd44bab06f5ac8b42",
+      "passed": true
+    }
+  },
+  "maintainability": {
+    "current_file_lines": 961,
+    "current_session_test_lines": 55,
+    "original_file_lines": 1094,
+    "original_session_test_lines": 221,
+    "scope": "Shared session setup, unknown delivery, exact message retry and independent business-effect readback; same existing protocol and assertions. Added second-adoption traffic coverage. No runtime speedup claimed.",
+    "shared_helper_lines": 232
+  },
+  "reader_tests": 14,
+  "release_claim_eligible": false,
+  "scoped_rustfmt": true,
+  "source_base": "c36e68dd5f4b1ac3ef91488c872972eeef900380",
+  "strict_clippy": true
+}

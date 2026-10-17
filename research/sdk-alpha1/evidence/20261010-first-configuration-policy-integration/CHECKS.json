@@ -1,0 +1,343 @@
+{
+  "created_at": "2026-10-09T23:42:47.299213+00:00",
+  "base_head": "a30b572c252da88a48750de4c9bcb9623c4ed08e",
+  "scope": "Current installed public owner consumers: first-use configuration and original registration/session/message recovery across independently approved protocol-policy renewal; same-host macOS arm64, shared native engine",
+  "source": {
+    "base_head": "a30b572c252da88a48750de4c9bcb9623c4ed08e",
+    "validated_snapshot_patch_sha256": "f2ce3d0cf9022648845578c4ee391c0b94e196bed5df970bacaccfb78aa2facf",
+    "exact_validated_code_files": [
+      "ARTIFACT.md",
+      "artifact/codeql_rust_quality.py",
+      "artifact/continuity_configuration_policy.py",
+      "artifact/continuity_first_configuration.py",
+      "artifact/continuity_package.py",
+      "artifact/test_codeql_rust_quality.py",
+      "artifact/test_continuity_configuration_policy.py",
+      "artifact/test_continuity_first_configuration.py",
+      "artifact/test_continuity_package.py",
+      "bindings/c/ContinuityPackageConsumer/configuration_policy_client.c",
+      "bindings/c/ContinuityPackageConsumer/first_configuration_client.c",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_connection.rs",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_policy.rs",
+      "bindings/c/ContinuityPackageConsumer/tests/common/policy_request.rs",
+      "bindings/c/ContinuityPackageConsumer/tests/enrollment.rs",
+      "bindings/c/ContinuityPackageConsumer/tests/enrollment/independent_policy.rs",
+      "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+      "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/configuration/FirstConfigurationClient.kt",
+      "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/IndependentPolicy.kt",
+      "bindings/swift/ContinuityPackageConsumer/Package.swift",
+      "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Enrollment.swift",
+      "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityConsumerFixtures/IndependentRequest.swift",
+      "bindings/swift/ContinuityPackageConsumer/Sources/FirstConfigurationClient/Main.swift"
+    ],
+    "later_documentation_only": [
+      "bindings/c/ContinuityPackageConsumer/README.md",
+      "bindings/kotlin/ContinuityPackageConsumer/README.md",
+      "bindings/swift/ContinuityPackageConsumer/README.md"
+    ],
+    "current_files": {
+      "ARTIFACT.md": "7b8c4e5929f288aad986d84d120a1bd444f576c4c657ac959cb5c63f99a914e2",
+      "artifact/codeql_rust_quality.py": "c0d9a8a1c9935d7ec81be2d4c7768ceb5e0f0821fd76d43ef6575cafd74b952f",
+      "artifact/continuity_configuration_policy.py": "4a1075b868fc94b8fa82c9a26c1742f9ebf92a9d3c0961eef8b3bfcab0f2b244",
+      "artifact/continuity_first_configuration.py": "7eecf42262f660a5faa295905b8b119f6550fe60130ee270de7e0217c0253427",
+      "artifact/continuity_package.py": "e4b4183fb32dd757fdb8fb0ba9020eced63cfe84e05b004a3f2f20b064f0f1ce",
+      "artifact/test_codeql_rust_quality.py": "3ddb874520440e005c7e5a20c2b1b9451a91be2599717c6aee0b8ce82fb1b8ed",
+      "artifact/test_continuity_configuration_policy.py": "8838232d9b15b8cd736522a1718fa6885b5a2d5cfb0f89d398e7d34e21625b70",
+      "artifact/test_continuity_first_configuration.py": "fe3ca360eede6b5e0aace44d01dfb2c30aa8dbf936709da7538a2e9b8cfab0a9",
+      "artifact/test_continuity_package.py": "7b0545f16d8701aca8b7a229a92b453d84074cddb7178f52781d18edbc2021c6",
+      "bindings/c/ContinuityPackageConsumer/README.md": "9342f6dd1a7730192577f26439ae1f74da90128841d284dcf666c334555a883e",
+      "bindings/c/ContinuityPackageConsumer/configuration_policy_client.c": "52d05901def7a0ab4d3a46aaf1a00739b522162471b72f639df4067b340c8bad",
+      "bindings/c/ContinuityPackageConsumer/first_configuration_client.c": "b213b70bf805f9dedda263a8d8a8800fe983c4aa9a09fb95d7fb5b00a54af748",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_connection.rs": "21b62ac9f09a488b667ac5aef6a7f302c3fb5c913c86fad3c6b364cdc4bd4fdd",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_policy.rs": "b278aaed5859c8cc8af9c80ccb018e179c6add2330bdfe60add75d3358bb60bd",
+      "bindings/c/ContinuityPackageConsumer/tests/common/policy_request.rs": "68025fcf90b5089791361eb7e36b07e789c745da47475002b2d585b842c67afc",
+      "bindings/c/ContinuityPackageConsumer/tests/enrollment.rs": "104359be04752d645ce361170eb97fe0441615b6831150c7ecb5e5de337e1871",
+      "bindings/c/ContinuityPackageConsumer/tests/enrollment/independent_policy.rs": "4ae89372797357a97be70b3847ad7b65700525f2ef377ccd6cf3192f8099f4b0",
+      "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs": "83ae0a130eea97b737ae671006ce227a88df97383807ae346d817afdcb757802",
+      "bindings/kotlin/ContinuityPackageConsumer/README.md": "c0c4849963f6852c184c41cfe3feb60bcd0a5a5365c57ec99e2fdc63f9629ea5",
+      "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/configuration/FirstConfigurationClient.kt": "9b8547f98b26f68c343dbf3474f32e95483db8884914df6d04ab1d73c59c8df3",
+      "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/IndependentPolicy.kt": "da1b9522fda05ff389f135b0655d95932fd80bd084622b673e3080321af399f3",
+      "bindings/swift/ContinuityPackageConsumer/Package.swift": "28e2688388c5d954dd842a13336fb64bb8cfe3eb54749158c2f06e075e43b7a1",
+      "bindings/swift/ContinuityPackageConsumer/README.md": "9dc31f989986dc26fd93baee57530408226e9a33404806a078eb46483cd8315c",
+      "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Enrollment.swift": "070944c21dde567fd6ebbb42316dc0c37355c584d8ad1d9d40145b7e69eb7ed8",
+      "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityConsumerFixtures/IndependentRequest.swift": "40b5156af271f39cf79f1a5cf6f5aa3d9481e2dc2ee109525ff828eb1f9618e5",
+      "bindings/swift/ContinuityPackageConsumer/Sources/FirstConfigurationClient/Main.swift": "780a49a8726f3a08ddf9ef4d5d8b2a1d6c61f263354a513e85a577322854e911"
+    }
+  },
+  "profiles": [
+    {
+      "run": "native-debug",
+      "language": "C",
+      "profile": "debug",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 164.35359708289616
+    },
+    {
+      "run": "native-release",
+      "language": "C",
+      "profile": "release",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 128.33778554201126
+    },
+    {
+      "run": "execution-kotlin-debug-g1",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "G1",
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 126.72533900011331
+    },
+    {
+      "run": "execution-kotlin-debug-serial",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "Serial",
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 142.03838933305815
+    },
+    {
+      "run": "execution-kotlin-release-g1",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "G1",
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 140.56630329205655
+    },
+    {
+      "run": "execution-kotlin-release-serial",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "Serial",
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 140.49365633283742
+    },
+    {
+      "run": "execution-swift-debug",
+      "language": "Swift",
+      "profile": "debug",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 68.83160079200752
+    },
+    {
+      "run": "execution-swift-release",
+      "language": "Swift",
+      "profile": "release",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 166,
+      "seconds": 100.19890737510286
+    }
+  ],
+  "scenarios": 48,
+  "unique_policy_operations": 48,
+  "public_files": 1328,
+  "reader_controls": 106,
+  "validation": {
+    "swift-debug-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer",
+        "--configuration",
+        "debug",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-build-debug",
+        "--cache-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-cache",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/debug",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/debug"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer",
+      "returncode": 0,
+      "seconds": 122.00506720808335
+    },
+    "swift-release-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer",
+        "--configuration",
+        "release",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-build-release",
+        "--cache-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-cache",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/release",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer/native/release"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/swift-consumer",
+      "returncode": 0,
+      "seconds": 26.715329417027533
+    },
+    "kotlin-build-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-_w1v0gz3/consumer",
+        "installDist",
+        "recordRuntime",
+        "--rerun-tasks",
+        "-Pqperiapt.repository=/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-peer-kotlin-68tnmc81/source/bindings/kotlin/ContinuityPackageConsumer/build/candidate-maven"
+      ],
+      "outside": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-_w1v0gz3",
+      "repository": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-peer-kotlin-68tnmc81/source/bindings/kotlin/ContinuityPackageConsumer/build/candidate-maven",
+      "completed": true,
+      "returncode": 0,
+      "seconds": 43.06725845881738,
+      "source_unchanged": true,
+      "repository_unchanged": true
+    },
+    "clippy-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/consumer",
+      "returncode": 0,
+      "seconds": 8.13584241620265,
+      "source_unchanged": true
+    },
+    "msrv-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--all-targets"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-configuration-policy-integration-current/consumer",
+      "returncode": 0,
+      "seconds": 8.151767374947667,
+      "source_unchanged": true
+    },
+    "enrollment-regression-01": {
+      "runs": [
+        {
+          "label": "build-debug",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--test",
+            "enrollment",
+            "--no-run",
+            "--message-format=json"
+          ],
+          "returncode": 0,
+          "seconds": 5.208928415784612
+        },
+        {
+          "label": "execute-debug",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/consumer-build-noincremental/debug/deps/enrollment-be29dc63cc0960eb",
+            "--exact",
+            "credential_renewal::independent_policy::c_independent_policy_request_restarts_exact_stage_and_adopts_original_journal",
+            "credential_renewal::independent_policy::c_independent_policy_rejects_changed_requests_without_publishing_or_mutating_intent",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "returncode": 0,
+          "seconds": 13.913601540960371
+        }
+      ],
+      "completed": true,
+      "source_unchanged": true
+    },
+    "codeql-unit": {
+      "tests": 44,
+      "passed": true
+    },
+    "configuration-unit": {
+      "tests": 16,
+      "passed": true
+    },
+    "package-unit": {
+      "tests": 15,
+      "passed": true
+    }
+  },
+  "contracts": [
+    "fresh host-supplied trust and locally generated private installation",
+    "original application effect occurs before policy update and before sender ACK",
+    "tampered approval refused with unchanged original request",
+    "independent account/policy root approval; request/stage/commit or witness proposal exact replay",
+    "P0 to P1 with unchanged credential, roster and SDK policy",
+    "original session/message retried after explicit current target selection; one receiver effect",
+    "mandatory 18 scenario markers and 166 public records per profile; missing/duplicate evidence refused",
+    "native signature verification, public reader grammar/linkage only",
+    "132 candidate C exports and product ABI 2 unchanged"
+  ],
+  "remaining": [
+    "expired-policy first-use recovery",
+    "SDK-policy replacement composition",
+    "complete corrected-commit installed package pipeline and CI",
+    "independent implementation, physical/minimum-OS and other 0.2.0 release requirements"
+  ],
+  "release_claim_eligible": false,
+  "publication_performed": false,
+  "capture": {
+    "file": "PUBLIC_CAPTURE.zip",
+    "sha256": "ce11c2be2e1e272d43d38d33d48a80b9ab4cb73b97618c76f7050de2fba9dff3",
+    "bytes": 3901418,
+    "members": 1487,
+    "selection": "Only exact public readbacks, test/build diagnostics, source identities, patches and drivers; private runtime directories and installed binaries excluded"
+  }
+}

@@ -3,8 +3,9 @@
 #define QPN_MLKEM_CONFIG_H
 
 /* Exactly one source wrapper owns the implementation selection. */
-#if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) == \
-    defined(QPN_MLKEM_BUILD_PORTABLE)
+#if (defined(QPN_MLKEM_BUILD_NATIVE_AARCH64) + \
+     defined(QPN_MLKEM_BUILD_PORTABLE) + \
+     defined(QPN_MLKEM_BUILD_NATIVE_X86_64)) != 1
 #error Exactly one owned mlkem-native implementation selector is required
 #endif
 
@@ -19,11 +20,14 @@
 #endif
 
 /* Keep every upstream KEM entry point local to the single compilation unit. */
-#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v1_2_0_
+#if defined(QPN_MLKEM_BUILD_NATIVE_X86_64)
+#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v2_0_0_avx2_
+#else
+#define MLK_CONFIG_NAMESPACE_PREFIX qpn_mlkem_internal_v2_0_0_
+#endif
 #define MLK_CONFIG_MULTILEVEL_BUILD
 #define MLK_CONFIG_EXTERNAL_API_QUALIFIER static inline
 #define MLK_CONFIG_INTERNAL_API_QUALIFIER static
-#define MLK_CONFIG_NO_SUPERCOP
 
 #if defined(QPN_MLKEM_BUILD_NATIVE_AARCH64)
 #if defined(QPN_MLKEM_FREESTANDING) || defined(MLK_CONFIG_NO_ASM)
@@ -66,6 +70,30 @@
 #define MLK_CONFIG_FIPS202_BACKEND_FILE "mlkem_fips202_aarch64.h"
 #endif /* QPN_MLKEM_BUILD_NATIVE_AARCH64 */
 
+#if defined(QPN_MLKEM_BUILD_NATIVE_X86_64)
+#if !defined(__x86_64__) || !defined(__linux__) || defined(__ANDROID__) || \
+    defined(_WIN32) || defined(__APPLE__)
+#error The owned AVX2 candidate is restricted to Linux x86_64 SysV
+#endif
+#if defined(QPN_MLKEM_FREESTANDING) || defined(MLK_CONFIG_NO_ASM)
+#error The owned AVX2 candidate requires its assembly unit
+#endif
+#if defined(__AVX__) || defined(__AVX2__)
+#error Compile the candidate C unit for baseline x86-64, not with global AVX flags
+#endif
+/* The Rust raw boundary admits this fixed AVX2 unit only after checking
+ * CPUID (AVX2, BMI2, POPCNT, SSSE3, SSE4.1, AVX, XSAVE, OSXSAVE) and
+ * XGETBV's XMM/YMM state bits. C stays
+ * baseline; only these separately assembled upstream functions use AVX2.
+ * Direct backend selectors avoid upstream's compile-time __AVX2__ selector.
+ * The portable unit has a distinct namespace and is always linked as well. */
+#define MLK_FORCE_X86_64
+#define MLK_CONFIG_USE_NATIVE_BACKEND_ARITH
+#define MLK_CONFIG_ARITH_BACKEND_FILE "native/x86_64/meta.h"
+#define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#define MLK_CONFIG_FIPS202_BACKEND_FILE "fips202/native/x86_64/keccak_f1600_x4_avx2.h"
+#endif /* QPN_MLKEM_BUILD_NATIVE_X86_64 */
+
 #if defined(QPN_MLKEM_FREESTANDING)
 /*
  * Define the complete freestanding contract before the first src/sys.h
@@ -80,7 +108,7 @@
 #endif /* QPN_MLKEM_FREESTANDING */
 
 /*
- * v1.2.0 declares its randomized entry points even when their definitions are
+ * v2.0.0 declares its randomized entry points even when their definitions are
  * disabled. With static linkage GCC correctly diagnoses those declarations as
  * never defined. Keep the unreachable static-inline definitions well-formed,
  * but provide no entropy source and expose no bridge for them.

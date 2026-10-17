@@ -1,0 +1,25 @@
+{
+  "activation_cases": 9,
+  "activation_worker_cuts": 6,
+  "artifact_tests": 21,
+  "canonical_creation_cases": 12,
+  "canonical_late_completion_cases": 4,
+  "capture_sha256": "4d185386ceb3dafa4d2f80f7538c0f539f81c36e6bcb8c574d716eb8444c2576",
+  "completed": true,
+  "late_publication_cases": 3,
+  "live_staging_and_invalid_directory_control": true,
+  "members": 1207,
+  "native_parent_tests": {
+    "commit": "67a19783cd8b342092fb2c37bc8b89e706fc700f",
+    "passed": 959
+  },
+  "native_relevant_tests": 81,
+  "native_requests_verified": 19,
+  "physical_file_loss_controls": {
+    "capture_sha256": "b6a9a58f8c22cda5fb440385bde112a5bdaa6771f8a9a8c6faa939ed0e280812",
+    "members": 231,
+    "passed": 3
+  },
+  "release_claim_eligible": false,
+  "scope": "real Chromium and native engine with isolated public-input test adapter; final product browser API and required-witness operational activation remain open"
+}

@@ -8,6 +8,185 @@ use super::build_support::{
     AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID, PORTABLE_IMPLEMENTATION_ID,
 };
 
+#[test]
+fn x86_candidate_requires_opt_in_and_exact_linux_metadata() {
+    assert_eq!(
+        select_mlkem_implementation(
+            "x86_64-unknown-linux-gnu",
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            false
+        ),
+        Ok(MlKemImplementation::Portable)
+    );
+    assert_eq!(
+        select_mlkem_implementation(
+            "x86_64-unknown-linux-gnu",
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            true
+        ),
+        Ok(MlKemImplementation::X86_64Dispatch)
+    );
+    for target in [
+        "x86_64-pc-windows-msvc",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+    ] {
+        assert_eq!(
+            select_mlkem_implementation(
+                target, "x86_64", "little", "gnu", "linux", "unknown", true
+            ),
+            Err(NativeTargetMetadataError::UnsupportedX86CandidateTarget)
+        );
+    }
+    for (arch, endian, env, os, vendor, error) in [
+        (
+            "aarch64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Architecture,
+        ),
+        (
+            "x86_64",
+            "big",
+            "gnu",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Endianness,
+        ),
+        (
+            "x86_64",
+            "little",
+            "msvc",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Environment,
+        ),
+        (
+            "x86_64",
+            "little",
+            "gnu",
+            "android",
+            "unknown",
+            NativeTargetMetadataError::OperatingSystem,
+        ),
+        (
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "pc",
+            NativeTargetMetadataError::Vendor,
+        ),
+    ] {
+        assert_eq!(
+            select_mlkem_implementation(
+                "x86_64-unknown-linux-gnu",
+                arch,
+                endian,
+                env,
+                os,
+                vendor,
+                true
+            ),
+            Err(error)
+        );
+    }
+    assert!(!compiler_family_is_supported(
+        MlKemImplementation::X86_64Dispatch,
+        CCompilerFamily::Msvc
+    ));
+    assert!(!compiler_family_is_supported(
+        MlKemImplementation::X86_64Dispatch,
+        CCompilerFamily::Unsupported
+    ));
+}
+
+#[test]
+fn x86_dispatch_compiler_baseline_cannot_be_overridden_or_duplicated() {
+    use super::build_support::{validate_x86_compiler_arguments, X86_BASELINE_FLAGS};
+    assert_eq!(
+        validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([
+            "-O3",
+            "-m64",
+            "-mno-omit-leaf-frame-pointer",
+            "-fPIC"
+        ])),
+        Ok(())
+    );
+    for flag in X86_BASELINE_FLAGS {
+        assert_eq!(
+            validate_x86_compiler_arguments(
+                X86_BASELINE_FLAGS
+                    .into_iter()
+                    .filter(|value| *value != flag)
+            ),
+            Err(NativeCompilerArgumentsError::MissingX86Baseline(flag))
+        );
+        assert_eq!(
+            validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([flag])),
+            Err(NativeCompilerArgumentsError::DuplicateX86Baseline(flag))
+        );
+    }
+    for flag in [
+        "-march=native",
+        "-mavx",
+        "-mavx2",
+        "-msse4.2",
+        "-m32",
+        "-mtune=native",
+        "-DQPN_MLKEM_BUILD_NATIVE_X86_64",
+        "-DMLK_CONFIG_FILE=foreign.h",
+        "-U__AVX__",
+        "-include",
+        "-Xclang",
+        "@unreviewed-flags",
+    ] {
+        assert_eq!(
+            validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([flag])),
+            Err(NativeCompilerArgumentsError::Forbidden(flag))
+        );
+    }
+}
+
+#[test]
+fn x86_rust_cpu_overrides_cannot_bypass_runtime_admission() {
+    use super::build_support::{x86_cpu_codegen_option, x86_rust_features_are_baseline};
+    for flag in [
+        "-Ctarget-cpu=native",
+        "-C\u{1f}target-cpu=haswell",
+        "--codegen=target-feature=+avx2",
+        "--codegen\u{1f}target-feature=-avx2",
+        "-Cllvm-args=-mcpu=haswell",
+    ] {
+        assert!(x86_cpu_codegen_option(flag).is_some(), "{flag}");
+    }
+    assert_eq!(
+        x86_cpu_codegen_option("-D\u{1f}warnings\u{1f}-Cdebuginfo=1"),
+        None
+    );
+    assert!(x86_rust_features_are_baseline("fxsr,sse,sse2"));
+    for features in [
+        "",
+        "avx2",
+        "fxsr,sse,sse2,avx",
+        "fxsr,sse,sse2,sse4.1",
+        "fxsr,sse,sse2,popcnt",
+    ] {
+        assert!(!x86_rust_features_are_baseline(features));
+    }
+}
+
 fn implementation(
     target: &str,
     target_arch: &str,
@@ -23,6 +202,7 @@ fn implementation(
         target_env,
         target_os,
         target_vendor,
+        false,
     )
 }
 

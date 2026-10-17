@@ -1,0 +1,18 @@
+test_unsigned_packages_reject_source_drift_before_reporting_success (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_unsigned_packages_reject_source_drift_before_reporting_success) ... FAIL
+
+======================================================================
+FAIL: test_unsigned_packages_reject_source_drift_before_reporting_success (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_unsigned_packages_reject_source_drift_before_reporting_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_apple_sdk_profile.py", line 65, in test_unsigned_packages_reject_source_drift_before_reporting_success
+    check("0", "0", False, "worktree changed")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_apple_sdk_profile.py", line 57, in check
+    self.assertEqual(result.returncode == 0, passes, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True != False : 
+
+----------------------------------------------------------------------
+Ran 1 test in 0.105s
+
+FAILED (failures=1)

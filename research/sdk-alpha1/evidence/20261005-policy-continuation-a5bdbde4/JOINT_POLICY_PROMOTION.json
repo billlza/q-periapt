@@ -1,0 +1,841 @@
+{
+  "promoted_utc": "2026-10-05T02:14:41.372836+00:00",
+  "base_commit": "a5bdbde49c0f9a3cafdff26f7c1952203ee0c949",
+  "native_qualification_sha256": "3d1cb380133ba47b57576b4579c26c623fb1abf03dfd926f0efcd3d9cbff7c93",
+  "manifest_relative_paths_preserved": true,
+  "changes": [
+    {
+      "path": "research/continuity-identity-candidate/POLICY_CONTINUATION.md",
+      "before": null,
+      "after": "80b11bbbbbd039476ba02120199658c0e9dadab8bea01f6d62bf381cef8b20b7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/README.md",
+      "before": "350e73628cf363809d78f4390a35ce644131da88a848d5a58f944d49ae5736f7",
+      "after": "597f427c642e9af7824a777d8a584ed2145b46ecd44289ed656bc09b08d2ade8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/anchor/store/renewal_tests.rs",
+      "before": "7851a4810bbca463755c0e903af4eae9dce790bbb8ecf4c67b5b5d12f46809d0",
+      "after": "84e5cb68e037944cdfbb9251aeea36c710ec10a7bffd510fb3dd6e52015a9cb2"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/anchor/store/tests.rs",
+      "before": "701c8fbacef3e744839221a4727026883f8307ed43a1384d8637a495fa138f71",
+      "after": "6252e1d3d8bf41ca511ca324e73086e43f9b94770cce23c34d504ae258bb080b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/anchor/tls/tests.rs",
+      "before": "2f9da4b6538122a4c75a955328c5738e9c0e3d12ffc7d7884278d7733468d8a6",
+      "after": "af17de0aacaf5a1e55bd3e9aa71b6ab8095de67e91a7e9e4e6f4ec11e39119e2"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "before": "74ad6d433bebcc4fed896aa7111c134b38b874cb8790f5628038e8dcbb87a7e5",
+      "after": "91b5c96591be2bea7d5e957e317c39bd15bf2ce8c8141edbf2e87134de9a0ad6"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap/retained.rs",
+      "before": "46175335096639928d20ec472550402735157821db840b028df24c4b9494cdac",
+      "after": "37ebe433722134c0f4423c8555ae7c1fae3d50482aa6fc3c1efd4eac1adbce23"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "before": "69ba159a9350f326074ed56e57fd512f15529b03f1b335c035ec6650ffeac816",
+      "after": "4cb8052e7113d090ec1874bede5d429ca10a9c4efeb57c9947e904164c788933"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "before": "15afc64816582c7f868071fea2406222f5180a49171331130306a8ba3888998d",
+      "after": "ac82dc6f1cb43340c85a561ffb38d7a21e067573a2bbc25b11a29936dfa34155"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap_bundle/reopen.rs",
+      "before": "e2870978b7fbcbd0756ba9698e8ad0aed454e8cec030cdb3a1ea9b524049f302",
+      "after": "49d9923c37273d85a5fc50c99b91f80dd1a291a456cc341f106683d45b88b12f"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap_bundle/tests/historical.rs",
+      "before": null,
+      "after": "3cd5dd33b7b2cc1e7c4a722d33beb319d6249a8f3530a3a7e49f6234e442d30e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap_bundle/tests.rs",
+      "before": "9925b2dd932f285a35c835d7c31d672a43a3232d62f96b679ee7a22296e25ac2",
+      "after": "3c889a99bb29b3901f8c824548ac45ae3f0536e7fc7abf4a72b794f701940f4c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap_bundle.rs",
+      "before": "9f702e9c3fb9e4f025398fc8e851de3e75f00456ef7d423dda9c5d5f819aa851",
+      "after": "2b9c2eda96ec03052c0c76b93fe53e2fb0c9fd0f71871c2f8173d18c5cc67275"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/connection_transport.rs",
+      "before": "6b711540318fe3933c5f8d2fc1781bef8597ff44b6fd9e58dbed864c247607fa",
+      "after": "4215f8dde9fac62e571e2fd85022a085df21bffa1a5537d215a2b67f65fa7146"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/control_transport.rs",
+      "before": "5a436f63ae6eb0b43579b585ccf1d79fab4f05896a29dec8a982079d332b3ec7",
+      "after": "eacbb2f3511852f084519a4391a4ee9ac839b3daeb23620277ae31602ecb0468"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/crypto.rs",
+      "before": "4c55386eb183221f2d994346b2300557967337d094eddd0465d3c4fc74604b15",
+      "after": "0ea5a16504e8b4fd0c15b1cf236ae9a6b16c249a71ac32ed4c6e9c3094e9b439"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/anchoring/credential_recovery_tests.rs",
+      "before": "4ce8c991b0947c13985e3fff00788eff908e54678f6b032a68f436935cf74b4e",
+      "after": "e06a73d8c038cdb04d16cbccde8ddfdafd9ff93e6b12910a8ad734cb3fa0712c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/anchoring/tests.rs",
+      "before": "761a8369ddf0b4ad65f7a8f32ac390443b600bfc2c234b4d747ca404ca6f93d0",
+      "after": "c24f6660e017c113930c2b16cd85bb495d05b7c97f7790a180df19234a25194d"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/anchoring.rs",
+      "before": "4c8ecbfb615791f64b43304dae23d3d76e8943d30a430dbaccd3fc9ac8a54ba0",
+      "after": "fd9d4c6156e054a0d1c64667483446e9132c07610c237eb6145f846d8fb5c47a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/cancellation/tests.rs",
+      "before": "15c5b13e70bdd7f55a28c1c5892c1599d5e05cd44fd93e44a54844dd06bd7e5c",
+      "after": "6bbae6f52fb43b74d5c98feeb5b95fc1e7c7a5977cb5a05ca58942e2e42d7dfb"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/initiator.rs",
+      "before": "e5fd703647db62ef43bec1da036e53ed78953a3a1854f68ccffd02179d5a3fa0",
+      "after": "d11b2a9bba338f29e993b5fc943fcb8173f5c9e8f7788afe6f35b620951ed3e0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+      "before": "37521c15cd62ff89bf1a0c96dc2584598adb7a8190520438e3dd76ab543a0a7d",
+      "after": "e5e932354540de9e430cb7e2ebd86c6e2e32e6776630f048064525107731bbe3"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/delivery.rs",
+      "before": "4fd72d8fae7c78af6de0ec3e03a11c24c5900c222502a7620cb2c8b84b41880a",
+      "after": "54d56ceabbb114d5456d9573dff7e95bdb1be1c9a1ce8678819a1585bbe16115"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+      "before": "78d4f44bba636d23fea7baeb6d715bec973737f4b1599d65c6ae5b5d57adaddd",
+      "after": "71fb555e8de5d587892676c0bbc39a22444ae4797fea646342d3509772f25815"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout.rs",
+      "before": "a329d2dac74fe0cea6021f929c56f53d023ed6a07d084bc403c31c720646f76c",
+      "after": "4683de9ee0cda966bce831b92708c8fa4114c1779cf534efb54066f41f03ae4e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/progress.rs",
+      "before": "26b99d1e517b78ac84b7c578fb784483f5e278e56258f7c8a4184ef2a2ba0806",
+      "after": "45cf9a0b8bab5ad160d69083134610fb5c67c4f91fb83acc61652044ff8e87b6"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "before": "b13b20437b112a0a4005b70612cd3e23eb3a63a06913f4f6066d2b1393d3f8c5",
+      "after": "7362b69ebfe4b05d7c55ee4d30489e550c3c8d833456c929e9ad28260848d73b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "before": "03a878ea1576b4f6b36e38109586685d0b75bd0fb3436c9ab7ca0b3adfe06ce5",
+      "after": "031f1fb369c367c4fae19203752793c3632e1eef615c95fdceabff9b6aba3457"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "before": "5fa00534ba76081824f8aaa2bff5dc89273a71ff8674e99c00b9ade73bc6aa25",
+      "after": "abca8250d8dc014885cebdb0e0df3529bc73193b09d7e2685db995d587bccbf4"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/closure/archive.rs",
+      "before": "e6bbb816ba0a741496003bc86e13c1bc1fd5124492ccc3270b7028ee9d15e22a",
+      "after": "4c2d0ddc06ad4430dd43c0ffc0d8dc991ca548694b406e095d175e725a95fe8e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/closure.rs",
+      "before": "d33a355ab799dc2eb927f8f89f5abe8511e508e9646c075282151ba485ec94e6",
+      "after": "ab730829762f02706380d9d5d23ea5b65901fca3e15acefe8c71437d22a27f50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/connection_tls/archives.rs",
+      "before": "ae5f8f131bf7bba4fa63890effc781d121c5ef097b5636c7264707637bfb00d4",
+      "after": "d8f444c83e18d414289d94ed922b4384ce5524fceab26555a8e497b2152c5d3b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/connection_tls.rs",
+      "before": "97067818cf618d5ecf42b48fccd08d9bdbd419db12620f2c8f923fd651109ef3",
+      "after": "f19f99a515797c2eacd3814edc8d03927a59bc54ed2588accb5587922a9ddd22"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/epoch_resolution.rs",
+      "before": "08b0c05b7175e7f4e421cf63b2572a5a2beccfcb168a74a68f1bb1cca2aabf8b",
+      "after": "a8b20c74983b12606f15338bc1756306702066bda7455386b8970c0f2bfabe5b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/abandonment.rs",
+      "before": "f06b7a699e04961cd7bb397190e5312b0f56bfadfb2521b91c66700407500bca",
+      "after": "491511274d9bbbf2be3e092fdad4e3e382629d5ce8d03f24bd7d22daedca486b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/archive.rs",
+      "before": "f62cba2873e837a6c69a37f005a3575cf771ac22f9135112e72d7f9b1591938e",
+      "after": "7118627192d89da1bc8fef35bebe5c4f6c3fe4aba5dcff3f3184e9d0242f713b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/connection.rs",
+      "before": "fc09e31a0a9df795ea988a1464b26e4d5de89ecb95b39f62ca2556b65a98e071",
+      "after": "9ec901d564f1fe65a5ca2318f185bcc177bb98dc542b93f92e4534425e82fdf4"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/installation.rs",
+      "before": "01c4aa5d11122baaba38a4871cdb55c3c9a0384fd42d745ce7d31b07940a5d11",
+      "after": "5533b53f186eea4923e139cb8a9b9527cca99db4cd14a9932707a58306fd414e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/policy_continuation.rs",
+      "before": null,
+      "after": "9ec4a3bfa228f7d354b3097eb06decb300fba951a69bba5d147a002641e7f392"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/process.rs",
+      "before": "395834eadeb9eb35314d74154dc5473ae1a9b60bdd75a201f94497e668b30c3f",
+      "after": "52359bc36c1c60a93e96ed0fedb6314eba3fc6d04760ea1b3b2438c125cb59a5"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout/witness.rs",
+      "before": "d2909885733a93e8feec803ee50d5ccab906b01020ab45186b3078214ae42443",
+      "after": "cca6d19f2e4f669a889ff33ab62c44e09f4511a2f9276114a6624d2a640b0fca"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs",
+      "before": "434d416a6576d66f54998f38f467b62e0867afd33fe48d19c56542665f61817c",
+      "after": "f8702d4e93854a1d6b8741b350f7b9a036fe9045c87c18c725ec8646f537508c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/renewal.rs",
+      "before": "bcd08683da419fe2c0719122c8af547af6b3f8936b5bb1834cd2e4b60a42a151",
+      "after": "72f9a71e6c23251f3d1c3e06e8bf407c5e743d67d1f2882132b60bffc832784c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure.rs",
+      "before": "372760bec65410a5d977c994eecce25e90824f26d2ea63605251491f6473e52f",
+      "after": "419fcb0f5cd47575ff8ab9ca1abe9288543616db4bedfe1071d109a6502bd299"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "before": "2df7eb4f32f128f573be9542a6ad2116ea4fb307f22135e82f7f6e5cec38b266",
+      "after": "387c66339b723d4c8af9e6dd158f2ccc204203931186fbd24b1a87e96cec1702"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+      "before": "691d57ee8dceef1014785269d05ffe2e0712fcf656215598772d1a07cd5c26bc",
+      "after": "865f268ad86f5416db0e01194c0e7bc2671056a1f6d95e2df44ce8ba76556bc9"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/prekeys/tests.rs",
+      "before": "ec8a7938aa5e8a796d157eea0be3092053fbbee38643ad173642f16c53a80303",
+      "after": "0e0b0b487cb08c823271373178e4ef82838174dfc6a351aaf8bd8885636fba4c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/prekeys.rs",
+      "before": "f203010874bd7eee2c58687814d2945496cb2e93dad4cc664353bb2b770387f9",
+      "after": "05cb8b6990836635e2f08f830cc315907c8e64ce5b5ea773fcb53dfc0128e2e8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/local_renewal.rs",
+      "before": "0eb43901d1b6c65fb95c258f62db7b7b8ded9ff344ed7e9f4f0b9bfe30c1bde7",
+      "after": "e92d7f26c75baa3c742b18cfa468245e4f05d856c63cabd0ef4266bc09bc4734"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/local_renewal_tests.rs",
+      "before": "96fff430d9a917dc19796ea7054dfb7d1948efdb484b8fa34b3704751c4578c4",
+      "after": "dbc24d7e69ad323a969547d039454720132394aeb0ba3e524a93ee2aeaeaf86f"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/policy_continuation_tests.rs",
+      "before": null,
+      "after": "29a6cbb3f351429bd5ac5dfdf78aa5679ee665547a1a5b1767cd0874eb92b36e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/renewal_tests.rs",
+      "before": "f2c5a64d379ecc0d46b0cd53722ab850923c881580f47048303328cc1ba2b3f0",
+      "after": "6d5e383444ac2c19f523cb4baf9d2c7b4ee63402c911087a1df8a71881f294a7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters/tests.rs",
+      "before": "476fc06695e66a20077ea29052135d0984445eaf0d34955b67f59312612d2373",
+      "after": "d5c608f4d61d82bb9eccbc90822088604c0c4f08188419e83d59b34c0e39d211"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/rosters.rs",
+      "before": "92e29eb9aabbfb397fdf122e838a0ce6d815178afd95a6ae499bb1c0b1370749",
+      "after": "483e827dc64ff69a93bc0a604061bd4a3e6bfd4b6adb2091976871eb6added1e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/tests/provisioning.rs",
+      "before": "687cf9e02a4ea495294fde44196dce54d4145791f28e9b7713a309d58696a451",
+      "after": "29b1f9833d46f8e8615753d2c3d264fc07a909afb06c5cf707a7a13bb1fc54d2"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/write_intent/tests.rs",
+      "before": "7e1befc1f72d719f329bb97e79b8d67707d822f8bcc173ca00c0b51585eb6f62",
+      "after": "bcbe36208cc5bd701fb046dea2c6939a1044ccae7fa96cc669893d0cf6cd6992"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "before": "d02897e8521f3059acdf0e6bbda8a5ecaaf44fb9964c48b16cb7951c27fcf242",
+      "after": "ef67206f82291d38a06e81f0535459847fdd5ae366e8ccd10a1b251e4a726768"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/policy_continuation_owner_tests.rs",
+      "before": null,
+      "after": "b2e3879f16577d97751cfdfcfc50ba6b69457b9dd00dbdd96c5ae843d581603e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/policy_continuation_tests.rs",
+      "before": null,
+      "after": "a5085f861b23b6e2bd5db30bb60e9f83a7d9744bff416709f36382a0b95a749d"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal.rs",
+      "before": "67399e5d0df7b0010fe8f9950fb1a8c9e568237d8b040f1ddda5b65104c61dd9",
+      "after": "d2a4538de8cbc1c91dfb8733c93abedf7f90b3f5a10f95ab1415dc795fcadfd1"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewal_connection_tests.rs",
+      "before": "339646c260253c55babf938bc8b4b89d5ef8702bf66b581428c5156b48f3ec26",
+      "after": "92b123380ec7910a3d834157fbbd663be9dabaaffe4cd5c19308a0c6dd876565"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/renewed_operations_tests.rs",
+      "before": "36c5be2e1f398dc113a6c4ed3a20f02fc441e3340643c60098f03d80096f42cc",
+      "after": "76c6e4cd2407dff9230b789507a0c6aa21f5b607625c0df535970cbc535f8956"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/tests.rs",
+      "before": "e12afc6c3760aeb843e2b8037fa0454bb8cc369a75bdeb29bf8415c8ec18b9de",
+      "after": "c2086fea2355386a096b23e4f7c67af378b5a75b1bc623228c326798e8ddaf0f"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment.rs",
+      "before": "a606d73a890a048f6a4bbe3bf22b1efa1dd322dc56ae349329c5ce107ee48eef",
+      "after": "a38753e3a55ccc05c34f76376990b8d718fadc398e68aecef49781b5c807ceaa"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/identity.rs",
+      "before": "7a46f8f6761e20f39cc1504121f6c48493ef33cc81b4447a6417b4afc6f11131",
+      "after": "db389e4014173d2e7b35faa4ea3cffa908ef1fa8d6bc65906d99c2ec51284cd1"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/reopen.rs",
+      "before": "65471dd3823cd4471736196221665543e1935541b8e611ea516854146aa8e4eb",
+      "after": "d75f2b0fe15a08975268d8a182e0f85bb939cff4430bcfe4b5362fc81a77d83e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/recovery.rs",
+      "before": "ca696be8edaf35eed44966db14c38a3abe5760941a242b1d87d5e7a255cd30c4",
+      "after": "2f1db2f4aa219263a455953877198eb8ae2eb511a3a0a8a242d34af2f176ec45"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs",
+      "before": null,
+      "after": "a7282f175811418f7a596b48ff1d3ba31150005fecdb05e884e5985472c0f383"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen/renewal.rs",
+      "before": "9f93a8220fdcec43c4f718a098c6f27e4c13fd5af578f27472d14fa50efb6099",
+      "after": "260e255a659f3e26d5b5895856a039f5ed7bdc569f13f60c5b8d8980e2771ae3"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests/reopen.rs",
+      "before": "3a2966c629d8f7800e24c83d4c241fafc3947789c355465ba912924ff7ae9999",
+      "after": "467f7c28a40c3346155dc6c216b1acc913d1f9f9d7ab89e3e925d9a4fb391b34"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation/tests.rs",
+      "before": "b7af9ac3673a7e5e0c0750b74bae3da587f6a33c4d45bd845023c12c7e4f5d8e",
+      "after": "4120d06725297e59530f8ff03467ca019549ffb1c9394d0e9e311293eb99a886"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/installation.rs",
+      "before": "4f87766ef7e39ae45b8e63bb4203ac9effa994ae948ba1e31cf075cf923e5862",
+      "after": "eba8209bd65d2babe0deb4294667d5b05b904610e185877fb045257748a2a213"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/lib.rs",
+      "before": "01b69bf46341a361824990728a7cf5a855cbf6136bd451c4f2a9d7cd9189e196",
+      "after": "cb26d223d5d89dc036bb580b792ae3d34934fdba76e53192ffd1e32a947c4136"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/session_policy/continuation/tests.rs",
+      "before": null,
+      "after": "e3d4d7408861d903b68a9c5e7b2df2b8ffc33b18f24cdf164a6a2dfcae4d1087"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/session_policy/continuation.rs",
+      "before": null,
+      "after": "f09dfb35761afba99143d70373b83f793b75dd2fc8f1134bebfa2112b8d6296d"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/session_policy.rs",
+      "before": "8cb57c9553fc193b6cc36920369e325ec015fb7d4e6d69ee42a28e098747181c",
+      "after": "abb4fb0fb56b01ab7dd971485ae9981b949e3dc78b52eb741abb6c94c56ebf1c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/bundle.bin",
+      "before": null,
+      "after": "7a81f99e95309d43f5aaedc29aa888ac358f7a0a3cbaaf39ad07e454b5c19829"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/context-digest.bin",
+      "before": null,
+      "after": "93138ac0699662e43849f79b923e20a1bb9ba36f91521fec607fd694176714b0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/directory.bin",
+      "before": null,
+      "after": "cd93782b7fb95559de14f738b65988af85d41dc1565f7c7d1ed2d035665b519c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-account.bin",
+      "before": null,
+      "after": "855275f1d1627bacbf6a0d5ebf958a60075358387836a7bbde4d417dffa50a83"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-device.bin",
+      "before": null,
+      "after": "1c712ecc21e27e374111d5a1beeaf75a4e343b3814c1847cba14013420809873"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-root.bin",
+      "before": null,
+      "after": "bd899daf3d8c361ad61128707fb713e337956d39c9c17121e0a7d25ce01614bf"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-roster-digest.bin",
+      "before": null,
+      "after": "630c43175dc5599fac5b1b69653248f4408aea42cfb393cd151a30553c38b0ff"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/initiator-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/policy-digest.bin",
+      "before": null,
+      "after": "424ba641db2cf9d0185ddefdea88c9cf83e11873c0a0e48003b32761907b7fa8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/policy-family.bin",
+      "before": null,
+      "after": "696187779b4c3454870c522c04fe25c258979881fbb1073d337f432ebbb41a20"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/policy-root.bin",
+      "before": null,
+      "after": "3ae3c829b9fce425214bdb2334b63f7c557fa3809b22312bacfd1835dcd59fc8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/policy-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/policy-wire.bin",
+      "before": null,
+      "after": "07f208292c058f0c4a6d8aba387b40670ee9e28e0884115a092f75672e5a4980"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-account.bin",
+      "before": null,
+      "after": "6a0da6b411459caf31207c517d4a2b4811d90e875d902e3572bb5e3fccf7f153"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-device.bin",
+      "before": null,
+      "after": "749cc6424efbf42812a3f8e805f9a7d297fc3a65abe292079a187eccff10ca9a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-root.bin",
+      "before": null,
+      "after": "651a39e318f814fae61fe26b7dc39c6c82710367a0f44f57aa79986e216fdd5e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-roster-digest.bin",
+      "before": null,
+      "after": "86cef203b0222c2dd570f3025a1883bd634efc260642ce96cb5bf541de833466"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/responder-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/1/send-budget.bin",
+      "before": null,
+      "after": "c0ba8a33ac67f44abff5984dfbb6f56c46b880ac2b86e1f23e7fa9c402c53ae7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/bundle.bin",
+      "before": null,
+      "after": "8e75d5506cf8b099e71ca6566a99cff2eda254687688f11b18c4a4662b08cc45"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/context-digest.bin",
+      "before": null,
+      "after": "b3d05ae0600bfba04e7d02ecbf5bda6d049b2571b6a7d2ee89d54dcc35a208b2"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/directory.bin",
+      "before": null,
+      "after": "cd93782b7fb95559de14f738b65988af85d41dc1565f7c7d1ed2d035665b519c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-account.bin",
+      "before": null,
+      "after": "855275f1d1627bacbf6a0d5ebf958a60075358387836a7bbde4d417dffa50a83"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-device.bin",
+      "before": null,
+      "after": "1c712ecc21e27e374111d5a1beeaf75a4e343b3814c1847cba14013420809873"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-root.bin",
+      "before": null,
+      "after": "bd899daf3d8c361ad61128707fb713e337956d39c9c17121e0a7d25ce01614bf"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-roster-digest.bin",
+      "before": null,
+      "after": "630c43175dc5599fac5b1b69653248f4408aea42cfb393cd151a30553c38b0ff"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/initiator-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/policy-digest.bin",
+      "before": null,
+      "after": "5388acbaa2cc7c40073deadb13009e609d5821dc4434957f990db3edff7844c9"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/policy-family.bin",
+      "before": null,
+      "after": "696187779b4c3454870c522c04fe25c258979881fbb1073d337f432ebbb41a20"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/policy-root.bin",
+      "before": null,
+      "after": "3ae3c829b9fce425214bdb2334b63f7c557fa3809b22312bacfd1835dcd59fc8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/policy-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/policy-wire.bin",
+      "before": null,
+      "after": "8691d96ce47f56ea56ba95f8ad0fa964e9d3527d6c331045111718b8ac0cd1e8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-account.bin",
+      "before": null,
+      "after": "6a0da6b411459caf31207c517d4a2b4811d90e875d902e3572bb5e3fccf7f153"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-device.bin",
+      "before": null,
+      "after": "749cc6424efbf42812a3f8e805f9a7d297fc3a65abe292079a187eccff10ca9a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-root.bin",
+      "before": null,
+      "after": "651a39e318f814fae61fe26b7dc39c6c82710367a0f44f57aa79986e216fdd5e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-roster-digest.bin",
+      "before": null,
+      "after": "86cef203b0222c2dd570f3025a1883bd634efc260642ce96cb5bf541de833466"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/responder-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/2/send-budget.bin",
+      "before": null,
+      "after": "c0ba8a33ac67f44abff5984dfbb6f56c46b880ac2b86e1f23e7fa9c402c53ae7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/bundle.bin",
+      "before": null,
+      "after": "37e3fee4d725887aae1d3efbb4e95d20b6cf677b45839f0ae4f0967c2c5ddbb0"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/context-digest.bin",
+      "before": null,
+      "after": "db6b38b9003587ef539b548b4c9d4776863c4ae0a25b262729cddd39c610c056"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/directory.bin",
+      "before": null,
+      "after": "cd93782b7fb95559de14f738b65988af85d41dc1565f7c7d1ed2d035665b519c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-account.bin",
+      "before": null,
+      "after": "855275f1d1627bacbf6a0d5ebf958a60075358387836a7bbde4d417dffa50a83"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-device.bin",
+      "before": null,
+      "after": "1c712ecc21e27e374111d5a1beeaf75a4e343b3814c1847cba14013420809873"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-root.bin",
+      "before": null,
+      "after": "bd899daf3d8c361ad61128707fb713e337956d39c9c17121e0a7d25ce01614bf"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-roster-digest.bin",
+      "before": null,
+      "after": "630c43175dc5599fac5b1b69653248f4408aea42cfb393cd151a30553c38b0ff"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/initiator-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/policy-digest.bin",
+      "before": null,
+      "after": "ac5affb20fa12b7559760c2cc5a3693652202a23bb72f43d5473928a2d4fbcc2"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/policy-family.bin",
+      "before": null,
+      "after": "696187779b4c3454870c522c04fe25c258979881fbb1073d337f432ebbb41a20"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/policy-root.bin",
+      "before": null,
+      "after": "3ae3c829b9fce425214bdb2334b63f7c557fa3809b22312bacfd1835dcd59fc8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/policy-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/policy-wire.bin",
+      "before": null,
+      "after": "3b0b23472a54b148b6afa082d95c0de39a4deea8955ae0455e9776237e62de15"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-account.bin",
+      "before": null,
+      "after": "6a0da6b411459caf31207c517d4a2b4811d90e875d902e3572bb5e3fccf7f153"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-device.bin",
+      "before": null,
+      "after": "749cc6424efbf42812a3f8e805f9a7d297fc3a65abe292079a187eccff10ca9a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-root.bin",
+      "before": null,
+      "after": "651a39e318f814fae61fe26b7dc39c6c82710367a0f44f57aa79986e216fdd5e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-roster-digest.bin",
+      "before": null,
+      "after": "86cef203b0222c2dd570f3025a1883bd634efc260642ce96cb5bf541de833466"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/responder-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/3/send-budget.bin",
+      "before": null,
+      "after": "c0ba8a33ac67f44abff5984dfbb6f56c46b880ac2b86e1f23e7fa9c402c53ae7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/bundle.bin",
+      "before": null,
+      "after": "0bb7bd92d58ff904907d2fcb10c350ad6842872d075bd60bea0f42cb13ee0c3e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/context-digest.bin",
+      "before": null,
+      "after": "7b924f578ff8c9a37a2c13ec0091f0dc5ec6143cd277eecfd933519aeb3267ab"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/directory.bin",
+      "before": null,
+      "after": "cd93782b7fb95559de14f738b65988af85d41dc1565f7c7d1ed2d035665b519c"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-account.bin",
+      "before": null,
+      "after": "855275f1d1627bacbf6a0d5ebf958a60075358387836a7bbde4d417dffa50a83"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-device.bin",
+      "before": null,
+      "after": "1c712ecc21e27e374111d5a1beeaf75a4e343b3814c1847cba14013420809873"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-root.bin",
+      "before": null,
+      "after": "bd899daf3d8c361ad61128707fb713e337956d39c9c17121e0a7d25ce01614bf"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-roster-digest.bin",
+      "before": null,
+      "after": "630c43175dc5599fac5b1b69653248f4408aea42cfb393cd151a30553c38b0ff"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/initiator-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/policy-digest.bin",
+      "before": null,
+      "after": "b57f1d27931701c30cafec97fb3e324ed638a56d91a773c655d38e8ec5d5a875"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/policy-family.bin",
+      "before": null,
+      "after": "696187779b4c3454870c522c04fe25c258979881fbb1073d337f432ebbb41a20"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/policy-root.bin",
+      "before": null,
+      "after": "3ae3c829b9fce425214bdb2334b63f7c557fa3809b22312bacfd1835dcd59fc8"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/policy-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/policy-wire.bin",
+      "before": null,
+      "after": "c5a6dadbf8a17886a1d4b08a07a8b8ec4f16d4929a2358430cddfa88b5be4392"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-account.bin",
+      "before": null,
+      "after": "6a0da6b411459caf31207c517d4a2b4811d90e875d902e3572bb5e3fccf7f153"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-device.bin",
+      "before": null,
+      "after": "749cc6424efbf42812a3f8e805f9a7d297fc3a65abe292079a187eccff10ca9a"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-generation.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-root.bin",
+      "before": null,
+      "after": "651a39e318f814fae61fe26b7dc39c6c82710367a0f44f57aa79986e216fdd5e"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-roster-digest.bin",
+      "before": null,
+      "after": "86cef203b0222c2dd570f3025a1883bd634efc260642ce96cb5bf541de833466"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/responder-roster-version.bin",
+      "before": null,
+      "after": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/4/send-budget.bin",
+      "before": null,
+      "after": "c0ba8a33ac67f44abff5984dfbb6f56c46b880ac2b86e1f23e7fa9c402c53ae7"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/fixtures/historical-context/PROVENANCE.json",
+      "before": null,
+      "after": "f32af439615b4b6b53633e20fff5d291dd4ccc0b672a74d171935f90edbe457b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/owned_connection/reopen.rs",
+      "before": "444fa1407b305d11cdddf95893148e1c9ecbfba81e49cd73d776940f33fd9e0d",
+      "after": "462e53fe62c1a52b84039380e1f70aab09c4d0da2df49475a857c07e69f5570f"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/owned_connection/roster_renewal.rs",
+      "before": "deb8181d341c7d93e777c920641136f711d3d3d888dc193bd3c3d7399837faf4",
+      "after": "009474dfe4764725d6d4d848ed1228532af43c4703b57618011d42a51a028575"
+    },
+    {
+      "path": "research/continuity-identity-candidate/tests/owned_connection.rs",
+      "before": "4d070157345968f3a4bf162b48260147659e3530aa7809d8594c50299023ee67",
+      "after": "970f607ec9f91242906b190404fdd13a373e06277dc6949d40518bfb554ee87c"
+    },
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/src/owner.rs",
+      "before": "4373b8cfb9b0c7414f1c8cc01e31380e3f3022996b2d5b9a60d7580fa6b1a200",
+      "after": "fdc06b8739350a60694db4708da7889857348a0e176ed9d91b1d2497e8269a5e"
+    },
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/tests/enrollment.rs",
+      "before": "f62d3b1a6b3376396b9c1ab72d424b44a90e0a384394585457bdfaa5b84fc099",
+      "after": "5c8b6cbf52d6cebd9082ff521eb4ede7235623935cc07f1afd6dc0ce8cddab24"
+    }
+  ],
+  "committed": false,
+  "pushed": false,
+  "release_claim_eligible": false
+}

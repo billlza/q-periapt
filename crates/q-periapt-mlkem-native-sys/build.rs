@@ -18,6 +18,8 @@ const VENDORED_ROOT: &str = "vendor/mlkem-native";
 const NATIVE_ASSEMBLY_WRAPPER: &str = "src/mlkem_bridge_asm.S";
 const NATIVE_C_WRAPPER: &str = "src/mlkem_bridge_native.c";
 const PORTABLE_C_WRAPPER: &str = "src/mlkem_bridge_portable.c";
+const X86_C_WRAPPER: &str = "src/mlkem_bridge_x86_64.c";
+const X86_ASSEMBLY_WRAPPER: &str = "src/mlkem_bridge_x86_64_asm.S";
 
 fn apple_deployment_target(
     target: &str,
@@ -178,6 +180,12 @@ fn configured_build(
         // guarantees in hardware.
         build.inherit_rustflags(false).flag(march);
     }
+    if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+        build.inherit_rustflags(false);
+        for flag in build_support::X86_BASELINE_FLAGS {
+            build.flag(flag);
+        }
+    }
     build
 }
 
@@ -248,6 +256,28 @@ fn validate_compiler(
             )
         })?;
     }
+    if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+        let command = compiler.to_command();
+        let arguments = command
+            .get_args()
+            .map(|argument| {
+                argument.to_str().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "x86-64 compiler arguments must be UTF-8",
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        build_support::validate_x86_compiler_arguments(arguments.iter().copied()).map_err(
+            |source| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("invalid baseline x86-64 compiler arguments: {source}"),
+                )
+            },
+        )?;
+    }
     Ok(())
 }
 
@@ -268,7 +298,13 @@ fn compile_native_assembly(
         .into());
     }
     assembly
-        .file(NATIVE_ASSEMBLY_WRAPPER)
+        .file(
+            if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+                X86_ASSEMBLY_WRAPPER
+            } else {
+                NATIVE_ASSEMBLY_WRAPPER
+            },
+        )
         .warnings(true)
         .warnings_into_errors(true)
         .flag("-Wall")
@@ -277,12 +313,12 @@ fn compile_native_assembly(
     validate_compiler(&assembly.get_compiler(), implementation, target_os)?;
     let objects = assembly.try_compile_intermediates().map_err(|source| {
         io::Error::other(format!(
-            "failed to compile the AArch64 mlkem-native assembly SCU: {source}"
+            "failed to compile the selected mlkem-native assembly SCU: {source}"
         ))
     })?;
     let [object] = objects.as_slice() else {
         return Err(io::Error::other(format!(
-            "the AArch64 mlkem-native assembly SCU produced {} objects instead of one",
+            "the selected mlkem-native assembly SCU produced {} objects instead of one",
             objects.len()
         ))
         .into());
@@ -290,14 +326,16 @@ fn compile_native_assembly(
     Ok(object.clone())
 }
 
-fn validate_native_build_environment() -> Result<(), Box<dyn Error>> {
+fn validate_native_build_environment(
+    implementation: build_support::MlKemImplementation,
+) -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS");
     if env::var_os("CRATE_CC_NO_DEFAULTS")
         .is_some_and(|value| !value.is_empty() && value != "0" && value != "no" && value != "false")
     {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "CRATE_CC_NO_DEFAULTS is unsupported for the fixed AArch64 native backend",
+            "CRATE_CC_NO_DEFAULTS is unsupported for the owned native backend",
         )
         .into());
     }
@@ -307,17 +345,23 @@ fn validate_native_build_environment() -> Result<(), Box<dyn Error>> {
         let encoded = encoded.into_string().map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "CARGO_ENCODED_RUSTFLAGS must be UTF-8 for the AArch64 native backend",
+                "CARGO_ENCODED_RUSTFLAGS must be UTF-8 for the owned native backend",
             )
         })?;
         if let Some(option) = build_support::inherited_c_codegen_option(&encoded) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!(
-                    "Rust codegen option {option} cannot be inherited by the fixed AArch64 native backend"
+                    "Rust codegen option {option} cannot be inherited by the owned native backend"
                 ),
             )
             .into());
+        }
+        if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+            if let Some(option) = build_support::x86_cpu_codegen_option(&encoded) {
+                return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                    format!("Rust CPU/feature override {option} is unsupported by baseline x86-64 dispatch")).into());
+            }
         }
     }
     Ok(())
@@ -328,11 +372,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed={NATIVE_C_WRAPPER}");
     println!("cargo:rerun-if-changed={PORTABLE_C_WRAPPER}");
     println!("cargo:rerun-if-changed={NATIVE_ASSEMBLY_WRAPPER}");
+    println!("cargo:rerun-if-changed={X86_C_WRAPPER}");
+    println!("cargo:rerun-if-changed={X86_ASSEMBLY_WRAPPER}");
     println!("cargo:rerun-if-changed=src/mlkem_bridge.h");
     println!("cargo:rerun-if-changed=src/mlkem_config.h");
     println!("cargo:rerun-if-changed=src/mlkem_fips202_aarch64.h");
     println!("cargo:rerun-if-changed={VENDORED_ROOT}");
     println!("cargo:rerun-if-env-changed={WASM_CC_ENV}");
+    println!("cargo:rustc-check-cfg=cfg(qpn_mlkem_x86_dispatch)");
 
     let target = env::var("TARGET")?;
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH")?;
@@ -340,6 +387,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target_env = env::var("CARGO_CFG_TARGET_ENV")?;
     let target_os = env::var("CARGO_CFG_TARGET_OS")?;
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR")?;
+    let enable_x86_candidate = env::var_os("CARGO_FEATURE_LINUX_X86_64_AVX2").is_some();
     let implementation = build_support::select_mlkem_implementation(
         &target,
         &target_arch,
@@ -347,6 +395,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &target_env,
         &target_os,
         &target_vendor,
+        enable_x86_candidate,
     )
     .map_err(|source| {
         io::Error::new(
@@ -360,8 +409,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID={}",
         implementation.id()
     );
-    if implementation.uses_aarch64_native() {
-        validate_native_build_environment()?;
+    if implementation.uses_aarch64_native()
+        || implementation == build_support::MlKemImplementation::X86_64Dispatch
+    {
+        validate_native_build_environment(implementation)?;
+    }
+    if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+        let features = env::var("CARGO_CFG_TARGET_FEATURE")?;
+        if !build_support::x86_rust_features_are_baseline(&features) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "the AVX2 dispatcher must be compiled for baseline x86-64 Rust features",
+            )
+            .into());
+        }
+        println!("cargo:rustc-cfg=qpn_mlkem_x86_dispatch");
     }
     let apple_deployment_target = apple_deployment_target(&target, &target_os, &target_vendor)?;
     let wasm_compiler = wasm_compiler(&target)?;
@@ -386,6 +448,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .warnings(true)
         .warnings_into_errors(true);
+    if implementation == build_support::MlKemImplementation::X86_64Dispatch {
+        // Keep the portable C wrapper selected above and add the independently
+        // namespaced AVX2 unit. No global compiler AVX2 feature is enabled.
+        build.file(X86_C_WRAPPER);
+    }
     if compiler.is_like_msvc() {
         build.flag("/std:c11").flag("/W4").flag("/WX");
     } else if compiler.is_like_clang() || compiler.is_like_gnu() {
@@ -408,7 +475,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if implementation.uses_aarch64_native() {
+    if implementation.uses_aarch64_native()
+        || implementation == build_support::MlKemImplementation::X86_64Dispatch
+    {
         let assembly_object = compile_native_assembly(
             apple_deployment_target.as_ref(),
             &compiler,

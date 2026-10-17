@@ -1,0 +1,38 @@
+{
+  "completed": true,
+  "patch_sha256": "8f29a5c11d68312fdb9fded308ee172dd934b8ce2a4e7a01fbf522545a0eb2be",
+  "checks": [
+    {
+      "name": "codeql_rust_quality",
+      "returncode": 0,
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "artifact",
+        "-p",
+        "test_codeql_rust_quality.py",
+        "-v"
+      ]
+    },
+    {
+      "name": "source_results_assembler",
+      "returncode": 0,
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "artifact",
+        "-p",
+        "test_source_results_assembler.py",
+        "-v"
+      ]
+    }
+  ]
+}

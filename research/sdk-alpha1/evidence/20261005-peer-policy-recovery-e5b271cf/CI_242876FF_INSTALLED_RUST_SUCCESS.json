@@ -1,0 +1,43 @@
+{
+  "run": 37254954329,
+  "job": 111591672033,
+  "head": "242876ff8225fc6fdc7c54a61c553cec0a78f9d6",
+  "tested_merge": "0a55035d3f6d138f3fc33f4ad99b3d80056599bc",
+  "artifact_id": 11323391738,
+  "zip_sha256": "194fbd5b2ec5c5d2fe81b8febf3b66513addc6e0326869fa4b5f8c18e08ee7e5",
+  "zip_bytes": 52082227,
+  "report_hashes": {
+    "CONTINUITY_PACKAGE.json": "c66830667cfab0627078eb7c76cc59e93e8e8e65fe2199b087a1e05fb15a8cc4",
+    "C_CONSUMER.json": "73ab0a5de66af15d0300fd05b00737782762e6ce45bae3dda238c3173016c413",
+    "sources-before.json": "41109d00bc2c20d2a1ab91384c9027da752a9ebd999a872bab3068b7d365d450",
+    "sources-after.json": "41109d00bc2c20d2a1ab91384c9027da752a9ebd999a872bab3068b7d365d450"
+  },
+  "source_files_matching_git_head": 445,
+  "source_mismatches": [],
+  "independent_source_before_after_equal": true,
+  "commands_checked_including_nested_duplicates": 4220,
+  "command_expectation_failures": [],
+  "profiles": [
+    "debug",
+    "release"
+  ],
+  "host": [
+    "Linux",
+    "x86_64"
+  ],
+  "completed": true,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "scope": "unpublished candidate and installed SDK archives; same-host Rust trace and C client/server/recovery with local, signed-TCP and mutual-TLS witness profiles; no independent witness engine, other foreign bindings or cross-host qualification",
+  "not_included": [
+    "Local peer-policy/current-roster recovery delta after 242876ff",
+    "Foreign T API exposure",
+    "Independent Continuity engine",
+    "Cross-host/physical-device proof",
+    "Installed joint T/P1 behavioral coverage through foreign APIs"
+  ],
+  "merge_parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "242876ff8225fc6fdc7c54a61c553cec0a78f9d6"
+  ]
+}

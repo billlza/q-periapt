@@ -1,0 +1,244 @@
+{
+  "source_commit": "a30b572c252da88a48750de4c9bcb9623c4ed08e",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-reopen-stack-current/source",
+  "completed_component_continuation": true,
+  "original_full_pipeline_completed": false,
+  "original_failure": "Kotlin plugin resolution failed before runtime qualification; the original report and inputs are retained. A separate bounded diagnostic later resolved the identical plugin version.",
+  "retry_boundary": "One fresh isolated Gradle cache and Kotlin source copy; reuse only unchanged C-qualified native libraries/helpers. No dependency, acceptance or runtime-test removal.",
+  "source_and_native_inputs_unchanged": true,
+  "execution_seconds": 8271.645582291996,
+  "continuation_report": {
+    "sha256": "f4315781e3f25a37650cbf7976482a9b68e599d809e9d973d41ac61fe26944a0",
+    "bytes": 10766839
+  },
+  "profiles": {
+    "debug": {
+      "archive": "q-periapt-continuity-kotlin-0.0.0-aarch64-apple-darwin-debug.zip",
+      "sha256": "8fbd09a5e010d7a4010798665c61cb366f567c828b405c7c28683f56023c63e6",
+      "bytes": 17117415,
+      "archive_members_verified": 273,
+      "native_library_sha256": "4cb428e4778b00777bd17521752c81df9a876b7417b5a11cc0685c83ea9126f8",
+      "same_native_library_as_original_C_and_Swift": true,
+      "owner_unit_tests": 64,
+      "java_module_executed": true,
+      "loader_and_constructor_negative_controls": 11,
+      "first_configuration": {
+        "Serial": {
+          "completed": true,
+          "scenarios": 6,
+          "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
+        },
+        "G1": {
+          "completed": true,
+          "scenarios": 6,
+          "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
+        }
+      },
+      "collectors": [
+        "G1",
+        "Serial"
+      ],
+      "runtime_jars": {
+        "annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "continuity-installed-consumer.jar": "f18fda21acdfba9725942277e4eaad60718fdef2d2df395d863bd02f6385d6ad",
+        "kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "prepared_gc": {
+        "Serial": {
+          "forgotten_owner_graphs": 1024,
+          "queued_weak_references": 1024,
+          "stale_owners_checked_after_slot_reuse": 1024
+        },
+        "G1": {
+          "forgotten_owner_graphs": 1024,
+          "queued_weak_references": 1024,
+          "stale_owners_checked_after_slot_reuse": 1024
+        }
+      }
+    },
+    "release": {
+      "archive": "q-periapt-continuity-kotlin-0.0.0-aarch64-apple-darwin-release.zip",
+      "sha256": "f40e2c79a9769bf3468bb9cf42ab070f926789d6701338a44910b6dfc63b0e38",
+      "bytes": 11226623,
+      "archive_members_verified": 273,
+      "native_library_sha256": "e87bf2b74bcaab072a553992aa38caba1af10ef755bda540f15c4bb81fac08de",
+      "same_native_library_as_original_C_and_Swift": true,
+      "owner_unit_tests": 64,
+      "java_module_executed": true,
+      "loader_and_constructor_negative_controls": 11,
+      "first_configuration": {
+        "Serial": {
+          "completed": true,
+          "scenarios": 6,
+          "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
+        },
+        "G1": {
+          "completed": true,
+          "scenarios": 6,
+          "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host"
+        }
+      },
+      "collectors": [
+        "G1",
+        "Serial"
+      ],
+      "runtime_jars": {
+        "annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "continuity-installed-consumer.jar": "f18fda21acdfba9725942277e4eaad60718fdef2d2df395d863bd02f6385d6ad",
+        "kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "prepared_gc": {
+        "Serial": {
+          "forgotten_owner_graphs": 1024,
+          "queued_weak_references": 1024,
+          "stale_owners_checked_after_slot_reuse": 1024
+        },
+        "G1": {
+          "forgotten_owner_graphs": 1024,
+          "queued_weak_references": 1024,
+          "stale_owners_checked_after_slot_reuse": 1024
+        }
+      }
+    }
+  },
+  "owner_test_xml_files_verified": 33,
+  "initial_owner_tests": 64,
+  "tool_versions": {
+    "jdk": "25.0.4.1+1",
+    "gradle": "9.8.0",
+    "kotlin_runtime": "2.4.20",
+    "native_rust": "1.98.1",
+    "host": "macOS 27 arm64"
+  },
+  "scope": "unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; test-host controller interruption uses explicit native cancel/join; calibrated journal sync process interruption and bounded prepared/in-flight owner GC under selected C2 frames; other JVM implementations and automatic JVM cancellation qualification remain separate",
+  "limits": [
+    "The source is a30b572c, not the subsequently pushed f19a3961 or current documentation/budget successor. Later mandatory first-use expiry and fanout changes keep their own source gates.",
+    "The original whole-pipeline run remains failed; this component continuation does not rewrite it into one successful uninterrupted run.",
+    "Same-host macOS/JVM with the shared native engine; no Android ART, physical Android, minimum macOS, independent host/protocol or all-JVM admission.",
+    "The archive retains full component reports, XML and selected public logs. Complete packages and the remaining public runtime traces remain in the identified local run; they are not all recopied into this checkpoint."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "26fb225543b8496dcbed5dc6734b49f76a7d7f6d2c33fcb183fdcce03af5aa2e",
+    "bytes": 1135897,
+    "files": {
+      "CONTINUATION_RESULT.json": "bbc031f09a2f360c4de76d78dfed3232bb4ec31f7e09dd47d60222e0e5895394",
+      "CONTINUATION_START.json": "00a5f9b7e09d348fa65dff5226f11c8fc1efb53cf67c7a66ce64aab596a54483",
+      "KOTLIN_CONSUMER.json": "f4315781e3f25a37650cbf7976482a9b68e599d809e9d973d41ac61fe26944a0",
+      "KOTLIN_READBACK.json": "3016e4fd650bbf8920c6c1ec7892e46ea4fe84c2ceee9567797edb6721baac5c",
+      "ORIGINAL_FULL_RESULT.json": "bf75d421fd39a9affce5d794799fb9cecface598fcbf5e8a08db757bffc28e27",
+      "ORIGINAL_KOTLIN_REPORT.json": "10b57f72a8fe9cc3c71f5e76d3b3dfc41f7373a8c1e69e2357908e3fa4f43ad7",
+      "ORIGINAL_NATIVE_COMPONENTS.json": "2619cb9f0b43ebca1b92441c232b240766fb19e2636aabcc461e4d1923d6a324",
+      "RESOLUTION_DIAGNOSTIC_RESULT.json": "a59adb9bf3abd95c7f299e1aea4c40ac4c7b71eaf0d0c714acceb9771b473938",
+      "owner-tests/kotlin-configuration-tests-debug.xml": "f06d5ac03021a8104278141a6b08c69ab890e93d003cdc49ad694dcf0648f9dc",
+      "owner-tests/kotlin-configuration-tests-release.xml": "579c3439de93ce65ee06fe75c9616f1f612f49110536d543f327a0e2113cccb5",
+      "owner-tests/kotlin-configuration-tests.xml": "a32066aacaaba8a9e0aebf97b9e35fb99bad251aa03abd7b1a3f8dea72fe8957",
+      "owner-tests/kotlin-credential-renewal-tests-debug.xml": "c2ab32198ed4a26e787536c7051ee7941b330bbf5b74624decc5e6ccc61a6efc",
+      "owner-tests/kotlin-credential-renewal-tests-release.xml": "d653f4d0b4b29d256667d701c96b5723f14a5144c8b0ada9f919c272fe12d5f3",
+      "owner-tests/kotlin-credential-renewal-tests.xml": "5c9db1b6bb0b542228d8c9dd8328ddcc46e7f056a561c5a74b5eec351372793a",
+      "owner-tests/kotlin-independent-policy-tests-debug.xml": "d06fddb50672b541b3f5d498c5a6be69d4fcd75175c36b2438efe3932eea2d0f",
+      "owner-tests/kotlin-independent-policy-tests-release.xml": "86abdbefe18d1453a1970054436640e23dc1e248385a6cac3cbdc5535c5c802d",
+      "owner-tests/kotlin-independent-policy-tests.xml": "64306c300eb1c2069123dfd9f691e47ec0be4b23552b9b386b5c1c6b043486bb",
+      "owner-tests/kotlin-owner-tests-debug.xml": "67aefcaff7bbef8fabee31640eb1d4904afab9fea24be2f0a1d854b88c238ce6",
+      "owner-tests/kotlin-owner-tests-release.xml": "ac2922a0b4133dfc6cfdf74b9b77e825f876c8f9d522cd827e1e9cd672b56a31",
+      "owner-tests/kotlin-owner-tests.xml": "a5feaba0d06cdca67a29be57308b877fbe3577de1f479aba8b44d9d9782543d6",
+      "owner-tests/kotlin-peer-configuration-tests-debug.xml": "f0785f718162ec137aff5595fecaf4bf416a8db557ccc23e46b29365a7cb2679",
+      "owner-tests/kotlin-peer-configuration-tests-release.xml": "005b5b8dcce46d102d21c14a10e19f9940e67dd4a8f07e4f95c93165eab56e0d",
+      "owner-tests/kotlin-peer-configuration-tests.xml": "26c74690586ec5d9af33c659c6da1d64bbc7bb9d9ee3cf2b8cf87e71fa3055d6",
+      "owner-tests/kotlin-policy-continuation-tests-debug.xml": "c8d71f1051050171c2e1fc3703c5782deddb2bc6aeba28327a8f2c45aee0de90",
+      "owner-tests/kotlin-policy-continuation-tests-release.xml": "8dc3d471c425a2b51b2f925ca5159bc482d621c1084ecd28cae8ef64e1e2c652",
+      "owner-tests/kotlin-policy-continuation-tests.xml": "6938c3f6c8e652a86e5a113d3e4956bfabc0264a4b26c90ee95113b80d71b767",
+      "owner-tests/kotlin-policy-renewal-tests-debug.xml": "20c3394a3eb2c90cca9a08a4623d9a558aebe4a48feefa23a8ceb2252933cfd0",
+      "owner-tests/kotlin-policy-renewal-tests-release.xml": "98871a0a09535d30710e5824f551cdfc9d6be5952d69b27985b59dda5a62d99c",
+      "owner-tests/kotlin-policy-renewal-tests.xml": "16c419651337d4230ad6fa81e20e5d6dec5b4203e3b131f2b6003af1635055dd",
+      "owner-tests/kotlin-publication-tests-debug.xml": "f00345399384c2047ca3b30c16c8bcae4d3fdaa7da8c7168810cd8cf29d0cb53",
+      "owner-tests/kotlin-publication-tests-release.xml": "bcb66a06ef7ae3897c6f45d754fbda2d587d8749028608a7c0b734a3ebd92084",
+      "owner-tests/kotlin-publication-tests.xml": "5b9f1a6cf49575ffb1218f089094235310c87f3b1d49e671dff486395bb6306e",
+      "owner-tests/kotlin-retirement-tests-debug.xml": "ad959eddb88d7ecf2247c3b29aaaa8e112173a2b8c3941f3b6f9108b1746b410",
+      "owner-tests/kotlin-retirement-tests-release.xml": "c7c9d975b260810b177997b1fcfa4794a657536cb37ce7b117deb80c42c8d81a",
+      "owner-tests/kotlin-retirement-tests.xml": "5ef05d11171f568d1e2aed44b5715b03d2594713908049bb6c2bc0177beea8e2",
+      "owner-tests/kotlin-roster-refresh-tests-debug.xml": "22312deb2d1948dfa1777560aaaac29a25d61713d14e147809ecc97bff0340bf",
+      "owner-tests/kotlin-roster-refresh-tests-release.xml": "a423d95d7af1b487381791d735ea6c3a8ce189210fe64a5f24f39ddeb217d9af",
+      "owner-tests/kotlin-roster-refresh-tests.xml": "4a8c0d130f48541b66d425bf394e5a37476c2c6948ff8693736567c5d827307f",
+      "owner-tests/kotlin-roster-resolution-tests-debug.xml": "b22ffb8ffcacb25b6ef88ca683f9c925fa9a1b977cbb9e7718740fe8deb13b7d",
+      "owner-tests/kotlin-roster-resolution-tests-release.xml": "8f5a9721fa9aa4bdbced140f1bec37cd359ecd8a63b3b9c8f29710c4091b3d4d",
+      "owner-tests/kotlin-roster-resolution-tests.xml": "e77f50073403e587dbc843a9a5c38a76832f0f4bd90cdcdee62e56393080c7a3",
+      "run-kotlin-continuation.py": "f33ae67ce613d691e14bb157819f8009fd1d0e0e5626c77a3ddf30aa2eba46c7",
+      "selected-logs/kotlin-java-configuration-debug.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-java-configuration-debug.stdout": "818323db01f31308c779597b007fc915eccf08f24760678349508d29b2941f38",
+      "selected-logs/kotlin-java-configuration-release.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-java-configuration-release.stdout": "818323db01f31308c779597b007fc915eccf08f24760678349508d29b2941f38",
+      "selected-logs/kotlin-java-module-debug.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-java-module-debug.stdout": "6c195f25bb5369cb25cc1462cb8dfcff2926352332734d1ac554c2e2d9d1a567",
+      "selected-logs/kotlin-java-module-release.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-java-module-release.stdout": "6c195f25bb5369cb25cc1462cb8dfcff2926352332734d1ac554c2e2d9d1a567",
+      "selected-logs/kotlin-negative-RawConfigurationKeyProbe-debug.stderr": "f2bfdaea129dedc5e6806392895f174b00e1d94300da056ba4424e251fe4bc01",
+      "selected-logs/kotlin-negative-RawConfigurationKeyProbe-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-RawConfigurationKeyProbe-release.stderr": "f2bfdaea129dedc5e6806392895f174b00e1d94300da056ba4424e251fe4bc01",
+      "selected-logs/kotlin-negative-RawConfigurationKeyProbe-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-RawConfigurationProbe-debug.stderr": "9029eaa507876e2426f699eeaf4e6137eb682b4d1417003ba08ca7bac4753002",
+      "selected-logs/kotlin-negative-RawConfigurationProbe-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-RawConfigurationProbe-release.stderr": "9029eaa507876e2426f699eeaf4e6137eb682b4d1417003ba08ca7bac4753002",
+      "selected-logs/kotlin-negative-RawConfigurationProbe-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-denied-native-access-debug.stderr": "6623f05c873d5bbb898e9edec5a6cb198537bc428dd3b324f0ffce228339e0da",
+      "selected-logs/kotlin-negative-denied-native-access-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-denied-native-access-release.stderr": "96db54c98e61aa815fea2534795a777e685f7f3c63c98e2131fdfdc4383b3134",
+      "selected-logs/kotlin-negative-denied-native-access-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-directory-library-debug.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-directory-library-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-directory-library-release.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-directory-library-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-library-debug.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-missing-library-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-library-release.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-missing-library-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-property-debug.stderr": "4a5e8e7bfb73957e98618f334dda49f46a7fa9b5bd61d366c4d2fcf5dd06bd55",
+      "selected-logs/kotlin-negative-missing-property-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-property-release.stderr": "4a5e8e7bfb73957e98618f334dda49f46a7fa9b5bd61d366c4d2fcf5dd06bd55",
+      "selected-logs/kotlin-negative-missing-property-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-symbol-debug.stderr": "088385f3a38129349721e0c9c8d2da3854edf8e9f3fa6b547d1311c96250677d",
+      "selected-logs/kotlin-negative-missing-symbol-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-missing-symbol-release.stderr": "088385f3a38129349721e0c9c8d2da3854edf8e9f3fa6b547d1311c96250677d",
+      "selected-logs/kotlin-negative-missing-symbol-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-device-debug.stderr": "f618c18739c123210064412f4f279a2e5c7858c3c1dd370040da2f67d0408f45",
+      "selected-logs/kotlin-negative-raw-device-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-device-release.stderr": "f618c18739c123210064412f4f279a2e5c7858c3c1dd370040da2f67d0408f45",
+      "selected-logs/kotlin-negative-raw-device-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-enrollment-debug.stderr": "26a803bc6587356993f0c006d5e1c2e22d176c406403971d9cc87d6a022ee8a8",
+      "selected-logs/kotlin-negative-raw-enrollment-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-enrollment-release.stderr": "26a803bc6587356993f0c006d5e1c2e22d176c406403971d9cc87d6a022ee8a8",
+      "selected-logs/kotlin-negative-raw-enrollment-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-native-owner-debug.stderr": "6fddaae404d3cb64a4565a45aec71ebeb8e43b84898f03cc4a03d4ea385ad501",
+      "selected-logs/kotlin-negative-raw-native-owner-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-native-owner-release.stderr": "6fddaae404d3cb64a4565a45aec71ebeb8e43b84898f03cc4a03d4ea385ad501",
+      "selected-logs/kotlin-negative-raw-native-owner-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-owner-debug.stderr": "f68a67cc1a247bd2fda482f1ad8d46dc3595af7f7c40feff7b24e3abbe255df3",
+      "selected-logs/kotlin-negative-raw-owner-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-owner-release.stderr": "f68a67cc1a247bd2fda482f1ad8d46dc3595af7f7c40feff7b24e3abbe255df3",
+      "selected-logs/kotlin-negative-raw-owner-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-retired-debug.stderr": "741ad622d323353a38d9007aab4204814da434c12259a0c61c1c753c70ce8be4",
+      "selected-logs/kotlin-negative-raw-retired-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-retired-release.stderr": "741ad622d323353a38d9007aab4204814da434c12259a0c61c1c753c70ce8be4",
+      "selected-logs/kotlin-negative-raw-retired-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-setup-debug.stderr": "2a61d6952c5d30f34367af6c4c2301fad33b3291d17d1defaaf75acef5b9e2ed",
+      "selected-logs/kotlin-negative-raw-setup-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-raw-setup-release.stderr": "2a61d6952c5d30f34367af6c4c2301fad33b3291d17d1defaaf75acef5b9e2ed",
+      "selected-logs/kotlin-negative-raw-setup-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-relative-path-debug.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-relative-path-debug.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-negative-relative-path-release.stderr": "df0cb864ed37516be07287495332f324cfef97ad5378485db1b1626ded2b3c63",
+      "selected-logs/kotlin-negative-relative-path-release.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected-logs/kotlin-recovery-trace-debug.stderr": "1a1a0a6e32bda866cab4284c81fc59ce704ec04fd87f59ca4757aa244d4d4adc",
+      "selected-logs/kotlin-recovery-trace-debug.stdout": "2038aa67eccbf75520a412d74d6959885eaf9844e0555ab0674cb39908fe558f",
+      "selected-logs/kotlin-recovery-trace-release.stderr": "c545d445c8e636d410f437713de3857c41948477184a4a48a08202b53310d184",
+      "selected-logs/kotlin-recovery-trace-release.stdout": "6ef533488c5e97b95fa8b061043be5c41e732f67cd30fb3f152035df19eddf19",
+      "selected-logs/kotlin-server-trace-debug.stderr": "d42e7a668bca1e48957ce50e38bb3afa0602e0c2737d8031d8ce0bab08821011",
+      "selected-logs/kotlin-server-trace-debug.stdout": "10cfb582e3e92aef3fa3b36f67d5e89d404f4a62f46102554bd5c9a43db2c2b3",
+      "selected-logs/kotlin-server-trace-release.stderr": "d41c6bc2fccf34a9adc28dc36e8edfcd9a7317a37e9fae616ad701f26006423c",
+      "selected-logs/kotlin-server-trace-release.stdout": "0e7d64bb6b29aa192f8602b1b6a236a5a6cef2bfeb08755735ed69c0574f52f7"
+    }
+  }
+}

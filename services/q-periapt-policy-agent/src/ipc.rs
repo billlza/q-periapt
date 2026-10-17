@@ -2492,11 +2492,8 @@ mod tests {
 
     #[test]
     fn the_accept_wait_times_out_when_idle_and_reports_a_waiting_client() {
-        let directory =
-            std::env::temp_dir().join(format!("qperiapt-accept-wait-{}", std::process::id()));
-        std::fs::create_dir_all(&directory).expect("temporary directory");
-        let path = directory.join("accept-wait.sock");
-        let _ = std::fs::remove_file(&path);
+        let directory = tempfile::tempdir().expect("private temporary directory");
+        let path = directory.path().join("accept-wait.sock");
         let listener = UnixListener::bind(&path).expect("listener");
         listener.set_nonblocking(true).expect("non-blocking");
 
@@ -2515,8 +2512,10 @@ mod tests {
         assert!(listener.accept().is_ok());
 
         drop(client);
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_dir(&directory);
+        drop(listener);
+        directory
+            .close()
+            .expect("temporary socket directory cleanup");
     }
 
     fn request_body(command: u8) -> Result<Vec<u8>, IpcError> {

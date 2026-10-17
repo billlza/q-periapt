@@ -129,5 +129,5 @@ current builds and claims use the dependency-free `ct_leaky_control` discriminat
 
 - Promote the local dudect timing diagnostic to a gate on dedicated, quiesced hardware.
 - Add equivalent binary-CT coverage for riscv64 and wasm32 when mature tooling exists.
-- Add an independent source-level audit of the active shipped primitive implementation.
+- Review the active shipped primitive implementation and bind findings to its source revision.
 - Extend dataflow coverage to the remaining primitive paths with algorithm-appropriate harnesses.

@@ -1,0 +1,20 @@
+{
+  "registry+https://github.com/rust-lang/crates.io-index#curve25519-dalek@5.0.0": {
+    "added": [
+      "precomputed-tables"
+    ],
+    "removed": []
+  },
+  "path+file:///private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-x25519-tables-7o7udhh7#sdk-x25519-table-probe@0.0.0": {
+    "added": [
+      "precomputed"
+    ],
+    "removed": []
+  },
+  "registry+https://github.com/rust-lang/crates.io-index#x25519-dalek@3.0.0": {
+    "added": [
+      "precomputed-tables"
+    ],
+    "removed": []
+  }
+}

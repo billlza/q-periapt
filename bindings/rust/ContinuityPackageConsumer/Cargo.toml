@@ -1,0 +1,47 @@
+[package]
+name = "q-periapt-continuity-package-consumer"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[workspace]
+
+[features]
+default = ["connection-tls", "control-tls"]
+connection-tls = ["q-periapt-continuity-identity-candidate/connection-tls"]
+control-tls = ["q-periapt-continuity-identity-candidate/control-tls"]
+
+[dev-dependencies]
+q-periapt-continuity-identity-candidate = "=0.0.0"
+q-periapt-backends = "=0.2.0"
+q-periapt-policy = "=0.2.0"
+q-periapt-sdk = { version = "=0.2.0", features = ["sealed-operations"] }
+q-periapt-host-store = "=0.2.0"
+q-periapt-rustls = { version = "=0.2.0", features = ["reference-connection"] }
+q-periapt-sig = "=0.2.0"
+getrandom = "0.4"
+zeroize = "1"
+rcgen = "=0.14.10"
+tempfile = "=3.27.0"
+
+# Use the workload shipped in the exact Cargo archive; never include checkout code.
+[[test]]
+name = "owned_connection"
+path = "packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug-assertions = true
+overflow-checks = true
+
+[profile.dev.package.q-periapt-continuity-identity-candidate]
+opt-level = 0
+debug-assertions = true
+overflow-checks = true
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

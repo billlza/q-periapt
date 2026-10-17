@@ -1,0 +1,112 @@
+{
+  "reviewed_commit": "db9cac63870bded76e7b5b3212e720f697047d23",
+  "analysis_branch": "1ca9ba6b",
+  "analysis_checkout": "d31e67ba573d9b1dcfd7bde112d567b09e82fced",
+  "files": [
+    {
+      "path": "crates/q-periapt-core/src/lib.rs",
+      "sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "crates/q-periapt-sdk/src/purpose.rs",
+      "sha256": "9776014b4253eb12d8ffa84fbeb4ae87dcf14d59a32c023a5961fa6c2ec278ad",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "sha256": "ac82dc6f1cb43340c85a561ffb38d7a21e067573a2bbc25b11a29936dfa34155",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "sha256": "36d84373834227c668a450e58bcf800b72d0c17238d16291454186aee1d48935",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "sha256": "9434252643ad8b914eed4e5d93db4ca79c4bff867de6e5d1cbe3dc1d19b81f3b",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/anchoring/tests.rs",
+      "sha256": "54f32a55d8a902b241e5e2e834b4807e3e3d177549d30dcbad85a80651b01dbf",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/cancellation.rs",
+      "sha256": "ed34d286321e35f3823b9c87cfbcc15e83e5a7c7686587da84f1e1bb0998b433",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+      "sha256": "4f121f062599b1fcbe809153ab9d7cd05d479a1a7ff65e7fd342913688432165",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure.rs",
+      "sha256": "ab3b1617588a8430038e5eda82d793985dfed113a0099fed239eaa465d9e0c52",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/closure/archive.rs",
+      "sha256": "d410d0456f326b5144adf5823f1aecc1eb719da5440362fe73d5c6648d3598e7",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+      "sha256": "71fb555e8de5d587892676c0bbc39a22444ae4797fea646342d3509772f25815",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs",
+      "sha256": "c938b4a731f515f1d8484d9d8f7a96b185d487f8d93a37a0e43f3704b5eb117d",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "sha256": "7362b69ebfe4b05d7c55ee4d30489e550c3c8d833456c929e9ad28260848d73b",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "sha256": "031f1fb369c367c4fae19203752793c3632e1eef615c95fdceabff9b6aba3457",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/resolution.rs",
+      "sha256": "329084d76a7d3183fd8ebaef78170868149e4a4e988a067b0e6f98e405cde5e9",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests.rs",
+      "sha256": "387c66339b723d4c8af9e6dd158f2ccc204203931186fbd24b1a87e96cec1702",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/send_budget.rs",
+      "sha256": "b442f6df89a56402ae84c6ab72db1c1ff511288e684af5e3496ce60a685b76b6",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+      "sha256": "27c17dc25fe7415801292ca77cff9b9d09c74fd3eaf6261e45e0f5ad53fe2988",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/retired_report.rs",
+      "sha256": "374e0ac17cfd88138221afa052d7d58d820a19603542582da992965c391249dc",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+      "sha256": "714936c85fbc0a62499c8b5e0cd998c44e680479ee34bfa61232354e671b0842",
+      "unchanged_from_analysis_source": true
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs",
+      "sha256": "1e77c3f2902c7979a03d00a94f9bdca13d3d841d4e0fe0ee1630fc8e37182305",
+      "unchanged_from_analysis_source": true
+    }
+  ]
+}

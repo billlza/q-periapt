@@ -1,0 +1,250 @@
+from __future__ import annotations
+
+import copy
+import contextlib
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+from bounded_process import BoundedProcessError
+import codeql_rust_profile as profile_module
+from codeql_rust_profile import ProfileRun, compiler_commands, extract_database, prepared_consumers, validate_query_inventory, validate_sarif
+
+
+def sarif(profile="native"):
+    return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.2"}},
+             "automationDetails": {"id": f"/language:rust/target:{profile}/"},
+             "invocations": [{"executionSuccessful": True}], "results": []}]}
+
+
+class RustProfileTests(unittest.TestCase):
+    def test_extraction_inputs_survive_quality_failure_without_certifying_profile(self) -> None:
+        for passed in (False, True):
+            with self.subTest(passed=passed), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                (root / "src").mkdir()
+                data = b"pub fn operation() {}\n"
+                (root / "src/lib.rs").write_bytes(data)
+                source = {"src/lib.rs": hashlib.sha256(data).hexdigest()}
+                locks = [f"workspace-{i}/Cargo.lock" for i in range(6)]
+                for lock in locks:
+                    path = root / lock
+                    path.parent.mkdir()
+                    path.write_text("version = 4\n")
+                sysroot = root / "sysroot"
+                (sysroot / "lib/rustlib/src/rust/library").mkdir(parents=True)
+                shutil.copytree(profile_module.ROOT / "artifact/codeql-rust-quality",
+                                root / "artifact/codeql-rust-quality")
+                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
+                def command(label, *_args, **_kwargs):
+                    return {
+                        "codeql-version": b"2.27.2\n",
+                        "rust-version": b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: aarch64-apple-darwin\n",
+                        "rust-sysroot": os.fsencode(sysroot),
+                    }.get(label, b"compiler output")
+                def check_quality(actual_run, compiled, sources, profile):
+                    inputs = json.loads((run.evidence / "EXTRACTION_INPUTS.json").read_text())
+                    self.assertIs(actual_run, run)
+                    self.assertEqual((compiled, sources, profile), (source, source, "macos"))
+                    self.assertEqual(inputs["source_sha256"], source)
+                    self.assertEqual(inputs["compiled_sources"], source)
+                    self.assertEqual(inputs["source_commit"], "a" * 40)
+                    self.assertEqual((inputs["run_id"], inputs["run_attempt"]), ("123", "1"))
+                    self.assertEqual((inputs["query_threads"], inputs["query_ram_mb"]), (2, 5500))
+                    self.assertFalse(inputs["active_target_quality_passed"])
+                    self.assertFalse(inputs["paired_target_quality_passed"])
+                    self.assertFalse((run.evidence / "PROFILE.json").exists())
+                    if not passed:
+                        raise RuntimeError("quality query timed out")
+                    for name in ("MacroCalls.json", "ExtractedPaths.json"):
+                        (run.evidence / name).write_text("[]\n")
+                    return {"checked": 1}
+                with contextlib.ExitStack() as stack:
+                    stack.enter_context(mock.patch.dict(os.environ, GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1"))
+                    for owner, name, kwargs in (
+                        (profile_module.quality, "require_repository_target_absent", {}),
+                        (profile_module.quality, "require_clean_checkout", {}),
+                        (profile_module.quality, "tracked_rust_paths", {"return_value": source}),
+                        (run, "command", {"side_effect": command}),
+                        (profile_module, "install_metadata_adapter", {}),
+                        (profile_module, "run_git_bytes", {"return_value": "\n".join(locks).encode()}),
+                        (profile_module, "prepared_consumers", {"side_effect": lambda _: contextlib.nullcontext()}),
+                        (profile_module, "collect_compiled_sources", {"return_value": source}),
+                        (profile_module, "extract_database", {}),
+                        (profile_module, "collect_quality", {"side_effect": check_quality}),
+                    ):
+                        stack.enter_context(mock.patch.object(owner, name, **kwargs))
+                    if passed:
+                        profile_module.prepare(run, "macos", "a" * 40)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "quality query timed out"):
+                            profile_module.prepare(run, "macos", "a" * 40)
+                self.assertTrue((run.evidence / "EXTRACTION_INPUTS.json").is_file())
+                self.assertEqual((run.evidence / "PROFILE.json").exists(), passed)
+                if passed:
+                    profile = json.loads((run.evidence / "PROFILE.json").read_text())
+                    self.assertTrue(profile["active_target_quality_passed"])
+                    self.assertEqual(profile["metrics"], {"checked": 1})
+
+    def test_target_commands_select_actual_supported_compilation_paths(self) -> None:
+        root = Path("/source")
+        wasm = compiler_commands(root, "wasm")
+        self.assertEqual(len(wasm), 2)
+        self.assertIn("browser-continuity", wasm[0][2])
+        self.assertIn("--tests", wasm[1][2])
+        native = compiler_commands(root, "native")
+        self.assertEqual(compiler_commands(root, "macos"), native)
+        self.assertEqual({label for label, _cwd, _args in native},
+                         {"workspace", "engine", "spqr", "whole-kem", "continuity-c", "sdk-rust"})
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            compiler_commands(root, "unexpected")
+
+    def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
+            with mock.patch.object(run, "command") as command:
+                extract_database(run, root / "database-cluster/rust")
+            argv = command.call_args.args[1]
+            self.assertIn("--threads=2", argv)
+            self.assertIn("--ram=5500", argv)
+            self.assertNotIn("--ram=14000", argv)
+
+    def test_macos_rejects_an_intel_compiler_before_fetch_or_extraction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
+            compiler = b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-apple-darwin\n"
+            with mock.patch.object(profile_module.quality, "require_repository_target_absent"), \
+                    mock.patch.object(profile_module.quality, "require_clean_checkout"), \
+                    mock.patch.object(profile_module.quality, "tracked_rust_paths", return_value=[]), \
+                    mock.patch.object(run, "command", side_effect=[b"2.27.2\n", compiler]) as command:
+                with self.assertRaisesRegex(ValueError, "compiler or host"):
+                    profile_module.prepare(run, "macos", "a" * 40)
+            self.assertEqual([call.args[0] for call in command.call_args_list], ["codeql-version", "rust-version"])
+
+    def test_profile_host_selection_never_falls_back_for_unknown_profiles(self) -> None:
+        self.assertEqual(profile_module.profile_host("macos"), "darwin")
+        self.assertEqual(profile_module.profile_host("wasm"), "linux")
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            profile_module.profile_host("intel-mac")
+
+    def test_nonzero_child_preserves_outputs_and_never_reports_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with self.assertRaisesRegex(ValueError, "command failed"):
+                run.command("failure", [sys.executable, "-c", "print('kept output');raise SystemExit(7)"])
+            self.assertEqual((run.evidence / "failure.stdout").read_text(), "kept output\n")
+            self.assertEqual(json.loads((run.evidence / "failure.json").read_text())["returncode"], 7)
+            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_timeout_records_cleanup_and_remains_a_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with self.assertRaises(BoundedProcessError):
+                run.command("timeout", [sys.executable, "-c", "import time;time.sleep(5)"], seconds=1)
+            record = json.loads((run.evidence / "timeout.json").read_text())
+            self.assertFalse(record["completed"])
+            self.assertEqual(record["boundary"], "timeout")
+            self.assertFalse(record["cleanup_ambiguous"])
+
+    def test_full_and_reduced_summary_queries_are_both_required_by_the_pinned_suite(self) -> None:
+        pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+        inventory = pinned["queries"]
+        self.assertEqual(len(inventory), 39)
+        self.assertIn("queries/summary/SummaryStatsReduced.ql", inventory)
+        validate_query_inventory(inventory, pinned)
+        missing_full = dict(inventory)
+        del missing_full["queries/summary/SummaryStats.ql"]
+        with self.assertRaisesRegex(ValueError, "full summary query is missing"):
+            validate_query_inventory(missing_full, dict(pinned, queries=missing_full))
+        for path in ("queries/summary/SummaryStatsReduced.ql", "queries/summary/SummaryStats.ql"):
+            changed = dict(inventory)
+            changed[path] = "0" * 64
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, "query bytes differ"):
+                validate_query_inventory(changed, pinned)
+        missing_reduced = dict(inventory)
+        del missing_reduced["queries/summary/SummaryStatsReduced.ql"]
+        with self.assertRaisesRegex(ValueError, "query bytes differ"):
+            validate_query_inventory(missing_reduced, pinned)
+
+    def test_resumption_requires_existing_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with self.assertRaisesRegex(ValueError, "missing"):
+                ProfileRun(root, root / "missing", Path(sys.executable), dict(os.environ), resume=True)
+
+    def test_database_parent_exists_before_codeql_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            database = root / "database-cluster" / "rust"
+            def check_parent(_label, argv):
+                self.assertTrue(database.parent.is_dir())
+                self.assertFalse(database.exists())
+                self.assertIn(str(database), argv)
+            with mock.patch.object(run, "command", side_effect=check_parent) as command:
+                extract_database(run, database)
+            command.assert_called_once()
+
+    def test_database_parent_is_not_reused_or_overwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            database = root / "database-cluster" / "rust"
+            database.parent.mkdir()
+            marker = database.parent / "existing-state"
+            marker.write_text("preserve")
+            with mock.patch.object(run, "command") as command, self.assertRaises(FileExistsError):
+                extract_database(run, database)
+            command.assert_not_called()
+            self.assertEqual(marker.read_text(), "preserve")
+
+    def test_consumer_inputs_survive_extraction_and_are_removed_on_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            state = []
+            with mock.patch.object(profile_module.consumers, "prepare", side_effect=lambda *_a, **_kw: state.append("prepared")), \
+                    mock.patch.object(run, "command", side_effect=lambda *_a, **_kw: state.append("removed")) as remove:
+                with self.assertRaisesRegex(RuntimeError, "extraction failed"):
+                    with prepared_consumers(run):
+                        self.assertEqual(state, ["prepared"])
+                        remove.assert_not_called()
+                        raise RuntimeError("extraction failed")
+            self.assertEqual(state, ["prepared", "removed"])
+
+    def test_failed_consumer_preparation_is_not_removed_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with mock.patch.object(profile_module.consumers, "prepare", side_effect=ValueError("preparation failed")), \
+                    mock.patch.object(run, "command") as remove:
+                with self.assertRaisesRegex(ValueError, "preparation failed"):
+                    with prepared_consumers(run):
+                        self.fail("failed preparation entered extraction")
+                remove.assert_not_called()
+
+    def test_wrong_target_tool_failure_or_warning_sarif_is_rejected(self) -> None:
+        validate_sarif(sarif(), "native")
+        variants = []
+        other = sarif("wasm"); variants.append(other)
+        other = sarif(); other["runs"][0]["tool"]["driver"]["semanticVersion"] = "2.27.1"; variants.append(other)
+        other = sarif(); other["runs"][0]["invocations"][0]["executionSuccessful"] = False; variants.append(other)
+        other = sarif(); other["runs"][0]["invocations"][0]["toolExecutionNotifications"] = [{"level": "warning"}]; variants.append(other)
+        other = sarif(); other["runs"].append(copy.deepcopy(other["runs"][0])); variants.append(other)
+        for value in variants:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate_sarif(value, "native")
+
+
+if __name__ == "__main__":
+    unittest.main()

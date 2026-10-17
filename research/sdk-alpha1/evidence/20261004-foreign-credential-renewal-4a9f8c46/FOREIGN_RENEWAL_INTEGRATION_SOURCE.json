@@ -1,0 +1,28 @@
+{
+  "base_commit": "4a9f8c4630a0d1308f6dd9085a15d8b9a05a4ef2",
+  "source": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "files": {
+    "artifact/continuity_c_enrollment.py": "90c30e75661d5ce65b4b66d5fc68972b09b29a4939c1f416bfb52c1dfe7215a9",
+    "artifact/continuity_kotlin_consumer.py": "1693a1e14938877b0861584e51419673aa6ccede1a13f43c48acf9c3cb288de7",
+    "artifact/continuity_swift_consumer.py": "15608fcf6a9565a1f7251b315c0b20495b9653277d0097e34094c0cc7b32cd52",
+    "artifact/test_continuity_kotlin_consumer.py": "4908d71e50cb23ad7fa67263406153b738187f3daa2ccff8b9cba2caaadc9769",
+    "artifact/test_continuity_swift_consumer.py": "3b793a0381f491b6fd3834d296ac158ddc63b205335f5dcdd1738110f43a8ca4",
+    "bindings/kotlin/ContinuityPackageConsumer/README.md": "b0de84c66427195e91e95897120a3c6feee6b94f99852294a826f7b8ed1bf159",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/ContinuityClient.kt": "44f0d1b0464f9a6a22e8f2ac81f3814fe4c277b1a018afd7c6349f505e28a935",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/CredentialRenewal.kt": "80225f127a16c55ba6b374f617068298811857ceb6bcb1b2e3d35deecf8afccf",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Enrollment.kt": "c87e57d166f5cb53bb7088ab9262e9933b710c111808923a8e268d00dbda10cb",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt": "fd8b096fabc41479c66ee19cda1fcb6bd29e25d41c424e83667939e4f12f0cec",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Device.kt": "4aff0807089117e1b3fc40517db199e7b21ea67c3e80129f02b9f2891116c903",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "9610039523a06b6c00fc19e7cb8818e77b2f2586eafc6946dad2c9adbee371ac",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "a335c89ad35d21b7942835f40bc7094a4003999dd4ef7f661187534fd132890c",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/CredentialRenewalTests.kt": "5c91465383ee0f1962e56af3029ee8d7d91950cb32ad5d5276fed5086c28eead",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/OwnerTests.kt": "f3565de486d38f344908ef1fd913db01bdfa36875bfd2c2158cd07f66921db55",
+    "bindings/swift/ContinuityPackageConsumer/README.md": "f4df04f3588f4d8ec565bd9639fb50302488a95b49715b4e887d66f9395f48e5",
+    "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Client.swift": "dd0f19d8c6e0b5d6a747865242d4bd18c7b39d9aacbb68641f178e020187210b",
+    "bindings/swift/ContinuityPackageConsumer/Sources/ContinuityClient/Enrollment.swift": "15a496cedbbfbbab2a8a6419b42a66b2f7559c83d9325282ecf9efedaf9bd0aa",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/CredentialRenewal.swift": "e021446005c118e85020df6e0d345a96b5704b8a1541d0bbab85b97870c5b117",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Enrollment.swift": "9b7163bcac991ee6f9d3e852a6a9845489593e4217a4901ce6e113a97545dfc4",
+    "bindings/swift/ContinuityPackageConsumer/Tests/QPeriaptContinuityTests/CredentialRenewalTests.swift": "070057903fe1f4c86c760c6404e95e62c84dfce7782378ce84748d4b77bf9b77",
+    "bindings/swift/ContinuityPackageConsumer/Tests/QPeriaptContinuityTests/EnrollmentTests.swift": "9d30f47d407d960d215bc03ed2d47bd57bf432152a492be65142b734f9a9a110"
+  }
+}

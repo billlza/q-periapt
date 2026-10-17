@@ -32,8 +32,9 @@ class ProofToByteInputsError(ValueError):
 
 # Every site that asserts this map's size rather than deriving it, to be moved
 # in the same commit that adds or removes a key (on an open line the new key
-# also joins INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS, so the installed
-# 190-key baseline is untouched):
+# also joins INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS and, for SDK additions,
+# SDK_NEW_PROOF_INPUT_KEYS, so the 190-key initial and 249-key historical
+# baselines are untouched):
 #   * artifact/source_results_assembler.py -- the readiness check, the gate
 #     markers, the reopen transform, and the docstrings that name the total;
 #   * .github/workflows/ci.yml -- both expected marker strings -- and their
@@ -157,8 +158,13 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "migration_agent_authority_transport_sha256": "services/q-periapt-policy-agent/src/authority_transport.rs",
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
-    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
-    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
+    "migration_agent_filesystem_sha256": "crates/q-periapt-host-store/src/filesystem.rs",
+    "migration_agent_macos_acl_sha256": "crates/q-periapt-host-store/src/macos_acl.rs",
+    "migration_agent_filesystem_adapter_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "host_store_manifest_sha256": "crates/q-periapt-host-store/Cargo.toml",
+    "host_store_lib_sha256": "crates/q-periapt-host-store/src/lib.rs",
+    "host_store_policy_sha256": "crates/q-periapt-host-store/src/policy.rs",
+    "host_store_policy_tests_sha256": "crates/q-periapt-host-store/src/policy/tests.rs",
     "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
     "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
     "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
@@ -290,6 +296,8 @@ PROOF_TO_BYTE_INPUT_PATHS = MappingProxyType({
     "license_mit_sha256": "LICENSES/MIT.txt",
     "qperiapt_cli_cargo_sha256": "crates/q-periapt-cli/Cargo.toml",
     "qperiapt_cli_lib_sha256": "crates/q-periapt-cli/src/lib.rs",
+    "qperiapt_cli_scanner_sha256": "crates/q-periapt-cli/src/scanner.rs",
+    "qperiapt_cli_scanner_tests_sha256": "crates/q-periapt-cli/src/scanner/tests.rs",
     "qperiapt_cli_main_sha256": "crates/q-periapt-cli/src/main.rs",
 
     "proof_to_byte_inputs_sha256": "artifact/proof_to_byte_inputs.py",

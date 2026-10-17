@@ -100,30 +100,54 @@
 /* #define MLK_CONFIG_EXTERNAL_API_QUALIFIER */
 
 /**
+ * MLK_CONFIG_NO_KEYPAIR_API
+ *
+ * By default, mlkem-native includes support for generating key pairs.
+ * If you don't need this, set MLK_CONFIG_NO_KEYPAIR_API to exclude
+ * keypair and keypair_derand, and all internal
+ * APIs only needed by those functions.
+ */
+/* #define MLK_CONFIG_NO_KEYPAIR_API */
+
+/**
+ * MLK_CONFIG_NO_ENCAPS_API
+ *
+ * By default, mlkem-native includes support for encapsulation. If you
+ * don't need this, set MLK_CONFIG_NO_ENCAPS_API to exclude
+ * enc, enc_derand, check_pk, and
+ * all internal APIs only needed by those functions.
+ *
+ * @note Setting this option is incompatible with MLK_CONFIG_KEYGEN_PCT
+ *       as the current PCT implementation requires enc().
+ */
+/* #define MLK_CONFIG_NO_ENCAPS_API */
+
+/**
+ * MLK_CONFIG_NO_DECAPS_API
+ *
+ * By default, mlkem-native includes support for decapsulation. If you
+ * don't need this, set MLK_CONFIG_NO_DECAPS_API to exclude
+ * dec, check_sk, and all internal APIs only
+ * needed by those functions.
+ *
+ * @note Setting this option is incompatible with MLK_CONFIG_KEYGEN_PCT
+ *       as the current PCT implementation requires dec().
+ */
+/* #define MLK_CONFIG_NO_DECAPS_API */
+
+/**
  * MLK_CONFIG_NO_RANDOMIZED_API
  *
  * If this option is set, mlkem-native will be built without the randomized
- * API functions (crypto_kem_keypair and crypto_kem_enc). This allows users
+ * API functions (keypair and enc). This allows users
  * to build mlkem-native without providing a randombytes() implementation
- * if they only need the deterministic API (crypto_kem_keypair_derand,
- * crypto_kem_enc_derand, crypto_kem_dec).
+ * if they only need the deterministic API (keypair_derand,
+ * enc_derand, dec).
  *
  * @note This option is incompatible with MLK_CONFIG_KEYGEN_PCT as the
- *       current PCT implementation requires crypto_kem_enc().
+ *       current PCT implementation requires enc().
  */
 /* #define MLK_CONFIG_NO_RANDOMIZED_API */
-
-/**
- * MLK_CONFIG_NO_SUPERCOP
- *
- * By default, mlkem_native.h exposes the mlkem-native API in the SUPERCOP
- * naming convention (crypto_kem_xxx). If you don't need this, set
- * MLK_CONFIG_NO_SUPERCOP.
- *
- * @note You must set this for a multi-level build as the SUPERCOP naming
- *       does not disambiguate between the parameter sets.
- */
-/* #define MLK_CONFIG_NO_SUPERCOP */
 
 /**
  * MLK_CONFIG_CONSTANTS_ONLY
@@ -292,7 +316,7 @@
  * implementation, different from the one shipped with mlkem-native.
  *
  * If set, it must be the name of a file serving as the replacement for
- * mlkem/fips202/fips202.h, and exposing the same API (see FIPS202.md).
+ * mlkem/src/fips202/fips202.h, and exposing the same API (see FIPS202.md).
  */
 /* #define MLK_CONFIG_FIPS202_CUSTOM_HEADER "SOME_FILE.h" */
 
@@ -305,7 +329,7 @@
  * implementation, different from the one shipped with mlkem-native.
  *
  * If set, it must be the name of a file serving as the replacement for
- * mlkem/fips202/fips202x4.h, and exposing the same API (see FIPS202.md).
+ * mlkem/src/fips202/fips202x4.h, and exposing the same API (see FIPS202.md).
  */
 /* #define MLK_CONFIG_FIPS202X4_CUSTOM_HEADER "SOME_FILE.h" */
 
@@ -313,25 +337,35 @@
  * MLK_CONFIG_CUSTOM_ZEROIZE
  *
  * In compliance with @[FIPS203, Section 3.3], mlkem-native zeroizes
- * intermediate stack buffers before returning from function calls.
+ * intermediate buffers before returning from function calls. By default,
+ * those buffers are allocated from the stack; if MLK_CONFIG_CUSTOM_ALLOC_FREE
+ * is set, they are (mostly -- few exceptions remain at present) allocated from
+ * the configured custom allocator.
+ *
+ * mlkem-native also zeroizes caller-owned output buffers as needed to uphold
+ * the API convention that outputs be either unmodified or zeroized upon
+ * failure.
  *
  * Set this option and define `mlk_zeroize` if you want to use a custom
- * method to zeroize intermediate stack buffers. The default implementation
- * uses SecureZeroMemory on Windows and a memset + compiler barrier
- * otherwise. If neither of those is available on the target platform,
- * compilation will fail, and you will need to use MLK_CONFIG_CUSTOM_ZEROIZE
- * to provide a custom implementation of `mlk_zeroize()`.
+ * method to zeroize intermediate and output buffers.
  *
- * @warning The explicit stack zeroization conducted by mlkem-native reduces
- *          the likelihood of data leaking on the stack, but does not
- *          eliminate it. The C standard makes no guarantee about where a
- *          compiler allocates structures and whether/where it makes copies
- *          of them. Also, in addition to entire structures, there may also
- *          be potentially exploitable leakage of individual values on the
- *          stack. If you need bullet-proof zeroization of the stack, you
- *          need to consider additional measures instead of what this
- *          feature provides. In this case, you can set mlk_zeroize to a
- *          no-op.
+ * The default implementation uses SecureZeroMemory on Windows and a
+ * memset + compiler barrier otherwise. If neither of those is available on
+ * the target platform, compilation will fail, and you will need to use
+ * MLK_CONFIG_CUSTOM_ZEROIZE to provide a custom implementation of
+ * `mlk_zeroize()`.
+ *
+ * @warning
+ *   The zeroization conducted by mlkem-native reduces the likelihood of data
+ *   leaking on the stack or custom allocators, but it does not eliminate it.
+ *   For example, the C standard makes no guarantee about where a compiler
+ *   allocates local structures and whether/where it makes copies of them.
+ *   Also, in addition to entire structures, there may also be potentially
+ *   exploitable leakage of individual values on the stack. If you need
+ *   bullet-proof zeroization of the stack, you need to consider additional
+ *   measures instead of what this feature provides. In this case, you can
+ *   set mlk_zeroize to a no-op. Note that in this case you are also responsible
+ *   for zeroizing output buffers upon failure.
  */
 /* #define MLK_CONFIG_CUSTOM_ZEROIZE
    #if !defined(__ASSEMBLER__)
@@ -422,7 +456,7 @@
  *
  * @warning This option is experimental. Its scope, configuration and
  *          function/macro signatures may change at any time. We expect a
- *          stable API for v2.
+ *          stable API in a future version.
  *
  * @note Even if this option is set, some allocations further down the call
  *       stack will still be made from the stack, consuming up to 3KB of
@@ -549,8 +583,8 @@
  * can be exported.
  *
  * Set this option if such a check should be implemented. In this case,
- * crypto_kem_keypair_derand and crypto_kem_keypair will return a non-zero
- * error code if the PCT failed.
+ * keypair_derand and keypair will return
+ * MLK_ERR_PCT_FAIL if the PCT failed.
  *
  * @note This feature will drastically lower the performance of key
  *       generation.
@@ -634,7 +668,11 @@
  * e.g., PQCP_MLKEM_NATIVE_MLKEM512_
  */
 
-#if MLK_CONFIG_PARAMETER_SET == 512
+#if defined(MLK_CONFIG_MULTILEVEL_BUILD)
+/* In a multi-level build the parameter set is appended by the namespacing
+ * machinery, so the default prefix must not embed it. */
+#define MLK_DEFAULT_NAMESPACE_PREFIX PQCP_MLKEM_NATIVE_MLKEM
+#elif MLK_CONFIG_PARAMETER_SET == 512
 #define MLK_DEFAULT_NAMESPACE_PREFIX PQCP_MLKEM_NATIVE_MLKEM512
 #elif MLK_CONFIG_PARAMETER_SET == 768
 #define MLK_DEFAULT_NAMESPACE_PREFIX PQCP_MLKEM_NATIVE_MLKEM768

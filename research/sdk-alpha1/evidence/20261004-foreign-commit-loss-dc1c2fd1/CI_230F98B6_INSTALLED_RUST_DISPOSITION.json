@@ -1,0 +1,38 @@
+{
+  "updated_utc": "2026-10-04T20:26:42.103359+00:00",
+  "run": 37228957731,
+  "job": 111516649414,
+  "pr_head": "230f98b67aec68071a0d526d8d0341503f8d1234",
+  "checkout": "006e6deba7bc435bc991a1fdff96ef44eda8a726",
+  "verified_checkout_parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "230f98b67aec68071a0d526d8d0341503f8d1234"
+  ],
+  "job_status": "cancelled",
+  "job_start": "2026-10-04T19:49:13Z",
+  "step_cancel": "2026-10-04T20:19:24Z",
+  "job_timeout_minutes": 30,
+  "package_report_completed": true,
+  "cancellation_cases": {
+    "debug": {
+      "completed_report": true,
+      "cases": 8,
+      "stdout_sha256": "3e395ca9caf88e869bb3102020b38873a86e359a419e3113b919ec6755fe1c36",
+      "missing_public_files": 544,
+      "report_sha256": "5d334bda1761e72a406ea41f1ea98ae119ac1169f1b71c9610d2ad185d17e93a"
+    },
+    "release": {
+      "completed_report": true,
+      "cases": 8,
+      "stdout_sha256": "431fb99b0dbab7cec82d77953ae7a2f1ff20718c01bf819c212fc72816953513",
+      "missing_public_files": 544,
+      "report_sha256": "3443f582b9054efe9dbb990c763e666047111396c6430feecc20ca553b88ce30"
+    }
+  },
+  "artifact_id": 11313852473,
+  "artifact_sha256": "14764dc6384c006c55c79f0160253bc9c4770a60cdfb2ed84841507dd6f5df89",
+  "log_sha256": "ec8704a478b805fe379b238bc6fd862eefa338fc4fc91bed090a2cd220457f20",
+  "full_public_readback_possible": false,
+  "release_claim_eligible": false,
+  "fix_scope": "Bounded job allowance45minutes, unchanged per-call/transport/command deadlines, explicit witnessed renewal/expiry/cancellation public evidence uploads for C plus Swift/Kotlin on macOS lane"
+}

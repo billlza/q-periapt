@@ -1,0 +1,36 @@
+{
+  "updated_at_utc": "2026-10-04T17:10:14.019946+00:00",
+  "source_commit": "bb295722609b78c19b51d3c56d7e22d4b2f01c3d",
+  "status": "design obligations; enrollment and journal implementation not yet done",
+  "implemented_native_control_plane": "HistoricalCredentialRenewal + QPCRNC01 + independent AnchorStore Closed-only cancellation, canonical distinct binding, genericStatus/ACK with typed interpreter, floor/CAS/proposal preservation, QPANC004 while retained",
+  "important_new_inference": "Holding leases only during prepare plus an enrollment-only intent may not exclude ordinary journal writes between calls; independent raw DeviceInstallation consumers can open the journal without reading enrollment coordination. The witness CAS then fails safe, but cleanup cannot erase unrelated pending work. Use a durable target-free journal reservation, or prove an equivalent existing exclusion before implementation.",
+  "source_evidence": {
+    "src/durable/write_intent.rs:16": "PendingWrite structurally requires next revision,digest,target image and optional fullproposal renewal metadata; QPWINT01/02 cannot truthfully represent no-target cancellation",
+    "src/durable/write_intent.rs:320": "fullproposal reservation uses exact sealed target; new cancellation must not invent this target or reuse empty/default bytes",
+    "src/enrollment/renewal/witness.rs:99": "Coordination currently stores only Proposal and terminal; no cancellation kind",
+    "src/anchor/store.rs:383": "all retained renewal slot kinds exclude ordinary Advance/Fence until ACK"
+  },
+  "candidate_integration": [
+    "Introduce one explicit pending-intent sum type at the existing journal pending boundary: sealed image transition versus target-free cancellation reservation. Preserve QPWINT01/02 bytes; select a new canonical tag only for the new variant.",
+    "Journal reservation binds original journal/owner/policy/witness, full original head, operation and statement; authenticated image and local-account/grant predecessor must agree. Persist exact reservation before returning public248-byte cancellation.",
+    "Ordinary journal open/advance must fail explicitly while this reservation is retained; no automatic fresh-head rebasing, target sealing or metadata-as-current authority.",
+    "Enrollment retains a tagged cancellation coordination; recover exact journal reservation after config-save uncertainty without resealing. Reject a hidden full proposal and every mismatched pending operation.",
+    "Independent trusted operator alone creates witness GrantClosed; device Status may observeUnavailable but cannot createClosed.",
+    "Fresh typedClosed -> recheck exact oldimage/reservation -> persist localClosed+floor+terminal coordination -> ACK -> remove only exact reservation -> retirecoordination. Unknowncommit at each step reuses originalbytes.",
+    "Unavailable can finish retirement only with authenticated durable localClosed; before that it remainsPending. Commit while cancellationpending must not sendop5; newPrepare cannot replace cancellation.",
+    "Expose original foreign-owner cancellation preparation and reuse historicalreconcile only after contracts are explicit; maintain shared deadline/cancel/owner transfer and publicoutputs. Then actualC/Swift/Kotlin, policyexpired, TCP/TLS, andprivate-I/O/processkill tests."
+  ],
+  "required_validation": [
+    "ordinary raw journal writer after cancellation preparation but before externalapproval",
+    "journal reservation durable but configsave failed",
+    "hiddenfullproposal/Applied orAck-pruned history mustneverbeClosed",
+    "GrantClosed persisted but replylost",
+    "localClosed saveunknown beforeACK",
+    "ACKlost and journalreservationdeleteunknown",
+    "oldcoordinationsnapshot plusnewpending reservation",
+    "sameoperationdifferentstatement/targetversionflooralias",
+    "currentnewCommit/activation refusal afterpolicyexpiry"
+  ],
+  "release_claim_eligible": false,
+  "full_goal_complete": false
+}

@@ -16,18 +16,18 @@ import tempfile
 from typing import BinaryIO
 import urllib.request
 
-UPSTREAM_COMMIT = "0ba906cb14b1c241476134d7403a811b382ca498"
+UPSTREAM_COMMIT = "d1b2fe782888bdb761a50336012923180be7f502"
 ARCHIVE_URL = (
     "https://github.com/pq-code-package/mlkem-native/archive/"
     f"{UPSTREAM_COMMIT}.tar.gz"
 )
 EXPECTED_ARCHIVE_SHA256 = (
-    "f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677"
+    "7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3"
 )
 EXPECTED_LICENSE_SHA256 = (
-    "6393331d41b9fed47a9e18d21b9b844ae8e76bcad8b6da45604c132ae13f3029"
+    "1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b"
 )
-EXPECTED_FILE_COUNT = 124
+EXPECTED_FILE_COUNT = 125
 ARCHIVE_ROOT = f"mlkem-native-{UPSTREAM_COMMIT}"
 MAX_ARCHIVE_BYTES = 8 * 1024 * 1024
 DOWNLOAD_CHUNK_BYTES = 1024 * 1024
@@ -251,7 +251,8 @@ def main() -> None:
         staged_paths = stage_archive(archive, Path(temporary))
         replace_staged(staged_paths)
 
-    subprocess.run([sys.executable, os.fspath(VERIFY_SCRIPT)], check=True)
+    subprocess.run(["sh", os.fspath(CRATE_ROOT.parents[1] / "artifact/python-run.sh"),
+                    os.fspath(VERIFY_SCRIPT)], check=True)
     print(f"updated mlkem-native from commit {UPSTREAM_COMMIT}")
 
 

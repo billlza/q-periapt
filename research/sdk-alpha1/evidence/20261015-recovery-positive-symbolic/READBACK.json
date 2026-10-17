@@ -1,0 +1,11 @@
+{
+  "capture_sha256": "e207e57e480608b408823bff1c3ce28a805214df24e651a599b02150684dcea9",
+  "completed": true,
+  "identity_compromise_witness_replayed": true,
+  "main_secrecy_verified": true,
+  "members": 279,
+  "original_five_declarations_unchanged": true,
+  "private_sdk_runtime_data_selected": false,
+  "release_claim_eligible": false,
+  "verified_group_count": 20
+}

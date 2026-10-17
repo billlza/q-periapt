@@ -58,7 +58,6 @@ from rust_publish_contract import (
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SYS_CRATE = ROOT / "crates" / "q-periapt-mlkem-native-sys"
 ADVISORY_COMMIT = "0123456789abcdef0123456789abcdef01234567"
 SOURCE_COMMIT = "89abcdef0123456789abcdef0123456789abcdef"
 NORMALIZED_LOCK_SHA256 = "c" * 64
@@ -80,7 +79,8 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.1.5"',
+                'version = "0.0.0"' if name == "q-periapt-continuity-identity-candidate"
+                else 'version = "0.1.5"',
                 "",
             )
         )
@@ -243,31 +243,30 @@ def valid_rust_package_diagnostic_transcript(
 class RustPublishContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.build_rs = (SYS_CRATE / "build.rs").read_text(encoding="utf-8")
-        cls.build_support = (SYS_CRATE / "src" / "build_support.rs").read_text(
-            encoding="utf-8"
+        # The 0.1.5 contract is immutable. Exercise its mutations against the
+        # exact historical bytes, independently checked by its digest allowlist.
+        # Current-source and cross-version rejection tests live in
+        # test_mlkem_source_profiles.py.
+        fixture = json.loads(
+            (ROOT / "artifact/fixtures/mlkem-native-sys-v0.1.5-sources.json")
+            .read_text(encoding="utf-8")
         )
-        cls.bridge_c = (SYS_CRATE / "src" / "mlkem_bridge.c").read_text(
-            encoding="utf-8"
-        )
-        cls.bridge_native_c = (
-            SYS_CRATE / "src" / "mlkem_bridge_native.c"
-        ).read_text(encoding="utf-8")
-        cls.bridge_portable_c = (
-            SYS_CRATE / "src" / "mlkem_bridge_portable.c"
-        ).read_text(encoding="utf-8")
-        cls.bridge_asm = (SYS_CRATE / "src" / "mlkem_bridge_asm.S").read_text(
-            encoding="utf-8"
-        )
-        cls.bridge_h = (SYS_CRATE / "src" / "mlkem_bridge.h").read_text(
-            encoding="utf-8"
-        )
-        cls.local_config = (SYS_CRATE / "src" / "mlkem_config.h").read_text(
-            encoding="utf-8"
-        )
-        cls.aarch64_fips202 = (
-            SYS_CRATE / "src" / "mlkem_fips202_aarch64.h"
-        ).read_text(encoding="utf-8")
+        cls.legacy_source_bytes = {
+            name: source.encode("utf-8") for name, source in fixture["files"].items()
+        }
+        validate_packaged_mlkem_native_local_source_digests(cls.legacy_source_bytes)
+        for attribute, path in {
+            "build_rs": "build.rs",
+            "build_support": "src/build_support.rs",
+            "bridge_c": "src/mlkem_bridge.c",
+            "bridge_native_c": "src/mlkem_bridge_native.c",
+            "bridge_portable_c": "src/mlkem_bridge_portable.c",
+            "bridge_asm": "src/mlkem_bridge_asm.S",
+            "bridge_h": "src/mlkem_bridge.h",
+            "local_config": "src/mlkem_config.h",
+            "aarch64_fips202": "src/mlkem_fips202_aarch64.h",
+        }.items():
+            setattr(cls, attribute, fixture["files"][path])
         cls.publish_contract_script = (
             ROOT / "artifact" / "rust-publish-contract.sh"
         ).read_text(encoding="utf-8")
@@ -339,7 +338,7 @@ class RustPublishContractTests(unittest.TestCase):
         (database / ".git").mkdir()
         return database
 
-    def test_repository_build_surface_passes(self) -> None:
+    def test_historical_build_surface_passes(self) -> None:
         self.validate()
 
     def test_warning_free_complete_cargo_package_output_passes(self) -> None:
@@ -1332,6 +1331,22 @@ class RustPublishContractTests(unittest.TestCase):
         # additions: criterion 0.8 (alloca, page_size), socket2 0.6
         # (windows-sys), and toml 1 (toml_parser, toml_writer, replacing
         # toml_edit and toml_write).
+        # The alpha purpose-key schedule adds block-buffer 0.12.1, hkdf/hmac
+        # 0.13.0 and sha2 0.11.0 (227 -> 231). rustls 0.23.45 replaces 0.23.43;
+        # the new host-store is local and reuses already pinned redb/rustix.
+        # Opt-in sealed SDK operations add exactly seven registry packages:
+        # aead, chacha20, chacha20poly1305, cipher, inout, poly1305 and universal-hash
+        # (231 -> 238). The current stable refresh adds sponge-cursor and
+        # updated WASM support (238 -> 240). The opt-in offline policy-store
+        # migration command adds redb 2.6.4 and twox-hash 2.1.4 (240 -> 242),
+        # without changing the default SDK closure or the 46-package fuzz scope.
+        # Browser Continuity adds its already isolated P-256 arithmetic closure,
+        # maybe-async, mio and web-time: 17 registry entries, with no removals or
+        # upgrades of existing entries (242 -> 259). Its 0.0.0 local engine is
+        # admitted only in this workspace scope, not the publication/fuzz scopes.
+        # Handle-relative CLI scanning adds cap-std/cap-fs-ext and their ten
+        # transitive entries (259 -> 271), with no existing registry version
+        # changes. The normalized/fuzz bounds and 46-package fuzz graph remain.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1341,7 +1356,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            227,
+            271,
         )
         self.assertEqual(
             len(
@@ -1350,7 +1365,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="fuzz",
                 )
             ),
-            38,
+            46,
         )
         for scope, local_crates in (
             ("workspace", RUST_WORKSPACE_LOCAL_CRATES),
@@ -1372,6 +1387,86 @@ class RustPublishContractTests(unittest.TestCase):
                 workspace,
                 scope="caller-selected",
             )
+
+    def test_browser_candidate_lock_admission_stays_private_and_exact(self) -> None:
+        candidate = "q-periapt-continuity-identity-candidate"
+        valid = normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
+        self.assertEqual(
+            len(rust_publish_contract._parse_cargo_lock_scope(valid, scope="workspace")),
+            len(REGISTRY_PACKAGES),
+        )
+        self.assertNotIn(candidate, RUST_PUBLISHABLE_CRATES)
+        for scope, local in (("fuzz", RUST_FUZZ_LOCAL_CRATES),
+                             ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES)):
+            with self.subTest(scope=scope), self.assertRaisesRegex(
+                RustPublishContractError, "unexpected local package"
+            ):
+                rust_publish_contract._parse_cargo_lock_scope(
+                    normalized_cargo_lock(local_names=local | {candidate}), scope=scope
+                )
+        marker = f'name = "{candidate}"\nversion = "0.0.0"'.encode()
+        for replacement, message in (
+            (marker.replace(b'0.0.0', b'0.2.0'), "version differs"),
+            (marker + b'\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "'
+             + b'a' * 64 + b'"', "required local package from crates.io"),
+        ):
+            with self.subTest(message=message), self.assertRaisesRegex(
+                RustPublishContractError, message
+            ):
+                rust_publish_contract._parse_cargo_lock_scope(
+                    valid.replace(marker, replacement), scope="workspace"
+                )
+        with self.assertRaisesRegex(RustPublishContractError, "unexpected local package"):
+            rust_publish_contract._parse_cargo_lock_scope(
+                normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES | {"unreviewed-local"}),
+                scope="workspace",
+            )
+
+    def test_browser_dependency_capacity_is_bounded_by_lock_scope(self) -> None:
+        for scope, local, limit in (
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 271),
+            ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
+            ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
+        ):
+            registry = tuple((f"fixture-{index}", "1.0.0", "a" * 64)
+                             for index in range(limit + 1))
+            with self.subTest(scope=scope):
+                self.assertEqual(len(rust_publish_contract._parse_cargo_lock_scope(
+                    normalized_cargo_lock(local_names=local, registry_packages=registry[:-1]),
+                    scope=scope,
+                )), limit)
+                with self.assertRaisesRegex(RustPublishContractError, "registry package limit"):
+                    rust_publish_contract._parse_cargo_lock_scope(
+                        normalized_cargo_lock(local_names=local, registry_packages=registry),
+                        scope=scope,
+                    )
+
+    def test_sparse_helper_receipt_uses_the_same_scope_capacity(self) -> None:
+        for scope, local, limit in (
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 271),
+            ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
+            ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
+        ):
+            data = normalized_cargo_lock(local_names=local, registry_packages=tuple(
+                (f"fixture-{index}", "1.0.0", "a" * 64) for index in range(limit)
+            ))
+            for count in (limit, limit + 1):
+                def runner(command, **_arguments):
+                    self.assertEqual(command[-3], scope)
+                    return BoundedResult(0, json.dumps({
+                        "schema": 1, "ok": True, "registry_packages": count,
+                        "lock_sha256": hashlib.sha256(data).hexdigest(),
+                    }).encode())
+                with self.subTest(scope=scope, count=count):
+                    if count == limit:
+                        self.assertEqual(rust_publish_contract._validate_crates_io_sparse_via_helper(
+                            data, runner=runner, scope=scope,
+                        ), count)
+                    else:
+                        with self.assertRaisesRegex(RustPublishContractError, "success result is malformed"):
+                            rust_publish_contract._validate_crates_io_sparse_via_helper(
+                                data, runner=runner, scope=scope,
+                            )
 
     def test_workspace_dependency_audit_isolated_argv_environment_and_cleanup(
         self,
@@ -3073,18 +3168,10 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_packaged_local_source_set_is_exact(self) -> None:
         repository_sources = {
-            path.relative_to(SYS_CRATE).as_posix()
-            for path in (SYS_CRATE / "src").rglob("*")
-            if path.is_file()
+            name for name in self.legacy_source_bytes if name.startswith("src/")
         }
         validate_packaged_mlkem_native_local_sources(repository_sources)
-        repository_source_bytes = {
-            "build.rs": (SYS_CRATE / "build.rs").read_bytes(),
-            **{
-                relative: (SYS_CRATE / relative).read_bytes()
-                for relative in sorted(repository_sources)
-            },
-        }
+        repository_source_bytes = self.legacy_source_bytes
         validate_packaged_mlkem_native_local_source_digests(repository_source_bytes)
 
         for label, mutation in (
@@ -3610,11 +3697,11 @@ class RustPublishContractTests(unittest.TestCase):
             "src/mlkem_bridge_portable.c",
             "src/mlkem_fips202_aarch64.h",
         ):
-            self.assertGreaterEqual(script.count(source), 2)
+            self.assertIn(source, script)
         self.assertIn("validate_mlkem_native_archive_contract", script)
         self.assertIn("parse_mlkem_archive_defined_symbols", script)
         self.assertIn(
-            "validate_packaged_mlkem_native_local_source_digests", script
+            "validate_packaged_mlkem_native_source_contract", script
         )
         self.assertIn("completed = capture_stdout(", script)
         self.assertIn("maximum_bytes=256 * 1024", script)

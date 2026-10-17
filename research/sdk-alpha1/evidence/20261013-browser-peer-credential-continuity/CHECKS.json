@@ -1,0 +1,51 @@
+{
+  "capture": {
+    "bytes": 9146606,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "aec47b5dc38f62ea132d8eef5034b0ce153a06cdc6eb1707c513da4621f32244",
+    "members": 2810,
+    "sha256": "29eb8a8f74b5b5cfc149f21ac7f66232f3252ffd9123a6160d370a278e19956e"
+  },
+  "case_count": 5,
+  "cases": [
+    "after",
+    "before",
+    "cancel",
+    "expired",
+    "live"
+  ],
+  "completed": true,
+  "package": {
+    "manifest_sha256": "02e8edcb9b8d12c8e365ff45ec071e6f5af2383afe155db30cf22dcebc9d5c76",
+    "sha256": "e21d117986435309d01fc636f61ec56b694f1cb64ef67ba6eb5ba57e8b8bff0f",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "real_expiry": {
+    "pending_at": 1791903581,
+    "previous_until": 1791903712,
+    "renew_at": 1791903715
+  },
+  "release_claim_eligible": false,
+  "scope": "Actual installed browser peer credential G admission through existing active owner; native peer renews through original enrollment/witness transaction. Original session/outboxes/control replay survive, including after actual peer credential/manifest expiry. Native shares Rust implementation and loopback; not independent protocol implementation, simultaneous both-peer renewal, browser process-kill qualification, cross-host/device/performance/PCS or full release.",
+  "source": {
+    "base_commit": "bae7f318a8c0fdacedd6dc4e147c776b8477beec",
+    "overlay": {
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "4bd88333781415152b56b09c46da2e283dab3ae91802642a41b1e4845dc70603",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs": "4ef308275d99701bc0e1481f988fe5e20776f134478d360e89199dbdcb87a90b",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "92563912b23cee9fe94c481582dccd3e52c7a4104a8d4c69481aade9d5cc8bd5",
+      "research/continuity-identity-candidate/src/browser/credentials.rs": "48c1610a568a483c47adcf26237aff278d19384b8e6561e9cb00619f627df440"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "base_browser_modes": 10,
+    "browser": "155.0.8059.40",
+    "format": "passed",
+    "native_clippy": "all targets -D warnings passed",
+    "native_peer_renewal_cases": 6,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "1.90.0 passed"
+  }
+}

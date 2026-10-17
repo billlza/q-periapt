@@ -1,0 +1,8 @@
+{
+  "completed": true,
+  "old_harness_source_sha256": "5c269ecce432f0784e873543acd27b7731ca4a2caa3639bae9998a2947800755",
+  "current_harness_source_sha256": "00cb34339868498f89dda52048f6e57823f68725f941dcac865c221495355a6d",
+  "difference_confined_to": "final if committed block; new issuer operation and explicit refusal of completed operation reuse",
+  "prefix_and_suffix_byte_identical": true,
+  "both_physical_routes_use_current_harness": true
+}

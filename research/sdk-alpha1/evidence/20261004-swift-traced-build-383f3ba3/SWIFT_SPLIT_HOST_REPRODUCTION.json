@@ -1,0 +1,66 @@
+{
+  "completed": true,
+  "scope": "Local Rosetta build of arm64 test bundle, followed by native execution of identical binaries; CodeQL extraction must still be verified in hosted CI",
+  "records": [
+    {
+      "command": [
+        "/usr/bin/arch",
+        "-x86_64",
+        "/bin/sh",
+        "-c",
+        "exec \"$@\"",
+        "swift-split-host",
+        "swift",
+        "build",
+        "--build-tests",
+        "--package-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-split-host-reproduction",
+        "--scratch-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-split-host-reproduction/scratch",
+        "--triple",
+        "arm64-apple-macosx14.0",
+        "-j",
+        "2"
+      ],
+      "exit": 0,
+      "seconds": 14.170677584013902,
+      "warnings": 0,
+      "executed_test": false
+    },
+    {
+      "command": [
+        "/usr/bin/arch",
+        "-x86_64",
+        "/bin/sh",
+        "-c",
+        "exec \"$@\"",
+        "swift-split-host",
+        "/usr/bin/arch",
+        "-arm64",
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--skip-build",
+        "--package-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-split-host-reproduction",
+        "--scratch-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-split-host-reproduction/scratch",
+        "--triple",
+        "arm64-apple-macosx14.0",
+        "-j",
+        "2"
+      ],
+      "exit": 0,
+      "seconds": 1.2791547090746462,
+      "warnings": 0,
+      "executed_test": true
+    }
+  ],
+  "binaries": {
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-split-host-reproduction/scratch/out/Products/Debug/HostArchitectureTests.xctest/Contents/MacOS/HostArchitectureTests": {
+      "sha256": "9b52503668a5cfabede02613b91a03c78f6ed08a2857c33fae88ac1a7e848a9e",
+      "architecture": "arm64"
+    }
+  },
+  "release_claim_eligible": false
+}

@@ -1,0 +1,118 @@
+{
+  "archive_bytes": 2195970,
+  "archive_sha256": "f902826fd6b8aefc9748422310c7f5435f62aa7a0acb26371862bf086effab31",
+  "completed": true,
+  "installed_archive_sha256": "355b77f401c3589e735f83021244f9489e70000f3638b329e6ba39bd8b4fcc7d",
+  "kotlin_tests": 75,
+  "maven": {
+    "classes": 237,
+    "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0",
+    "jar_sha256": "20a0ab53c827157244956cc6a1625c7afa4c1c0424181b7f240fd75ca15ab015",
+    "jvm_version": 25
+  },
+  "members": 1146,
+  "release_claim_eligible": false,
+  "retained_failures": [
+    "offline initial build lacked Kotlinstdlib cache; strict pinned resolution completed",
+    "initial consumer inside repository was correctly refused by runtime closure; externalfresharchive passed"
+  ],
+  "routes": {
+    "g1/signed-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "c5311943ca4615096d084cbb05acbba83eb1745e11aa0e43d956f9d7964cf626",
+      "language": "Kotlin",
+      "original_message": "000000000000000000000000000000006d41540b008753728831b5456f524c6b",
+      "original_request_sha256": "c726c4c5c3482cd1bb5e01b635b15d5b8b7767dd99f8412c707aeca2c38998c6",
+      "original_session": "fba75e27972617ea7dc0714981f1af1a2337a842fad437fb3af2d4598d94fb03",
+      "policy_operation": "ba821ef63bf632d555f4a4468a18e88978eefd02d60bd5395d47bfc8eb652dd4",
+      "release_claim_eligible": false,
+      "route": "signed-fixed"
+    },
+    "g1/signed-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "123ec31db6271382a97022fa7ffeb8f21ee3efe003b5d3f36d62e41bba646379",
+      "language": "Kotlin",
+      "original_message": "0000000000000000000000000000000051d3e7471b6f35668aaacbd5453b8658",
+      "original_request_sha256": "79743935d65a0d1d70a9924357756e39d74b1bc43b04e839a42056d8734fe4eb",
+      "original_session": "002359c27a832a5a78820f20c3c71c22981a1042b7531792594939a229b7c7eb",
+      "policy_operation": "a5b37de9896f01d68948f8d636e5442245116110f6f13d47a2c208146edae003",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable"
+    },
+    "g1/tls-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "99ebb9c8a33878495d8c107a14c50d1271217c26c6d62ad6f19792708ead4a26",
+      "language": "Kotlin",
+      "original_message": "00000000000000000000000000000000a2ed7b73c4f16e1866830b3a84393264",
+      "original_request_sha256": "33e067399cb8e42c66c89ac83f0dc4a7d13340a80327ced4ed456d69cd682c41",
+      "original_session": "6198ca95d4801aa527bd9217f249e85752f5430ff0fcb0b19241198ed4a91678",
+      "policy_operation": "badc10ed540053c05eaf837a8ad447d689445099ca2382acad6e357f61673919",
+      "release_claim_eligible": false,
+      "route": "tls-fixed"
+    },
+    "g1/tls-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "ca912040451ca4d9d523d04ba0b0de04c081e773047f607a33b473192cc7f4b7",
+      "language": "Kotlin",
+      "original_message": "0000000000000000000000000000000039b9282b95ad8459d43f5a9cc1740cc1",
+      "original_request_sha256": "64b01426190fb4962d2056e287446053699e740590883b27b6a0f3b372651c67",
+      "original_session": "bdf43dd4a91fbb641a05ab7b9106f3c6153fc1c879ccd28e0d63278cf2d39f3f",
+      "policy_operation": "01fd28a6c6c76dcdf07a8a5c9ba6c5bb30de575f0a901e8b631130462103b3a3",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable"
+    },
+    "serial/signed-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "4231322c743caa4cdc15fe075166efd49db526976b27c71ca7f1b6867b7a7752",
+      "language": "Kotlin",
+      "original_message": "00000000000000000000000000000000231f83ee476b0f10eaeb021c0259f803",
+      "original_request_sha256": "d62f60106e3cd245901f1ae8bc4efe109660a00135894f7a3f57ac78e3678d24",
+      "original_session": "cc47dcd856a64a0906e0a1f9c163d24637618f539849f1bd6461907732f1b354",
+      "policy_operation": "050b5c7e0ad47e0db23c31e8c9d67a75fd8505df33887f715e8df5e0b3e7aea0",
+      "release_claim_eligible": false,
+      "route": "signed-fixed"
+    },
+    "serial/signed-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "4f03a02d829d5121b0b63273c4f73812b8acf40f0c302cc30289f42dc7d9f96e",
+      "language": "Kotlin",
+      "original_message": "00000000000000000000000000000000f3183eb33f26c26d70a5c12d0d5ec695",
+      "original_request_sha256": "88d66a82625a7af79ad5e9f35509f683ff53c8e43d5eda4d24ca9e82097eaa2f",
+      "original_session": "047038ae88ffa563ffd5e7b7db366d17e71e2751d846a4ca098df08ca7ccd461",
+      "policy_operation": "5531bf6d65688b56175b4027270ce2a1033b708b6c270a304eff7d545fef021d",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable"
+    },
+    "serial/tls-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "bbdd6865473fcec1d52588a3b2bdd4e97089667472701bc256b45391043fdd1c",
+      "language": "Kotlin",
+      "original_message": "00000000000000000000000000000000eb64d5bcb560a51c859803c3ef5137da",
+      "original_request_sha256": "bab2f333138b60b3f4441d8f0f6348d58a62db086b39dd2edf2629088b53a39f",
+      "original_session": "78ff1845bb8b309afa02f92a469817da99c6677ae20a7017b8149eb8ad2e6c70",
+      "policy_operation": "2c4f5c49b50012104c60c04634f78b3c80d6fdd0331cdc1d12ca2ba0d3cd40cd",
+      "release_claim_eligible": false,
+      "route": "tls-fixed"
+    },
+    "serial/tls-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "202c446d89488d7676268b3fe358cf3d54412be3aa30143f41135bf43415174c",
+      "language": "Kotlin",
+      "original_message": "00000000000000000000000000000000faa8f2afb52ca3d5461d5390d1fa789b",
+      "original_request_sha256": "92130e509238b3485f55f3608a2f67197314f8545fe225d0c94ba5fa31a52d11",
+      "original_session": "e3754cd1be12037e1013bfd71d395d6bd4511db730faa017228ccc7c8734752d",
+      "policy_operation": "54a893efc6987bec8a564f04bef6cf5b4c0b8682b1c838b82cb15dd854744387",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable"
+    }
+  },
+  "scope": "KotlinJVM installed package, actual C/Rust engine, Serial/G1 and four P/G routes each; no independent protocol implementation or full release verdict"
+}

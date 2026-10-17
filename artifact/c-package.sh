@@ -9,6 +9,17 @@ ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
+C_PACKAGE_PROFILE=legacy
+SDK_SOURCE_SNAPSHOT=
+if [ "$#" -ne 0 ]; then
+	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
+		C_PACKAGE_PROFILE=sdk-020
+	else
+		printf 'error: c-package.sh accepts only --profile sdk-020 or no arguments\n' >&2
+		exit 2
+	fi
+fi
+
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
 		printf 'error: required tool not found: %s\n' "$1" >&2
@@ -37,14 +48,14 @@ if [ "$VERIFY_ONLY" = "0" ]; then
 fi
 
 RUSTC_VERSION=$(rustc --version)
-if [ "$RUSTC_VERSION" != "rustc 1.96.1 (31fca3adb 2026-06-26)" ]; then
-	printf 'error: C release package requires rustc 1.96.1: %s\n' "$RUSTC_VERSION" >&2
+if [ "$RUSTC_VERSION" != "rustc 1.98.1 (48a229cea 2026-09-01)" ]; then
+	printf 'error: C release package requires rustc 1.98.1: %s\n' "$RUSTC_VERSION" >&2
 	exit 2
 fi
 if [ "$VERIFY_ONLY" = "0" ]; then
 	CARGO_VERSION=$(cargo --version)
-	if [ "$CARGO_VERSION" != "cargo 1.96.1 (356927216 2026-06-26)" ]; then
-		printf 'error: C release package requires cargo 1.96.1: %s\n' "$CARGO_VERSION" >&2
+	if [ "$CARGO_VERSION" != "cargo 1.98.1 (797e8a9bc 2026-08-05)" ]; then
+		printf 'error: C release package requires cargo 1.98.1: %s\n' "$CARGO_VERSION" >&2
 		exit 2
 	fi
 fi
@@ -177,6 +188,18 @@ if inspection.dirty is not expected_dirty:
 if not expected_dirty and inspection.reasons:
     raise SystemExit("error: clean C package source acquired dirty provenance")
 PY
+	if [ -n "$SDK_SOURCE_SNAPSHOT" ]; then
+		python3 - "$ROOT" "$SDK_SOURCE_SNAPSHOT" <<'PY'
+import pathlib
+import sys
+from c_package_manifest import source_fingerprints
+from evidence_io import load_json_object_snapshot
+root = pathlib.Path(sys.argv[1])
+old = load_json_object_snapshot(pathlib.Path(sys.argv[2]), maximum=1024 * 1024, label="C SDK source snapshot").value
+if old != source_fingerprints(root, "sdk-020"):
+    raise SystemExit("error: C SDK source bytes changed during packaging")
+PY
+	fi
 }
 
 assert_source_snapshot
@@ -251,10 +274,21 @@ ABI_MAJOR=2
 ABI_COMPAT_VERSION=2.0.0
 LINUX_GLIBC_POLICY_MAX=2.35
 CONTRACT_SOURCE="$ROOT/crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+EMBEDDED_CONTRACT="share/q-periapt/abi/q-periapt-c-abi-v2.json"
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
+	EMBEDDED_CONTRACT="share/q-periapt/abi/q-periapt-c-abi-v2-sdk-020.json"
+	CONTRACT_SOURCE="$ROOT/$CONTRACT_RELATIVE"
+fi
 HEADER_SOURCE="$ROOT/crates/q-periapt-ffi/include/q_periapt.h"
 FIXTURE_SOURCE="$ROOT/bindings/c/signed_policy_fixture.h"
 VENDOR_ROOT="$ROOT/crates/q-periapt-mlkem-native-sys/vendor"
 HOST=$(rustc -vV | awk '/^host: / { print $2 }')
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ] && [ "$HOST" = "x86_64-apple-darwin" ]; then
+	printf 'error: SDK 0.2.0 macOS support requires Apple Silicon\n' >&2
+	exit 2
+fi
 if [ "$VERIFY_ONLY" = "0" ]; then
 	VERSION=$(cargo metadata --locked --format-version 1 | python3 -c '
 import json
@@ -386,6 +420,25 @@ case "$PLATFORM:$HOST" in
 		;;
 esac
 STATIC_LIB="libq_periapt_ffi_abi2.a"
+BUILD_DIR="$ROOT/target/release"
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	BUILD_DIR="$ROOT/target/$HOST/release"
+	if [ "$PLATFORM" = "macos" ]; then
+		MACOSX_DEPLOYMENT_TARGET=13.0
+		RUSTC_WRAPPER="$ROOT/artifact/apple-sdk-rustc.sh"
+		export MACOSX_DEPLOYMENT_TARGET RUSTC_WRAPPER
+	fi
+fi
+
+cargo_for_package() {
+	command=$1
+	shift
+	if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+		cargo "$command" --target "$HOST" "$@"
+	else
+		cargo "$command" "$@"
+	fi
+}
 
 inspect_dynamic_linkage() {
 	binary=$1
@@ -707,7 +760,7 @@ PY
 
 validate_license_and_boms() {
 	package_root=$1
-	python3 - "$ROOT" "$package_root" "$VERIFY_ONLY" <<'PY'
+	python3 - "$ROOT" "$package_root" "$VERIFY_ONLY" "$C_PACKAGE_PROFILE" <<'PY'
 import json
 import pathlib
 import re
@@ -716,6 +769,7 @@ import sys
 root = pathlib.Path(sys.argv[1]).resolve()
 package_root = pathlib.Path(sys.argv[2]).resolve()
 verify_only = sys.argv[3] == "1"
+profile = sys.argv[4]
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -758,9 +812,24 @@ require(
     all(token in vendor_license for token in ("Apache-2.0 license", "ISC license", "MIT license")),
     "mlkem-native license choices are incomplete",
 )
-require("118 vendored" in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
-require("0ba906cb14b1c241476134d7403a811b382ca498" in vendor_provenance, "mlkem-native provenance commit is missing")
-require("f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677" in vendor_provenance, "mlkem-native provenance archive hash is missing")
+if profile == "sdk-020":
+    vendor_count = "119 vendored"
+    vendor_commit = "d1b2fe782888bdb761a50336012923180be7f502"
+    vendor_archive = "7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3"
+else:
+    vendor_count = "118 vendored"
+    vendor_commit = "0ba906cb14b1c241476134d7403a811b382ca498"
+    vendor_archive = "f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677"
+require(vendor_count in vendor_inventory and "CC-BY-4.0" in vendor_inventory, "mlkem-native license inventory is incomplete")
+require(vendor_commit in vendor_provenance, "mlkem-native provenance commit is missing")
+require(vendor_archive in vendor_provenance, "mlkem-native provenance archive hash is missing")
+
+if profile == "sdk-020":
+    from package_bom import BomProfile, verify
+    verify(package_root, cargo_lock=None if verify_only else root / "Cargo.lock", profile=BomProfile.NATIVE_SDK_020)
+    require((package_root / "LICENSES/Rust-1.98.1-library.html").read_bytes() ==
+            (root / "LICENSES/Rust-1.98.1-library.html").read_bytes(), "Rust standard-library notice differs")
+    raise SystemExit(0)
 
 bad_value = re.compile(
     r"(/Users/|/home/|/private/|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|BEGIN .*PRIVATE KEY|AKIA[0-9A-Z]{16}|(?:api|auth|access|secret)[_-]?token\s*[:=]|password\s*[:=])",
@@ -900,6 +969,26 @@ if sys.argv[5] == "1":
         raise SystemExit("error: verify-only archive must be outside its disposable extraction root")
 PY
 
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	if [ -e "$OUT_ROOT" ]; then
+		printf 'error: alpha C SDK output already exists; retain the attempt and choose a fresh path\n' >&2
+		exit 2
+	fi
+	mkdir -p "$OUT_ROOT"
+	if [ "$VERIFY_ONLY" = "0" ]; then
+		SDK_SOURCE_SNAPSHOT="$OUT_ROOT/SOURCE_INPUTS.before.json"
+		python3 - "$ROOT" <<'PY' >"$SDK_SOURCE_SNAPSHOT"
+import json
+import pathlib
+import sys
+from c_package_manifest import source_fingerprints
+print(json.dumps(source_fingerprints(pathlib.Path(sys.argv[1]), "sdk-020"), indent=2, sort_keys=True))
+PY
+	else
+		SDK_ARCHIVE_SHA256=$QPERIAPT_C_PACKAGE_EXPECTED_SHA256
+	fi
+fi
+
 if [ "$VERIFY_ONLY" = "0" ]; then
 printf 'Q-Periapt C ABI package\n'
 printf 'version : %s\n' "$VERSION"
@@ -939,16 +1028,16 @@ fi
 printf 'PASS: ABI 2 source contract and generated header freshness\n'
 
 printf '\n=== Build release C ABI ===\n'
-cargo build -p q-periapt-ffi --release --locked
-test -f "$ROOT/target/release/$STATIC_LIB" || {
+cargo_for_package build -p q-periapt-ffi --release --locked
+test -f "$BUILD_DIR/$STATIC_LIB" || {
 	printf 'error: missing static library: %s\n' "$ROOT/target/release/$STATIC_LIB" >&2
 	exit 1
 }
-test -f "$ROOT/target/release/$BUILD_SHARED_LIB" || {
+test -f "$BUILD_DIR/$BUILD_SHARED_LIB" || {
 	printf 'error: missing shared library: %s\n' "$ROOT/target/release/$BUILD_SHARED_LIB" >&2
 	exit 1
 }
-if ! CARGO_TERM_COLOR=never cargo rustc -p q-periapt-ffi --release --locked --crate-type staticlib -- --print native-static-libs >"$static_libs_log" 2>&1; then
+if ! CARGO_TERM_COLOR=never cargo_for_package rustc -p q-periapt-ffi --release --locked --crate-type staticlib -- --print native-static-libs >"$static_libs_log" 2>&1; then
 	cat "$static_libs_log" >&2
 	printf 'error: failed to obtain q-periapt-ffi native static link libraries\n' >&2
 	exit 1
@@ -1010,7 +1099,7 @@ if [ "$PLATFORM" = "macos" ]; then
 	# Mach-O compatibility/current versions cannot be set by install_name_tool.
 	# Write all three ABI-major identity fields at link time, then have the
 	# independent contract verifier read LC_ID_DYLIB from the packaged copy.
-	cargo rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
+	cargo_for_package rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
 		-C "link-arg=-Wl,-install_name,@rpath/$SHARED_LIB" \
 		-C "link-arg=-Wl,-compatibility_version,$ABI_COMPAT_VERSION" \
 		-C "link-arg=-Wl,-current_version,$ABI_COMPAT_VERSION"
@@ -1018,7 +1107,7 @@ elif [ "$PLATFORM" = "linux" ]; then
 	# Cargo has no stable manifest key for an ELF SONAME. Re-link this single
 	# cdylib target with the frozen ABI-major SONAME and verify it below; merely
 	# renaming an unversioned ELF file would create a false runtime identity.
-	cargo rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
+	cargo_for_package rustc -p q-periapt-ffi --release --locked --crate-type cdylib -- \
 		-C "link-arg=-Wl,-soname,$SHARED_LIB" \
 		-C "link-arg=-Wl,-z,relro" \
 		-C "link-arg=-Wl,-z,now" \
@@ -1040,7 +1129,9 @@ for required_vendor_file in LICENSE.mlkem-native LICENSE-INVENTORY.md PROVENANCE
 done
 python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"
 
-rm -rf "$PACKAGE_DIR" "$VERIFY_ROOT" "$ARCHIVE" "$ARCHIVE.sha256"
+if [ "$C_PACKAGE_PROFILE" = "legacy" ]; then
+	rm -rf "$PACKAGE_DIR" "$VERIFY_ROOT" "$ARCHIVE" "$ARCHIVE.sha256"
+fi
 mkdir -p "$PACKAGE_DIR/include/qperiapt/abi2" \
 	"$PACKAGE_DIR/lib/pkgconfig" \
 	"$PACKAGE_DIR/lib/cmake/QPeriaptABI2" \
@@ -1049,14 +1140,21 @@ mkdir -p "$PACKAGE_DIR/include/qperiapt/abi2" \
 	"$PACKAGE_DIR/LICENSES/mlkem-native"
 cp "$HEADER_SOURCE" "$PACKAGE_DIR/include/qperiapt/abi2/q_periapt.h"
 cp "$FIXTURE_SOURCE" "$PACKAGE_DIR/include/qperiapt/abi2/signed_policy_fixture.h"
-cp "$CONTRACT_SOURCE" "$PACKAGE_DIR/share/q-periapt/abi/q-periapt-c-abi-v2.json"
-cp "$ROOT/target/release/$STATIC_LIB" "$PACKAGE_DIR/lib/$STATIC_LIB"
-cp "$ROOT/target/release/$BUILD_SHARED_LIB" "$PACKAGE_DIR/lib/$SHARED_LIB"
+cp "$CONTRACT_SOURCE" "$PACKAGE_DIR/$EMBEDDED_CONTRACT"
+cp "$BUILD_DIR/$STATIC_LIB" "$PACKAGE_DIR/lib/$STATIC_LIB"
+cp "$BUILD_DIR/$BUILD_SHARED_LIB" "$PACKAGE_DIR/lib/$SHARED_LIB"
 "$LLVM_STRIP" --strip-debug --enable-deterministic-archives "$PACKAGE_DIR/lib/$STATIC_LIB"
 cp "$ROOT/bindings/c/smoke.c" "$PACKAGE_DIR/share/q-periapt/smoke.c"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
 cp "$ROOT/LICENSES/Apache-2.0.txt" "$PACKAGE_DIR/LICENSES/Apache-2.0.txt"
 cp "$ROOT/LICENSES/MIT.txt" "$PACKAGE_DIR/LICENSES/MIT.txt"
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	cp "$ROOT/LICENSES/Rust-1.98.1-library.html" "$PACKAGE_DIR/LICENSES/Rust-1.98.1-library.html"
+	cp "$ROOT/bindings/c/sdk_smoke.c" "$PACKAGE_DIR/share/q-periapt/sdk_smoke.c"
+	cp "$ROOT/bindings/c/sdk_policy_update_fixture.h" "$PACKAGE_DIR/include/qperiapt/abi2/sdk_policy_update_fixture.h"
+	mkdir "$PACKAGE_DIR/share/q-periapt/legacy"
+	cp "$ROOT/crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h" "$PACKAGE_DIR/share/q-periapt/legacy/q_periapt.h"
+fi
 cp "$VENDOR_ROOT/LICENSE.mlkem-native" "$PACKAGE_DIR/LICENSES/mlkem-native/LICENSE.mlkem-native"
 cp "$VENDOR_ROOT/LICENSE-INVENTORY.md" "$PACKAGE_DIR/LICENSES/mlkem-native/LICENSE-INVENTORY.md"
 cp "$VENDOR_ROOT/PROVENANCE.md" "$PACKAGE_DIR/LICENSES/mlkem-native/PROVENANCE.md"
@@ -1066,7 +1164,7 @@ python3 artifact/third_party_licenses.py create \
 	--package-root "$PACKAGE_DIR" \
 	--target "$HOST"
 python3 artifact/c_abi_contract.py \
-	--contract "$PACKAGE_DIR/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
+	--contract "$PACKAGE_DIR/$EMBEDDED_CONTRACT" \
 	--header "$PACKAGE_DIR/include/qperiapt/abi2/q_periapt.h" \
 	--library "$PACKAGE_DIR/lib/$SHARED_LIB" \
 	--static-library "$PACKAGE_DIR/lib/$STATIC_LIB" \
@@ -1082,8 +1180,13 @@ if [ "$PLATFORM" = "linux" ]; then
 	printf 'Linux DT_NEEDED libraries: %s\n' "$LINUX_NEEDED_LIBRARIES"
 fi
 
-cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- cbom >"$tmp_cbom"
-cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock >"$tmp_sbom"
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	cargo_for_package run --release --locked --quiet -p q-periapt-cli --features sdk-cbom --bin qperiapt -- cbom --native-sdk >"$tmp_cbom"
+	cargo_for_package run --release --locked --quiet -p q-periapt-cli --features sdk-cbom --bin qperiapt -- sbom --lock Cargo.lock >"$tmp_sbom"
+else
+	cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- cbom >"$tmp_cbom"
+	cargo run --locked --quiet -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock >"$tmp_sbom"
+fi
 cp "$tmp_cbom" "$PACKAGE_DIR/share/q-periapt/bom/cbom.cdx.json"
 cp "$tmp_sbom" "$PACKAGE_DIR/share/q-periapt/bom/sbom.cdx.json"
 validate_license_and_boms "$PACKAGE_DIR"
@@ -1236,6 +1339,32 @@ cc -std=c11 -Wall -Wextra -Wpedantic -Werror share/q-periapt/smoke.c \\
 ./c_static_smoke
 \`\`\`
 EOF
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	cat >>"$PACKAGE_DIR/README.md" <<'EOF'
+
+## Owned SDK API (alpha)
+
+Use `q_periapt_sdk_runtime_new` with a provisioned trust root and signed policy,
+then call `q_periapt_sdk_key_generate`, `q_periapt_sdk_encapsulate`,
+`q_periapt_sdk_decapsulate` and named-purpose derivation. Close every owner with
+`q_periapt_sdk_close`; private-key transfer is confined to explicit expert calls.
+All error statuses must be checked. Persist the runtime's authenticated state
+before key use, or use the macOS/Linux persistent runtime API with a private
+store path. An uncertain commit requires reopening with the newest policy.
+
+`share/q-periapt/sdk_smoke.c` is an executable public-API example. Replace
+`smoke.c` in the pkg-config commands above with `sdk_smoke.c` to exercise owned
+keys, purpose derivation, quotas, revocation and signed-policy transitions.
+The bundled policy roots and signatures are public test fixtures, not production
+credentials. Provision your own trust root; protect any deliberately exported
+secret copies and do not treat in-process handles as isolation from hostile code.
+
+The package includes the 37-asset native SDK CBOM, workspace lock SBOM and Rust
+standard-library notices. This unsigned alpha package is not a stable-release,
+device, constant-time or minimum-OS qualification.
+The native ABI remains 2; the SDK contract has 51 exports.
+EOF
+fi
 
 if grep -R -n -F "$ROOT" \
 		"$PACKAGE_DIR/lib/pkgconfig" \
@@ -1263,7 +1392,7 @@ fi
 python3 - "$ROOT" "$PACKAGE_DIR" "$PACKAGE_NAME" "$VERSION" "$HOST" \
 	"$PLATFORM" "$SHARED_LIB" "$STATIC_LIB" "$SOURCE_COMMIT" "$SOURCE_DIRTY" \
 	"$SOURCE_DATE_EPOCH" "$LINUX_MAX_GLIBC_VERSION" \
-	"$LINUX_GLIBC_POLICY_MAX" "$LINUX_NEEDED_LIBRARIES" <<'PY'
+	"$LINUX_GLIBC_POLICY_MAX" "$LINUX_NEEDED_LIBRARIES" "$C_PACKAGE_PROFILE" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -1272,6 +1401,7 @@ import subprocess
 import sys
 
 from c_package_manifest import CPackageManifestError, rust_workspace_source_digest
+from c_package_manifest import SDK_CONTRACT_PATH, SDK_EMBEDDED_CONTRACT, source_fingerprints
 
 root = pathlib.Path(sys.argv[1]).resolve()
 package_dir = pathlib.Path(sys.argv[2]).resolve()
@@ -1287,6 +1417,8 @@ source_date_epoch = int(sys.argv[11])
 linux_max_glibc_version = sys.argv[12]
 linux_glibc_policy_max = sys.argv[13]
 linux_needed_libraries = sys.argv[14]
+sdk_profile = sys.argv[15] == "sdk-020"
+expected_exports = 51 if sdk_profile else 9
 
 def sha256(path: pathlib.Path) -> str:
     hasher = hashlib.sha256()
@@ -1316,13 +1448,15 @@ for path in sorted(p for p in package_dir.rglob("*") if p.is_file() and p.name n
 
 source_contract_rel = "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
 embedded_contract_rel = "share/q-periapt/abi/q-periapt-c-abi-v2.json"
+if sdk_profile:
+    source_contract_rel, embedded_contract_rel = SDK_CONTRACT_PATH, SDK_EMBEDDED_CONTRACT
 source_contract_path = root / source_contract_rel
 embedded_contract_path = package_dir / embedded_contract_rel
 if sha256(source_contract_path) != sha256(embedded_contract_path):
     raise SystemExit("error: embedded ABI contract differs from repository trust root")
 contract = json.loads(embedded_contract_path.read_text(encoding="utf-8"))
 exports = sorted(item["name"] for item in contract["abi"]["exports"])
-if len(exports) != 9 or len(exports) != len(set(exports)):
+if len(exports) != expected_exports or len(exports) != len(set(exports)):
     raise SystemExit(f"error: ABI contract export count differs from frozen value: {len(exports)}")
 # ABI export-set digest encoding: UTF-8 of sorted exact names, one per line,
 # including the final LF. This is stable across JSON formatting and platforms.
@@ -1372,7 +1506,7 @@ except CPackageManifestError as exc:
     ) from exc
 
 manifest = {
-    "schema_version": 2,
+    "schema_version": 3 if sdk_profile else 2,
     "package": package_name,
     "version": version,
     "host": host,
@@ -1423,6 +1557,11 @@ manifest = {
     },
     "files": entries,
 }
+if sdk_profile:
+    manifest["source_inputs_sha256"] = {
+        **source_fingerprints(root, "sdk-020"),
+        "third_party_rust_license_inventory": sha256(package_dir / "THIRD_PARTY/rust/INVENTORY.json"),
+    }
 manifest_path = package_dir / "MANIFEST.json"
 manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 entries.append({"path": "MANIFEST.json", "sha256": sha256(manifest_path), "bytes": manifest_path.stat().st_size})
@@ -1444,6 +1583,10 @@ python3 artifact/deterministic_archive.py create-tar-gz \
 	--mtime "$SOURCE_DATE_EPOCH"
 ARCHIVE_BASENAME=${ARCHIVE##*/}
 (cd "$OUT_ROOT" && shasum -a 256 "$ARCHIVE_BASENAME" > "$ARCHIVE_BASENAME.sha256")
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	SDK_ARCHIVE_SHA256=$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')
+	EXPECTED_MANIFEST_SHA256=$(shasum -a 256 "$PACKAGE_DIR/MANIFEST.json" | awk '{print $1}')
+fi
 printf 'C_ABI_PACKAGE_ARCHIVE=%s\n' "$ARCHIVE"
 else
 	printf 'Q-Periapt public C ABI archive verification\n'
@@ -1455,13 +1598,34 @@ else
 fi
 
 printf '\n=== Verify extracted package ===\n'
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	# An independent install prefix must not resolve libraries through the
+	# source checkout. Retain it, including failed attempts, for diagnostics.
+	SDK_INSTALL_PARENT=$(mktemp -d "${TMPDIR:-/tmp}/qperiapt-c-sdk-install.XXXXXX")
+	SDK_INSTALL_PARENT=$(python3 - "$SDK_INSTALL_PARENT" "$ROOT" <<'PY'
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1]).resolve(strict=True)
+if path.is_relative_to(pathlib.Path(sys.argv[2]).resolve(strict=True)):
+    raise SystemExit("error: C SDK install prefix must be outside the source checkout")
+print(path)
+PY
+	)
+	VERIFY_ROOT="$SDK_INSTALL_PARENT/unpacked"
+	printf '%s\n' "$SDK_INSTALL_PARENT" >"$OUT_ROOT/install-location.txt"
+	unset DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH DYLD_FRAMEWORK_PATH DYLD_INSERT_LIBRARIES LD_LIBRARY_PATH LD_PRELOAD
+fi
 if [ "$VERIFY_ONLY" = "0" ]; then
 	(cd "$OUT_ROOT" && shasum -a 256 -c "$ARCHIVE_BASENAME.sha256")
+	set --
+	if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+		set -- --sha256 "$SDK_ARCHIVE_SHA256"
+	fi
 	python3 artifact/deterministic_archive.py extract-tar-gz \
 		--archive "$ARCHIVE" \
 		--destination "$VERIFY_ROOT" \
 		--root "$PACKAGE_NAME" \
-		--mtime "$SOURCE_DATE_EPOCH"
+		--mtime "$SOURCE_DATE_EPOCH" "$@"
 else
 	python3 artifact/deterministic_archive.py extract-tar-gz \
 		--archive "$ARCHIVE" \
@@ -1485,7 +1649,7 @@ if [ "$VERIFY_ONLY" = "0" ] && [ "$SOURCE_DIRTY" = "0" ] && [ "$PLATFORM" = "lin
 		--repository-root "$ROOT" \
 		--expected-target "$HOST" \
 		--expected-commit "$SOURCE_COMMIT" \
-		--expected-source-date-epoch "$SOURCE_DATE_EPOCH"
+		--expected-source-date-epoch "$SOURCE_DATE_EPOCH" --profile "$C_PACKAGE_PROFILE"
 fi
 if [ "$VERIFY_ONLY" = "1" ]; then
 	LINUX_MAX_GLIBC_VERSION=not-applicable
@@ -1499,7 +1663,7 @@ python3 - "$ROOT" "$EXTRACTED" "$SOURCE_COMMIT" "$SOURCE_DIRTY" \
 	"$SOURCE_DATE_EPOCH" "$LINUX_MAX_GLIBC_VERSION" "$HOST" \
 	"$VERIFY_ONLY" "$EXPECTED_MANIFEST_SHA256" "$EXPECTED_CONTRACT_SHA256" \
 	"$VERSION" "$PACKAGE_NAME" "$LINUX_GLIBC_POLICY_MAX" \
-	"$LINUX_NEEDED_LIBRARIES" <<'PY'
+	"$LINUX_NEEDED_LIBRARIES" "$C_PACKAGE_PROFILE" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -1508,7 +1672,8 @@ import re
 import stat
 import sys
 
-from c_package_manifest import rust_workspace_source_digest
+from c_package_manifest import (SDK_CONTRACT_PATH, SDK_EMBEDDED_CONTRACT, SDK_PAYLOAD_SOURCES,
+                                expected_profile_files, profile_source_paths, rust_workspace_source_digest)
 
 repo_root = pathlib.Path(sys.argv[1]).resolve()
 root = pathlib.Path(sys.argv[2]).resolve()
@@ -1524,6 +1689,10 @@ expected_version = sys.argv[11]
 expected_package = sys.argv[12]
 expected_glibc_policy_max = sys.argv[13]
 expected_needed_libraries = sys.argv[14]
+sdk_profile = sys.argv[15] == "sdk-020"
+expected_exports = 51 if sdk_profile else 9
+contract_relative = SDK_CONTRACT_PATH if sdk_profile else "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
+embedded_relative = SDK_EMBEDDED_CONTRACT if sdk_profile else "share/q-periapt/abi/q-periapt-c-abi-v2.json"
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -1534,7 +1703,10 @@ sums_path = root / "SHA256SUMS"
 require(manifest_path.is_file(), "MANIFEST.json missing after extraction")
 require(sums_path.is_file(), "SHA256SUMS missing after extraction")
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-require(manifest.get("schema_version") == 2, "unsupported MANIFEST schema")
+if sdk_profile:
+    require(hashlib.sha256(manifest_path.read_bytes()).hexdigest() == expected_manifest_sha256,
+            "extracted C SDK manifest differs from the pinned build manifest")
+require(type(manifest.get("schema_version")) is int and manifest["schema_version"] == (3 if sdk_profile else 2), "unsupported MANIFEST schema")
 require(manifest.get("host") == expected_host, "MANIFEST host differs")
 require(manifest.get("version") == expected_version, "MANIFEST version differs")
 require(manifest.get("package") == expected_package, "MANIFEST package root differs")
@@ -1590,7 +1762,7 @@ require(set(abi) == {
     "static_filename",
 }, "MANIFEST abi keys differ from schema 2")
 require(abi["major"] == 2, "MANIFEST ABI major is not 2")
-require(abi["export_count"] == 9, "MANIFEST ABI export count is not 9")
+require(type(abi["export_count"]) is int and abi["export_count"] == expected_exports, "MANIFEST ABI export count differs from selected profile")
 expected_platform = {
     "aarch64-apple-darwin": "macos",
     "x86_64-apple-darwin": "macos",
@@ -1599,8 +1771,8 @@ expected_platform = {
 }.get(expected_host)
 require(expected_platform is not None, "MANIFEST host is unsupported")
 require(abi["platform"] == expected_platform, "MANIFEST ABI platform differs from host")
-require(abi["contract_path"] == "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json", "MANIFEST repository contract path differs")
-require(abi["embedded_contract_path"] == "share/q-periapt/abi/q-periapt-c-abi-v2.json", "MANIFEST embedded contract path differs")
+require(abi["contract_path"] == contract_relative, "MANIFEST repository contract path differs")
+require(abi["embedded_contract_path"] == embedded_relative, "MANIFEST embedded contract path differs")
 require(re.fullmatch(r"[0-9a-f]{64}", abi["contract_sha256"] or "") is not None, "MANIFEST ABI contract hash is malformed")
 require(re.fullmatch(r"[0-9a-f]{64}", abi["exports_sha256"] or "") is not None, "MANIFEST ABI exports hash is malformed")
 require(isinstance(abi["runtime_identity"], dict), "MANIFEST runtime identity is not an object")
@@ -1727,7 +1899,7 @@ require(abi["runtime_identity"] == contract["package"]["platforms"][abi["platfor
 require(abi["shared_filename"] == abi["runtime_identity"]["shared_filename"], "MANIFEST shared filename differs from runtime identity")
 require(abi["static_filename"] == abi["runtime_identity"]["static_filename"], "MANIFEST static filename differs from runtime identity")
 exports = sorted(item["name"] for item in contract["abi"]["exports"])
-require(len(exports) == 9 and len(exports) == len(set(exports)), "embedded ABI contract export count differs")
+require(len(exports) == expected_exports and len(exports) == len(set(exports)), "embedded ABI contract export count differs")
 # Encoding is UTF-8 of sorted exact export names, one name per line, with a final LF.
 exports_sha256 = hashlib.sha256(("\n".join(exports) + "\n").encode("utf-8")).hexdigest()
 require(exports_sha256 == abi["exports_sha256"], "MANIFEST ABI export-set hash mismatch")
@@ -1770,6 +1942,13 @@ expected_source_files = {
     "qperiapt_cli_lib": "crates/q-periapt-cli/src/lib.rs",
     "qperiapt_cli_main": "crates/q-periapt-cli/src/main.rs",
 }
+if sdk_profile:
+    expected_source_files = profile_source_paths("sdk-020")
+    require(set(manifest_hashes) == expected_profile_files(root, expected_host, abi["runtime_identity"], "sdk-020"),
+            "C SDK package file set differs from the closed profile")
+    if not verify_only:
+        for packaged, source in SDK_PAYLOAD_SOURCES.items():
+            require(sha256(root / packaged) == sha256(repo_root / source), f"C SDK installed source differs: {packaged}")
 require(
     set(source_inputs)
     == set(expected_source_files)
@@ -1802,7 +1981,7 @@ PY
 (cd "$EXTRACTED" && shasum -a 256 -c SHA256SUMS)
 
 python3 artifact/c_abi_contract.py \
-	--contract "$EXTRACTED/share/q-periapt/abi/q-periapt-c-abi-v2.json" \
+	--contract "$EXTRACTED/$EMBEDDED_CONTRACT" \
 	--header "$EXTRACTED/include/qperiapt/abi2/q_periapt.h" \
 	--library "$EXTRACTED/lib/$SHARED_LIB" \
 	--static-library "$EXTRACTED/lib/$STATIC_LIB" \
@@ -1872,6 +2051,26 @@ cc -std=c11 -Wall -Wextra -Wpedantic -Werror "$EXTRACTED/share/q-periapt/smoke.c
 "$VERIFY_ROOT/pkgconfig-static-smoke"
 inspect_static_linkage "$VERIFY_ROOT/pkgconfig-static-smoke" "pkgconfig-static-smoke"
 
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	printf '\n=== Owned SDK pkg-config consumers ===\n'
+	for linkage in dynamic static; do
+		cc -std=c11 -Wall -Wextra -Wpedantic -Werror "$EXTRACTED/share/q-periapt/sdk_smoke.c" \
+			@"$VERIFY_ROOT/pkgconfig-$linkage.flags" -o "$VERIFY_ROOT/pkgconfig-sdk-$linkage-smoke"
+		"$VERIFY_ROOT/pkgconfig-sdk-$linkage-smoke"
+		if [ "$linkage" = "dynamic" ]; then
+			inspect_dynamic_linkage "$VERIFY_ROOT/pkgconfig-sdk-$linkage-smoke" "pkgconfig-sdk-$linkage-smoke"
+		else
+			inspect_static_linkage "$VERIFY_ROOT/pkgconfig-sdk-$linkage-smoke" "pkgconfig-sdk-$linkage-smoke"
+		fi
+	done
+	printf '\n=== Frozen old-header compatibility consumer ===\n'
+	cc -std=c11 -Wall -Wextra -Wpedantic -Werror "$EXTRACTED/share/q-periapt/smoke.c" \
+		-I"$EXTRACTED/share/q-periapt/legacy" @"$VERIFY_ROOT/pkgconfig-dynamic.flags" \
+		-o "$VERIFY_ROOT/old-header-smoke"
+	"$VERIFY_ROOT/old-header-smoke"
+	inspect_dynamic_linkage "$VERIFY_ROOT/old-header-smoke" "old-header-smoke"
+fi
+
 printf '\n=== CMake extracted consumer ===\n'
 CMAKE_SRC="$VERIFY_ROOT/cmake-consumer-src"
 CMAKE_BUILD="$VERIFY_ROOT/cmake-consumer-build"
@@ -1897,6 +2096,23 @@ enable_testing()
 add_test(NAME qperiapt-cmake-smoke COMMAND cmake-smoke)
 add_test(NAME qperiapt-cmake-static-smoke COMMAND cmake-static-smoke)
 EOF
+EXPECTED_CMAKE_TESTS=2
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	EXPECTED_CMAKE_TESTS=4
+	cp "$EXTRACTED/share/q-periapt/sdk_smoke.c" "$CMAKE_SRC/sdk_smoke.c"
+	cat >>"$CMAKE_SRC/CMakeLists.txt" <<'EOF'
+add_executable(cmake-sdk-smoke sdk_smoke.c)
+target_compile_features(cmake-sdk-smoke PRIVATE c_std_11)
+target_compile_options(cmake-sdk-smoke PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(cmake-sdk-smoke PRIVATE QPeriaptABI2::qperiapt)
+add_executable(cmake-sdk-static-smoke sdk_smoke.c)
+target_compile_features(cmake-sdk-static-smoke PRIVATE c_std_11)
+target_compile_options(cmake-sdk-static-smoke PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(cmake-sdk-static-smoke PRIVATE QPeriaptABI2::qperiapt_static)
+add_test(NAME qperiapt-cmake-sdk-smoke COMMAND cmake-sdk-smoke)
+add_test(NAME qperiapt-cmake-sdk-static-smoke COMMAND cmake-sdk-static-smoke)
+EOF
+fi
 cmake -S "$CMAKE_SRC" -B "$CMAKE_BUILD" -DCMAKE_PREFIX_PATH="$EXTRACTED" \
 	-DQPeriaptABI2_DIR="$EXTRACTED/lib/cmake/QPeriaptABI2" \
 	-DEXPECTED_QPERIAPT_RELEASE_VERSION="$VERSION" \
@@ -1907,13 +2123,17 @@ cmake -S "$CMAKE_SRC" -B "$CMAKE_BUILD" -DCMAKE_PREFIX_PATH="$EXTRACTED" \
 cmake --build "$CMAKE_BUILD"
 ctest_list=$(ctest --test-dir "$CMAKE_BUILD" -N)
 printf '%s\n' "$ctest_list"
-if ! printf '%s\n' "$ctest_list" | grep -q 'Total Tests: 2'; then
-	printf 'error: expected exactly two CMake smoke tests\n' >&2
+if ! printf '%s\n' "$ctest_list" | grep -q "Total Tests: $EXPECTED_CMAKE_TESTS"; then
+	printf 'error: CMake smoke-test count differs from the selected package profile\n' >&2
 	exit 1
 fi
 ctest --test-dir "$CMAKE_BUILD" --output-on-failure
 inspect_dynamic_linkage "$CMAKE_BUILD/cmake-smoke" "cmake-smoke"
 inspect_static_linkage "$CMAKE_BUILD/cmake-static-smoke" "cmake-static-smoke"
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	inspect_dynamic_linkage "$CMAKE_BUILD/cmake-sdk-smoke" "cmake-sdk-smoke"
+	inspect_static_linkage "$CMAKE_BUILD/cmake-sdk-static-smoke" "cmake-sdk-static-smoke"
+fi
 
 printf '\n=== Legacy CMake package negative control ===\n'
 LEGACY_CMAKE_SRC="$VERIFY_ROOT/cmake-legacy-negative-src"
@@ -1939,6 +2159,45 @@ cmake -S "$LEGACY_CMAKE_SRC" -B "$LEGACY_CMAKE_BUILD" \
 printf 'PASS: legacy CMake package and wrong ABI compatibility version do not resolve\n'
 
 assert_source_snapshot
+if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
+	python3 - "$ROOT" "$EXTRACTED" "$ARCHIVE" "$SDK_SOURCE_SNAPSHOT" \
+		"$SDK_ARCHIVE_SHA256" "$EXPECTED_MANIFEST_SHA256" "$VERIFY_ONLY" <<'PY' >"$OUT_ROOT/INSTALLED_CONSUMER.json"
+import hashlib
+import json
+import pathlib
+import sys
+from c_package_manifest import source_fingerprints, verify_sealed_payload
+from evidence_io import read_regular_snapshot
+root, installed, archive = map(pathlib.Path, sys.argv[1:4])
+archive_sha256, manifest_sha256, verify_only = sys.argv[5:]
+if verify_only == "0":
+    snapshot = json.loads(pathlib.Path(sys.argv[4]).read_text())
+    if snapshot != source_fingerprints(root, "sdk-020"):
+        raise SystemExit("error: installed SDK source binding changed")
+if installed.resolve().is_relative_to(root.resolve()):
+    raise SystemExit("error: installed C SDK resolved inside the source checkout")
+verify_sealed_payload(installed, manifest_sha256)
+if read_regular_snapshot(archive, maximum=128 * 1024 * 1024, label="C SDK archive").sha256 != archive_sha256:
+    raise SystemExit("error: C SDK archive changed during installation verification")
+print(json.dumps({"kind": "qperiapt.c_sdk_installed_consumer", "abi_major": 2,
+                  "outside_source_checkout": True,
+                  "source_validation": "pinned-public-archive" if verify_only == "1" else "build-inputs-unchanged",
+                  "archive_sha256": archive_sha256,
+                  "manifest_sha256": manifest_sha256,
+                  "pkg_config_consumers": 4, "frozen_header_consumer": 1, "cmake_tests": 4,
+                  "release_claim_eligible": False}, indent=2, sort_keys=True))
+PY
+	(cd "$EXTRACTED" && shasum -a 256 -c SHA256SUMS) >"$OUT_ROOT/installed-checksums.log"
+	if [ "$VERIFY_ONLY" = "0" ]; then
+		python3 - "$ROOT" <<'PY' >"$OUT_ROOT/SOURCE_INPUTS.after.json"
+import json
+import pathlib
+import sys
+from c_package_manifest import source_fingerprints
+print(json.dumps(source_fingerprints(pathlib.Path(sys.argv[1]), "sdk-020"), indent=2, sort_keys=True))
+PY
+	fi
+fi
 if [ "$VERIFY_ONLY" = "1" ]; then
 	printf 'C_ABI_PUBLIC_ARCHIVE_VERIFY_PASS archive_sha256=%s manifest_sha256=%s contract_sha256=%s\n' \
 		"$QPERIAPT_C_PACKAGE_EXPECTED_SHA256" \

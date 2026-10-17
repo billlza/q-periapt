@@ -1,0 +1,388 @@
+{
+  "all_selected_prover_groups_absent": true,
+  "capture_sha256": "c2bb3d301bc3ce83039331dfb0c8752e480bf118f847136dcee48eb220ef8891",
+  "certified_inheritance": {
+    "all_four_complete_queries_unchanged": true,
+    "bare_model_sha256": "1be3e576722af22586edf62eff1cacb913b981e162f3942e133fac613aaf4977",
+    "certificate_sha256": "b92fd24e959ecd33780ef7d9ee4d5912b39988ede03036b3c75cee20f6d5d499",
+    "completed": true,
+    "elapsed_seconds": 197.54227458295645,
+    "identity_controls_rejected": {
+      "changed_complete_inheritance_formula": true,
+      "changed_root_origin_event": true,
+      "deleted_inheritance_query": true,
+      "new_disclosure_restriction": true
+    },
+    "independent_replay_steps": 14,
+    "no_prior_reusable_premises": true,
+    "no_search_replay": true,
+    "not_established": [
+      "normal two-round reachability",
+      "delayed-receipt attack witness",
+      "multi-epoch message secrecy",
+      "concrete SDK refinement"
+    ],
+    "operational_model_identical_after_annotation_erasure": true,
+    "release_claim_eligible": false,
+    "scope": "Each reservation inherits the root and parent of an earlier local Ready event in the unbounded symbolic model.",
+    "search_certificate_sha256": "7375c491710e923ae6d4e156964a4ed1e2087c699efd335c8368ec07d01f30e8",
+    "search_steps": 14,
+    "verified_property": "reservations_inherit_locally_confirmed_root"
+  },
+  "expanded_bytes": 1167215,
+  "members": {
+    "experiments/CERTIFIED_25.json": "1efd5ade8003c020e484732e3256875dbf18d4f78f1d8b7ffa1af5b00a33994c",
+    "experiments/COMPOSED_28.json": "e2496f51d0f814968c98bcc88ce58e10c30b1d075872685bd3de831acd5650b7",
+    "experiments/DIRECT_21.json": "9bbd3fd36f5a58395cbaa65c6503557ea363edde6360b7d9b0275abf6d048f56",
+    "experiments/PRECOMPUTATION_22.json": "e7e087357356202c7d6b1b63cbc16048860811aec89b55c2c8b5264eac759e72",
+    "experiments/canonical-parse-25.json": "7b4169e4ccf763d6e932e9cbf531c865023c3fda66e7bdef8526ca6fd6112249",
+    "experiments/canonical-parse-25.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/canonical-parse-25.stdout": "7023c37def9fdc9bb69c56094a6835d6cefe34f827b1a7cb94cb35e9afc0100a",
+    "experiments/capture-33.py": "fbd69ad90f4c149c787805d663083bf7711a0234d6d18f68b3ff3011bffe6ef5",
+    "experiments/certify-25.py": "8edb2fcdbe51d240274ea0537b3c1f5324d7e60446193b21a0f1899639b2514f",
+    "experiments/compose-28.py": "8c906bfebc9286d0bdda46794bf356456b1b81e229bdf32d69d019c504f38374",
+    "experiments/composed-28.spthy": "557540558ce7c7feac106f2affcc54ecc5d13dada0acc97fdbd92c468c168c62",
+    "experiments/direct-21-STARTED.json": "054dd3cfaabdb32de7a8f2fede125a2f1ace307d821e5cfabee3e3018d012465",
+    "experiments/direct-21-TERMINAL.json": "740d3e132ef37e497913dcb02d2bcb4b31ecfa72e9f3c4b5d820f26159a703cc",
+    "experiments/direct-21-proof.spthy": "0a705abf362cb226e43a1330902fed3ca6fb4ba055e659f7d56c971fced609e1",
+    "experiments/direct-21.py": "9a0ce97ea52db2b3c9f198049106a348d7626310689783975136f05aaffe17d8",
+    "experiments/direct-21.stderr": "a485d55a03806e26fd4d86db1b57785e9c7e297458d22ad0b679fd2b77516238",
+    "experiments/direct-21.stdout": "b11eb53926615fc4692b1a3ef86597311c04d34b08a3d31931a96d4050a2bc43",
+    "experiments/execution-24-STARTED.json": "5b42eface7fe854eff4bdccc7a546d934fde96e8011528276318817555e530e3",
+    "experiments/execution-24-TERMINAL.json": "8e71f89ccec92b292ccf12133ad1226ad5ae511bbd880996dd4be21991626e46",
+    "experiments/execution-24.stderr": "a58e558fa33cb73912c24ebf0210681100a47e14856afea2bf7c12f47c559af6",
+    "experiments/execution-24.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "experiments/inheritance-20-STARTED.json": "f1103726a3a5c1f1a7dd4b1f616fe64f37fdfc99ec4facec0a1525a2951def23",
+    "experiments/inheritance-20-TERMINAL.json": "5b010afe60960dd471cc64b1e9ff0fe6f6bed61e6393c2472b18a2282c9b3542",
+    "experiments/inheritance-20-proof.spthy": "7375c491710e923ae6d4e156964a4ed1e2087c699efd335c8368ec07d01f30e8",
+    "experiments/inheritance-20.stderr": "7c1a0408a5929b646df0fc8c7a37b7862e0b5b61541740d0aac37bf695e20aa1",
+    "experiments/inheritance-20.stdout": "038e8ae48ce9c571d8789f8c57d2c87685680f6272910b15628e2956d4d856b1",
+    "experiments/inheritance-replay-23-STARTED.json": "f5e6d2e4e059264d35e659e3bbcda4824e5fe74d1fd430d054fbcc169f259b05",
+    "experiments/inheritance-replay-23-TERMINAL.json": "a569d61bd47c9517a4b17714b9272dd8e0500c6984d07ce635e134073321ed1e",
+    "experiments/inheritance-replay-23.stderr": "b1f144e546ef0b6a2081345fe4d8cde133966e50879229b1023dde19c152e4d9",
+    "experiments/inheritance-replay-23.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "experiments/inheritance-replay-27-STARTED.json": "014c36859d7a30d324219e6128b894a607a728378ac1d267f7bc754291f55823",
+    "experiments/inheritance-replay-27-TERMINAL.json": "13f5e6cb0116262611246c1e325ddeb2abda1bae85e8a8b48c3d990b72e9efa2",
+    "experiments/inheritance-replay-27-proof.spthy": "b92fd24e959ecd33780ef7d9ee4d5912b39988ede03036b3c75cee20f6d5d499",
+    "experiments/inheritance-replay-27.stderr": "580e6eaa3932a562a0273d0e81f24f0731e910bb8cc0bda88b64db01dfa8bbac",
+    "experiments/inheritance-replay-27.stdout": "512d9459fa20833e747b39ffcc454cca40274d14b0ff79df04212d97a1f099e7",
+    "experiments/multi-epoch-21.spthy": "3eac089338a0857591b1d10c49b1d71a518f997ba7852d618ac43b330f50ddaf",
+    "experiments/original-replay-29-STARTED.json": "4aa882dc3d15c88a56924cbb4c8b6237dbcf3480056707da74fa9c5dd9246b44",
+    "experiments/original-replay-29-TERMINAL.json": "e7b7772831c93519938ddc0ffa337974e69fac01cdb71bf1d3ad43625a07af36",
+    "experiments/original-replay-29.stderr": "b1f144e546ef0b6a2081345fe4d8cde133966e50879229b1023dde19c152e4d9",
+    "experiments/original-replay-29.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "experiments/parse-21.json": "64178d7842ee8f102122d66cc9a8f39edb1320dddd83ce55f5e681b954d0afaf",
+    "experiments/parse-21.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/parse-21.stdout": "76d4f5917ba1b0b3f3c2e27e488efde3880057de8fd5c21202c7d95a00451b96",
+    "experiments/parse-28.json": "afee065cdc67cde631391c08deae141178ebdfcf5c210bbb1decae0c0fb838f2",
+    "experiments/parse-28.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/parse-28.stdout": "b061a05cc379ecc6dd459fe0f6a48ffc8773c09fb9c59d7ad956161bcc08748b",
+    "experiments/precompute-19-STARTED.json": "b215af462626f5e183cc3fdb30ecd887d588edc8d952f4b3ffb924b413eb8edf",
+    "experiments/precompute-19-TERMINAL.json": "2f92f531399c2450465091ae48d29562b08caf73a023af8141b6cd036fac06f5",
+    "experiments/precompute-19.py": "a33b35cecf8f1198588d9042febea0ae3233f6bc0d8d2a3a581b3323b61335ea",
+    "experiments/precompute-19.stderr": "75e24d0eaa8a7c048f82fb7f6251f136bdb00de27180a9f7b78bcdcf10c39528",
+    "experiments/precompute-19.stdout": "9d77f0ef3c369813ceaea199883b06d958c69c527301c1b9b5e28bf50c02b516",
+    "experiments/replay-certificate-parse-25.json": "867445b7849400d2e2fa3d875402bdc250d8002d23e9dba3fbd5168a7bfe3e95",
+    "experiments/replay-certificate-parse-25.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/replay-certificate-parse-25.stdout": "60fcb6f14bfa8b7f7693471ab01419e8851ed838d92517907bf5006e426596dc",
+    "experiments/run-20.py": "0461713d940517d9bd32168c6c4b9548832ac30584c9a12f3fb305f65afc5c8a",
+    "experiments/search-certificate-parse-25.json": "6d75bc9d3132530303df1b2ac2fb50592324ca860bf1d03c8648050497a2ef76",
+    "experiments/search-certificate-parse-25.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/search-certificate-parse-25.stdout": "60fcb6f14bfa8b7f7693471ab01419e8851ed838d92517907bf5006e426596dc",
+    "experiments/search-input-parse-25.json": "ef8a2095b713dfd39f3c4e33ae57966e2a1b26ff25a0da541e442e569abb2a4f",
+    "experiments/search-input-parse-25.stderr": "6dfcba7b9e8519620d55bd8aa8fec8257f48c1cb88b3395a4a1fac4aa019c386",
+    "experiments/search-input-parse-25.stdout": "5b901b753f9d95297119141a619109873bdc9390c3fb01a7038adb234fe3cdb2",
+    "experiments/verify-precompute-22.py": "6eb26cc9b301d28ee5334e139fe4b711b7c149b123857d6ee88c5f049211aa7d",
+    "prior/model-CAPTURE.zip": "b65c5fade336985d09049adc3b60263a0140431fb26b4e3ba22911d19847031c",
+    "source/annotated-search-input.spthy": "ae7043f56c640c808753ac4d0c4d6adf5af5a171aacc7415cb49c73324837ce9",
+    "source/multi-epoch.spthy": "1be3e576722af22586edf62eff1cacb913b981e162f3942e133fac613aaf4977",
+    "tools/TOOLS_08.json": "589fe11a5912a459c6bf2b0151b3cf7304e4a9f7134369e12d420db3e1d29db6"
+  },
+  "ongoing_execution_31_not_included": true,
+  "precomputation": {
+    "base_commit": "dffd1d8831ed18a7b0dbd6d219080ca17a6edd5d",
+    "completed": true,
+    "counting_note": "The CLI calls them cases; ClosedTheory counts source catalogue entries, whereas each entry may contain multiple branches. The 266 count is unresolved chain constraints, not vulnerabilities.",
+    "elapsed_seconds": 189.40383654198376,
+    "input_sha256": "a617cc76cdcb579127b7ef38ded92a2a2112b998bb5683597ea0949467cd7db1",
+    "interpretation": "Precomputation on this exact input can terminate within 300 seconds. It leaves unresolved derivation chains. This does not identify a counterexample or establish any query.",
+    "proof_property_accepted": false,
+    "raw_partial_deconstructions": 266,
+    "raw_source_catalog_count": 38,
+    "refined_partial_deconstructions": 266,
+    "refined_source_catalog_count": 38,
+    "release_claim_eligible": false,
+    "rules_and_restrictions_count": 22,
+    "upstream_source_commit": "82780bbaf3328a45f624ddb41e51bf75425f851c",
+    "upstream_source_urls": [
+      "https://github.com/tamarin-prover/tamarin-prover/blob/82780bbaf3328a45f624ddb41e51bf75425f851c/src/Main/Mode/Batch.hs#L200",
+      "https://github.com/tamarin-prover/tamarin-prover/blob/82780bbaf3328a45f624ddb41e51bf75425f851c/lib/theory/src/ClosedTheory.hs#L547",
+      "https://github.com/tamarin-prover/tamarin-prover/blob/82780bbaf3328a45f624ddb41e51bf75425f851c/lib/theory/src/Theory/Constraint/Solver/Sources.hs#L355"
+    ]
+  },
+  "prior_archive_sha256": "b65c5fade336985d09049adc3b60263a0140431fb26b4e3ba22911d19847031c",
+  "private_sdk_device_data_included": false,
+  "release_claim_eligible": false,
+  "terminal_attempts": {
+    "direct-21": {
+      "accepted": true,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/multi-epoch-21.spthy",
+        "--heuristic=s",
+        "--verbose",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/direct-21-proof.spthy",
+        "--prove=reservations_inherit_locally_confirmed_root",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 159.2439812090015,
+      "input_sha256": "3eac089338a0857591b1d10c49b1d71a518f997ba7852d618ac43b330f50ddaf",
+      "output_exceeded": false,
+      "output_sha256": "0a705abf362cb226e43a1330902fed3ca6fb4ba055e659f7d56c971fced609e1",
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "reservations_inherit_locally_confirmed_root"
+      ],
+      "results": {
+        "delayed_receipt_exposes_pre_cut_epoch_two_reservation": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "multi_epoch_fresh_reservations_recover_symbolic_message_secrecy": {
+          "mode": "all-traces",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "reservations_inherit_locally_confirmed_root": {
+          "mode": "all-traces",
+          "status": "verified",
+          "steps": 11
+        },
+        "two_rounds_recover_with_exposed_ancestor_is_executable": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        }
+      },
+      "returncode": 0,
+      "timed_out": false
+    },
+    "execution-24": {
+      "accepted": false,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/multi-epoch-13.spthy",
+        "--heuristic=s",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/execution-24-proof.spthy",
+        "--prove=two_rounds_recover_with_exposed_ancestor_is_executable",
+        "+RTS",
+        "-N1",
+        "-M12G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 600.5886194580235,
+      "input_sha256": "ae7043f56c640c808753ac4d0c4d6adf5af5a171aacc7415cb49c73324837ce9",
+      "output_exceeded": false,
+      "output_sha256": null,
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "two_rounds_recover_with_exposed_ancestor_is_executable"
+      ],
+      "results": {},
+      "returncode": -2,
+      "timed_out": true
+    },
+    "inheritance-20": {
+      "accepted": true,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/multi-epoch-13.spthy",
+        "--heuristic=s",
+        "--verbose",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/inheritance-20-proof.spthy",
+        "--prove=reservations_inherit_locally_confirmed_root",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 162.76327658403898,
+      "input_sha256": "ae7043f56c640c808753ac4d0c4d6adf5af5a171aacc7415cb49c73324837ce9",
+      "output_exceeded": false,
+      "output_sha256": "7375c491710e923ae6d4e156964a4ed1e2087c699efd335c8368ec07d01f30e8",
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "reservations_inherit_locally_confirmed_root"
+      ],
+      "results": {
+        "delayed_receipt_exposes_pre_cut_epoch_two_reservation": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "multi_epoch_fresh_reservations_recover_symbolic_message_secrecy": {
+          "mode": "all-traces",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "reservations_inherit_locally_confirmed_root": {
+          "mode": "all-traces",
+          "status": "verified",
+          "steps": 14
+        },
+        "two_rounds_recover_with_exposed_ancestor_is_executable": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        }
+      },
+      "returncode": 0,
+      "timed_out": false
+    },
+    "inheritance-replay-23": {
+      "accepted": false,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/inheritance-20-proof.spthy",
+        "--heuristic=s",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/inheritance-replay-23-proof.spthy",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 305.5337924999767,
+      "input_sha256": "7375c491710e923ae6d4e156964a4ed1e2087c699efd335c8368ec07d01f30e8",
+      "output_exceeded": false,
+      "output_sha256": null,
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "reservations_inherit_locally_confirmed_root"
+      ],
+      "results": {},
+      "returncode": -9,
+      "timed_out": true
+    },
+    "inheritance-replay-27": {
+      "accepted": true,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/inheritance-20-proof.spthy",
+        "--heuristic=s",
+        "--verbose",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/inheritance-replay-27-proof.spthy",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 197.54227458295645,
+      "input_sha256": "7375c491710e923ae6d4e156964a4ed1e2087c699efd335c8368ec07d01f30e8",
+      "output_exceeded": false,
+      "output_sha256": "b92fd24e959ecd33780ef7d9ee4d5912b39988ede03036b3c75cee20f6d5d499",
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "reservations_inherit_locally_confirmed_root"
+      ],
+      "results": {
+        "delayed_receipt_exposes_pre_cut_epoch_two_reservation": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "multi_epoch_fresh_reservations_recover_symbolic_message_secrecy": {
+          "mode": "all-traces",
+          "status": "analysis incomplete",
+          "steps": 1
+        },
+        "reservations_inherit_locally_confirmed_root": {
+          "mode": "all-traces",
+          "status": "verified",
+          "steps": 14
+        },
+        "two_rounds_recover_with_exposed_ancestor_is_executable": {
+          "mode": "exists-trace",
+          "status": "analysis incomplete",
+          "steps": 1
+        }
+      },
+      "returncode": 0,
+      "timed_out": false
+    },
+    "original-replay-29": {
+      "accepted": false,
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/composed-28.spthy",
+        "--heuristic=s",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "--output=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/original-replay-29-proof.spthy",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 305.46208370802924,
+      "input_sha256": "557540558ce7c7feac106f2affcc54ecc5d13dada0acc97fdbd92c468c168c62",
+      "output_exceeded": false,
+      "output_sha256": null,
+      "release_claim_eligible": false,
+      "required_verified_lemmas": [
+        "reservations_inherit_locally_confirmed_root"
+      ],
+      "results": {},
+      "returncode": -9,
+      "timed_out": true
+    },
+    "precompute-19": {
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/tamarin/tamarin-prover/1.12.0/bin/tamarin-prover",
+        "--with-maude=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-symbolic-20261015/tools-08/maude/maude",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-recovery-multi-epoch-20261015/multi-epoch-08.spthy",
+        "--precompute-only",
+        "--derivcheck-timeout=60",
+        "--quit-on-warning",
+        "+RTS",
+        "-N1",
+        "-M6G",
+        "-s",
+        "-RTS"
+      ],
+      "elapsed_seconds": 189.40383654198376,
+      "input_sha256": "a617cc76cdcb579127b7ef38ded92a2a2112b998bb5683597ea0949467cd7db1",
+      "output_exceeded": false,
+      "precomputation_command_completed": true,
+      "proof_property_accepted": false,
+      "proof_search_requested": false,
+      "returncode": 0,
+      "timed_out": false
+    }
+  }
+}

@@ -1,0 +1,32 @@
+from pathlib import Path
+import hashlib,json,re,zipfile
+import rust_sdk_profile as sdk
+root=Path.cwd();out=root/'research/sdk-alpha1/evidence/20261015-sdk-policy-codeql-review'
+manifest=json.loads((out/'CAPTURE.json').read_text())
+sdk.require(sdk.snapshot(out/'CAPTURE.zip',maximum=64*1024**2).sha256==manifest['capture_sha256'],'archive changed')
+with zipfile.ZipFile(out/'CAPTURE.zip') as z:
+ raw=json.loads(z.read('analysis/rust.sarif'))['runs'][0]['results']
+ record=json.loads(z.read('receipts/SELECTED_04.json'));observed=[];related=[]
+ for index in [789,792]:
+  for ci,flow in enumerate(raw[index]['codeFlows']):
+   for ti,thread in enumerate(flow['threadFlows']):
+    steps=[]
+    for si,item in enumerate(thread['locations']):
+     loc=item['location'];p=loc['physicalLocation'];file=p['artifactLocation']['uri'];line=p['region']['startLine']
+     source=z.read('sources-04/analysis/'+file).decode().splitlines()
+     sdk.require(1<=line<=len(source),'flow source line unavailable')
+     steps.append({'index':si,'file':file,'line':line,'message':loc.get('message',{}).get('text','')})
+    observed.append({'result_index':index,'code_flow':ci,'thread_flow':ti,'steps':steps})
+  for loc in raw[index]['relatedLocations']:
+   p=loc['physicalLocation'];file=p['artifactLocation']['uri'];line=p['region']['startLine']
+   sdk.require(1<=line<=len(z.read('sources-04/analysis/'+file).decode().splitlines()),'named sink source unavailable')
+   related.append({'result_index':index,'file':file,'line':line,'id':loc.get('id')})
+  named={loc['id'] for loc in raw[index]['relatedLocations'] if 'id' in loc}
+  sdk.require(named=={int(value) for value in re.findall(r'\]\(([0-9]+)\)',raw[index]['message']['text'])},'message sink references differ')
+ sdk.require(observed==record['flows'] and len(observed)==8 and sum(len(r['steps']) for r in observed)==292,'record omitted or changed a supplied flow')
+ sdk.require(len(related)==13 and sum(r['id'] is not None for r in related)==7,'named or auxiliary related-location count differs')
+ for source in record['sources']:
+  for label in ['analysis','current']:
+   sdk.require(hashlib.sha256(z.read('sources-04/'+label+'/'+source['path'])).hexdigest()==source[label+'_sha256'],'source hash differs')
+sdk.write_json(out/'FLOW_READBACK.json',{'completed':True,'capture_sha256':manifest['capture_sha256'],'flows_reconstructed_from_raw_sarif':8,'locations_checked':292,'named_sink_occurrences':[r for r in related if r['id'] is not None],'auxiliary_related_locations':[r for r in related if r['id'] is None],'all_flow_source_lines_available':True,'scope':'Archive consistency and complete selected-flow retention, not an automated semantic proof of the dispositions.'})
+print('Raw SARIF reconstructs all 8 threads, 292 locations and 7 named sink occurrences')

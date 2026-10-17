@@ -1,0 +1,33 @@
+   Compiling q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.91s
+     Running unittests src/lib.rs (target/continuity-browser-creation/rust-target/debug/deps/q_periapt_continuity_identity_candidate-8ee8ee92e271c7c6)
+
+running 7 tests
+test session_exchange::tests::carrier_versions_and_unbounded_frames_are_rejected ... ok
+test session_exchange::tests::cancelled_admission_dispatches_nothing_and_closes_owner ... ok
+test session_exchange::tests::replayed_valid_prefix_is_pending_not_fabricated_message_consumption ... ok
+test session_exchange::tests::confirmed_bootstrap_reopens_and_delivers_in_both_directions_without_duplicate_effects ... ok
+test session_exchange::tests::wrong_owner_and_closed_policy_do_not_release_new_frames ... ok
+test session_exchange::tests::tampered_ready_proof_closes_owner_and_exact_retry_recovers_committed_original ... ok
+test session_exchange::tests::unknown_effect_and_lost_ack_recover_the_same_message_without_double_effect ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 909 filtered out; finished in 9.74s
+
+     Running tests/credential_request.rs (target/continuity-browser-creation/rust-target/debug/deps/credential_request-8359621b27993782)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/historical_identity.rs (target/continuity-browser-creation/rust-target/debug/deps/historical_identity-aa63b7b5212652f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/owned_connection.rs (target/continuity-browser-creation/rust-target/debug/deps/owned_connection-a2947751c78ee1ed)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

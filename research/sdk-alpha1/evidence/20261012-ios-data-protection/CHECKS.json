@@ -1,0 +1,28 @@
+{
+  "fixed_refusal": 702,
+  "namespace_unchanged": true,
+  "original_identity_journal_publication": true,
+  "protected_data_unavailable": true,
+  "protected_entries": 40,
+  "recoverable_refusal": 702,
+  "sentinel_errno": 1,
+  "unlock_reactivation": true,
+  "physical_platform": "iPadOS 27.0.1 arm64",
+  "device_model": "iPad Pro 11-inch (M4)",
+  "Swift_device_calls": 5,
+  "profiles": [
+    "fixed",
+    "recoverable"
+  ],
+  "independently_verified_original_requests": 2,
+  "package_sha256": "f205d19d560584d1f80a85bc8631f76787db96eb35580b94ee6d5b37659b15bc",
+  "app_executable_sha256": "a6a2f3b9ae591ed65fe7ab8f2cd3e912b943ccc3f41a028d55207a84440e8964",
+  "fixture_sha256": "f8262ceea4f8b8fe92e3d902540f675c913d93d27ca63abdc639d1f2b0345f38",
+  "run_owned_app_removed": true,
+  "all_capture_hashes_verified": true,
+  "archived_public_records_reread": true,
+  "capture_members": 178,
+  "capture_sha256": "64cd934c891329f92f9a69f739ed47401cae55af6453aca355863480ad7fbb24",
+  "release_claim_eligible": false,
+  "scope": "Explicitly closed local-profile owners; host-applied Complete file protection; background denial and unlocked reopen/activation. No live-owner erasure, interrupted write, witness availability, reboot or power-loss claim."
+}

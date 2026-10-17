@@ -1,0 +1,369 @@
+{
+  "status": "passed",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "rows": [
+    {
+      "case": "exclusive-and-reopen",
+      "initial": {
+        "revision": "0",
+        "image": "initial",
+        "counts": {
+          "read": 1,
+          "write": 11,
+          "sync": 8,
+          "resize": 1,
+          "close": 0
+        }
+      },
+      "busy": {
+        "id": 1,
+        "ok": false,
+        "error": "Error: Busy",
+        "counts": null
+      },
+      "raw": {
+        "id": 2,
+        "ok": false,
+        "error": "NoModificationAllowedError: Failed to execute 'createSyncAccessHandle' on 'FileSystemFileHandle': Access Handles cannot be created if there is another open Access Handle or Writable stream associated with the same file.",
+        "counts": null
+      },
+      "replaced": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 0,
+          "write": 6,
+          "sync": 2,
+          "resize": 0,
+          "close": 0
+        }
+      },
+      "opened": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 9,
+          "write": 1,
+          "sync": 1,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "native-roundtrip",
+      "native": {
+        "revision": "2",
+        "image": "native-committed"
+      }
+    },
+    {
+      "case": "io-failure",
+      "index": 1,
+      "after": false,
+      "failure": {
+        "id": 2,
+        "ok": false,
+        "error": "Error: I/O error: OPFS callback: JsValue(UnknownError: injected I/O boundary\nundefined)",
+        "counts": {
+          "read": 0,
+          "write": 5,
+          "sync": 1,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "state": {
+        "id": 3,
+        "ok": false,
+        "error": "Error: closed",
+        "counts": {
+          "read": 0,
+          "write": 5,
+          "sync": 1,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "recovered": {
+        "revision": "0",
+        "image": "initial",
+        "counts": {
+          "read": 9,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "io-failure",
+      "index": 1,
+      "after": true,
+      "failure": {
+        "id": 2,
+        "ok": false,
+        "error": "Error: I/O error: OPFS callback: JsValue(UnknownError: injected I/O boundary\nundefined)",
+        "counts": {
+          "read": 0,
+          "write": 5,
+          "sync": 1,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "state": {
+        "id": 3,
+        "ok": false,
+        "error": "Error: closed",
+        "counts": {
+          "read": 0,
+          "write": 5,
+          "sync": 1,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "recovered": {
+        "revision": "0",
+        "image": "initial",
+        "counts": {
+          "read": 9,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "io-failure",
+      "index": 2,
+      "after": false,
+      "failure": {
+        "id": 2,
+        "ok": false,
+        "error": "Error: I/O error: OPFS callback: JsValue(UnknownError: injected I/O boundary\nundefined)",
+        "counts": {
+          "read": 0,
+          "write": 6,
+          "sync": 2,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "state": {
+        "id": 3,
+        "ok": false,
+        "error": "Error: closed",
+        "counts": {
+          "read": 0,
+          "write": 6,
+          "sync": 2,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "recovered": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 10,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "io-failure",
+      "index": 2,
+      "after": true,
+      "failure": {
+        "id": 2,
+        "ok": false,
+        "error": "Error: I/O error: OPFS callback: JsValue(UnknownError: injected I/O boundary\nundefined)",
+        "counts": {
+          "read": 0,
+          "write": 6,
+          "sync": 2,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "state": {
+        "id": 3,
+        "ok": false,
+        "error": "Error: closed",
+        "counts": {
+          "read": 0,
+          "write": 6,
+          "sync": 2,
+          "resize": 0,
+          "close": 1
+        }
+      },
+      "recovered": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 10,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "worker-termination",
+      "index": 1,
+      "after": false,
+      "event": {
+        "event": "cut",
+        "kind": "sync",
+        "index": 1,
+        "after": false,
+        "name": "accept-1791838107224-cut-1-false"
+      },
+      "leaseReleaseMs": 2028,
+      "outcome": {
+        "ok": false,
+        "error": "terminated"
+      },
+      "recovered": {
+        "revision": "0",
+        "image": "initial",
+        "counts": {
+          "read": 9,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "worker-termination",
+      "index": 1,
+      "after": true,
+      "event": {
+        "event": "cut",
+        "kind": "sync",
+        "index": 1,
+        "after": true,
+        "name": "accept-1791838107224-cut-1-true"
+      },
+      "leaseReleaseMs": 2012.6999999955297,
+      "outcome": {
+        "ok": false,
+        "error": "terminated"
+      },
+      "recovered": {
+        "revision": "0",
+        "image": "initial",
+        "counts": {
+          "read": 9,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "worker-termination",
+      "index": 2,
+      "after": false,
+      "event": {
+        "event": "cut",
+        "kind": "sync",
+        "index": 2,
+        "after": false,
+        "name": "accept-1791838107224-cut-2-false"
+      },
+      "leaseReleaseMs": 2018,
+      "outcome": {
+        "ok": false,
+        "error": "terminated"
+      },
+      "recovered": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 10,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "worker-termination",
+      "index": 2,
+      "after": true,
+      "event": {
+        "event": "cut",
+        "kind": "sync",
+        "index": 2,
+        "after": true,
+        "name": "accept-1791838107224-cut-2-true"
+      },
+      "leaseReleaseMs": 2022.3000000044703,
+      "outcome": {
+        "ok": false,
+        "error": "terminated"
+      },
+      "recovered": {
+        "revision": "1",
+        "image": "target",
+        "counts": {
+          "read": 10,
+          "write": 5,
+          "sync": 5,
+          "resize": 0,
+          "close": 0
+        }
+      }
+    },
+    {
+      "case": "one-phase-negative-control",
+      "event": {
+        "event": "cut",
+        "kind": "sync",
+        "index": 1,
+        "after": true,
+        "name": "accept-1791838107224-one-phase"
+      },
+      "leaseReleaseMs": 2025.8999999985099,
+      "outcome": {
+        "ok": false,
+        "error": "terminated"
+      },
+      "before": {
+        "bytes": 1056768,
+        "sha256": "e20a9b72db689217fdf866745ddad23930e9440b8e205e868c5c86c25f649813"
+      },
+      "refusal": {
+        "id": 2,
+        "ok": false,
+        "error": "Error: unclean redb image was not committed in two phases",
+        "counts": {
+          "read": 1,
+          "write": 0,
+          "sync": 0,
+          "resize": 0,
+          "close": 0
+        }
+      },
+      "after": {
+        "bytes": 1056768,
+        "sha256": "e20a9b72db689217fdf866745ddad23930e9440b8e205e868c5c86c25f649813"
+      }
+    }
+  ],
+  "pageErrors": []
+}

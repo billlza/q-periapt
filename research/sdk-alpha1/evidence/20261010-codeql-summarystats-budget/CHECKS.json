@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "source_head": "29ec0a37877dfdf0b1328f6886ed731e1436d440",
+  "analyzed_merge": "9626a829b1277bdea0b25fada5e79872e5c4bef1",
+  "same_tree": true,
+  "workflow_run": 38013171718,
+  "rust_job": 114098478416,
+  "completed": false,
+  "analyze_timeout_minutes": 150,
+  "diagnostics": {
+    "artifact_id": 11659495142,
+    "bytes": 633636412,
+    "sha256": "52a95ce968c167502f9904dc29a912e5962fdd714fb3854a72ceab967171b58c",
+    "verified": true
+  },
+  "observed": {
+    "queries_started": 39,
+    "queries_completed": 38,
+    "unfinished_query": "codeql/rust-queries/queries/summary/SummaryStats",
+    "last_other_query_completed": "2026-10-10T01:47:56.3774749Z",
+    "timed_out": "2026-10-10T04:07:49.6815286Z",
+    "taint_reach_stage": "TaintReachFlow Stage4, still producing delta rows at iteration 495",
+    "memory_evictions": 72662,
+    "query_RAM_MB": 14575,
+    "query_threads": 4,
+    "query_heap_Xmx_MiB": 5788,
+    "query_off_heap_MiB": 6898,
+    "previous_same_bundle_full_stats_seconds": 7471,
+    "previous_source": "e0e1dee0ba19e9c1e177d30e7ae16ef0d87f3f25"
+  },
+  "source_explanation": {
+    "pinned_bundle": "2.27.1",
+    "rust_query_pack": "0.1.43",
+    "SummaryStats": "Calls taintStats, including getTaintedNodesCount/getTaintReach.",
+    "TaintReach": "Uses each active modeled source and every data-flow node as a possible sink; this is wider than one vulnerability-specific source/sink pair.",
+    "upstream": "https://github.com/github/codeql/blob/codeql-cli/v2.27.1/rust/ql/src/queries/summary/TaintReach.qll",
+    "interpretation": "Long full-graph taint evaluation with repeated memory eviction is the observed slow phase. No deadlock, exact asymptotic cause or guaranteed completion at the new bound is claimed."
+  },
+  "change": {
+    "Analyze_minutes": 180,
+    "Rust_job_minutes": 240,
+    "other_language_minutes": 60,
+    "query_set_changed": false,
+    "debug_diagnostics_changed": false,
+    "threat_model_changed": false,
+    "quality_checker_changed": false,
+    "source_census_changed": false,
+    "runner_or_paid_service_changed": false
+  },
+  "validation": {
+    "quality_unit_tests": 44,
+    "passed_in_standalone_checkout": true,
+    "initial_managed_worktree_test_run": "42 passed, 2 errors because release provenance requires a genuine .git directory; preserved and rerun without changing that guard.",
+    "hosted_run_after_budget_change": "pending"
+  },
+  "limits": [
+    "The prior successful timing used different source and is not a same-input benchmark.",
+    "The partial console download timed out locally after 120 seconds; it is marked incomplete. Query completion and slow-stage findings are independently confirmed from the full hash-verified diagnostics archive.",
+    "CI quality checks and SARIF upload were skipped after Analyze failed. Completed individual queries are not a qualified analysis result.",
+    "The archive is a partial database bundle; its dataset metadata says finalised=true, but that does not establish complete analysis or quality admission.",
+    "The budget adjustment preserves every query and acceptance condition; its sufficiency remains unverified."
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "b753fc7ad5950ee7115dfc4d7231871fb67e711edae4f388c8e1c879f3ca9244",
+    "bytes": 20213,
+    "members": 28
+  },
+  "release_claim_eligible": false
+}

@@ -23,12 +23,14 @@ fn fixture_string<'a>(fixture: &'a serde_json::Value, name: &str) -> Result<&'a 
 }
 
 fn decode_hex(encoded: &str) -> Result<Vec<u8>, String> {
-    if encoded.len() % 2 != 0 {
+    if !encoded.len().is_multiple_of(2) {
         return Err("hex input has odd length".to_owned());
     }
     encoded
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let high = decode_nibble(
                 *pair

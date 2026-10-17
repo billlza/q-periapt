@@ -1,0 +1,2 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running `target/native-stack-debug/build/debug/examples/recovery_fixture /private/tmp/qperiapt-public-vectors-8pq8_87h`

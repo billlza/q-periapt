@@ -1,0 +1,74 @@
+{
+  "artifact_tests": {
+    "head": "acac92b0cc064edd59c4c03b7cf2cc4fdc511214",
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-c",
+      "import unittest; unittest.main(module=None,argv=[\"unittest\",\"discover\",\"-s\",\"artifact\",\"-p\",\"test_*.py\",\"-v\"],warnings=\"error\")"
+    ],
+    "started_at": "2026-10-08T14:09:41.638085+00:00",
+    "complete": true,
+    "returncode": 0,
+    "seconds": 556.0052958750166,
+    "head_unchanged": true,
+    "source_clean": true,
+    "stdout_sha256": "9bc5bf84a713fff0f67f73b549362efe05546e035fb9ee807cd5fc8555b59140",
+    "stderr_sha256": "867273a297e53a135e3b538408770fcf1167b2e699fcf3f82538aa4f3ce11f39"
+  },
+  "tests_run": 2659,
+  "skipped": 0,
+  "source_gate": {
+    "head": "f5115b2f004e1710d8f1fe1d778ac76e50f949de",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "artifact/source_results_assembler.py",
+      "ci-source-gate",
+      "--profile",
+      "sdk-020",
+      "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+      "f5115b2f004e1710d8f1fe1d778ac76e50f949de"
+    ],
+    "returncode": 0,
+    "seconds": 14.095335459103808,
+    "source_clean": true,
+    "head_unchanged": true,
+    "artifact_tree_unchanged_from_full_tests": true,
+    "stdout_sha256": "ba88514560baedb858d33265f12fda3a93bf1a11ae2d8ac0fd79979889955e06",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "preserved_prior_codeql": {
+    "checked_at": "2026-10-08T14:24:10.225759+00:00",
+    "run": 37778711563,
+    "job": 113316063560,
+    "head": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "required_steps": [
+      "Analyze",
+      "Verify Rust CodeQL checkout after analysis",
+      "Verify Rust CodeQL database quality",
+      "Upload quality-gated Rust CodeQL results",
+      "Post Analyze",
+      "Post Initialize CodeQL"
+    ],
+    "conclusion": "success",
+    "artifact_id": 11556178682,
+    "artifact_sha256": "sha256:a51ec293b4d89efe8fdb1f018a5cfe1c6410b5af34eb50f8544fcb7855d83fd7",
+    "artifact_bytes": 475351461,
+    "remote_retained": true,
+    "downloaded": false,
+    "new_sarif_disposition_complete": false
+  },
+  "scope": "Artifact tree unchanged between full-test acac92b0 and gate f5115b2f; subsequent source gates retain their own commit. Prior 33ca CodeQL does not qualify later changes.",
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:25:19.112296+00:00",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 76993,
+    "sha256": "0547b63dea95f9efef3d39a8e4ff47229bcc1abc6f8f5a5bb80fc5d776da4c05",
+    "members": 16
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

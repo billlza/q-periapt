@@ -1,0 +1,13 @@
+
+running 2 tests
+test independent_c_configuration_creates_and_resumes_original_identity ... FAILED
+test independent_c_required_witness_registration_uses_original_host_trust ... FAILED
+
+failures:
+
+failures:
+    independent_c_configuration_creates_and_resumes_original_identity
+    independent_c_required_witness_registration_uses_original_host_trust
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.07s
+

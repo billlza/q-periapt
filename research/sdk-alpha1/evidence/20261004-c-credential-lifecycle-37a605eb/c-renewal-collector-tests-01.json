@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "-m",
+    "unittest",
+    "test_continuity_c_enrollment",
+    "test_continuity_c_consumer"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration/artifact",
+  "exit": 0,
+  "seconds": 2.279671165975742,
+  "source_hashes": {
+    "continuity_c_consumer.py": "61dc687057de0324f8ef0cda70735e1ac0240084eb40b0f768a6bd04bf79a0f3",
+    "continuity_c_enrollment.py": "fbb591049d3010764cfd9a62c384eef1e262dceeeb047571719ceabd55865155",
+    "test_continuity_c_enrollment.py": "35416a39d0e975dae19dcfa6d58800c4c7518f4eee07dfba4dc650c82fee3295",
+    "test_continuity_c_consumer.py": "d7f394d012c4ccd9783e50c1630e51244a26bbbb29092b2982887c046bfa6755"
+  },
+  "scope": "collector parser controls, not installed package execution"
+}

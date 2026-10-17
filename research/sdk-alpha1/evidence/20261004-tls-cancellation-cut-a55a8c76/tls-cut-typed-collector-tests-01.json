@@ -1,0 +1,16 @@
+{
+  "completed": true,
+  "returncode": 0,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-c",
+    "import unittest; unittest.main(module=None, argv=[\"unittest\", \"-v\", \"test_continuity_c_consumer\", \"test_continuity_package\", \"test_continuity_witnessed_cancellation\"], warnings=\"error\")"
+  ],
+  "seconds": 7.098471457953565,
+  "log_sha256": "d8d8d272b5d2d33bccde791587b4e59f50258d751480e9e21c9e3940ba266d2f",
+  "summary": [
+    "Ran 31 tests in 6.395s"
+  ],
+  "scope": "Synthetic collector and package/source cohort checks; not signatures or release qualification"
+}

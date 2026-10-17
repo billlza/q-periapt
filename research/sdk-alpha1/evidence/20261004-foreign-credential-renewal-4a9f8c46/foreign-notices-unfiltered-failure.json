@@ -1,0 +1,7 @@
+{
+  "completed": false,
+  "failure": "dependency has no distributable license text: r-efi 6.0.0",
+  "cause": "Unfiltered Cargo metadata included non-macOS dependency graph; use target-filtered metadata as existing package collector does",
+  "partial_output": "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/foreign-native-notices-unfiltered",
+  "replacement_metadata": "archive-c-platform-metadata-01.stdout"
+}

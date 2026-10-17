@@ -1,0 +1,12 @@
+{
+  "actual_process_cuts": 4,
+  "capture_sha256": "d53ccb1707abfcc51a773354c6fed8c97c6e3aabcc1fad3eab74f52898e923c0",
+  "completed": true,
+  "members": 3025,
+  "original_producer_failure_preserved": true,
+  "phase_census_review_completed": true,
+  "physical_process_census": 90,
+  "private_exclusion_method": "explicit public file selection; no private runtime reopened",
+  "private_keys_excluded": true,
+  "public_readers": 4
+}

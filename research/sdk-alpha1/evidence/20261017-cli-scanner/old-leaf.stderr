@@ -1,0 +1,4 @@
+
+thread 'main' (19169830) panicked at /Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-codeql-9c65-terminal-20261016/cli-scan-races-347/reader_boundary.rs:59:5:
+scanner followed a replacement outside the admitted tree
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

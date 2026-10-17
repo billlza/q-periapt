@@ -1,0 +1,18 @@
+[
+  {
+    "case": "policy",
+    "returncode": -6
+  },
+  {
+    "case": "keypair",
+    "returncode": -11
+  },
+  {
+    "case": "encapsulate",
+    "returncode": -11
+  },
+  {
+    "case": "decapsulate",
+    "returncode": -11
+  }
+]

@@ -1,0 +1,76 @@
+{
+  "run": 37238025840,
+  "source": "5ab0698d2b101d74fbd4424e2347017119df4fa7",
+  "arms": {
+    "android-apk-transport-uninstalled-pipe-copy-1": {
+      "artifact_id": 11315938282,
+      "zip_sha256": "d6cc5ce617d0a847f9d38876daa56e060652343f6c76a752408216f9f5376330",
+      "status": "observations_completed",
+      "completed": 24,
+      "copies": 24,
+      "short": [],
+      "preflight_verified": true,
+      "guest_fatal_signature_captured": false
+    },
+    "android-apk-transport-uninstalled-pipe-copy-2": {
+      "artifact_id": 11316626947,
+      "zip_sha256": "e8025306b5a88284db103debbd61843e4130ad915c79ca661cc2e48fad032eec",
+      "status": "observation_failed",
+      "completed": 9,
+      "copies": 10,
+      "short": [
+        {
+          "label": "sample-10-copy",
+          "returncode": 0,
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_bytes": 0,
+          "wall_time_ns": 1791151122886443832
+        }
+      ],
+      "preflight_verified": true,
+      "guest_fatal_signature_captured": false
+    },
+    "android-apk-transport-uninstalled-shell-copy-1": {
+      "artifact_id": 11315898285,
+      "zip_sha256": "8332780728c42ec3b111789226c881134dd19ad1b9c6b718b8dcd898b668de12",
+      "status": "observation_failed",
+      "completed": 16,
+      "copies": 17,
+      "short": [
+        {
+          "label": "sample-17-copy",
+          "returncode": 255,
+          "bytes": 4096,
+          "sha256": "4ad6bae6fa54a158ac20ba13b8c3648e3f71b6c3533f046098f79e2707e985d9",
+          "stderr_bytes": 0,
+          "wall_time_ns": 1791151137003870402
+        }
+      ],
+      "preflight_verified": true,
+      "guest_fatal_signature_captured": false
+    },
+    "android-apk-transport-uninstalled-shell-copy-2": {
+      "artifact_id": 11316293252,
+      "zip_sha256": "1a3a90b83892391a4a256722d779c3978100e73fc615d05adb05951ba91ac820",
+      "status": "observations_completed",
+      "completed": 24,
+      "copies": 24,
+      "short": [],
+      "preflight_verified": true,
+      "guest_fatal_signature_captured": false
+    }
+  },
+  "release_claim_eligible": false,
+  "completed": true,
+  "attempts": 75,
+  "exact_copies": 73,
+  "observed": "Both rawexec-out andshell_v2 disconnected in one of two finite trials. Raw0-bytecopyreturned0; shell_v24096-bytecopyreturned255. Actualshell-v2completion signaledfailure but didnotrepairdisconnect. Bothsuccessarmscompleted24exactcopies.",
+  "not_proven": [
+    "Underlyingtransport/guestcause",
+    "Statisticalstability orrelativefailurefrequency",
+    "Allguestcrashbuffers/tails captured",
+    "SamecauseaspreinstallframeworkSIGSEGV orpriorClassCastException",
+    "InstalledSDKqualification"
+  ]
+}

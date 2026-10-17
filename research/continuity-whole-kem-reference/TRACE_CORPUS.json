@@ -1,0 +1,2632 @@
+{
+  "schema": 1,
+  "construction": "experimental_whole_kem_v1",
+  "profiles": [
+    {
+      "profile": 1,
+      "traces": [
+        {
+          "scenario": "ping_pong",
+          "trace_sha256": "f2e079ea6571c13b66119fab7577daa03ddde1624a2f853b181541f3da454856",
+          "summary": {
+            "event": "summary",
+            "scenario": "ping_pong",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1678660,
+            "peak_wire_bytes": 1225,
+            "peak_serialized_state_bytes": 3828,
+            "final_a": {
+              "bytes": 278,
+              "confirmed_epoch": 683,
+              "known_epoch": 683,
+              "phase": 4,
+              "receive_epoch": 682,
+              "send_epoch": 683,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1403,
+              "confirmed_epoch": 682,
+              "known_epoch": 683,
+              "phase": 3,
+              "receive_epoch": 682,
+              "send_epoch": 682,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "lossy",
+          "trace_sha256": "a29da2d6ae9a26b543e5ac9650e6ed0bb6b801181d53f77479b7b42223d457f8",
+          "summary": {
+            "event": "summary",
+            "scenario": "lossy",
+            "sent": 2048,
+            "delivered": 1843,
+            "dropped": 205,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1678468,
+            "peak_wire_bytes": 1225,
+            "peak_serialized_state_bytes": 14796,
+            "final_a": {
+              "bytes": 232,
+              "confirmed_epoch": 546,
+              "known_epoch": 546,
+              "phase": 0,
+              "receive_epoch": 546,
+              "send_epoch": 546,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 11288,
+              "confirmed_epoch": 546,
+              "known_epoch": 546,
+              "phase": 4,
+              "receive_epoch": 545,
+              "send_epoch": 546,
+              "skipped_keys": 205
+            }
+          }
+        },
+        {
+          "scenario": "reordered",
+          "trace_sha256": "a1ce197a4df7014c1605b257d74fd1074b7352a149b8212f3ec9e764ff633965",
+          "summary": {
+            "event": "summary",
+            "scenario": "reordered",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1675261,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3900,
+            "final_a": {
+              "bytes": 1395,
+              "confirmed_epoch": 97,
+              "known_epoch": 98,
+              "phase": 3,
+              "receive_epoch": 97,
+              "send_epoch": 97,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 274,
+              "confirmed_epoch": 98,
+              "known_epoch": 98,
+              "phase": 4,
+              "receive_epoch": 97,
+              "send_epoch": 98,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "duplicates",
+          "trace_sha256": "a6de67b2ecd66b4315997a78568208456ab10ea5464a0ac5f291d420a88c56a1",
+          "summary": {
+            "event": "summary",
+            "scenario": "duplicates",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 158,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1678660,
+            "peak_wire_bytes": 1225,
+            "peak_serialized_state_bytes": 3828,
+            "final_a": {
+              "bytes": 278,
+              "confirmed_epoch": 683,
+              "known_epoch": 683,
+              "phase": 4,
+              "receive_epoch": 682,
+              "send_epoch": 683,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1403,
+              "confirmed_epoch": 682,
+              "known_epoch": 683,
+              "phase": 3,
+              "receive_epoch": 682,
+              "send_epoch": 682,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "asymmetric",
+          "trace_sha256": "3d26b3013c52dc19699f6db5f9535cd5eeed95ccc2fe12e8b6ce4821ba788d37",
+          "summary": {
+            "event": "summary",
+            "scenario": "asymmetric",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1678092,
+            "peak_wire_bytes": 1225,
+            "peak_serialized_state_bytes": 3828,
+            "final_a": {
+              "bytes": 3826,
+              "confirmed_epoch": 136,
+              "known_epoch": 136,
+              "phase": 1,
+              "receive_epoch": 136,
+              "send_epoch": 136,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1425,
+              "confirmed_epoch": 136,
+              "known_epoch": 136,
+              "phase": 2,
+              "receive_epoch": 136,
+              "send_epoch": 136,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "trace_sha256": "960e9d74f7ec3338509aee0477fa3cdd69597ad0d09a475352ee0932c75bc63e",
+          "summary": {
+            "event": "summary",
+            "scenario": "offline_then_exchange",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 1781704,
+            "peak_wire_bytes": 1225,
+            "peak_serialized_state_bytes": 3828,
+            "final_a": {
+              "bytes": 1423,
+              "confirmed_epoch": 597,
+              "known_epoch": 597,
+              "phase": 2,
+              "receive_epoch": 597,
+              "send_epoch": 597,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 3828,
+              "confirmed_epoch": 597,
+              "known_epoch": 597,
+              "phase": 1,
+              "receive_epoch": 597,
+              "send_epoch": 597,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "one_way",
+          "trace_sha256": "acba5466bb332a931e81d73e58ada281eb3779511974f3e2720672a2a1fe915d",
+          "summary": {
+            "event": "summary",
+            "scenario": "one_way",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 2506625,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3738,
+            "final_a": {
+              "bytes": 3738,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 1,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1337,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 2,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            }
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "scenario": "ping_pong",
+          "sha256": "c19cf0dbf365be090efa4d3d4725f536c8fec2db48ce188e961a7b8d2f54ce5d",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 2043,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 2037,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2040,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1983,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1983,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1791,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1791,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1023,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1023,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "lossy",
+          "sha256": "ecaa7674afcc3123b4983f635482c51908e19b09d63aa16828c638128d4b554e",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 6,
+              "not_derived": 2041,
+              "derived_from_pending_epoch": 5
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 3,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 6,
+              "not_derived": 1787,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 1021,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 4,
+              "not_derived": 1021,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "reordered",
+          "sha256": "78be11deafd5cef82bccb88f579bdd66c9f0d33e53c894174bc5a784dfe70eb9",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 37,
+              "not_derived": 2010,
+              "derived_from_pending_epoch": 21
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 16,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 31,
+              "not_derived": 2010,
+              "derived_from_pending_epoch": 21
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 17,
+              "not_derived": 1968,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 17,
+              "not_derived": 1968,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 35,
+              "not_derived": 1758,
+              "derived_from_pending_epoch": 21
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 14,
+              "not_derived": 1779,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 23,
+              "not_derived": 1002,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 23,
+              "not_derived": 1002,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "duplicates",
+          "sha256": "5eafcf905bdc927afb80f08df0bf3826505586dc6268ae50c68d0a2eeb4f6d71",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 2043,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 2037,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2040,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1983,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1983,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1791,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1791,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 1023,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 1023,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "asymmetric",
+          "sha256": "7157f33fcf005b7c6a23f3cd4ebe606662198847889271d1f49e1f12fe4d3b97",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 28,
+              "not_derived": 2019,
+              "derived_from_pending_epoch": 19
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 9,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 22,
+              "not_derived": 2019,
+              "derived_from_pending_epoch": 19
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 26,
+              "not_derived": 1959,
+              "derived_from_pending_epoch": 19
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 7,
+              "not_derived": 1978,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 14,
+              "not_derived": 1779,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 14,
+              "not_derived": 1779,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 26,
+              "not_derived": 999,
+              "derived_from_pending_epoch": 19
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 7,
+              "not_derived": 1018,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "sha256": "e59df6710ee5ee4d0a9699e350072fbc8ce52e18965da55cca3f51eb10ba13c3",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 260,
+              "not_derived": 1787,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 257,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 254,
+              "not_derived": 1787,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 251,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 198,
+              "not_derived": 1787,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 195,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 6,
+              "not_derived": 1787,
+              "derived_from_pending_epoch": 3
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 3,
+              "not_derived": 1022,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 1022,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "one_way",
+          "sha256": "9dfdca6386171720f8695d542beab21652e2581c996c12d811faec070a04248a",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "profile": 32,
+      "traces": [
+        {
+          "scenario": "ping_pong",
+          "trace_sha256": "4be0742f683b934933c638a2f1cfbda133317f0ce3aa6ee8999ce78dcc7bf6be",
+          "summary": {
+            "event": "summary",
+            "scenario": "ping_pong",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 90208,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3825,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 0,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 4,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "lossy",
+          "trace_sha256": "cdda201604dc1ab5b9d67ffc28bc28cd0cad280d9efe3ba6838fd75e5bfbf1b1",
+          "summary": {
+            "event": "summary",
+            "scenario": "lossy",
+            "sent": 2048,
+            "delivered": 1843,
+            "dropped": 205,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 90208,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 11944,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 0,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 8522,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 4,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 205
+            }
+          }
+        },
+        {
+          "scenario": "reordered",
+          "trace_sha256": "6abf465ab68f5529ff93cceaa3f16a58348af251c418552cbc5566b7b6e183d7",
+          "summary": {
+            "event": "summary",
+            "scenario": "reordered",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 79723,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3940,
+            "final_a": {
+              "bytes": 233,
+              "confirmed_epoch": 27,
+              "known_epoch": 27,
+              "phase": 4,
+              "receive_epoch": 27,
+              "send_epoch": 27,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 233,
+              "confirmed_epoch": 27,
+              "known_epoch": 27,
+              "phase": 0,
+              "receive_epoch": 27,
+              "send_epoch": 27,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "duplicates",
+          "trace_sha256": "768a5f1f2c29ed37b3a4b971ffb034a9cabb067e04fe64d19501a08de463d9c6",
+          "summary": {
+            "event": "summary",
+            "scenario": "duplicates",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 158,
+            "unique_message_keys": 2048,
+            "wire_bytes": 90208,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3825,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 0,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 32,
+              "known_epoch": 32,
+              "phase": 4,
+              "receive_epoch": 32,
+              "send_epoch": 32,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "asymmetric",
+          "trace_sha256": "af5b7c24782bc7c5cb483177d95b50f4d493fa2e2c225cf0b5cc2dfb223c1de8",
+          "summary": {
+            "event": "summary",
+            "scenario": "asymmetric",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 43071,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3826,
+            "final_a": {
+              "bytes": 234,
+              "confirmed_epoch": 11,
+              "known_epoch": 11,
+              "phase": 4,
+              "receive_epoch": 11,
+              "send_epoch": 11,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 234,
+              "confirmed_epoch": 11,
+              "known_epoch": 11,
+              "phase": 0,
+              "receive_epoch": 11,
+              "send_epoch": 11,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "trace_sha256": "acbc32835b14495605b4e3d5d58825e9078737b16fc0e66e3761b539694e609f",
+          "summary": {
+            "event": "summary",
+            "scenario": "offline_then_exchange",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 90367,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3826,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 28,
+              "known_epoch": 28,
+              "phase": 0,
+              "receive_epoch": 28,
+              "send_epoch": 28,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 28,
+              "known_epoch": 28,
+              "phase": 4,
+              "receive_epoch": 28,
+              "send_epoch": 28,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "one_way",
+          "trace_sha256": "897d1f3842317fd4e56eb24aa13aa41063c9ce4b6bc97bd72f69e6ebe739be46",
+          "summary": {
+            "event": "summary",
+            "scenario": "one_way",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 92097,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3740,
+            "final_a": {
+              "bytes": 3738,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 1,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1337,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 2,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            }
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "scenario": "ping_pong",
+          "sha256": "f9b0eeeca82d75110740b1ed63bfaba29b1a1993af72220f11e8801b9a5cd8ea",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 66,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "lossy",
+          "sha256": "4ae8162c5f9eed2b5f8966f2baddc95c0a90bc1f210005bdf8a65e4791c4c522",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 66,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "reordered",
+          "sha256": "d218e8c80885d0fc980279637e6b85da135cb61d495c8f981122a4113716fe2b",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 93,
+              "not_derived": 1954,
+              "derived_from_pending_epoch": 77
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 16,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 87,
+              "not_derived": 1954,
+              "derived_from_pending_epoch": 77
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 31,
+              "not_derived": 1954,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 31,
+              "not_derived": 1954,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 70,
+              "not_derived": 1723,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 70,
+              "not_derived": 1723,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 72,
+              "not_derived": 953,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 72,
+              "not_derived": 953,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "duplicates",
+          "sha256": "b583644221e024ddf18cfc2f67ffea85dcaa7868ded52c58b6ad5990f24863e4",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 66,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 60,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 4,
+              "not_derived": 1981,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 7,
+              "not_derived": 1786,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 19,
+              "not_derived": 1006,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "asymmetric",
+          "sha256": "7c644f9ddafcba6a895ca7dec6a8aaf72e3822ec0aa7dfb3686e7fb7d4217d18",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 338,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 329
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 9,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 332,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 329
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 276,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 276,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 84,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 84,
+              "not_derived": 1709,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 56,
+              "not_derived": 969,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 56,
+              "not_derived": 969,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "sha256": "c9ec52a4daa9649d7bdd58f98c4dfef978fcbbb7e6c8aba877d05c2d2087179a",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 322,
+              "not_derived": 1725,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 257,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 316,
+              "not_derived": 1725,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 251,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 260,
+              "not_derived": 1725,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 195,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 68,
+              "not_derived": 1725,
+              "derived_from_pending_epoch": 65
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 15,
+              "not_derived": 1010,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 15,
+              "not_derived": 1010,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "one_way",
+          "sha256": "6a4d6b41ecb291d6ea36552829b6ed11fec8e9c698011ef70d875212d66b52e9",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "profile": 64,
+      "traces": [
+        {
+          "scenario": "ping_pong",
+          "trace_sha256": "f01d1142881d15994e57555e22d991c3e49de8110f9a399bc25258e907cd291d",
+          "summary": {
+            "event": "summary",
+            "scenario": "ping_pong",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 51248,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3825,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 16,
+              "known_epoch": 16,
+              "phase": 0,
+              "receive_epoch": 16,
+              "send_epoch": 16,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 16,
+              "known_epoch": 16,
+              "phase": 4,
+              "receive_epoch": 16,
+              "send_epoch": 16,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "lossy",
+          "trace_sha256": "133fa5185b4f53fdf486bd8a78d54703a561dc2f524cbd62d0248c8d9f9e6c22",
+          "summary": {
+            "event": "summary",
+            "scenario": "lossy",
+            "sent": 2048,
+            "delivered": 1843,
+            "dropped": 205,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 48168,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 10338,
+            "final_a": {
+              "bytes": 279,
+              "confirmed_epoch": 13,
+              "known_epoch": 13,
+              "phase": 4,
+              "receive_epoch": 12,
+              "send_epoch": 13,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 9348,
+              "confirmed_epoch": 12,
+              "known_epoch": 13,
+              "phase": 3,
+              "receive_epoch": 13,
+              "send_epoch": 12,
+              "skipped_keys": 205
+            }
+          }
+        },
+        {
+          "scenario": "reordered",
+          "trace_sha256": "a51907cab50069446fd20c8c31512177c903f72330348fe2d35c99b3df0314b4",
+          "summary": {
+            "event": "summary",
+            "scenario": "reordered",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 47223,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3940,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 14,
+              "known_epoch": 14,
+              "phase": 0,
+              "receive_epoch": 14,
+              "send_epoch": 14,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 14,
+              "known_epoch": 14,
+              "phase": 4,
+              "receive_epoch": 14,
+              "send_epoch": 14,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "duplicates",
+          "trace_sha256": "4e7cac9d7dbb1f66a7c98478951357c8823ba53d5d8a668fc8433c0c7990ef46",
+          "summary": {
+            "event": "summary",
+            "scenario": "duplicates",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 158,
+            "unique_message_keys": 2048,
+            "wire_bytes": 51248,
+            "peak_wire_bytes": 1223,
+            "peak_serialized_state_bytes": 3825,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 16,
+              "known_epoch": 16,
+              "phase": 0,
+              "receive_epoch": 16,
+              "send_epoch": 16,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 16,
+              "known_epoch": 16,
+              "phase": 4,
+              "receive_epoch": 16,
+              "send_epoch": 16,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "asymmetric",
+          "trace_sha256": "727711b9f5897ad9e297fe8abf8ede7ac6f253e953064baba5df6be4381bc121",
+          "summary": {
+            "event": "summary",
+            "scenario": "asymmetric",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 27477,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3826,
+            "final_a": {
+              "bytes": 234,
+              "confirmed_epoch": 5,
+              "known_epoch": 5,
+              "phase": 4,
+              "receive_epoch": 5,
+              "send_epoch": 5,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 234,
+              "confirmed_epoch": 5,
+              "known_epoch": 5,
+              "phase": 0,
+              "receive_epoch": 5,
+              "send_epoch": 5,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "trace_sha256": "0b9e09b3a0631c366ea8a367d07cc96f9ee2faf36bd2fdcf4c94555adcc0ac37",
+          "summary": {
+            "event": "summary",
+            "scenario": "offline_then_exchange",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 51441,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3826,
+            "final_a": {
+              "bytes": 231,
+              "confirmed_epoch": 14,
+              "known_epoch": 14,
+              "phase": 0,
+              "receive_epoch": 14,
+              "send_epoch": 14,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 235,
+              "confirmed_epoch": 14,
+              "known_epoch": 14,
+              "phase": 4,
+              "receive_epoch": 14,
+              "send_epoch": 14,
+              "skipped_keys": 0
+            }
+          }
+        },
+        {
+          "scenario": "one_way",
+          "trace_sha256": "8eb28b734ee0aa7089f7e9e307c8f7416c812be4a0589c1f54f4e8142e7dc055",
+          "summary": {
+            "event": "summary",
+            "scenario": "one_way",
+            "sent": 2048,
+            "delivered": 2048,
+            "dropped": 0,
+            "duplicates_rejected": 0,
+            "unique_message_keys": 2048,
+            "wire_bytes": 53153,
+            "peak_wire_bytes": 1224,
+            "peak_serialized_state_bytes": 3740,
+            "final_a": {
+              "bytes": 3738,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 1,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            },
+            "final_b": {
+              "bytes": 1337,
+              "confirmed_epoch": 0,
+              "known_epoch": 0,
+              "phase": 2,
+              "receive_epoch": 0,
+              "send_epoch": 0,
+              "skipped_keys": 0
+            }
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "scenario": "ping_pong",
+          "sha256": "fd0e2d451788a356bfb8146b4ed1607563ea4eeda2c8b57647c8bd9407d27336",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 130,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 11,
+              "not_derived": 1014,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 11,
+              "not_derived": 1014,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "lossy",
+          "sha256": "d029e8bdcf744bec22e9801e4ae65de199eb983da3091370788b6f3c061f35b3",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 130,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 138,
+              "not_derived": 887,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 138,
+              "not_derived": 887,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "reordered",
+          "sha256": "943ada83d84c7de6e68f73501b0048c1f4f23744d5340ea458a681fd90b3bac8",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 17,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 163,
+              "not_derived": 1884,
+              "derived_from_pending_epoch": 147
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 16,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 157,
+              "not_derived": 1884,
+              "derived_from_pending_epoch": 147
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2031,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 101,
+              "not_derived": 1884,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 101,
+              "not_derived": 1884,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 56,
+              "not_derived": 1737,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 56,
+              "not_derived": 1737,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 23,
+              "not_derived": 1002,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 23,
+              "not_derived": 1002,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "duplicates",
+          "sha256": "ca0fb13ac6a596fc5b6800f75727dea7e2e8754e9f05d586e597b29f81e0bae7",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 130,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 1,
+              "not_derived": 2046,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 124,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 68,
+              "not_derived": 1917,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 5,
+              "not_derived": 1788,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 11,
+              "not_derived": 1014,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 11,
+              "not_derived": 1014,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "asymmetric",
+          "sha256": "24f7ef8802455c78ad51e43c036a4471fed3ca8746561d6a38d8eda4102b9c02",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 10,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 658,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 649
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 9,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 652,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 649
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 2038,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 596,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 596,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 404,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 404,
+              "not_derived": 1389,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 366,
+              "not_derived": 659,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 366,
+              "not_derived": 659,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "offline_then_exchange",
+          "sha256": "17cfbe3ec93cdcdb30c9bbb1b12cef0c525f6bb20a0f75e12958c62658a2831a",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 258,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 386,
+              "not_derived": 1661,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 257,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 380,
+              "not_derived": 1661,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 251,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 324,
+              "not_derived": 1661,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 195,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 132,
+              "not_derived": 1661,
+              "derived_from_pending_epoch": 129
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 3,
+              "not_derived": 1790,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 9,
+              "not_derived": 1016,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 9,
+              "not_derived": 1016,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        },
+        {
+          "scenario": "one_way",
+          "sha256": "9021beb013455e88587bf8c7c6162dd8cb0f2156c4cfbb51c204522a2f3cf83e",
+          "cases": [
+            {
+              "cut_before_send": 0,
+              "owner": 0,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 0,
+              "owner": 1,
+              "derived": 2048,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 0,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1,
+              "owner": 1,
+              "derived": 2047,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 0,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 7,
+              "owner": 1,
+              "derived": 2041,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 0,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 63,
+              "owner": 1,
+              "derived": 1985,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 0,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 255,
+              "owner": 1,
+              "derived": 1793,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 0,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            },
+            {
+              "cut_before_send": 1023,
+              "owner": 1,
+              "derived": 1025,
+              "not_derived": 0,
+              "derived_from_pending_epoch": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "production_claim_eligible": false
+}

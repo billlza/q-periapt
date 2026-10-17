@@ -1,0 +1,76 @@
+{
+  "source_head": "e0e1dee0ba19e9c1e177d30e7ae16ef0d87f3f25",
+  "source_sha256": "956b5d37a7f43510419d04bdb397e6feac294f4fbce1b92c2b3091ef30b1ed3e",
+  "helper_sha256": "a6c1c13088f93e6660aacaeaf06acc7b26baede4ff37682950761917fa7b1b0c",
+  "client_sha256": "2b6542c6f39bd4a06c03e44cbc1119c79bf7f6f5b1aba79e1779fbd36de7e835",
+  "inherited_private_fixture_directory": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qpc-configuration-env-5ku_bh_0/previous-connection",
+  "expected": "passed",
+  "observed": "passed",
+  "completed": true,
+  "execution": {
+    "completed": true,
+    "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+    "language": "C",
+    "release_claim_eligible": false,
+    "scenarios": [
+      "local-fixed",
+      "local-recoverable",
+      "signed-fixed",
+      "signed-recoverable",
+      "tls-fixed",
+      "tls-recoverable"
+    ],
+    "public_readbacks": {
+      "local-fixed/intent.bin": "21721f65780455a5fc58e2e63e0db426721777770f49bf8e33a90fb452399be2",
+      "local-fixed/root.bin": "8be9efb68e63dfea735446f166ad4cdfa43afa815bb4cbfc9a953f8eea64c4c6",
+      "local-fixed/replayed.bin": "07cd2a22e64ea5eba775b170f54934af7e2a0dfedc2c407e60e0f2c697979465",
+      "local-fixed/request.bin": "07cd2a22e64ea5eba775b170f54934af7e2a0dfedc2c407e60e0f2c697979465",
+      "local-fixed/manifest.json": "28a30bb99c6866bacbec12678da573333fecfabccb46e3c45a4671a905b6e665",
+      "local-recoverable/intent.bin": "21721f65780455a5fc58e2e63e0db426721777770f49bf8e33a90fb452399be2",
+      "local-recoverable/root.bin": "3eed5b7829f2c9066965e448020a6b2b011007e5bdf98ffc5f8cbe7ec26be1ee",
+      "local-recoverable/replayed.bin": "f53616730754a1f026fcd91069aba83e5297080a9e63ceb8b4739cd98b8bdebd",
+      "local-recoverable/request.bin": "f53616730754a1f026fcd91069aba83e5297080a9e63ceb8b4739cd98b8bdebd",
+      "local-recoverable/manifest.json": "4154ec3cb57cf2e43ff710e94f3b9035753fb60d42240d0042e0556b4bfc02ed",
+      "signed-fixed/intent.bin": "edd3ab08bafdd91efd3b66de0cca685cf44cfa236e78600b12d9c0f8c6ea5275",
+      "signed-fixed/root.bin": "125af0294cc0be028636dd2ff39a418d44a3c516e1313a6af6a5e6dacfedffe4",
+      "signed-fixed/replayed.bin": "c623cc214419eb83325e4e9bba4cdb179a9a7fd7ea3a81c326e7c5809e126089",
+      "signed-fixed/genesis.bin": "20610ecdcd18d47416a44ba634cf3cb72041f251e92d6db7dc5008d8a0c7dcee",
+      "signed-fixed/request.bin": "c623cc214419eb83325e4e9bba4cdb179a9a7fd7ea3a81c326e7c5809e126089",
+      "signed-fixed/manifest.json": "682ea14765b18fdbac6922701ebaa98485d4f5e956343c92a34b3ac79bc7876a",
+      "signed-recoverable/intent.bin": "ace9fedec2c23ec5f3613a066aa4f1d437de6432a480a82a716fca2871ba7337",
+      "signed-recoverable/root.bin": "12e941fc0fd1539d65968141f1a3c0479ee394b6895f73d3f4aec51982d93db9",
+      "signed-recoverable/replayed.bin": "5cd80c59555a2a1fae6711518e2c8bfa3a981abf6db96c77eea35115816ec638",
+      "signed-recoverable/genesis.bin": "02a22a5b456911c896e3d218c6986f07d38f2e708d115c02788ec793c022c071",
+      "signed-recoverable/request.bin": "5cd80c59555a2a1fae6711518e2c8bfa3a981abf6db96c77eea35115816ec638",
+      "signed-recoverable/manifest.json": "c5efa1552b1b58669e561ffaa3fec8228e4b7d1a7ff7b3d14ca7db6179153b4d",
+      "tls-fixed/intent.bin": "3c72359bebeaa05557f84e67ea419eba54daabd08648e9f6ff38acfc271e5a77",
+      "tls-fixed/root.bin": "a80dc6bcde1ee9f82a3a49555a7bd5630a27aac8d5e4b32364c421994b71c0e3",
+      "tls-fixed/replayed.bin": "aadb47565e68e4fe63ad920e1b5e820e2d1278b83a8906cac181deb06c7e0697",
+      "tls-fixed/genesis.bin": "475df3e463dd92001bb3dcacf560caf034575dd2dbc656509d77287d603e09fe",
+      "tls-fixed/request.bin": "aadb47565e68e4fe63ad920e1b5e820e2d1278b83a8906cac181deb06c7e0697",
+      "tls-fixed/manifest.json": "8bab73d33333406af6b481ddf8bb252626694294012f8bc7696c376571c12dd9",
+      "tls-recoverable/intent.bin": "090b1c4647002babe2ff4cb81779d37d3da2432bca6992442ca216ed66185a4d",
+      "tls-recoverable/root.bin": "bfba153158df81cf47a4338e59239bffd3c81dc31e7adba4b8b2283ba2be6d5c",
+      "tls-recoverable/replayed.bin": "053c610df57c3c3c1e43e8df5cd625227cbae17f54a5536b8ee9f85c714253c5",
+      "tls-recoverable/genesis.bin": "8cafc82a8561428a88ca9df13a8f300a95091de1e54b5b66aa760e6bf3e5ca33",
+      "tls-recoverable/request.bin": "053c610df57c3c3c1e43e8df5cd625227cbae17f54a5536b8ee9f85c714253c5",
+      "tls-recoverable/manifest.json": "b0e3b7e3e3b6784b1c5ff9be9bc5bf85ff80d89032f911817683c522edb62d27"
+    },
+    "extra_owner_cases": false,
+    "signature_verification": "shared native execution only",
+    "binaries": {
+      "helper": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/consumer-build/debug/deps/first_configuration-baf6d1122fd72be9",
+        "sha256": "a6c1c13088f93e6660aacaeaf06acc7b26baede4ff37682950761917fa7b1b0c",
+        "bytes": 13743352
+      },
+      "client": {
+        "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-integrated-configuration-2byey9k2/native/qpc-first-configuration-client",
+        "sha256": "2b6542c6f39bd4a06c03e44cbc1119c79bf7f6f5b1aba79e1779fbd36de7e835",
+        "bytes": 36704
+      }
+    },
+    "collector": null
+  },
+  "seconds": 15.586039667017758
+}

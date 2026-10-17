@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/Users/bill/Library/Android/sdk/build-tools/36.0.0/zipalign",
+    "-c",
+    "-P",
+    "16",
+    "4",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-root-device-v2/consumer.apk"
+  ],
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "APK_16KiB_alignment": true
+}

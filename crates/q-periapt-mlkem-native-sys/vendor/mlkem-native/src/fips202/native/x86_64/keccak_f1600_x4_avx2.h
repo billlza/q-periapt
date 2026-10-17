@@ -11,7 +11,7 @@
 #define MLK_FIPS202_X86_64_NEED_X4_AVX2
 
 /* Part of backend API */
-#define MLK_USE_FIPS202_X4_NATIVE
+#define MLK_USE_NATIVE_FIPS202_X4
 
 #if !defined(__ASSEMBLER__)
 #include "../api.h"
@@ -19,7 +19,7 @@
 MLK_MUST_CHECK_RETURN_VALUE
 static MLK_INLINE int mlk_keccak_f1600_x4_native(uint64_t *state)
 {
-  if (!mlk_sys_check_capability(MLK_SYS_CAP_AVX2))
+  if (!mlk_sys_check_capability(MLK_SYS_CAP_X86_64_AVX2))
   {
     return MLK_NATIVE_FUNC_FALLBACK;
   }

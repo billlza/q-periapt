@@ -1,0 +1,64 @@
+{
+  "base_head": "8b18dc36b0c0c4163f04936191fb3ba2ecf3eb4d",
+  "scope": "Continuation of the user-requested maintainability review; selected function boundaries and source identity only. No end-to-end performance claim.",
+  "unchanged_selected_files": [
+    {
+      "file": "artifact/continuity_c_consumer.py",
+      "sha256": "9dbbdf27d58ed3fac52984cc306fd4fe45ff66c66d70fa5383a83415e4d9144e",
+      "unchanged_from_previous_scoped_audit": true,
+      "current_file_lines": 813
+    },
+    {
+      "file": "artifact/continuity_kotlin_consumer.py",
+      "sha256": "018b2bc8141777708370c8ddd8d5b3d8cb3a79ad7422430d37185c88ac21e369",
+      "unchanged_from_previous_scoped_audit": true,
+      "current_file_lines": 789
+    },
+    {
+      "file": "artifact/rust_publish_contract.py",
+      "sha256": "42f1385fba51fcf8fab1b922eebd53d15193b3001dc3c799547aee718249b06f",
+      "unchanged_from_previous_scoped_audit": true,
+      "current_file_lines": 3703
+    },
+    {
+      "file": "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt",
+      "sha256": "156eb901e43408b5fd73655cbeb381322e929c2034cf969ece28beb49809b41e",
+      "unchanged_from_previous_scoped_audit": true,
+      "current_file_lines": 1631
+    },
+    {
+      "file": "research/continuity-identity-candidate/src/enrollment.rs",
+      "sha256": "61c005104af2aa5b038fd061538ae70365e5cf190dd1c0bed27cb0fc74ea9d18",
+      "unchanged_from_previous_scoped_audit": true,
+      "current_file_lines": 1421
+    }
+  ],
+  "witness_decoder": {
+    "before": {
+      "lines": 254,
+      "known_layout_literal_occurrences": 67,
+      "start": 838
+    },
+    "after": {
+      "lines": 207,
+      "known_layout_literal_occurrences": 0,
+      "start": 854
+    },
+    "new_explicit_version_type": "research/continuity-identity-candidate/src/anchor/store/image_version.rs",
+    "rationale": "One explicit recognized-version match replaces 67 repeated byte-tag occurrences in the original decoder. Existing historical formats and unknown/reserved-version refusals remain required.",
+    "scope": "254 to 207 lines is the decoder span, not total project LOC reduction or measured runtime improvement."
+  },
+  "prior_measured_fixes": [
+    "Native Debug reopen stage separation fixed the installed Swift stack failure under preserved build settings; see 20261010-native-reopen-stack.",
+    "Fanout computation retained one ciphertext buffer; exact buffer-identity probes support reduced copying, not throughput/energy estimates; see 20261010-fanout-return-buffer."
+  ],
+  "remaining_maintenance_candidates": [
+    "Extract coherent build/install/runtime qualification phases from C and Kotlin coordinators when these workflows change.",
+    "Separate lexical, phase-order and final receipt validation in the long publication parser without weakening negative controls.",
+    "Group Kotlin native domain marshalling behind the existing shared lifetime/error/symbol boundary."
+  ],
+  "remaining_performance_requirements": [
+    "Controlled installed-path latency distribution, allocation/peak memory and persistence costs",
+    "Power and broader concurrency/device measurements"
+  ]
+}

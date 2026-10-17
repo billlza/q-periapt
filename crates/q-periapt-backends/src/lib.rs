@@ -28,11 +28,17 @@ use q_periapt_mlkem_native_sys::{
     Error as NativeMlKemError, MlKem1024 as NativeMlKem1024, MlKem512 as NativeMlKem512,
     MlKem768 as NativeMlKem768,
 };
-use sha3::{
+use sha3::{Digest, Sha3_256};
+use shake::{
     digest::{ExtendableOutput, Update, XofReader},
-    Digest, Sha3_256, Shake256,
+    Shake256,
 };
 use x25519_dalek::{PublicKey, StaticSecret};
+
+mod contextbound_key;
+pub use contextbound_key::{ExpandedKeyImportError, PreparedMlKem768Key};
+mod streaming_sha3;
+pub use streaming_sha3::StreamingSha3_256Xof;
 
 const _: [(); 64] = [(); q_periapt_mlkem_native_sys::KEY_GENERATION_SEED_LEN];
 const _: [(); 32] = [(); q_periapt_mlkem_native_sys::ENCAPSULATION_SEED_LEN];
@@ -103,6 +109,12 @@ pub const DEFAULT_SUITE_ID_CSTR: &[u8] = b"ML-KEM-768+X25519\0";
 
 /// Exact `mlkem-native` implementation selected for this compilation target.
 pub const ML_KEM_IMPLEMENTATION_ID: &str = q_periapt_mlkem_native_sys::IMPLEMENTATION_ID;
+
+/// ML-KEM implementation selected at runtime, including CPU/OS admission for
+/// the Linux AVX2 candidate. A build identity alone cannot prove AVX2 execution.
+pub fn ml_kem_active_implementation_id() -> &'static str {
+    q_periapt_mlkem_native_sys::active_implementation_id()
+}
 
 #[inline]
 fn to_arr<const N: usize>(s: &[u8]) -> Result<[u8; N], Error> {
@@ -583,6 +595,13 @@ impl PreparedKem for MlKem768XWingSeed {
 pub struct X25519;
 
 impl X25519 {
+    /// Derive only the public key from a borrowed secret scalar.
+    /// The primitive's internal scalar copy is erased by `x25519-dalek/zeroize`.
+    #[must_use]
+    pub fn public_key(secret: &[u8; X25519_LEN]) -> [u8; X25519_LEN] {
+        PublicKey::from(&StaticSecret::from(*secret)).to_bytes()
+    }
+
     /// Deterministically derive a key pair from a 32-byte secret scalar.
     /// Returns `(secret_key, public_key)`.
     #[must_use]

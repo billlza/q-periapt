@@ -1,0 +1,4 @@
+
+thread 'publication::tests::publication_test_registry_isolation_probe' (46890508) panicked at src/publication.rs:417:13:
+publication FFI test crossed another test's registry scope
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

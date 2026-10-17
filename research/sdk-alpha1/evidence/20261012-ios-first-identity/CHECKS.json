@@ -1,0 +1,23 @@
+{
+  "completed": true,
+  "device": "iPhone 16 Pro",
+  "OS": "iOS 27.0",
+  "transport": "USB",
+  "app_release_build_warning_clean": true,
+  "native_target": "aarch64-apple-ios",
+  "successful_launches": 14,
+  "fresh_on_device_identities": 2,
+  "private_path_refusals": 8,
+  "exact_refusal_code": 203,
+  "registration_signatures_verified_by_host": true,
+  "identity_preserved_after_activation_and_restart": true,
+  "run_owned_app_removed": true,
+  "native_staticlib_sha256": "ba03f1a579261ac64ca96144842914eb57998676319ad79cab96949204413ace",
+  "app_executable_sha256": "68008486ae2a2db7ad83fc9899b08c5a986020d87ec57081cd406b3b63051063",
+  "archive_members": 1609,
+  "capture_sha256": "1ddf2a6d6a1a4040a08fc047633a00af57c51ff9a98a617b723f6fa0e26c8ffb",
+  "all_archive_hashes_verified": true,
+  "private_device_keys_or_journals_exported": false,
+  "main_source_integrated": false,
+  "release_claim_eligible": false
+}

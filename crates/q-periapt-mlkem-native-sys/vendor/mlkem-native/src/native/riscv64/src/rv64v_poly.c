@@ -78,8 +78,8 @@ static MLK_INLINE vint16m1_t fq_barrett(vint16m1_t a, size_t vl)
  * masked ops, and Zvkt's DIEL guarantee does not cover the v0 mask
  * register. Using an arithmetic-shift sign mask keeps all operands in the
  * Zvkt-covered set and matches the idiom used in the portable C
- * (mlk_ct_cmask_neg_i16, verify.h) and AArch64 (poly_reduce_aarch64_asm.S)
- * implementations. */
+ * (mlk_ct_cmask_neg_i16, verify.h) and AArch64
+ * (mlkem_poly_reduce_aarch64_asm.S) implementations. */
 
 static MLK_INLINE vint16m1_t fq_cadd(vint16m1_t rx, size_t vl)
 {
@@ -324,6 +324,7 @@ void mlk_rv64v_poly_ntt(int16_t *r)
       &r[0xe0], mlk_rv64v_ntt2(__riscv_vcreate_v_i16m1_i16m2(ve, vf), ze), vl2);
 }
 
+#if !defined(MLK_CONFIG_NO_ENCAPS_API) || !defined(MLK_CONFIG_NO_DECAPS_API)
 /* Reverse / Gentleman-Sande butterfly operation */
 
 #define MLK_RVV_GS_BFLY_RX(u0, u1, ut, uc, vl) \
@@ -604,6 +605,7 @@ void mlk_rv64v_poly_invntt_tomont(int16_t *r)
   __riscv_vse16_v_i16m1(&r[0xe0], ve, vl);
   __riscv_vse16_v_i16m1(&r[0xf0], vf, vl);
 }
+#endif /* !MLK_CONFIG_NO_ENCAPS_API || !MLK_CONFIG_NO_DECAPS_API */
 
 /* ML-KEM's middle field GF(3329)[X]/(X^2) multiplication */
 
@@ -682,6 +684,7 @@ void mlk_rv64v_poly_basemul_mont_add_k4(int16_t *r, const int16_t *a,
 }
 #endif /* MLK_CONFIG_MULTILEVEL_WITH_SHARED || MLKEM_K == 4 */
 
+#if !defined(MLK_CONFIG_NO_KEYPAIR_API)
 /**
  * In-place conversion of all coefficients of a polynomial from the normal
  * domain to the Montgomery domain.
@@ -700,6 +703,7 @@ void mlk_rv64v_poly_tomont(int16_t *r)
     __riscv_vse16_v_i16m1(&r[i], vec, vl);
   }
 }
+#endif /* !MLK_CONFIG_NO_KEYPAIR_API */
 
 /**
  * Apply Barrett reduction to all coefficients of a polynomial. For details

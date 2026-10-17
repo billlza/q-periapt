@@ -1,0 +1,20 @@
+{
+  "id": 11638634855,
+  "node_id": "MDg6QXJ0aWZhY3QxMTYzODYzNDg1NQ==",
+  "name": "continuity-installed-rust",
+  "size_in_bytes": 2489994,
+  "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11638634855",
+  "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/11638634855/zip",
+  "expired": false,
+  "digest": "sha256:8380af9ab068752f07d296832a14010d851c40908bdc6ebfb2fe00ddf83a5e42",
+  "created_at": "2026-10-09T19:08:14Z",
+  "updated_at": "2026-10-09T19:08:14Z",
+  "expires_at": "2027-01-07T18:51:32Z",
+  "workflow_run": {
+    "id": 37976191512,
+    "repository_id": 1279236693,
+    "head_repository_id": 1279236693,
+    "head_branch": "lza/sdk-020-alpha1",
+    "head_sha": "e0e1dee0ba19e9c1e177d30e7ae16ef0d87f3f25"
+  }
+}

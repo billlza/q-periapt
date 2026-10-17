@@ -1,0 +1,147 @@
+{
+  "completed": true,
+  "source_commit": "330ecc3757bd599cb00d29d0245c8c0004004092",
+  "current_compilable_sources_compared": 503,
+  "C_manifest_and_dependency_resolution_verified": true,
+  "archive": {
+    "bytes": 21899999,
+    "file": "QPeriaptContinuity-Apple-candidate.zip",
+    "sha256": "61fa752f429c599220a90d0f70b6fcdeeb09dd4634ded08ae14fee146afdc75a"
+  },
+  "native": {
+    "aarch64-apple-darwin": {
+      "bytes": 19733304,
+      "owner_exports": 152,
+      "sha256": "d3e43264cdbe05a1789e4c45d750229dc495dc805bffeda0e18a94ed376bad0a"
+    },
+    "aarch64-apple-ios": {
+      "bytes": 19802712,
+      "owner_exports": 152,
+      "sha256": "74e70bcf72e79a3fb2f6396ddf04f0023d1c2f39d4e3da45eace0c79a1186108"
+    },
+    "aarch64-apple-ios-sim": {
+      "bytes": 19793424,
+      "owner_exports": 152,
+      "sha256": "ee8d669a534cea557eec42d2a9f10fd8e57af4fb03872ee93ab6edc7f62480f5"
+    }
+  },
+  "consumer": {
+    "ios": {
+      "executable_sha256": "c7039e4fcb965194d550f40f02dfef9d8853f34401956436851594ebab18fcec",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "1ffb02acdd49f1455e3cdee33d62c09ab72a0c6f46a0194e308d6f9ea4e54b28",
+        "linked_archive_objects": 233,
+        "status": "pass"
+      },
+      "selected_archive_sha256": "74e70bcf72e79a3fb2f6396ddf04f0023d1c2f39d4e3da45eace0c79a1186108",
+      "target": "aarch64-apple-ios"
+    },
+    "macos": {
+      "executable_sha256": "4b4c38688fd315e64358cb275cf02d2ee4da30a6a6963a6ab763684c6d8af8c5",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "c185637740284f3f0382ed4fba29b141e690c6f90cd7c8a85a20be8a659ef477",
+        "linked_archive_objects": 232,
+        "status": "pass"
+      },
+      "native_owner_probe": true,
+      "selected_archive_sha256": "d3e43264cdbe05a1789e4c45d750229dc495dc805bffeda0e18a94ed376bad0a",
+      "target": "aarch64-apple-darwin"
+    },
+    "simulator": {
+      "executable_sha256": "5a26d59ba0997d5bff0f334b9d52ccaa2a422a85b0efb656620b9fcc2e67b6cf",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "9efa6e567b587d55fb198130694d165ce612687f58768e03975d05399d7e2976",
+        "linked_archive_objects": 233,
+        "status": "pass"
+      },
+      "selected_archive_sha256": "ee8d669a534cea557eec42d2a9f10fd8e57af4fb03872ee93ab6edc7f62480f5",
+      "target": "aarch64-apple-ios-sim"
+    }
+  },
+  "simulator_probe": {
+    "completed": true,
+    "live_producer": false,
+    "created_simulator_removed": true,
+    "package_sha256": "61fa752f429c599220a90d0f70b6fcdeeb09dd4634ded08ae14fee146afdc75a",
+    "app_sha256": "5a26d59ba0997d5bff0f334b9d52ccaa2a422a85b0efb656620b9fcc2e67b6cf",
+    "runtime": "iOS 27.0",
+    "runtime_build": "24A434",
+    "device_type": "iPhone 18 Pro",
+    "created_simulator_sha256": "5c0b3370165b11bfb8ee029d2d951e462b0b0aebf10d30993c335f85089c7f27"
+  },
+  "physical_device_execution_of_this_archive": false,
+  "parent_Rust_C_full_cohort_reexecuted_locally": false,
+  "local_unit_checks_passed": 60,
+  "full_producer_invocation_passed": true,
+  "repeatability": {
+    "completed": true,
+    "two_distinct_native_builds": true,
+    "native_archives_equal": true,
+    "canonicalized_archives_equal": true,
+    "expected_stable_archive_sha256": "61fa752f429c599220a90d0f70b6fcdeeb09dd4634ded08ae14fee146afdc75a",
+    "only_metadata_inventory_order_normalized": true,
+    "sources": [
+      {
+        "source": "continuity-apple-package-integration",
+        "original_archive_sha256": "9a0c438a8d03d4df387f1a7aa0cabb315d965555bbc2e6e28c93dc4b377b8ff9",
+        "canonical_archive_sha256": "61fa752f429c599220a90d0f70b6fcdeeb09dd4634ded08ae14fee146afdc75a",
+        "changed_members": [
+          "CQPCOwner.xcframework/Info.plist",
+          "PACKAGE_CONTENTS.json"
+        ],
+        "native": {
+          "aarch64-apple-darwin": {
+            "bytes": 19733304,
+            "owner_exports": 152,
+            "sha256": "d3e43264cdbe05a1789e4c45d750229dc495dc805bffeda0e18a94ed376bad0a"
+          },
+          "aarch64-apple-ios": {
+            "bytes": 19802712,
+            "owner_exports": 152,
+            "sha256": "74e70bcf72e79a3fb2f6396ddf04f0023d1c2f39d4e3da45eace0c79a1186108"
+          },
+          "aarch64-apple-ios-sim": {
+            "bytes": 19793424,
+            "owner_exports": 152,
+            "sha256": "ee8d669a534cea557eec42d2a9f10fd8e57af4fb03872ee93ab6edc7f62480f5"
+          }
+        }
+      },
+      {
+        "source": "continuity-apple-package-qualified",
+        "original_archive_sha256": "7c86f631c0e468f4e993113447b317ad0f7deaca9104e335b706d3d273cbbe1d",
+        "canonical_archive_sha256": "61fa752f429c599220a90d0f70b6fcdeeb09dd4634ded08ae14fee146afdc75a",
+        "changed_members": [
+          "CQPCOwner.xcframework/Info.plist",
+          "PACKAGE_CONTENTS.json"
+        ],
+        "native": {
+          "aarch64-apple-darwin": {
+            "bytes": 19733304,
+            "owner_exports": 152,
+            "sha256": "d3e43264cdbe05a1789e4c45d750229dc495dc805bffeda0e18a94ed376bad0a"
+          },
+          "aarch64-apple-ios": {
+            "bytes": 19802712,
+            "owner_exports": 152,
+            "sha256": "74e70bcf72e79a3fb2f6396ddf04f0023d1c2f39d4e3da45eace0c79a1186108"
+          },
+          "aarch64-apple-ios-sim": {
+            "bytes": 19793424,
+            "owner_exports": 152,
+            "sha256": "ee8d669a534cea557eec42d2a9f10fd8e57af4fb03872ee93ab6edc7f62480f5"
+          }
+        }
+      }
+    ]
+  },
+  "package_members_reverified": 686,
+  "capture_members": 120,
+  "capture_sha256": "4ac81e8ece1b95374629550b2dd34d77e3ec918fc1ccaec38b16b53f084405fe",
+  "all_capture_hashes_verified": true,
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

@@ -1,0 +1,316 @@
+{
+  "recorded_at": "2026-10-08T16:25:12.585402+00:00",
+  "base_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+  "reader_sha256": "bece45f2b33742819f64fa3df70b8dcefa5ee9ab8e99ec60bb0744e524bfb946",
+  "tests": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-c",
+      "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_continuity_c_consumer\",\"artifact.test_continuity_device_retirement\",\"artifact.test_continuity_package\",\"-v\"],warnings=\"error\")"
+    ],
+    "returncode": 0,
+    "seconds": 2.2133088749833405
+  },
+  "rechecked_profiles": {
+    "debug": {
+      "completed": true,
+      "scope": "C restricted retired-enrollment API across eight actual cleanup processes; native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; no physical erasure, independent protocol or complete foreign-device lifecycle claim.",
+      "outcomes": {
+        "old_session": "768b987d754ab6470a13449e3eb9c41672833ddce9dac556c4af6bf6fb7dbcf7",
+        "old_message": "00000000000000000000000000000000b2b31af3372f86bf13fd0700caa72b2b",
+        "new_session": "63d1ccedf3850bd669f497582e5298ecd8bdbf4f63c2c90cf7d0dfd1267b54d1",
+        "new_message": "00000000000000000000000000000000d2d01be70dcf46ad4c8cb3b219436caf",
+        "report_id": "e2ab7dd3696fbde1a3603422a1a8b4a2a0d6439a2b8f87f542270c30d581240d",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        66243,
+        66244,
+        66245,
+        66250,
+        66251,
+        66252,
+        66253,
+        66254
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "2bba32fc0ed6cd3166c207226eb1949ff2ddaccaf8b22148292db8044809a77a",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "314c695b135c66648ac79a020d6257245e635dc2c0f252823ab28de4973ccb90",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "ce4aff95aec787febab6389c95022f3c99551074b15f6ed45b99c537067dbdb6",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "c0b94f32f6cf07e8875f64405447e5bfd04c69205ac74ed145e953dc16812b8a",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "96d5991b860861dd4ebccfd0e30ffc1c9a6cde71c39230895981f99e72bcca21",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "394a1e72e853a0d068c4f2e22a0d5de330c5695512aba817a4341ead13038198",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "f54d4800d4195fa2a662f195281014cf00bf09a92b929e43f87dd54fa8ca25c8",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "a278c7496c3d084398742c29aedba2b5a11a53efdb9b775628d4d830985d58cd",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "10e7d695cb569706e51bf38f269147dd5558d74e2c073a8aac67d57d4bc3b56d",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "021747e46b7242cdb71808700e777300532ba62bfca3ba31acb68b1a2d19b00a",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "38ba2b27e5674e72b4e5c426571a2ea7f49081a0a5e2de053a43fc0898597716",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "3cf247a1e6e949279f59c882919f14939e1aa78d3151aad4689ced34efc900bc",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "3cf247a1e6e949279f59c882919f14939e1aa78d3151aad4689ced34efc900bc",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "5e7908403326edba096f349e083753e66f1f704d21bdc88cf07e42238cc63138",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "5e7908403326edba096f349e083753e66f1f704d21bdc88cf07e42238cc63138",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "7310c07c9a5d80a9c97ca102feb105132576572368ae8c9875f780b6a08147cb",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "a94b99ae2bb8df71893af9d40e13a855af4336a67dd0d5e7ef1314606e42d20b",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "a7d66394ed3259ce251bcb491408b81686844ef8c11504afdb9505d22ecd87a2",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "33707e722229956b2581ef052f5e6d805d274a7f4faf5e0d1b99a5a045e52bdc",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "902734be99b0eb22c1602a2a2263f4e6500740d09fe67bc403dee6c333c2ec6d",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "2139f3d67d5f0882f28f271ffa1f3e4ac3671e4ffdc23b012cf1660cc5158029",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "1af98a2d9e7980935e5cd05534181642c80e7f436ed72fffa377be41e57069d6",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "fcfd28b46d014d8b58689fa0d7bbf220c59f731cb3052355f23bd2a5d25405c8",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "d94a72da96621be65c4c5aebaeaa61e91c03870e78bfda09f1efec3ff4073e9a",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "d2419c27cdce4baa11e38caee0899c148ee7e1f0f91f373cc1e4d56528d118e2",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false,
+      "consumer_language": "C"
+    },
+    "release": {
+      "completed": true,
+      "scope": "C restricted retired-enrollment API across eight actual cleanup processes; native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; no physical erasure, independent protocol or complete foreign-device lifecycle claim.",
+      "outcomes": {
+        "old_session": "6d8cd7478535b5ae941b753ad899883ecf466db3620a57d13f26624f40bdc9a4",
+        "old_message": "000000000000000000000000000000004388768922ed952e92c3e774d894d049",
+        "new_session": "314df05fb3e4ddc9ba19ec4591ece7e4be8ab45165c0a713d5070cbda953ffe3",
+        "new_message": "00000000000000000000000000000000d64ec20b92befeefaad7703117560b2e",
+        "report_id": "4008af7456f107c924cf2589b10b24802c7ad996bfe2526af6ef36d49b03dee7",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        66397,
+        66398,
+        66399,
+        66400,
+        66401,
+        66402,
+        66403,
+        66406
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "bd562fff50e590cd9165d8f6d5ae6b68b66dab0b36cf5961efe739ea1f97818f",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "8704fa59e96ceeec64b506db3dd75ed25d06490dbd502855d9b3d03f6b88968c",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "17b1317e572990349f1ff3be56d87ffaa76eeec65a006f47e09ecf4323ff781d",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "398f824db387320aa9c6b30199fb8d82fcb93caf345cdd091c249339c4615bbb",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "a0695ea400c7cfcb6d3327581cccd12c36efa32255438d29526f45ac1b6d6a24",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "94a9228631653d5e92cffca7fef3aec2c36590d41bae5a22cc2fe068ce4b6852",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "49fed34c374dcfed861d0968180d4514cd96e864dadfad87fed3eb110770502c",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "4e80a1d8d76e354f9dd4d80bae792b94a443aeacc4de0528000a0d32a47fbd6e",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "8378081ae5e3c10371831e95b9ab2a3ed27a6cb1db8c2fd436e708dd19027bc9",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "53d1da15797daa7af40ce9e72c541eb65c17751432203bfe18ff20412e98899f",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "3ce8d972b7b25317514c11497e4dff7180f2835b211d946dc86a003bb63d6f6d",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "e5aed60839036a2f51a0dfb2184c67baae1510815f5bc53242d04c366f9bd70a",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "e5aed60839036a2f51a0dfb2184c67baae1510815f5bc53242d04c366f9bd70a",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "3994e502f187322d53b54f9ad99d6950dae90c2fd10ec3d2646c67bfe6213fff",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "3994e502f187322d53b54f9ad99d6950dae90c2fd10ec3d2646c67bfe6213fff",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "deaee8b77dc495cf940c5daab6c7951a13d89228dfce2e832863efc0c0a226f3",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "6974522f7fccf647681476385da79413a292999cc7750bbcb44333f3d65b5c73",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "245456da2972402255a9bb145a44ff738e9566bb9231dd6b497bc94486888a26",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "64fa5291b722567389d61836df83e8990d8360b2fde8898a0d30c38ba86ff545",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "3b0ec5e20225b4c0c677a862cf3fa041add74d085e258bf6f0341f210c46484e",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "74eb9673c49d052ee1e86f0b663b9bb705ad1c0bd4157c111b2906744c1bd6d5",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "bed1bf13948ea8ef6e44c71ab8dc700294ab9d9b9a03342a2be9a041c354c66c",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "2478f6e77ac9030f931bffd0f0202732bfcccb9843c1662f835b28c239db316e",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "1b3ef91bc0d6e6b0765b0800b117604ceed69a1dd7580bc899a834e51a4f4c73",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "8c362fd79d21eeb3c2fab04b61c80f019599e4afa4eef2dac8db62f196f30fee",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false,
+      "consumer_language": "C"
+    }
+  },
+  "clarification": "QPRDMD01 bytes are complete canonical metadata. Report ID is a keyed MAC returned separately in ReportInfo and original proposal. Native reconstruction compares all canonical bytes; focused assertions check session/message accounting. No cryptographic implementation changed.",
+  "negative_controls": "Reject additional qualified-name failed/ignored tests and additional result summaries.",
+  "source_gate": "PASS in the clean standalone ce70bf83 clone; initial linked-worktree attempt correctly refused non-directory .git provenance.",
+  "captures": {
+    "file": "REVIEW_CAPTURES.zip",
+    "sha256": "8f810449f37317496e4262fd1d7441a93c6cd5864a975fb47a86d69f1c8c68a3",
+    "bytes": 2309
+  },
+  "release_claim_eligible": false
+}

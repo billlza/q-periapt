@@ -1,4 +1,8 @@
-//! Research integration demo: Q-Periapt's PQ/T hybrid KEM wired into rustls
+//! The optional `standard` module provides a separately configured RFC 10024
+//! TLS 1.3 path with mandatory mutual certificate authentication. It does not use
+//! a Q-Periapt combiner or assert agreement on a Q-Periapt signed policy.
+//!
+//! The default provider is a research integration: Q-Periapt's PQ/T hybrid KEM wired into rustls
 //! as private-use TLS 1.3 key-exchange groups, exposed via a [`CryptoProvider`].
 //!
 //! Unlike the RFC 10024 `X25519MLKEM768` group (which rustls ships, using the RFC 9954
@@ -11,10 +15,16 @@
 //! only with another endpoint configured for the same Q-Periapt profile. It is not the
 //! RFC 10024 group (`0x11EC`): that group has a 64-byte concatenated key-exchange secret,
 //! whereas these private groups expose Q-Periapt's 32-byte combiner output to the TLS key
-//! schedule. This crate is a research deployment of the suite's own design and a
+//! schedule. The private provider is a research deployment of the suite's own design and a
 //! baseline-comparable evaluation target, not a standardized TLS group.
 
 use std::fmt;
+
+#[cfg(feature = "standard-tls")]
+pub mod standard;
+
+#[cfg(feature = "reference-connection")]
+pub mod connection;
 
 use rustls::crypto::{
     ActiveKeyExchange, CompletedKeyExchange, CryptoProvider, SecureRandom, SharedSecret,

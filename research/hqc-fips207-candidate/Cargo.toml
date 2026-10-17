@@ -2,7 +2,7 @@
 name = "q-periapt-hqc-fips207-candidate"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.90"
 publish = false
 license = "Apache-2.0 OR MIT"
 description = "Isolated Q-Periapt shadow adapter for the HQC v5 FIPS 207 draft candidate"

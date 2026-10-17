@@ -17,6 +17,16 @@ EVIDENCE_DIR=$2
 XCFRAMEWORK=$3
 MODE=${4:-build}
 REQUIRE_DUAL_MACOS_RUNTIME=${QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME:-0}
+APPLE_PACKAGE_PROFILE=${QPERIAPT_INTERNAL_APPLE_PACKAGE_PROFILE:-legacy}
+case "$APPLE_PACKAGE_PROFILE" in
+	legacy)
+		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json
+		EXPECTED_EXPORT_COUNT=9 ;;
+	sdk-020)
+		CONTRACT_RELATIVE=crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json
+		EXPECTED_EXPORT_COUNT=51 ;;
+	*) printf 'error: unknown Apple consumer package profile\n' >&2; exit 2 ;;
+esac
 for absolute_path in "$PACKAGE_DIR" "$EVIDENCE_DIR" "$XCFRAMEWORK"; do
 	case "$absolute_path" in
 		/*) ;;
@@ -40,6 +50,10 @@ case "$REQUIRE_DUAL_MACOS_RUNTIME" in
 		exit 2
 		;;
 esac
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ] && [ "$REQUIRE_DUAL_MACOS_RUNTIME" = "1" ]; then
+	printf 'error: SDK 0.2.0 macOS support is Apple Silicon only; dual macOS runtime policy is legacy-only\n' >&2
+	exit 2
+fi
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -86,15 +100,16 @@ if [ "$MODE" = "build" ]; then
 	mkdir -p "$EVIDENCE_DIR"
 fi
 
-EXPECTED_SYMBOLS=$(python3 - "$ROOT/crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json" <<'PY'
+EXPECTED_SYMBOLS=$(python3 - "$ROOT/$CONTRACT_RELATIVE" "$EXPECTED_EXPORT_COUNT" <<'PY'
 import json
 import pathlib
 import sys
 
 document = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 names = sorted(item["name"] for item in document["abi"]["exports"])
-if len(names) != 9 or len(set(names)) != 9:
-    raise SystemExit("error: Apple consumer gate requires the exact nine-symbol ABI2 contract")
+count = int(sys.argv[2])
+if len(names) != count or len(set(names)) != count:
+    raise SystemExit("error: Apple consumer gate requires its closed ABI2 profile")
 print("\n".join(names))
 PY
 )
@@ -136,7 +151,13 @@ validate_probe() (
 
 run_macos_link_gate() (
 	gate=MACOS_UNIVERSAL
+	macos_architectures="arm64 x86_64"
 	expected="$XCFRAMEWORK/macos-arm64_x86_64/libq_periapt_ffi_abi2.a"
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+		gate=MACOS_ARM64
+		macos_architectures=arm64
+		expected="$XCFRAMEWORK/macos-arm64/libq_periapt_ffi_abi2.a"
+	fi
 	if [ ! -f "$expected" ]; then
 		printf 'error: macOS XCFramework slice is missing\n' >&2
 		exit 1
@@ -150,13 +171,21 @@ run_macos_link_gate() (
 		exit 1
 	fi
 
-	for arch in arm64 x86_64; do
+	for arch in $macos_architectures; do
 		triple="${arch}-apple-macosx13.0"
 		scratch="$EVIDENCE_DIR/$gate-$arch-build"
 		log="$EVIDENCE_DIR/$gate-$arch.log"
+		link_map="$EVIDENCE_DIR/$gate-$arch.linkmap"
+		set --
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+			# SwiftPM's default engine can omit copy/link progress text. Retain
+			# the actual linker input map in addition to checking final bytes.
+			set -- -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors \
+				-Xlinker -map -Xlinker "$link_map"
+		fi
 		if [ "$MODE" = "build" ]; then
 			set +e
-			swift build \
+			swift build "$@" \
 				--package-path "$PACKAGE_DIR" \
 				--scratch-path "$scratch" \
 				--triple "$triple" >"$log" 2>&1
@@ -175,14 +204,22 @@ run_macos_link_gate() (
 				"$arch" >&2
 			exit 1
 		fi
-		if [ "$(grep -Fc 'Copying libq_periapt_ffi_abi2.a' "$log")" -ne 1 ] || \
-			[ "$(grep -Fc 'Linking QPeriaptLinkProbe' "$log")" -ne 1 ] || \
-			[ "$(grep -Fc 'Build complete!' "$log")" -ne 1 ]; then
+		if [ "$(grep -Fc 'Build complete!' "$log")" -ne 1 ]; then
+			printf 'error: macOS %s SwiftPM log lacks exact success evidence\n' "$arch" >&2
+			exit 1
+		fi
+		if [ "$APPLE_PACKAGE_PROFILE" = "legacy" ] && { \
+			[ "$(grep -Fc 'Copying libq_periapt_ffi_abi2.a' "$log")" -ne 1 ] || \
+			[ "$(grep -Fc 'Linking QPeriaptLinkProbe' "$log")" -ne 1 ]; }; then
 			printf 'error: macOS %s SwiftPM log lacks exact copy/link/success evidence\n' \
 				"$arch" >&2
 			exit 1
 		fi
 		product="$scratch/${arch}-apple-macosx/debug"
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+			product=$(swift build "$@" --package-path "$PACKAGE_DIR" --scratch-path "$scratch" \
+				--triple "$triple" --show-bin-path)
+		fi
 		selected="$product/libq_periapt_ffi_abi2.a"
 		if [ ! -f "$selected" ] || ! cmp "$expected" "$selected"; then
 			printf 'error: macOS %s SwiftPM-selected library differs from the XCFramework slice\n' \
@@ -190,6 +227,10 @@ run_macos_link_gate() (
 			exit 1
 		fi
 		probe="$product/QPeriaptLinkProbe"
+		if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+			python3 artifact/apple_sdk_profile.py check-link-map --map "$link_map" \
+				--library "$selected" --probe "$probe" --architecture "$arch"
+		fi
 		validate_probe "$gate" "$arch" "$probe" MACOS 13.0
 		if [ "$REQUIRE_DUAL_MACOS_RUNTIME" = "1" ]; then
 			set +e
@@ -216,7 +257,7 @@ SWIFT_XCFRAMEWORK_MACOS_RUNTIME_PASS arch=x86_64'
 			exit 1
 		fi
 	fi
-	printf 'SWIFT_XCFRAMEWORK_MACOS_UNIVERSAL_LINK_PASS arches=arm64 x86_64\n'
+	printf 'SWIFT_XCFRAMEWORK_%s_LINK_PASS arches=%s\n' "$gate" "$macos_architectures"
 )
 
 run_ios_link_gate() (
@@ -226,18 +267,25 @@ run_ios_link_gate() (
 	expected_arches=$4
 	derived="$EVIDENCE_DIR/$gate-derived"
 	log="$EVIDENCE_DIR/$gate.log"
+	set --
+	if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+		# Xcode 26 suppresses warnings in package dependencies by default. Keep
+		# their diagnostics visible as well as fatal in this SDK qualification.
+		set -- SWIFT_STRICT_CONCURRENCY=complete SWIFT_SUPPRESS_WARNINGS=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
+	fi
 
 	if [ "$MODE" = "build" ]; then
 		set +e
 		(
 			cd "$PACKAGE_DIR"
 			xcodebuild \
-				-scheme QPeriaptLinkProbe \
+				-scheme "$IOS_SCHEME" \
 				-destination "$destination" \
 				-derivedDataPath "$derived" \
 				CODE_SIGNING_ALLOWED=NO \
 				"ARCHS=$expected_arches" \
 				ONLY_ACTIVE_ARCH=NO \
+				"$@" \
 				build
 		) >"$log" 2>&1
 		rc=$?
@@ -330,5 +378,17 @@ run_ios_link_gate() (
 )
 
 run_macos_link_gate
+IOS_SCHEME=QPeriaptLinkProbe
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	if [ "$MODE" = "build" ]; then
+		(cd "$PACKAGE_DIR" && xcodebuild -list -json) \
+			>"$EVIDENCE_DIR/SCHEMES.json" 2>"$EVIDENCE_DIR/SCHEMES.log"
+	fi
+	if grep -Eiq '(^|[^A-Za-z])(warning|error):' "$EVIDENCE_DIR/SCHEMES.log"; then
+		printf 'error: SDK consumer scheme discovery emitted warning/error diagnostics\n' >&2
+		exit 1
+	fi
+	IOS_SCHEME=$(python3 artifact/apple_sdk_profile.py consumer-scheme --inventory "$EVIDENCE_DIR/SCHEMES.json")
+fi
 run_ios_link_gate IOS_DEVICE 'generic/platform=iOS' iphoneos 'arm64'
 run_ios_link_gate IOS_SIMULATOR 'generic/platform=iOS Simulator' iphonesimulator 'arm64 x86_64'

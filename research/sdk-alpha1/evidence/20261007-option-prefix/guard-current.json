@@ -1,0 +1,261 @@
+{
+  "library_sha256": "6fd0e500d52d1c3a41df01471e1fefaf0afd295340e4f473225e38e9cf9d16e5",
+  "guard_sha256": "fa81b5b4679d9e2c5622e1136047ddd06a935820702284e332ec2c2658a6e2f6",
+  "header_sha256": "718051dbbf946a7de1b4442d0f629e43786eb30daaa8290a6842cf297bd4358e",
+  "c_smoke_sha256": "189643d8311fd6edc35f7db61be03a5e6fa4bb376f878474fe77a0dcf167a537",
+  "exports": [
+    "q_periapt_abi_version",
+    "q_periapt_decapsulate",
+    "q_periapt_decision_from_signed_policy",
+    "q_periapt_encapsulate",
+    "q_periapt_fixed_suite_id",
+    "q_periapt_fixed_suite_id_len",
+    "q_periapt_generate_keypair",
+    "q_periapt_sdk_close",
+    "q_periapt_sdk_connection_accept",
+    "q_periapt_sdk_connection_client_new",
+    "q_periapt_sdk_connection_connect",
+    "q_periapt_sdk_connection_drain",
+    "q_periapt_sdk_connection_end_input",
+    "q_periapt_sdk_connection_feed",
+    "q_periapt_sdk_connection_message_size",
+    "q_periapt_sdk_connection_progress",
+    "q_periapt_sdk_connection_send_request",
+    "q_periapt_sdk_connection_send_response",
+    "q_periapt_sdk_connection_server_new",
+    "q_periapt_sdk_connection_shutdown",
+    "q_periapt_sdk_connection_take_request",
+    "q_periapt_sdk_connection_take_response",
+    "q_periapt_sdk_decapsulate",
+    "q_periapt_sdk_derived_key_export",
+    "q_periapt_sdk_encapsulate",
+    "q_periapt_sdk_expert_key_export",
+    "q_periapt_sdk_expert_key_import",
+    "q_periapt_sdk_extension_version",
+    "q_periapt_sdk_key_generate",
+    "q_periapt_sdk_key_public",
+    "q_periapt_sdk_policy_update_activate",
+    "q_periapt_sdk_policy_update_states",
+    "q_periapt_sdk_runtime_enabled",
+    "q_periapt_sdk_runtime_new",
+    "q_periapt_sdk_runtime_open_store",
+    "q_periapt_sdk_runtime_prepare_update",
+    "q_periapt_sdk_runtime_provision_store",
+    "q_periapt_sdk_runtime_state",
+    "q_periapt_sdk_runtime_update_store",
+    "q_periapt_sdk_secret_derive",
+    "q_periapt_sdk_secret_export",
+    "q_periapt_status_name",
+    "q_periapt_version"
+  ],
+  "cases": [
+    {
+      "name": "build-guard",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "target/options-prefix-current/guard.c",
+        "-I",
+        "crates/q-periapt-ffi/include",
+        "-L",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "target/options-prefix-current/green/guard"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "runtime-size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "runtime",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "runtime-revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "runtime",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "provision-size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "provision",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "provision-revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "provision",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "open-size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "open",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "open-revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "open",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "client-size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "client",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "client-revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "client",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "server-size",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "server",
+        "size"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "server-revision",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/guard",
+        "server",
+        "revision"
+      ],
+      "returncode": 0,
+      "stdout": "status=-11; output_untouched=1\n",
+      "stderr": ""
+    },
+    {
+      "name": "owned-build",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "bindings/c/sdk_smoke.c",
+        "-I",
+        "crates/q-periapt-ffi/include",
+        "-L",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "target/options-prefix-current/green/owned"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "owned-execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/owned"
+      ],
+      "returncode": 0,
+      "stdout": "SDK_ABI2_C_CONSUMER_PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "legacy-build",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "bindings/c/smoke.c",
+        "-I",
+        "crates/q-periapt-ffi/abi/v0.1.5",
+        "-L",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "target/options-prefix-current/green/legacy"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "legacy-execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/options-prefix-current/green/legacy"
+      ],
+      "returncode": 0,
+      "stdout": "Q-Periapt ABI 2 product C smoke\nmetadata ................................ PASS\noverflowing input regions ................ PASS\nsigned policy / ABI1 hard cut ........... PASS\nOS-random product roundtrip / atomicity .. PASS\nALL PASS\n",
+      "stderr": ""
+    },
+    {
+      "name": "exports",
+      "command": [
+        "/usr/bin/nm",
+        "-gUj",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release/libq_periapt_ffi_abi2.dylib"
+      ],
+      "returncode": 0,
+      "stdout": "_q_periapt_abi_version\n_q_periapt_decapsulate\n_q_periapt_decision_from_signed_policy\n_q_periapt_encapsulate\n_q_periapt_fixed_suite_id\n_q_periapt_fixed_suite_id_len\n_q_periapt_generate_keypair\n_q_periapt_sdk_close\n_q_periapt_sdk_connection_accept\n_q_periapt_sdk_connection_client_new\n_q_periapt_sdk_connection_connect\n_q_periapt_sdk_connection_drain\n_q_periapt_sdk_connection_end_input\n_q_periapt_sdk_connection_feed\n_q_periapt_sdk_connection_message_size\n_q_periapt_sdk_connection_progress\n_q_periapt_sdk_connection_send_request\n_q_periapt_sdk_connection_send_response\n_q_periapt_sdk_connection_server_new\n_q_periapt_sdk_connection_shutdown\n_q_periapt_sdk_connection_take_request\n_q_periapt_sdk_connection_take_response\n_q_periapt_sdk_decapsulate\n_q_periapt_sdk_derived_key_export\n_q_periapt_sdk_encapsulate\n_q_periapt_sdk_expert_key_export\n_q_periapt_sdk_expert_key_import\n_q_periapt_sdk_extension_version\n_q_periapt_sdk_key_generate\n_q_periapt_sdk_key_public\n_q_periapt_sdk_policy_update_activate\n_q_periapt_sdk_policy_update_states\n_q_periapt_sdk_runtime_enabled\n_q_periapt_sdk_runtime_new\n_q_periapt_sdk_runtime_open_store\n_q_periapt_sdk_runtime_prepare_update\n_q_periapt_sdk_runtime_provision_store\n_q_periapt_sdk_runtime_state\n_q_periapt_sdk_runtime_update_store\n_q_periapt_sdk_secret_derive\n_q_periapt_sdk_secret_export\n_q_periapt_status_name\n_q_periapt_version\n",
+      "stderr": ""
+    }
+  ]
+}

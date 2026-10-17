@@ -1,0 +1,138 @@
+{
+  "observed_at": "2026-10-10T08:10:44.005329+00:00",
+  "source_commit": "f19a39613117340fed87af050635cc1030b1050c",
+  "analysis_checkout": "6e869c91fd34bb7e88089aae34af30e9e00ebfaa",
+  "analysis_tree_matches_head": true,
+  "run": 38025518799,
+  "url": "https://github.com/billlza/q-periapt/actions/runs/38025518799",
+  "conclusion": "success",
+  "successful_languages": 6,
+  "rust_job": 114135427803,
+  "rust_analyze": {
+    "completedAt": "2026-10-10T06:44:04Z",
+    "conclusion": "success",
+    "name": "Analyze",
+    "number": 18,
+    "startedAt": "2026-10-10T04:56:55Z",
+    "status": "completed"
+  },
+  "rust_quality": {
+    "completedAt": "2026-10-10T06:48:04Z",
+    "conclusion": "success",
+    "name": "Verify Rust CodeQL database quality",
+    "number": 21,
+    "startedAt": "2026-10-10T06:44:05Z",
+    "status": "completed"
+  },
+  "rust_upload": {
+    "completedAt": "2026-10-10T06:48:12Z",
+    "conclusion": "success",
+    "name": "Upload quality-gated Rust CodeQL results",
+    "number": 22,
+    "startedAt": "2026-10-10T06:48:04Z",
+    "status": "completed"
+  },
+  "source_gate": {
+    "tracked_rs": 447,
+    "source_macro_calls": 23613,
+    "source_format_args": 705,
+    "checkout_before_and_after": true,
+    "internal_consistency_telemetry_retained": true
+  },
+  "full_summary_query_seconds": 6214,
+  "full_summary_query_finished_at": "2026-10-10T06:43:55Z",
+  "all_queries_retained": true,
+  "diagnostics": [
+    {
+      "kind": "rust",
+      "id": 11663185578,
+      "sha256": "26a61400ee1bf701c60494c2e9d67c7bae20b87b52b8c6427e96b19593f95ae9",
+      "bytes": 478235823,
+      "members": 16,
+      "seconds": 223.32580941705965,
+      "verified": true
+    },
+    {
+      "kind": "swift",
+      "id": 11661116976,
+      "sha256": "9827eeb6025879c37058a3b2e05bdd5bc47adcb16ba854f645fe6a51484a006e",
+      "bytes": 16329814,
+      "members": 29,
+      "seconds": 6.815930458018556,
+      "verified": true
+    }
+  ],
+  "sarif": {
+    "rust": [
+      {
+        "tool": "2.27.1",
+        "results": 834,
+        "rules": {
+          "rust/path-injection": 571,
+          "rust/uncontrolled-allocation-size": 2,
+          "rust/cleartext-logging": 35,
+          "rust/command-line-injection": 126,
+          "rust/hard-coded-cryptographic-value": 54,
+          "rust/log-injection": 46
+        },
+        "automationDetails": {
+          "id": "/language:rust/"
+        },
+        "versionControlProvenance": null,
+        "invocations": [
+          {
+            "executionSuccessful": true,
+            "startTimeUtc": null,
+            "endTimeUtc": null,
+            "toolExecutionNotifications": 1694
+          }
+        ]
+      }
+    ],
+    "swift": [
+      {
+        "tool": "2.27.1",
+        "results": 0,
+        "rules": {},
+        "automationDetails": {
+          "id": "/language:swift/"
+        },
+        "versionControlProvenance": null,
+        "invocations": [
+          {
+            "executionSuccessful": true,
+            "startTimeUtc": null,
+            "endTimeUtc": null,
+            "toolExecutionNotifications": 1195
+          }
+        ]
+      }
+    ]
+  },
+  "scope": [
+    "This is terminal analysis/extraction evidence, not a security-findings clearance. The Rust SARIF contains 834 results; none is dismissed by this checkpoint.",
+    "The prior 150-minute cancellation is preserved. This run finished below that old limit; it does not isolate the aggregate-budget change as the cause of success.",
+    "Source is f19 and its identical-tree PR merge. Later local account-root retirement code is not covered.",
+    "Complete downloaded diagnostics and the original 709895331-byte Rust job console remain in ignored target; this tracked capture retains selected metadata, summary events and exact digests."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 7046,
+    "sha256": "d3028b8d5ab142d6fd5ec02ee50b033240ed60e27fd9aa3e6b97d8722a6d2566",
+    "files": {
+      "RUN.json": "d6dc22a973b264ef87d397522964941b52b70a7c9bba958864cfa73926237205",
+      "ARTIFACTS.json": "bdaae61ffb4eba6a1adb962d337d1151af69a56fdfbb947ee95dc2456248a0b9",
+      "DOWNLOADS.json": "ee6cb7c597254b430b6226520c75a419e62f3b560906d7feecb5546748875c73",
+      "rust-INDEX.json": "27c8cb4f7891160b4e826cbe93ec21d4e76e291de812bb331d9383138feb95a7",
+      "swift-INDEX.json": "c1ad65d28b601f2e5e355f6e54bbb06dedd6064962f20b17378e6096e420194c",
+      "SARIF_SUMMARY.json": "dcdf2c198e2cbd852be96ce7346872e49e37f430af46386a42eb392d0f4f8cd0",
+      "rust-QUERY_EVENTS.json": "ed6156cf4c1e028f7aa73da67a8354a60c0999b63117b56b97145f0201e1345d",
+      "swift-QUERY_EVENTS.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "RUST_SUMMARY_QUERY_EVENTS.log": "89aa363975a29e3650af39a4b86c8226e370ffbfb38e880d2fb190773c124a75",
+      "RUST_JOB_SELECTED.log": "50588853c61b06ad9062f9d96f93bd098e101e494803663b9a5084d914324a5e",
+      "RUST_JOB_DOWNLOAD.json": "4c16cb9621929c5ce54d6bd34b7ef0233709baa191c1472103a7c2ea487cc3f5",
+      "SOURCE_TREE_IDENTITY.json": "3b18b1554e3f31a89bcc4e81b3276c68bd25cff240e2df6a5a0346419df1bf41"
+    }
+  }
+}

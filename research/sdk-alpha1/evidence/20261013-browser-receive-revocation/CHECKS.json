@@ -1,0 +1,59 @@
+{
+  "capture": {
+    "bytes": 3959133,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "ee1634eca7929284682d7353d593328ddbd4f8a38c3fe4c4e331c160c7a852dc",
+    "members": 1232,
+    "sha256": "de38835ea7c116474e0805154674a237e741e540d56dc6d77837e1774ec30ab8"
+  },
+  "case_count": 4,
+  "cases": [
+    "member-duplicate",
+    "member-new",
+    "revoked-duplicate",
+    "revoked-new"
+  ],
+  "completed": true,
+  "engine_commit": "e858ec00a7b7974fd90066ee2f3e517023f07b86",
+  "failed_attempt": "First fixture tried to redeliver an already acknowledged, retired sender outbox after validating duplicate reception. SDK returned Durable(Protocol(Retired)). Corrected duplicate-case fixture reads original sender status and compares the duplicate ACK with the already authenticated baseline. No SDK checks were changed; failed run and original driver retained.",
+  "outcomes": {
+    "member-duplicate": {
+      "callbacks": 0,
+      "code": null,
+      "reply_returned": true,
+      "sender_after": "Acknowledged",
+      "sender_before": "Committed"
+    },
+    "member-new": {
+      "callbacks": 1,
+      "code": null,
+      "reply_returned": true,
+      "sender_after": "Acknowledged",
+      "sender_before": "Committed"
+    },
+    "revoked-duplicate": {
+      "callbacks": 0,
+      "code": "Scope",
+      "reply_returned": false,
+      "sender_after": "Acknowledged",
+      "sender_before": "Committed"
+    },
+    "revoked-new": {
+      "callbacks": 0,
+      "code": "Scope",
+      "reply_returned": false,
+      "sender_after": "Committed",
+      "sender_before": "Committed"
+    }
+  },
+  "package": {
+    "manifest_sha256": "911ebf10d11244c0c412e84656e4f08bc508e5571bac2c5da85e628c837f87c6",
+    "sha256": "0b6973ad75fb7c734f73b10da7f2c323ef0727e682fe46e4c39c0655584d3d78",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "production_code_changed": false,
+  "release_claim_eligible": false,
+  "scope": "Actual installed Chrome Worker receive path using a session descriptor opened before the roster update, real native ciphertext, original required signed witness and IndexedDB/Web Locks/OPFS. Native counterpart shares the Rust engine and loopback transport. Not automatic distribution, independent implementation, deployment, device coverage, representative performance, PCS or full-release qualification.",
+  "trace_policy": "Complete public operation results, input ciphertext, peer traffic and witness metadata are archived. Repetitive raw witness/native traces remain in closed task-local runs with FULL_RAW_TRACE_MANIFEST.json. Private keys, journal stores and browser profiles are excluded."
+}

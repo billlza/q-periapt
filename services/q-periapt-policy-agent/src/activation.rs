@@ -239,12 +239,16 @@ mod tests {
 
     /// A listener the test owns, standing in for the one a service manager
     /// would hand over. Production has no path that creates one.
-    fn scratch_listener(name: &str) -> (UnixListener, std::path::PathBuf) {
-        // Short, absolute, and inside sun_path's budget; a temp directory path
-        // can exceed it on macOS.
-        let path =
-            std::path::PathBuf::from(format!("/tmp/qp-act-{}-{name}.sock", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+    fn socket_directory() -> tempfile::TempDir {
+        // Reserve a private directory, keeping paths within macOS sun_path.
+        tempfile::Builder::new()
+            .prefix("qp-act-")
+            .tempdir_in("/tmp")
+            .expect("private socket directory")
+    }
+    fn scratch_listener(name: &str) -> (tempfile::TempDir, UnixListener, std::path::PathBuf) {
+        let directory = socket_directory();
+        let path = directory.path().join(format!("{name}.sock"));
         let listener = UnixListener::bind(&path).expect("bind scratch listener");
         // Present the descriptor state a service manager presents, not the one
         // `std` produces: every socket `std` creates is already close-on-exec,
@@ -253,14 +257,14 @@ mod tests {
         // the flag -- it has to survive the exec into this daemon.
         rustix::io::fcntl_setfd(listener.as_fd(), rustix::io::FdFlags::empty())
             .expect("clear close-on-exec on the scratch listener");
-        (listener, path)
+        (directory, listener, path)
     }
 
     #[test]
     fn a_listener_bound_to_the_expected_path_is_adopted() {
         use std::os::fd::AsRawFd;
 
-        let (listener, path) = scratch_listener("ok");
+        let (directory, listener, path) = scratch_listener("ok");
         let descriptor = OwnedFd::from(listener);
         let raw = descriptor.as_raw_fd();
         let adopted = adopted_listener(descriptor, &path).expect("expected listener is adopted");
@@ -277,12 +281,12 @@ mod tests {
             "the same descriptor is carried through"
         );
         drop(adopted);
-        let _ = std::fs::remove_file(&path);
+        directory.close().expect("socket directory cleanup");
     }
 
     #[test]
     fn a_listener_bound_elsewhere_is_refused() {
-        let (listener, path) = scratch_listener("elsewhere");
+        let (directory, listener, _) = scratch_listener("elsewhere");
         let descriptor = OwnedFd::from(listener);
         let outcome = adopted_listener(descriptor, Path::new("/tmp/qp-act-not-this.sock"));
         assert_eq!(
@@ -290,7 +294,7 @@ mod tests {
             Some(ActivationError::Mismatch),
             "the bound name is the only identity the descriptor carries, so it must be checked"
         );
-        let _ = std::fs::remove_file(&path);
+        directory.close().expect("socket directory cleanup");
     }
 
     /// The address shape a service manager actually produces, which neither
@@ -298,8 +302,8 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn a_launchd_shaped_listener_is_adopted() {
-        let path = std::env::temp_dir().join(format!("qp-launchd-{}.sock", std::process::id()));
-        let _ = std::fs::remove_file(&path);
+        let directory = socket_directory();
+        let path = directory.path().join("launchd.sock");
         let descriptor = crate::activation_handoff::test_support::launchd_shaped_listener(&path);
         // This fixture is built with a raw `socket(2)` and no SOCK_CLOEXEC, so
         // it already presents what launchd presents; asserting the flag here is
@@ -311,7 +315,6 @@ mod tests {
             "the fixture must present a descriptor a service manager could hand over"
         );
         let outcome = adopted_listener(descriptor, &path);
-        let _ = std::fs::remove_file(&path);
         assert!(
             outcome.is_ok(),
             "a launchd-bound listener must be adopted, got {outcome:?}"
@@ -322,6 +325,8 @@ mod tests {
             flags.contains(rustix::io::FdFlags::CLOEXEC),
             "the adopted listener must be close-on-exec"
         );
+        drop(adopted);
+        directory.close().expect("socket directory cleanup");
     }
 
     #[test]

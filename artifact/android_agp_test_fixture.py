@@ -22,8 +22,8 @@ from test_android_device_proof import (
     complete_proof_shape,
     write_emulator_isolation_receipts,
 )
-from test_android_elf import AndroidElfVerifierTests, zip_bytes
-from test_android_minimal_consumer import class_dump, complete_dump
+from test_android_elf import AndroidElfVerifierTests, CLASS_BYTES, CLASS_ENTRIES, zip_bytes
+from test_android_minimal_consumer import CALLBACK, EXCEPTION, FACADE, class_dump, complete_dump
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MANIFEST_DUMP = (
@@ -38,6 +38,10 @@ METHODS = (
     ("onStart", "()V", "PUBLIC"),
 )
 DEX_DUMP = complete_dump() + class_dump(0, consumer.INSTRUMENTATION_DESCRIPTOR, METHODS)
+SDK_MANIFEST_DUMP = MANIFEST_DUMP.replace("  E: application (line=2)\n", "  E: application (line=2)\n    A: android:extractNativeLibs(0x010104ea)=false\n")
+SDK_DEX_DUMP = (class_dump(0, FACADE, tuple((name, descriptor, "PRIVATE STATIC NATIVE")
+    for name, descriptor in android_elf.package_profile("sdk-020").jni_methods.items()))
+    + class_dump(1, EXCEPTION, CALLBACK) + class_dump(2, consumer.INSTRUMENTATION_DESCRIPTOR, METHODS))
 SIGNER = b"fixture SDK signer certificate result\n"
 ALIGNMENT = b"fixture SDK 16384-byte native alignment result\n"
 
@@ -64,16 +68,16 @@ def json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
 
 
-def gradle_version(java_home: str = "${JAVA_HOME}") -> bytes:
+def gradle_version(java_home: str = "${JAVA_HOME}", *, profile: str = "agp_full_release") -> bytes:
     return (
-        "Gradle 9.7.1\n"
+        f"Gradle {contract.profile_spec(profile).gradle_version}\n"
         "Launcher JVM:  21.0.11 (Homebrew 21.0.11)\n"
         f"Daemon JVM:    {java_home} (no Daemon JVM specified, using current Java home)\n"
     ).encode()
 
 
 def build_jvm(profile: str, java_home: str = "${JAVA_HOME}") -> dict[str, object]:
-    flavor = "Full" if profile == "agp_full_release" else "Minimal"
+    flavor = contract.profile_spec(profile).flavor
     return {
         "schema": 1,
         "kind": "qperiapt.android_agp_build_jvm",
@@ -106,11 +110,12 @@ def sdk_runner(tool: pathlib.Path, arguments: list[str]) -> bytes:
         )
     subject = pathlib.Path(arguments[-1])
     if tool.name == "dexdump":
-        if subject.read_bytes() not in (b"dex\n039\x00full", b"dex\n039\x00minimal"):
+        if subject.read_bytes() not in tuple(b"dex\n039\x00" + flavor.encode() for flavor in ("full", "minimal", "sdk-full", "sdk-minimal")):
             raise contract.AndroidAgpConsumerError(
                 "fixture SDK rejected the changed DEX bytes"
             )
-        return f"Processing '{subject}'...\n".encode() + DEX_DUMP.encode()
+        dump = SDK_DEX_DUMP if subject.read_bytes().startswith(b"dex\n039\x00sdk-") else DEX_DUMP
+        return f"Processing '{subject}'...\n".encode() + dump.encode()
     entries = consumer._apk_entries(subject)
     if tool.name == "apksigner":
         if entries.get("META-INF/QPERIAPT.RSA") != b"fixture-signature":
@@ -121,11 +126,11 @@ def sdk_runner(tool: pathlib.Path, arguments: list[str]) -> bytes:
             raise contract.AndroidAgpConsumerError("fixture SDK rejected unaligned APK")
         return ALIGNMENT
     if tool.name == "aapt2":
-        if entries.get("AndroidManifest.xml") != b"fixture binary manifest":
+        if entries.get("AndroidManifest.xml") not in (b"fixture binary manifest", b"fixture sdk binary manifest"):
             raise contract.AndroidAgpConsumerError(
                 "fixture SDK rejected changed binary manifest"
             )
-        return MANIFEST_DUMP.encode()
+        return (SDK_MANIFEST_DUMP if entries["AndroidManifest.xml"] == b"fixture sdk binary manifest" else MANIFEST_DUMP).encode()
     raise AssertionError("unexpected SDK command in AGP fixture")
 
 
@@ -146,19 +151,39 @@ class AgpFixturePair:
     profiles: dict[str, AgpProfileFixture]
 
 
-def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
+def create_agp_fixture_pair(directory: pathlib.Path, *, sdk_profile: bool = False,
+                            device_abi: str = "arm64-v8a",
+                            expected_runtime_profile: str = contract.DEFAULT_RUNTIME_PROFILE) -> AgpFixturePair:
     """Build two complete synthetic profiles sharing one real source commit and AAR."""
     root = directory.resolve() / "source"
     root.mkdir(mode=0o700, parents=True)
     original = AndroidElfVerifierTests()
     original.root = root
     _, aar, manifest, _, _, manifest_value = original.manifest_release_fixture()
-    names = (
-        set(runtime.SOURCE_INPUTS.values())
-        | set(consumer.source_inputs("agp_full_release"))
-        | set(consumer.source_inputs("agp_minimal_release"))
-    )
-    names.add("crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
+    selected_profiles = ("agp_sdk_full_release", "agp_sdk_minimal_release") if sdk_profile else ("agp_full_release", "agp_minimal_release")
+    package = android_elf.package_profile("sdk-020" if sdk_profile else "legacy")
+    names = set()
+    for profile in selected_profiles:
+        contract.runtime_target(profile, device_abi, expected_runtime_profile)
+        names.update(runtime.source_inputs(runtime.RuntimeResultProfile(profile)).values())
+        names.update(consumer.source_inputs(profile))
+    names.add(package.contract)
+    if sdk_profile:
+        names.update(android_elf.SDK_NOTICE_SOURCES.values())
+        entries, _ = android_elf.audit_aar(aar)
+        entries.update({name: (ROOT / path).read_bytes() for name, path in android_elf.SDK_NOTICE_SOURCES.items()})
+        classes = dict(CLASS_ENTRIES)
+        for name in ("QPeriaptSDK", *("QPeriaptSDK$" + owner for owner in
+            ("Runtime", "Key", "PublicKey", "Ciphertext", "Secret", "DerivedKey", "Encapsulation", "KeyPurpose", "PolicyStates", "PolicyUpdate", "Expert"))):
+            classes["dev/qperiapt/android/" + name + ".class"] = CLASS_BYTES
+        entries["classes.jar"] = zip_bytes(classes)
+        aar = aar.with_name(f"q-periapt-android-{package.version}.aar")
+        write(aar, zip_bytes(entries))
+        manifest_value.update(schema_version=package.schema, kind=package.kind, version=package.version, package=aar.name,
+            jni={"extension_version": 1, "method_count": 26, "methods": package.jni_methods})
+        manifest_value["abi"].update(contract_path=package.contract, export_count=len(package.exports),
+            exports_sha256=hashlib.sha256(("\n".join(sorted(package.exports)) + "\n").encode()).hexdigest())
+        manifest_value["artifacts"].update(aar_sha256=digest(aar), classes_jar_sha256=hashlib.sha256(entries["classes.jar"]).hexdigest())
     for name in names:
         write(root / name, (ROOT / name).read_bytes())
     subprocess.run(
@@ -196,18 +221,20 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
         "third_party_license_collector_sha256": "artifact/third_party_licenses.py",
     }.items():
         manifest_value["artifacts"][field] = digest(root / source)
+    if sdk_profile:
+        manifest_value["artifacts"].update(
+            java_sdk_sha256=digest(root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptSDK.java"),
+            sdk_spec_sha256=digest(root / "artifact/sdk_abi2_spec.py"))
     write(manifest, android_elf.canonical_json(manifest_value))
-    aar_entries, _ = android_elf.audit_aar(aar)
+    aar_entries, _ = android_elf.audit_aar(aar, profile="sdk-020" if sdk_profile else "legacy")
     sdk = root / "target/sdk"
     for tool in ("apksigner", "zipalign", "dexdump", "aapt2"):
         path = sdk / "build-tools/36.0.0" / tool
         write(path, b"#!/bin/sh\nexit 99\n")
         path.chmod(0o700)
     profiles = {}
-    for profile, run_id in (
-        ("agp_full_release", "a" * 32),
-        ("agp_minimal_release", "b" * 32),
-    ):
+    for profile, run_id in zip(selected_profiles, ("a" * 32, "b" * 32)):
+        spec = contract.profile_spec(profile)
         proof_root = root / "target" / runtime.ANDROID_RUNS_ROOT_LEAF / run_id / "proof"
         proof_root.mkdir(mode=0o700, parents=True)
         proof_root.parent.chmod(0o700)
@@ -216,12 +243,18 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
         proof = complete_proof_shape()
         proof.update(
             schema=1,
-            kind=contract.PROOF_KIND,
+            kind=spec.proof_kind,
             git_commit=commit,
             proof_source_tree_sha256=tree,
             run_id=run_id,
             release_candidate_mode=True,
         )
+        proof["device"].update(contract.runtime_target(profile, device_abi, expected_runtime_profile))
+        if proof["device"]["kind"] == "physical":
+            proof["emulator_control"] = None
+        else:
+            proof["emulator_control"]["backend"]["identity"] = "qemu-system-" + ("aarch64" if device_abi == "arm64-v8a" else "x86_64") + "-headless"
+        proof["abi"]["contract_path"] = package.contract
         tests = list(contract.PROFILE_TESTS[profile])
         marker = (
             runtime.expected_marker(
@@ -253,10 +286,10 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             apksigner_verify=proof_root / "apksigner-verify.txt",
             zipalign_verify=proof_root / "zipalign-verify.txt",
         )
-        flavor = "full" if profile == "agp_full_release" else "minimal"
+        flavor = spec.flavor.lower()
         apk_entries = {
-            "AndroidManifest.xml": b"fixture binary manifest",
-            "classes.dex": b"dex\n039\x00" + flavor.encode(),
+            "AndroidManifest.xml": b"fixture sdk binary manifest" if sdk_profile else b"fixture binary manifest",
+            "classes.dex": b"dex\n039\x00" + (("sdk-" if sdk_profile else "") + flavor).encode(),
             "alignment.fixture": b"16384",
         }
         apk_entries.update(
@@ -266,10 +299,7 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
                 if name.startswith("jni/")
             }
         )
-        if profile == "agp_full_release":
-            apk_entries["assets/signed-policy-vectors.json"] = (
-                root / "bindings/signed-policy-vectors.json"
-            ).read_bytes()
+        apk_entries.update({"assets/" + name: (root / "bindings" / name).read_bytes() for name in spec.fixtures})
         write(
             paths["smoke_apk"],
             zip_bytes({**apk_entries, "META-INF/QPERIAPT.RSA": b"fixture-signature"}),
@@ -279,32 +309,33 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
         write(paths["apksigner_verify"], SIGNER)
         write(paths["zipalign_verify"], ALIGNMENT)
         write(paths["logcat"], b"I/QPeriaptSmoke: " + marker)
-        private = proof["emulator_control"]["private_adb"]
-        status = (
-            f'executable_absolute_path: {json.dumps(str(proof_root.parent / "work" / ("adb-" + run_id)))}\n'
-            f'keystore_path: {json.dumps(str(runtime.current_account_home() / ".android/adbkey"))}\nmdns_enabled: false\n'
-        ).encode()
-        listener = f"p123\nu{os.geteuid()}\nf7\nn/tmp/qperiapt-adb.abcdefgh/adb.sock\n".encode()
-        write(proof_root / "adb-server-status-registered.txt", status)
-        write(proof_root / "adb-listener-registered.txt", listener)
-        private["server_status_sha256"] = hashlib.sha256(status).hexdigest()
-        private["listener_snapshot_sha256"] = hashlib.sha256(listener).hexdigest()
-        routing, checkpoints = write_emulator_isolation_receipts(
-            proof_root, run_id=run_id, private_adb=private
-        )
-        paths["emulator_routing"] = routing
-        external = runtime._parse_emulator_routing_receipt(
-            routing, run_id=run_id, expected_private_adb=private, bundled=False
-        )
-        proof["emulator_control"]["external_adb"] = external
-        for item, checkpoint in zip(
-            proof["emulator_control"]["native_notifier"]["admission_checkpoints"],
-            runtime.ADB_ISOLATION_CHECKPOINTS,
-        ):
-            paths[runtime.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[checkpoint]] = (
-                checkpoints[checkpoint]
+        if proof["emulator_control"] is not None:
+            private = proof["emulator_control"]["private_adb"]
+            status = (
+                f'executable_absolute_path: {json.dumps(str(proof_root.parent / "work" / ("adb-" + run_id)))}\n'
+                f'keystore_path: {json.dumps(str(runtime.current_account_home() / ".android/adbkey"))}\nmdns_enabled: false\n'
+            ).encode()
+            listener = f"p123\nu{os.geteuid()}\nf7\nn/tmp/qperiapt-adb.abcdefgh/adb.sock\n".encode()
+            write(proof_root / "adb-server-status-registered.txt", status)
+            write(proof_root / "adb-listener-registered.txt", listener)
+            private["server_status_sha256"] = hashlib.sha256(status).hexdigest()
+            private["listener_snapshot_sha256"] = hashlib.sha256(listener).hexdigest()
+            routing, checkpoints = write_emulator_isolation_receipts(
+                proof_root, run_id=run_id, private_adb=private
             )
-            item["receipt_sha256"] = digest(checkpoints[checkpoint])
+            paths["emulator_routing"] = routing
+            external = runtime._parse_emulator_routing_receipt(
+                routing, run_id=run_id, expected_private_adb=private, bundled=False
+            )
+            proof["emulator_control"]["external_adb"] = external
+            for item, checkpoint in zip(
+                proof["emulator_control"]["native_notifier"]["admission_checkpoints"],
+                runtime.ADB_ISOLATION_CHECKPOINTS,
+            ):
+                paths[runtime.ADB_ISOLATION_PATH_KEY_BY_CHECKPOINT[checkpoint]] = (
+                    checkpoints[checkpoint]
+                )
+                item["receipt_sha256"] = digest(checkpoints[checkpoint])
         proof["abi"]["contract_sha256"] = digest(root / proof["abi"]["contract_path"])
         for tool in ("apksigner", "zipalign"):
             proof["android"][tool + "_sha256"] = digest(
@@ -312,7 +343,7 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             )
         proof["source_hashes"] = {
             key + "_sha256": digest(root / name)
-            for key, name in runtime.SOURCE_INPUTS.items()
+            for key, name in runtime.source_inputs(runtime.RuntimeResultProfile(profile)).items()
         }
         for field, key in (
             ("aar_sha256", "aar"),
@@ -350,11 +381,11 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
 
         manifest_rules = b"-keep class dev.qperiapt.androidsmoke.QPeriaptSmokeActivity { <init>(); }\n-keep class dev.qperiapt.androidsmoke.QPeriaptResultInstrumentation { <init>(); }\n"
         merged = section(
-            "Android Gradle plugin 9.4.0 (extracted file: ${WORK}/project/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-9.4.0)",
+            f"Android Gradle plugin {spec.agp_version} (extracted file: ${{WORK}}/project/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-{spec.agp_version})",
             default,
         )
         merged += section(
-            "${GRADLE_HOME}/caches/9.7.1/transforms/fixture/transformed/q-periapt-android-0.1.5/proguard.txt",
+            f"${{GRADLE_HOME}}/caches/{spec.gradle_version}/transforms/fixture/transformed/q-periapt-android-" + spec.version + "/proguard.txt",
             aar_entries["proguard.txt"],
         )
         merged += section("<unknown>", b"")
@@ -362,20 +393,20 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             "agp_apk": zip_bytes(
                 {
                     **apk_entries,
-                    consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+                    consumer.APP_METADATA_ENTRY: consumer.app_metadata_content(profile),
                 }
             ),
             "apk": zip_bytes(apk_entries),
             "dexdump": b"Processing '${APK_INSPECTION}/classes.dex'...\n"
-            + DEX_DUMP.encode(),
-            "manifest_dump": MANIFEST_DUMP.encode(),
+            + (SDK_DEX_DUMP if sdk_profile else DEX_DUMP).encode(),
+            "manifest_dump": (SDK_MANIFEST_DUMP if sdk_profile else MANIFEST_DUMP).encode(),
             "mapping": b"fixture mapping\n",
             "r8_configuration": merged,
             "gradle_log": (
                 f"> Task :app:compile{flavor.title()}ReleaseJavaWithJavac\n"
                 f"> Task :app:minify{flavor.title()}ReleaseWithR8\nBUILD SUCCESSFUL\n"
             ).encode(),
-            "gradle_version": gradle_version(),
+            "gradle_version": gradle_version(profile=profile),
             "build_jvm": json_bytes(build_jvm(profile)),
             "compilation_inputs": (
                 "\n".join(consumer.compiled_sources(profile)) + "\n"
@@ -390,20 +421,20 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
             write(path, data[key])
         receipt = {
             "schema": 1,
-            "kind": contract.BUILD_KIND,
+            "kind": spec.build_kind,
             "profile": profile,
             "status": "pass",
             "source_commit": commit,
             "source_tree_sha256": tree,
             "aar_sha256": digest(aar),
             "aar_manifest_sha256": digest(manifest),
-            "agp_version": contract.AGP_VERSION,
-            "gradle_version": contract.GRADLE_VERSION,
+            "agp_version": spec.agp_version,
+            "gradle_version": spec.gradle_version,
             "minify_enabled": True,
             "debuggable": False,
             "app_q_keep_rules": [],
             "signing_input": consumer.verify_signing_input(
-                build_paths["agp_apk"], build_paths["apk"]
+                build_paths["agp_apk"], build_paths["apk"], profile=profile
             ),
             "files": {key: record(path) for key, path in build_paths.items()},
             "dex_sha256": {
@@ -457,6 +488,8 @@ def create_agp_fixture_pair(directory: pathlib.Path) -> AgpFixturePair:
                 "expected_aar_sha256": digest(aar),
                 "expected_aar_manifest_sha256": digest(manifest),
                 "expected_source_commit": commit,
+                **({"expected_device_abi": device_abi,
+                    "expected_runtime_profile": expected_runtime_profile} if sdk_profile else {}),
             },
         )
     return AgpFixturePair(root, sdk, aar, manifest, profiles)

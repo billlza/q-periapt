@@ -1,0 +1,11 @@
+{
+  "run": 38363073097,
+  "job": 115181633663,
+  "head": "1ce396c4ad9fa21d3b2a509798df0bd683a30687",
+  "url": "https://github.com/billlza/q-periapt/actions/runs/38363073097/job/115181633663",
+  "log_sha256": "2206a02a71dc59983f617b92b587bec494e6e91a725edaf6ffe1d1cc70a06e94",
+  "failure_lines": [
+    "2026-10-13T07:35:07.5844891Z error: crates.io sparse verification failed: workspace Cargo.lock contains an unexpected local package: q-periapt-continuity-identity-candidate",
+    "2026-10-13T07:35:07.6016540Z ##[error]Process completed with exit code 1."
+  ]
+}

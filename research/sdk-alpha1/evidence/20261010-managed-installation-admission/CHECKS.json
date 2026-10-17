@@ -1,0 +1,205 @@
+{
+  "updated_at": "2026-10-10T20:17:24.761290+00:00",
+  "head": "18115ea60eddd102f84799aa89886546d17190d4",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source",
+  "checks": {
+    "managed-installed-regression-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "installation",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "mode": "focused",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 337.78191737504676,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    },
+    "managed-enrollment-final": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "managed_enrollment",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "mode": "focused",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 71.32858383306302,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    },
+    "managed-existing-witness-session-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "real_witnessed_session_reopens_after_p0_expiry",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "mode": "focused",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 15.781281084055081,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    },
+    "managed-installed-clippy-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "mode": "clippy",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 9.456884708954021,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    },
+    "managed-installed-msrv": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "mode": "msrv",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 9.695791625184938,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    },
+    "managed-installed-doc": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--doc"
+      ],
+      "mode": "doc",
+      "base_head": "39df517efc64624affeef593170db2c048ca372c",
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 8.607762292027473,
+      "source_unchanged": true,
+      "head_unchanged": true,
+      "matches_committed_sources": true
+    }
+  },
+  "tests": {
+    "managed_enrollment": 12,
+    "installation_related": 70,
+    "new_managed_cases_included": 6,
+    "existing_witnessed_session": 1,
+    "doctests": 17,
+    "source_inventory_units": 44
+  },
+  "source_inventory": 509,
+  "frozen_prior_full": {
+    "head": "39df517efc64624affeef593170db2c048ca372c",
+    "session": 45812,
+    "complete": false
+  },
+  "foreign_managed_registry_owners_implemented": false,
+  "installed_foreign_managed_qualification": false,
+  "performance_measured": false,
+  "release_claim_eligible": false,
+  "environment": {
+    "architecture": "arm64",
+    "macos": "27.0",
+    "rust": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "msrv": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+    "minimum_macos_13_tested": false
+  },
+  "integration": {
+    "prototype_head": "18115ea60eddd102f84799aa89886546d17190d4",
+    "merged_head": "c78519fd124a1143a4b85cbbe4daab64b05734dd",
+    "previous_ci_head": "c8b07959f5c92337925d898a060a8a699566bd10",
+    "verified_identical_compile_inputs": 544,
+    "retained_prior_evidence_files": [
+      "research/sdk-alpha1/evidence/20261010-codeql-complete-4b1e/CAPTURE.zip",
+      "research/sdk-alpha1/evidence/20261010-codeql-complete-4b1e/CHECKS.json",
+      "research/sdk-alpha1/evidence/20261010-lifecycle-regression-complete/CAPTURE.zip",
+      "research/sdk-alpha1/evidence/20261010-lifecycle-regression-complete/CHECKS.json"
+    ]
+  },
+  "capture": {
+    "head": "18115ea60eddd102f84799aa89886546d17190d4",
+    "bytes": 1212412,
+    "members": 82,
+    "sha256": "dbacc371ffebce3ceb0b45998698d14b093896b06dc6d0fb4e08275bcbd56215",
+    "native_current_focused_checks": true,
+    "full_native_current_head": false,
+    "foreign_managed_owner_qualification": false,
+    "release_claim_eligible": false
+  },
+  "full_native_current_head_complete": false
+}

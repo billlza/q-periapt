@@ -1,0 +1,13 @@
+{
+  "completed": true,
+  "artifact_tests": 30,
+  "routing_before": "failed on duplicate output prefix",
+  "routing_after": "passed with eight distinct outputs",
+  "files": {
+    "collector-routing-before-02.log": "09286ed41454dedc3935ece767b868e36001a6bd19956723a00d061ad57951cb",
+    "artifact-controls-02.log": "3fde4c9757c7d0d6f2accfec8d8a698a8191896154653f15463866182d620c53",
+    "QUALIFIER_FIX.json": "49022719046b4be992d871a76b736ba866e676d868e23bbc95e665eb9d158255"
+  },
+  "protocol_inputs_sealed_before_qualifier_edit": true,
+  "release_claim_eligible": false
+}

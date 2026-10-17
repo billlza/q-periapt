@@ -1,0 +1,6 @@
+{
+  "file": "from-public-owner.patch.gz",
+  "encoding": "gzip",
+  "uncompressed_sha256": "12326286842bdd8bb1976296891c34c53c5f609652c3bdc14c975c20f416882d",
+  "reason": "Preserve exact unified diff context bytes without introducing trailing whitespace in the tracked text inventory."
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_unsigned_packages_reject_source_drift_before_reporting_success"
+  ],
+  "returncode": 1,
+  "builder_sha256": "3bed9e309da9be230ea7fd3b2d48c1142591cc63ef19ff2f7d191947741e6dca"
+}
