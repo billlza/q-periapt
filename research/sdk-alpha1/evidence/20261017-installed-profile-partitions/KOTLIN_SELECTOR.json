@@ -1,0 +1,9 @@
+{
+  "old_source_commit": "464d48ebc21757b34d580d00dbcd8316b2e94d20",
+  "old_source_sha256": "1e7107dbfd0a82ff746fa1fa019c5af7643763e0eff51ea37b60a6b2be06db0d",
+  "old_release_only": "KeyError: debug",
+  "candidate_release_only": "selected release library and verified bytes",
+  "default_full_selection_unchanged": true,
+  "modified_library_rejected": true,
+  "scope": "real file-selection/hash boundary only; no claim of Maven or native runtime qualification"
+}

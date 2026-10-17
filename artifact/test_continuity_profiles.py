@@ -1,6 +1,7 @@
 """Profile joins reject missing, unfinished, mixed-source and mislabeled runs."""
 import argparse
 import copy
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 
 import continuity_package as package
+import continuity_kotlin_consumer as kotlin
 import continuity_profiles as profiles
 
 COMMIT = "a1" * 20
@@ -34,10 +36,33 @@ def partition(consumer, profile):
     if consumer == "swift":
         result["apple_package"] = {"completed": True}
         result[field]["minimum_root"] = {"completed": True}
+    if consumer == "kotlin":
+        result[field]["publication_test_profile"] = profile
     return result
 
 
 class ProfileSelectionTests(unittest.TestCase):
+    def test_kotlin_publication_accepts_release_without_a_debug_library(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            libraries = {}
+            for profile in profiles.PROFILES:
+                path = root / (profile + ".dylib")
+                path.write_bytes(profile.encode())
+                libraries[profile] = {"binaries": {"C_library": {
+                    "path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}}}
+            for selected in (("debug",), ("release",), profiles.PROFILES):
+                native = {"completed": selected == profiles.PROFILES, "partition_completed": True,
+                          "build_profiles": list(selected), "execution": {p: libraries[p] for p in selected}}
+                self.assertEqual(kotlin.initial_native_library(native, selected), root / (selected[0] + ".dylib"))
+            native = {"completed": False, "partition_completed": True, "build_profiles": ["release"],
+                      "execution": {"release": libraries["release"]}}
+            (root / "release.dylib").write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "native library changed"):
+                kotlin.initial_native_library(native, ("release",))
+            with self.assertRaises(ValueError):
+                kotlin.initial_native_library(native, profiles.PROFILES)
+
     def test_only_canonical_nonempty_build_profiles_are_accepted(self):
         for selected in (("debug",), ("release",), ("debug", "release")):
             self.assertEqual(profiles.validate_profiles(selected), selected)
@@ -187,6 +212,14 @@ class CoverageTests(unittest.TestCase):
                 self.write("swift", "debug", value)
                 with self.subTest(field=field, completed=completed), self.assertRaisesRegex(ValueError, "Swift"):
                     self.verify()
+
+    def test_kotlin_publication_cannot_borrow_the_other_build_profile(self):
+        for profile in ("debug", None):
+            row = partition("kotlin", "release")
+            row["kotlin_consumer"]["publication_test_profile"] = profile
+            self.write("kotlin", "release", row)
+            with self.assertRaisesRegex(ValueError, "publication owner tests"):
+                self.verify()
 
     def test_symlink_report_and_duplicate_json_keys_are_rejected(self):
         path = self.path(); original = path.read_bytes()

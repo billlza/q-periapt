@@ -34,6 +34,14 @@ foreign results. It rejects missing, duplicate, interrupted, mislabeled and
 mixed-source inputs. The join retains report digests rather than flattening the
 underlying public scenario evidence into a new full-package claim.
 
+Review of work outside the profile loops found Kotlin's Maven-publication owner
+test hard-coded to the debug native library. A release-only native result makes
+that old selector fail with `KeyError: debug`. The selector now verifies and uses
+the first explicitly requested profile (debug for the default full invocation).
+Its selected profile is recorded and checked by the join. A release-only
+regression also checks wrong-profile admission and changed library bytes. This
+selection test is not a replacement for the actual Maven/JVM execution in CI.
+
 Local validation includes rejection tests for that join, the existing installed
 consumer verifiers and the workflow contract. A static comparison also confirms
 that the complete profile-loop bodies equal those at `7e6a2345`. This is not a

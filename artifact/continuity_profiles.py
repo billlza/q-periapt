@@ -96,6 +96,9 @@ def verify_partitions(directory: Path, *, source_commit: str, source_inputs: dic
                             "Swift partition omitted Apple packaging or minimum-compiler execution")
             else:
                 sdk.require("apple_package" not in row, "partition includes an unexpected Apple package")
+            if consumer == "kotlin":
+                sdk.require(foreign.get("publication_test_profile") == profile,
+                            "Kotlin publication owner tests used a different build profile")
             report = row.get("rust_report_sha256")
             rustc = row.get("rustc")
             sdk.require(isinstance(report, str) and re.fullmatch(r"[0-9a-f]{64}", report) is not None

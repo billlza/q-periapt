@@ -409,10 +409,20 @@ def runtime_closure(data: bytes, distribution: Path, jar_sha256: str, outside: P
     return result
 
 
+def initial_native_library(native: dict, profiles: tuple[str, ...]) -> Path:
+    """Use the selected profile for Maven publication's real owner tests."""
+    profiles_contract.require_native(native, profiles)
+    record = native["execution"][profiles[0]]["binaries"]["C_library"]
+    library = Path(record["path"])
+    sdk.require(sdk.snapshot(library, maximum=c.MAX_BINARY).sha256 == record["sha256"],
+                "native library changed before JVM owner tests")
+    return library
+
+
 def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                    java_home: Path, gradle_home: Path,
                    *, profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
-    profiles_contract.require_native(native, profiles)
+    initial_library = initial_native_library(native, profiles)
     sdk.require(os.uname().sysname == "Linux" or
                 (os.uname().sysname == "Darwin" and os.uname().machine == "arm64"),
                 "Kotlin qualification requires completed native C packages on a supported host")
@@ -453,11 +463,9 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                  "-Pkotlin.compiler.execution.strategy=in-process",
                  "-Dorg.gradle.java.home=" + str(java_home)]
         library_name = "libq_periapt_continuity_c_consumer." + ("dylib" if os.uname().sysname == "Darwin" else "so")
-        debug_lib = Path(native["execution"]["debug"]["binaries"]["C_library"]["path"])
-        sdk.require(sdk.snapshot(debug_lib, maximum=c.MAX_BINARY).sha256 == native["execution"]["debug"]["binaries"]["C_library"]["sha256"],
-                    "native library changed before JVM owner tests")
         run([*flags, "--project-dir", str(builder), "test", "publishContinuityPublicationToCandidateRepository",
-             "-Pqperiapt.continuity.lib=" + str(debug_lib)], "build-sdk")
+             "-Pqperiapt.continuity.lib=" + str(initial_library)], "build-sdk")
+        result["publication_test_profile"] = profiles[0]
         tests = builder / "build/test-results/test"
         result["owner_tests"] = retain_test_reports(tests, output)
         staged = builder / "build/candidate-maven"
