@@ -101,6 +101,7 @@ pub(super) enum OpenKind {
     TraverseDirectory,
     PrivateDirectory,
     Metadata,
+    Configuration,
     State,
 }
 
@@ -193,6 +194,7 @@ pub(super) fn open(parent: &File, name: &OsStr, kind: OpenKind) -> io::Result<Fi
             FILE_DIRECTORY_FILE,
         ),
         OpenKind::Metadata => (FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE, 0),
+        OpenKind::Configuration => (GENERIC_READ | SYNCHRONIZE, FILE_NON_DIRECTORY_FILE),
         OpenKind::State => (
             GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
             FILE_NON_DIRECTORY_FILE,

@@ -13,7 +13,10 @@ same persist-before-activate sequence. It requires an absolute drive path and
 current-user ownership, with DACL grants restricted to that user or LocalSystem.
 Exclusive creation applies a protected DACL; admission never repairs permissions
 on an existing path. Reparse points, multiple hard links, alternate streams,
-device aliases and network volumes are rejected. Windows directory publication
+device aliases and network volumes are rejected. Configuration reads use read-only
+handles beneath the pinned private parent, reject empty or oversized files, and
+recheck both file and parent DACLs. Callers still bound the actual read; an admitted
+length is not an immutable-file guarantee. Windows directory publication
 and anonymous private scratch remain unsupported. Native Windows validation is
 separate from Unix evidence and does not imply full Continuity qualification.
 

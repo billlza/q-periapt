@@ -86,6 +86,26 @@ impl OwnedPrivateDirectory {
         crate::windows_acl::validate(&self.descriptor)
     }
 
+    /// Open a fixed-name, nonempty private configuration file for reading only.
+    /// The maximum bounds the admitted length; callers must also bound their reads.
+    pub fn open_config_file(&self, name: &str, maximum: usize) -> Result<File, PrivateFileError> {
+        let operation = || -> io::Result<File> {
+            self.validate()?;
+            let file = native::open(
+                &self.descriptor,
+                OsStr::new(name),
+                native::OpenKind::Configuration,
+            )?;
+            let length = validate_file(&file)?;
+            let maximum = u64::try_from(maximum).map_err(|_| native::denied())?;
+            if length == 0 || length > maximum {
+                return Err(native::denied());
+            }
+            Ok(file)
+        };
+        operation().map_err(|_| PrivateFileError)
+    }
+
     /// Open a nonempty private state leaf beneath this pinned directory.
     pub fn open_state_file(&self, name: &OsStr) -> Result<File, PrivateFileError> {
         open_private_leaf(self, name, false)
@@ -142,3 +162,6 @@ pub(super) fn open_private_leaf(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod configuration_tests;

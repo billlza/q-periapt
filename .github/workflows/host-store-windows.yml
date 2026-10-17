@@ -7,6 +7,8 @@ on:
       - .github/workflows/host-store-windows.yml
       - crates/q-periapt-host-store/**
       - research/continuity-identity-candidate/**
+      - bindings/c/ContinuityPackageConsumer/src/**
+      - bindings/c/ContinuityPackageConsumer/Cargo.toml
       - Cargo.toml
       - Cargo.lock
 
@@ -70,6 +72,37 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --locked --release --manifest-path $manifest --lib --no-default-features crypto::persistence::retirement::tests -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/retirement-release-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the Windows Continuity C facade from source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Get-Location).Path
+          $consumer = Join-Path $env:RUNNER_TEMP 'continuity-consumer-source'
+          New-Item -ItemType Directory -Path $consumer | Out-Null
+          Copy-Item bindings/c/ContinuityPackageConsumer/src $consumer -Recurse
+          Copy-Item bindings/c/ContinuityPackageConsumer/Cargo.toml $consumer
+          Copy-Item research/continuity-identity-candidate/Cargo.lock (Join-Path $consumer 'Cargo.lock')
+          $patches = "`n[patch.crates-io]`n"
+          $names = @('q-periapt-backends', 'q-periapt-core', 'q-periapt-host-store', 'q-periapt-kem', 'q-periapt-mlkem-native-sys', 'q-periapt-policy', 'q-periapt-rustls', 'q-periapt-sdk', 'q-periapt-sig', 'q-periapt-continuity-identity-candidate')
+          foreach ($name in $names) {
+            $relative = if ($name -eq 'q-periapt-continuity-identity-candidate') { 'research/continuity-identity-candidate' } else { "crates/$name" }
+            $path = (Join-Path $root $relative).Replace('\', '/') | ConvertTo-Json -Compress
+            $patches += "$name = { path = $path }`n"
+          }
+          Add-Content -Path (Join-Path $consumer 'Cargo.toml') -Value $patches -Encoding utf8
+          $manifest = Join-Path $consumer 'Cargo.toml'
+          $env:CARGO_TARGET_DIR = Join-Path $root 'research/continuity-identity-candidate/target'
+          cargo metadata --manifest-path $manifest --format-version 1 1> target/private-store-evidence/consumer-metadata.json 2> target/private-store-evidence/consumer-resolution.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item (Join-Path $consumer 'Cargo.lock') target/private-store-evidence/consumer-Cargo.lock
+          Copy-Item $manifest target/private-store-evidence/consumer-Cargo.toml
+          cargo clippy --locked --manifest-path $manifest --lib -- -D warnings 2>&1 | Tee-Object target/private-store-evidence/consumer-clippy.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --locked --release --manifest-path $manifest --lib 2>&1 | Tee-Object target/private-store-evidence/consumer-release.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $library = Join-Path $env:CARGO_TARGET_DIR 'release/q_periapt_continuity_c_consumer.dll'
+          $receipt = @{ scope = 'Windows source facade compilation only; no installed-package or runtime qualification'; source = (git rev-parse HEAD); bytes = (Get-Item $library).Length; sha256 = (Get-FileHash $library -Algorithm SHA256).Hash.ToLowerInvariant() }
+          $receipt | ConvertTo-Json | Set-Content target/private-store-evidence/consumer-library.json -Encoding utf8
       - name: Preserve native results including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
