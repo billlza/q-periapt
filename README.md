@@ -49,6 +49,14 @@ publication. This avoids mistaking identity checks on the original handle
 alone, or an earlier flush of an empty directory, for the complete primitive
 sequence needed by the store.
 
+The next control retains an open, exclusively locked child file while publishing
+its parent directory. It checks collision refusal, plain duplicated-handle close,
+nonblocking lock contention before and after publication, independently opened
+child identity, directory/parent flush, then byte equality after explicit unlock.
+These are Win32 file-lock primitives, not a redb or cross-process SDK test.
+The directory sequence is only reached after the file controls succeed; any
+failed file or directory control still fails its invocation without a fallback.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)

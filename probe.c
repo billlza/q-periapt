@@ -159,6 +159,80 @@ static void pin_directory_control(const WCHAR *root) {
     if (!ok) failures++;
 }
 
+static BOOL lock_contended(const WCHAR *path) {
+    HANDLE probe = CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    if (probe == INVALID_HANDLE_VALUE) return FALSE;
+    OVERLAPPED overlap = { 0 };
+    BOOL locked = LockFileEx(probe, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY,
+                             0, MAXDWORD, MAXDWORD, &overlap);
+    DWORD error = locked ? ERROR_SUCCESS : GetLastError();
+    if (locked) {
+        BOOL released = UnlockFileEx(probe, 0, MAXDWORD, MAXDWORD, &overlap);
+        require("unexpected_probe_lock_released", released);
+    }
+    close_owned(probe);
+    return !locked && error == ERROR_LOCK_VIOLATION;
+}
+
+static void directory_publication_control(const WCHAR *root, HANDLE parent, enum rename_method method) {
+    WCHAR staging[MAX_PATH], existing[MAX_PATH], published[MAX_PATH], child[MAX_PATH], published_child[MAX_PATH];
+    require("bounded_directory_publication_paths",
+            child_path(staging, MAX_PATH, root, L"staging-tree") &&
+            child_path(existing, MAX_PATH, root, L"existing-tree") &&
+            child_path(published, MAX_PATH, root, L"published-tree") &&
+            child_path(child, MAX_PATH, staging, L"locked-state.bin") &&
+            child_path(published_child, MAX_PATH, published, L"locked-state.bin"));
+    if (failures) return;
+    require("fresh_directory_publication_trees", CreateDirectoryW(staging, NULL) && CreateDirectoryW(existing, NULL));
+    if (failures) return;
+    const char bytes[] = "public-locked-state";
+    HANDLE state = create_bytes(child, bytes, sizeof(bytes));
+    HANDLE directory = CreateFileW(staging, GENERIC_READ | GENERIC_WRITE | DELETE,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   NULL, OPEN_EXISTING,
+                                   FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    require("staging_tree_handle_open", directory != INVALID_HANDLE_VALUE);
+    if (state != INVALID_HANDLE_VALUE && directory != INVALID_HANDLE_VALUE) {
+        OVERLAPPED overlap = { 0 };
+        BOOL locked = LockFileEx(state, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY,
+                                 0, MAXDWORD, MAXDWORD, &overlap);
+        require("state_lifetime_lock_acquired", locked);
+        if (locked) {
+            require("state_lock_excludes_other_handle_before_publication", lock_contended(child));
+            HANDLE duplicate = INVALID_HANDLE_VALUE;
+            BOOL copied = DuplicateHandle(GetCurrentProcess(), state, GetCurrentProcess(),
+                                           &duplicate, 0, FALSE, DUPLICATE_SAME_ACCESS);
+            require("plain_state_handle_duplicated", copied);
+            if (copied) close_owned(duplicate);
+            require("state_lock_survives_plain_duplicate_close", lock_contended(child));
+            BY_HANDLE_FILE_INFORMATION identity;
+            BOOL identity_ok = GetFileInformationByHandle(state, &identity);
+            require("locked_state_identity_observed", identity_ok);
+            DWORD error = ERROR_SUCCESS;
+            BOOL renamed = rename_file(directory, parent, L"existing-tree", existing, method, &error);
+            observe("directory_existing_destination_attempt", renamed, error);
+            require("directory_existing_destination_refused", !renamed && (error == ERROR_ALREADY_EXISTS || error == ERROR_FILE_EXISTS));
+            require("staging_child_identity_after_collision", identity_ok && same_named_file(child, &identity));
+            renamed = rename_file(directory, parent, L"published-tree", published, method, &error);
+            observe("directory_publish_with_open_locked_child", renamed, error);
+            if (!renamed) failures++;
+            if (renamed) {
+                require("published_child_is_original_file", identity_ok && same_named_file(published_child, &identity));
+                require("state_lock_excludes_other_handle_after_publication", lock_contended(published_child));
+                require("published_tree_sync", FlushFileBuffers(directory));
+                require("published_tree_parent_sync", FlushFileBuffers(parent));
+            }
+            BOOL released = UnlockFileEx(state, 0, MAXDWORD, MAXDWORD, &overlap);
+            require("original_state_lock_released", released);
+            if (renamed && released) require("published_child_bytes_after_unlock", exact_bytes(published_child, bytes, sizeof(bytes)));
+        }
+    }
+    close_owned(directory);
+    close_owned(state);
+}
+
 int wmain(int argc, WCHAR **argv) {
     if (argc != 3) { fputs("expected a new disposable fixture directory and rename method\n", stderr); return 2; }
     enum rename_method method;
@@ -250,6 +324,9 @@ int wmain(int argc, WCHAR **argv) {
             if (!ok) failures++;
         }
     }
+    /* The directory sequence depends on a working no-replacement file route.
+       Failed file controls already make this invocation fail; no fallback. */
+    if (failures == 0) directory_publication_control(argv[1], parent, method);
     close_owned(parent);
     close_owned(dst);
     close_owned(src);
