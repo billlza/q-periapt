@@ -110,8 +110,14 @@ static void deletion_case(struct report *r, const WCHAR *root, const WCHAR *leaf
     if (printf("{\"case\":\"%s\",\"operation\":\"after_delete_handle_close\",\"visible\":%s,\"links\":%lu,\"empty\":%s}\n",
                r->name, present ? "true" : "false", current.nNumberOfLinks, empty(&current) ? "true" : "false") < 0) r->failures++;
     if (!require(r, "original_identity_and_empty_state_retained", same(&original, &current) && empty(&current))) goto done;
+    HANDLE lookup = CreateFileW(path, FILE_READ_ATTRIBUTES | READ_CONTROL, share, NULL, OPEN_EXISTING,
+                                FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    DWORD lookup_error = lookup == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
+    observe(r, "name_open_after_delete_handle_close", lookup != INVALID_HANDLE_VALUE, lookup_error);
+    close_owned(r, &lookup);
     if (!duplicate && posix) {
         if (!require(r, "anonymous_before_first_write", !present && current.nNumberOfLinks == 0)) goto done;
+        if (!require(r, "anonymous_name_open_reports_not_found", lookup_error == ERROR_FILE_NOT_FOUND)) goto done;
         if (!write_exact(r, primary, payload, (DWORD)sizeof(payload) - 1)) goto done;
         if (!read_exact(r, primary, payload, (DWORD)sizeof(payload) - 1)) goto done;
         if (!visible(r, path, &present) || !require(r, "still_anonymous_after_io", !present)) goto done;
