@@ -5511,8 +5511,8 @@ scanner boundary tests, all 23 default CLI package tests, all-feature strict
 Clippy, Rust 1.90 compilation, seven installed-command cases and 224 artifact
 contract tests pass on Apple Silicon. The CLI source module is separated from
 inventory/matching code without changing its public API or claiming a speedup.
-Current source qualification now requires both new files: 695 tracked Rust
-sources and 256 proof inputs. The frozen 249-input publication record remains
+This checkpoint raised source qualification to 695 tracked Rust sources and
+256 proof inputs. The frozen 249-input publication record remains
 unchanged and cannot qualify these new binaries. License inventories for Linux,
 Windows and Apple Silicon are verified; Linux/Windows execution and current-source
 hosted checks remain pending. The existing protocol, resource, maintenance and
@@ -5525,7 +5525,9 @@ workspace dependency-count bound. The corrected test requires successful rename
 only after the retained handle closes; the registry count now covers all 271
 reviewed workspace entries while retaining the other limits. Native CLI tests,
 80 audit-contract tests and the actual workspace/fuzz audit pass. Corrected
-hosted Windows execution remains required; the original failures are not erased.
+hosted Windows, check and audit jobs subsequently pass at `68e05c56` in both the
+push and PR runs; the original failures are not erased, and the complete suite
+remains a separate gate.
 
 ### Native outstanding-message capacity — 2026-10-17
 
@@ -5566,3 +5568,23 @@ Swift receipt exists. The [budget correction](../research/sdk-alpha1/evidence/20
 uses the existing 330-minute foreign-consumer budget without removing scenarios,
 changing SDK deadlines or increasing the 900-second command bound. Its 23 focused
 contract tests pass; full current-source hosted completion remains required.
+
+
+### Persistent secret encoding — 2026-10-17
+
+The [encoding qualification](../research/sdk-alpha1/evidence/20261017-secret-encoding/README.md)
+closes the reproduced moving-reallocation path for session buffers and related
+persistent-secret construction. Exact-capacity encoding, fixed public-tail
+reservation and direct MAC updates preserve the existing ABI, storage tags and
+capacity-failure ownership. All 1015 native library tests pass, with frozen byte
+composition comparisons and negative oracle controls; 250 real native business
+effects and 260 negative readback controls cover local and required-witness
+capacity/refusal/original-owner recovery. Strict all-feature Clippy, formatting
+and Rust 1.90 compilation pass. The tracked Rust inventory is now 698; the explicit
+SDK proof-input mapping remains 256 and its historical 249-input record is unchanged.
+
+The initial committed-source check retains two documentation failures because
+this guide's linked artifact contract still named the earlier 695-file inventory.
+The current artifact guide is corrected to 698; no source, query or assertion is
+removed. This checkpoint does not claim physical erasure, full protocol/SDK
+refinement, cross-platform resource qualification or completed hosted CI.
