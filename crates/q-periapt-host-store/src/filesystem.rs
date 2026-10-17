@@ -17,6 +17,17 @@ mod publication_ops;
 #[cfg(windows)]
 #[path = "filesystem/windows_publication_ops.rs"]
 mod publication_ops;
+#[cfg(all(
+    test,
+    any(
+        windows,
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "android"
+    )
+))]
+mod test_directory;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
@@ -210,7 +221,8 @@ impl redb::StorageBackend for BoundedBackend {
                 target_os = "macos",
                 target_os = "ios",
                 target_os = "linux",
-                target_os = "android"
+                target_os = "android",
+                target_os = "windows"
             )
         ))]
         publication::database_tests::at_database_sync(false)?;
@@ -221,7 +233,8 @@ impl redb::StorageBackend for BoundedBackend {
                 target_os = "macos",
                 target_os = "ios",
                 target_os = "linux",
-                target_os = "android"
+                target_os = "android",
+                target_os = "windows"
             )
         ))]
         publication::database_tests::at_database_sync(true)?;

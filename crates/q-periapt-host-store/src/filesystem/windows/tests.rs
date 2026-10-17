@@ -1,4 +1,5 @@
 use super::*;
+use crate::filesystem::test_directory::directory;
 use crate::filesystem::{
     open_private_database, open_private_file, provision_private_database, publish_private_bytes,
     PrivateDatabaseError,
@@ -15,25 +16,11 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, WRITE_DAC,
 };
 
-fn fixture() -> io::Result<(tempfile::TempDir, std::path::PathBuf)> {
-    let temporary = tempfile::tempdir()?;
-    let root = temporary.path().canonicalize()?;
-    let parent = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
-        .open(&root)?;
-    let private = native::create(&parent, OsStr::new("private"), true)?;
-    crate::windows_acl::validate(&private)?;
-    private.sync_all()?;
-    parent.sync_all()?;
-    Ok((temporary, root.join("private")))
-}
-
 #[test]
 fn explicit_private_creation_and_no_replace_preserve_bytes(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (_temporary, root) = fixture()?;
+    let temporary = directory()?;
+    let root = temporary.path();
     let state = root.join("state.bin");
     assert!(open_private_file(&state, false).is_err());
     let mut file = open_private_file(&state, true)?;
@@ -53,7 +40,8 @@ fn explicit_private_creation_and_no_replace_preserve_bytes(
 
 #[test]
 fn hard_links_and_reparse_paths_are_refused() -> Result<(), Box<dyn std::error::Error>> {
-    let (_temporary, root) = fixture()?;
+    let temporary = directory()?;
+    let root = temporary.path();
     let state = root.join("state.bin");
     publish_private_bytes(&state, b"original")?;
     let alias = root.join("alias.bin");
@@ -66,7 +54,7 @@ fn hard_links_and_reparse_paths_are_refused() -> Result<(), Box<dyn std::error::
     std::os::windows::fs::symlink_file(&plain, &link)?;
     assert!(open_private_file(&link, false).is_err());
     let directory_alias = root.join("directory-link");
-    std::os::windows::fs::symlink_dir(&root, &directory_alias)?;
+    std::os::windows::fs::symlink_dir(root, &directory_alias)?;
     assert!(open_private_file(&directory_alias.join("new.bin"), true).is_err());
     assert!(!root.join("new.bin").exists());
     assert_eq!(std::fs::read(state)?, b"original");
@@ -76,7 +64,8 @@ fn hard_links_and_reparse_paths_are_refused() -> Result<(), Box<dyn std::error::
 #[test]
 fn broad_file_and_directory_dacls_are_refused_without_mutation(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (_temporary, root) = fixture()?;
+    let temporary = directory()?;
+    let root = temporary.path();
     let state = root.join("state.bin");
     publish_private_bytes(&state, b"original")?;
     let file = std::fs::OpenOptions::new()
@@ -93,7 +82,7 @@ fn broad_file_and_directory_dacls_are_refused_without_mutation(
         .write(true)
         .access_mode(GENERIC_READ | GENERIC_WRITE | WRITE_DAC)
         .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
-        .open(&root)?;
+        .open(root)?;
     crate::windows_acl::grant_everyone_read_for_test(&parent)?;
     assert!(open_private_file(&root.join("new.bin"), true).is_err());
     assert!(!root.join("new.bin").exists());
@@ -170,7 +159,8 @@ fn require_other_process_busy(path: &Path) -> io::Result<()> {
 fn published_database_retains_original_lock_and_committed_state(
 ) -> Result<(), Box<dyn std::error::Error>> {
     const TABLE: redb::TableDefinition<&str, u64> = redb::TableDefinition::new("state");
-    let (_temporary, root) = fixture()?;
+    let temporary = directory()?;
+    let root = temporary.path();
     let path = root.join("state.redb");
     let database = provision_private_database::<PrivateDatabaseError>(&path, |db| {
         let result = (|| -> Result<(), redb::Error> {
@@ -205,7 +195,8 @@ fn signed_policy_replacement_is_durable_and_aliases_remain_owner_bound(
     use q_periapt_sdk::{Error, Limits};
     use q_periapt_sig::Signer;
 
-    let (_temporary, folder) = fixture()?;
+    let temporary = directory()?;
+    let folder = temporary.path();
     let path = folder.join("policy.redb");
     let (key, root) = MlDsa65::generate([91; 32]);
     let sign = |version, enabled| -> io::Result<(Vec<u8>, Vec<u8>)> {

@@ -1,9 +1,9 @@
 use super::*;
+use crate::filesystem::test_directory::{self, PrivateTestDirectory};
 use crate::filesystem::{open_private_database, provision_private_database};
 use redb::{Database, Durability, ReadableDatabase, TableDefinition};
 use std::{
     fs,
-    os::unix::fs::PermissionsExt,
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
@@ -27,11 +27,8 @@ fn value(db: &Database) -> u64 {
     let table = tx.open_table(TABLE).expect("schema");
     table.get("genesis").expect("lookup").expect("row").value()
 }
-fn directory() -> tempfile::TempDir {
-    tempfile::Builder::new()
-        .permissions(fs::Permissions::from_mode(0o700))
-        .tempdir()
-        .expect("private directory")
+fn directory() -> PrivateTestDirectory {
+    test_directory::directory().expect("private directory")
 }
 fn stage(root: &Path) -> std::path::PathBuf {
     let stages: Vec<_> = fs::read_dir(root)
