@@ -373,3 +373,24 @@ stays at twenty Query plus five Advance exchanges. The cache retains at most
 64 KiB of encoded inputs plus parsed public values and overhead; full-cache
 misses preserve the original decoder and valid-input admission. This measured
 duplicate work, rather than file length, motivates the isolated private module.
+
+### Native outstanding-message capacity (2026-10-17)
+
+The [outbox capacity checkpoint](../research/sdk-alpha1/evidence/20261017-outbox-capacity/README.md)
+fills the single-direction, single-epoch limit of 64 outstanding messages in
+four fresh enrolled-owner processes. Both zero and maximum 16 KiB plaintexts
+use maximum 1 KiB associated data, under local-only and required-witness policy.
+The 65th operation is refused without reservation, original-owner reopening
+preserves full capacity and exact ciphertexts, and authenticated consumption
+reclaims a slot for the original next ID. All 260 durable business effects pass
+independent readback; 272 altered/missing-result controls are rejected.
+
+Maximum-payload whole-process RSS peaks are 53.67 MiB locally and 59.20 MiB with
+the witness, versus 13.59 and 18.22 MiB for zero plaintexts. The maximum-payload
+sender journal grows to 11.879 MiB and returns to 0.598 MiB after all ACKs.
+These are database file sizes and process high-water values, not authenticated
+image sizes, isolated SDK allocation, post-drain live memory or leak findings.
+The separate 2 MiB aggregate image limit therefore cannot be advertised as a
+2 MiB storage/memory cost. The checkpoint retains local commit intervals and
+their scope; multi-session/fanout capacity, controlled tails, energy and
+foreign/device performance remain open.

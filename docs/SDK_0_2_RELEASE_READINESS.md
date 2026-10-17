@@ -5518,3 +5518,24 @@ Windows and Apple Silicon are verified; Linux/Windows execution and current-sour
 hosted checks remain pending. The existing protocol, resource, maintenance and
 external-review requirements remain open, and accepted physical-device cohorts
 are not reopened by this CLI-only change.
+
+The [scanner CI correction](../research/sdk-alpha1/evidence/20261017-cli-scanner-ci/README.md)
+retains the first Windows sharing-violation assertion failure and the stale
+workspace dependency-count bound. The corrected test requires successful rename
+only after the retained handle closes; the registry count now covers all 271
+reviewed workspace entries while retaining the other limits. Native CLI tests,
+80 audit-contract tests and the actual workspace/fuzz audit pass. Corrected
+hosted Windows execution remains required; the original failures are not erased.
+
+### Native outstanding-message capacity — 2026-10-17
+
+The [outbox capacity checkpoint](../research/sdk-alpha1/evidence/20261017-outbox-capacity/README.md)
+executes four fresh native processes at `3df45b84`, with real enrolled owners,
+64 unconfirmed outboxes, original-owner reopening, exact ciphertext replay and
+capacity reclamation after authenticated consumption. All 260 actual business
+files are independently verified, including both required-witness cases.
+Maximum-payload process high-water RSS is 53.67/59.20 MiB (local/witness), and the
+sender database grows beyond the distinct encoded-image limit. This provides
+one explicit capacity observation and a concrete next profiling target; it does
+not qualify maximum aggregate/multi-session/fanout memory, energy, controlled
+tails, foreign/device performance, PCS or the remaining release requirements.
