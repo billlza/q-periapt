@@ -29,7 +29,7 @@ if ($env:QPC_KEY_TEST_BROAD_ACL -eq '1') {
     $world = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
     $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($world, 'Read', $allow)))
 }
-Set-Acl -LiteralPath $env:QPC_KEY_TEST_DIRECTORY -AclObject $acl
+[System.IO.Directory]::SetAccessControl($env:QPC_KEY_TEST_DIRECTORY, $acl)
 "#;
 
 struct ChildGuard(Option<Child>);
