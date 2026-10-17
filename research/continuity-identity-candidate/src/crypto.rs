@@ -364,7 +364,7 @@ pub struct PolicySigningKey(Option<Material>);
 pub struct AnchorSigningKey(Option<Material>);
 
 macro_rules! owner {
-    ($name:ident, $role:expr) => {
+    ($name:ident, $role:expr, $test_fixture:meta) => {
         impl $name {
             /// Generate fresh independent signing keys with platform randomness.
             pub fn generate() -> Result<Self, Error> {
@@ -409,7 +409,7 @@ macro_rules! owner {
                 self.0.as_ref().ok_or(Error::Closed)?.sign(purpose, body)
             }
 
-            #[cfg(test)]
+            #[cfg($test_fixture)]
             pub(crate) fn deterministic(pq: [u8; 32], classic: [u8; 32]) -> Result<Self, Error> {
                 let classic_seed = ZeroizingBytes::from_bytes(classic);
                 let classic =
@@ -431,8 +431,8 @@ macro_rules! owner {
         }
     };
 }
-owner!(RootSigningKey, 1);
-owner!(DeviceSigningKey, 2);
+owner!(RootSigningKey, 1, test);
+owner!(DeviceSigningKey, 2, test);
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub(crate) fn open_browser_device(
@@ -453,8 +453,9 @@ pub(crate) fn prepare_browser_device(
     let (material, bytes) = persistence::prepare(key, identity, 2)?;
     Ok((DeviceSigningKey(Some(material)), bytes))
 }
-owner!(PolicySigningKey, 3);
-owner!(AnchorSigningKey, 4);
+owner!(PolicySigningKey, 3, test);
+// Deterministic witness fixtures currently belong to Unix persistent-store tests.
+owner!(AnchorSigningKey, 4, all(test, unix));
 
 impl DeviceSigningKey {
     /// Require this live controlled signer to match an independently verified

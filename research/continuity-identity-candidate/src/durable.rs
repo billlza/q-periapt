@@ -18,7 +18,7 @@ use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use redb::{
     Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
 };
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use std::io::Write;
 use std::{
     collections::{BTreeMap, BTreeSet},

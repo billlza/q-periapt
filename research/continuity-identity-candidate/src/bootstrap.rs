@@ -1178,6 +1178,7 @@ pub(crate) mod tests {
             None,
         )
     }
+    #[cfg(unix)]
     pub(crate) fn fixture_with_anchor_and_budget(
         quality: PrekeyQuality,
         anchor: AnchorRequirement,
@@ -1231,6 +1232,7 @@ pub(crate) mod tests {
             Some((roster, prekey, [credential; 2])),
         )
     }
+    #[cfg(unix)]
     pub(crate) fn fixture_with_credential_lifetimes(
         quality: PrekeyQuality,
         credentials: [Validity; 2],
