@@ -5539,3 +5539,30 @@ sender database grows beyond the distinct encoded-image limit. This provides
 one explicit capacity observation and a concrete next profiling target; it does
 not qualify maximum aggregate/multi-session/fanout memory, energy, controlled
 tails, foreign/device performance, PCS or the remaining release requirements.
+
+### Aggregate byte capacity and live process memory — 2026-10-17
+
+The [aggregate journal checkpoint](../research/sdk-alpha1/evidence/20261017-journal-capacity/README.md)
+retains 124 maximum messages across two epochs, reaches the aggregate encoded-image
+bound, and follows the documented persist-error closure and original-owner reopen
+contract. Both protection profiles preserve all old ciphertexts and the rejected
+ID, then reclaim capacity through authenticated old-epoch consumption. A separate
+malloc-statistics diagnostic retains the same behavior. Independent archive
+readback checks all 375 effects and rejects 390 altered-result controls.
+Physical footprint remains around 200 MiB despite a much smaller reported live
+malloc count; VM/allocation attribution and cross-platform resource qualification
+remain open. The first observer's incorrect assumption that every capacity error
+leaves its owner open is retained as a failed cohort, not hidden by a runtime change.
+
+### Hosted scanner closure and installed Swift budget — 2026-10-17
+
+Both push and PR CI runs for `68e05c56` now complete their Windows, check and audit
+jobs successfully, with 40 successes and no failures at the retained observation.
+Other jobs remain pending. The earlier `9f1c7f62` Swift attempt is terminally
+cancelled, with an explicit GitHub annotation that the 3h30m execution limit was
+exceeded. Its verified artifact contains 304 completed commands with zero failures,
+a complete native C receipt, and ongoing Swift release qualification; no final
+Swift receipt exists. The [budget correction](../research/sdk-alpha1/evidence/20261017-swift-ci-budget/README.md)
+uses the existing 330-minute foreign-consumer budget without removing scenarios,
+changing SDK deadlines or increasing the 900-second command bound. Its 23 focused
+contract tests pass; full current-source hosted completion remains required.

@@ -394,3 +394,23 @@ The separate 2 MiB aggregate image limit therefore cannot be advertised as a
 2 MiB storage/memory cost. The checkpoint retains local commit intervals and
 their scope; multi-session/fanout capacity, controlled tails, energy and
 foreign/device performance remain open.
+
+### Aggregate image capacity and current process memory (2026-10-17)
+
+The [aggregate journal checkpoint](../research/sdk-alpha1/evidence/20261017-journal-capacity/README.md)
+retains 64 epoch-zero and 60 epoch-one maximum messages after a real PQ rekey.
+The next operation reaches the encoded-image byte bound and closes its owner
+through the documented persist-error contract. Original reopening preserves
+the rejected ID and all ciphertexts; an old-epoch acknowledgement frees space
+for that same ID. Both local and required-witness cohorts complete all 125
+business effects, with a third allocation-counter diagnostic kept separate.
+
+Current physical footprint remains about 207/210 MiB after all owners close in
+the two primary cohorts. A separate malloc diagnostic reports only about
+1.09 MiB of currently used malloc blocks after closure, while process footprint
+is about 199 MiB. The metrics have different accounting scopes; the unexplained
+VM footprint still needs attribution. This is not a demonstrated object leak,
+allocator-retention proof or acceptable mobile-memory bound. All 375 effects,
+390 negative reader controls, the initial failed observer and source identities
+are retained in the checkpoint. No runtime optimization is promoted from these
+observations alone.
