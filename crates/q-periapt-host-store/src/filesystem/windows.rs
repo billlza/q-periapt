@@ -9,12 +9,19 @@ use std::{
     path::{Component, Path, Prefix},
 };
 
-pub(super) struct OwnedPrivateDirectory {
+/// An authenticated current-user-owned private directory on local Windows NTFS.
+/// File operations and synchronization retain this original directory handle.
+pub struct OwnedPrivateDirectory {
     pub(super) descriptor: File,
 }
 
 impl OwnedPrivateDirectory {
-    fn open(path: &Path) -> io::Result<Self> {
+    /// Open an absolute private directory through non-reparse drive-relative traversal.
+    pub fn open(path: &Path) -> Result<Self, PrivateFileError> {
+        Self::open_admitted(path).map_err(|_| PrivateFileError)
+    }
+
+    fn open_admitted(path: &Path) -> io::Result<Self> {
         let mut components = path.components().peekable();
         let Some(Component::Prefix(prefix)) = components.next() else {
             return Err(native::denied());
@@ -50,18 +57,27 @@ impl OwnedPrivateDirectory {
         native::check_directory(&self.descriptor)?;
         crate::windows_acl::validate(&self.descriptor)
     }
+
+    /// Open a nonempty private state leaf beneath this pinned directory.
+    pub fn open_state_file(&self, name: &OsStr) -> Result<File, PrivateFileError> {
+        open_private_leaf(self, name, false)
+    }
+
+    /// Recheck ownership and DACL, then flush this same pinned directory.
+    pub fn sync_entries(&self) -> Result<(), PrivateFileError> {
+        self.validate().map_err(|_| PrivateFileError)?;
+        self.descriptor.sync_all().map_err(|_| PrivateFileError)
+    }
 }
 
-pub(super) fn open_private_parent(
+/// Authenticate a private parent and return its validated single leaf name.
+pub fn open_private_parent(
     path: &Path,
 ) -> Result<(OwnedPrivateDirectory, &OsStr), PrivateFileError> {
     let parent = path.parent().ok_or(PrivateFileError)?;
     let name = path.file_name().ok_or(PrivateFileError)?;
     native::leaf(name).map_err(|_| PrivateFileError)?;
-    Ok((
-        OwnedPrivateDirectory::open(parent).map_err(|_| PrivateFileError)?,
-        name,
-    ))
+    Ok((OwnedPrivateDirectory::open(parent)?, name))
 }
 
 pub(super) fn validate_file(file: &File) -> io::Result<u64> {

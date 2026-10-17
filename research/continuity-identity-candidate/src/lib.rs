@@ -117,6 +117,8 @@ impl RetainedInstallationAuthority {
 }
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, windows))]
+mod windows_key_reopen;
 
 pub use anchor::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,

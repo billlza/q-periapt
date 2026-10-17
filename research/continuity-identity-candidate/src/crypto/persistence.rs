@@ -4,7 +4,7 @@ use super::{Material, PublicKey, SigningSeed, PUBLIC_KEY_BYTES};
 use crate::{codec::Decoder, DurableError, Error, JournalKey};
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use q_periapt_core::ZeroizingBytes;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{fs::File, io::Read, path::Path};
@@ -163,7 +163,7 @@ pub(super) fn prepare(
     Ok((material, sealed))
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub(super) fn open(
     path: &Path,
     wrapping: &JournalKey,
@@ -175,9 +175,19 @@ pub(super) fn open(
         .open_state_file(leaf)
         .map_err(|_| DurableError::PrivateFile)?;
     let material = read_owner(&mut file, wrapping, identity, role)?;
+    #[cfg(all(test, windows))]
+    crate::windows_key_reopen::at_sync(
+        crate::windows_key_reopen::Boundary::SigningDirectory,
+        false,
+    )?;
     parent
         .sync_entries()
         .map_err(|_| DurableError::PrivateFile)?;
+    #[cfg(all(test, windows))]
+    crate::windows_key_reopen::at_sync(
+        crate::windows_key_reopen::Boundary::SigningDirectory,
+        true,
+    )?;
     Ok(material)
 }
 
@@ -198,11 +208,15 @@ fn read_owner(
     check_file(file, FILE_BYTES)?;
     // Reconcile a complete image observed after an interrupted first write.
     // No owner/public identity becomes usable until this exact inode is synced.
+    #[cfg(all(test, windows))]
+    crate::windows_key_reopen::at_sync(crate::windows_key_reopen::Boundary::SigningFile, false)?;
     file.sync_all()?;
+    #[cfg(all(test, windows))]
+    crate::windows_key_reopen::at_sync(crate::windows_key_reopen::Boundary::SigningFile, true)?;
     Ok(material)
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub(super) fn open(
     path: &Path,
     wrapping: &JournalKey,

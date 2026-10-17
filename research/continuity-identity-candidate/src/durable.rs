@@ -7,9 +7,9 @@ use crate::{
 };
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use q_periapt_core::ZeroizingBytes;
-#[cfg(any(not(unix), test))]
+#[cfg(any(not(any(unix, windows)), all(test, unix)))]
 use q_periapt_host_store::filesystem::open_private_file;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use q_periapt_host_store::filesystem::open_private_parent;
 use q_periapt_host_store::filesystem::{
     open_private_database, publish_private_bytes, PrivateDatabaseError, PrivatePublicationError,
@@ -322,7 +322,7 @@ impl JournalKey {
     }
     /// Reopen an existing immutable private key file and reconcile its durability
     /// before returning the owner. Partial files are refused, never replaced.
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub fn open(path: &Path) -> Result<Self, DurableError> {
         let (parent, leaf) = open_private_parent(path).map_err(|_| DurableError::PrivateFile)?;
         let mut file = parent
@@ -331,17 +331,27 @@ impl JournalKey {
         let key = Self::read_file(&mut file)?;
         #[cfg(all(test, unix))]
         tests::key_files::at_sync(tests::key_files::Barrier::OpenDirectory, false)?;
+        #[cfg(all(test, windows))]
+        crate::windows_key_reopen::at_sync(
+            crate::windows_key_reopen::Boundary::WrappingDirectory,
+            false,
+        )?;
         parent
             .sync_entries()
             .map_err(|_| DurableError::PrivateFile)?;
         #[cfg(all(test, unix))]
         tests::key_files::at_sync(tests::key_files::Barrier::OpenDirectory, true)?;
+        #[cfg(all(test, windows))]
+        crate::windows_key_reopen::at_sync(
+            crate::windows_key_reopen::Boundary::WrappingDirectory,
+            true,
+        )?;
         #[cfg(all(test, unix))]
         tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenDirectorySynced)?;
         Ok(key)
     }
     /// Refuse platforms without reviewed private-file admission.
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     pub fn open(path: &Path) -> Result<Self, DurableError> {
         let mut file = open_private_file(path, false).map_err(|_| DurableError::PrivateFile)?;
         Self::read_file(&mut file)
@@ -374,9 +384,19 @@ impl JournalKey {
         tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenRead)?;
         #[cfg(all(test, unix))]
         tests::key_files::at_sync(tests::key_files::Barrier::OpenFile, false)?;
+        #[cfg(all(test, windows))]
+        crate::windows_key_reopen::at_sync(
+            crate::windows_key_reopen::Boundary::WrappingFile,
+            false,
+        )?;
         file.sync_all()?;
         #[cfg(all(test, unix))]
         tests::key_files::at_sync(tests::key_files::Barrier::OpenFile, true)?;
+        #[cfg(all(test, windows))]
+        crate::windows_key_reopen::at_sync(
+            crate::windows_key_reopen::Boundary::WrappingFile,
+            true,
+        )?;
         #[cfg(all(test, unix))]
         tests::key_files::at_checkpoint(tests::key_files::Checkpoint::OpenFileSynced)?;
         Ok(key)

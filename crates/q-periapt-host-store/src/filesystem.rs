@@ -34,7 +34,9 @@ mod windows;
 mod windows_native;
 pub use publication::{publish_private_bytes, PrivatePublicationError};
 #[cfg(windows)]
-use windows::{open_private_leaf, open_private_parent, OwnedPrivateDirectory};
+use windows::open_private_leaf;
+#[cfg(windows)]
+pub use windows::{open_private_parent, OwnedPrivateDirectory};
 mod directory_publication;
 pub use directory_publication::publish_private_directory;
 
