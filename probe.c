@@ -78,7 +78,9 @@ static BOOL rename_relative(HANDLE file, HANDLE directory, const WCHAR *leaf, DW
         *error = ERROR_INVALID_PARAMETER;
         return FALSE;
     }
-    size_t size = offsetof(FILE_RENAME_INFO, FileName) + characters * sizeof(WCHAR);
+    /* Keep the complete SDK structure, its trailing padding, and a NUL after
+       the counted filename. FileNameLength still counts only name bytes. */
+    size_t size = sizeof(FILE_RENAME_INFO) + (characters + 1) * sizeof(WCHAR);
     FILE_RENAME_INFO *info = (FILE_RENAME_INFO *)calloc(1, size);
     if (info == NULL) { *error = ERROR_OUTOFMEMORY; return FALSE; }
     info->ReplaceIfExists = FALSE;

@@ -20,6 +20,14 @@ no claim about owner/DACL validation, reparse admission, persistent locks,
 database commits, concurrency, crash recovery, or physical power-loss durability.
 All of those still need implementation-specific qualification.
 
+The first run (`2687da9`, Actions run `39059753838`) compiled without warnings
+on both runner images. Directory flush required write access, and the parent
+handle pin/release control passed. Both relative rename calls returned error
+87. That version allocated only `offsetof(FileName) + name_bytes`, omitting
+the complete structure's trailing storage and a terminating NUL. The next
+revision corrects that probe input before drawing an API-support conclusion;
+the original failed controls remain in history and in their uploaded artifacts.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
