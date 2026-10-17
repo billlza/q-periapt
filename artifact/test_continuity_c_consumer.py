@@ -9,6 +9,22 @@ import continuity_c_consumer as consumer
 
 
 class AdmissionTests(unittest.TestCase):
+    def test_relay_diagnostics_require_all_failures_and_success_controls(self):
+        rows = [b"test " + name + b" ... ok\n" for name in (
+            b"relay_retains_native_failure_when_shutdown_also_fails",
+            b"relay_returns_the_original_complete_reply_and_record",
+            b"relay_cleanup_failure_still_refuses_the_successful_native_record",
+            b"relay_worker_panic_does_not_hide_other_stage_failures")]
+        summary = b"test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n"
+        complete = b"".join(rows) + summary
+        consumer.verify_relay_diagnostics(complete)
+        for invalid in (summary, b"".join(rows[:-1]) + summary,
+                        b"".join(rows[:-1] + [rows[0]]) + summary,
+                        complete.replace(b"0 ignored", b"1 ignored"),
+                        complete.replace(b"0 filtered out", b"1 filtered out")):
+            with self.subTest(output=invalid), self.assertRaises(ValueError):
+                consumer.verify_relay_diagnostics(invalid)
+
     def test_all_deadline_and_drain_tests_must_actually_execute(self):
         names = [
             "enrollment::pending_recovery::tests::pending_request_layout_and_failed_output_are_stable",

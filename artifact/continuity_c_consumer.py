@@ -323,6 +323,20 @@ def export_sync_faults(report: dict, output: Path, profile: str) -> dict[str, st
                                    replay=lambda path: verify_public(report, path, language="C"))
 
 
+def verify_relay_diagnostics(stdout: bytes) -> None:
+    expected = {
+        "relay_retains_native_failure_when_shutdown_also_fails",
+        "relay_returns_the_original_complete_reply_and_record",
+        "relay_cleanup_failure_still_refuses_the_successful_native_record",
+        "relay_worker_panic_does_not_hide_other_stage_failures",
+    }
+    text = stdout.decode()
+    names = re.findall(r"^test (\S+) \.\.\. ok$", text, re.M)
+    sdk.require(len(names) == len(expected) and set(names) == expected
+                and len(re.findall(r"^test result: ok\. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.M)) == 1,
+                "TLS relay diagnostic regression tests did not execute completely")
+
+
 def verify_admission(stdout: bytes) -> None:
     tests = {
         "enrollment::pending_recovery::tests::pending_request_layout_and_failed_output_are_stable",
@@ -532,6 +546,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         checked = run([str(unit_test)], "admission-" + profile,
                       runtime=dict(runtime, QPC_AUTHORITY_FIXTURE=str(authority_fixture)))
         verify_admission(checked)
+        diagnostic_tests = run([*cargo, "test", "--locked", "--offline", "--test", "witness_tls_diagnostics",
+                                "-j", "2", *extra, "--", "--nocapture"], "relay-diagnostics-" + profile)
+        verify_relay_diagnostics(diagnostic_tests)
         trace = built_artifact(built, consumer, build, library=False)
         trace_identity = sdk.snapshot(trace, maximum=MAX_BINARY)
         evidence = outside / ("c-" + profile + "-runtime")
