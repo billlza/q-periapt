@@ -2176,10 +2176,11 @@ jobs:
     name: continuity-installed-${{ matrix.consumer }}
     needs: rust-publish-contract
     runs-on: macos-15
-    # The earlier combined Kotlin/Android lane took 231m at 252eb954.
-    # Run their growing real-expiry matrices independently. Each still runs
-    # all native prerequisites, both profiles and the 15m command bound.
-    timeout-minutes: ${{ matrix.consumer == 'swift' && 210 || 330 }}
+    # Run the real-expiry matrices independently. The 9f1c7f62 Swift job
+    # completed 304 commands but its 210m budget ended during release tests,
+    # after the native prerequisites and debug profile. Keep every scenario
+    # and the 15m command bound; use the existing 330m foreign-consumer budget.
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:

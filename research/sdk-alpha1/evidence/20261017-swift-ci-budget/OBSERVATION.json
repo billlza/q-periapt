@@ -1,0 +1,71 @@
+{
+  "completed": true,
+  "source_commit": "9f1c7f62809659ee0375b63cd2f06fa358e7b93a",
+  "run_id": 38861869698,
+  "run_attempt": 2,
+  "job": {
+    "id": 117365014060,
+    "name": "continuity-installed-swift",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "started_at": "2026-10-17T09:37:30Z",
+    "completed_at": "2026-10-17T13:09:07Z"
+  },
+  "artifact": {
+    "id": 12102042201,
+    "name": "continuity-installed-swift",
+    "size_in_bytes": 167714095,
+    "digest": "sha256:6afb65c170f9d66be4a955aad8af2c08cbdf70c1f3f2acf06c1c0bc6f91571b6"
+  },
+  "artifact_hash_verified": true,
+  "terminal_commands": 304,
+  "nonzero_terminal_commands": [],
+  "native_receipt_completed": true,
+  "swift_aggregate_receipt_absent": true,
+  "profiles": {
+    "debug": {
+      "completed_commands": 60,
+      "reported_test_seconds": 2847.15
+    },
+    "release": {
+      "completed_commands": 13,
+      "reported_test_seconds": 1433.06
+    }
+  },
+  "last_terminal_command": {
+    "label": "swift-policy-credential-swift-release-tls-fixed",
+    "returncode": 0,
+    "finished_zip_time": "2026-10-17T13:05:10",
+    "test_seconds": 185.58,
+    "argv": [
+      "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/qperiapt-continuity-package-3dredt3a/build/release/deps/first_configuration-395222234ac1ebac",
+      "--exact",
+      "managed_policy_credential_tls_fixed",
+      "--nocapture"
+    ]
+  },
+  "observation": "The job was cancelled at its210minute budget while commands continued to finish. The complete Swift profile/minimum-stage report was not produced. No current-source or full Swift qualification is inferred.",
+  "change": "Use the existing330minute foreign-consumer job budget for Swift too. All native prerequisites, debug/release/minimum checks, per-command900s bound and SDK timeouts remain.",
+  "release_claim_eligible": false,
+  "local_validation": {
+    "command": "python3.14 -I -S -B -W error artifact/python_bootstrap.py -m unittest test_continuity_package test_continuity_swift_consumer",
+    "observed_returncode": 0,
+    "tests_run": 23,
+    "test_duration_seconds": 2.197
+  },
+  "raw_native_receipt_sha256": "08d06ac753e3716748724fc50e6b057b74149da25821ed6276420bcd003138db",
+  "github_annotations": [
+    {
+      "level": "failure",
+      "message": "The job has exceeded the maximum execution time of 3h30m0s"
+    },
+    {
+      "level": "failure",
+      "message": "The operation was canceled."
+    },
+    {
+      "level": "notice",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times."
+    }
+  ]
+}
