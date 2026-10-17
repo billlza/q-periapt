@@ -1,0 +1,364 @@
+{
+  "business_effects_checked": 250,
+  "cases": [
+    {
+      "build": "03",
+      "case": "local-vm-census",
+      "effects": 125,
+      "pressure_probe": null,
+      "profile": "local",
+      "resources": {
+        "aggregate-refused-owner-closed": {
+          "malloc_large_resident_bytes": 175374336,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1676464,
+          "malloc_tag_resident_bytes": 211206144,
+          "physical_footprint_bytes": 212157016,
+          "resident_bytes": 218775552
+        },
+        "all-acknowledged": {
+          "malloc_large_resident_bytes": 144785408,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 2481056,
+          "malloc_tag_resident_bytes": 181403648,
+          "physical_footprint_bytes": 172868184,
+          "resident_bytes": 188973056
+        },
+        "all-owners-closed": {
+          "malloc_large_resident_bytes": 144785408,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1279088,
+          "malloc_tag_resident_bytes": 181420032,
+          "physical_footprint_bytes": 172474968,
+          "resident_bytes": 188612608
+        },
+        "before-aggregate-refusal": {
+          "malloc_large_resident_bytes": 173293568,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1745792,
+          "malloc_tag_resident_bytes": 209108992,
+          "physical_footprint_bytes": 210059864,
+          "resident_bytes": 216678400
+        },
+        "closed-idle-15s": {
+          "malloc_large_resident_bytes": 144785408,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1307920,
+          "malloc_tag_resident_bytes": 181436416,
+          "physical_footprint_bytes": 172491352,
+          "resident_bytes": 188628992
+        },
+        "closed-idle-1s": {
+          "malloc_large_resident_bytes": 144785408,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1289072,
+          "malloc_tag_resident_bytes": 181420032,
+          "physical_footprint_bytes": 172474968,
+          "resident_bytes": 188612608
+        },
+        "closed-idle-5s": {
+          "malloc_large_resident_bytes": 144785408,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1298496,
+          "malloc_tag_resident_bytes": 181436416,
+          "physical_footprint_bytes": 172491352,
+          "resident_bytes": 188628992
+        },
+        "epoch-one-confirmed": {
+          "malloc_large_resident_bytes": 18300928,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1540576,
+          "malloc_tag_resident_bytes": 51675136,
+          "physical_footprint_bytes": 53526960,
+          "resident_bytes": 59244544
+        },
+        "epoch-one-retained-1": {
+          "malloc_large_resident_bytes": 21659648,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1568448,
+          "malloc_tag_resident_bytes": 55083008,
+          "physical_footprint_bytes": 56934832,
+          "resident_bytes": 62652416
+        },
+        "epoch-one-retained-16": {
+          "malloc_large_resident_bytes": 77692928,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1619888,
+          "malloc_tag_resident_bytes": 111673344,
+          "physical_footprint_bytes": 113590800,
+          "resident_bytes": 119242752
+        },
+        "epoch-one-retained-32": {
+          "malloc_large_resident_bytes": 132251648,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1674128,
+          "malloc_tag_resident_bytes": 166658048,
+          "physical_footprint_bytes": 168444504,
+          "resident_bytes": 174227456
+        },
+        "epoch-one-retained-48": {
+          "malloc_large_resident_bytes": 155795456,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1728624,
+          "malloc_tag_resident_bytes": 191053824,
+          "physical_footprint_bytes": 192315992,
+          "resident_bytes": 198623232
+        },
+        "epoch-zero-retained-1": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 33554432,
+          "malloc_size_in_use_bytes": 1405456,
+          "malloc_tag_resident_bytes": 5292032,
+          "physical_footprint_bytes": 7111040,
+          "resident_bytes": 12828672
+        },
+        "epoch-zero-retained-16": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 33554432,
+          "malloc_size_in_use_bytes": 1916144,
+          "malloc_tag_resident_bytes": 12845056,
+          "physical_footprint_bytes": 14664064,
+          "resident_bytes": 20381696
+        },
+        "epoch-zero-retained-32": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 41943040,
+          "malloc_size_in_use_bytes": 2479408,
+          "malloc_tag_resident_bytes": 19513344,
+          "physical_footprint_bytes": 21348760,
+          "resident_bytes": 27049984
+        },
+        "epoch-zero-retained-64": {
+          "malloc_large_resident_bytes": 12795904,
+          "malloc_size_allocated_bytes": 54525952,
+          "malloc_size_in_use_bytes": 1503248,
+          "malloc_tag_resident_bytes": 44564480,
+          "physical_footprint_bytes": 46399896,
+          "resident_bytes": 52101120
+        },
+        "established": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 33554432,
+          "malloc_size_in_use_bytes": 1344464,
+          "malloc_tag_resident_bytes": 4751360,
+          "physical_footprint_bytes": 6570368,
+          "resident_bytes": 12271616
+        },
+        "old-epoch-ack-reclaimed-and-refilled": {
+          "malloc_large_resident_bytes": 175374336,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1830128,
+          "malloc_tag_resident_bytes": 211386368,
+          "physical_footprint_bytes": 212337240,
+          "resident_bytes": 218955776
+        },
+        "reopened-aggregate-full": {
+          "malloc_large_resident_bytes": 175374336,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1734032,
+          "malloc_tag_resident_bytes": 211337216,
+          "physical_footprint_bytes": 212288088,
+          "resident_bytes": 218906624
+        },
+        "second-original-reopen": {
+          "malloc_large_resident_bytes": 175374336,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1759248,
+          "malloc_tag_resident_bytes": 211337216,
+          "physical_footprint_bytes": 212288088,
+          "resident_bytes": 218906624
+        }
+      },
+      "total_retained_at_refusal": 124,
+      "whole_process_peak_rss_bytes": 222887936
+    },
+    {
+      "build": "05",
+      "case": "local-pressure-probe",
+      "effects": 125,
+      "pressure_probe": {
+        "elapsed_ns": 458,
+        "invoked_after_all_owners_closed": true,
+        "reported_released_bytes": 0
+      },
+      "profile": "local",
+      "resources": {
+        "after-malloc-pressure-relief": {
+          "malloc_large_resident_bytes": 133365760,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 1317344,
+          "malloc_tag_resident_bytes": 173096960,
+          "physical_footprint_bytes": 167248496,
+          "resident_bytes": 180289536
+        },
+        "aggregate-refused-owner-closed": {
+          "malloc_large_resident_bytes": 176504832,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1676496,
+          "malloc_tag_resident_bytes": 211009536,
+          "physical_footprint_bytes": 211944024,
+          "resident_bytes": 218578944
+        },
+        "all-acknowledged": {
+          "malloc_large_resident_bytes": 180355072,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 2481088,
+          "malloc_tag_resident_bytes": 220020736,
+          "physical_footprint_bytes": 220971632,
+          "resident_bytes": 227590144
+        },
+        "all-owners-closed": {
+          "malloc_large_resident_bytes": 180355072,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 1279120,
+          "malloc_tag_resident_bytes": 220037120,
+          "physical_footprint_bytes": 220578416,
+          "resident_bytes": 227229696
+        },
+        "before-aggregate-refusal": {
+          "malloc_large_resident_bytes": 174407680,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1745824,
+          "malloc_tag_resident_bytes": 208912384,
+          "physical_footprint_bytes": 209846872,
+          "resident_bytes": 216481792
+        },
+        "closed-idle-15s": {
+          "malloc_large_resident_bytes": 133365760,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 1307952,
+          "malloc_tag_resident_bytes": 173080576,
+          "physical_footprint_bytes": 167232112,
+          "resident_bytes": 180273152
+        },
+        "closed-idle-1s": {
+          "malloc_large_resident_bytes": 180355072,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 1289104,
+          "malloc_tag_resident_bytes": 220053504,
+          "physical_footprint_bytes": 220594800,
+          "resident_bytes": 227246080
+        },
+        "closed-idle-5s": {
+          "malloc_large_resident_bytes": 133365760,
+          "malloc_size_allocated_bytes": 75497472,
+          "malloc_size_in_use_bytes": 1298528,
+          "malloc_tag_resident_bytes": 173080576,
+          "physical_footprint_bytes": 167232112,
+          "resident_bytes": 180273152
+        },
+        "epoch-one-confirmed": {
+          "malloc_large_resident_bytes": 19398656,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1540608,
+          "malloc_tag_resident_bytes": 49496064,
+          "physical_footprint_bytes": 51347888,
+          "resident_bytes": 57065472
+        },
+        "epoch-one-retained-1": {
+          "malloc_large_resident_bytes": 24985600,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1568480,
+          "malloc_tag_resident_bytes": 55132160,
+          "physical_footprint_bytes": 56983984,
+          "resident_bytes": 62701568
+        },
+        "epoch-one-retained-16": {
+          "malloc_large_resident_bytes": 101302272,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1619920,
+          "malloc_tag_resident_bytes": 132218880,
+          "physical_footprint_bytes": 134169152,
+          "resident_bytes": 139788288
+        },
+        "epoch-one-retained-32": {
+          "malloc_large_resident_bytes": 126337024,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1674160,
+          "malloc_tag_resident_bytes": 157483008,
+          "physical_footprint_bytes": 158827096,
+          "resident_bytes": 165052416
+        },
+        "epoch-one-retained-48": {
+          "malloc_large_resident_bytes": 159891456,
+          "malloc_size_allocated_bytes": 62914560,
+          "malloc_size_in_use_bytes": 1728656,
+          "malloc_tag_resident_bytes": 191741952,
+          "physical_footprint_bytes": 192676440,
+          "resident_bytes": 199311360
+        },
+        "epoch-zero-retained-1": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 46137344,
+          "malloc_size_in_use_bytes": 1405488,
+          "malloc_tag_resident_bytes": 5554176,
+          "physical_footprint_bytes": 7389592,
+          "resident_bytes": 13090816
+        },
+        "epoch-zero-retained-16": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 46137344,
+          "malloc_size_in_use_bytes": 1916176,
+          "malloc_tag_resident_bytes": 11943936,
+          "physical_footprint_bytes": 13779352,
+          "resident_bytes": 19480576
+        },
+        "epoch-zero-retained-32": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 54525952,
+          "malloc_size_in_use_bytes": 2479440,
+          "malloc_tag_resident_bytes": 19677184,
+          "physical_footprint_bytes": 21512600,
+          "resident_bytes": 27213824
+        },
+        "epoch-zero-retained-64": {
+          "malloc_large_resident_bytes": 12828672,
+          "malloc_size_allocated_bytes": 58720256,
+          "malloc_size_in_use_bytes": 1503280,
+          "malloc_tag_resident_bytes": 41140224,
+          "physical_footprint_bytes": 42992048,
+          "resident_bytes": 48676864
+        },
+        "established": {
+          "malloc_large_resident_bytes": 0,
+          "malloc_size_allocated_bytes": 46137344,
+          "malloc_size_in_use_bytes": 1344496,
+          "malloc_tag_resident_bytes": 5079040,
+          "physical_footprint_bytes": 6914456,
+          "resident_bytes": 12599296
+        },
+        "old-epoch-ack-reclaimed-and-refilled": {
+          "malloc_large_resident_bytes": 178601984,
+          "malloc_size_allocated_bytes": 71303168,
+          "malloc_size_in_use_bytes": 1830160,
+          "malloc_tag_resident_bytes": 213401600,
+          "physical_footprint_bytes": 214352496,
+          "resident_bytes": 220971008
+        },
+        "reopened-aggregate-full": {
+          "malloc_large_resident_bytes": 176504832,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1734064,
+          "malloc_tag_resident_bytes": 211107840,
+          "physical_footprint_bytes": 212042328,
+          "resident_bytes": 218677248
+        },
+        "second-original-reopen": {
+          "malloc_large_resident_bytes": 178601984,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1759280,
+          "malloc_tag_resident_bytes": 213319680,
+          "physical_footprint_bytes": 214254168,
+          "resident_bytes": 220889088
+        }
+      },
+      "total_retained_at_refusal": 124,
+      "whole_process_peak_rss_bytes": 227622912
+    }
+  ],
+  "completed": true,
+  "negative_controls_rejected": 271,
+  "release_claim_eligible": false,
+  "scope": "Two fresh local-profile processes: unchanged allocator census and a separate post-close pressure-relief intervention. VM region counters are non-atomic and include shared mappings; they must not be summed as per-task physical footprint. No witness, isolated SDK allocation, leak-free, latency-tail or energy claim.",
+  "source_commit": "fca7a0bcc6f9054dde175afbd0d99864fa281694"
+}

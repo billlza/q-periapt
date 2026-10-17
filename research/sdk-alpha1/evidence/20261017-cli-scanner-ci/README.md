@@ -31,7 +31,11 @@ checks the complete workspace and fuzz locks against crates.io and RustSec
 commit `64f92cdc64401fab47baa10e2e11fe382aa57155`, with exact checksums, zero yanked
 packages and warnings denied. [observations.json](observations.json) records
 the changed-source hashes and bounded scope; adjacent logs retain terminal
-results. Hosted execution of the corrected Windows assertion remains required.
+results. Subsequent hosted execution at `68e05c56` completes the corrected
+Windows, check and audit jobs successfully in both
+[PR run 39034904255](https://github.com/billlza/q-periapt/actions/runs/39034904255)
+and [push run 39034893061](https://github.com/billlza/q-periapt/actions/runs/39034893061).
+This confirms those three corrected gates, not the entire CI suite.
 
 The product scanner implementation, lockfile, SDK runtime and public ABI are
 unchanged by these corrections. Full CI and 0.2.0 release qualification remain

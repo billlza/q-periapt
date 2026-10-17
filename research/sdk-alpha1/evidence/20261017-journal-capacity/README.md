@@ -58,6 +58,11 @@ not account for all VM footprint and do not establish either an SDK object leak
 or a complete allocator-retention explanation. VM-region/allocation attribution
 remains the next investigation; no speculative memory fix is promoted here.
 
+The subsequent [VM-tag and pressure-relief diagnostic](../20261017-vm-footprint/README.md)
+narrows the retained pages to malloc-related regions, records variable idle
+reclamation and a zero-release intervention result. It does not establish a
+complete allocator explanation or a product fix.
+
 All three processes run on Apple Silicon/macOS with Rust 1.98.1 Release,
 opt-level 3, thin LTO, one codegen unit and overflow checks. Other applications
 and power settings are uncontrolled. No local task build or broad test overlaps
