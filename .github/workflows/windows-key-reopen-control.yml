@@ -1,0 +1,41 @@
+name: Windows key reopen regression control
+on:
+  push:
+    branches: [lza/windows-key-reopen-control]
+    paths:
+      - .github/workflows/windows-key-reopen-control.yml
+      - key-reopen-control/**
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.1'
+      RUSTFLAGS: -D warnings
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: 35a09f4e93cb1b5fdc670871cb112a2d2cbf2bd4
+          path: candidate
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: '1.98.1'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.14.7'
+      - name: Compare corrected and retained old key reopen paths
+        run: python -I -S -B -W error key-reopen-control/run.py
+      - name: Retain exact source and both outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-key-reopen-control
+          path: key-reopen-evidence/
+          if-no-files-found: error
