@@ -27,6 +27,13 @@ def command(args):
     return subprocess.run(args, cwd=SOURCE, capture_output=True, text=True,
                           check=True, timeout=30).stdout.strip()
 
+def reopen_traces(log):
+    # With --nocapture, libtest may leave its exact test-name prefix on the
+    # same line as the first diagnostic. Accept only these two known prefixes.
+    names = '|'.join(re.escape(name) for name in NAMES)
+    prefix = r'(?:test windows_key_reopen::(?:' + names + r') \.\.\. )?'
+    return re.findall(r'^' + prefix + r'(WINDOWS_KEY_REOPEN_TRACE [^\r\n]+)$', log, re.M)
+
 def run(label):
     args = ['cargo', 'test', '--locked', '--manifest-path',
             'research/continuity-identity-candidate/Cargo.toml', '--lib',
@@ -83,7 +90,7 @@ try:
                 'expected negative test did not execute')
         require('    windows_key_reopen::' + name in negative,
                 'expected negative assertion did not fail')
-    traces = [line for line in negative.splitlines() if line.startswith('WINDOWS_KEY_REOPEN_TRACE ')]
+    traces = reopen_traces(negative)
     expected = []
     for prefix, boundary in [('kind=wrapping', 'WrappingFile'),
                              ('kind=signing role=root', 'SigningFile')]:
