@@ -9,6 +9,11 @@ use std::{io, path::Path};
 /// it must finish and sync every child before returning and must not retain
 /// concurrent writers. The helper syncs that directory and its pinned parent.
 /// It does not verify application configuration or make child writes durable.
+/// On Windows, child file handles must be closed before the directory rename.
+/// The helper never closes caller-owned handles: a retained live database causes
+/// native publication refusal, preserving the original prepared tree. Separate
+/// state preparation and subsequent authenticated admission at the caller when
+/// that caller's contract permits it; this helper never reopens an owner.
 ///
 /// Errors and unwinds preserve staging. An error after rename may have published
 /// the complete directory. Reconcile its exact original inputs; never delete or
@@ -24,6 +29,7 @@ where
     E: From<PrivatePublicationError>,
 {
     #[cfg(any(
+        windows,
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
@@ -33,6 +39,7 @@ where
         publish_with(path, initialize, |_, _| Ok(()))
     }
     #[cfg(not(any(
+        windows,
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
@@ -48,6 +55,7 @@ where
 }
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -55,6 +63,7 @@ where
 ))]
 use super::{open_private_parent, publication_ops as ops, OwnedPrivateDirectory};
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -63,6 +72,7 @@ use super::{open_private_parent, publication_ops as ops, OwnedPrivateDirectory};
 use std::{ffi::OsStr, path::PathBuf};
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -81,6 +91,7 @@ enum Step {
 }
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -94,6 +105,7 @@ fn admission() -> io::Error {
 }
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -108,6 +120,7 @@ struct Staging {
 }
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -143,6 +156,7 @@ impl Staging {
 }
 
 #[cfg(any(
+    windows,
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
@@ -197,3 +211,6 @@ where
     )
 ))]
 mod tests;
+
+#[cfg(all(test, windows))]
+mod windows_tests;

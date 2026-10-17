@@ -388,10 +388,14 @@ impl FirstInstallConfiguration {
     }
 
     /// Explicit first use. The final directory must not already exist, even if empty.
-    /// Any publication error may have committed a complete tree. Reconcile; never overwrite.
+    /// Any error after preparation begins may have published a complete tree.
+    /// Reconcile the original inputs; never overwrite or regenerate missing state.
+    /// Windows prepares private state, closes its unreleased preparation owner,
+    /// publishes the complete directory, then performs fresh exact admission.
+    /// A competing opener can therefore cause Busy after successful publication.
     pub fn provision(&self, target: &Path) -> Result<PolicyStore> {
         let expected = self.validate()?;
-        publish_private_directory(target, |staging| {
+        let initialize = |staging: &Path| {
             for (name, bytes) in self.fields() {
                 publish_private_bytes(&staging.join(name), bytes)?;
             }
@@ -411,10 +415,34 @@ impl FirstInstallConfiguration {
             {
                 return Err(Error::Changed("initial SDK authority and policy"));
             }
-            // Keep the original database lease through directory publication;
-            // an output-publication failure drops this unreleased owner.
             Ok::<_, Error>(store)
-        })
+        };
+        #[cfg(windows)]
+        {
+            publish_private_directory(target, |staging| {
+                let mut prepared = initialize(staging)?;
+                #[cfg(test)]
+                windows_tests::at(windows_tests::Stage::Prepared, staging)?;
+                // This owner has never been returned or installed in a registry.
+                // Windows cannot rename a tree with live child handles. Finish
+                // private preparation before publication, then re-admit strictly.
+                prepared.close();
+                #[cfg(test)]
+                windows_tests::at(windows_tests::Stage::Closed, staging)?;
+                Ok::<_, Error>(())
+            })?;
+            #[cfg(test)]
+            windows_tests::at(windows_tests::Stage::Published, target)?;
+            let admitted = self.reconcile(target)?;
+            #[cfg(test)]
+            windows_tests::at(windows_tests::Stage::Admitted, target)?;
+            Ok(admitted)
+        }
+        #[cfg(not(windows))]
+        {
+            // Unix retains the original owner through directory publication.
+            publish_private_directory(target, initialize)
+        }
     }
 
     /// Check an uncertain first creation against the independently retained original inputs.
@@ -474,5 +502,7 @@ impl FirstInstallConfiguration {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
+#[cfg(all(test, windows))]
+mod windows_tests;

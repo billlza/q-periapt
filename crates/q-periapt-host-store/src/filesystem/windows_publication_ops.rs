@@ -54,3 +54,39 @@ pub(super) fn sync_directory(parent: &OwnedPrivateDirectory) -> io::Result<()> {
     parent.validate()?;
     parent.descriptor.sync_all()
 }
+
+pub(super) fn create_directory(
+    parent: &OwnedPrivateDirectory,
+    name: &OsStr,
+) -> io::Result<OwnedPrivateDirectory> {
+    parent.validate()?;
+    let directory = OwnedPrivateDirectory {
+        descriptor: native::create(&parent.descriptor, name, true)?,
+    };
+    directory.validate()?;
+    Ok(directory)
+}
+
+pub(super) fn same_directory(
+    parent: &OwnedPrivateDirectory,
+    name: &OsStr,
+    directory: &OwnedPrivateDirectory,
+) -> io::Result<()> {
+    parent.validate()?;
+    directory.validate()?;
+    let named = OwnedPrivateDirectory {
+        descriptor: native::open(&parent.descriptor, name, native::OpenKind::PrivateDirectory)?,
+    };
+    named.validate()?;
+    native::same_directory(&directory.descriptor, &named.descriptor)
+}
+
+pub(super) fn rename_directory(
+    parent: &OwnedPrivateDirectory,
+    name: &OsStr,
+    destination: &OsStr,
+    directory: &OwnedPrivateDirectory,
+) -> io::Result<()> {
+    same_directory(parent, name, directory)?;
+    native::rename_directory(directory, &parent.descriptor, destination)
+}

@@ -16,9 +16,17 @@ on an existing path. Reparse points, multiple hard links, alternate streams,
 device aliases and network volumes are rejected. Configuration reads use read-only
 handles beneath the pinned private parent, reject empty or oversized files, and
 recheck both file and parent DACLs. Callers still bound the actual read; an admitted
-length is not an immutable-file guarantee. Windows directory publication
-and anonymous private scratch remain unsupported. Native Windows validation is
-separate from Unix evidence and does not imply full Continuity qualification.
+length is not an immutable-file guarantee. Prepared Windows directory trees can
+be published without replacement when child handles are closed. Publication never
+closes a caller-owned database; a live child causes native refusal and retains the
+prepared tree. The Windows reference first-install coordinator instead completes
+private state preparation, closes only its unreleased preparation owner, publishes
+the complete directory, and re-admits it against the original inputs. A competing
+opener can cause Busy after publication; a changed policy or missing key is refused
+without repair. No owner is returned before exact final admission. Unix retains
+its original live owner through publication. Anonymous private scratch remains
+unsupported. Native Windows validation is separate from Unix evidence and does
+not imply full Continuity qualification.
 
 ## Accepted state and ownership
 

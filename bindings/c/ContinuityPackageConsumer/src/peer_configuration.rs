@@ -207,5 +207,5 @@ pub unsafe extern "C" fn qpc_peer_v1_prepare_configured_reopen(
     unsafe { prepare(parent, input, Some(session), handle, error) }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;

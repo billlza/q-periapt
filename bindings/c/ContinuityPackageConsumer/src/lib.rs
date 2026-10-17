@@ -9,7 +9,9 @@ mod device;
 mod enrollment;
 pub mod first_install;
 mod invocation;
-#[cfg(test)]
+// The installed endpoint fixture uses Unix permissions and process adapters.
+// Windows first-use tests retain a separate native private-storage fixture.
+#[cfg(all(test, unix))]
 #[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
 mod native_fixture;
 mod native_owner;

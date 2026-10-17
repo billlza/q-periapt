@@ -103,6 +103,36 @@ jobs:
           $library = Join-Path $env:CARGO_TARGET_DIR 'release/q_periapt_continuity_c_consumer.dll'
           $receipt = @{ scope = 'Windows source facade compilation only; no installed-package or runtime qualification'; source = (git rev-parse HEAD); bytes = (Get-Item $library).Length; sha256 = (Get-FileHash $library -Algorithm SHA256).Hash.ToLowerInvariant() }
           $receipt | ConvertTo-Json | Set-Content target/private-store-evidence/consumer-library.json -Encoding utf8
+      - name: Exercise Windows first-use publication and fresh admission
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $consumer = Join-Path $env:RUNNER_TEMP 'continuity-consumer-source'
+          $manifest = Join-Path $consumer 'Cargo.toml'
+          $env:CARGO_TARGET_DIR = Join-Path (Get-Location).Path 'research/continuity-identity-candidate/target'
+          $env:QPC_FIRST_USE_ROOT = Join-Path $env:RUNNER_TEMP 'continuity-first-use-private'
+          New-Item -ItemType Directory -Path $env:QPC_FIRST_USE_ROOT | Out-Null
+          $privateRoot = @'
+          $ErrorActionPreference = 'Stop'
+          $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object System.Security.AccessControl.DirectorySecurity
+          $acl.SetOwner($sid)
+          $acl.SetAccessRuleProtection($true, $false)
+          $inherit = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+          $allow = [System.Security.AccessControl.AccessControlType]::Allow
+          $none = [System.Security.AccessControl.PropagationFlags]::None
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inherit, $none, $allow)))
+          [System.IO.Directory]::SetAccessControl($env:QPC_FIRST_USE_ROOT, $acl)
+          '@
+          $powershell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          & $powershell -NoLogo -NoProfile -NonInteractive -Command $privateRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo clippy --locked --manifest-path $manifest --lib --tests -- -D warnings 2>&1 | Tee-Object target/private-store-evidence/first-use-clippy.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --manifest-path $manifest --lib first_install::windows_tests -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/first-use-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --release --manifest-path $manifest --lib first_install::windows_tests -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/first-use-release-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve native results including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

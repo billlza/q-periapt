@@ -434,7 +434,7 @@ pub unsafe extern "C" fn qpc_configuration_v1_begin_enrollment(
     unsafe { boundary(error, false, action) }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 /// Transfer a configured target's existing SDK lease into an original enrollment.

@@ -5,7 +5,7 @@ use q_periapt_host_store::filesystem::OwnedPrivateDirectory;
 
 const KEY: &str = "authority.key";
 const STORE: &str = "authority.redb";
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 #[repr(C)]

@@ -324,11 +324,40 @@ pub(super) fn same_file(first: &File, second: &File) -> io::Result<()> {
     Ok(())
 }
 
+pub(super) fn same_directory(first: &File, second: &File) -> io::Result<()> {
+    let a = information(first)?;
+    let b = information(second)?;
+    if a.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0
+        || b.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0
+        || (a.dwVolumeSerialNumber, a.nFileIndexHigh, a.nFileIndexLow)
+            != (b.dwVolumeSerialNumber, b.nFileIndexHigh, b.nFileIndexLow)
+    {
+        return Err(denied());
+    }
+    Ok(())
+}
+
 pub(super) fn rename_file(
     file: &StagingFile,
     parent: &File,
     destination: &OsStr,
 ) -> io::Result<()> {
+    rename_synchronous_handle(file.file(), parent, destination)
+}
+
+pub(super) fn rename_directory(
+    directory: &super::windows::OwnedPrivateDirectory,
+    parent: &File,
+    destination: &OsStr,
+) -> io::Result<()> {
+    // OwnedPrivateDirectory can only contain a synchronously opened directory.
+    // Newly created staging directories also carry DELETE access. Never close
+    // child handles to make rename succeed; native refusal preserves the tree.
+    check_directory(&directory.descriptor)?;
+    rename_synchronous_handle(&directory.descriptor, parent, destination)
+}
+
+fn rename_synchronous_handle(file: &File, parent: &File, destination: &OsStr) -> io::Result<()> {
     let name = leaf(destination)?;
     let name_bytes = name.len().checked_mul(2).ok_or_else(denied)?;
     let bytes = size_of::<FILE_RENAME_INFORMATION>()
@@ -358,7 +387,7 @@ pub(super) fn rename_file(
     // Do not replace a failed NTSTATUS with an unfilled zero completion status.
     let result = unsafe {
         NtSetInformationFile(
-            file.file().as_raw_handle(),
+            file.as_raw_handle(),
             &mut completion,
             info.cast(),
             u32::try_from(size_of_val(storage.as_slice())).map_err(|_| denied())?,
