@@ -1,0 +1,60 @@
+name: Windows private policy storage
+
+on:
+  push:
+    branches: [lza/windows-private-store]
+    paths:
+      - .github/workflows/host-store-windows.yml
+      - crates/q-periapt-host-store/**
+      - Cargo.toml
+      - Cargo.lock
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+        toolchain: ["1.90.0", "1.98.1"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      RUSTFLAGS: -D warnings
+      RUSTDOCFLAGS: -D warnings
+      CARGO_TERM_COLOR: never
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+      - name: Check the native adapter and its tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path target/private-store-evidence | Out-Null
+          git rev-parse HEAD | Set-Content target/private-store-evidence/commit.txt
+          rustc -vV | Set-Content target/private-store-evidence/rustc.txt
+          cargo clippy --locked -p q-periapt-host-store --all-targets -- -D warnings 2>&1 | Tee-Object target/private-store-evidence/clippy.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Exercise private admission publication and cross-process exclusion
+        shell: pwsh
+        run: |
+          cargo test --locked -p q-periapt-host-store --all-targets -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --release -p q-periapt-host-store --all-targets -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/release-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked -p q-periapt-host-store --doc 2>&1 | Tee-Object target/private-store-evidence/doc-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve native results including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: private-store-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: target/private-store-evidence/
+          if-no-files-found: error

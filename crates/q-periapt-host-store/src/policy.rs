@@ -140,7 +140,7 @@ impl Drop for Active {
     }
 }
 
-/// One private macOS/Linux host store with an exclusive lifetime owner.
+/// One private host store with an exclusive lifetime owner.
 ///
 /// Explicit provisioning never overwrites an existing path. Opening never
 /// treats missing/corrupt storage as first use. A signed image and its exact

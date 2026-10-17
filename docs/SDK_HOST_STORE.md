@@ -8,6 +8,15 @@ and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
 table now has 51 exports**, including eight explicit policy-recovery helpers and
 entry points. Existing declarations/layouts remain unchanged. This crate is unpublished.
 
+The Windows candidate adds file-level private storage on local NTFS through the
+same persist-before-activate sequence. It requires an absolute drive path and
+current-user ownership, with DACL grants restricted to that user or LocalSystem.
+Exclusive creation applies a protected DACL; admission never repairs permissions
+on an existing path. Reparse points, multiple hard links, alternate streams,
+device aliases and network volumes are rejected. Windows directory publication
+and anonymous private scratch remain unsupported. Native Windows validation is
+separate from Unix evidence and does not imply full Continuity qualification.
+
 ## Accepted state and ownership
 
 `provision(path, policy, signature, root, limits)` is explicit first installation.

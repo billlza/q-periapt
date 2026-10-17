@@ -2,13 +2,15 @@
 #![deny(unsafe_code)]
 //! Host-owned policy persistence, separate from the portable cryptographic SDK.
 //!
-//! The private filesystem boundary is shared with the policy agent. The only
-//! native unsafe code is its existing, quarantined macOS/iOS descriptor-ACL adapter.
+//! The private filesystem boundary is shared with the policy agent. Native
+//! descriptor/handle operations are quarantined in the platform adapters.
 
 pub mod database_format;
 pub mod filesystem;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod macos_acl;
+#[cfg(windows)]
+mod windows_acl;
 
 mod policy;
 pub use policy::{

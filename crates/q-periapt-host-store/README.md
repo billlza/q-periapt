@@ -29,7 +29,16 @@ validation, parent sync. Existing destinations are never replaced or deleted on
 failure. Errors retain the original operation and attempted staging name. Failed attempts
 and process crashes can leave unpublished private staging orphans; automatic selection,
 sweeping and physical erasure are not provided. Database provisioning now reuses the same internal publication capability. This
-does not enable Windows storage admission or migrate old partial formal files.
+does not migrate old partial formal files.
+
+A Windows candidate implements file-level admission and publication on local
+NTFS. It requires an absolute drive path and a current-user-owned private parent;
+allow ACEs may grant only that user or LocalSystem. It rejects reparse points,
+multiple hard links, device names, alternate streams and broader DACLs without
+changing existing permissions. Creation applies a protected DACL before any
+state is written. Native CI covers this candidate separately from the Unix
+qualification. Windows directory-tree publication and anonymous private scratch
+remain unsupported; this does not qualify the complete Continuity lifecycle.
 
 The opt-in Rust v2 store adds independently pinned online-policy-root recovery.
 Provision `PolicyRecoveryTrust` before an incident, with a recovery-key enrollment

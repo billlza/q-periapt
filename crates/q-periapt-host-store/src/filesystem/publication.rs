@@ -13,7 +13,8 @@ impl PrivatePublicationError {
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        target_os = "windows"
     ))]
     pub(super) fn staged(operation: io::Error, name: std::ffi::OsString) -> Self {
         Self {
@@ -57,7 +58,7 @@ impl From<io::Error> for PrivatePublicationError {
 
 /// Publish an immutable image beneath one authenticated, pinned private parent.
 ///
-/// Writes a fresh exclusive `0600` staging inode, syncs its complete contents,
+/// Writes a fresh exclusive owner-only staging file, syncs its complete contents,
 /// renames with NOREPLACE, authenticates the published inode, then syncs the
 /// parent. No owner or public identity may be released before this returns.
 /// Existing destinations, including partial files and symlinks, are never changed.
@@ -83,7 +84,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        target_os = "windows"
     ))]
     {
         publish_with(path, bytes, |_, _, _, _| Ok(()))
@@ -92,7 +94,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        target_os = "windows"
     )))]
     {
         let _ = (path, bytes);
@@ -108,7 +111,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 use super::{
     open_locked_database, open_private_parent, publication_ops as ops, DatabaseOpenMode,
@@ -118,7 +122,8 @@ use super::{
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 use std::{ffi::OsStr, fs::File, io::Write};
 
@@ -126,7 +131,8 @@ use std::{ffi::OsStr, fs::File, io::Write};
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Step {
@@ -144,7 +150,8 @@ enum Step {
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 fn admission() -> io::Error {
     io::Error::new(
@@ -157,7 +164,8 @@ fn admission() -> io::Error {
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 fn same_leaf(
     parent: &OwnedPrivateDirectory,
@@ -173,7 +181,8 @@ fn same_leaf(
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 pub(super) struct StagedFile {
     parent: OwnedPrivateDirectory,
@@ -185,7 +194,8 @@ pub(super) struct StagedFile {
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 impl StagedFile {
     pub(super) fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
@@ -207,10 +217,7 @@ impl StagedFile {
         Ok(staged)
     }
     fn error(&self, operation: io::Error) -> PrivatePublicationError {
-        PrivatePublicationError {
-            operation,
-            staging_name: Some(self.name.clone()),
-        }
+        PrivatePublicationError::staged(operation, self.name.clone())
     }
     pub(super) fn file(&self) -> Result<File, PrivatePublicationError> {
         ops::clone_file(&self.descriptor).map_err(|e| self.error(e))
@@ -253,7 +260,8 @@ impl StagedFile {
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 fn publish_with(
     path: &Path,
@@ -279,7 +287,8 @@ fn publish_with(
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 pub(super) fn provision_database<E>(
     path: &Path,
@@ -295,7 +304,8 @@ where
     target_os = "macos",
     target_os = "ios",
     target_os = "linux",
-    target_os = "android"
+    target_os = "android",
+    target_os = "windows"
 ))]
 fn provision_database_with<E>(
     path: &Path,

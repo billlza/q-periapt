@@ -14,7 +14,16 @@ mod publication;
     target_os = "android"
 ))]
 mod publication_ops;
+#[cfg(windows)]
+#[path = "filesystem/windows_publication_ops.rs"]
+mod publication_ops;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+mod windows_native;
 pub use publication::{publish_private_bytes, PrivatePublicationError};
+#[cfg(windows)]
+use windows::{open_private_leaf, open_private_parent, OwnedPrivateDirectory};
 mod directory_publication;
 pub use directory_publication::publish_private_directory;
 
@@ -248,6 +257,8 @@ pub(crate) fn open_locked_database(
             return Err(PrivateDatabaseError::File);
         }
     }
+    #[cfg(windows)]
+    windows::validate_file(&probe).map_err(|_| PrivateDatabaseError::File)?;
     if (mode == DatabaseOpenMode::New && metadata.len() != 0)
         || (mode == DatabaseOpenMode::Existing
             && !(16..=MAX_PRIVATE_DATABASE_BYTES).contains(&metadata.len()))
@@ -293,7 +304,8 @@ where
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        target_os = "windows"
     ))]
     {
         publication::provision_database(path, initialize)
@@ -302,7 +314,8 @@ where
         target_os = "macos",
         target_os = "ios",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        target_os = "windows"
     )))]
     {
         let _ = (path, initialize);
@@ -445,10 +458,10 @@ fn copy_exact_stream(
 
 /// Open an existing private state file, or atomically reserve a new one.
 ///
-/// The path must name a single leaf beneath an absolute [`OwnedPrivateDirectory`].
-/// The returned regular file is exact `0600`, owned by the effective user, and
-/// can be passed directly to a storage adapter without reopening by path.
-#[cfg(unix)]
+/// The path must name a single leaf beneath an authenticated absolute private parent.
+/// The regular file is effective-user owned (`0600` on Unix; an admitted private
+/// DACL on Windows), and can be used without reopening by path.
+#[cfg(any(unix, windows))]
 pub fn open_private_file(path: &Path, create: bool) -> Result<File, PrivateFileError> {
     let (parent, filename) = open_private_parent(path)?;
     open_private_leaf(&parent, filename, create)
@@ -520,7 +533,7 @@ fn open_private_leaf_with(
 /// Layout (redb 4.3 file format v3): nine magic bytes, then the god byte at
 /// offset 9 with bit 2 = recovery required and bit 4 = two-phase commit.
 /// This format check does not establish private-file ownership. In particular,
-/// Windows private-file admission remains unsupported. The already-locked backend
+/// private-file admission is a separate platform boundary. The already-locked backend
 /// performs the read through the same handle that owns the lifetime lock. Reading
 /// through a competing handle first would hide Windows lock conflicts as I/O errors.
 #[cfg(any(unix, windows))]
@@ -731,9 +744,19 @@ mod redb_header_tests {
 
     #[cfg(windows)]
     #[test]
-    fn header_inspection_does_not_enable_windows_private_file_admission() -> std::io::Result<()> {
+    fn header_inspection_does_not_admit_a_broad_windows_parent() -> std::io::Result<()> {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_BACKUP_SEMANTICS, READ_CONTROL, WRITE_DAC,
+        };
         let directory = tempfile::tempdir()?;
-        let path = directory.path().join("private.redb");
+        let root = directory.path().canonicalize()?;
+        let parent = std::fs::OpenOptions::new()
+            .access_mode(READ_CONTROL | WRITE_DAC)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+            .open(&root)?;
+        crate::windows_acl::grant_everyone_read_for_test(&parent)?;
+        let path = root.join("private.redb");
         assert!(open_private_file(&path, true).is_err());
         assert!(!path.exists());
         assert!(provision_private_file(&path, |error| error, Ok).is_err());
@@ -876,8 +899,8 @@ fn require_no_extended_acl(_: &std::os::fd::OwnedFd) -> Result<(), PrivateFileEr
     Err(PrivateFileError)
 }
 
-#[cfg(not(unix))]
-/// Refuse private-file opening without the reviewed Unix ownership boundary.
+#[cfg(not(any(unix, windows)))]
+/// Refuse private-file opening without a supported ownership boundary.
 pub fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileError> {
     // Unix descriptor-relative traversal, owner identity, and mode bits are part
     // of this reference implementation's reviewed boundary. A platform-specific
@@ -900,9 +923,10 @@ pub fn open_private_file(_: &Path, _: bool) -> Result<File, PrivateFileError> {
 /// file and never authorize deletion or a replacement provisioning attempt.
 ///
 /// Creation is descriptor-relative to one authenticated pinned parent and uses
-/// `O_CREAT|O_EXCL`. The callback receives that exact file; this function performs
+/// `O_CREAT|O_EXCL` on Unix or `FILE_CREATE` on Windows. The callback receives
+/// that exact file; this function performs
 /// no path lookup or removal after invoking it.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub fn provision_private_file<T, E>(
     path: &Path,
     on_open_failure: impl FnOnce(PrivateFileError) -> E,
@@ -919,8 +943,8 @@ pub fn provision_private_file<T, E>(
     initialize(file)
 }
 
-#[cfg(not(unix))]
-/// Refuse provisioning without the reviewed Unix ownership boundary.
+#[cfg(not(any(unix, windows)))]
+/// Refuse provisioning without a supported ownership boundary.
 pub fn provision_private_file<T, E>(
     path: &Path,
     on_open_failure: impl FnOnce(PrivateFileError) -> E,
