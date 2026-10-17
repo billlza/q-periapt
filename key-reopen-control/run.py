@@ -12,7 +12,7 @@ import subprocess
 
 SOURCE = Path('candidate').resolve(strict=True)
 OUT = Path('key-reopen-evidence').resolve()
-EXPECTED = '35a09f4e93cb1b5fdc670871cb112a2d2cbf2bd4'
+EXPECTED = '7b9f4507664989e1c5ce23c4bbfb951d66a01611'
 FILTER = 'sync_the_original_file_and_parent'
 NAMES = (
     'wrapping_key_sync_the_original_file_and_parent_before_returning',
