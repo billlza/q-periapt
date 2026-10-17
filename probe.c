@@ -176,6 +176,27 @@ static BOOL lock_contended(const WCHAR *path) {
     return !locked && error == ERROR_LOCK_VIOLATION;
 }
 
+static void empty_directory_control(const WCHAR *root, HANDLE parent, enum rename_method method) {
+    WCHAR staging[MAX_PATH], destination[MAX_PATH];
+    require("bounded_empty_directory_paths", child_path(staging, MAX_PATH, root, L"empty-stage") &&
+            child_path(destination, MAX_PATH, root, L"empty-published"));
+    if (failures) return;
+    require("empty_directory_create", CreateDirectoryW(staging, NULL));
+    if (failures) return;
+    HANDLE directory = CreateFileW(staging, GENERIC_READ | GENERIC_WRITE | DELETE,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   NULL, OPEN_EXISTING,
+                                   FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    require("empty_directory_open", directory != INVALID_HANDLE_VALUE);
+    if (directory != INVALID_HANDLE_VALUE) {
+        DWORD error = ERROR_SUCCESS;
+        BOOL renamed = rename_file(directory, parent, L"empty-published", destination, method, &error);
+        observe("empty_directory_rename_with_open_directory_handle", renamed, error);
+        if (!renamed) failures++;
+    }
+    close_owned(directory);
+}
+
 static void directory_publication_control(const WCHAR *root, HANDLE parent, enum rename_method method) {
     WCHAR staging[MAX_PATH], existing[MAX_PATH], published[MAX_PATH], child[MAX_PATH], published_child[MAX_PATH];
     require("bounded_directory_publication_paths",
@@ -227,6 +248,22 @@ static void directory_publication_control(const WCHAR *root, HANDLE parent, enum
             BOOL released = UnlockFileEx(state, 0, MAXDWORD, MAXDWORD, &overlap);
             require("original_state_lock_released", released);
             if (renamed && released) require("published_child_bytes_after_unlock", exact_bytes(published_child, bytes, sizeof(bytes)));
+            if (!renamed && released) {
+                /* Failure-path causal controls only. The earlier failed locked
+                   publication stays failed; these never return a product owner. */
+                BOOL after_unlock = rename_file(directory, parent, L"published-tree", published, method, &error);
+                observe("diagnostic_directory_rename_child_open_unlocked", after_unlock, error);
+                if (!after_unlock) {
+                    close_owned(state);
+                    state = INVALID_HANDLE_VALUE;
+                    BOOL after_close = rename_file(directory, parent, L"published-tree", published, method, &error);
+                    observe("diagnostic_directory_rename_child_closed", after_close, error);
+                    if (after_close) {
+                        require("diagnostic_closed_child_identity_preserved", identity_ok && same_named_file(published_child, &identity));
+                        require("diagnostic_closed_child_bytes_preserved", exact_bytes(published_child, bytes, sizeof(bytes)));
+                    }
+                }
+            }
         }
     }
     close_owned(directory);
@@ -326,6 +363,7 @@ int wmain(int argc, WCHAR **argv) {
     }
     /* The directory sequence depends on a working no-replacement file route.
        Failed file controls already make this invocation fail; no fallback. */
+    if (failures == 0) empty_directory_control(argv[1], parent, method);
     if (failures == 0) directory_publication_control(argv[1], parent, method);
     close_owned(parent);
     close_owned(dst);

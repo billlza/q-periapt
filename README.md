@@ -57,6 +57,14 @@ These are Win32 file-lock primitives, not a redb or cross-process SDK test.
 The directory sequence is only reached after the file controls succeed; any
 failed file or directory control still fails its invocation without a fallback.
 
+At `8136cd4` (run `39061476050`), all four previously working file routes
+failed directory publication with an open locked child (error 5), while the
+duplicate-close lock check passed. The next diagnostic first tests an empty
+directory with its handle open, then, only after retaining a failed locked
+publication, attempts rename with the child unlocked and with the child closed.
+Those final attempts discriminate causes; they never erase the original failure
+or qualify a release-the-lock fallback for product use.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
