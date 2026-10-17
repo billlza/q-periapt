@@ -1,0 +1,34 @@
+name: Windows anonymous scratch API observations
+on:
+  push:
+    branches: [lza/windows-private-scratch-probe]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Observe anonymous namespace and live handle behavior
+        shell: pwsh
+        run: ./anonymous-scratch/run.ps1
+      - name: Retain observations and failed controls
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-anonymous-scratch-${{ matrix.os }}
+          path: |
+            anonymous-scratch/out/environment.json
+            anonymous-scratch/out/build.stdout
+            anonymous-scratch/out/build.stderr
+            anonymous-scratch/out/observations.jsonl
+            anonymous-scratch/out/probe.stderr
+            anonymous-scratch/out/exit-code.txt
+          if-no-files-found: error
