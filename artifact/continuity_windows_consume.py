@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 
+from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_package_archive as bundle
 from installed_rust_graph import require, verify_resolution
 
@@ -24,7 +25,7 @@ def consume(args):
     require(os.name == 'nt', 'native Windows is required')
     output = args.output.resolve()
     output.mkdir()
-    receipt = json.loads(args.input.read_bytes())
+    receipt = parse_strict_json_bytes(read_regular_snapshot(args.input, maximum=16 * 1024**2, label='Windows package receipt').data, label='Windows package receipt')
     payload = args.input.with_name('consumer.zip').read_bytes()
     require(hashlib.sha256(payload).hexdigest() == receipt['zip_sha256'], 'input archive changed')
     outside = Path(tempfile.mkdtemp(prefix='qpc-installed-windows-')).resolve()
@@ -61,7 +62,7 @@ def consume(args):
     result['clang'] = run(['clang', '--version'], 'clang')
     require(result['rustc'].splitlines()[0] == 'rustc 1.98.1 (48a229cea 2026-09-01)', 'consumer compiler differs')
     require('host: x86_64-pc-windows-msvc' in result['rustc'], 'unexpected native Rust target')
-    metadata = json.loads(run(['cargo', 'metadata', '--format-version', '1'], 'metadata'))
+    metadata = parse_strict_json_bytes(run(['cargo', 'metadata', '--format-version', '1'], 'metadata').encode(), label='installed Windows Cargo metadata')
     lock = (consumer / 'Cargo.lock').read_bytes()
     result['resolution'] = verify_resolution(metadata, consumer, lock, (consumer / 'original-Cargo.lock').read_bytes(),
         consumer_name=receipt['consumer'], versions=receipt['versions'])

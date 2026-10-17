@@ -2,11 +2,11 @@
 """Prepare one Windows consumer from nine admitted SDK crates and Cargo's candidate archive."""
 import argparse
 import hashlib
-import json
 import os
 from pathlib import Path
 import tempfile
 
+from evidence_io import parse_strict_json_bytes
 from continuity_c_consumer import EXPORTS
 import continuity_package as candidate
 import continuity_package_archive as bundle
@@ -17,7 +17,7 @@ def prepare(args) -> None:
     output = args.output.resolve()
     output.mkdir()
     cohort_bytes = sdk.snapshot(args.report).data
-    cohort = json.loads(cohort_bytes)
+    cohort = parse_strict_json_bytes(cohort_bytes, label='admitted SDK archive report')
     sdk.require(cohort['base_commit'] == args.sdk_commit and cohort['git_dirty'] is False
                 and cohort['sources_unchanged'] is True, 'SDK producer identity differs')
     outside = Path(tempfile.mkdtemp(prefix='qpc-windows-packaging-')).resolve()
@@ -32,7 +32,7 @@ def prepare(args) -> None:
     sdk.require(compiler.decode().splitlines()[0] == 'rustc 1.98.1 (48a229cea 2026-09-01)', 'producer compiler differs')
     revision = run(['git', 'rev-parse', 'HEAD'], 'source-head').decode().strip()
     sdk.require(not run(['git', 'status', '--porcelain', '--untracked-files=no'], 'source-status'), 'dirty producer')
-    packages = sdk.classify(json.loads(run(['cargo', 'metadata', '--locked', '--no-deps', '--format-version', '1'], 'workspace')))
+    packages = sdk.classify(parse_strict_json_bytes(run(['cargo', 'metadata', '--locked', '--no-deps', '--format-version', '1'], 'workspace'), label='SDK workspace metadata'))
     files, versions, archives = {}, {}, {}
     for name in sdk.CONSUMER_CRATES:
         record = cohort['crates'][name]
