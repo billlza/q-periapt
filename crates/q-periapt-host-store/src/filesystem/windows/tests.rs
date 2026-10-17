@@ -3,7 +3,7 @@ use crate::filesystem::{
     open_private_database, open_private_file, provision_private_database, publish_private_bytes,
     PrivateDatabaseError,
 };
-use redb::ReadableTable;
+use redb::{ReadableDatabase, ReadableTable};
 use std::{
     io::{Read, Write},
     os::windows::fs::OpenOptionsExt,
