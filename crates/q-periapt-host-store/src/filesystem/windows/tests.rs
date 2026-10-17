@@ -3,7 +3,7 @@ use crate::filesystem::{
     open_private_database, open_private_file, provision_private_database, publish_private_bytes,
     PrivateDatabaseError,
 };
-use redb::{ReadableDatabase, ReadableTable};
+use redb::ReadableDatabase;
 use std::{
     io::{Read, Write},
     os::windows::fs::OpenOptionsExt,
@@ -175,7 +175,7 @@ fn published_database_retains_original_lock_and_committed_state(
     let database = provision_private_database::<PrivateDatabaseError>(&path, |db| {
         let result = (|| -> Result<(), redb::Error> {
             let mut tx = db.begin_write()?;
-            tx.set_durability(redb::Durability::Immediate);
+            tx.set_durability(redb::Durability::Immediate)?;
             tx.set_two_phase_commit(true);
             tx.open_table(TABLE)?.insert("genesis", 17)?;
             tx.commit()?;
