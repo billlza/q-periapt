@@ -27,6 +27,7 @@ from continuity_package_archive import MAX_PACKAGE, archive, unpack
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import jvm_sdk_package as jvm
 import rust_sdk_profile as sdk
+import continuity_profiles as profiles_contract
 import third_party_licenses as licenses
 
 FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
@@ -409,11 +410,14 @@ def runtime_closure(data: bytes, distribution: Path, jar_sha256: str, outside: P
 
 
 def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
-                   java_home: Path, gradle_home: Path) -> dict:
-    sdk.require(native["completed"] and (os.uname().sysname == "Linux" or
-                (os.uname().sysname == "Darwin" and os.uname().machine == "arm64")),
+                   java_home: Path, gradle_home: Path,
+                   *, profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
+    profiles_contract.require_native(native, profiles)
+    sdk.require(os.uname().sysname == "Linux" or
+                (os.uname().sysname == "Darwin" and os.uname().machine == "arm64"),
                 "Kotlin qualification requires completed native C packages on a supported host")
-    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
+    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False,
+              "partition_completed": False, "build_profiles": list(profiles), "profiles": {}}
     try:
         tools = {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)}
         java_home = Path(tools["java"]["root"]); gradle_home = Path(tools["gradle"]["root"])
@@ -476,7 +480,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
         for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md"):
             files["LICENSES/mlkem-native/" + name] = sdk.snapshot(package.ROOT / "crates/q-periapt-mlkem-native-sys/vendor" / name).data
         files.update({name: data for name, data in source.items() if name.startswith("consumer/")})
-        for profile in ("debug", "release"):
+        for profile in profiles:
             row = native["execution"][profile]
             library = sdk.snapshot(Path(row["binaries"]["C_library"]["path"]), maximum=c.MAX_BINARY)
             sdk.require(library.sha256 == row["binaries"]["C_library"]["sha256"], "native library changed before Kotlin installation")
@@ -812,7 +816,8 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-setup-construction", "raw-enrollment-construction", "raw-native-owner-construction"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")
-        result["completed"] = True
+        profiles_contract.require_execution(result, profiles, "profiles")
+        result.update(completed=profiles == profiles_contract.PROFILES, partition_completed=True)
     except Exception as error:
         result["failure"] = str(error)
         raise

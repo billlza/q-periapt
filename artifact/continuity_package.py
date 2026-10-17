@@ -16,6 +16,7 @@ import tempfile
 import tomllib
 
 import rust_sdk_profile as sdk
+import continuity_profiles as profiles_contract
 from evidence_io import fresh_output_directory, parse_strict_json_bytes
 from rust_sdk_msrv import tool_identity, validate_report
 
@@ -32,6 +33,7 @@ TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_recon
 def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
+        "artifact/continuity_profiles.py", "artifact/test_continuity_profiles.py",
         "artifact/continuity_first_configuration.py", "artifact/continuity_configuration_policy.py",
         "artifact/continuity_configuration_credential.py",
         "artifact/continuity_configuration_policy_credential.py",
@@ -243,6 +245,12 @@ def validate_swift_minimum(selected: bool, toolchain: Path | None) -> None:
 
 
 def qualify(args: argparse.Namespace) -> dict:
+    profiles = profiles_contract.validate_profiles(
+        profiles_contract.PROFILES if args.build_profile is None else (args.build_profile,))
+    if args.build_profile is not None:
+        sdk.require(args.with_c_consumer and sum((args.with_swift_consumer, args.with_kotlin_consumer,
+                    args.with_android_jni_consumer)) == 1 and args.with_apple_package == args.with_swift_consumer,
+                    "a profile partition requires C and exactly one foreign consumer, including Apple packaging for Swift")
     validate_swift_minimum(args.with_swift_consumer, args.swift_minimum_toolchain_root)
     sdk.require(not args.with_apple_package or (args.with_c_consumer and os.uname().sysname == "Darwin"
                 and os.uname().machine == "arm64"), "Apple package requires installed C qualification on macOS arm64")
@@ -278,13 +286,16 @@ def qualify(args: argparse.Namespace) -> dict:
     sdk.require(not outside.is_relative_to(ROOT), "installed consumer must be outside checkout")
     sdk.write_json(output / "location.json", {"path": str(outside)})
     sdk.write_json(output / "sources-before.json", before)
-    result = {"schema_version": 1, "kind": "qperiapt.continuity_candidate_package", "completed": False,
+    result = {"schema_version": 1, "kind": "qperiapt.continuity_candidate_package"
+              + ("_partition" if args.build_profile is not None else ""), "completed": False,
+              "partition_completed": False, "build_profiles": list(profiles),
               "candidate_version": VERSION, "source_commit": commit, "source_inputs": before,
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
               "requested_consumers": (["Rust", "C"] if args.with_c_consumer else ["Rust"])
                                      + (["Swift"] if args.with_swift_consumer or args.with_apple_package else [])
-                                     + (["Kotlin"] if args.with_kotlin_consumer else []),
+                                     + (["Kotlin"] if args.with_kotlin_consumer else [])
+                                     + (["AndroidJNI"] if args.with_android_jni_consumer else []),
               "release_claim_eligible": False, "publication_performed": False,
               "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification"}
     try:
@@ -367,7 +378,7 @@ def qualify(args: argparse.Namespace) -> dict:
         lock = sdk.snapshot(consumer / "Cargo.lock")
         result["resolution"] = verify_resolution(resolved, consumer, lock.data, original)
         result["execution"] = {}
-        for profile in ("debug", "release"):
+        for profile in profiles:
             evidence = outside / (profile + "-runtime")
             built = run([*cargo, "test", "--locked", "--offline", "-j", "2", "--no-run",
                          "--message-format=json", "--test", "owned_connection",
@@ -410,7 +421,7 @@ def qualify(args: argparse.Namespace) -> dict:
             from continuity_c_consumer import qualify_c
             result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
                                               original, args.report.parent, cohort["crates"],
-                                              openssl_prefix=args.witness_openssl_prefix)
+                                              openssl_prefix=args.witness_openssl_prefix, profiles=profiles)
             result["scope"] = ("unpublished candidate and installed SDK archives; same-host Rust trace "
                                "and C client/server/recovery with local, signed-TCP and mutual-TLS witness profiles; "
                                "no independent witness engine, other foreign bindings or cross-host qualification")
@@ -419,17 +430,18 @@ def qualify(args: argparse.Namespace) -> dict:
             result["apple_package"] = qualify_apple(outside, output, environment)
         if args.with_swift_consumer:
             from continuity_swift_consumer import qualify_swift
-            result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment, args.swift_minimum_toolchain_root)
+            result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment,
+                                                     args.swift_minimum_toolchain_root, profiles=profiles)
             result["scope"] = ("unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, "
                                "and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification")
         if args.with_android_jni_consumer:
             from continuity_android_jni import qualify_android_jni
             result["android_jni_consumer"] = qualify_android_jni(outside, output, result["c_consumer"],
-                                                               environment, args.android_java_home)
+                                                               environment, args.android_java_home, profiles=profiles)
         if args.with_kotlin_consumer:
             from continuity_kotlin_consumer import qualify_kotlin
             result["kotlin_consumer"] = qualify_kotlin(outside, output, result["c_consumer"], environment,
-                                                      args.kotlin_java_home, args.kotlin_gradle_home)
+                                                      args.kotlin_java_home, args.kotlin_gradle_home, profiles=profiles)
             result["scope"] = ("unpublished installed Rust/C connections, recovery and explicit witness profiles; "
                                + ("Swift local and witnessed profiles; " if args.with_swift_consumer else "")
                                + "Kotlin/JVM local and explicit witness client/server/recovery, constructor lifecycle and Java module admission; "
@@ -451,7 +463,11 @@ def qualify(args: argparse.Namespace) -> dict:
                     and sdk.inspect_package_source(ROOT, allow_dirty=False) == (commit, dirty),
                     "source or compiler identity changed")
         sdk.write_json(output / "sources-after.json", source_inputs())
-        result.update(completed=True, sources_unchanged=True)
+        profiles_contract.require_execution(result, profiles, "execution")
+        if args.build_profile is not None:
+            result["scope"] += "; one build-profile partition; complete coverage requires the same-source debug/release join"
+        result.update(completed=profiles == profiles_contract.PROFILES,
+                      partition_completed=True, sources_unchanged=True)
     except Exception as error:
         result["failure"] = str(error)
         raise
@@ -465,6 +481,8 @@ def main() -> None:
     for name in ("output", "report", "toolchain-root"):
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
+    parser.add_argument("--build-profile", choices=profiles_contract.PROFILES,
+                        help="execute one explicit foreign-consumer partition; it cannot qualify a complete package")
     parser.add_argument("--with-c-consumer", action="store_true",
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
     parser.add_argument("--with-apple-package", action="store_true",
@@ -474,16 +492,16 @@ def main() -> None:
     parser.add_argument("--swift-minimum-toolchain-root", type=Path,
                         help="required with Swift: actual Rust 1.90.0 toolchain for default-stack root recovery regression")
     parser.add_argument("--with-kotlin-consumer", action="store_true",
-                        help="also package and execute Kotlin/JVM local/witnessed owners and constructor lifecycle with both installed C profiles")
+                        help="also package and execute Kotlin/JVM local/witnessed owners and constructor lifecycle with selected C profiles (both by default)")
     parser.add_argument("--kotlin-java-home", type=Path, help="explicit JDK 25 installation for the Kotlin consumer")
     parser.add_argument("--kotlin-gradle-home", type=Path, help="explicit Gradle 9.8.0 installation for the Kotlin consumer")
     parser.add_argument("--with-android-jni-consumer", action="store_true",
-                        help="also execute Android adapter packaged Java/JNI lifecycle against both C library profiles on macOS arm64")
+                        help="also execute Android adapter packaged Java/JNI lifecycle against selected C profiles on macOS arm64 (both by default)")
     parser.add_argument("--android-java-home", type=Path, help="explicit JDK 25 installation for Android JNI host qualification")
     parser.add_argument("--witness-openssl-prefix", type=Path,
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
-    print(json.dumps({key: result[key] for key in ("completed", "archive", "resolution", "execution",
+    print(json.dumps({key: result[key] for key in ("completed", "partition_completed", "build_profiles", "archive", "resolution", "execution",
                                                   "c_consumer", "swift_consumer", "apple_package", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 

@@ -2173,18 +2173,19 @@ jobs:
           if-no-files-found: error
 
   continuity-installed-swift:
-    name: continuity-installed-${{ matrix.consumer }}
+    name: continuity-installed-${{ matrix.consumer }}-${{ matrix.profile }}
     needs: rust-publish-contract
     runs-on: macos-15
-    # Run the real-expiry matrices independently. The 9f1c7f62 Swift job
-    # completed 304 commands but its 210m budget ended during release tests,
-    # after the native prerequisites and debug profile. Keep every scenario
-    # and the 15m command bound; use the existing 330m foreign-consumer budget.
+    # Kotlin and Android reached 330m while still making progress after
+    # serial debug/release native prerequisites. Each partition builds and
+    # runs its own complete Rust/C/foreign profile. The join below requires
+    # all six partitions; every scenario and the 15m command bound remain.
     timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
         consumer: [swift, kotlin, android]
+        profile: [debug, release]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2227,6 +2228,7 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.continuity_python.outputs.python-path }}
           CONTINUITY_CONSUMER: ${{ matrix.consumer }}
+          CONTINUITY_BUILD_PROFILE: ${{ matrix.profile }}
         run: |
           report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json
           report_sha256=$(shasum -a 256 "$report" | cut -d' ' -f1)
@@ -2249,6 +2251,7 @@ jobs:
           sh artifact/python-run.sh artifact/continuity_package.py \
             --report "$report" --report-sha256 "$report_sha256" \
             --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --build-profile "$CONTINUITY_BUILD_PROFILE" \
             --with-c-consumer "${consumer_args[@]}" \
             --witness-openssl-prefix "$(brew --prefix openssl@3)" \
             --output target/continuity-installed-swift
@@ -2256,7 +2259,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: continuity-installed-${{ matrix.consumer }}
+          name: continuity-installed-${{ matrix.consumer }}-${{ matrix.profile }}
           path: |
             target/continuity-installed-swift/*.crate
             target/continuity-installed-swift/continuity-android-classes.jar
@@ -2362,6 +2365,45 @@ jobs:
             target/continuity-installed-swift/kotlin-inflight-compilation/**
             target/continuity-installed-swift/consumer-Cargo.lock
             target/continuity-installed-swift/c-consumer-Cargo.lock
+          if-no-files-found: error
+
+  continuity-installed-coverage:
+    needs: continuity-installed-swift
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: continuity_coverage_python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: continuity-installed-*-*
+          path: target/continuity-profile-input
+          merge-multiple: false
+      - name: Require all installed consumer profiles from this source
+        env:
+          QPERIAPT_PYTHON: ${{ steps.continuity_coverage_python.outputs.python-path }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_profiles.py \
+            --input target/continuity-profile-input \
+            --source-commit "$EXPECTED_COMMIT" \
+            --output target/CONTINUITY_PROFILE_COVERAGE.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-coverage
+          path: target/CONTINUITY_PROFILE_COVERAGE.json
           if-no-files-found: error
 
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.

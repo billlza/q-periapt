@@ -16,6 +16,7 @@ import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
 import rust_sdk_profile as sdk
+import continuity_profiles as profiles_contract
 from evidence_io import parse_strict_json_bytes
 
 NAME = "q-periapt-continuity-c-consumer"
@@ -410,11 +411,15 @@ def verify_linkage(dependencies: str, loader: str, filename: str, *, darwin: boo
 
 def qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
               candidate_files: dict[str, bytes], original_lock: bytes,
-              sdk_output: Path, records: dict, *, openssl_prefix: Path | None = None) -> dict:
-    result = {"completed": False, "scope": QUALIFICATION_SCOPE, "release_claim_eligible": False, "execution": {}}
+              sdk_output: Path, records: dict, *, openssl_prefix: Path | None = None,
+              profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
+    profiles_contract.validate_profiles(profiles)
+    result = {"completed": False, "scope": QUALIFICATION_SCOPE, "release_claim_eligible": False,
+              "partition_completed": False, "build_profiles": list(profiles), "execution": {}}
     try:
         return _qualify_c(outside, output, cargo, environment, candidate_files,
-                          original_lock, sdk_output, records, result, openssl_prefix=openssl_prefix)
+                          original_lock, sdk_output, records, result, openssl_prefix=openssl_prefix,
+                          profiles=profiles)
     except Exception as error:
         result["failure"] = str(error)
         raise
@@ -424,7 +429,8 @@ def qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
 
 def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                candidate_files: dict[str, bytes], original_lock: bytes,
-               sdk_output: Path, records: dict, result: dict, *, openssl_prefix: Path | None = None) -> dict:
+               sdk_output: Path, records: dict, result: dict, *, openssl_prefix: Path | None = None,
+               profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
     consumer = outside / "c-consumer"
     for path in FIXTURE.rglob("*"):
         sdk.require(not path.is_symlink(), "C consumer fixture contains a symlink")
@@ -474,7 +480,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         platform_flags = ["-isysroot", str(platform_sdk)]
     filename = "lib" + LIBRARY + (".dylib" if darwin else ".so")
     linker_name = ("-Wl,-install_name,@rpath/" if darwin else "-Wl,-soname,") + filename
-    for profile in ("debug", "release"):
+    for profile in profiles:
         extra = ["--release"] if profile == "release" else []
         build = outside / "build" / profile
         built = run([*cargo, "rustc", "--locked", "--offline", "--lib", "--message-format=json", "-j", "2",
@@ -866,5 +872,6 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     package.verify_candidate_files(destination, candidate_files)
     sdk.verify_consumed_sources(consumer, sdk_output, records)
     sdk.copy(consumer / "Cargo.lock", output / "c-consumer-Cargo.lock")
-    result["completed"] = True
+    profiles_contract.require_execution(result, profiles, "execution")
+    result.update(completed=profiles == profiles_contract.PROFILES, partition_completed=True)
     return result

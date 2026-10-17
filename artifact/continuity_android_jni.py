@@ -16,6 +16,7 @@ import continuity_c_consumer as c
 from continuity_kotlin_consumer import tool_identity
 import continuity_android_contract as contract
 import rust_sdk_profile as sdk
+import continuity_profiles as profiles_contract
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "bindings/android/ContinuityPackageConsumer"
@@ -92,10 +93,13 @@ def _driver(directory: Path, java: Path, jar: Path, classes: Path, library: Path
     return launcher
 
 
-def qualify_android_jni(outside: Path, output: Path, native: dict, environment: dict, java_home: Path) -> dict:
-    sdk.require(native["completed"] and (os.uname().sysname, os.uname().machine) == ("Darwin", "arm64"),
+def qualify_android_jni(outside: Path, output: Path, native: dict, environment: dict, java_home: Path,
+                        *, profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
+    profiles_contract.require_native(native, profiles)
+    sdk.require((os.uname().sysname, os.uname().machine) == ("Darwin", "arm64"),
                 "Android JNI host qualification requires completed C archives on macOS arm64")
-    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
+    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False,
+              "partition_completed": False, "build_profiles": list(profiles), "profiles": {}}
     try:
         tools = tool_identity(java_home)
         java_home = Path(tools["root"])
@@ -133,7 +137,7 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                               "sdk_settings_sha256": sdk.snapshot(platform / "SDKSettings.json").sha256}
         consumer = outside / "c-consumer"; cargo = str(Path(environment["RUSTC"]).parent / "cargo")
         target = Path(environment["CARGO_TARGET_DIR"])
-        for profile in ("debug", "release"):
+        for profile in profiles:
             installed = work / profile; installed.mkdir(mode=0o700)
             record = native["execution"][profile]["binaries"]["C_library"]
             library = Path(record["path"])
@@ -326,7 +330,9 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
             result["profiles"][profile]["joint_policy_cycles"] = joint_cycle_results
         sdk.require(source_files() == source and tool_identity(java_home) == tools and sdk.snapshot(jar).sha256 == jar_hash,
                     "Android JNI source, JDK or packaged classes changed during qualification")
-        result.update(completed=True, jar_sha256=jar_hash)
+        profiles_contract.require_execution(result, profiles, "profiles")
+        result.update(completed=profiles == profiles_contract.PROFILES, partition_completed=True,
+                      jar_sha256=jar_hash)
         return result
     finally:
         sdk.write_json(output / "ANDROID_JNI_CONSUMER.json", result)

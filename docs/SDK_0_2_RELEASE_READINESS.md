@@ -5588,3 +5588,15 @@ this guide's linked artifact contract still named the earlier 695-file inventory
 The current artifact guide is corrected to 698; no source, query or assertion is
 removed. This checkpoint does not claim physical erasure, full protocol/SDK
 refinement, cross-platform resource qualification or completed hosted CI.
+
+### Installed consumer profile partitioning — 2026-10-17
+
+The subsequent Kotlin and Android JNI jobs also reached the 330-minute job limit
+while making progress, with complete native C receipts but no final foreign
+receipt. The [profile partition correction](../research/sdk-alpha1/evidence/20261017-installed-profile-partitions/README.md)
+executes each debug/release profile in its own job with all corresponding Rust/C
+prerequisites. Every scenario, SDK deadline and command bound remains unchanged.
+Single-profile results explicitly remain incomplete package qualifications; the
+separate coverage job requires all six same-source receipts. Current-source hosted
+completion is still required. Existing physical functional cohorts remain valid
+within their recorded scope.

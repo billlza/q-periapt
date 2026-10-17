@@ -19,6 +19,7 @@ import continuity_setup_witness_faults as setup_witness_faults
 import continuity_package as package
 from continuity_package_archive import MAX_PACKAGE, archive, unpack
 import rust_sdk_profile as sdk
+import continuity_profiles as profiles_contract
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import third_party_licenses as licenses
 
@@ -158,9 +159,12 @@ def verify_linkage(dependencies: str, loader: str, native_dir: Path) -> list[str
     return paths
 
 
-def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, minimum_toolchain: Path) -> dict:
-    sdk.require(os.uname().sysname == "Darwin" and native["completed"], "Swift qualification requires a completed native macOS C package")
-    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False, "profiles": {}}
+def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, minimum_toolchain: Path,
+                  *, profiles: tuple[str, ...] = profiles_contract.PROFILES) -> dict:
+    profiles_contract.require_native(native, profiles)
+    sdk.require(os.uname().sysname == "Darwin", "Swift qualification requires a native macOS C package")
+    result = {"completed": False, "scope": SCOPE, "release_claim_eligible": False,
+              "partition_completed": False, "build_profiles": list(profiles), "profiles": {}}
     env = {key: value for key, value in environment.items()
            if not key.startswith(("DYLD_", "LD_", "QPERIAPT_", "QPC_TEST_", "SWIFT_"))}
     try:
@@ -191,7 +195,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, 
         for path in notices.rglob("*"):
             if path.is_file():
                 source[path.relative_to(notices).as_posix()] = sdk.snapshot(path).data
-        for profile in ("debug", "release"):
+        for profile in profiles:
             row = native["execution"][profile]
             library = sdk.snapshot(Path(row["binaries"]["C_library"]["path"]), maximum=c.MAX_BINARY)
             sdk.require(library.sha256 == row["binaries"]["C_library"]["sha256"], "native library changed before Swift installation")
@@ -374,7 +378,8 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, 
         result["minimum_root"] = qualify_minimum(outside, output, outside / "c-consumer", source,
                                                   minimum_toolchain, environment, swift, identity)
         sdk.require(compiler_command(str(swift))[1] == identity, "Swift compiler or command resolution changed")
-        result["completed"] = True
+        profiles_contract.require_execution(result, profiles, "profiles")
+        result.update(completed=profiles == profiles_contract.PROFILES, partition_completed=True)
     except Exception as error:
         result["failure"] = str(error)
         raise
