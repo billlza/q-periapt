@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, windows-2025]
-        method: [win32-relative, win32-absolute, nt-relative]
+        method: [win32-relative, win32-absolute, nt-relative, nt-relative-ex, nt-relative-posix]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 8
     steps:

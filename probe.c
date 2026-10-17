@@ -13,7 +13,7 @@
 NTSYSAPI NTSTATUS NTAPI NtSetInformationFile(HANDLE, PIO_STATUS_BLOCK, PVOID,
                                             ULONG, FILE_INFORMATION_CLASS);
 
-enum rename_method { WIN32_RELATIVE, WIN32_ABSOLUTE, NT_RELATIVE };
+enum rename_method { WIN32_RELATIVE, WIN32_ABSOLUTE, NT_RELATIVE, NT_RELATIVE_EX, NT_RELATIVE_POSIX };
 
 static int failures = 0;
 
@@ -113,12 +113,17 @@ static BOOL rename_file(HANDLE file, HANDLE directory, const WCHAR *leaf,
     info->FileNameLength = (DWORD)(characters * sizeof(WCHAR));
     memcpy(info->FileName, name, info->FileNameLength);
     BOOL ok;
-    if (method == NT_RELATIVE) {
+    if (method == NT_RELATIVE || method == NT_RELATIVE_EX || method == NT_RELATIVE_POSIX) {
+        ULONG information_class = method == NT_RELATIVE ? 10UL : 65UL;
+        DWORD flags = method == NT_RELATIVE_POSIX ? 2UL : 0UL;
+        /* FileRenameInformationEx: only POSIX_SEMANTICS may be requested.
+           REPLACE_IF_EXISTS (bit 0) remains clear in every control. */
+        if (information_class == 65UL) info->Flags = flags;
         IO_STATUS_BLOCK status_block = { 0 };
         NTSTATUS status = NtSetInformationFile(file, &status_block, info, (ULONG)size,
-                                               (FILE_INFORMATION_CLASS)10);
-        if (printf("{\"operation\":\"native_rename_status\",\"ntstatus\":%lu,\"io_status\":%lu}\n",
-                   (unsigned long)status, (unsigned long)status_block.Status) < 0) failures++;
+                                               (FILE_INFORMATION_CLASS)information_class);
+        if (printf("{\"operation\":\"native_rename_status\",\"information_class\":%lu,\"flags\":%lu,\"ntstatus\":%lu,\"io_status\":%lu}\n",
+                   information_class, flags, (unsigned long)status, (unsigned long)status_block.Status) < 0) failures++;
         ok = status == 0 && status_block.Status == 0;
         *error = ok ? ERROR_SUCCESS : RtlNtStatusToDosError(status == 0 ? status_block.Status : status);
     } else {
@@ -276,6 +281,8 @@ int wmain(int argc, WCHAR **argv) {
     if (wcscmp(argv[2], L"win32-relative") == 0) method = WIN32_RELATIVE;
     else if (wcscmp(argv[2], L"win32-absolute") == 0) method = WIN32_ABSOLUTE;
     else if (wcscmp(argv[2], L"nt-relative") == 0) method = NT_RELATIVE;
+    else if (wcscmp(argv[2], L"nt-relative-ex") == 0) method = NT_RELATIVE_EX;
+    else if (wcscmp(argv[2], L"nt-relative-posix") == 0) method = NT_RELATIVE_POSIX;
     else { fputs("unknown rename method\n", stderr); return 2; }
     BOOL ok = CreateDirectoryW(argv[1], NULL);
     DWORD error = ok ? ERROR_SUCCESS : GetLastError();

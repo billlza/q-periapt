@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('win32-relative', 'win32-absolute', 'nt-relative')][string]$Method = 'win32-relative')
+param([ValidateSet('win32-relative', 'win32-absolute', 'nt-relative', 'nt-relative-ex', 'nt-relative-posix')][string]$Method = 'win32-relative')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest

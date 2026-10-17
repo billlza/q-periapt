@@ -65,6 +65,13 @@ publication, attempts rename with the child unlocked and with the child closed.
 Those final attempts discriminate causes; they never erase the original failure
 or qualify a release-the-lock fallback for product use.
 
+The extended native comparison adds FileRenameInformationEx (65) with flags
+zero and with POSIX_SEMANTICS (2), retaining every previous route. The replacement
+bit remains clear. This tests whether the extended class or its POSIX flag changes
+the observed open-child restriction without weakening collision refusal. Native
+status records include the actual class and flags. No assumption is made that
+POSIX_SEMANTICS, documented principally for replacement cases, solves this case.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
