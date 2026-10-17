@@ -88,5 +88,5 @@ pub(super) fn rename_directory(
     directory: &OwnedPrivateDirectory,
 ) -> io::Result<()> {
     same_directory(parent, name, directory)?;
-    native::rename_directory(directory, &parent.descriptor, destination)
+    native::rename_directory(directory, &parent.descriptor, name, destination)
 }

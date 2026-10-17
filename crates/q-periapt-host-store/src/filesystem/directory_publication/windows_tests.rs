@@ -217,3 +217,42 @@ fn windows_concurrent_directory_publishers_choose_one_complete_tree() -> Result<
     );
     Ok(())
 }
+
+#[test]
+fn windows_directory_delete_access_is_deferred_until_rename() -> Result<()> {
+    use crate::filesystem::windows_native as native;
+    let temporary = directory()?;
+    let parent = OwnedPrivateDirectory::open(temporary.path())?;
+    let name = OsStr::new("preparing");
+    let original = ops::create_directory(&parent, name)?;
+    let path = temporary.path().join(name);
+    publish_private_bytes(&path.join("first"), b"prepared without delete access")?;
+    let early_delete = native::open(&parent.descriptor, name, native::OpenKind::DirectoryRename)?;
+    let blocked = publish_private_bytes(&path.join("second"), b"same original input");
+    let observation = match &blocked {
+        Ok(()) => "permitted",
+        Err(error) => {
+            assert_eq!(
+                error.operation().raw_os_error(),
+                Some(32),
+                "unexpected control failure"
+            );
+            assert!(!path.join("second").exists());
+            "sharing_violation"
+        }
+    };
+    drop(early_delete);
+    if blocked.is_err() {
+        // Explicit fixture retry of a never-published byte image. The production
+        // publisher has no retry, handle-closing fallback or cleanup branch.
+        publish_private_bytes(&path.join("second"), b"same original input")?;
+    }
+    ops::rename_directory(&parent, name, OsStr::new("published"), &original)?;
+    ops::same_directory(&parent, OsStr::new("published"), &original)?;
+    assert_eq!(
+        fs::read(temporary.path().join("published/second"))?,
+        b"same original input"
+    );
+    eprintln!("WINDOWS_DIRECTORY_ACCESS early_delete={observation} no_delete_preparation=passed original_pin_retained=true late_rename=passed");
+    Ok(())
+}

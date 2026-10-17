@@ -102,6 +102,7 @@ pub(super) enum OpenKind {
     PrivateDirectory,
     Metadata,
     Configuration,
+    DirectoryRename,
     State,
 }
 
@@ -195,6 +196,10 @@ pub(super) fn open(parent: &File, name: &OsStr, kind: OpenKind) -> io::Result<Fi
         ),
         OpenKind::Metadata => (FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE, 0),
         OpenKind::Configuration => (GENERIC_READ | SYNCHRONIZE, FILE_NON_DIRECTORY_FILE),
+        OpenKind::DirectoryRename => (
+            DELETE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            FILE_DIRECTORY_FILE,
+        ),
         OpenKind::State => (
             GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
             FILE_NON_DIRECTORY_FILE,
@@ -208,7 +213,7 @@ pub(super) fn create(parent: &File, name: &OsStr, directory: bool) -> io::Result
         create_or_open(
             parent,
             name,
-            GENERIC_READ | GENERIC_WRITE | DELETE | SYNCHRONIZE,
+            GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE | if directory { 0 } else { DELETE },
             if directory {
                 FILE_DIRECTORY_FILE
             } else {
@@ -348,13 +353,17 @@ pub(super) fn rename_file(
 pub(super) fn rename_directory(
     directory: &super::windows::OwnedPrivateDirectory,
     parent: &File,
+    name: &OsStr,
     destination: &OsStr,
 ) -> io::Result<()> {
-    // OwnedPrivateDirectory can only contain a synchronously opened directory.
-    // Newly created staging directories also carry DELETE access. Never close
-    // child handles to make rename succeed; native refusal preserves the tree.
-    check_directory(&directory.descriptor)?;
-    rename_synchronous_handle(&directory.descriptor, parent, destination)
+    // Keep the original read/write directory pin throughout preparation. An
+    // early DELETE handle can conflict with the kernel's child-rename target
+    // open. Acquire deletion access only now, and bind it to that original pin.
+    // All these handles are synchronous; no borrowed rename buffer can escape.
+    let named = open(parent, name, OpenKind::DirectoryRename)?;
+    crate::windows_acl::validate(&named)?;
+    same_directory(&directory.descriptor, &named)?;
+    rename_synchronous_handle(&named, parent, destination)
 }
 
 fn rename_synchronous_handle(file: &File, parent: &File, destination: &OsStr) -> io::Result<()> {
