@@ -41,7 +41,7 @@ foreach ($name in @('probe.c', 'run.ps1', '.github/workflows/windows-storage-pro
 $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'environment.json') -Encoding utf8NoBOM
 Push-Location $output
 try {
-    & $compiler /nologo /W4 /WX /std:c17 /TC /Fe:probe.exe /Fo:probe.obj (Join-Path $PSScriptRoot 'probe.c') ntdll.lib 1>build.stdout 2>build.stderr
+    & $compiler /nologo /W4 /WX /std:c17 /TC /Fe:probe.exe /Fo:probe.obj (Join-Path $PSScriptRoot 'probe.c') /link ntdll.lib 1>build.stdout 2>build.stderr
     if ($LASTEXITCODE -ne 0) { throw 'Native compilation failed; see build stdout/stderr' }
     $start = [System.Diagnostics.ProcessStartInfo]::new((Join-Path $output 'probe.exe'))
     $start.ArgumentList.Add((Join-Path $output 'fixture'))

@@ -36,6 +36,10 @@ each with fresh files and the same no-replacement/identity/byte assertions.
 The failing route still fails its own CI job. No expected-error substitution
 is used to produce an overall passing matrix.
 
+The first comparison build (`40a3375`, run `39060096970`) did not execute:
+`/TC` treated the bare `ntdll.lib` argument as a C source. The build command
+now passes that import library after `/link`; the compiler failure is retained.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
