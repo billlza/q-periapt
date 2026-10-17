@@ -1344,6 +1344,9 @@ class RustPublishContractTests(unittest.TestCase):
         # maybe-async, mio and web-time: 17 registry entries, with no removals or
         # upgrades of existing entries (242 -> 259). Its 0.0.0 local engine is
         # admitted only in this workspace scope, not the publication/fuzz scopes.
+        # Handle-relative CLI scanning adds cap-std/cap-fs-ext and their ten
+        # transitive entries (259 -> 271), with no existing registry version
+        # changes. The normalized/fuzz bounds and 46-package fuzz graph remain.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1353,7 +1356,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="workspace",
                 )
             ),
-            259,
+            271,
         )
         self.assertEqual(
             len(
@@ -1421,7 +1424,7 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_browser_dependency_capacity_is_bounded_by_lock_scope(self) -> None:
         for scope, local, limit in (
-            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 259),
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 271),
             ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
             ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
         ):
@@ -1440,7 +1443,7 @@ class RustPublishContractTests(unittest.TestCase):
 
     def test_sparse_helper_receipt_uses_the_same_scope_capacity(self) -> None:
         for scope, local, limit in (
-            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 259),
+            ("workspace", RUST_WORKSPACE_LOCAL_CRATES, 271),
             ("normalized-backends", RUST_NORMALIZED_LOCAL_CRATES, 256),
             ("fuzz", RUST_FUZZ_LOCAL_CRATES, 256),
         ):

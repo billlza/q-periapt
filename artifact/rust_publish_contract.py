@@ -92,9 +92,10 @@ RUST_SPARSE_AGGREGATE_MAX_BYTES = 128 * 1024 * 1024
 RUST_SPARSE_INDEX_MAX_WORKERS = 8
 RUST_SPARSE_LOCK_MAX_BYTES = 4 * 1024 * 1024
 RUST_SPARSE_MAX_REGISTRY_PACKAGES = 256
-# The browser engine brings the reviewed workspace closure to 259 entries.
-# Keep the smaller normalized/fuzz resource bound unchanged.
-RUST_WORKSPACE_MAX_REGISTRY_PACKAGES = 259
+# Browser Continuity has 259 registry entries. Handle-relative CLI scanning
+# adds twelve reviewed entries (271 total), without upgrading existing packages.
+# Keep the smaller normalized/fuzz resource bound and all byte/time bounds unchanged.
+RUST_WORKSPACE_MAX_REGISTRY_PACKAGES = 271
 RUST_SPARSE_ACCEPTANCE_TIMEOUT_SECONDS = 275
 RUST_SPARSE_HELPER_TIMEOUT_SECONDS = 295
 RUST_SPARSE_TOTAL_TIMEOUT_SECONDS = 300

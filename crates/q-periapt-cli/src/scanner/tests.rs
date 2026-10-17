@@ -297,15 +297,24 @@ fn opened_directory_is_not_retargeted_when_its_path_changes() -> std::io::Result
     let selected = parent
         .open_dir_nofollow("selected")
         .expect("prepare or read scanner fixture");
-    match std::fs::rename(&path, fixture.path().join("moved")) {
+    let moved = fixture.path().join("moved");
+    let rename_blocked = match std::fs::rename(&path, &moved) {
         Ok(()) => {
             std::fs::create_dir(&path)?;
             std::fs::write(path.join("replacement.rs"), "rsa REPLACEMENT\n")?;
+            false
         }
-        // Windows may keep the selected name pinned by refusing its rename.
-        Err(error) if cfg!(windows) && error.kind() == std::io::ErrorKind::PermissionDenied => {}
+        // A Windows directory handle may deny DELETE sharing. ERROR_SHARING_VIOLATION
+        // (32) is not mapped to PermissionDenied by the supported Rust toolchain.
+        Err(error)
+            if cfg!(windows)
+                && (error.kind() == std::io::ErrorKind::PermissionDenied
+                    || error.raw_os_error() == Some(32)) =>
+        {
+            true
+        }
         Err(error) => return Err(error),
-    }
+    };
     let mut report = ScanReport::default();
     scan_directory(&selected, &path, &mut report);
     assert!(report.errors.is_empty(), "{:?}", report.errors);
@@ -314,6 +323,12 @@ fn opened_directory_is_not_retargeted_when_its_path_changes() -> std::io::Result
         report.findings.first().expect("one scan finding").token,
         "ecdsa"
     );
+    drop(selected);
+    if rename_blocked {
+        // Prove the refusal was tied to the retained handle, not an unrelated
+        // inability to rename this fixture: the same operation must now work.
+        std::fs::rename(&path, &moved)?;
+    }
     Ok(())
 }
 
