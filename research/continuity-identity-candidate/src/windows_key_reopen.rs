@@ -92,7 +92,7 @@ fn set_directory_acl(path: &Path, broad: bool) {
     );
 }
 
-fn directory() -> tempfile::TempDir {
+pub(crate) fn directory() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("owned fixture");
     let path = dir.path().canonicalize().expect("canonical fixture");
     set_directory_acl(&path, false);

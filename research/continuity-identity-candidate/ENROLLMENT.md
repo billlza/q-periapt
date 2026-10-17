@@ -746,6 +746,17 @@ public key. Even a forged local plan MAC/fingerprint cannot authorize erasing an
 public key using the old device's signed host ACK. A replaced pathname is preserved;
 an operation that erased only its original admitted inode reports the name conflict.
 
+The native Windows file layer uses `QPSRPL03` with the same 441-byte layout,
+encoding the local NTFS volume serial (zero-extended to 64 bits) and file index
+where Unix uses device/inode. Unix retains `QPSRPL01`; browser record identities
+retain `QPSRPL02`. A reader rejects another platform's tag; this is not a migration
+or cross-platform restore format. NTFS file IDs can be reused after deletion,
+so identity metadata never substitutes for the authenticated plan, original
+ciphertext/device checks and host acknowledgement. Admission also rechecks the
+current-user private DACL, regular-file shape and single link through open handles.
+Windows component tests use a real replacement and signed witness ACK, but do not
+qualify managed first-use directory publication or the complete Windows lifecycle.
+
 The terminal tag by itself proves no host decision. The independent enrollment plan,
 original report receipt and original file identity are all required for reconciliation.
 The original wrapping key remains necessary for historical metadata verification.

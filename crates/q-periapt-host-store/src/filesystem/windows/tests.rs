@@ -247,3 +247,47 @@ fn signed_policy_replacement_is_durable_and_aliases_remain_owner_bound(
     assert!(matches!(restored.is_enabled(), Err(Error::Closed)));
     Ok(())
 }
+
+#[test]
+fn retained_file_identity_requires_local_private_single_link_file(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temporary = directory()?;
+    let root = temporary.path();
+    let path = root.join("identity.bin");
+    publish_private_bytes(&path, b"original")?;
+    let first = open_private_file(&path, false)?;
+    let id = private_file_identity(&first)?;
+    assert_eq!(id, private_file_identity(&first.try_clone()?)?);
+    assert_eq!(
+        id,
+        private_file_identity(&open_private_file(&path, false)?)?
+    );
+    let substitute = root.join("substitute.bin");
+    publish_private_bytes(&substitute, b"original")?;
+    assert_ne!(
+        id,
+        private_file_identity(&open_private_file(&substitute, false)?)?
+    );
+    let alias = root.join("alias.bin");
+    std::fs::hard_link(&path, &alias)?;
+    assert!(
+        private_file_identity(&first).is_err(),
+        "identity must recheck link count"
+    );
+    std::fs::remove_file(&alias)?;
+    assert_eq!(id, private_file_identity(&first)?);
+    let mutable_acl = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .access_mode(GENERIC_READ | GENERIC_WRITE | WRITE_DAC)
+        .open(&path)?;
+    crate::windows_acl::grant_everyone_read_for_test(&mutable_acl)?;
+    assert!(
+        private_file_identity(&first).is_err(),
+        "identity must recheck private DACL"
+    );
+    let directory = OwnedPrivateDirectory::open(root)?;
+    assert!(private_file_identity(&directory.descriptor).is_err());
+    assert_eq!(std::fs::read(path)?, b"original");
+    Ok(())
+}

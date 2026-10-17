@@ -129,7 +129,7 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-706 tracked `.rs` files to be successfully extracted. Each profile requires zero
+709 tracked `.rs` files to be successfully extracted. Each profile requires zero
 extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
 inconsistencies, and source format arguments without an expression or data-flow
 node, together with non-vacuous macro and format-argument sentinels. Path and type

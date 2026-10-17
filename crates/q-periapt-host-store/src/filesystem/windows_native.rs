@@ -130,6 +130,12 @@ pub(super) fn drive_root(letter: u8) -> io::Result<File> {
         .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
         .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
         .open(path)?;
+    check_local_ntfs(&file)?;
+    check_directory(&file)?;
+    Ok(file)
+}
+
+pub(super) fn check_local_ntfs(file: &File) -> io::Result<()> {
     let mut information = FILE_FS_DEVICE_INFORMATION::default();
     let mut completion = IO_STATUS_BLOCK::default();
     // SAFETY: live handle, correctly sized initialized output structures.
@@ -173,8 +179,7 @@ pub(super) fn drive_root(letter: u8) -> io::Result<File> {
             "private Windows storage requires local NTFS with persistent ACLs",
         ));
     }
-    check_directory(&file)?;
-    Ok(file)
+    Ok(())
 }
 
 pub(super) fn open(parent: &File, name: &OsStr, kind: OpenKind) -> io::Result<File> {
@@ -289,25 +294,29 @@ pub(super) fn check_directory(file: &File) -> io::Result<()> {
     Ok(())
 }
 
-pub(super) fn file_length(file: &File) -> io::Result<u64> {
+fn regular_information(file: &File) -> io::Result<BY_HANDLE_FILE_INFORMATION> {
     let info = information(file)?;
     if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 || info.nNumberOfLinks != 1 {
         return Err(denied());
     }
+    Ok(info)
+}
+
+pub(super) fn file_length(file: &File) -> io::Result<u64> {
+    let info = regular_information(file)?;
     Ok((u64::from(info.nFileSizeHigh) << 32) | u64::from(info.nFileSizeLow))
 }
 
+pub(super) fn file_identity(file: &File) -> io::Result<(u32, u64)> {
+    let info = regular_information(file)?;
+    Ok((
+        info.dwVolumeSerialNumber,
+        (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    ))
+}
+
 pub(super) fn same_file(first: &File, second: &File) -> io::Result<()> {
-    let a = information(first)?;
-    let b = information(second)?;
-    if a.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0
-        || b.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0
-        || a.nNumberOfLinks != 1
-        || b.nNumberOfLinks != 1
-        || a.dwVolumeSerialNumber != b.dwVolumeSerialNumber
-        || a.nFileIndexHigh != b.nFileIndexHigh
-        || a.nFileIndexLow != b.nFileIndexLow
-    {
+    if file_identity(first)? != file_identity(second)? {
         return Err(denied());
     }
     Ok(())

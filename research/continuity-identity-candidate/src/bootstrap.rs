@@ -1153,12 +1153,29 @@ pub(crate) mod tests {
         )>,
         signers: (DeviceSigningKey, DeviceSigningKey),
     ) -> Fixture {
+        fixture_with_signers_and_anchor(
+            quality,
+            public_keys,
+            signers,
+            AnchorRequirement::local_only(),
+        )
+    }
+    #[cfg(any(unix, windows))]
+    pub(crate) fn fixture_with_signers_and_anchor(
+        quality: PrekeyQuality,
+        public_keys: Option<(
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+            [u8; q_periapt_sdk::PUBLIC_KEY_LEN],
+        )>,
+        signers: (DeviceSigningKey, DeviceSigningKey),
+        anchor: AnchorRequirement,
+    ) -> Fixture {
         fixture_with_options(
             quality,
             public_keys,
             q_periapt_sdk::Limits::default(),
             Some(signers),
-            AnchorRequirement::local_only(),
+            anchor,
             ApplicationSendBudget::new(1024).expect("fixture budget"),
             None,
         )

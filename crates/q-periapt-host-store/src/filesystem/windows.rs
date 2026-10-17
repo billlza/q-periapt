@@ -9,6 +9,34 @@ use std::{
     path::{Component, Path, Prefix},
 };
 
+/// File identity on admitted local NTFS. This is correlation metadata, not an
+/// authorization or permanent identity: file IDs can be reused after deletion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct WindowsFileIdentity {
+    volume: u32,
+    index: u64,
+}
+impl WindowsFileIdentity {
+    /// Volume serial number reported by the open file handle.
+    pub fn volume_serial(self) -> u32 {
+        self.volume
+    }
+    /// Opaque 64-bit NTFS file index reported by the open file handle.
+    pub fn file_index(self) -> u64 {
+        self.index
+    }
+}
+
+/// Read identity only after verifying local NTFS, regular single-link shape and
+/// the current-user private DACL. The caller must separately authenticate its
+/// retained expectation, contents, parent namespace and lifetime lock.
+pub fn private_file_identity(file: &File) -> Result<WindowsFileIdentity, PrivateFileError> {
+    native::check_local_ntfs(file).map_err(|_| PrivateFileError)?;
+    let (volume, index) = native::file_identity(file).map_err(|_| PrivateFileError)?;
+    crate::windows_acl::validate(file).map_err(|_| PrivateFileError)?;
+    Ok(WindowsFileIdentity { volume, index })
+}
+
 /// An authenticated current-user-owned private directory on local Windows NTFS.
 /// File operations and synchronization retain this original directory handle.
 pub struct OwnedPrivateDirectory {

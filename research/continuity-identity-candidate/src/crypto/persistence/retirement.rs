@@ -2,17 +2,33 @@
 //! Logical removal of an acknowledged original device signer's sealed seed.
 use super::*;
 use crate::{AnchorRetiredReportAcknowledgement, AnchorRetiredReportProposal, VerifiedDevice};
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use q_periapt_host_store::filesystem::{LockedFileBackend, OwnedPrivateDirectory};
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use redb::StorageBackend;
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 const TAG: &[u8; 8] = b"QPSRET01";
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 const ORIGINAL: &[u8; 8] = b"QPSIGN01";
+
+// Unix device/inode and Windows volume/index have distinct persistent domains.
+// QPSRPL02 belongs to browser record identities; never reinterpret another domain.
+#[cfg(not(windows))]
+const PLAN_TAG: &[u8; 8] = b"QPSRPL01";
+#[cfg(windows)]
+const PLAN_TAG: &[u8; 8] = b"QPSRPL03";
+
+#[cfg(all(test, any(unix, windows)))]
+mod faults;
+#[cfg(all(test, any(unix, windows)))]
+use faults::test_boundary;
+#[cfg(all(test, any(unix, windows)))]
+pub(crate) use faults::{inject, IoFault, IoStage};
+#[cfg(all(test, any(unix, windows)))]
+mod tests;
 
 /// Only a MAC-authenticated original enrollment may restore this plan.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,7 +47,7 @@ impl SigningFilePlan {
         &self.report
     }
     pub(crate) fn encode(&self, out: &mut Vec<u8>) {
-        out.extend_from_slice(b"QPSRPL01");
+        out.extend_from_slice(PLAN_TAG);
         out.extend_from_slice(self.identity.as_bytes());
         out.extend_from_slice(&self.device.to_be_bytes());
         out.extend_from_slice(&self.inode.to_be_bytes());
@@ -39,13 +55,18 @@ impl SigningFilePlan {
         out.extend_from_slice(&self.report.to_bytes());
     }
     pub(crate) fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
-        if d.array::<8>()? != *b"QPSRPL01" {
+        if d.array::<8>()? != *PLAN_TAG {
             return Err(Error::Encoding);
         }
         let identity = SigningKeyId::from_trusted_state(d.array()?)?;
         let device = d.u64()?;
         let inode = d.u64()?;
+        #[cfg(not(windows))]
         if inode == 0 {
+            return Err(Error::Scope);
+        }
+        #[cfg(windows)]
+        if u32::try_from(device).is_err() {
             return Err(Error::Scope);
         }
         let digest = d.array()?;
@@ -79,12 +100,12 @@ impl SigningFilePlan {
         original: &VerifiedDevice,
         ack: &AnchorRetiredReportAcknowledgement,
     ) -> Result<Self, DurableError> {
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         {
             let _ = (path, key, identity, original, ack);
             Err(DurableError::PrivateFile)
         }
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
             check_file(&file.file, FILE_BYTES)?;
@@ -93,11 +114,11 @@ impl SigningFilePlan {
             if unseal(key, identity, 2, &wire)?.public != original.key {
                 return Err(DurableError::Conflict);
             }
-            let metadata = file.file.metadata()?;
+            let (device, inode) = file_identity(&file.file)?;
             let plan = Self {
                 identity,
-                device: metadata.dev(),
-                inode: metadata.ino(),
+                device,
+                inode,
                 digest: crate::crypto::digest(
                     b"Q-PERIAPT-CONTINUITY-RETIRED-SIGNER-FILE/v1",
                     &wire,
@@ -122,16 +143,16 @@ impl SigningFilePlan {
         ack: &AnchorRetiredReportAcknowledgement,
     ) -> Result<bool, DurableError> {
         self.check_ack(original, ack)?;
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         {
             let _ = (path, key);
             Err(DurableError::PrivateFile)
         }
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
             let erased = self.inspect(&file, key, original)?;
-            // A recovered terminal is not durable evidence until its exact inode is synced.
+            // A recovered terminal is not durable evidence until its exact file is synced.
             if erased {
                 file.file.sync_all()?;
                 file.parent
@@ -151,12 +172,12 @@ impl SigningFilePlan {
         ack: &AnchorRetiredReportAcknowledgement,
     ) -> Result<(), DurableError> {
         self.check_ack(original, ack)?;
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         {
             let _ = (path, key);
             Err(DurableError::PrivateFile)
         }
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
             if !self.inspect(&file, key, original)? {
@@ -195,7 +216,7 @@ impl SigningFilePlan {
             Ok(())
         }
     }
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     fn inspect(
         &self,
         file: &Admitted,
@@ -241,14 +262,14 @@ impl SigningFilePlan {
         }
     }
 }
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 struct Admitted {
     file: File,
     backend: LockedFileBackend,
     parent: OwnedPrivateDirectory,
     leaf: std::ffi::OsString,
 }
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 impl Admitted {
     fn open(path: &Path) -> Result<Self, DurableError> {
         let (parent, leaf) = open_private_parent(path).map_err(|_| DurableError::PrivateFile)?;
@@ -256,9 +277,7 @@ impl Admitted {
             .open_state_file(leaf)
             .map_err(|_| DurableError::PrivateFile)?;
         let backend = LockedFileBackend::new(file.try_clone()?).map_err(crate::durable::storage)?;
-        if file.metadata()?.nlink() != 1 {
-            return Err(DurableError::PrivateFile);
-        }
+        file_identity(&file)?;
         Ok(Self {
             file,
             backend,
@@ -267,8 +286,7 @@ impl Admitted {
         })
     }
     fn check_identity(&self, plan: &SigningFilePlan) -> Result<(), DurableError> {
-        let metadata = self.file.metadata()?;
-        if metadata.nlink() != 1 || metadata.dev() != plan.device || metadata.ino() != plan.inode {
+        if file_identity(&self.file)? != (plan.device, plan.inode) {
             return Err(DurableError::Conflict);
         }
         Ok(())
@@ -278,105 +296,26 @@ impl Admitted {
         let current = self
             .parent
             .open_state_file(&self.leaf)
-            .map_err(|_| DurableError::PrivateFile)?
-            .metadata()?;
-        if current.dev() != plan.device || current.ino() != plan.inode || current.nlink() != 1 {
+            .map_err(|_| DurableError::PrivateFile)?;
+        if file_identity(&current)? != (plan.device, plan.inode) {
             return Err(DurableError::Conflict);
         }
         Ok(())
     }
 }
 
-#[cfg(all(test, unix))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum IoStage {
-    HeaderWrite,
-    HeaderSync,
-    Truncate,
-    TerminalSync,
-    DirectorySync,
-}
-#[cfg(all(test, unix))]
-#[derive(Clone, Copy)]
-pub(crate) enum IoFault {
-    Prefix(usize),
-    Boundary(IoStage, bool),
-}
-#[cfg(all(test, unix))]
-thread_local! {
-    static IO_FAULT: std::cell::RefCell<Option<(IoFault, std::rc::Rc<std::cell::Cell<bool>>)>> = const { std::cell::RefCell::new(None) };
-}
-#[cfg(all(test, unix))]
-pub(crate) struct IoFaultGuard {
-    fired: std::rc::Rc<std::cell::Cell<bool>>,
-}
-#[cfg(all(test, unix))]
-impl IoFaultGuard {
-    pub(crate) fn fired(&self) -> bool {
-        self.fired.get()
+#[cfg(unix)]
+fn file_identity(file: &File) -> Result<(u64, u64), DurableError> {
+    let metadata = file.metadata()?;
+    if metadata.nlink() != 1 {
+        return Err(DurableError::PrivateFile);
     }
+    Ok((metadata.dev(), metadata.ino()))
 }
-#[cfg(all(test, unix))]
-impl Drop for IoFaultGuard {
-    fn drop(&mut self) {
-        IO_FAULT.with(|s| {
-            s.borrow_mut().take();
-        });
-    }
-}
-#[cfg(all(test, unix))]
-pub(crate) fn inject(fault: IoFault) -> IoFaultGuard {
-    if let IoFault::Prefix(n) = fault {
-        assert!(n <= 8);
-    }
-    let fired = std::rc::Rc::new(std::cell::Cell::new(false));
-    IO_FAULT.with(|s| {
-        assert!(s.borrow().is_none());
-        *s.borrow_mut() = Some((fault, fired.clone()));
-    });
-    IoFaultGuard { fired }
-}
-#[cfg(all(test, unix))]
-fn test_boundary(stage: IoStage, after: bool, file: &Admitted) -> Result<(), DurableError> {
-    let cut = IO_FAULT.with(|s| {
-        let mut slot = s.borrow_mut();
-        let matches = slot.as_ref().is_some_and(|(fault, _)| match fault {
-            IoFault::Prefix(_) => stage == IoStage::HeaderWrite && !after,
-            IoFault::Boundary(at, side) => *at == stage && *side == after,
-        });
-        if matches {
-            slot.take()
-        } else {
-            None
-        }
-    });
-    if let Some((fault, fired)) = cut {
-        fired.set(true);
-        if let IoFault::Prefix(n) = fault {
-            file.backend
-                .write(0, TAG.get(..n).expect("bounded injected prefix"))?;
-        }
-        return Err(std::io::Error::other("injected original signing-file I/O failure").into());
-    }
-    if let Some(root) = std::env::var_os("QPERIAPT_SIGNER_CUT_ROOT") {
-        let label = format!("{stage:?}-{}", if after { "after" } else { "before" });
-        if std::env::var("QPERIAPT_SIGNER_CUT_STAGE").ok().as_deref() == Some(label.as_str()) {
-            use std::io::Write;
-            let root = Path::new(&root);
-            let mut ready =
-                std::fs::File::create_new(root.join("signer-ready.pending")).expect("ready marker");
-            ready.write_all(label.as_bytes()).expect("stage");
-            ready.sync_all().expect("ready durable");
-            std::fs::rename(root.join("signer-ready.pending"), root.join("signer-ready"))
-                .expect("ready name");
-            std::fs::File::open(root)
-                .expect("parent")
-                .sync_all()
-                .expect("ready name durable");
-            while !root.join("signer-resume").exists() {
-                std::thread::park_timeout(std::time::Duration::from_millis(10));
-            }
-        }
-    }
-    Ok(())
+
+#[cfg(windows)]
+fn file_identity(file: &File) -> Result<(u64, u64), DurableError> {
+    let id = q_periapt_host_store::filesystem::private_file_identity(file)
+        .map_err(|_| DurableError::PrivateFile)?;
+    Ok((u64::from(id.volume_serial()), id.file_index()))
 }
