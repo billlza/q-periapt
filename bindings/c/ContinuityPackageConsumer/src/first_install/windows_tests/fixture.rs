@@ -3,7 +3,7 @@ use super::*;
 use q_periapt_backends::{MlDsa65, ML_DSA_65_SIG_LEN};
 use q_periapt_sig::Signer;
 
-pub(super) fn sdk_policy(version: u32) -> TestResult<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+pub(in crate::first_install) fn sdk_policy(version: u32) -> TestResult<(Vec<u8>, Vec<u8>, Vec<u8>)> {
     let (key, public) = MlDsa65::generate([91; 32]);
     let policy = format!("schema_version = 1\npolicy_version = {version}\nmin_nist_level = 3\ndefault_profile = \"ContextBound\"\nallowed_kems = [\"ML-KEM-768\", \"X25519\"]\nallowed_sigs = [\"ML-DSA-65\"]\ndeprecated = []\n").into_bytes();
     let mut signature = vec![0; ML_DSA_65_SIG_LEN];
@@ -49,13 +49,13 @@ fn input() -> TestResult<FirstInstallConfiguration> {
     Ok(result)
 }
 
-pub(super) struct Case {
-    pub(super) root: PathBuf,
-    pub(super) target: PathBuf,
-    pub(super) input: FirstInstallConfiguration,
+pub(in crate::first_install) struct Case {
+    pub(in crate::first_install) root: PathBuf,
+    pub(in crate::first_install) target: PathBuf,
+    pub(in crate::first_install) input: FirstInstallConfiguration,
 }
 impl Case {
-    pub(super) fn new() -> TestResult<Self> {
+    pub(in crate::first_install) fn new() -> TestResult<Self> {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let parent = PathBuf::from(
             std::env::var_os("QPC_FIRST_USE_ROOT").ok_or("missing owned Windows test root")?,
@@ -80,7 +80,7 @@ impl Case {
             input,
         })
     }
-    pub(super) fn assert_inputs(&self) -> TestResult<()> {
+    pub(in crate::first_install) fn assert_inputs(&self) -> TestResult<()> {
         for (name, expected) in self.input.fields() {
             assert!(
                 fs::read(self.target.join(name))? == expected,
@@ -89,7 +89,7 @@ impl Case {
         }
         Ok(())
     }
-    pub(super) fn staged(&self) -> TestResult<Vec<PathBuf>> {
+    pub(in crate::first_install) fn staged(&self) -> TestResult<Vec<PathBuf>> {
         Ok(fs::read_dir(&self.root)?
             .collect::<std::result::Result<Vec<_>, _>>()?
             .into_iter()
@@ -108,7 +108,7 @@ impl Drop for Case {
         fs::remove_dir_all(&self.root).expect("remove only owned first-use fixture");
     }
 }
-pub(super) fn load(request: &Path) -> TestResult<FirstInstallConfiguration> {
+pub(in crate::first_install) fn load(request: &Path) -> TestResult<FirstInstallConfiguration> {
     let read = |name| fs::read(request.join(name));
     Ok(FirstInstallConfiguration::new(
         SdkConfiguration::new(

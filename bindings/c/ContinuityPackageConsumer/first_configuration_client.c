@@ -6,8 +6,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#include <share.h>
+#include <sys/stat.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 static qpc_configuration_blob_v1 allocations[24];
 static size_t allocation_count;
@@ -24,7 +31,12 @@ static qpc_configuration_blob_v1 load(const char *directory, const char *name, s
     char path[8192];
     int n = snprintf(path, sizeof(path), "%s/%s", directory, name);
     if (n < 0 || (size_t)n >= sizeof(path) || allocation_count >= 24) return empty;
-    FILE *file = fopen(path, "rb");
+    FILE *file = NULL;
+#ifdef _WIN32
+    if (fopen_s(&file, path, "rb") != 0) return empty;
+#else
+    file = fopen(path, "rb");
+#endif
     if (!file) return empty;
     uint8_t *bytes = calloc(maximum + 1, 1);
     if (!bytes) { (void)fclose(file); return empty; }
@@ -123,12 +135,25 @@ done:
     return failed;
 }
 static int guard_pages(void) {
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    size_t page = info.dwPageSize;
+    size_t length = page * 2;
+    uint8_t *memory = VirtualAlloc(NULL, length, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!memory) return 1;
+    DWORD previous;
+    if (!VirtualProtect(memory + page, page, PAGE_NOACCESS, &previous)) {
+        (void)VirtualFree(memory, 0, MEM_RELEASE); return 1;
+    }
+#else
     long page = sysconf(_SC_PAGESIZE);
     if (page <= 0) return 1;
     size_t length = (size_t)page * 2;
     uint8_t *memory = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (memory == MAP_FAILED) return 1;
     if (mprotect(memory + page, (size_t)page, PROT_NONE) != 0) { (void)munmap(memory, length); return 1; }
+#endif
     qpc_configuration_header_v1 *prefix = (void *)(memory + page - sizeof(*prefix));
     prefix->struct_size = sizeof(*prefix); prefix->version = 1;
     qpc_error_v1 error = {0}; uint64_t handle = 99;
@@ -143,7 +168,11 @@ static int guard_pages(void) {
     valid = valid && c == QPC_ARGUMENT && handle == 0;
     int d = qpc_configuration_v1_begin_enrollment(0, NULL, 2, (const void *)prefix, &error);
     valid = valid && d == QPC_ARGUMENT;
+#ifdef _WIN32
+    if (!VirtualFree(memory, 0, MEM_RELEASE)) return 1;
+#else
     if (munmap(memory, length) != 0) return 1;
+#endif
     if (!valid) return 1;
     puts("QPC_CONFIGURATION_HEADER_GUARD_PASS");
     return 0;
@@ -160,6 +189,8 @@ int main(int argc, char **argv) {
     }
     if (argc != 6 && argc != 7) return 64;
     int target_create = strcmp(argv[1], "policy-target-create") == 0;
+    int target_reconcile = strcmp(argv[1], "configuration-reconcile") == 0;
+    int target_open = strcmp(argv[1], "configuration-open") == 0;
     int policy_credential = strncmp(argv[1], "policy-credential-", sizeof("policy-credential-") - 1) == 0;
     int credential = strncmp(argv[1], "credential-", 11) == 0 || policy_credential;
     if ((!strcmp(argv[1], "credential-commit-unmanaged") || !strcmp(argv[1], "credential-activation-unmanaged")) && registry_path) return 64;
@@ -178,7 +209,7 @@ int main(int argc, char **argv) {
     int local = strcmp(argv[1], "enroll-local") == 0;
     int credential_retry = strcmp(argv[1], "retry-credential") == 0;
     int connection = credential_retry || continued || strcmp(argv[1], "connect") == 0 || strcmp(argv[1], "uncertain-send") == 0 || strcmp(argv[1], "retry-send") == 0;
-    if (!credential && !unmanaged && !expired && !policy && !create && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
+    if (!credential && !unmanaged && !expired && !policy && !create && !target_reconcile && !target_open && !prepare && !activate && !missing && !wrong && !bad_receipt && !cancel && !local && !connection && strcmp(argv[1], "resume") != 0) return 64;
     unsigned carrier = argc == 6 ? 0u : strcmp(argv[6], "signed") == 0 ? 1u : strcmp(argv[6], "tls") == 0 ? 2u : 3u;
     if (carrier == 3u || (missing && carrier != 0u) || (wrong && carrier == 0u)) return 64;
     int recoverable = strcmp(argv[2], "recoverable") == 0;
@@ -205,7 +236,7 @@ int main(int argc, char **argv) {
     protocol.version = be64(version.data);
     protocol.root = load(source, "policy-root", 1985);
     protocol.policy = load(source, "protocol-policy", 8192);
-    if (create) {
+    if (create || target_reconcile) {
         initial.header = (qpc_configuration_header_v1){sizeof(initial), 1};
         initial.sdk = sdk; initial.protocol = protocol;
         initial.sdk_policy = load(source, "sdk-policy", 65536);
@@ -213,7 +244,10 @@ int main(int argc, char **argv) {
         if (recoverable) initial.recovery_enrollment = load(source, "recovery-enrollment", 3309);
         initial.tls_certificate = load(source, "tls-cert", 8192);
         initial.tls_key = load(source, "tls-key", 8192);
-        if (checked(qpc_configuration_v1_prepare_create((const uint8_t *)target, strlen(target), &initial, &handle, &error), &error)) goto done;
+        int32_t prepared = target_reconcile
+            ? qpc_configuration_v1_prepare_reconcile((const uint8_t *)target, strlen(target), &initial, &handle, &error)
+            : qpc_configuration_v1_prepare_create((const uint8_t *)target, strlen(target), &initial, &handle, &error);
+        if (checked(prepared, &error)) goto done;
     } else {
         current.header = (qpc_configuration_header_v1){sizeof(current), 1};
         current.sdk = sdk; current.protocol = protocol;
@@ -222,7 +256,7 @@ int main(int argc, char **argv) {
     /* Preparation copied all input bytes; no borrowed buffer remains live. */
     clear_allocations();
     if (checked(qpc_owner_v1_finish_open(handle, &error), &error)) goto done;
-    if (target_create) { result=0; goto done; }
+    if (target_create || target_reconcile || target_open) { result=0; goto done; }
     qpc_configuration_blob_v1 root = load(source, "enrollment-root", 1985);
     qpc_configuration_blob_v1 intent_bytes = load(source, "enrollment-intent", 72);
     if (!exact(root, 1985) || !exact(intent_bytes, 72)) goto done;
@@ -320,10 +354,18 @@ int main(int argc, char **argv) {
         if (traffic(handle, source, intent.family, argv[1], delivered, &written_length, &error)) goto done;
         written_bytes = delivered;
     }
+#ifdef _WIN32
+    int descriptor = -1;
+    if (_sopen_s(&descriptor, argv[5], _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT,
+                 _SH_DENYRW, _S_IREAD | _S_IWRITE) != 0) goto done;
+    FILE *output = _fdopen(descriptor, "wb");
+    if (!output) { (void)_close(descriptor); goto done; }
+#else
     int descriptor = open(argv[5], O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (descriptor < 0) goto done;
     FILE *output = fdopen(descriptor, "wb");
     if (!output) { (void)close(descriptor); goto done; }
+#endif
     size_t written = fwrite(written_bytes, 1, written_length, output);
     int closed = fclose(output);
     if (written != written_length || closed != 0) goto done;
@@ -332,7 +374,7 @@ done:
     clear_allocations();
     if (handle && checked(qpc_owner_v1_close(handle, &error), &error)) result = 1;
     if (registry && checked(qpc_owner_v1_close(registry, &error), &error)) result = 1;
-    if (!result) puts(policy_credential ? "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION" : credential ? "QPC_CONFIGURATION_CREDENTIAL_OPERATION" : unmanaged ? "QPC_CONFIGURATION_REGISTRY_REQUIRED" : expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
+    if (!result) puts(policy_credential ? "QPC_CONFIGURATION_POLICY_CREDENTIAL_OPERATION" : credential ? "QPC_CONFIGURATION_CREDENTIAL_OPERATION" : unmanaged ? "QPC_CONFIGURATION_REGISTRY_REQUIRED" : expired ? "QPC_CONFIGURATION_POLICY_EXPIRED" : target_create ? "QPC_CONFIGURATION_POLICY_TARGET" : target_reconcile ? "QPC_CONFIGURATION_RECONCILED" : target_open ? "QPC_CONFIGURATION_OPENED" : policy ? "QPC_CONFIGURATION_POLICY_OPERATION" : connection ? (strcmp(argv[1],"connect")==0 ? "QPC_CONFIGURATION_CONNECTION_PASS" :
         strcmp(argv[1],"uncertain-send")==0 ? "QPC_CONFIGURATION_UNKNOWN_COMMITTED" : "QPC_CONFIGURATION_ORIGINAL_ACKNOWLEDGED") :
         local ? "QPC_CONFIGURATION_LOCAL_ACTIVE" : cancel ? "QPC_CONFIGURATION_CANCELLED" : wrong ? "QPC_CONFIGURATION_WITNESS_SCOPE_REFUSED" :
         missing ? "QPC_CONFIGURATION_WITNESS_REQUIRED" :

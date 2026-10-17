@@ -1,0 +1,124 @@
+name: Installed Windows Continuity C first use
+
+on:
+  push:
+    branches: [lza/windows-private-store]
+    paths:
+      - .github/workflows/continuity-windows-package.yml
+      - artifact/continuity_windows_*.py
+      - artifact/installed_rust_graph.py
+      - artifact/continuity_package.py
+      - artifact/continuity_package_archive.py
+      - bindings/c/ContinuityPackageConsumer/**
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      # Reuse the completed SDK producer, not the still-running full lifecycle job.
+      # Every consumed archive hash and source member must match this checkout.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          run-id: 39078307221
+          github-token: ${{ github.token }}
+          path: target/windows-sdk-input
+      - name: Package candidate against admitted SDK archives
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_windows_prepare.py \
+            --report target/windows-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --sdk-commit a2b819728032d44c350859fdd3ed4a4fee9e6341 \
+            --output target/windows-installed-input
+      - name: Preserve archive closure and producer results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-installed-input
+          path: target/windows-installed-input/
+          if-no-files-found: error
+
+  native:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-installed-input
+          path: target/windows-installed-input
+      - name: Select native MSVC environment and owned private test root
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'MSVC installation unavailable' }
+          $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvars64.bat'
+          $lines = & $env:ComSpec /d /s /c "`"$vcvars`" >nul && set"
+          if ($LASTEXITCODE -ne 0) { throw 'MSVC environment failed' }
+          $selected = @('PATH', 'INCLUDE', 'LIB', 'LIBPATH', 'VCToolsInstallDir', 'WindowsSdkDir', 'WindowsSDKVersion', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VSCMD_ARG_HOST_ARCH', 'VSCMD_ARG_TGT_ARCH')
+          foreach ($line in $lines) {
+            if ($line -match '^([^=]+)=(.*)$' -and $Matches[1] -in $selected) { "$($Matches[1])=$($Matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
+          }
+          $env:QPC_FIRST_USE_ROOT = Join-Path $env:RUNNER_TEMP 'installed-c-private'
+          New-Item -ItemType Directory -Path $env:QPC_FIRST_USE_ROOT | Out-Null
+          $privateRoot = @'
+          $ErrorActionPreference = 'Stop'
+          $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object System.Security.AccessControl.DirectorySecurity
+          $acl.SetOwner($sid)
+          $acl.SetAccessRuleProtection($true, $false)
+          $inherit = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+          $allow = [System.Security.AccessControl.AccessControlType]::Allow
+          $none = [System.Security.AccessControl.PropagationFlags]::None
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inherit, $none, $allow)))
+          [System.IO.Directory]::SetAccessControl($env:QPC_FIRST_USE_ROOT, $acl)
+          '@
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoLogo -NoProfile -NonInteractive -Command $privateRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build outside checkout and invoke installed C ABI
+        shell: pwsh
+        run: |
+          python -I -S -B -W error artifact/python_bootstrap.py artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$env:RUNNER_TEMP/installed-c-private"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve public results and exact C library inputs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-installed-c-${{ matrix.os }}
+          path: target/windows-installed-results/
+          if-no-files-found: error

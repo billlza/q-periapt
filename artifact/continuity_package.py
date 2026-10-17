@@ -115,6 +115,45 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
     return dict(result, candidate_crates=1)
 
 
+def package_candidate(cargo: list[str], producer: Path, build: Path, sdk_output: Path,
+                      cohort: dict, packages: dict, output: Path, run, environment: dict) -> tuple[dict, dict[str, bytes]]:
+    """Cargo-package the candidate against exactly validated installed SDK archives."""
+    for name in sdk.CONSUMER_CRATES:
+        record = cohort["crates"][name]
+        members = sdk.validate_archive(sdk.snapshot(sdk_output / "crates" / record["file"]).data,
+                                       name, packages[name], set(record["files"]))
+        for relative, content in members.items():
+            path = producer / "crates" / name / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as stream:
+                stream.write(content)
+    candidate_source = producer / CANDIDATE.relative_to(ROOT)
+    listed_sources = run(["git", "ls-files", "research/continuity-identity-candidate"], "candidate-sources").decode().splitlines()
+    for relative in listed_sources:
+        path = ROOT / relative
+        sdk.copy(path, candidate_source / path.relative_to(CANDIDATE))
+    manifest = ["--manifest-path", str(candidate_source / "Cargo.toml")]
+    patches = []
+    for name in sdk.CONSUMER_CRATES:
+        path = producer / "crates" / name
+        patches.extend(["--config", f"patch.crates-io.{name}.path=" + json.dumps(str(path))])
+    run([*cargo, "fetch", "--locked", *manifest, *patches], "fetch",
+        env=dict(environment, CARGO_NET_OFFLINE="false"))
+    package_args = [*cargo, "package", *manifest, "--locked", "--offline", "--all-features", *patches]
+    listed = run([*package_args, "--list"], "package-list").decode().splitlines()
+    sdk.require(len(listed) == len(set(listed)), "duplicate candidate package members")
+    run([*package_args, "-j", "2"], "package")
+    streams = [(output / f"package.{suffix}").read_text() for suffix in ("stdout", "stderr")]
+    sdk.validate_cargo_package_completion(NAME, streams)
+    filename = f"{NAME}-{VERSION}.crate"
+    archive = sdk.snapshot(build / "package" / filename)
+    files = validate_candidate(archive.data, set(listed))
+    sdk.copy(archive.path, output / filename)
+    record = {"file": filename, "sha256": archive.sha256, "bytes": archive.size,
+                         "files": sorted(files)}
+    return record, files
+
+
 def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, roster_directory: Path,
                      replacement_directory: Path, retirement_directory: Path) -> dict:
     from continuity_roster_renewal import verify as verify_roster_renewal
@@ -330,39 +369,8 @@ def qualify(args: argparse.Namespace) -> dict:
         metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--locked", "--offline", "--no-deps",
                                                 "--format-version", "1"], "workspace-metadata"), label="SDK metadata")
         packages = sdk.classify(metadata)
-        producer = outside / "source"
-        for name in sdk.CONSUMER_CRATES:
-            record = cohort["crates"][name]
-            members = sdk.validate_archive(sdk.snapshot(args.report.parent / "crates" / record["file"]).data,
-                                           name, packages[name], set(record["files"]))
-            for relative, content in members.items():
-                path = producer / "crates" / name / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with path.open("xb") as stream:
-                    stream.write(content)
-        candidate_source = producer / CANDIDATE.relative_to(ROOT)
-        for path in CANDIDATE.rglob("*"):
-            if path.is_file():
-                sdk.copy(path, candidate_source / path.relative_to(CANDIDATE))
-        manifest = ["--manifest-path", str(candidate_source / "Cargo.toml")]
-        patches = []
-        for name in sdk.CONSUMER_CRATES:
-            path = producer / "crates" / name
-            patches.extend(["--config", f"patch.crates-io.{name}.path=" + json.dumps(str(path))])
-        run([*cargo, "fetch", "--locked", *manifest, *patches], "fetch",
-            env=dict(environment, CARGO_NET_OFFLINE="false"))
-        package_args = [*cargo, "package", *manifest, "--locked", "--offline", "--all-features", *patches]
-        listed = run([*package_args, "--list"], "package-list").decode().splitlines()
-        sdk.require(len(listed) == len(set(listed)), "duplicate candidate package members")
-        run([*package_args, "-j", "2"], "package")
-        streams = [(output / f"package.{suffix}").read_text() for suffix in ("stdout", "stderr")]
-        sdk.validate_cargo_package_completion(NAME, streams)
-        filename = f"{NAME}-{VERSION}.crate"
-        archive = sdk.snapshot(outside / "build/package" / filename)
-        files = validate_candidate(archive.data, set(listed))
-        sdk.copy(archive.path, output / filename)
-        result["archive"] = {"file": filename, "sha256": archive.sha256, "bytes": archive.size,
-                             "files": sorted(files)}
+        result["archive"], files = package_candidate(cargo, outside / "source", outside / "build",
+            args.report.parent, cohort, packages, output, run, environment)
         destination = consumer / "packages" / f"{NAME}-{VERSION}"
         for relative, content in files.items():
             path = destination / relative

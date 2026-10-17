@@ -506,3 +506,6 @@ impl FirstInstallConfiguration {
 mod tests;
 #[cfg(all(test, windows))]
 mod windows_tests;
+
+#[cfg(all(test, windows))]
+mod windows_c_tests;

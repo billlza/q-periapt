@@ -39,7 +39,7 @@ fn hook(callback: impl FnMut(Stage, &Path) -> Result<()> + 'static) -> HookGuard
     HookGuard
 }
 
-mod fixture;
+pub(super) mod fixture;
 mod process;
 use fixture::{load, Case};
 

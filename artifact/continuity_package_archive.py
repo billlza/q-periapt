@@ -4,7 +4,7 @@ import hashlib
 import io
 import stat
 import zipfile
-import rust_sdk_profile as sdk
+from installed_rust_graph import require
 
 MAX_PACKAGE = 64 * 1024**2
 
@@ -18,27 +18,27 @@ def archive(files: dict[str, bytes]) -> bytes:
             entry.external_attr = (stat.S_IFREG | 0o644) << 16
             zipped.writestr(entry, data)
     result = output.getvalue()
-    sdk.require(len(result) <= MAX_PACKAGE, "Continuity package exceeds bound")
+    require(len(result) <= MAX_PACKAGE, "Continuity package exceeds bound")
     return result
 
 
 def unpack(data: bytes, expected: dict[str, str], destination: Path) -> None:
-    sdk.require(len(data) <= MAX_PACKAGE and not destination.exists(), "Continuity package input or destination differs")
+    require(len(data) <= MAX_PACKAGE and not destination.exists(), "Continuity package input or destination differs")
     with zipfile.ZipFile(io.BytesIO(data)) as zipped:
         entries = zipped.infolist()
         names = [entry.filename for entry in entries]
-        sdk.require(len(entries) <= 1024 and len(names) == len(set(names)) and set(names) == set(expected),
+        require(len(entries) <= 1024 and len(names) == len(set(names)) and set(names) == set(expected),
                     "Continuity package file set differs")
-        sdk.require(sum(entry.file_size for entry in entries) <= MAX_PACKAGE, "Continuity expanded package exceeds bound")
+        require(sum(entry.file_size for entry in entries) <= MAX_PACKAGE, "Continuity expanded package exceeds bound")
         selected = {}
         for entry in entries:
             path = PurePosixPath(entry.filename)
-            sdk.require(not path.is_absolute() and path.parts and ".." not in path.parts
+            require(not path.is_absolute() and path.parts and ".." not in path.parts
                         and "\\" not in entry.filename and str(path) == entry.filename
                         and stat.S_ISREG(entry.external_attr >> 16) and not entry.flag_bits & 1,
                         "Continuity package entry is not a canonical regular file")
             content = zipped.read(entry)
-            sdk.require(hashlib.sha256(content).hexdigest() == expected[entry.filename], "Continuity package file hash differs")
+            require(hashlib.sha256(content).hexdigest() == expected[entry.filename], "Continuity package file hash differs")
             selected[path] = content
     destination.mkdir(mode=0o700)
     for name, content in selected.items():

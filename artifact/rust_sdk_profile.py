@@ -21,6 +21,7 @@ import tarfile
 import tempfile
 import tomllib
 
+from installed_rust_graph import external_lock, verify_resolution as verify_installed_resolution
 from bounded_process import capture_output
 from c_package_manifest import rust_workspace_source_digest
 from crates_io_registry_metadata import registry_metadata
@@ -87,7 +88,7 @@ def source_identity() -> dict:
     files = [ROOT / name for name in ("README.md", "artifact/rust_sdk_profile.py", "artifact/rust-publish-contract.sh",
         "artifact/rust_publish_contract.py", "artifact/crates_io_registry_metadata.py",
         "artifact/bounded_process.py", "artifact/evidence_io.py", "artifact/git_provenance.py",
-        "artifact/c_package_manifest.py")]
+        "artifact/c_package_manifest.py", "artifact/installed_rust_graph.py")]
     files.extend(path for path in (ROOT / FIXTURE).rglob("*") if path.is_file())
     files.extend(ROOT / "bindings" / name for name in POLICIES)
     return {"rust_workspace_sha256": rust_workspace_source_digest(ROOT),
@@ -224,39 +225,10 @@ def validate_archive(data: bytes, name: str, package: dict, expected_files: set[
     return files
 
 
-def external_lock(lock: bytes) -> dict:
-    packages = tomllib.loads(lock.decode())["package"]
-    result = {}
-    for package in packages:
-        if "source" not in package or package["name"].startswith("q-periapt"):
-            continue
-        identity = (package["name"], package["version"])
-        checksum = package.get("checksum")
-        require(identity not in result and package["source"] == "registry+https://github.com/rust-lang/crates.io-index"
-                and isinstance(checksum, str) and re.fullmatch(r"[a-f0-9]{64}", checksum) is not None,
-                "external dependency identity/source/checksum is invalid")
-        result[identity] = (package["source"], checksum)
-    return result
-
-
 def verify_consumer_resolution(metadata: dict, consumer: Path, lock: bytes, original_lock: bytes,
                               *, consumer_name: str = CONSUMER_NAME) -> dict:
-    rows = [row for row in metadata["packages"] if row["name"].startswith("q-periapt")]
-    local = {row["name"]: row for row in rows}
-    require(len(local) == len(rows) and set(local) == set(CONSUMER_CRATES) | {consumer_name},
-            "installed consumer resolved a mixed product graph")
-    require(Path(local[consumer_name]["manifest_path"]).resolve() == consumer / "Cargo.toml"
-            and local[consumer_name]["source"] is None, "installed consumer manifest origin differs")
-    for name in CONSUMER_CRATES:
-        expected = consumer / "packages" / f"{name}-{VERSION}" / "Cargo.toml"
-        require(Path(local[name]["manifest_path"]).resolve() == expected
-                and local[name]["version"] == VERSION and local[name]["source"] is None,
-                "installed consumer resolved checkout or mixed-version crates")
-    resolved, original = external_lock(lock), external_lock(original_lock)
-    require(all(original.get(key) == value for key, value in resolved.items()),
-            "installed consumer changed external dependency versions, sources or checksums")
-    return {"product_crates": len(CONSUMER_CRATES), "external_packages": len(resolved),
-            "lockfile_sha256": hashlib.sha256(lock).hexdigest()}
+    return verify_installed_resolution(metadata, consumer, lock, original_lock,
+        consumer_name=consumer_name, versions={name: VERSION for name in CONSUMER_CRATES})
 
 
 def verify_consumer_tests(stdout: bytes) -> None:
