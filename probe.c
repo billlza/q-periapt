@@ -80,6 +80,21 @@ static BOOL exact_bytes(const WCHAR *path, const char *expected, DWORD length) {
     return same;
 }
 
+static BOOL same_named_file(const WCHAR *path, const BY_HANDLE_FILE_INFORMATION *expected) {
+    HANDLE file = CreateFileW(path, FILE_READ_ATTRIBUTES,
+                             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                             NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    if (file == INVALID_HANDLE_VALUE) return FALSE;
+    BY_HANDLE_FILE_INFORMATION actual;
+    BOOL ok = GetFileInformationByHandle(file, &actual);
+    BOOL same = ok && actual.dwVolumeSerialNumber == expected->dwVolumeSerialNumber &&
+                actual.nFileIndexHigh == expected->nFileIndexHigh &&
+                actual.nFileIndexLow == expected->nFileIndexLow && actual.nNumberOfLinks == 1 &&
+                (actual.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0;
+    close_owned(file);
+    return same;
+}
+
 static BOOL rename_file(HANDLE file, HANDLE directory, const WCHAR *leaf,
                         const WCHAR *absolute, enum rename_method method, DWORD *error) {
     const WCHAR *name = method == WIN32_ABSOLUTE ? absolute : leaf;
@@ -195,7 +210,7 @@ int wmain(int argc, WCHAR **argv) {
     const char target_bytes[] = "public-existing-bytes";
     HANDLE src = create_bytes(source, source_bytes, sizeof(source_bytes));
     HANDLE dst = create_bytes(target, target_bytes, sizeof(target_bytes));
-    HANDLE parent = CreateFileW(argv[1], GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+    HANDLE parent = CreateFileW(argv[1], GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL, OPEN_EXISTING,
                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
     ok = parent != INVALID_HANDLE_VALUE;
@@ -220,10 +235,18 @@ int wmain(int argc, WCHAR **argv) {
             require("same_open_file_identity_after_rename", before_ok && after_ok &&
                     before.dwVolumeSerialNumber == after.dwVolumeSerialNumber &&
                     before.nFileIndexHigh == after.nFileIndexHigh && before.nFileIndexLow == after.nFileIndexLow);
+            require("published_name_is_original_single_link_file", before_ok && same_named_file(published, &before));
+            DWORD old_attributes = GetFileAttributesW(source);
+            DWORD old_error = old_attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_SUCCESS;
+            require("old_source_name_absent", old_attributes == INVALID_FILE_ATTRIBUTES && old_error == ERROR_FILE_NOT_FOUND);
             require("published_bytes_match", exact_bytes(published, source_bytes, sizeof(source_bytes)));
             ok = FlushFileBuffers(src);
             error = ok ? ERROR_SUCCESS : GetLastError();
             observe("published_open_file_flush", ok, error);
+            if (!ok) failures++;
+            ok = FlushFileBuffers(parent);
+            error = ok ? ERROR_SUCCESS : GetLastError();
+            observe("same_pinned_parent_flush_after_publication", ok, error);
             if (!ok) failures++;
         }
     }

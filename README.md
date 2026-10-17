@@ -40,6 +40,15 @@ The first comparison build (`40a3375`, run `39060096970`) did not execute:
 `/TC` treated the bare `ntdll.lib` argument as a C source. The build command
 now passes that import library after `/link`; the compiler failure is retained.
 
+At `2e66c26` (run `39060195227`), both Windows images passed the absolute
+Win32 and relative NT routes; the relative Win32 route continued failing with
+87. A subsequent refinement additionally opens the published name to compare
+its volume/file identity and single-link shape against the original handle,
+requires the old name to be absent, and flushes the same pinned parent after
+publication. This avoids mistaking identity checks on the original handle
+alone, or an earlier flush of an empty directory, for the complete primitive
+sequence needed by the store.
+
 References:
 
 - [CreateFileW access and sharing modes](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
