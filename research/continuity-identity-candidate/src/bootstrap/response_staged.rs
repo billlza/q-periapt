@@ -156,20 +156,22 @@ impl ResponsePlan {
             state: ResponderState::Prepared(Box::new(prepared)),
         })
     }
-    pub(crate) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPRPLN01".to_vec());
-        bytes.push(self.phase());
-        bytes.extend_from_slice(&self.context);
-        bytes.extend_from_slice(&self.scope);
-        bytes.extend_from_slice(&self.initial);
-        bytes.extend_from_slice(self.first.as_bytes());
-        bytes.extend_from_slice(&self.nonce);
-        bytes.extend_from_slice(self.kem.as_bytes());
-        if let Some((body, reservation)) = &self.signature {
-            bytes.extend_from_slice(body);
-            reservation.encode(&mut bytes);
-        }
-        bytes
+    pub(crate) fn encode(&self) -> Result<Zeroizing<Vec<u8>>, Error> {
+        crate::codec::encode_secret(|bytes| {
+            bytes.extend_from_slice(b"QPRPLN01");
+            bytes.push(self.phase());
+            bytes.extend_from_slice(&self.context);
+            bytes.extend_from_slice(&self.scope);
+            bytes.extend_from_slice(&self.initial);
+            bytes.extend_from_slice(self.first.as_bytes());
+            bytes.extend_from_slice(&self.nonce);
+            bytes.extend_from_slice(self.kem.as_bytes());
+            if let Some((body, reservation)) = &self.signature {
+                bytes.extend_from_slice(body);
+                reservation.encode(bytes);
+            }
+            Ok(())
+        })
     }
     pub(crate) fn decode(
         context: &[u8; 32],

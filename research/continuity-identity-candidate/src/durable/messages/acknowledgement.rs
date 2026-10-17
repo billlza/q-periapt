@@ -136,7 +136,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = state.encode();
+                .payload = state.encode()?;
             self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("consumed");
@@ -201,7 +201,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = state.encode();
+                .payload = state.encode()?;
             self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             super::tests::after_stage("acknowledged");

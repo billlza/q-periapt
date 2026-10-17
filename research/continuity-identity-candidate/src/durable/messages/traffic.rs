@@ -98,15 +98,15 @@ impl Traffic {
             incoming: BTreeMap::new(),
         })
     }
-    pub(super) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPTEPO04".to_vec());
+    pub(super) fn encode_into(&self, bytes: &mut dyn crate::codec::ByteWriter) {
+        bytes.extend_from_slice(b"QPTEPO04");
         bytes.extend_from_slice(&self.epoch.to_be_bytes());
         bytes.push(u8::from(self.send_closed));
         bytes.push(u8::from(self.receive_limit.is_some()));
         if let Some(limit) = self.receive_limit {
             bytes.extend_from_slice(&limit.to_be_bytes());
         }
-        self.resolution.encode(&mut bytes);
+        self.resolution.encode(bytes);
         bytes.push(u8::from(self.resolution_key.is_some()));
         if let Some(key) = &self.resolution_key {
             bytes.extend_from_slice(key.as_bytes());
@@ -151,7 +151,6 @@ impl Traffic {
             bytes.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&saved.plaintext);
         }
-        bytes
     }
     pub(super) fn decode(bytes: &[u8], session: [u8; 32], role: u8) -> Result<Self, Error> {
         if bytes.len() > MAX_IMAGE {

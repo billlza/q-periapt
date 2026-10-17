@@ -325,7 +325,7 @@ impl SigningReservation {
             randomness,
         })
     }
-    pub(crate) fn encode(&self, out: &mut zeroize::Zeroizing<Vec<u8>>) {
+    pub(crate) fn encode(&self, out: &mut dyn crate::codec::ByteWriter) {
         out.extend_from_slice(&self.binding);
         out.extend_from_slice(self.randomness.as_bytes());
     }

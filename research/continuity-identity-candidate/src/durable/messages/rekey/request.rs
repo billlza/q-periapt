@@ -42,7 +42,7 @@ impl Plan {
     }
 }
 
-pub(super) fn encode(plan: &Option<Plan>, bytes: &mut Zeroizing<Vec<u8>>) {
+pub(super) fn encode(plan: &Option<Plan>, bytes: &mut dyn crate::codec::ByteWriter) {
     match plan {
         None => bytes.push(0),
         Some(Plan::Signing(signing)) => {

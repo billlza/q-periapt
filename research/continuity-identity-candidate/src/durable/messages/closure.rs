@@ -60,7 +60,7 @@ pub(super) struct Pending {
     report: SessionClosureId,
     key: ZeroizingBytes<32>,
 }
-pub(super) fn encode_pending(pending: &Option<Pending>, bytes: &mut Vec<u8>) {
+pub(super) fn encode_pending(pending: &Option<Pending>, bytes: &mut dyn crate::codec::ByteWriter) {
     match pending {
         None => bytes.extend_from_slice(&[0; 64]),
         Some(pending) => {
@@ -325,7 +325,7 @@ impl DeviceJournal {
                     .into(),
             )?;
             state.closure = Some(Pending { report, key });
-            let payload = state.encode();
+            let payload = state.encode()?;
             if payload.len() != record.payload.len() {
                 return Err(DurableError::Corrupt);
             }

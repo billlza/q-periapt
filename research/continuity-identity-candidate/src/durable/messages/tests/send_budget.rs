@@ -517,7 +517,7 @@ fn send_budget_rejects_authenticated_over_limit_frames_and_stored_own_counts() {
         .records
         .get_mut(&record_id(&p.session))
         .expect("record")
-        .payload = exceeded.encode();
+        .payload = exceeded.encode().expect("state encoding");
     p.ji.persist(&mut image)
         .expect("authenticated structurally valid but policy-invalid fixture");
     p.ji.close();

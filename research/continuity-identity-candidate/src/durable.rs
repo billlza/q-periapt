@@ -1063,39 +1063,49 @@ fn seal(key: &JournalKey, image: &Image) -> Result<Vec<u8>, DurableError> {
         .values()
         .any(|r| r.kind == RecordKind::Publication);
     let (outer_tag, inner_tag) = image_tags(publication, image.account_authority.is_some());
-    let mut plaintext = Zeroizing::new(inner_tag.to_vec());
-    image.protection.encode(&mut plaintext);
-    if let Some(scope) = image.account_authority {
-        scope.encode(&mut plaintext);
-    }
-    plaintext.extend_from_slice(&image.local_account);
-    plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
-    plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
-    for (id, record) in &image.records {
-        plaintext.extend_from_slice(id);
-        plaintext.extend_from_slice(&record.context);
-        plaintext.push(record.kind as u8);
-        plaintext.push(record.phase as u8);
-        plaintext.push(record.authorities.len() as u8);
-        for account in &record.authorities {
-            plaintext.extend_from_slice(account);
+    let mut plaintext = crate::codec::encode_secret(|plaintext| {
+        plaintext.extend_from_slice(inner_tag);
+        image.protection.encode(plaintext);
+        if let Some(scope) = image.account_authority {
+            scope.encode(plaintext);
         }
-        plaintext.push(record.keys.len() as u8);
-        for key in &record.keys {
-            plaintext.extend_from_slice(key);
+        plaintext.extend_from_slice(&image.local_account);
+        plaintext.extend_from_slice(&image.next_fanout.to_be_bytes());
+        plaintext.extend_from_slice(&(image.records.len() as u16).to_be_bytes());
+        for (id, record) in &image.records {
+            plaintext.extend_from_slice(id);
+            plaintext.extend_from_slice(&record.context);
+            plaintext.push(record.kind as u8);
+            plaintext.push(record.phase as u8);
+            plaintext.push(record.authorities.len() as u8);
+            for account in &record.authorities {
+                plaintext.extend_from_slice(account);
+            }
+            plaintext.push(record.keys.len() as u8);
+            for key in &record.keys {
+                plaintext.extend_from_slice(key);
+            }
+            plaintext.push(record.prekeys.len() as u8);
+            for key in &record.prekeys {
+                plaintext.extend_from_slice(key);
+            }
+            if matches!(record.kind, RecordKind::Initiator | RecordKind::Responder) {
+                cancellation::encode(&record.cancellation, plaintext);
+            } else if record.cancellation.is_some() {
+                return Err(Error::Encoding);
+            }
+            plaintext.extend_from_slice(&(record.payload.len() as u32).to_be_bytes());
+            plaintext.extend_from_slice(&record.payload);
         }
-        plaintext.push(record.prekeys.len() as u8);
-        for key in &record.prekeys {
-            plaintext.extend_from_slice(key);
-        }
-        if matches!(record.kind, RecordKind::Initiator | RecordKind::Responder) {
-            cancellation::encode(&record.cancellation, &mut plaintext);
-        } else if record.cancellation.is_some() {
-            return Err(DurableError::Corrupt);
-        }
-        plaintext.extend_from_slice(&(record.payload.len() as u32).to_be_bytes());
-        plaintext.extend_from_slice(&record.payload);
-    }
+        Ok(())
+    })
+    .map_err(|error| match error {
+        Error::Capacity => DurableError::Capacity,
+        Error::Encoding => DurableError::Corrupt,
+        other => DurableError::Protocol(other),
+    })?;
+    #[cfg(all(test, unix))]
+    tests::encoding_compat::check(image, &plaintext);
     if image.operation_count() > MAX_RECORDS
         || image.record_count(RecordKind::Prekey) > prekeys::MAX_PREKEY_RECORDS
         || image.record_count(RecordKind::Roster) > rosters::MAX_ROSTERS

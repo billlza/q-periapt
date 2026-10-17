@@ -148,7 +148,7 @@ impl DeviceJournal {
         };
         let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
         record.phase = DurableStatus::ResponseKemReserved;
-        record.payload = plan.encode();
+        record.payload = plan.encode()?;
         self.persist(&mut image).await?;
         self.drive_response(image, id, context, signer, now).await
     }
@@ -233,7 +233,7 @@ impl DeviceJournal {
             tests::after_response_effect(response_staged::KEM_RESERVED, plan.public_effect()?);
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::ResponseSignatureReserved;
-            record.payload = plan.encode();
+            record.payload = plan.encode()?;
             self.persist(&mut image).await?;
         }
         context.check(now)?;

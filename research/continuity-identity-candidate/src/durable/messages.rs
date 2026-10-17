@@ -329,23 +329,32 @@ impl State {
         }
         self.epochs.get_mut(&epoch).ok_or(Error::State)
     }
-    fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(STATE_TAG.to_vec());
-        bytes.extend_from_slice(&self.source);
-        bytes.extend_from_slice(&self.session);
-        bytes.push(self.role);
-        bytes.extend_from_slice(self.rekey.as_bytes());
-        bytes.extend_from_slice(&self.send_epoch.to_be_bytes());
-        bytes.extend_from_slice(&self.receive_epoch.to_be_bytes());
-        bytes.push(self.epochs.len() as u8);
-        for value in self.epochs.values() {
-            let encoded = value.encode();
-            bytes.extend_from_slice(&(encoded.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(&encoded);
-        }
-        self.control.encode(&mut bytes);
-        closure::encode_pending(&self.closure, &mut bytes);
-        bytes
+    fn encode(&self) -> Result<Zeroizing<Vec<u8>>, Error> {
+        let encoded = crate::codec::encode_secret(|bytes| {
+            bytes.extend_from_slice(STATE_TAG);
+            bytes.extend_from_slice(&self.source);
+            bytes.extend_from_slice(&self.session);
+            bytes.push(self.role);
+            bytes.extend_from_slice(self.rekey.as_bytes());
+            bytes.extend_from_slice(&self.send_epoch.to_be_bytes());
+            bytes.extend_from_slice(&self.receive_epoch.to_be_bytes());
+            bytes.push(self.epochs.len() as u8);
+            for value in self.epochs.values() {
+                let length = crate::codec::encoded_len(|out| {
+                    value.encode_into(out);
+                    Ok(())
+                })?;
+                let length = u32::try_from(length).map_err(|_| Error::Capacity)?;
+                bytes.extend_from_slice(&length.to_be_bytes());
+                value.encode_into(bytes);
+            }
+            self.control.encode(bytes);
+            closure::encode_pending(&self.closure, bytes);
+            Ok(())
+        })?;
+        #[cfg(all(test, unix))]
+        tests::encoding_compat::check(self, &encoded);
+        Ok(encoded)
     }
     fn decode(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() > MAX_IMAGE {
@@ -425,7 +434,7 @@ impl DeviceJournal {
             .records
             .get_mut(&record_id(&state.session))
             .ok_or(DurableError::Corrupt)?
-            .payload = state.encode();
+            .payload = state.encode()?;
         self.persist(image).await
     }
     /// Transfer a committed initiator bootstrap root into durable message chains.
@@ -536,7 +545,7 @@ impl DeviceJournal {
                 keys: Vec::new(),
                 prekeys: Vec::new(),
                 cancellation: None,
-                payload: state.encode(),
+                payload: state.encode()?,
             },
         );
         self.persist(image).await?;
@@ -776,7 +785,7 @@ impl DeviceJournal {
                     .records
                     .get_mut(&record_id(&session))
                     .ok_or(DurableError::Corrupt)?
-                    .payload = state.encode();
+                    .payload = state.encode()?;
                 self.persist(&mut image).await?;
                 #[cfg(all(test, unix))]
                 tests::after_stage("reserved");
@@ -791,7 +800,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = state.encode();
+                .payload = state.encode()?;
             self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("sent");
@@ -954,7 +963,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = state.encode();
+                .payload = state.encode()?;
             self.persist(&mut image).await?;
             #[cfg(all(test, unix))]
             tests::after_stage("received");

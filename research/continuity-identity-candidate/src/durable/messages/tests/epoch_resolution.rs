@@ -108,7 +108,7 @@ fn resolution_scope_authority_and_checkpoint_invariants_are_enforced() {
             _ => t.resolution = EpochResolutionStatus::Acknowledged(resolution),
         }
         assert!(
-            State::decode(&changed.encode()).is_err(),
+            State::decode(&changed.encode().expect("state encoding")).is_err(),
             "altered frozen state {change} admitted"
         );
     }

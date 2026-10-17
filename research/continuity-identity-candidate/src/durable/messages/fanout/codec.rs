@@ -50,8 +50,10 @@ impl Batch {
         bytes
     }
     pub(super) fn record(&self, local: [u8; 32]) -> Record {
-        let metadata = self.metadata();
+        let mut metadata = self.metadata();
         let context = digest(&label(b"account-fanout-metadata/v1"), &metadata);
+        // Reserve the complete tail while the buffer still contains only public metadata.
+        metadata.reserve_exact(64);
         let mut payload = Zeroizing::new(metadata);
         // Fixed-size tail reserves cleanup capacity before any message encryption.
         let phase = match &self.state {

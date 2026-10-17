@@ -200,7 +200,7 @@ impl Control {
         }
         Ok(())
     }
-    pub(super) fn encode(&self, bytes: &mut Zeroizing<Vec<u8>>) {
+    pub(super) fn encode(&self, bytes: &mut dyn crate::codec::ByteWriter) {
         bytes.extend_from_slice(CONTROL_TAG);
         bytes.extend_from_slice(&self.epoch.to_be_bytes());
         bytes.extend_from_slice(&self.parent);

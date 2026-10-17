@@ -16,7 +16,7 @@ pub(super) enum Protection {
     },
 }
 impl Protection {
-    pub(super) fn encode(self, bytes: &mut Vec<u8>) {
+    pub(super) fn encode(self, bytes: &mut dyn crate::codec::ByteWriter) {
         match self {
             Self::Local => bytes.extend_from_slice(&[0; 73]),
             Self::Required {

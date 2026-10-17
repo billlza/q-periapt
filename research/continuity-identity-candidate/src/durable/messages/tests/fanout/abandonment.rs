@@ -151,7 +151,7 @@ fn account_fanout_abandonment_process_cuts_freeze_and_close_all_sessions() {
                 .expect("plan")
                 .plaintext
                 .push(1);
-            record.payload = state.encode();
+            record.payload = state.encode().expect("state encoding");
             assert!(validate_image(&changed).is_err());
             account(&n.sender_path, &report);
             n.sender

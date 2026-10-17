@@ -15,7 +15,7 @@ impl Scope {
         }
         Ok(())
     }
-    pub(super) fn encode(self, bytes: &mut Vec<u8>) {
+    pub(super) fn encode(self, bytes: &mut dyn crate::codec::ByteWriter) {
         bytes.extend_from_slice(&self.registry);
         bytes.extend_from_slice(self.local.application().as_bytes());
         bytes.extend_from_slice(&self.local.revision().to_be_bytes());

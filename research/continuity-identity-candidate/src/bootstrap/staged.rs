@@ -167,21 +167,23 @@ impl InitiationPlan {
         )?;
         InitiatorOperation::from_initial(context, key, body.clone(), first, &signature)
     }
-    pub(crate) fn encode(&self) -> Zeroizing<Vec<u8>> {
-        let mut bytes = Zeroizing::new(b"QPIPLN01".to_vec());
-        bytes.push(self.phase());
-        bytes.extend_from_slice(&self.context);
-        bytes.extend_from_slice(&self.scope);
-        bytes.extend_from_slice(&self.nonce);
-        bytes.extend_from_slice(self.key.as_bytes());
-        if let Some(kem) = &self.kem {
-            bytes.extend_from_slice(kem.as_bytes());
-        }
-        if let Some((body, signature)) = &self.signature {
-            bytes.extend_from_slice(body);
-            signature.encode(&mut bytes);
-        }
-        bytes
+    pub(crate) fn encode(&self) -> Result<Zeroizing<Vec<u8>>, Error> {
+        crate::codec::encode_secret(|bytes| {
+            bytes.extend_from_slice(b"QPIPLN01");
+            bytes.push(self.phase());
+            bytes.extend_from_slice(&self.context);
+            bytes.extend_from_slice(&self.scope);
+            bytes.extend_from_slice(&self.nonce);
+            bytes.extend_from_slice(self.key.as_bytes());
+            if let Some(kem) = &self.kem {
+                bytes.extend_from_slice(kem.as_bytes());
+            }
+            if let Some((body, signature)) = &self.signature {
+                bytes.extend_from_slice(body);
+                signature.encode(bytes);
+            }
+            Ok(())
+        })
     }
     pub(crate) fn decode(
         context: &[u8; 32],

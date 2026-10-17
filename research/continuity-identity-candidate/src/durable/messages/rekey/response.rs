@@ -73,7 +73,7 @@ impl Plan {
             }
         }
     }
-    pub(super) fn encode(&self, bytes: &mut Zeroizing<Vec<u8>>) {
+    pub(super) fn encode(&self, bytes: &mut dyn crate::codec::ByteWriter) {
         bytes.extend_from_slice(&self.offer);
         match &self.stage {
             Stage::Encapsulation(token) => bytes.extend_from_slice(token.as_bytes()),

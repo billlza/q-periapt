@@ -54,3 +54,6 @@ pub(crate) fn generation(value: u64) -> Result<(), Error> {
         Err(Error::Encoding)
     }
 }
+
+mod secret;
+pub(crate) use secret::{encode_secret, encoded_len, ByteWriter};

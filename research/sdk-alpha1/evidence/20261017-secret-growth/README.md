@@ -49,7 +49,11 @@ observer is confined to the separate diagnostic crate.
 
 ## Admission still required
 
-The prototype is **not applied to the product branch**. This one real connection
+At this checkpoint the prototype was **not applied to the product branch**.
+The subsequent [persistent encoding correction](../20261017-secret-encoding/README.md)
+extends it to related secret-bearing paths and supplies broader compatibility,
+capacity/recovery and compiler checks. The original experiment below retains
+its narrower scope. This one real connection
 establishes the observed failure and a working candidate for that path. It does
 not establish byte-for-byte v21 storage compatibility for every message/control
 variant, maximum-capacity behavior, crash/reopen correctness or performance under

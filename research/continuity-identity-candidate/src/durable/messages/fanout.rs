@@ -405,7 +405,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&item.member.session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = item.state.encode();
+                .payload = item.state.encode()?;
         }
         image.next_fanout = image
             .next_fanout
@@ -470,7 +470,7 @@ impl DeviceJournal {
                 .records
                 .get_mut(&record_id(&item.member.session))
                 .ok_or(DurableError::Corrupt)?
-                .payload = item.state.encode();
+                .payload = item.state.encode()?;
         }
         batch.state = BatchState::Committed(batch.intent()?.clone());
         image

@@ -281,7 +281,7 @@ fn independent_session_closure_accounts_all_epochs_and_a_real_reserved_input() {
         .plaintext
         .first_mut()
         .expect("byte") ^= 1;
-    record.payload = state.encode();
+    record.payload = state.encode().expect("state encoding");
     assert!(
         validate_image(&changed).is_err(),
         "private-state edits must invalidate the frozen report"

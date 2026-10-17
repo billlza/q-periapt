@@ -29,7 +29,7 @@ pub enum EpochResolutionStatus {
     Acknowledged(EpochResolutionId),
 }
 impl EpochResolutionStatus {
-    pub(super) fn encode(self, bytes: &mut Vec<u8>) {
+    pub(super) fn encode(self, bytes: &mut dyn crate::codec::ByteWriter) {
         match self {
             Self::Unrequested => bytes.push(0),
             Self::Pending(id) => {
@@ -183,10 +183,13 @@ impl Traffic {
             return Err(Error::State);
         }
         let close = self.receive_limit.ok_or(Error::State)?;
-        // This buffer contains plaintext-derived commitments; it is private even
-        // though the final per-report HMAC identifier may be used for correlation.
-        let mut body = Zeroizing::new(self.session.to_vec());
-        body.push(self.role);
+        // Stream private commitments directly into the keyed hash, without a growing copy.
+        let key = self.resolution_key.as_ref().ok_or(Error::State)?;
+        let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(key.as_bytes())
+            .map_err(|_| Error::Provider)?;
+        mac.update(&label(b"closed-epoch-resolution/v1"));
+        mac.update(&self.session);
+        mac.update(&[self.role]);
         for value in [
             self.epoch,
             self.send_floor,
@@ -195,34 +198,29 @@ impl Traffic {
             self.received,
             close,
         ] {
-            body.extend_from_slice(&value.to_be_bytes());
+            mac.update(&value.to_be_bytes());
         }
-        body.extend_from_slice(&(self.outgoing.len() as u16).to_be_bytes());
+        mac.update(&(self.outgoing.len() as u16).to_be_bytes());
         for (id, saved) in &self.outgoing {
-            body.extend_from_slice(&id.0);
-            body.extend_from_slice(saved.intent.as_ref());
-            body.extend_from_slice(&wire_digest(&saved.wire));
+            mac.update(&id.0);
+            mac.update(saved.intent.as_ref());
+            mac.update(&wire_digest(&saved.wire));
         }
-        body.extend_from_slice(&(self.incoming.len() as u16).to_be_bytes());
+        mac.update(&(self.incoming.len() as u16).to_be_bytes());
         for (id, saved) in &self.incoming {
-            body.extend_from_slice(&id.0);
-            body.extend_from_slice(&saved.index.to_be_bytes());
-            body.extend_from_slice(saved.intent.as_ref());
-            body.push(u8::from(saved.consumed));
-            body.extend_from_slice(&(saved.plaintext.len() as u32).to_be_bytes());
+            mac.update(&id.0);
+            mac.update(&saved.index.to_be_bytes());
+            mac.update(saved.intent.as_ref());
+            mac.update(&[u8::from(saved.consumed)]);
+            mac.update(&(saved.plaintext.len() as u32).to_be_bytes());
             let plaintext_digest =
                 Zeroizing::new(digest(&label(b"resolution-plaintext/v1"), &saved.plaintext));
-            body.extend_from_slice(plaintext_digest.as_ref());
+            mac.update(plaintext_digest.as_ref());
         }
-        body.extend_from_slice(&(self.skipped.len() as u16).to_be_bytes());
+        mac.update(&(self.skipped.len() as u16).to_be_bytes());
         for index in self.skipped.keys() {
-            body.extend_from_slice(&index.to_be_bytes());
+            mac.update(&index.to_be_bytes());
         }
-        let key = self.resolution_key.as_ref().ok_or(Error::State)?;
-        let mut mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(key.as_bytes())
-            .map_err(|_| Error::Provider)?;
-        mac.update(&label(b"closed-epoch-resolution/v1"));
-        mac.update(&body);
         Ok(mac)
     }
     fn resolution_id(&self) -> Result<EpochResolutionId, Error> {

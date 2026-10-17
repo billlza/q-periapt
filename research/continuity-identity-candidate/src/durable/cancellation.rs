@@ -124,7 +124,7 @@ fn mask(kind: RecordKind, phase: DurableStatus) -> Result<u8, DurableError> {
         _ => Err(DurableError::Corrupt),
     }
 }
-pub(super) fn encode(metadata: &Option<Metadata>, bytes: &mut Vec<u8>) {
+pub(super) fn encode(metadata: &Option<Metadata>, bytes: &mut dyn crate::codec::ByteWriter) {
     if let Some(m) = metadata {
         bytes.extend_from_slice(b"QPBCTR01");
         bytes.push(m.previous as u8);

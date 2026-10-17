@@ -13,6 +13,7 @@ mod connection_tls;
 mod control_progress;
 #[cfg(feature = "control-tls")]
 mod control_tls;
+pub(super) mod encoding_compat;
 mod epoch_resolution;
 mod fanout;
 mod renewal;
@@ -321,7 +322,7 @@ fn authenticated_image_rejects_missing_or_grafted_session_and_consumed_key_state
     epoch_mut(&mut value)
         .skipped
         .insert(0, ZeroizingBytes::zeroed());
-    record.payload = value.encode();
+    record.payload = value.encode().expect("state encoding");
     assert!(matches!(validate_image(&image), Err(DurableError::Corrupt)));
     epoch_mut(&mut value).skipped.clear();
     value.source = [99; 32];
@@ -329,7 +330,7 @@ fn authenticated_image_rejects_missing_or_grafted_session_and_consumed_key_state
         .records
         .get_mut(&record_id(&p.session))
         .expect("record")
-        .payload = value.encode();
+        .payload = value.encode().expect("state encoding");
     assert!(matches!(validate_image(&image), Err(DurableError::Corrupt)));
 }
 
@@ -533,9 +534,13 @@ fn initial_and_chain_keys_match_independent_hmac_sha256_vectors() {
         epoch(&reverse).receive_ack.as_bytes()
     );
     assert_eq!(hex(&epoch(&s).acknowledgement().expect("known acknowledgement")), "5150434d41434b310909090909090909090909090909090909090909090909090909090909090909020000000000000000d7011dd0974bf86048eedd1cdb1aafe537a48ef6c0f08e3145b960fc11efa172");
-    let bytes = s.encode();
+    let bytes = s.encode().expect("state encoding");
     assert_eq!(
-        State::decode(&bytes).expect("decode").encode().as_slice(),
+        State::decode(&bytes)
+            .expect("decode")
+            .encode()
+            .expect("state encoding")
+            .as_slice(),
         bytes.as_slice()
     );
     for length in 0..bytes.len() {
@@ -1952,7 +1957,7 @@ fn rekey_response_agrees_with_real_decapsulation_and_replays_without_advancing_t
         .expand(&info, root.as_mut_bytes())
         .expect("root KDF");
     let after = state(&mut p.jr, &p.session);
-    let encoded = after.encode();
+    let encoded = after.encode().expect("state encoding");
     let control = captured_control_range(&encoded);
     assert_eq!(
         encoded
@@ -2495,7 +2500,10 @@ fn acknowledged_sessions_pass_the_old_capacity_without_retaining_history_or_reus
     let first_id =
         p.ji.next_message_id(&p.f.initiator, p.session, 150)
             .expect("slot");
-    let initial_size = state(&mut p.ji, &p.session).encode().len();
+    let initial_size = state(&mut p.ji, &p.session)
+        .encode()
+        .expect("state encoding")
+        .len();
     let mut first_wire = None;
     let mut first_ack = None;
     for index in 0..130 {
@@ -2532,7 +2540,7 @@ fn acknowledged_sessions_pass_the_old_capacity_without_retaining_history_or_reus
                 && epoch(&receive).incoming.is_empty()
                 && epoch(&receive).skipped.is_empty()
         );
-        assert_eq!(send.encode().len(), initial_size);
+        assert_eq!(send.encode().expect("state encoding").len(), initial_size);
         if index == 0 {
             first_wire = Some(wire);
             first_ack = Some(ack);
@@ -2809,11 +2817,12 @@ fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slo
     epoch_mut(&mut s).received = u64::MAX;
     epoch_mut(&mut s).receive_floor = u64::MAX;
     assert_eq!(
-        State::decode(&s.encode())
+        State::decode(&s.encode().expect("state encoding"))
             .expect("terminal counters")
             .encode()
+            .expect("state encoding")
             .as_slice(),
-        s.encode().as_slice()
+        s.encode().expect("state encoding").as_slice()
     );
     assert!(MessageId::for_epoch(&s.session, s.role, 0, u64::MAX).is_err());
     let retired = MessageId::for_epoch(&s.session, s.role, 0, u64::MAX - 1).expect("last old slot");
@@ -2822,7 +2831,10 @@ fn retired_boundaries_are_canonical_and_counter_exhaustion_cannot_recreate_a_slo
         Err(Error::Retired)
     ));
     epoch_mut(&mut s).sent -= 1;
-    assert!(State::decode(&s.encode()).is_err(), "floor exceeds counter");
+    assert!(
+        State::decode(&s.encode().expect("state encoding")).is_err(),
+        "floor exceeds counter"
+    );
     let mut p = Pair::new();
     p.activate();
     let expected =

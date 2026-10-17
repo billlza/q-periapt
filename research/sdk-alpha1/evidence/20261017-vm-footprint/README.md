@@ -59,6 +59,12 @@ performance or the maximum cost of multiple sessions/fanout. Both peers and
 observer bookkeeping are in the measured process. Other host applications and
 power settings are uncontrolled; no task build or broad test overlaps either run.
 
+The later [persistent encoding correction](../20261017-secret-encoding/README.md)
+is based on a separate moving-reallocation counterexample. Its default-allocator
+capacity cohorts observe lower process peaks and post-close footprint, without
+turning this earlier zero-release probe into a successful intervention or a
+complete allocator-retention explanation.
+
 ## Reproduction evidence
 
 The observer uses Rust 1.98.1 Release, optimization level 3, thin LTO, one codegen

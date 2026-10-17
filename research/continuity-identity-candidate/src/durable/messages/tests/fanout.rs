@@ -961,7 +961,7 @@ fn committed_account_replay_checks_the_budget_of_every_live_member() {
         .records
         .get_mut(&record_id(&session))
         .expect("record")
-        .payload = exceeded.encode();
+        .payload = exceeded.encode().expect("state encoding");
     n.sender
         .persist(&mut image)
         .expect("authenticated but policy-invalid fixture");

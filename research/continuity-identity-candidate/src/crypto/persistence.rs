@@ -51,7 +51,8 @@ fn seal(
     seed: &SigningSeed,
     public: &PublicKey,
 ) -> Result<Vec<u8>, DurableError> {
-    let mut plaintext = Zeroizing::new(b"QPSMAT01".to_vec());
+    let mut plaintext = Zeroizing::new(Vec::with_capacity(PLAINTEXT));
+    plaintext.extend_from_slice(b"QPSMAT01");
     plaintext.extend_from_slice(seed.pq.as_bytes());
     plaintext.extend_from_slice(seed.classic.as_bytes());
     plaintext.extend_from_slice(&public.encode());

@@ -207,6 +207,14 @@ plus access to later encrypted images exposes those later images; fresh protocol
 randomness does not repair storage protection. Host-key replacement and an explicit
 backup/erasure design are required before any stronger claim.
 
+Secret-bearing session, staged-bootstrap and journal encodings measure their
+length before allocating and do not grow that allocation while writing secrets.
+Appending a verified reply to a private checkpoint replaces the buffer and drops
+the old zeroizing owner. This avoids the earlier moving-reallocation copies;
+it does not broaden the physical-erasure or recovery guarantees above. The
+[encoding qualification](../../research/sdk-alpha1/evidence/20261017-secret-encoding/README.md)
+records format compatibility, original-owner capacity recovery and resource scope.
+
 There is no automatic candidate schema migration. An unsupported old table/tag,
 changed policy family/device generation, missing file or bad MAC never triggers
 empty-state initialization. Product upgrade/rollback support needs a separately

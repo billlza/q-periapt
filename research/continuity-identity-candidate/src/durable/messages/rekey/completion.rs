@@ -111,7 +111,7 @@ impl Plan {
     pub(super) fn inputs(&self) -> (&[u8], &[u8]) {
         (&self.offer, &self.response)
     }
-    pub(super) fn encode(&self, bytes: &mut Zeroizing<Vec<u8>>) {
+    pub(super) fn encode(&self, bytes: &mut dyn crate::codec::ByteWriter) {
         bytes.extend_from_slice(&self.offer);
         bytes.extend_from_slice(&self.response);
         match &self.step {
@@ -263,7 +263,7 @@ pub(super) struct Completed {
     receipt: Vec<u8>,
 }
 impl Completed {
-    pub(super) fn encode(&self, bytes: &mut Zeroizing<Vec<u8>>) {
+    pub(super) fn encode(&self, bytes: &mut dyn crate::codec::ByteWriter) {
         for wire in [&self.offer, &self.response, &self.final_wire, &self.receipt] {
             bytes.extend_from_slice(wire);
         }

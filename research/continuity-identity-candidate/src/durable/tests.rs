@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+pub(super) mod encoding_compat;
 pub(super) mod key_files;
 pub(super) mod provisioning;
 use crate::{

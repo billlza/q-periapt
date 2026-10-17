@@ -224,7 +224,7 @@ impl DeviceJournal {
                     keys: Vec::new(),
                     prekeys: Vec::new(),
                     cancellation: None,
-                    payload: pack(request, &plan.encode()),
+                    payload: pack(request, &plan.encode()?),
                 },
             );
             self.persist(&mut image).await?;
@@ -247,7 +247,7 @@ impl DeviceJournal {
             tests::after_effect(effect, &plan.public_effect()?);
             let record = image.records.get_mut(&id).ok_or(DurableError::Corrupt)?;
             record.phase = DurableStatus::decode(plan.phase())?;
-            record.payload = pack(request, &plan.encode());
+            record.payload = pack(request, &plan.encode()?);
             self.persist(&mut image).await?;
         }
         context.check(now)?;
@@ -383,7 +383,11 @@ impl DeviceJournal {
         match record.phase {
             DurableStatus::AwaitingReply => {
                 context.validate_reply_signature(initial(record)?, reply)?;
-                record.payload.extend_from_slice(reply);
+                record.payload = crate::codec::encode_secret(|out| {
+                    out.extend_from_slice(&record.payload);
+                    out.extend_from_slice(reply);
+                    Ok(())
+                })?;
                 record.phase = DurableStatus::ProcessingReply;
                 self.persist(&mut image).await?;
             }

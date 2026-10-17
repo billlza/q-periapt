@@ -216,7 +216,7 @@ fn account_fanout_process_cuts_preserve_all_members_and_exclude_concurrent_write
                 .records
                 .get_mut(&record_id(n.sessions.first().expect("session")))
                 .expect("record")
-                .payload = s.encode();
+                .payload = s.encode().expect("state encoding");
             assert!(matches!(
                 validate_image(&relabel),
                 Err(DurableError::Corrupt)
