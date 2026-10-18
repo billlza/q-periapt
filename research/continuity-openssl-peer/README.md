@@ -63,6 +63,33 @@ validity violations, invalid confirmation with valid signatures, exact replay,
 conflicting replay and closed owners. The native invalid-ciphertext control is
 re-signed with the real initiator key so it reaches KEM confirmation.
 
+### Counterpart built from installed archives
+
+The native fixture can also be built outside the checkout from a separately
+hash-pinned SDK package report and a freshly packaged current Continuity crate:
+
+```sh
+sh artifact/python-run.sh artifact/continuity_independent_package.py \
+  --report /absolute/path/to/sdk-rust-package/RUST_SDK_PACKAGE.json \
+  --report-sha256 EXPECTED_REPORT_SHA256 \
+  --toolchain-root /absolute/path/to/rust-1.98.1-toolchain \
+  --output target/independent-installed-new
+```
+
+This checks current source against the crate contents, builds and lints the
+original counterpart with eight installed SDK crates plus Continuity, and
+requires the original external dependencies and complete lockfile unchanged.
+Only the counterpart is a workspace member. The output contains the generated
+manifest, Cargo graph, binary and `INSTALLED_COUNTERPART.json`. A new registry
+cache is used by default; `--cargo-home` may explicitly select a cache without
+configuration or credentials. Supported hosts are Apple Silicon and Linux x86_64.
+
+Pass `target/independent-installed-new/counterpart` as `--native` to the existing
+drivers, including `registration_checks.py`. A successful build report explicitly
+has `runtime_qualified: false`; execution receipts must name that binary's hash.
+This archive boundary does not establish a deployed issuer, an independently
+installed Python distribution, a cross-host network carrier or release admission.
+
 ## Limits and next integration
 
 The second experiment transfers a confirmed root into independent epoch-zero
