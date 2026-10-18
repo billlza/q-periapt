@@ -1,9 +1,10 @@
-# Independent local-only storage, rekey and session recovery
+# Independent storage, witnessed recovery and session ownership
 
 This is an unpublished single-session implementation for interoperability work.
 It is independent of the Rust protocol state machine and redb image format.
-It implements bounded four-flight rekey and four retained traffic epochs. It does
-not yet implement required witnesses, credential/roster/policy renewal, revocation,
+It implements bounded four-flight rekey, four retained traffic epochs and separate
+local-only/required-witness storage profiles. It does
+not yet implement credential/roster/policy renewal, revocation,
 account fanout, network control scheduling,
 installed consumers or a complete installation owner.
 Its original verified authority snapshot and trusted time remain explicit inputs.
@@ -35,9 +36,81 @@ reconciliation. Restoring private local state
 does not grant output permission: bootstrap replay retains advertisement expiry;
 established traffic checks the separate credential, roster and policy windows.
 Status exposes dispositions without ciphertext or plaintext and can survive expiry.
-The external signing owner is required for unsigned rekey work. Once a control
+The external signing owner is required for unsigned rekey work. In local-only
+mode, once a control
 flight is committed, its exact outbox can be recovered without that private owner,
 while current policy/identity/roster validity is still required for release.
+Required-witness reopening also needs the original device signer to authenticate
+fresh witness requests; cached protocol output does not remove that requirement.
+
+## Required witness ownership
+
+`authenticate(..., witness_pin=pin)` verifies that the signed policy requires
+exactly that independently retained instance/key binding, including separation
+from both account roots, device keys and policy keys. Omitting the pin still
+rejects a required policy; supplying one to a local policy also fails.
+The supported witness commands are Query, Advance, Fence and AdmitAuthority with
+the unchanged [signed wire contract](../../docs/continuity/WIRE_V1.md#witness-commands-and-receipts).
+Fence is an explicit command; the journal always retains its original fence and
+never adopts a higher one from a response.
+
+`WitnessSession.provision` persists an inactive first snapshot and returns only
+its public `Genesis`. This independent format's first snapshot contains the
+prepared, undispatched initial bootstrap operation. It is not the native empty
+redb genesis format. The operator authenticates and explicitly approves the
+remote initial image through `AnchorGenesis::from_trusted_state` and enrollment;
+public metadata alone supplies no enrollment or session authority.
+`recover_genesis` reconciles only that original revision-zero creation intent or
+revision-one image. It cannot open an operational owner, advance a lineage or
+reset missing/advanced state. `WitnessSession.open` requires the configured
+client and a fresh witness response before returning a session owner.
+
+The separate image is
+`QPREFW01[8] || scope[96] || witness_binding[32] || subject[96] || fence:u64 || revision:u64 || AES-SIV ciphertext/tag`.
+The 248-byte prefix is associated data. Subject is the original journal ID,
+canonical native credential storage-owner commitment and protocol-policy digest.
+The outer scope still binds the independent signing-owner ID and full bootstrap
+context. Key derivation uses the distinct
+`Q-PERIAPT-INDEPENDENT-WITNESSED-JOURNAL/v1/` image/intent labels over the full
+232-byte scope/witness/subject/fence binding. The intent retains the existing
+shape, with this distinct authentication key and complete exact target image.
+Payload limits and `QPREFS04` state semantics remain unchanged. Local readers
+reject witnessed images; no in-place local-to-witness migration is inferred.
+
+An update authenticates the original local head and freshly queries its exact
+`(fence, revision, digest)`. It then durably publishes its exact write intent,
+requests the corresponding Advance, requires Advanced or AlreadyAppliedExact,
+publishes that exact saved ciphertext, removes the intent and queries again.
+Each attempt has a fresh challenge; the original command ID excludes the challenge
+and remains stable across retries. A lost response may follow remote commitment.
+Recovery retries the saved command rather than sealing another target. A stale
+head, conflicting last command or changed fence closes the owner without release.
+
+Ordinary session calls check both head and independently adopted current authority
+before work and before returning their result. Status queries use fresh head
+checks without gaining ordinary traffic permission. Historical exact-commit
+reconciliation can therefore finish after expiry, while ciphertext/plaintext
+release remains denied. Authenticated authority denial cannot become a local-only
+fallback. Queries and authority responses are admission points, not future leases.
+
+The client serializes calls and verifies both signatures, exact subject/command,
+attempt digest and outcome consistency. A failed or reentrantly closed client
+cannot release a reply; recovery needs a new client over the same saved command.
+The TCP carrier uses one explicit numeric address, exact 3674/3659-byte frames,
+a total finite attempt budget of at most 60 seconds and no implicit retries.
+All partial I/O uses the remaining deadline. This signed carrier exposes public
+metadata; it does not claim TLS confidentiality. Custom host carriers must honor
+the deadline themselves; synchronous Python cannot forcibly preempt callbacks.
+
+`witness_checks.py` verifies actual bootstrap, bidirectional consumption and three
+PQ rekeys with both durable implementations. It retains three real SIGKILL cuts,
+before-dispatch and lost-response faults, stale/corrupt receipts, expired exact
+reconciliation, actual witness-store reopen, restored-client-image rejection and
+writer fencing after a send commits but before output. Separate controls cover
+signature/framing input, total-deadline trickle and close during a valid exchange.
+These tests do not restart the whole witness service process, qualify a separate
+host or cover the full renewal/revocation/migration lifecycle. Whole-witness
+rollback remains outside the guarantee, as do physical erasure and power-loss proof.
 
 ## Private file boundary
 

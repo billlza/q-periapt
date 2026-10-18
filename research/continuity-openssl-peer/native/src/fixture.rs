@@ -20,6 +20,7 @@ pub(super) struct Fixture {
     pub signer: DeviceSigningKey,
     pub prekey: q_periapt_sdk::HybridKey,
     pub responder: Arc<VerifiedDevice>,
+    pub witness: Option<Arc<crate::witness::Witness>>,
 }
 
 fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -64,7 +65,12 @@ fn runtime(directory: &Path) -> Result<Arc<Runtime>> {
     Ok(runtime)
 }
 
-pub(super) fn create(directory: &Path, peer_key: PublicKey, budget: u16) -> Result<Fixture> {
+pub(super) fn create(
+    directory: &Path,
+    peer_key: PublicKey,
+    budget: u16,
+    witness: Option<Arc<crate::witness::Witness>>,
+) -> Result<Fixture> {
     let runtime = runtime(directory)?;
     let authority = PolicySigningKey::generate()?;
     let validity = Validity::new(100, 200)?;
@@ -75,7 +81,11 @@ pub(super) fn create(directory: &Path, peer_key: PublicKey, budget: u16) -> Resu
             1,
             validity,
             AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
-            AnchorRequirement::local_only(),
+            witness
+                .as_ref()
+                .map_or_else(AnchorRequirement::local_only, |w| {
+                    AnchorRequirement::required(&w.pin)
+                }),
             ApplicationSendBudget::new(budget)?,
         )?,
     )?;
@@ -92,7 +102,10 @@ pub(super) fn create(directory: &Path, peer_key: PublicKey, budget: u16) -> Resu
     let policy_pin = PolicyPin::new(family, authority.public_key()?, policy.checkpoint())?;
     let verified_policy =
         Arc::new(policy_pin.verify(policy.as_bytes(), Arc::clone(&runtime), NOW)?);
-    let signer = DeviceSigningKey::generate()?;
+    let signer = match &witness {
+        Some(w) => w.provision_device()?,
+        None => DeviceSigningKey::generate()?,
+    };
     let mut devices = Vec::new();
     for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
         let root = RootSigningKey::generate()?;
@@ -177,5 +190,6 @@ pub(super) fn create(directory: &Path, peer_key: PublicKey, budget: u16) -> Resu
         signer,
         prekey: key,
         responder: Arc::clone(responder),
+        witness,
     })
 }

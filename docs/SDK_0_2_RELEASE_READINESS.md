@@ -144,6 +144,22 @@ a different source cohort. Required witnesses, authority/identity lifecycle,
 network/package qualification, construction-wide analysis and integration remain
 open; no additional CodeQL database, power-loss or PCS claim follows.
 
+The subsequent [independent required-witness checkpoint](../research/sdk-alpha1/evidence/20261018-independent-witness/README.md)
+adds separately pinned witnessed creation/opening, exact remote advancement and
+current-authority/output admission. Both the independent owner and actual Rust
+required-witness journal complete bootstrap, bidirectional consumption and three
+PQ rekeys against the actual persistent witness. Thirty-six fresh-process
+operations include three real kills; 47 direct controls cover old backups, stale
+or corrupt replies, writer fencing, close during verification and bounded TCP.
+Public replay checks 221 signed replies and 223 distinct challenges. An already
+committed original intent reconciles after expiry without granting traffic output.
+All eleven local lanes and four readers pass on 55 sources, with strict build,
+Clippy, formatting, workflow lint and 46 source-contract tests. The Rust census is
+724; no new CodeQL database is claimed. Hosted execution, whole-service/separate-host
+deployment, authority renewal/revocation/migration, installed independent lifecycle
+and construction-wide analysis remain open. A live witness does not erase retained
+secrets or establish PCS, and its own state must remain independent of client backups.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,

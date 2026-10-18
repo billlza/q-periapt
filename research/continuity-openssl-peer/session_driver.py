@@ -13,10 +13,11 @@ from peer.wire import require
 
 
 class SessionDriver:
-    def __init__(self, output, provider, public, configuration, path, signer_path=None):
+    def __init__(self, output, provider, public, configuration, path, signer_path=None, *, witness_address=None):
         self.output, self.provider, self.public = output, provider, public
         self.configuration, self.path, self.signer_path = configuration, path, signer_path
         self.operations = []
+        self.witness_address = witness_address
 
     def run(self, name, action, arguments=(), now=170, cut=None, refusal=None, with_signer=True):
         output, provider, public = self.output, self.provider, self.public
@@ -31,6 +32,8 @@ class SessionDriver:
                    "--configuration", str(configuration), "--root", str(path), "--request", str(request))
         if with_signer and self.signer_path is not None:
             command += ["--signer", str(self.signer_path)]
+        if self.witness_address is not None:
+            command += ["--witness-address", self.witness_address]
         if cut is not None:
             command += ["--cut", cut]
         with (output / (name + ".stderr")).open("xb") as stderr:

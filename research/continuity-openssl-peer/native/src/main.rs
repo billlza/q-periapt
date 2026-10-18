@@ -13,6 +13,7 @@ use std::{
 mod fixture;
 mod journal;
 mod resolution;
+mod witness;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const NOW: u64 = 150;
 
@@ -40,25 +41,33 @@ fn send(output: &mut impl Write, status: u8, bytes: &[u8]) -> Result<()> {
 fn main() -> Result<()> {
     let mut args = std::env::args_os().skip(1);
     let path = args.next().ok_or("expected new public output directory")?;
-    let budget = match args.next() {
-        None => 1024,
-        Some(flag) if flag == "--send-budget" => args
-            .next()
-            .ok_or("missing send budget")?
-            .to_str()
-            .ok_or("non-UTF8 send budget")?
-            .parse::<u16>()?,
-        _ => return Err("unexpected argument".into()),
-    };
-    if args.next().is_some() {
-        return Err("unexpected argument".into());
+    let mut budget = 1024;
+    let mut required = false;
+    while let Some(flag) = args.next() {
+        match flag.to_str() {
+            Some("--send-budget") => {
+                budget = args
+                    .next()
+                    .ok_or("missing send budget")?
+                    .to_str()
+                    .ok_or("non-UTF8 budget")?
+                    .parse::<u16>()?
+            }
+            Some("--required-witness") if !required => required = true,
+            _ => return Err("unexpected argument".into()),
+        }
     }
     let directory = Path::new(&path);
     fs::create_dir(directory)?;
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
     let peer_key = PublicKey::decode(&receive(&mut input)?)?;
-    let fixture = fixture::create(directory, peer_key, budget)?;
+    let witness = if required {
+        Some(witness::Witness::create(directory)?)
+    } else {
+        None
+    };
+    let fixture = fixture::create(directory, peer_key, budget, witness)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;
@@ -88,6 +97,12 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
+            30..=33 => fixture
+                .witness
+                .as_ref()
+                .ok_or("required witness not configured")?
+                .command(&fixture, command, payload)
+                .map_err(|error| error.to_string()),
             4..=27 => {
                 if durable.is_none() {
                     if command != 4 {

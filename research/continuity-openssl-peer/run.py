@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -36,6 +36,8 @@ class Counterpart:
                 if type(send_budget) is not int or not 0 < send_budget <= 65535:
                     raise ValueError("explicit native send budget")
                 command += ["--send-budget", str(send_budget)]
+            if required_witness:
+                command += ["--required-witness"]
             self.process = subprocess.Popen(command,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr,
                 bufsize=0, start_new_session=True)
@@ -79,18 +81,22 @@ class Counterpart:
             result.extend(part)
         return bytes(result)
 
-    def command(self, name: str, command: int, wire: bytes, status: int, expected: bytes | None = None) -> bytes:
+    def exchange_record(self, name: str, command: int, wire: bytes) -> bytes:
         reply = self.transfer(bytes([command]) + wire)
         # Inputs and replies are public protocol bytes, including rejected
         # signed controls. Keep them even when the expected result is wrong.
         (self.cases / (name + ".input")).write_bytes(wire)
         (self.cases / (name + ".output")).write_bytes(reply)
-        if reply[0] != status or (expected is not None and reply[1:] != expected):
-            raise ValueError("unexpected native result: " + name + ": " + repr(reply[:100]))
-        self.commands.append({"case": name, "command": command, "status": status,
+        self.commands.append({"case": name, "command": command, "status": reply[0],
                               "input_sha256": hashlib.sha256(wire).hexdigest(),
                               "output_sha256": hashlib.sha256(reply[1:]).hexdigest(),
-                              "error": reply[1:].decode("ascii") if status == 2 else None})
+                              "error": reply[1:].decode("ascii") if reply[0] == 2 else None})
+        return reply
+
+    def command(self, name: str, command: int, wire: bytes, status: int, expected: bytes | None = None) -> bytes:
+        reply = self.exchange_record(name, command, wire)
+        if reply[0] != status or (expected is not None and reply[1:] != expected):
+            raise ValueError("unexpected native result: " + name + ": " + repr(reply[:100]))
         return reply[1:]
 
     def close(self):

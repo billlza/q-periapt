@@ -27,6 +27,16 @@ def mac(key: bytes, value: bytes) -> bytes:
 
 class Initiator:
     def __init__(self, context: Context, signer: SigningKey, now: int):
+        require(context.witness is None, "volatile owner cannot release required-witness traffic")
+        self._initialize(context, signer, now)
+
+    @classmethod
+    def _prepare_for_journal(cls, context, signer, now):
+        owner = cls.__new__(cls)
+        owner._initialize(context, signer, now)
+        return owner
+
+    def _initialize(self, context, signer, now):
         context.check(now)
         require(signer.public() == context.initiator, "initiator signing owner")
         self._context = context

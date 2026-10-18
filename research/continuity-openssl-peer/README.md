@@ -15,10 +15,12 @@ This is controlled enrollment for the experiment, not a network registration or
 trust-distribution protocol. No private key or KEM secret crosses the control
 pipe. Three-flight payloads use the unchanged candidate bytes.
 
-The current supported profile is explicit: local-only bootstrap, reusable-both
-prekeys, a two-leaf manifest, and the stated fixed SDK algorithm policy. Required
-witnesses, one-time modes and other manifests/policies fail instead of selecting
-a weaker mode. The peer independently verifies SDK and protocol policy, both
+The current supported profiles use reusable-both prekeys, a two-leaf manifest,
+and the stated fixed SDK algorithm policy. Local-only sessions and sessions with
+one explicitly pinned required witness have separate creation/opening APIs.
+Local and volatile entry points reject required-witness policies. One-time modes
+and other manifests/policies fail instead of selecting a weaker mode.
+The peer independently verifies SDK and protocol policy, both
 identity chains, exact roster heads, validity, key separation, the manifest and
 both leaf proofs. It constructs the canonical selection and role-ordered context
 before doing the policy-bound hybrid KEM and confirmation schedule.
@@ -112,8 +114,8 @@ lifecycle remain required.
 No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
-This is not an admitted independent Continuity product implementation. Required
-witnesses, renewal, revocation, account fanout, the complete installation/migration
+This is not an admitted independent Continuity product implementation. Authority
+renewal, revocation, account fanout, the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,
 application accounting and subsequent history collection. `resolution_capacity_checks.py`
@@ -134,10 +136,24 @@ that context is never passed to the real Rust counterpart.
 Python bytes and provider temporaries do not provide the Rust SDK's zeroizing
 owner guarantee; dropping references does not prove erasure. Private session state
 is sealed in its store; public artifacts omit wrapping keys and private images.
-The peer's fixed authority snapshot and trusted-time input do not
-implement concurrent policy replacement or persistent rollback protection.
-Those need explicit integration before this lane can close the independent
-implementation requirement.
+The peer's fixed authority snapshot and trusted-time input do not implement
+concurrent policy replacement. Local-only stores have no whole-store rollback
+protection. Required-witness stores reject a local image that differs from the
+live witness, assuming the witness retains its own state independently.
+Deployment and the remaining lifecycle still need integration before this lane
+can close the independent implementation requirement.
+
+`witness_checks.py` exercises the required profile against an actual Rust
+`AnchorStore` and an actual required-witness Rust session journal. Explicit
+inactive provisioning exports only an operator-approved genesis; normal peer
+requests cannot register it. Fresh challenged queries and authority checks gate
+ordinary outputs, and exact signed advancement precedes local publication.
+Three real process cuts cover creation intent, remote advancement and local
+publication. Lost replies preserve the original intent, even when an already
+committed transition must be reconciled after expiry. Cached output still needs
+current authority. Restored client backups and a changed writer fence fail.
+The loopback TCP bridge is test orchestration for the signed witness byte carrier;
+it is not a separately deployed witness or an application network carrier.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

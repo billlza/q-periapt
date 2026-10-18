@@ -158,7 +158,7 @@ class RekeyOwner:
     @locked
     def rekey_progress(self):
         """Read-only counters; zero pending target means no pending exchange."""
-        with self._state() as (_snapshot, state):
+        with self._state(operational=False) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             owner = state.traffic
             return (owner.confirmed, owner.sending, owner.receiving,

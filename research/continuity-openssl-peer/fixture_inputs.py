@@ -11,7 +11,7 @@ def read_public(directory, name):
     return value
 
 
-def load(directory, admission_time):
+def load(directory, admission_time, *, witness_pin=None):
     def read(name):
         return read_public(directory, name)
     def device(role):
@@ -27,4 +27,9 @@ def load(directory, admission_time):
     materials = Materials(*(read(name) for name in (
         "sdk-document", "sdk-signature", "policy", "i-credential", "i-roster",
         "r-credential", "r-roster", "manifest", "proof-1", "proof-3")))
-    return pins, materials, authenticate(pins, materials, admission_time)
+    return pins, materials, authenticate(pins, materials, admission_time, witness_pin=witness_pin)
+
+
+def load_witness_pin(directory):
+    from peer.witness import Pin
+    return Pin(read_public(directory, "pin-witness-id"), VerificationKey(read_public(directory, "pin-witness-key")))

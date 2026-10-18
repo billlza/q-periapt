@@ -76,7 +76,7 @@ class ControlOwner:
     @locked
     def rekey_request_status(self):
         """BodyPrepared is not Rust's signature-randomness reservation."""
-        with self._state() as (_snapshot, state):
+        with self._state(operational=False) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             request = state.traffic.request
             return "Absent" if request is None else ("Committed" if request.wire else "BodyPrepared")

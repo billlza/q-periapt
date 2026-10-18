@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from cryptography.hazmat.primitives.asymmetric import mldsa
 
 from .kem import SdkBinding
+from .witness import Profile
 from .wire import (Interval, Reader, VerificationKey, digest, generation, ldh,
                    lp, nonzero, require)
 
@@ -150,6 +151,7 @@ class Context:
     intervals: tuple[Interval, ...]
     selection: bytes
     send_budget: int
+    witness: Profile | None = None
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
@@ -162,7 +164,7 @@ class Context:
             interval.check(now)
 
 
-def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
+def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None) -> Context:
     sdk = verify_sdk(pins, materials)
     family = digest(b"POLICY-AUTHORITY", pins.policy_root.raw)
     body = pins.policy_root.open(materials.policy, 4, 200)
@@ -176,8 +178,14 @@ def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
     require(reader.take(32) == SUITE and reader.take(68) == sdk.wire(), "policy SDK/suite binding")
     modes = reader.integer(1)
     require(modes & ~15 == 0 and modes & 2 != 0, "reusable quality not permitted")
-    require(reader.integer(1) == 0 and reader.take(32) == bytes(32),
-            "volatile peer cannot admit required-witness profile")
+    anchor_mode, anchor_binding = reader.integer(1), reader.take(32)
+    if witness_pin is None:
+        require(anchor_mode == 0 and anchor_binding == bytes(32),
+                "volatile peer cannot admit required-witness profile")
+    else:
+        require(anchor_mode == 1 and anchor_binding == witness_pin.binding, "required witness pin differs")
+        require(not witness_pin.key.shares_component(pins.policy_root)
+                and witness_pin.key.raw[:1952] != pins.sdk_root, "witness/policy key separation")
     budget = reader.integer(2)
     require(budget != 0, "zero send allowance")
     reader.finish()
@@ -191,6 +199,15 @@ def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
     for device in (initiator, responder):
         require(not device.key.shares_component(pins.policy_root)
                 and device.key.raw[:1952] != pins.sdk_root, "device/policy key separation")
+    witness = None
+    if witness_pin is not None:
+        for device in (initiator, responder):
+            require(not witness_pin.key.shares_component(device.key)
+                    and not witness_pin.key.shares_component(device.pin.root), "witness/device/account key separation")
+        owner = ldh(b"Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/storage-owner",
+                    pins.initiator.account + pins.initiator.device + pins.initiator.generation.to_bytes(8, "big")
+                    + initiator.credential)
+        witness = Profile(witness_pin, owner, pins.policy_digest, initiator.authority)
     manifest = responder.key.open(materials.manifest, 3, 290)
     r = Reader(manifest)
     require(r.take(8) == b"QPMANF01", "manifest tag")
@@ -247,4 +264,4 @@ def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
                   + initiator.context() + responder.context() + selection + pins.directory)
     return Context(sdk, context, initiator.key, responder.key, pq[2] + classical[2],
                    (validity, initiator.validity, initiator.roster_validity, responder.validity,
-                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget)
+                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness)

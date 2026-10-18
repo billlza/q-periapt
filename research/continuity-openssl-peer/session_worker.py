@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--request", type=Path, required=True)
     parser.add_argument("--cut")
     parser.add_argument("--signer", type=Path)
+    parser.add_argument("--witness-address")
     args = parser.parse_args()
     sys.path.append(str(Path(__file__).resolve().parent))
     from provider import load_provider
@@ -33,7 +34,11 @@ def main():
     key, scope = private[:32], Scope(private[32:64], private[64:96], private[96:])
     # Historical public inputs reconstruct the exact original context. The
     # operation below separately checks its supplied current trusted time.
-    _, _, context = load(args.public, 150)
+    witness_pin = None
+    if args.witness_address is not None:
+        from fixture_inputs import load_witness_pin
+        witness_pin = load_witness_pin(args.public)
+    _, _, context = load(args.public, 150, witness_pin=witness_pin)
     with args.request.open("rb") as stream:
         raw = stream.read(65537)
     require(len(raw) <= 65536, "worker request capacity")
@@ -56,13 +61,30 @@ def main():
                "prepare_rekey_request", "respond_rekey_request", "rekey_request_status",
                "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control",
                "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"}
-    require(action in allowed, "unknown session action")
+    require(action in allowed or (witness_pin is not None and action in ("witness_provision", "witness_genesis")), "unknown session action")
     def observe(stage):
         if stage == args.cut:
             print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
             signal.pause()
             raise RuntimeError("killed session worker unexpectedly resumed")
-    owner = Session.open(args.root, scope, key, context, observer=observe)
+    if witness_pin is not None:
+        from peer.witness import Client, TcpTransport
+        from peer.witness_session import WitnessSession
+        from signing_fixture import read
+        signer = read(args.signer)
+        if action in ("witness_provision", "witness_genesis"):
+            require(not arguments, "genesis action arguments")
+            if action == "witness_provision":
+                genesis = WitnessSession.provision(args.root, scope, key, context, signer, now, observe)
+            else:
+                genesis = WitnessSession.recover_genesis(args.root, scope, key, context, observe)
+            print(json.dumps({"result": genesis.wire().hex()}))
+            return
+        host, port = args.witness_address.rsplit(":", 1)
+        client = Client(witness_pin, context.witness.subject(scope.identity), signer, TcpTransport((host, int(port))))
+        owner = WitnessSession.open(args.root, scope, key, context, client=client, observer=observe)
+    else:
+        owner = Session.open(args.root, scope, key, context, observer=observe)
     try:
         if action in ("begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"):
             require(arguments and len(arguments[0]) == 8, "resolution epoch argument")

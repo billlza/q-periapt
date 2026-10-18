@@ -39,6 +39,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @classmethod
     def create(cls, path, scope: Scope, key: bytes, context, signer, now: int, observer=None):
+        require(context.witness is None, "required witness needs the witnessed session owner")
         cls._scope(context, scope)
         state = State(Initiator(context, signer, now))
         try:
@@ -49,16 +50,21 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @classmethod
     def open(cls, path, scope: Scope, key: bytes, context, *, creation=False, observer=None):
+        require(context.witness is None, "required witness needs the witnessed session owner")
         cls._scope(context, scope)
         journal = Journal.open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
         return cls(journal, context, observer)
 
     @contextmanager
-    def _state(self):
+    def _state(self, *, operational=True):
         snapshot = self._journal.read()
         state = decode(snapshot.payload, self._context)
         try:
+            if self._context.witness is not None:
+                self._journal.admit(snapshot, operational)
             yield snapshot, state
+            if self._context.witness is not None:
+                self._journal.release(operational)
         finally:
             state.close()
 
@@ -195,7 +201,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
     @locked
     def storage_format(self) -> int:
         """Read-only upgrade disposition; it grants no protocol permission."""
-        with self._state() as (_snapshot, state):
+        with self._state(operational=False) as (_snapshot, state):
             return state.format_version
 
     @locked
@@ -226,7 +232,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
     @locked
     def status(self, identity: bytes | None = None) -> str:
         """Read-only dispositions can survive expiry; no private/output bytes."""
-        with self._state() as (_snapshot, state):
+        with self._state(operational=False) as (_snapshot, state):
             if identity is None:
                 return "Traffic" if state.traffic is not None else ("Confirmed" if state.operation._reply is not None else "Waiting")
             require(state.traffic is not None, "traffic not activated")

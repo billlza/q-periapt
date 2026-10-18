@@ -58,7 +58,7 @@ class ResolutionOwner:
     def closed_epoch_resolution_status(self, epoch):
         """Read-only metadata survives expiry; it grants no report or traffic."""
         require(type(epoch) is int and epoch >= 0, "resolution epoch")
-        with self._state() as (_snapshot, state):
+        with self._state(operational=False) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             state.traffic.traffic(epoch)
             resolution = state.traffic.resolutions.get(epoch)

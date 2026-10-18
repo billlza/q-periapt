@@ -61,6 +61,8 @@ class Snapshot:
 
 
 class Journal:
+    image_overhead = 128
+
     def __init__(self, path: Path, scope: Scope, wrapping_key: bytes, validate, observer=None):
         require(type(wrapping_key) is bytes and len(wrapping_key) == 32, "wrapping key size")
         self._lock = threading.RLock()
@@ -117,7 +119,7 @@ class Journal:
         return body + hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + body, "sha256")
 
     def _decode_intent(self, wire: bytes) -> tuple[int, bytes, bytes, Snapshot]:
-        require(84 + 128 <= len(wire) <= MAX_STATE + 212, "write-intent capacity")
+        require(84 + self.image_overhead <= len(wire) <= MAX_STATE + 84 + self.image_overhead, "write-intent capacity")
         expected = hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + wire[:-32], "sha256")
         require(hmac.compare_digest(expected, wire[-32:]), "write-intent authentication")
         r = Reader(wire[:-32])

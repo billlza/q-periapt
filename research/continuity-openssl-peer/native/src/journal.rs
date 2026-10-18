@@ -2,7 +2,8 @@
 //! Actual Rust storage boundary, separate from the independent Python state.
 use crate::{fixture::Fixture, Result, NOW};
 use q_periapt_continuity_identity_candidate::{
-    DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId, RekeyControlStep,
+    BootstrapRole, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId,
+    RekeyControlStep,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use std::{
@@ -92,12 +93,32 @@ impl Journal {
         file.write_all(identity.as_bytes())?;
         file.sync_all()?;
         fs::File::open(&path)?.sync_all()?;
-        let owner = DeviceJournal::provision(
-            &path.join("journal"),
-            JournalKey::provision(&path.join("key"))?,
-            &fixture.responder,
-            identity,
-        )?;
+        let owner = if let Some(witness) = &fixture.witness {
+            let mut owner = DeviceJournal::provision_anchored(
+                &path.join("journal"),
+                JournalKey::provision(&path.join("key"))?,
+                &fixture.responder,
+                fixture.context.current_policy()?,
+                identity,
+                NOW,
+            )?;
+            let genesis =
+                owner.anchor_genesis(&fixture.responder, fixture.context.current_policy()?)?;
+            witness.enroll(&genesis, fixture, BootstrapRole::Responder)?;
+            owner.activate_anchor(
+                &fixture.responder,
+                fixture.context.current_policy()?,
+                witness.client()?,
+            )?;
+            owner
+        } else {
+            DeviceJournal::provision(
+                &path.join("journal"),
+                JournalKey::provision(&path.join("key"))?,
+                &fixture.responder,
+                identity,
+            )?
+        };
         Ok(Self {
             owner,
             path,
@@ -193,12 +214,23 @@ impl Journal {
             }
             12 if payload.is_empty() => {
                 self.owner.close();
-                self.owner = DeviceJournal::open(
-                    &self.path.join("journal"),
-                    JournalKey::open(&self.path.join("key"))?,
-                    &fixture.responder,
-                    self.identity,
-                )?;
+                self.owner = if let Some(witness) = &fixture.witness {
+                    DeviceJournal::open_anchored(
+                        &self.path.join("journal"),
+                        JournalKey::open(&self.path.join("key"))?,
+                        &fixture.responder,
+                        fixture.context.current_policy()?,
+                        self.identity,
+                        witness.client()?,
+                    )?
+                } else {
+                    DeviceJournal::open(
+                        &self.path.join("journal"),
+                        JournalKey::open(&self.path.join("key"))?,
+                        &fixture.responder,
+                        self.identity,
+                    )?
+                };
                 Ok(b"reopened".to_vec())
             }
             13 if payload.is_empty() => {
