@@ -75,6 +75,7 @@ jobs:
           toolchain: 1.98.1
           components: clippy
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: native_python
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -113,10 +114,13 @@ jobs:
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoLogo -NoProfile -NonInteractive -Command $privateRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Execute installed C first use and native Rust lifecycle
-        shell: pwsh
+        shell: bash
+        env:
+          WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}
         run: |
-          python -I -S -B -W error artifact/python_bootstrap.py artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$env:RUNNER_TEMP/installed-c-private"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
+          export QPERIAPT_PYTHON
+          sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private"
       - name: Preserve public results and exact C library inputs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
