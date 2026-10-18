@@ -101,6 +101,13 @@ regression lanes, strict build/Clippy, formatting, workflow lint and public
 readback pass on the 40-source closure. Hosted qualification remains pending.
 Network carriers/scheduling, closed-epoch application resolution, required
 witnesses, identity lifecycle and disclosure/refinement analysis remain open.
+The [Linux hosted control checkpoint](../research/sdk-alpha1/evidence/20261018-hosted-independent-control/README.md)
+then passes all seven lanes at `a6760a65`. Separate local readers of its original
+artifact verify the exact 40 committed sources, actual ELF binary, all 33 distinct
+signed controls and 101 control results, plus the six original regression lanes.
+Apple Silicon hosted execution remains queued; the local ARM64 result retains its
+own scope. The deterministic control-pipe schedule does not close network carrier,
+scheduling/energy or full independent lifecycle qualification.
 
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
