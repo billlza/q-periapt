@@ -7,7 +7,7 @@ use crate::{
     fixture, p, Result,
 };
 use q_periapt_host_store::filesystem::publish_private_bytes;
-use std::{fs, os::unix::fs::DirBuilderExt, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 impl Renewal<'_> {
     fn issue_after_policy(
@@ -292,7 +292,7 @@ pub(crate) fn export_public(case: &Case<'_>) -> Result<()> {
         case.profile
     ))
     .join("credential");
-    fs::DirBuilder::new().mode(0o700).create(&target)?;
+    fixture::create_private_directory(&target)?;
     for name in [
         "credential-request",
         "credential-request-replayed",

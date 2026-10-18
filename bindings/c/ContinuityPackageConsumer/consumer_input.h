@@ -16,6 +16,9 @@ static inline WCHAR *qpc_path_utf16(const char *path) {
     if(MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,path,-1,wide,length)!=length) {
         free(wide); errno=EINVAL; return NULL;
     }
+    /* Callers join public input paths with '/'. Extended Windows paths disable
+     * Win32 separator normalization, so emit native separators explicitly. */
+    for(int i=0;i<length-1;++i) if(wide[i]==L'/') wide[i]=L'\\';
     return wide;
 }
 static inline FILE *qpc_input_file(const char *path) {

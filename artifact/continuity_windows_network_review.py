@@ -9,6 +9,7 @@ import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
 from continuity_windows_c_public import review_profile
 from continuity_windows_root import review as review_roots
+from continuity_windows_configuration import review as review_configuration
 
 
 def review(root: Path, output: Path, expected_head: str) -> dict:
@@ -16,7 +17,7 @@ def review(root: Path, output: Path, expected_head: str) -> dict:
     sdk.require(report['input']['source_commit'] == expected_head, 'runtime source differs')
     sdk.require(report['rustc'].splitlines()[0] == 'rustc 1.98.1 (48a229cea 2026-09-01)'
                 and 'host: x86_64-pc-windows-msvc' in report['rustc'], 'native Windows compiler differs')
-    observed, c_owners, roots = {}, {}, {}
+    observed, c_owners, roots, configuration = {}, {}, {}, {}
     for profile in ('debug', 'release'):
         path_command = parse_strict_json_bytes(sdk.snapshot(root / (profile + '-configuration-paths.json')).data,
                                                label='native path admission command')
@@ -50,9 +51,17 @@ def review(root: Path, output: Path, expected_head: str) -> dict:
             folder / 'roster', folder / 'replacement', folder / 'retirement')
         c_owners[profile] = review_profile(root, profile, report['profiles'][profile]['owner_public'])
         roots[profile] = review_roots(root, profile, report['profiles'][profile]['roots']['public'])
+        configuration[profile] = review_configuration(root, profile, report['profiles'][profile]['configuration'])
+        row = report['profiles'][profile]
+        identities = row['configuration']['binaries']
+        sdk.require(identities['first-configuration.exe'] == row['client_sha256']
+                    and identities['owner-client.exe'] == row['owner_client_sha256']
+                    and identities['q_periapt_continuity_c_consumer.dll'] ==
+                    row['files']['q_periapt_continuity_c_consumer.dll'],
+                    'first-registration binary identities differ from the installed profile')
     result = {'source_commit': expected_head, 'native_receipt_sha256': hashlib.sha256(sdk.snapshot(root / 'RESULT.json').data).hexdigest(),
-              'profiles': observed, 'c_owners': c_owners, 'roots': roots,
-              'scope': 'Installed archive-shipped Rust lifecycle, seven C owner public contracts and four root replacement routes on Windows; same engine/host, original readbacks with explicit TerminateProcess cuts; not independent protocol implementation or release admission'}
+              'profiles': observed, 'c_owners': c_owners, 'roots': roots, 'configuration': configuration,
+              'scope': 'Installed archive-shipped Rust lifecycle, seven C owner public contracts, four root replacement routes and six first-registration carrier/trust cases on Windows; same engine/host, original readbacks with explicit TerminateProcess cuts; not independent protocol implementation or release admission'}
     sdk.write_json(output, result)
     return result
 

@@ -8,6 +8,7 @@
 #include <errno.h>
 #include "consumer_platform.h"
 #include "consumer_input.h"
+#include "consumer_marker.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,13 +118,14 @@ static void wait_marker(const char *path) {
     struct timespec start, current, interval = {0, 25000000};
     if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
-        FILE *file = qpc_input_file(path);
-        if (file) {
-            int byte = fgetc(file), end = fgetc(file), bad = ferror(file);
-            if (fclose(file) != 0 || bad || byte != '1' || end != EOF) fail("invalid test marker");
-            return;
+        int marker=qpc_marker_read(path);
+        if(marker==1) return;
+        if(marker<0) {
+#ifdef _WIN32
+            fprintf(stderr,"test marker error=%lu\n",(unsigned long)GetLastError());
+#endif
+            fail("test marker read failed");
         }
-        if (errno != ENOENT) fail("test marker read failed");
         if (qpc_monotonic_time(&current)) fail("clock unavailable");
         if (current.tv_sec - start.tv_sec >= 10) fail("socket barrier timed out");
         if (qpc_sleep(&interval) && errno != EINTR) fail("test wait failed");

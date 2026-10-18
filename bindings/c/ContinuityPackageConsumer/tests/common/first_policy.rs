@@ -2,7 +2,7 @@
 use crate::policy_request::read_request;
 use crate::{fixture, p, run, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
-use std::{fs, os::unix::fs::DirBuilderExt, path::Path};
+use std::{fs, path::Path};
 
 pub(crate) struct Renewal<'a> {
     pub(crate) account_root: &'a p::RootSigningKey,
@@ -77,7 +77,7 @@ impl Renewal<'_> {
             )?,
         )?;
         let inputs = source.join("policy-target");
-        fs::DirBuilder::new().mode(0o700).create(&inputs)?;
+        fixture::create_private_directory(&inputs)?;
         for name in [
             "sdk-policy",
             "sdk-signature",

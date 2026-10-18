@@ -5,7 +5,6 @@ use std::{
     ffi::OsString,
     fs,
     net::SocketAddr,
-    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -26,13 +25,7 @@ pub(crate) fn start_selected(
 ) -> Result<(Server, SocketAddr)> {
     let stdout = path.join(format!("traffic-{label}.stdout"));
     let stderr = path.join(format!("traffic-{label}.stderr"));
-    let output = |path: &Path| {
-        fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-    };
+    let output = fixture::create_private_file;
     let mut server = Server {
         child: fixture::OwnedChild(
             Command::new(client)

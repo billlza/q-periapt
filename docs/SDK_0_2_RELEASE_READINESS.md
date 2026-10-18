@@ -243,6 +243,41 @@ SDK export or storage format. The native control and full root routes still
 require execution; local strict C compilation confirms the Unix caller remains
 buildable with the same report bound.
 
+At `4aca8982` ([run `39102185164`](https://github.com/billlza/q-periapt/actions/runs/39102185164)),
+both Windows hosts pass the Debug/Release live-image and 8 MiB publication controls.
+The old CRT read succeeds without a writer and fails with error 32 under a live
+writable owner. The mapped read retains the mandatory lock and exact bytes.
+Both Debug owner suites pass all ten entries. Independent local replay also
+accepts 103 exported public files from three C workloads on Windows 2022 and
+262 files from all seven on Windows 2025; both actual Debug DLLs contain 157
+exports. The complete cohort still fails: Windows 2022's separate account run
+cannot read its synchronization marker, and Windows 2025's original root route
+cannot read its approval inputs. No root route or Release installed runtime is
+qualified by this attempt.
+
+The root driver passes a canonical extended Windows path while the C input
+loader appends forward-slash separators. The UTF-16 path helper now emits native
+separators explicitly. The marker reader now shares with the publisher's still-open
+write/delete handle and retains exact one-byte, absence and error checks. It does
+not retry denied or malformed inputs. A new native control compares the original
+extended-path read, the original CRT sharing refusal and the corrected readers,
+including Unicode paths, a held publisher, a mandatory lock and malformed markers.
+These controls must execute before attributing the failures conclusively; the
+failed marker log did not retain its native error number. Local strict C11 and
+ASan/UBSan marker checks and all ten original owner entries pass against the
+recorded Mac reference library. An unsupported explicit leak-sanitizer startup
+option is retained separately; the supported run makes no leak-sanitizer claim.
+
+Complete first-registration drivers now reuse the existing private-directory and
+private-file helpers instead of direct Unix permission APIs. Local execution of
+both original entrypoints covers all six local/signed-witness/TLS-witness and
+fixed/recoverable combinations, including real policy expiry, independent renewal,
+original-message recovery and receiver effects. All 190 public files replay through
+the original reader. Four affected driver targets pass strict Clippy, and 20 reader
+boundary tests pass. The Windows package now ships this driver and its shared
+inputs; both native profiles require the same six scenarios and separate Linux
+public replay. This remains a pending Windows requirement, not native admission.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

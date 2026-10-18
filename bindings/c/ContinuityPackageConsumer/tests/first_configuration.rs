@@ -4,7 +4,6 @@ use q_periapt_continuity_identity_candidate as p;
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{
     fs,
-    os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -207,7 +206,7 @@ fn export_public(
         return Err("explicit public configuration evidence directory".into());
     }
     let target = root.join(format!("{carrier}-{profile}"));
-    fs::DirBuilder::new().mode(0o700).create(&target)?;
+    fixture::create_private_directory(&target)?;
     let (original, repeated) = if carrier == "local" {
         ("first.request", "resumed.request")
     } else {
@@ -256,13 +255,11 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
     assert!(client.is_absolute() && client.is_file());
     for recoverable in [false, true] {
         let reference = fixture::setup(fixture::enrollment::SetupKind::EnrolledExpiringPolicy(60))?;
-        let dir = tempfile::Builder::new()
-            .permissions(fs::Permissions::from_mode(0o700))
-            .tempdir()?;
+        let dir = fixture::temporary_directory("continuity-first-configuration-")?;
         let base = dir.path().canonicalize()?;
         let source = base.join("independent-inputs");
         let target = base.join("new-installation");
-        fs::DirBuilder::new().mode(0o700).create(&source)?;
+        fixture::create_private_directory(&source)?;
         for name in [
             "sdk-policy",
             "sdk-signature",
@@ -331,7 +328,7 @@ fn independent_c_configuration_creates_and_resumes_original_identity() -> Result
         let verified = p::VerifiedEnrollmentRequest::verify(&original, &intent, fixture::now()?)?;
         if language != "C" {
             let continuation = source.join("continuation");
-            fs::DirBuilder::new().mode(0o700).create(&continuation)?;
+            fixture::create_private_directory(&continuation)?;
             for file in fs::read_dir(&source)? {
                 let file = file?;
                 if file.file_type()?.is_file() {
@@ -547,13 +544,11 @@ fn witnessed_registration_selected(
                 .lock()
                 .map_err(|_| "witness store")?
                 .pin()?;
-            let dir = tempfile::Builder::new()
-                .permissions(fs::Permissions::from_mode(0o700))
-                .tempdir()?;
+            let dir = fixture::temporary_directory("continuity-first-configuration-")?;
             let base = dir.path().canonicalize()?;
             let source = base.join("independent-inputs");
             let target = base.join("new-installation");
-            fs::DirBuilder::new().mode(0o700).create(&source)?;
+            fixture::create_private_directory(&source)?;
             for name in [
                 "sdk-policy",
                 "sdk-signature",

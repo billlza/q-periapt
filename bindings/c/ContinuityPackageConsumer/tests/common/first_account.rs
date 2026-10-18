@@ -4,7 +4,6 @@ use crate::{fixture, p, Result};
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{
     fs,
-    os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
 };
 
@@ -27,7 +26,7 @@ fn device(path: &Path, prefix: &str, certificate: &str, roster: &str) -> Result<
 
 pub(crate) fn associate(path: &Path, source: &Path, peer: &Path) -> Result<()> {
     assert!(!path.exists());
-    fs::DirBuilder::new().mode(0o700).create(path)?;
+    fixture::create_private_directory(path)?;
     let identity = p::AccountAuthorityIdentity::generate()?;
     let family = fixture::array(source, "family")?;
     let witness = fixture::array(source, "witness-id")?;
@@ -88,7 +87,7 @@ pub(crate) fn export_public(
         return Err("managed configuration evidence path".into());
     }
     let target = root.join(format!("{carrier}-{profile}"));
-    fs::DirBuilder::new().mode(0o700).create(&target)?;
+    fixture::create_private_directory(&target)?;
     for (name, input) in [
         ("request.bin", base.join("request")),
         ("replayed.bin", base.join("active-reopened")),

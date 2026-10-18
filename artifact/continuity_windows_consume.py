@@ -16,6 +16,7 @@ from installed_rust_graph import require, verify_resolution
 from continuity_connection_public import capture
 from continuity_windows_c_public import CASES, capture_case
 from continuity_windows_root import qualify as qualify_roots
+from continuity_windows_configuration import qualify as qualify_configuration
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -161,6 +162,14 @@ def consume(args):
         observed = run([str(root_publication), str(private_root)], profile + '-root-publication', controls, timeout=30)
         require(observed.strip() == 'WINDOWS_ROOT_PUBLICATION_PASS maximum=8388608 default_limit=1048576 exact_duplicate_retained=true conflict_preserves_original=true bounds_before_publication=true full_readback=true'
                 and not any(private_root.iterdir()), 'root report publication bound or original bytes differ')
+        input_test = controls / 'windows-input-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'windows_input_test.c'), '-lntdll', '-ladvapi32', '-o', str(input_test)],
+            profile + '-input-compile', client_source)
+        observed = run([str(input_test), str(private_root)], profile + '-input', controls, timeout=30)
+        require(observed.splitlines().count('WINDOWS_INPUT_PASS unicode=true extended_separator=true held_publisher_read=true mandatory_lock_preserved=true missing_pending=true malformed_refused=true') == 1
+                and not any(private_root.iterdir()), 'public path or marker sharing control failed')
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              *(['-O2'] if profile == 'release' else ['-O0', '-g']),
              '-c', str(client_source / 'recovery_client.c'), '-I', str(consumer),
@@ -270,6 +279,8 @@ def consume(args):
         environment.pop('QPERIAPT_C_OWNER_CLIENT')
         result['profiles'][profile]['roots'] = qualify_roots(
             run, profile, environment, installed, client_source, private_root, output, LIB)
+        result['profiles'][profile]['configuration'] = qualify_configuration(
+            run, profile, environment, installed, private_root, output, LIB)
         evidence = private_root / (profile + '-runtime')
         environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
         native = run(['cargo', 'test', '--locked', '--test', 'owned_connection', *flags,
@@ -297,6 +308,7 @@ def consume(args):
     (output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
     print('WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles=2 trust_modes=2 cases_per_profile=14')
     print('WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles=2 entries_per_profile=10 public_workloads_per_profile=7 independent_host_readback=pending')
+    print('WINDOWS_INSTALLED_FIRST_REGISTRATION_EXECUTED profiles=2 carrier_trust_cases_per_profile=6 independent_host_readback=pending')
     print('WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles=2 public_readback_verification=pending')
 
 

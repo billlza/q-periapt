@@ -60,9 +60,14 @@ def prepare(args) -> None:
     files.update({f'packages/{candidate.NAME}-{candidate.VERSION}/{p}': v for p, v in members.items()})
     prefix = 'bindings/c/ContinuityPackageConsumer/'
     tracked = run(['git', 'ls-files', prefix], 'facade-inputs').decode().splitlines()
+    configuration_inputs = {'tests/common/' + name + '.rs' for name in (
+        'recovery_inputs', 'credential_request', 'first_account', 'first_connection',
+        'first_credential', 'first_expiry', 'first_policy', 'first_policy_credential',
+        'peer_bundle', 'policy_request', 'receiver_policy', 'receiver_process',
+        'witness', 'witness_tls', 'witness_tls_faults', 'witness_tls_relay')}
     selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
-                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs', 'tests/common/witness.rs') or
-                p[len(prefix):].startswith('tests/root/') or
+                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs', 'tests/first_configuration.rs') or
+                p[len(prefix):] in configuration_inputs or p[len(prefix):].startswith('tests/root/') or
                 '/' not in p[len(prefix):] and p.endswith(('.c', '.h'))]
     source_hashes = {}
     for relative in selected:

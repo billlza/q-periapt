@@ -4,7 +4,6 @@ use crate::{fixture, p, Result};
 use std::{
     collections::BTreeMap,
     fs,
-    os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -119,7 +118,7 @@ pub(crate) fn peer_bundle_at_revision(
         },
     )?;
     server.close();
-    fs::DirBuilder::new().mode(0o700).create(peer)?;
+    fixture::create_private_directory(peer)?;
     for name in [
         "responder-account",
         "responder-root",
