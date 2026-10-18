@@ -160,6 +160,18 @@ deployment, authority renewal/revocation/migration, installed independent lifecy
 and construction-wide analysis remain open. A live witness does not erase retained
 secrets or establish PCS, and its own state must remain independent of client backups.
 
+The [Apple Silicon outcome-resolution completion](../research/sdk-alpha1/evidence/20261018-hosted-independent-resolution-mac/README.md)
+subsequently closes the ten-lane hosted matrix for `9f7a2e7a`. Its three readers
+use that commit's frozen 48-source closure. The later `09b226c4` required-witness
+matrix also completes on [Linux x86_64](../research/sdk-alpha1/evidence/20261018-hosted-independent-witness-linux/README.md)
+and [Apple Silicon](../research/sdk-alpha1/evidence/20261018-hosted-independent-witness-mac/README.md),
+with all eleven lanes on each host. Four readers per downloaded artifact verify
+the exact 55 committed sources, actual architecture-specific binary, 221 signed
+witness replies, 223 distinct challenges and three rekey transcripts. These hosted
+results preserve the expiry/output, lost-reply and old-image rejection boundaries.
+They do not qualify a separately deployed witness, full renewal/revocation/upgrade
+lifecycle, whole-witness rollback resistance or the remaining release requirements.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,
