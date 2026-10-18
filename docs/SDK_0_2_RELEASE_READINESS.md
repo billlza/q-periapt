@@ -147,6 +147,34 @@ even with an updated hash receipt, missing logs, skipped execution and extra
 private files. This validates the collector locally, not the new Windows runtime
 cohort; Windows execution and independent hosted readback remain pending.
 
+The `76ef4e52` native attempt (`39098248280`) confirms the next boundaries on
+both Windows systems: Debug/Release early C syntax and publication controls,
+Debug's 14 first-use processes, six application-record admission controls and
+bounded record retention pass. Both actual Debug DLLs independently contain
+exactly 157 exports. The subsequent owner suite reports three Rust fixture
+entries passed and all seven C entries refused by the language override before
+SDK work. This failed cohort is retained; it does not qualify C networking or
+the unexecuted Release installed runtime.
+
+The next attempt (`7596a088`, `39098843856`) fails before producing runtime
+artifacts: the public readers indirectly import `bounded_process`, whose
+module-level signal list accesses POSIX-only `SIGHUP`. Its import now permits
+portable readers while actual process management still explicitly rejects
+non-POSIX hosts before installing handlers or spawning a child. A regression
+removes `SIGHUP` in a fresh interpreter and verifies both import and operation
+refusal. The Windows jobs now run public-reader tests before SDK compilation.
+
+The first-configuration C caller now uses the existing Unicode process entry
+and UTF-8-to-wide path helper for input/output files. Exclusive binary output
+creation and its error handling remain unchanged. Existing native first-use
+cases now use Chinese input, installation and output names. Local strict C11
+compilation, protected-page checks, and the original fixed/recoverable local
+registration, expiry, renewal and connection workload pass under a Unicode
+temporary directory using the recorded Mac reference library. This is not yet
+native Windows Unicode-path qualification. Initial local harness attempts with
+a duplicate dependency graph and then a missing receiver configuration are
+retained separately from that successful execution.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

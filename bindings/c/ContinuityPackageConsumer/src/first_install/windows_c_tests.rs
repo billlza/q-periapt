@@ -69,7 +69,7 @@ fn run(
             .args([mode, trust])
             .arg(source)
             .arg(&c.target)
-            .arg(c.root.join(format!("{label}.output")))
+            .arg(c.root.join(format!("{label}-输出.output")))
             .stdout(Stdio::from(fs::File::create_new(&stdout)?))
             .stderr(Stdio::from(fs::File::create_new(&stderr)?))
             .spawn()?,
@@ -113,7 +113,10 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
         if !recoverable {
             effect::check(&c.root)?;
         }
-        let source = c.root.join("c-inputs");
+        // Exercise UTF-16 process arguments and UTF-8 SDK paths through the
+        // real C executable, including its own input and output file I/O.
+        let source = c.root.join("c-inputs-输入");
+        c.target = c.root.join("installation-安装");
         let mut recovery = None;
         if recoverable {
             let (key, public) = q_periapt_backends::MlDsa65::generate([61; 32]);

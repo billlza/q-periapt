@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
-static inline FILE *qpc_input_file(const char *path) {
+/* Caller owns the returned Windows path and releases it with free(). */
+static inline WCHAR *qpc_path_utf16(const char *path) {
     int length=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,path,-1,NULL,0);
     if(length<=0) { errno=EINVAL; return NULL; }
     WCHAR *wide=malloc((size_t)length*sizeof *wide);
@@ -15,6 +16,11 @@ static inline FILE *qpc_input_file(const char *path) {
     if(MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,path,-1,wide,length)!=length) {
         free(wide); errno=EINVAL; return NULL;
     }
+    return wide;
+}
+static inline FILE *qpc_input_file(const char *path) {
+    WCHAR *wide=qpc_path_utf16(path);
+    if(!wide) return NULL;
     FILE *file=NULL; int error=_wfopen_s(&file,wide,L"rb");
     free(wide); if(error) errno=error;
     return file;

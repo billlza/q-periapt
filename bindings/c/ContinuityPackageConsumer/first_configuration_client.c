@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "consumer_input.h"
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
@@ -31,12 +32,7 @@ static qpc_configuration_blob_v1 load(const char *directory, const char *name, s
     char path[8192];
     int n = snprintf(path, sizeof(path), "%s/%s", directory, name);
     if (n < 0 || (size_t)n >= sizeof(path) || allocation_count >= 24) return empty;
-    FILE *file = NULL;
-#ifdef _WIN32
-    if (fopen_s(&file, path, "rb") != 0) return empty;
-#else
-    file = fopen(path, "rb");
-#endif
+    FILE *file = qpc_input_file(path);
     if (!file) return empty;
     uint8_t *bytes = calloc(maximum + 1, 1);
     if (!bytes) { (void)fclose(file); return empty; }
@@ -185,7 +181,7 @@ static int guard_pages(void) {
 #include "configuration_registry_client.c"
 #include "configuration_credential_client.c"
 #include "configuration_policy_credential_client.c"
-int main(int argc, char **argv) {
+static int qpc_consumer_main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--guard") == 0) return guard_pages();
     const char *registry_path = NULL;
     if (argc >= 3 && strcmp(argv[1], "--registry") == 0) {
@@ -360,8 +356,12 @@ int main(int argc, char **argv) {
     }
 #ifdef _WIN32
     int descriptor = -1;
-    if (_sopen_s(&descriptor, argv[5], _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT,
-                 _SH_DENYRW, _S_IREAD | _S_IWRITE) != 0) goto done;
+    WCHAR *wide = qpc_path_utf16(argv[5]);
+    if (!wide) goto done;
+    int opened = _wsopen_s(&descriptor, wide, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT,
+                          _SH_DENYRW, _S_IREAD | _S_IWRITE);
+    free(wide);
+    if (opened != 0) goto done;
     FILE *output = _fdopen(descriptor, "wb");
     if (!output) { (void)_close(descriptor); goto done; }
 #else
@@ -387,3 +387,4 @@ done:
         activate ? "QPC_CONFIGURATION_ACTIVATION_PASS" : "QPC_CONFIGURATION_REQUEST_PASS");
     return result;
 }
+#include "consumer_entry.h"
