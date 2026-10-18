@@ -3,6 +3,8 @@ use super::windows_tests::fixture::{sdk_policy, Case};
 use super::*;
 use q_periapt_sig::Signer;
 use std::{
+    collections::BTreeMap,
+    ffi::OsString,
     fs,
     path::PathBuf,
     process::{Child, Command, Stdio},
@@ -18,14 +20,31 @@ impl Drop for OwnedChild {
         }
     }
 }
+enum Expected {
+    Success(&'static str),
+    Refused(i32),
+}
+fn image(path: &Path) -> TestResult<BTreeMap<OsString, Zeroizing<Vec<u8>>>> {
+    let mut files = BTreeMap::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        assert!(
+            entry.file_type()?.is_file(),
+            "unexpected installation child"
+        );
+        assert!(files
+            .insert(entry.file_name(), Zeroizing::new(fs::read(entry.path())?))
+            .is_none());
+    }
+    Ok(files)
+}
 fn run(
     c: &Case,
     source: &Path,
     mode: &str,
     trust: &str,
     label: &str,
-    expected: &str,
-    success: bool,
+    expected: Expected,
 ) -> TestResult<()> {
     let client = PathBuf::from(
         std::env::var_os("QPC_FIRST_USE_CLIENT").ok_or("installed C client is required")?,
@@ -54,18 +73,28 @@ fn run(
     };
     let out = fs::read_to_string(stdout)?;
     let err = fs::read_to_string(stderr)?;
+    let success = matches!(expected, Expected::Success(_));
     assert_eq!(
         status.code(),
         Some(if success { 0 } else { 1 }),
         "{label}: {err}"
     );
-    if success {
-        assert!(err.is_empty(), "{label}: {err}");
-        assert_eq!(out.trim(), expected);
-    } else {
-        assert!(out.is_empty(), "failure printed success: {label}");
-        assert!(err.starts_with("configuration status 500: "), "{err}");
-        assert!(err.contains(expected), "{label}: {err}");
+    match expected {
+        Expected::Success(marker) => {
+            assert!(err.is_empty(), "{label}: {err}");
+            assert_eq!(out.trim(), marker);
+        }
+        Expected::Refused(code) => {
+            assert!(out.is_empty(), "failure printed success: {label}");
+            let prefix = format!("configuration status {code}: ");
+            let diagnostic = err
+                .strip_prefix(&prefix)
+                .ok_or_else(|| format!("{label}: {err}"))?;
+            assert!(
+                !diagnostic.trim().is_empty(),
+                "missing original error diagnostic"
+            );
+        }
     }
     eprintln!(
         "WINDOWS_INSTALLED_C_FIRST_USE case={label} trust={trust} exit={} expected=true",
@@ -118,8 +147,7 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
             "policy-target-create",
             trust,
             "create",
-            "QPC_CONFIGURATION_POLICY_TARGET",
-            true,
+            Expected::Success("QPC_CONFIGURATION_POLICY_TARGET"),
         )?;
         c.assert_inputs()?;
         let original_key = Zeroizing::new(fs::read(c.target.join("wrap.key"))?);
@@ -129,8 +157,7 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
             "configuration-reconcile",
             trust,
             "reconcile",
-            "QPC_CONFIGURATION_RECONCILED",
-            true,
+            Expected::Success("QPC_CONFIGURATION_RECONCILED"),
         )?;
         run(
             &c,
@@ -138,28 +165,33 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
             "configuration-open",
             trust,
             "open",
-            "QPC_CONFIGURATION_OPENED",
-            true,
+            Expected::Success("QPC_CONFIGURATION_OPENED"),
         )?;
+        let before_duplicate = image(&c.target)?;
         run(
             &c,
             &source,
             "policy-target-create",
             trust,
             "duplicate",
-            "configuration publication failed",
-            false,
+            Expected::Refused(500),
         )?;
+        assert!(
+            image(&c.target)? == before_duplicate,
+            "duplicate creation changed original files"
+        );
         let mut held = c.input.reconcile(&c.target)?;
+        let held_floor = held.runtime()?.trusted_state();
         run(
             &c,
             &source,
             "configuration-reconcile",
             trust,
             "busy",
-            "SDK policy store admission failed",
-            false,
+            Expected::Refused(703),
         )?;
+        assert_eq!(held.runtime()?.trusted_state(), held_floor);
+        assert!(held.runtime()?.is_enabled()?);
         held.close();
         fs::rename(c.target.join("wrap.key"), c.root.join("retained.key"))?;
         run(
@@ -168,8 +200,7 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
             "configuration-reconcile",
             trust,
             "missing",
-            "installation key admission failed",
-            false,
+            Expected::Refused(203),
         )?;
         assert!(!c.target.join("wrap.key").exists());
         assert!(
@@ -188,8 +219,7 @@ fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -
             "configuration-reconcile",
             trust,
             "advanced",
-            "original first-install configuration differs",
-            false,
+            Expected::Refused(107),
         )?;
         let mut current = c.input.sdk.open(&c.target.join("sdk.redb"))?;
         assert_eq!(current.runtime()?.trusted_state().version(), 2);

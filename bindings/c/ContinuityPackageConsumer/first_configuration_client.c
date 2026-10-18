@@ -55,6 +55,10 @@ static uint64_t be64(const uint8_t *p) {
 }
 static int checked(int32_t code, const qpc_error_v1 *error) {
     if (!code) return 0;
+    if (error->code != code) {
+        fputs("configuration diagnostic code differs from return value\n", stderr);
+        return 1;
+    }
     size_t n = error->length;
     if (n > sizeof(error->message)) n = sizeof(error->message);
     fprintf(stderr, "configuration status %d: %.*s\n", code, (int)n, (const char *)error->message);
