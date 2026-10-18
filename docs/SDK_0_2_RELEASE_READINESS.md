@@ -20,10 +20,14 @@ measurements. The subsequent [uninstrumented latency comparison](../research/sdk
 retains all 4,800 sends: paired medians vary from -1.78% to +1.14%, while observed
 p95 increases at 10 of 12 workload positions. Desktop load varies materially;
 these adverse tails remain unresolved pending a cleaner-host comparison.
-The [native CI comparison protocol](continuity/FANOUT_LATENCY_V1.md) is prepared
-for separate Linux x86_64 and Apple Silicon jobs, each retaining all 200 paired
-blocks and an independent raw-record readback. Execution and interpretation
-remain pending; preparation checks do not qualify latency.
+The [completed native CI comparison](../research/sdk-alpha1/evidence/20261018-hosted-fanout-latency/README.md)
+retains another 9,600 sends across Linux x86_64 and Apple Silicon, with all four
+measurement/readback jobs successful and complete producer/cloud/local JSON/CSV
+equality. Both hosts show six higher and six lower p95 positions. Paired medians
+range from -0.36% to +0.45% on Linux and -3.67% to +3.92% on macOS. The macOS
+load1 observations still range from 1.80 to 17.78; a fresh runner does not establish
+controlled low-noise conditions. Every sample and the earlier adverse desktop
+observations remain retained. These descriptive results do not qualify tails.
 No speed or tail-latency improvement is established. Other foreign distribution
 qualification and energy remain separate. The newer installed Windows cohort
 below covers this snapshot change.
@@ -41,6 +45,21 @@ dependency locks and compiler configuration are unchanged through `71421773`;
 its evidence-tool corrections retain separate CI obligations. This closes the
 snapshot change's installed Windows lifecycle regression, not its latency or
 overall release requirements.
+
+The subsequent full CI at `71421773` identifies two separate integration defects:
+the Rust source inventory still expected 718 files after adding the Windows C
+effect test, and the shared C input header required POSIX seek/tell declarations
+unavailable to a plain C11 caller on Linux. The exact count and required-file
+controls now cover all 719 sources; 46 focused quality-gate tests pass in a
+snapshot containing those sources and the test dependencies, with a real Git
+directory. The shared input helper now
+uses standard C seek/tell with checked position width. Old/new Debug and Release
+controls, nine actual translation units covering 29 C caller files, and 155
+related reader tests pass locally. Both installed C profiles now require the
+new real file-positioning control. Repaired Linux installed execution remains
+pending. The same CI's 16 KiB Android emulator records a low-memory kill 57 ms
+after process start; its failure is retained alongside the other consumer's
+completed three-test result and the already accepted physical-phone cohorts.
 
 
 The [installed Windows lifecycle checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-lifecycle/README.md)
@@ -5809,8 +5828,8 @@ Its entire-trace exclusions apply to the actual target keys, conservatively
 including signer-file capture. Shared journals/wrapping owners, inherited-root
 correlations, multiple epochs, computational security and SDK refinement remain
 open. CI now selects separate independent-identity and key-scoped replay profiles.
-Both require complete terminal inventories and retain their own results; the new
-configuration and UTF-8 fix still need hosted Linux qualification.
+Both require complete terminal inventories and retain their own results. Their
+configuration and UTF-8 path now pass the hosted replay checkpoint below.
 Both profiles passed actual local certificate replay through this shared gate:
 20 universal properties and three witnesses for independent identities, and
 20 universal properties and two witnesses for key-scoped identity sharing.
@@ -5818,7 +5837,8 @@ The 18 focused regressions include missing/deferred proof rejection, profile
 substitution, checker changes during replay and both mandatory CI steps.
 The first hosted replay of the new gate fails before proof evaluation because
 Linux rejects Unicode certificate bytes under `LC_ALL=C`. A local UTF-8 fix
-passes 190 related regressions; its hosted Linux replay remains required.
+passes 190 related regressions. That failed attempt is retained; the subsequent
+hosted replay now completes with the original certificate identities.
 
 The [shared-storage disclosure checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-shared-storage/README.md)
 further checks wrapping-key reuse across sessions with explicit ciphertexts. One
@@ -5832,7 +5852,12 @@ exercises the same identity and storage owner in both roles. Whole-journal
 image/restore correspondence, root ancestry, multiple epochs and the concrete
 computational/SDK argument remain open. CI now includes an explicit shared-storage
 profile alongside the earlier two, with separate byte pins and required witness
-inventories. Hosted Linux qualification remains required.
+inventories. The [hosted recovery replay checkpoint](../research/sdk-alpha1/evidence/20261018-hosted-recovery-replay/README.md)
+now independently rereads all three profiles: 20 universal properties per model
+and respectively three, two and two executable witnesses. The shared-storage
+conjunction closes all 20 acyclic conditional proof nodes. Every command,
+terminal inventory, checked output and dependency record matches the pinned
+inputs. No local prover rerun or broader multi-epoch/SDK claim is introduced.
 
 The [multi-epoch modeling checkpoint](../research/sdk-alpha1/evidence/20261015-recovery-multi-epoch-model/README.md)
 preserves actual root ancestry, completed transcript parents, alternating roles

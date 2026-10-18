@@ -6,6 +6,12 @@ of 12 positions. Those results remain part of the evidence. A successful CI job
 means that the comparison completed and its records replayed; it does not admit
 a performance improvement, a latency SLO or the 0.2.0 release.
 
+The [completed hosted comparison](../../research/sdk-alpha1/evidence/20261018-hosted-fanout-latency/README.md)
+retains all 9,600 Linux/Apple Silicon observations and byte-identical complete
+producer, cloud and local reports. Both hosts show six higher and six lower p95
+positions. No consistent latency gain is established; the measured macOS load
+range also prevents treating a fresh runner as demonstrated low-noise hardware.
+
 The [workflow](../../.github/workflows/fanout-latency.yml) compares the immutable
 `b47eb5417d3c25cb7bd05dd91e56ad73777c56fb` runtime source with its current candidate
 on Linux x86_64 and macOS arm64. The macOS label is `macos-15`; both the actual
