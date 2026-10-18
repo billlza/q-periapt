@@ -118,6 +118,14 @@ jobs:
         env:
           WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}
         run: |
+          # Git Bash prepends its Unix utilities, including an unrelated link.exe.
+          # Restore the selected native compiler directory ahead of those tools.
+          msvc_root="$(cygpath -u "$VCToolsInstallDir")"
+          msvc_bin="${msvc_root%/}/bin/Hostx64/x64"
+          test -x "$msvc_bin/link.exe"
+          PATH="$msvc_bin:$PATH"
+          export PATH
+          test "$(command -v link.exe)" = "$msvc_bin/link.exe"
           QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
           export QPERIAPT_PYTHON
           sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private"
