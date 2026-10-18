@@ -353,10 +353,13 @@ connection. A failed/timed-out attempt may already have committed at the witness
 
 The journal, wrapping/signing files, installation configuration, write intents,
 catalogue, closure archives and loss reports are local persistence inputs. They
-are not interchangeable with these network/import records. Current journal schema
-21 uses `continuity_device_candidate_v21`, `QPVLT021`, `QPVIMG21`, message state
-`QPMST011`, traffic `QPTEPO04`, control `QPRKST03`. Old images are refused without
-an implicit reset or migration. Fanout emits the same pairwise application frames;
+are not interchangeable with these network/import records. The journal table
+remains `continuity_device_candidate_v21`; its base envelope is
+`QPVLT021`/`QPVIMG21`. Publication records and registry binding select the paired
+22, 23 or 24 tags described in the [storage contract](STORAGE_RECOVERY_V1.md#aggregate-image-and-local-write-intent).
+Message state remains `QPMST011`, traffic `QPTEPO04`, and control `QPRKST03`.
+Unsupported table/tag combinations are refused without implicit reset or migration.
+Fanout emits the same pairwise application frames;
 it has no independent aggregate network packet in this implementation.
 
 This revision fixes the observed byte grammar and distinguishes its trust and

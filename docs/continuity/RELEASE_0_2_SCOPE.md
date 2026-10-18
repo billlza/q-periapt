@@ -102,7 +102,9 @@ the existing public-commitment model into a working cryptographic protocol.
   now derives the complete recipient set from the installed signed roster. One
   device journal reserves all required inputs and commits all pairwise chain/outbox
   changes before releasing any member. A required witness covers that same whole
-  image. Its current v21 format preserves batch ownership and monotonic IDs across crashes;
+  image. Its journal preserves batch ownership and monotonic IDs across crashes;
+  the v21 table and feature-selected image envelopes are distinguished in the
+  [storage contract](STORAGE_RECOVERY_V1.md#aggregate-image-and-local-write-intent).
   per-recipient ACK and unknown-delivery accounting remain distinct. This does not
   provide atomic remote application execution or a distributed transaction among
   independently owned sending-device journals.
@@ -159,7 +161,8 @@ required-witness evidence also gates absence/retirement dispositions. This close
 native archival cleanup of reserved fanout; ordinary committed-history retirement,
 index/restore UX, witness renewal and installed-language integration retain their
 separate requirements. These native additions do not close the broader completion
-table below; candidate storage is v21 with no implicit migration from old formats.
+table below. The candidate retains its v21 table with explicit publication and
+registry-bound image variants; unsupported formats never trigger implicit migration.
 
 The native archive index now adds bounded discovery and exact restoration through
 an existing `SessionClosureJournal`, without reconstructing expired operational

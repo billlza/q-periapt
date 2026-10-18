@@ -1,8 +1,10 @@
 # Continuity candidate storage and recovery contract
 
-Status: **implemented candidate, not a frozen product contract**. Source baseline:
-`e00281ec`. The current journal is v21; incompatible candidate images are refused
-without implicit migration or reset. [STATE_MACHINE_V1.md](STATE_MACHINE_V1.md)
+Status: **implemented candidate, not a frozen product contract**. Original contract
+baseline: `e00281ec`; the image-envelope selection below is checked against
+`ca7e13fa`. The v21 journal table supports the feature-selected image variants
+listed below. Unsupported images are refused without implicit migration or reset.
+[STATE_MACHINE_V1.md](STATE_MACHINE_V1.md)
 defines the operation dispositions; [WIRE_V1.md](WIRE_V1.md) separates network,
 public import and local formats. This document does not claim hardware power-loss
 qualification, a hardware key store or protection against a hostile same-UID host.
@@ -53,22 +55,45 @@ exact old-or-new commit reconciliation.
 ## Aggregate image and local write intent
 
 The only journal table is `continuity_device_candidate_v21`. It contains one
-`image` row and at most one authenticated `pending` intent. The sealed image is:
+`image` row and at most one authenticated `pending` intent. The table name is
+independent of the selected image envelope:
 
-`QPVLT021 || journal_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`.
+| Publication record present | Registry binding | Outer tag | Plaintext tag |
+| --- | --- | --- | --- |
+| No | No | `QPVLT021` | `QPVIMG21` |
+| Yes | No | `QPVLT022` | `QPVIMG22` |
+| No | Yes | `QPVLT023` | `QPVIMG23` |
+| Yes | Yes | `QPVLT024` | `QPVIMG24` |
+
+The sealed image is:
+
+`outer_tag[8] || journal_id[32] || owner[32] || revision:u64 || nonce[24] || ciphertext || tag[16]`.
 
 Its 104-byte header is associated data for XChaCha20-Poly1305. The nonce is fresh
 platform randomness generated when constructing the sealed target; retry of an
 existing intent uses the saved nonce and ciphertext, not a resealed replacement.
 Revision is nonzero and strictly below `u64::MAX`.
 
-The plaintext starts with `QPVIMG21`, protection metadata, local account, monotonic
-fanout ordinal and the bounded ordered record set. Record kinds distinguish
-responder, initiator, prekey, message, roster and fanout. Owner/context/source,
+The plaintext starts with the matching plaintext tag and protection metadata.
+Registry-bound variants then encode a 104-byte scope: registry identity[32],
+application ID[32], application revision:u64 and account[32]. The bound account
+must match the local account, and protection must be required-witness. Operational
+admission retains the original registry checks. Local account,
+monotonic fanout ordinal and the bounded ordered record set follow. Record kinds
+distinguish responder, initiator, prekey, message, roster, fanout and publication.
+The publication flag must match actual presence of its record; the base variants
+cannot silently accept that record. Outer/inner tag mismatches are refused.
+Owner/context/source,
 one-time claims, authority references, payloads and their phase relationships are
 validated as a whole. Separate record quotas and the 2 MiB plaintext cap all apply.
 Terminal records/tombstones continue to count; removing them to reclaim capacity
 would change replay and one-time semantics.
+
+The explicit [account-authority adoption](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
+transaction moves an originally witnessed image to its registry-bound variant.
+The matching original registry is required before replaying a saved adoption
+intent. Older readers cannot open these new envelopes; an unsupported envelope or
+missing original state does not authorize re-creation or removal of its binding.
 
 Each ordinary state advance follows this order:
 
@@ -218,8 +243,8 @@ records format compatibility, original-owner capacity recovery and resource scop
 There is no automatic candidate schema migration. An unsupported old table/tag,
 changed policy family/device generation, missing file or bad MAC never triggers
 empty-state initialization. Product upgrade/rollback support needs a separately
-specified, crash-safe migration and compatibility policy; the current v21 refusal
-is not a complete long-term maintenance strategy.
+specified, crash-safe migration and compatibility policy; refusing unsupported
+tables and envelopes is not a complete long-term maintenance strategy.
 
 ## Source correspondence and qualification limits
 

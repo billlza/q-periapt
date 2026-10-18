@@ -486,9 +486,11 @@ claims remain reserved; early selected one-time inventory becomes abandoned and
 cannot be reused. Receipts describe local durable state, never peer delivery or
 remote cancellation. Existing application sessions still require session closure.
 
-The current candidate disk format is v21 with a preallocated cancellation metadata
-slot. Earlier v19/v20 lifecycle checkpoints above retain their historical scope;
-old candidate images are refused without implicit migration. Primitive, SDK ABI and
+The journal retains its v21 table and base image with a preallocated cancellation
+metadata slot. Publication and registry binding select the additional v22-v24
+envelopes documented in the [storage contract](../../docs/continuity/STORAGE_RECOVERY_V1.md#aggregate-image-and-local-write-intent).
+Earlier v19/v20 lifecycle checkpoints above retain their historical scope;
+unsupported candidate images are refused without implicit migration. Primitive, SDK ABI and
 network wire contracts are unchanged. See the cancellation contract and release
 ledger for exact source-bound verification and remaining integration requirements.
 
