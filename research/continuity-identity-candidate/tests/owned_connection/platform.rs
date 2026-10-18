@@ -50,17 +50,18 @@ pub(super) fn create_private_file(path: &Path) -> io::Result<fs::File> {
     }
 }
 
+#[cfg(windows)]
+pub(super) fn publish_bytes(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    // This fixture needs the publisher's AlreadyExists result to distinguish
+    // immutable observation replay from private-file admission failure. The
+    // lower-level provisioning API intentionally returns opaque PrivateFileError.
+    q_periapt_host_store::filesystem::publish_private_bytes(path, bytes)
+        .map_err(|error| io::Error::new(error.operation().kind(), error))
+}
+
+#[cfg(unix)]
 pub(super) fn sync_directory(path: &Path) -> io::Result<()> {
-    #[cfg(unix)]
-    {
-        fs::File::open(path)?.sync_all()
-    }
-    #[cfg(windows)]
-    {
-        q_periapt_host_store::filesystem::OwnedPrivateDirectory::open(path)
-            .and_then(|parent| parent.sync_entries())
-            .map_err(io::Error::other)
-    }
+    fs::File::open(path)?.sync_all()
 }
 
 pub(super) fn temporary_directory(prefix: &str) -> io::Result<FixtureDirectory> {
@@ -119,7 +120,6 @@ pub(super) fn finish_observation(
                 "readiness observation width",
             ));
         }
-        q_periapt_host_store::filesystem::publish_private_bytes(&path.join(name), &bytes)
-            .map_err(|error| io::Error::new(error.operation().kind(), error))
+        publish_bytes(&path.join(name), &bytes)
     }
 }

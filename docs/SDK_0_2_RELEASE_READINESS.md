@@ -26,8 +26,17 @@ enrollment reject every Windows drive-prefix component, including canonical
 verbatim drive paths already supported by the private storage adapter. The
 correction admits only those two local-drive forms and retains exact byte
 binding, relative/dot/parent/duplicate rejection and filesystem admission.
-Public path controls accompany the original lifecycle tests; native results
-remain required before this correction or the Windows lifecycle is qualified.
+The [native source matrix](https://github.com/billlza/q-periapt/actions/runs/39086863634)
+qualifies the path correction at `13a12c1b`: all four public path controls execute
+in Debug and Release on Windows 2022/2025 with Rust 1.90/1.98, alongside the
+existing private-storage checks. Downloaded artifacts pass independent readback.
+The [installed lifecycle run](https://github.com/billlza/q-periapt/actions/runs/39087286774)
+passes Debug path controls but fails during peer readiness on both systems.
+The shared fixture's Windows observation writer lost `AlreadyExists` through
+the intentionally opaque private-file provisioning API, preventing exact
+readback on repeated enrollment opening. It now uses the private byte publisher
+and checks collision refusal and unchanged original bytes. Full native lifecycle
+and public-readback qualification remain pending.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe

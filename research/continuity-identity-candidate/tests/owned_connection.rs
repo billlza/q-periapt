@@ -29,9 +29,9 @@ use zeroize::Zeroizing;
 
 #[path = "owned_connection/platform.rs"]
 mod platform;
-use platform::{
-    create_private_directory, create_private_file, sync_directory, temporary_directory,
-};
+#[cfg(unix)]
+use platform::sync_directory;
+use platform::{create_private_directory, create_private_file, temporary_directory};
 
 #[path = "owned_connection/enrollment.rs"]
 pub(crate) mod enrollment;
@@ -54,10 +54,17 @@ pub(crate) fn now() -> io::Result<u64> {
         .as_secs())
 }
 pub(crate) fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
-    let mut file = create_private_file(&path.join(name))?;
-    file.write_all(bytes)?;
-    file.sync_all()?;
-    sync_directory(path)
+    #[cfg(unix)]
+    {
+        let mut file = create_private_file(&path.join(name))?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        sync_directory(path)
+    }
+    #[cfg(windows)]
+    {
+        platform::publish_bytes(&path.join(name), bytes)
+    }
 }
 fn publish_observation(
     path: &Path,
@@ -78,6 +85,17 @@ fn publish_ready(path: &Path, name: &str, address: SocketAddr) -> io::Result<()>
     })
 }
 fn marker_publication_control(path: &Path) -> io::Result<()> {
+    // A repeated observation must report a collision so restart readback can
+    // compare the original bytes. A private-admission failure is not absence.
+    let stored = "observation-store-control";
+    store(path, stored, b"original")?;
+    assert_eq!(
+        store(path, stored, b"different")
+            .expect_err("immutable observation was replaced")
+            .kind(),
+        io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(fs::read(path.join(stored))?, b"original");
     let name = "marker-publication-control";
     publish_observation(path, name, |file| {
         // Pause at the actual writer boundary: a concurrent path reader must
@@ -1110,7 +1128,7 @@ pub(crate) fn spawn(path: &Path, attempt: u8, mode: &str) -> Result<(OwnedChild,
         }
         if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
             return Err(format!(
-                "peer readiness failed: {}",
+                "peer readiness failed (attempt={attempt}, mode={mode}): {}",
                 fs::read_to_string(path.join(format!("peer-{attempt}.log")))?
             )
             .into());
