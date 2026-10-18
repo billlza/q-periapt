@@ -12,6 +12,7 @@ from .epoch_state import EpochState
 from .rekey_owner import RekeyOwner
 from .control import ControlOwner
 from .resolution_owner import ResolutionOwner
+from .peer_owner import PeerOwner
 from .traffic import message_id
 from .wire import ldh, require
 
@@ -20,13 +21,15 @@ def owner_binding(context) -> bytes:
     return ldh(b"Q-PERIAPT-INDEPENDENT-OWNER/v1", context.initiator.raw)
 
 
-class Session(ResolutionOwner, ControlOwner, RekeyOwner):
+class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
     def __init__(self, journal, context, observer):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
+        self._authority_generation = 0
 
     @staticmethod
     def _scope(context, scope):
+        require(context.current_peer is None, "derived session authority is not a creation/opening input")
         require(scope.owner == owner_binding(context) and scope.context == context.digest,
                 "independent session scope")
 
@@ -56,15 +59,34 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
         return cls(journal, context, observer)
 
     @contextmanager
-    def _state(self, *, operational=True):
+    def _state(self, *, operational=True, now=None, peer_maintenance=False):
         snapshot = self._journal.read()
         state = decode(snapshot.payload, self._context)
         try:
             if self._context.witness is not None:
                 self._journal.admit(snapshot, operational)
+            if operational and now is not None and not peer_maintenance and state.peer_authority is not None:
+                state.peer_authority.check(now)
             yield snapshot, state
+            authority_generation = self._authority_generation
+            if operational and now is not None and state.format_version == 5:
+                # A reentrant host observer may have committed revocation after
+                # this call's own write. Recheck the durable current authority
+                # before its result escapes; the earlier decoded view is stale.
+                current = self._journal.read()
+                fresh = decode(current.payload, self._context)
+                try:
+                    for interval in self._context.intervals[:3]:
+                        interval.check(now)
+                    if not peer_maintenance and fresh.peer_authority is not None:
+                        fresh.peer_authority.check(now)
+                finally:
+                    fresh.close()
             if self._context.witness is not None:
                 self._journal.release(operational)
+            if operational:
+                require(self._authority_generation == authority_generation,
+                        "peer authority changed during output admission")
         finally:
             state.close()
 
@@ -86,13 +108,13 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def initial(self, now: int) -> bytes:
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             self._admit_bootstrap(now)
             return state.operation._initial
 
     @locked
     def finish(self, reply: bytes, now: int) -> bytes:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             self._admit_bootstrap(now)
             if state.operation._reply is not None:
                 require(reply == state.operation._reply, "conflicting successful reply")
@@ -106,8 +128,11 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def activate(self, now: int) -> bytes:
-        with self._state() as (snapshot, state):
-            self._context.check_established(now)
+        with self._state(now=now) as (snapshot, state):
+            if state.traffic is None:
+                self._context.check_established(now)
+            else:
+                state.traffic.admit(now)
             if state.traffic is None:
                 state.traffic = EpochState.initial(state.operation.activate_volatile_traffic(now))
                 self._journal.update(snapshot.digest, encode(state))
@@ -115,7 +140,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def next_id(self, now: int) -> bytes:
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             return state.traffic.next_id(now)
 
@@ -125,13 +150,13 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
         wire = state.traffic.send(plan.identity, plan.plaintext, plan.ad, now)
         state.pending = None
         self._journal.update(snapshot.digest, encode(state))
-        self._context.check_established(now)
+        state.traffic.admit(now)
         self._observe("protocol:send-committed")
         return wire
 
     @locked
     def send(self, identity: bytes, plaintext: bytes, ad: bytes, now: int) -> bytes:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             plan = SendPlan(identity, plaintext, ad)
             if state.pending is None:
@@ -151,7 +176,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def resume(self, identity: bytes, now: int) -> bytes:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             state.traffic.admit(now)
             if state.pending is not None:
@@ -161,7 +186,7 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def receive(self, wire: bytes, ad: bytes, now: int) -> tuple[bytes, bytes]:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             # A reserved send remains pinned. Other mutations cannot use its
             # reserved final-image capacity before that operation completes.
@@ -170,31 +195,31 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
             payload = encode(state)
             if payload != snapshot.payload:
                 self._journal.update(snapshot.digest, payload)
-            self._context.check_established(now)
+            state.traffic.admit(now)
             self._observe("protocol:receive-committed")
             return result
 
     @locked
     def consume(self, identity: bytes, now: int) -> bytes:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             require(state.traffic is not None and state.pending is None, "traffic absent or send reserved")
             acknowledgement = state.traffic.consume(identity, now)
             payload = encode(state)
             if payload != snapshot.payload:
                 self._journal.update(snapshot.digest, payload)
-            self._context.check_established(now)
+            state.traffic.admit(now)
             self._observe("protocol:consumption-committed")
             return acknowledgement
 
     @locked
     def acknowledgement(self, now: int) -> bytes:
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             return state.traffic.acknowledgement(now)
 
     @locked
     def acknowledgement_for_epoch(self, epoch: int, now: int) -> bytes:
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")
             return state.traffic.acknowledgement(now, epoch)
 
@@ -206,27 +231,28 @@ class Session(ResolutionOwner, ControlOwner, RekeyOwner):
 
     @locked
     def upgrade_format(self, now: int) -> int:
-        """Explicitly commit the original state into the current outcome format."""
-        with self._state() as (snapshot, state):
+        """Explicit metadata-only migration; never releases retained peer traffic."""
+        with self._state(now=now, peer_maintenance=True) as (snapshot, state):
             if state.traffic is None:
                 self._admit_bootstrap(now)
             else:
-                self._context.check_established(now)
-            if state.format_version < 4:
-                state.format_version = 4
+                for interval in self._context.intervals[:3]:
+                    interval.check(now)
+            if state.format_version < 5:
+                state.format_version = 5
                 self._journal.update(snapshot.digest, encode(state))
                 self._observe("protocol:format-upgraded")
             return state.format_version
 
     @locked
     def accept_acknowledgement(self, wire: bytes, now: int) -> int:
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             require(state.traffic is not None and state.pending is None, "traffic absent or send reserved")
             floor = state.traffic.accept_acknowledgement(wire, now)
             payload = encode(state)
             if payload != snapshot.payload:
                 self._journal.update(snapshot.digest, payload)
-            self._context.check_established(now)
+            state.traffic.admit(now)
             return floor
 
     @locked

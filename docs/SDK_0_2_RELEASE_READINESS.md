@@ -172,6 +172,21 @@ results preserve the expiry/output, lost-reply and old-image rejection boundarie
 They do not qualify a separately deployed witness, full renewal/revocation/upgrade
 lifecycle, whole-witness rollback resistance or the remaining release requirements.
 
+The subsequent [independent retained-peer checkpoint](../research/sdk-alpha1/evidence/20261018-independent-peer-lifecycle/README.md)
+adds original-session remote credential renewal and signed roster revocation in
+`QPREFS05`. Local and required-witness profiles preserve archived version-four
+state through explicit upgrade, two grants, original traffic/rekey, process loss
+and terminal peer revocation. Four profiles exercise 158 fresh-process operations
+and 14 real kills; their witnessed paths retain 479 signed attempts. Two actual
+reentrant output failures are preserved and repaired with current durable peer
+admission and a final authority-generation check. All thirteen final local lanes
+and six public readers pass on the same 63-source closure; strict build/lint and
+46 source-contract tests pass, with 725 tracked Rust sources. Hosted qualification
+remains pending. Independent peer expiry uses test times 210/310 while the native
+counterpart stays at 170; this is not its local enrollment renewal. Local joint
+authority, same-account coordination, installed/cross-host lifecycle, complete
+resource qualification and construction-wide security analysis remain open.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,

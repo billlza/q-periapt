@@ -3,9 +3,9 @@
 This is an unpublished single-session implementation for interoperability work.
 It is independent of the Rust protocol state machine and redb image format.
 It implements bounded four-flight rekey, four retained traffic epochs and separate
-local-only/required-witness storage profiles. It does
-not yet implement credential/roster/policy renewal, revocation,
-account fanout, network control scheduling,
+local-only/required-witness storage profiles, plus remote same-key credential
+renewal and peer revocation. It does not yet implement local credential/policy/roster
+coordination, same-account peer authority changes, account fanout, network control scheduling,
 installed consumers or a complete installation owner.
 Its original verified authority snapshot and trusted time remain explicit inputs.
 It is not a replacement product package or a completed security proof.
@@ -74,7 +74,8 @@ context. Key derivation uses the distinct
 `Q-PERIAPT-INDEPENDENT-WITNESSED-JOURNAL/v1/` image/intent labels over the full
 232-byte scope/witness/subject/fence binding. The intent retains the existing
 shape, with this distinct authentication key and complete exact target image.
-Payload limits and `QPREFS04` state semantics remain unchanged. Local readers
+Payload limits and the underlying bootstrap/epoch semantics remain unchanged;
+`QPREFS05` adds separately retained peer authority below. Local readers
 reject witnessed images; no in-place local-to-witness migration is inferred.
 
 An update authenticates the original local head and freshly queries its exact
@@ -188,16 +189,17 @@ below is narrower than a product installation or backup-restore workflow.
 
 ## Protocol records and release
 
-`QPREFS04` encodes the original context and exactly one waiting, confirmed or
+`QPREFS05` retains the original context and exactly one waiting, confirmed or
 traffic phase, including optional control requests and closed-epoch resolution.
 `QPREFS01` remains readable
 as an epoch-zero format; `QPREFS02` retains its multi-epoch operations without
 control requests. `QPREFS03` retains its explicit-target control operations without
-resolution. Opening these formats does not migrate them: `upgrade_format(now)`
+resolution. `QPREFS04` retains outcome resolution without peer authority.
+Opening these formats does not migrate them: `upgrade_format(now)`
 explicitly commits the same session, secrets, reservations and outboxes into
-version four. Repeated upgrade is
+version five. Repeated upgrade is
 idempotent; `storage_format()` reports its disposition even after authority expiry.
-Older readers reject version four. Migration that cannot retain all state and the
+Older readers reject version five. Migration that cannot retain all state and the
 control headroom fails without replacing the old image. Unknown tags/phases,
 extra bytes, malformed transcripts and wrong
 KEM ownership fail. Traffic records validate exact outbox coverage, disjoint
@@ -263,7 +265,7 @@ a pending report alone cannot grant retirement.
 
 ## Independent progress requests
 
-Versions three and four separately retain an optional exact request body or committed
+Versions three through five separately retain an optional exact request body or committed
 signed request. The body uses purpose 13 and the unchanged `QPRKRQ01` wire grammar.
 Only the non-proposer can request the next target. A request asserts no settled
 history, allocates no KEM key and grants no application credit. Its current
@@ -296,6 +298,71 @@ detected by this local-only profile. Python bytes/provider temporaries do not
 provide a zeroization guarantee. Observed rekey completion is a protocol counter,
 not evidence that an adversary has lost keys. No post-compromise security proof
 is claimed by these runtime checks.
+
+## Retained peer renewal and revocation
+
+`admit_peer_credential_renewal(wire, operation, target, now)` adopts a root-signed
+`QPRNB001` grant for the existing remote device. `target` is a separately obtained
+40-byte account checkpoint; it is not selected from incoming grant bytes. The
+original account root, device ID/generation, credential commitment, full signing
+key and exact protocol policy remain fixed. Verification authenticates all three
+credentials, both complete rosters and the purpose-15 statement. Predecessor
+membership is historical evidence; the successor must be valid at the actual
+supplied current time. Validity retains the original start and strictly extends
+the predecessor end. No grant restores missing session state or authorizes a new
+bootstrap from a historical advertisement.
+
+Adoption requires the exact currently retained predecessor checkpoint and
+credential. The same operation/statement at the same current target is read-only,
+even if the root re-signs that statement with different signature randomness;
+the first committed wire remains unchanged. Another operation, an older/forked
+head, changed original lineage or an already observed revocation fails. Both
+local-only and required-witness modes commit through their existing exact-target
+transactions; a lost result is reconciled using the original owner and input.
+
+`admit_peer_roster(wire, target, now)` adopts a separately pinned, monotonic signed
+remote account head. An empty roster is valid revocation. Changing a credential
+within the same generation requires the renewal grant rather than a bare roster.
+A removed or replaced original generation cannot reappear in this session.
+The terminal revoked head remains retained; later generation adoption needs a
+separate device/session lifecycle. No global newest-roster discovery is claimed.
+These entries reject same-account peers because their roster can also revoke
+the local member and needs the local joint authority coordinator.
+
+`peer_authority_status` reports the exact checkpoint, credential commitment,
+retained renewal operation and active-membership flag. Historical status survives
+expiry without returning plaintext or dispatch permission. Maintenance checks
+current local credential/roster and policy, while an expired remote credential
+does not prevent admission of its valid successor grant.
+
+New snapshots use `QPREFS05`. Immediately after the unchanged tag/context/phase
+prefix, a zero presence byte means original peer authority. A one byte adds
+`grant_target[40] || grant_length:u32 || grant || roster_length:u16 || signed_roster`.
+An absent grant requires length zero and a zero target. A present grant is at
+most 65,536 bytes; a roster is at most 8,192 bytes and still has the canonical
+32-member bound. Every open reauthenticates the grant and roster against original
+roots and policy, checks the retained target ordering and binds the derived
+current peer only to traffic in this actual established snapshot. The bootstrap
+context, prekey selections and original signed flights do not change.
+
+Formats one through four remain readable without implicit mutation. Explicit
+`upgrade_format` preserves all original operations and returns only the version.
+An established owner's upgrade requires live local authority and policy, and its
+normal witness admission; the remote credential may have expired. This metadata
+transition grants no output permission. New peer authority cannot be encoded into
+an older format, and a derived session view cannot be used as a fresh create/open
+input. Retained public metadata reduces business-record capacity by its encoded
+size, preserving the existing 64-KiB control-completion reserve. Insufficient
+capacity refuses adoption without dropping traffic or changing the original target.
+
+Before a result returns, the owner checks the currently committed peer authority,
+including changes made by a reentrant host observer after the operation's write.
+A local authority-generation counter also detects changes inside the final
+witness transport callback, after the last state read. Such a change withholds
+the result and leaves the committed state for original-owner reconciliation.
+The counter is an in-process observation guard, not a persistent anti-rollback
+mechanism or freshness lease. Runtime tests preserve both demonstrated pre-fix
+counterexamples; ordinary operation-entry checks alone were insufficient.
 
 ## Closed-epoch application accounting
 

@@ -54,12 +54,16 @@ def main():
         owner = Session.create(path, scope, key, context, signer, 150)
         initial = owner.initial(150)
         waiting = owner._journal.read().payload
+        require(waiting[:8] == b"QPREFS05" and waiting[41] == 0, "waiting format-five authority header")
+        initial_start = 42
+        require(waiting[initial_start:initial_start + len(initial)] == initial, "waiting exact initial boundary")
+        key_start = initial_start + len(initial)
         malformed = {
             "snapshot-truncated": waiting[:-1],
             "snapshot-trailing": waiting + b"\0",
             "snapshot-unknown-phase": waiting[:40] + b"\x09" + waiting[41:],
             "snapshot-wrong-context": waiting[:8] + bytes([waiting[8] ^ 1]) + waiting[9:],
-            "snapshot-wrong-KEM-owner": waiting[:5858] + bytes([waiting[5858] ^ 1]) + waiting[5859:],
+            "snapshot-wrong-KEM-owner": waiting[:key_start] + bytes([waiting[key_start] ^ 1]) + waiting[key_start + 1:],
             "snapshot-wrong-first-secret": waiting[:-1] + bytes([waiting[-1] ^ 1]),
         }
         codec_refusals = []

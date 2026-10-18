@@ -60,7 +60,8 @@ def main():
                "accept_rekey_response", "finish_rekey", "accept_rekey_receipt", "rekey_outbox", "rekey_progress",
                "prepare_rekey_request", "respond_rekey_request", "rekey_request_status",
                "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control",
-               "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"}
+               "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status",
+               "admit_peer_credential_renewal", "admit_peer_roster", "peer_authority_status"}
     require(action in allowed or (witness_pin is not None and action in ("witness_provision", "witness_genesis")), "unknown session action")
     def observe(stage):
         if stage == args.cut:
@@ -89,7 +90,7 @@ def main():
         if action in ("begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"):
             require(arguments and len(arguments[0]) == 8, "resolution epoch argument")
             arguments[0] = int.from_bytes(arguments[0], "big")
-        if action in ("status", "rekey_progress", "storage_format", "rekey_request_status", "closed_epoch_resolution_status"):
+        if action in ("status", "rekey_progress", "storage_format", "rekey_request_status", "closed_epoch_resolution_status", "peer_authority_status"):
             result = getattr(owner, action)(*arguments)
         elif action in ("prepare_rekey_offer", "respond_rekey_offer", "accept_rekey_response", "finish_rekey",
                         "prepare_rekey_request", "respond_rekey_request", "advance_rekey_control",

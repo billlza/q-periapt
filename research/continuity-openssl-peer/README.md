@@ -114,8 +114,18 @@ lifecycle remain required.
 No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
-This is not an admitted independent Continuity product implementation. Authority
-renewal, revocation, account fanout, the complete installation/migration
+The next state format, `QPREFS05`, retains independently approved remote same-key
+credential renewals and signed peer roster changes for the original established
+session. Exact predecessor, original credential, full key, operation, policy and
+target checkpoint must match. Committed peer revocation denies cached output,
+new traffic and rekey; a later roster cannot revive the observed old generation.
+The original transcript, keys, outbox IDs and ciphertexts remain unchanged.
+The local owner still needs current authority. Same-account updates require the
+separate local account coordinator; this entry cannot bypass that joint workflow.
+
+This is not an admitted independent Continuity product implementation. Local
+credential/policy renewal and retirement, same-account coordination, account fanout,
+the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,
 application accounting and subsequent history collection. `resolution_capacity_checks.py`
@@ -136,8 +146,9 @@ that context is never passed to the real Rust counterpart.
 Python bytes and provider temporaries do not provide the Rust SDK's zeroizing
 owner guarantee; dropping references does not prove erasure. Private session state
 is sealed in its store; public artifacts omit wrapping keys and private images.
-The peer's fixed authority snapshot and trusted-time input do not implement
-concurrent policy replacement. Local-only stores have no whole-store rollback
+The peer's original policy and local identity snapshot do not implement
+concurrent policy replacement. Explicit peer authority changes are now retained
+separately from the immutable bootstrap inputs. Local-only stores have no whole-store rollback
 protection. Required-witness stores reject a local image that differs from the
 live witness, assuming the witness retains its own state independently.
 Deployment and the remaining lifecycle still need integration before this lane
@@ -154,6 +165,16 @@ committed transition must be reconciled after expiry. Cached output still needs
 current authority. Restored client backups and a changed writer fence fail.
 The loopback TCP bridge is test orchestration for the signed witness byte carrier;
 it is not a separately deployed witness or an application network carrier.
+
+`peer_lifecycle_checks.py` covers local and required-witness owners, an actual
+archived version-four writer, two chained remote grants, original traffic/rekey,
+process cuts, explicit revocation and refused reappearance. Its independent
+operations cross the peer's signed expiry at test times 210 and 310; the native
+protocol counterpart retains its fixture time 170. It therefore qualifies this
+remote acceptance/recovery path, not the native peer's local enrollment renewal.
+`peer_reply_release_checks.py` verifies that a host witness callback committing
+revocation cannot release a result under the earlier permission. Both callback
+cases have preserved failing pre-fix runs and passing repaired runs.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

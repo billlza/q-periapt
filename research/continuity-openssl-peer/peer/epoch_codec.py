@@ -11,8 +11,10 @@ from .wire import require
 FIELDS = (("seed", 96), ("offer", 4746), ("response", 4714), ("final", 3634), ("body", 1337), ("root", 32))
 
 
-def encode_epochs(owner, pending, *, with_request=False, with_resolution=False):
+def encode_epochs(owner, pending, *, with_request=False, with_resolution=False, extra_metadata=0):
     validate(owner, pending)
+    require(0 <= extra_metadata <= 73728, "peer metadata capacity")
+    traffic_limit = MAX_STATE - 65536 - extra_metadata
     result = bytearray(owner.root)
     for value in (owner.confirmed, owner.sending, owner.receiving):
         result.extend(value.to_bytes(8, "big"))
@@ -42,11 +44,11 @@ def encode_epochs(owner, pending, *, with_request=False, with_resolution=False):
         # The eventual outbox can exceed a short-AD reservation. Admission must
         # reserve that final row too, before committing an input that pins writes.
         final_size = len(traffic) + 1 + 8 + 32 + 4 + 109 + len(pending.plaintext)
-        require(final_size <= MAX_STATE - 65536, "reserved final traffic capacity")
+        require(final_size <= traffic_limit, "reserved final traffic capacity")
     traffic.extend(encode_pending(pending))
     # Bootstrap, public history, the largest control plan and a fresh empty epoch
     # fit in 64 KiB. Message growth cannot consume this cutover headroom.
-    require(len(traffic) <= MAX_STATE - 65536, "traffic capacity reserves control completion")
+    require(len(traffic) <= traffic_limit, "traffic capacity reserves control completion")
     return bytes(result + traffic)
 
 

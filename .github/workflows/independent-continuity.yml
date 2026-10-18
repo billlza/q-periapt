@@ -176,6 +176,22 @@ jobs:
             --output target/independent-peer-ci/witness \
             > target/independent-peer-ci/witness.stdout 2> target/independent-peer-ci/witness.stderr
           git diff --exit-code
+      - name: Verify independent retained-peer renewal and revocation
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_lifecycle_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-lifecycle \
+            > target/independent-peer-ci/peer-lifecycle.stdout 2> target/independent-peer-ci/peer-lifecycle.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_reply_release_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-reply-release \
+            > target/independent-peer-ci/peer-reply-release.stdout 2> target/independent-peer-ci/peer-reply-release.stderr
+          git diff --exit-code
       - name: Preserve the executable, public transcripts and failed phases
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

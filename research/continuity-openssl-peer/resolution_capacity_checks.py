@@ -30,7 +30,7 @@ def main():
     owner = None
     try:
         scenario.bootstrap()
-        scenario.require(scenario.worker("upgrade", "upgrade_format") == 4, "maximum report format")
+        scenario.require(scenario.worker("upgrade", "upgrade_format") == 5, "maximum report format")
         owner = Session.open(scenario.path, scenario.scope, scenario.key, scenario.context)
         received = []
         for index in range(64):

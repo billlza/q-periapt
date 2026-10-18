@@ -94,7 +94,7 @@ class ControlScenario(Scenario):
         self.unchanged_refusal("old-control-refused", "advance_rekey_control", ((1).to_bytes(8, "big"),), "explicit snapshot upgrade")
         self.worker("upgrade-result-lost", "upgrade_format", cut="protocol:format-upgraded")
         stable = (self.path / "head").read_bytes()
-        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 4, "explicit control upgrade")
+        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 5, "explicit control upgrade")
         self.require((self.path / "head").read_bytes() == stable, "upgrade replay changed head")
         def old_rejects(snapshot, state):
             self.require(state.pending.identity == old_id and state.traffic.plan.offer == old_offer, "upgrade lost operation")

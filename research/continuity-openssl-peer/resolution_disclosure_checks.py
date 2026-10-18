@@ -39,7 +39,7 @@ def main():
     scenario = ResolutionScenario(args, archived_version=3)
     try:
         scenario.bootstrap()
-        scenario.require(scenario.worker("upgrade", "upgrade_format") == 4, "resolution format")
+        scenario.require(scenario.worker("upgrade", "upgrade_format") == 5, "resolution format")
         original_id, original_wire, _lost_ack = scenario.forward("genuine-send", acknowledge=False)
         # The prior admissible ACK is retained only in the experiment transcript,
         # never supplied to the sender. Ordinary retained-ACK recovery is valid.

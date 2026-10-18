@@ -10,7 +10,7 @@ from .wire import require
 
 class RekeyOwner:
     def _rekey_state(self, state, now):
-        require(state.format_version in (2, 3, 4), "explicit snapshot upgrade required")
+        require(state.format_version in (2, 3, 4, 5), "explicit snapshot upgrade required")
         require(state.traffic is not None, "traffic not activated")
         state.traffic.admit(now)
         return state.traffic
@@ -27,7 +27,7 @@ class RekeyOwner:
 
     @locked
     def prepare_rekey_offer(self, signer, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._rekey_state(state, now)
             scope = owner.scope()
             require(scope.role(0) == 1, "not the designated proposer")
@@ -47,7 +47,7 @@ class RekeyOwner:
 
     @locked
     def respond_rekey_offer(self, offer, signer, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._rekey_state(state, now)
             if owner.last is not None and owner.confirmed % 2 == 0 and owner.last[0] == offer:
                 return owner.last[1]
@@ -72,7 +72,7 @@ class RekeyOwner:
 
     @locked
     def accept_rekey_response(self, response, signer, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._rekey_state(state, now)
             if owner.last is not None and owner.confirmed % 2 == 1 and owner.last[1] == response:
                 return owner.last[2]
@@ -101,7 +101,7 @@ class RekeyOwner:
 
     @locked
     def finish_rekey(self, final, signer, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._rekey_state(state, now)
             if owner.last is not None and owner.confirmed % 2 == 0 and owner.last[2] == final:
                 return owner.last[3]
@@ -129,7 +129,7 @@ class RekeyOwner:
 
     @locked
     def accept_rekey_receipt(self, receipt, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._rekey_state(state, now)
             if owner.last is not None and owner.confirmed % 2 == 1 and owner.last[3] == receipt:
                 return owner.confirmed
@@ -144,7 +144,7 @@ class RekeyOwner:
 
     @locked
     def rekey_outbox(self, target, flight, now):
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             owner = self._rekey_state(state, now)
             require(type(target) is int and target > 0 and type(flight) is int and 0 <= flight <= 3,
                     "rekey outbox selection")

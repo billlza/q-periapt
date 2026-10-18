@@ -147,7 +147,7 @@ class ResolutionScenario(ControlScenario):
                 old.close()
         self.inspect(old_reads)
         self.worker("upgrade-result-lost", "upgrade_format", cut="protocol:format-upgraded")
-        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 4, "explicit resolution upgrade")
+        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 5, "explicit resolution upgrade")
         def old_rejects(snapshot, _state):
             try:
                 self.old.decode(snapshot.payload, self.context)

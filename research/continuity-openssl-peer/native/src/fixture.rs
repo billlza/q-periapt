@@ -23,7 +23,7 @@ pub(super) struct Fixture {
     pub witness: Option<Arc<crate::witness::Witness>>,
 }
 
-fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
+pub(super) fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -70,10 +70,11 @@ pub(super) fn create(
     peer_key: PublicKey,
     budget: u16,
     witness: Option<Arc<crate::witness::Witness>>,
+    peer_lifecycle: bool,
 ) -> Result<Fixture> {
     let runtime = runtime(directory)?;
     let authority = PolicySigningKey::generate()?;
-    let validity = Validity::new(100, 200)?;
+    let validity = Validity::new(100, if peer_lifecycle { 400 } else { 200 })?;
     let family = authority.policy_family()?;
     let policy = authority.issue_session_policy(
         &runtime,
@@ -110,7 +111,16 @@ pub(super) fn create(
     for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
         let root = RootSigningKey::generate()?;
         let certificate = root.issue_device(
-            DeviceDescription::new([id; 16], 1, family, validity)?,
+            DeviceDescription::new(
+                [id; 16],
+                1,
+                family,
+                if peer_lifecycle {
+                    Validity::new(100, if id == 1 { 350 } else { 200 })?
+                } else {
+                    validity
+                },
+            )?,
             public,
         )?;
         let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
@@ -138,6 +148,17 @@ pub(super) fn create(
         save(directory, &format!("pin-{role}-head"), &expectation)?;
         save(directory, &format!("{role}-credential"), &certificate)?;
         save(directory, &format!("{role}-roster"), roster.as_bytes())?;
+        if peer_lifecycle && role == "r" {
+            crate::peer_lifecycle::publish(
+                directory,
+                &root,
+                &certificate,
+                devices.last().ok_or("missing renewed peer")?,
+                roster.as_bytes(),
+                policy.checkpoint().digest(),
+                family,
+            )?;
+        }
     }
     let initiator = devices.first().ok_or("missing initiator")?;
     let responder = devices.get(1).ok_or("missing responder")?;

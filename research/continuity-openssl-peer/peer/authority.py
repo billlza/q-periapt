@@ -1,6 +1,6 @@
 """Verify public bootstrap materials against separately supplied trust inputs.
 
-This first peer accepts only the explicit local-only, two-leaf reusable profile.
+This peer accepts explicitly selected local or witnessed two-leaf reusable profiles.
 Unsupported profiles fail; parsing never supplies a durable admission decision.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,26 +9,20 @@ from __future__ import annotations
 import hashlib
 import tomllib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .peer_authority import PeerState
 
 from cryptography.hazmat.primitives.asymmetric import mldsa
 
 from .kem import SdkBinding
+from .identity import DevicePin, Device, verify_device
 from .witness import Profile
 from .wire import (Interval, Reader, VerificationKey, digest, generation, ldh,
                    lp, nonzero, require)
 
 SUITE = digest(b"BOOTSTRAP-SUITE", b"ML-KEM-768+X25519/ContextBound;"
                b"ML-DSA-65+P-256/SHA-256;HKDF-SHA-256;HMAC-SHA-256")
-
-
-@dataclass(frozen=True)
-class DevicePin:
-    root: VerificationKey
-    account: bytes
-    roster_version: int
-    roster_digest: bytes
-    device: bytes
-    generation: int
 
 
 @dataclass(frozen=True)
@@ -55,66 +49,6 @@ class Materials:
     manifest: bytes
     classical_proof: bytes
     pq_proof: bytes
-
-
-@dataclass(frozen=True)
-class Device:
-    key: VerificationKey
-    pin: DevicePin
-    credential: bytes
-    validity: Interval
-    roster_validity: Interval
-    authority: bytes
-
-    def context(self) -> bytes:
-        return (self.pin.account + self.pin.device + self.pin.generation.to_bytes(8, "big")
-                + self.credential + self.authority)
-
-
-def verify_device(pin: DevicePin, credential: bytes, roster: bytes,
-                  family: bytes, now: int) -> Device:
-    require(len(pin.device) == 16 and any(pin.device), "expected device identity")
-    generation(pin.generation)
-    require(pin.account == digest(b"ACCOUNT", pin.root.raw), "account root pin")
-    cert = pin.root.open(credential, 1, 2097)
-    reader = Reader(cert)
-    require(reader.take(8) == b"QPCERT01" and reader.take(32) == pin.account
-            and reader.take(16) == pin.device and reader.integer(8) == pin.generation,
-            "credential identity differs from intended device")
-    validity = Interval.read(reader)
-    validity.check(now)
-    require(reader.take(32) == family, "credential policy family")
-    key = VerificationKey(reader.take(1985))
-    reader.finish()
-    require(not key.shares_component(pin.root), "device/account signing key separation")
-    credential_digest = digest(b"CREDENTIAL", cert)
-    body = pin.root.open(roster, 2)
-    require(digest(b"ROSTER", body) == pin.roster_digest, "roster digest pin")
-    reader = Reader(body)
-    require(reader.take(8) == b"QPROST01" and reader.take(32) == pin.account,
-            "roster account")
-    version = generation(reader.integer(8))
-    require(version == pin.roster_version, "roster version pin")
-    roster_validity = Interval.read(reader)
-    roster_validity.check(now)
-    count = reader.integer(2)
-    require(count <= 32, "roster count")
-    previous, found = b"", False
-    for _ in range(count):
-        device = nonzero(reader.take(16))
-        revision = generation(reader.integer(8))
-        commitment = nonzero(reader.take(32))
-        require(device > previous, "roster device order or duplicate")
-        previous = device
-        if device == pin.device:
-            require(revision == pin.generation and commitment == credential_digest,
-                    "roster does not authorize exact credential")
-            found = True
-    reader.finish()
-    require(found, "device absent from current roster")
-    authority = digest(b"AUTHORITY", pin.account + version.to_bytes(8, "big")
-                       + pin.roster_digest + family)
-    return Device(key, pin, credential_digest, validity, roster_validity, authority)
 
 
 def verify_sdk(pins: Pins, materials: Materials) -> SdkBinding:
@@ -152,6 +86,10 @@ class Context:
     selection: bytes
     send_budget: int
     witness: Profile | None = None
+    devices: tuple[Device, Device] | None = None
+    family: bytes = bytes(32)
+    policy_digest: bytes = bytes(32)
+    current_peer: PeerState | None = None
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
@@ -160,8 +98,13 @@ class Context:
     def check_established(self, now: int) -> None:
         # The first five windows are policy, two credentials and two rosters.
         # Advertisement/leaf expiry gates bootstrap, not established traffic.
-        for interval in self.intervals[:5]:
+        for interval in self.intervals[:3]:
             interval.check(now)
+        if self.current_peer is None:
+            for interval in self.intervals[3:5]:
+                interval.check(now)
+        else:
+            self.current_peer.check(now)
 
 
 def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None) -> Context:
@@ -264,4 +207,4 @@ def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None
                   + initiator.context() + responder.context() + selection + pins.directory)
     return Context(sdk, context, initiator.key, responder.key, pq[2] + classical[2],
                    (validity, initiator.validity, initiator.roster_validity, responder.validity,
-                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness)
+                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness, (initiator, responder), family, pins.policy_digest)

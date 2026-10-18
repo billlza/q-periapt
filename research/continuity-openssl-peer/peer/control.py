@@ -29,12 +29,12 @@ def output(wire):
 
 class ControlOwner:
     def _control_state(self, state, now):
-        require(state.format_version in (3, 4), "control requires explicit snapshot upgrade")
+        require(state.format_version in (3, 4, 5), "control requires explicit snapshot upgrade")
         return self._rekey_state(state, now)
 
     @locked
     def prepare_rekey_request(self, signer, now):
-        with self._state() as (snapshot, state):
+        with self._state(now=now) as (snapshot, state):
             owner = self._control_state(state, now)
             scope = owner.scope()
             require(scope.role(1) == 1, "only the non-proposer requests progress")
@@ -58,7 +58,7 @@ class ControlOwner:
     def respond_rekey_request(self, wire, signer, now):
         tag, target = inspect(wire)
         require(tag == b"QPRKRQ01", "not a control request")
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             owner = self._control_state(state, now)
             require(target % 2 == 1, "request addressed to another proposer")
             if target == owner.confirmed:
@@ -85,7 +85,7 @@ class ControlOwner:
     def advance_rekey_control(self, target, signer, now):
         """Return (target, exact output), or (target, None) for local completion."""
         require(type(target) is int and 0 < target < MAX_U64, "control target range")
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             owner = self._control_state(state, now)
             if target == owner.confirmed:
                 require(owner.last is not None, "completed control history absent")
@@ -110,7 +110,7 @@ class ControlOwner:
         tag, target = inspect(wire)
         # Require the new format even when an old four-flight handler can resume
         # in format two. No control call silently upgrades the original image.
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             self._control_state(state, now)
         handlers = {b"QPRKRQ01": self.respond_rekey_request, b"QPRKOF01": self.respond_rekey_offer,
                     b"QPRKRP01": self.accept_rekey_response, b"QPRKFN01": self.finish_rekey}
@@ -125,7 +125,7 @@ class ControlOwner:
         """Explicit delivery also resends a possibly lost final receipt."""
         step = self.advance_rekey_control(target, signer, now)
         if step[1] is None:
-            with self._state() as (_snapshot, state):
+            with self._state(now=now) as (_snapshot, state):
                 owner = self._control_state(state, now)
                 if owner.plan is None and owner.request is None and target % 2 == 0:
                     return output(self.rekey_outbox(target, 3, now))
@@ -136,7 +136,7 @@ class ControlOwner:
         """Release only original committed output, never start replacement work."""
         tag, target = inspect(wire)
         require(wire[124] == 1, "control output belongs to the other signer")
-        with self._state() as (_snapshot, state):
+        with self._state(now=now) as (_snapshot, state):
             owner = self._control_state(state, now)
             if tag == b"QPRKRQ01":
                 require(owner.request is not None and owner.request.wire == wire, "control request outbox absent or changed")

@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -36,6 +36,8 @@ class Counterpart:
                 if type(send_budget) is not int or not 0 < send_budget <= 65535:
                     raise ValueError("explicit native send budget")
                 command += ["--send-budget", str(send_budget)]
+            if peer_lifecycle:
+                command += ["--peer-lifecycle"]
             if required_witness:
                 command += ["--required-witness"]
             self.process = subprocess.Popen(command,

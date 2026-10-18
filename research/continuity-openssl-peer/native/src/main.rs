@@ -12,6 +12,7 @@ use std::{
 };
 mod fixture;
 mod journal;
+mod peer_lifecycle;
 mod resolution;
 mod witness;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -43,6 +44,7 @@ fn main() -> Result<()> {
     let path = args.next().ok_or("expected new public output directory")?;
     let mut budget = 1024;
     let mut required = false;
+    let mut peer_lifecycle = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -54,6 +56,7 @@ fn main() -> Result<()> {
                     .parse::<u16>()?
             }
             Some("--required-witness") if !required => required = true,
+            Some("--peer-lifecycle") if !peer_lifecycle => peer_lifecycle = true,
             _ => return Err("unexpected argument".into()),
         }
     }
@@ -67,7 +70,7 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let fixture = fixture::create(directory, peer_key, budget, witness)?;
+    let fixture = fixture::create(directory, peer_key, budget, witness, peer_lifecycle)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;

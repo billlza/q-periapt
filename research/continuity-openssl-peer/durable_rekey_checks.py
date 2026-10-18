@@ -99,10 +99,10 @@ class Scenario:
         self.unchanged_refusal("legacy-rekey-refused", "prepare_rekey_offer", (), "explicit snapshot upgrade required")
         self.worker("upgrade-result-lost", "upgrade_format", cut="protocol:format-upgraded")
         stable = (self.path / "head").read_bytes()
-        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 4, "upgrade result")
+        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 5, "upgrade result")
         self.require((self.path / "head").read_bytes() == stable, "upgrade replay rewrote head")
         def old_reader(snapshot, state):
-            self.require(state.format_version == 4 and state.operation.session_id() == self.session, "migration changed session")
+            self.require(state.format_version == 5 and state.operation.session_id() == self.session, "migration changed session")
             try:
                 self.old.decode(snapshot.payload, self.context)
             except ValueError:
@@ -211,8 +211,13 @@ class Scenario:
     def codec_controls(self):
         from peer.state_codec import decode
         def control(snapshot,state):
-            base=41+5817+4633+136+32
+            self.require(state.format_version==5 and state.peer_authority is None, "control fixture authority header")
+            base=42+5817+4633+136+32
             raw=snapshot.payload
+            self.require(raw[:8]==b"QPREFS05" and raw[41]==0 and raw[base:base+32]==state.traffic.root,
+                         "control fixture exact root boundary")
+            self.require(int.from_bytes(raw[base+40:base+48],"big")==state.traffic.sending
+                         and state.traffic.sending!=0,"control fixture exact nonzero sending counter")
             wrong_root=raw[:base]+bytes([raw[base]^1])+raw[base+1:]
             wrong_epoch=raw[:base+40]+bytes(8)+raw[base+48:]
             for name,payload in [("pending-root-binding",wrong_root),("directional-counter-binding",wrong_epoch)]:
@@ -261,7 +266,7 @@ class Scenario:
         self.unchanged_refusal("retired-old-resume","resume",(self.old_id,),"retired or unadmitted epoch")
         self.close_before_release()
         self.require(self.worker("expired-progress","rekey_progress",now=200)==[8,8,8,0],"expired progress unavailable")
-        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==4,"expired upgrade status unavailable")
+        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==5,"expired upgrade status unavailable")
         self.unchanged_refusal("expired-cached-control","rekey_outbox",((8).to_bytes(8,"big"),(3).to_bytes(8,"big")),"expired or premature authority",now=200)
         self.native_call("close",3,expected=b"closed")
         self.require(self.native.process.wait(timeout=5)==0,"native close")
