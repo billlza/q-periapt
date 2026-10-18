@@ -16,6 +16,17 @@ SCOPE = ("same-host native Rust installation recovery in separate device process
          "same credential and policy; no TLS, independent engine, credential replacement or cross-host claim")
 
 
+# Public fixed leaves; trace leaves additionally depend on the bounded report count.
+FIXED_FILES = frozenset({
+    'public-roster-result.json', 'witness-subject', 'original-journal', 'recovered-journal',
+    'original-outbox', 'restored-outbox', 'original-context', 'recovered-context',
+    'local-account', 'local-root', 'local-certificate', 'admitted-checkpoint',
+    'recovered-checkpoint', 'revoked-checkpoint', 'before-head', 'recovered-head',
+    'expired-head', 'refreshed-head', 'retried-head', 'witness-id', 'witness-public', 'trace-phases',
+} | {f'{mode}-{suffix}' for mode in ('expired', 'recover', 'revoke') for suffix in ('pid', 'process.stdout')}
+  | {f'renewal-{kind}-{version}' for kind in ('roster', 'digest') for version in (2, 3, 4)})
+
+
 def envelope(wire: bytes, tag: bytes, size: int) -> bytes:
     sdk.require(len(wire) == size + 3377 and wire[:4] == size.to_bytes(4, 'big')
                 and wire[4:12] == tag, 'roster renewal envelope differs')

@@ -13,6 +13,7 @@ import tempfile
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_package_archive as bundle
 from installed_rust_graph import require, verify_resolution
+from continuity_connection_public import capture
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -33,9 +34,12 @@ def consume(args):
     bundle.unpack(payload, receipt['files'], consumer)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_', 'AWS_LC_'))}
+    private_root = args.private_root.resolve()
+    require(private_root.is_dir() and not any(private_root.iterdir()), 'fixture parent must be empty')
     environment.update(CARGO_HOME=str(outside / 'cargo-home'), CARGO_TARGET_DIR=str(build),
                        CARGO_INCREMENTAL='0', CARGO_TERM_COLOR='never', RUSTFLAGS='-D warnings',
-                       RUSTDOCFLAGS='-D warnings', QPC_FIRST_USE_ROOT=str(args.private_root.resolve()))
+                       RUSTDOCFLAGS='-D warnings', QPC_FIRST_USE_ROOT=str(private_root),
+                       QPERIAPT_PRIVATE_FIXTURE_ROOT=str(private_root))
     # Same private static AWS-LC boundary as artifact/windows-package.ps1.
     # The bundled jitter header exports its internals even in a static build.
     # Remove only that storage-class modifier; retain dllimport, other declspec
@@ -45,7 +49,7 @@ def consume(args):
               'AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc': '/WX /Ddllexport='}
     environment.update(aws_lc)
     result = {'schema': 1, 'input_sha256': digest(args.input), 'input': receipt, 'aws_lc_build': aws_lc,
-              'scope': 'Installed Windows C first-use only; no full session or release admission', 'profiles': {}}
+              'scope': 'Installed Windows C first use plus archive-shipped Rust lifecycle tests; public lifecycle readbacks require the separate existing verifier; no release admission', 'profiles': {}}
     def run(argv, label, cwd=consumer, timeout=900):
         prefix = output / label
         with prefix.with_suffix('.stdout').open('xb') as out, prefix.with_suffix('.stderr').open('xb') as err:
@@ -122,10 +126,34 @@ def consume(args):
         require(all(digest(installed / name) == sha for name, sha in hashes.items()), 'installed C inputs changed')
         result['profiles'][profile] = {'files': hashes, 'zip_sha256': hashlib.sha256(zipped).hexdigest(),
             'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers)}
+        require(not any(private_root.iterdir()), 'C fixture leaked private state after closing')
+        evidence = private_root / (profile + '-runtime')
+        environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
+        native = run(['cargo', 'test', '--locked', '--test', 'owned_connection', *flags,
+                      '--', '--nocapture'], profile + '-owned-runtime')
+        environment.pop('QPERIAPT_PUBLIC_SERVICE_EVIDENCE')
+        names = re.findall(r'^test ([a-z_:]+) \.\.\. ok$', native, re.M)
+        expected_tests = {'service_peer_process', 'owned_services_connect_restart_rekey_and_reconcile_unknown_delivery',
+                          'reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls'}
+        require(len(names) == 3 and set(names) == expected_tests and
+                'test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' in native,
+                'public lifecycle suite did not execute all original tests')
+        roots = {evidence, *(evidence.with_name(evidence.name + suffix) for suffix in
+                  ('-session-reopen', '-roster-renewal', '-device-replacement', '-device-retirement'))}
+        require(set(private_root.iterdir()) == roots, 'fixture leaked temporary owners or unexpected state')
+        result['profiles'][profile]['network_public'] = capture(evidence, output / (profile + '-network-public'),
+                                                               receipt['network_public_inventory'])
+        # These five fresh fixture trees are owned by this successful invocation.
+        # Only public readbacks were exported; failed executions retain their state.
+        for owned in roots:
+            shutil.rmtree(owned)
+        require(not any(private_root.iterdir()), 'closed fixture state was not removed')
+
     for name, sha in receipt['files'].items():
         require(digest(consumer / name) == (hashlib.sha256(lock).hexdigest() if name == 'Cargo.lock' else sha), 'consumed source changed: ' + name)
     (output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
     print('WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles=2 trust_modes=2 cases_per_profile=14')
+    print('WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles=2 public_readback_verification=pending')
 
 
 if __name__ == '__main__':

@@ -13,6 +13,17 @@ import continuity_package_archive as bundle
 import rust_sdk_profile as sdk
 
 
+def public_inventory() -> dict:
+    from continuity_enrollment import FILES, REOPEN_FILES, REGISTRATION_FILES, ROLES
+    from continuity_device_replacement import FILES as replacement, ROLES as replaced_roles
+    from continuity_device_retirement import FILES as retirement
+    from continuity_roster_renewal import FIXED_FILES as roster
+    return {'enrollment': sorted(f'{role}/{name}' for role in ROLES for name in FILES),
+            'reopen': sorted(f'{role}/{name}' for role in ROLES for name in REOPEN_FILES),
+            'replacement': sorted(set(replacement) | {f'{role}/{name}' for role in replaced_roles for name in REGISTRATION_FILES}),
+            'retirement': sorted(retirement), 'roster': sorted(roster)}
+
+
 def prepare(args) -> None:
     output = args.output.resolve()
     output.mkdir()
@@ -59,13 +70,13 @@ def prepare(args) -> None:
         source_hashes[relative] = snap.sha256
     files['original-Cargo.lock'] = sdk.snapshot(candidate.CANDIDATE / 'Cargo.lock').data
     files['Cargo.lock'] = files['original-Cargo.lock']
-    manifest = files['Cargo.toml'].decode() + '\n[patch.crates-io]\n'
+    manifest = files['Cargo.toml'].decode() + '\n[[test]]\nname = \"owned_connection\"\npath = \"packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs\"\n\n[patch.crates-io]\n'
     manifest += ''.join(f'{name} = {{ path = "packages/{name}-{version}" }}\n' for name, version in versions.items())
     files['Cargo.toml'] = manifest.encode()
     zipped = bundle.archive(files)
     (output / 'consumer.zip').write_bytes(zipped)
     sdk.write_json(output / 'INPUT.json', {
-        'schema': 1, 'exports': sorted(EXPORTS), 'rustc': compiler.decode(), 'scope': 'Unpublished installed Windows candidate; no protocol or release admission',
+        'schema': 1, 'network_public_inventory': public_inventory(), 'exports': sorted(EXPORTS), 'rustc': compiler.decode(), 'scope': 'Unpublished installed Windows candidate; no protocol or release admission',
         'source_commit': revision, 'sdk_commit': args.sdk_commit,
         'sdk_report_sha256': hashlib.sha256(cohort_bytes).hexdigest(), 'source_files': source_hashes,
         'archives': archives, 'versions': versions, 'consumer': 'q-periapt-continuity-c-consumer',

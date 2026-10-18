@@ -98,13 +98,8 @@ fn invoke(
     id: Option<&str>,
     trace: &mut Vec<u8>,
 ) -> Result<String> {
-    let create = |suffix: &str| {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path.join(format!("successor-{operation}.{suffix}")))
-    };
+    let create =
+        |suffix: &str| create_private_file(&path.join(format!("successor-{operation}.{suffix}")));
     let mut command = Command::new(client);
     command
         .arg("--witness")

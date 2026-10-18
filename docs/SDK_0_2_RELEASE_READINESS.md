@@ -5,6 +5,22 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+
+The [Windows Continuity first-use cohort](https://github.com/billlza/q-periapt/actions/runs/39082463637)
+qualifies reference consumer `f8ea6984` with nine SDK Cargo archives from
+`a2b81972` and the Cargo-packaged identity candidate. Windows 2022/2025 each
+execute Debug and Release: 56 separate C case processes and four protected-page
+checks cover fixed/recoverable trust, initial configuration, exact-original
+reconciliation/current opening, duplicate creation, a competing store owner,
+missing wrapping keys and an advanced policy. Downloaded DLLs independently
+contain exactly 157 candidate exports. Rejected duplicate creation preserves
+all installation file bytes; Busy preserves the held runtime's policy floor.
+This is unpublished `qpc-owner/1` configuration ownership, separate from product
+ABI 2. It does not qualify C account enrollment, connection/lifecycle, physical
+power loss or performance. The shared archive-shipped Rust lifecycle workload
+and public readback collector are being extended to Windows; their native
+results remain a separate gate.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

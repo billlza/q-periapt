@@ -1,4 +1,4 @@
-name: Installed Windows Continuity C first use
+name: Installed Windows Continuity lifecycle
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
     paths:
       - .github/workflows/continuity-windows-package.yml
       - artifact/continuity_windows_*.py
+      - artifact/continuity_connection_public.py
+      - research/continuity-identity-candidate/tests/owned_connection*
+      - research/continuity-identity-candidate/tests/owned_connection/**
       - artifact/installed_rust_graph.py
       - artifact/continuity_package.py
       - artifact/continuity_package_archive.py
@@ -110,7 +113,7 @@ jobs:
           '@
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoLogo -NoProfile -NonInteractive -Command $privateRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Build outside checkout and invoke installed C ABI
+      - name: Execute installed C first use and native Rust lifecycle
         shell: pwsh
         run: |
           python -I -S -B -W error artifact/python_bootstrap.py artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$env:RUNNER_TEMP/installed-c-private"
@@ -121,4 +124,39 @@ jobs:
         with:
           name: windows-installed-c-${{ matrix.os }}
           path: target/windows-installed-results/
+          if-no-files-found: error
+
+  public-readback:
+    needs: native
+    if: ${{ always() && !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-installed-c-${{ matrix.os }}
+          path: target/windows-public-readback
+      - name: Verify original public lifecycle contracts
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_windows_network_review.py --input target/windows-public-readback --output target/windows-public-readback/NETWORK_REVIEW.json --head "$EXPECTED_HEAD"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-lifecycle-readback-${{ matrix.os }}
+          path: target/windows-public-readback/NETWORK_REVIEW.json
           if-no-files-found: error

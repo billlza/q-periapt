@@ -40,13 +40,7 @@ fn traffic(
     };
     let stdout_path = path.join(format!("successor-traffic-{mode}.stdout"));
     let stderr_path = path.join(format!("successor-traffic-{mode}.stderr"));
-    let create = |path: &Path| {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path)
-    };
+    let create = create_private_file;
     let mut command = Command::new(client);
     command
         .arg("--witness")
@@ -359,11 +353,7 @@ pub(super) fn device_process(path: &Path, attempt: u8, mode: &str) -> Result<()>
 }
 fn stage(path: &Path, attempt: u8, mode: &str, exit: i32, client: Option<&Path>) -> Result<()> {
     let mut process = if let Some(client) = client {
-        let log = fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o600)
-            .open(path.join(format!("peer-{attempt}.log")))?;
+        let log = create_private_file(&path.join(format!("peer-{attempt}.log")))?;
         OwnedChild(
             Command::new(client)
                 .arg("retired")
@@ -643,7 +633,7 @@ pub(crate) fn exercise(client: Option<&Path>) -> Result<()> {
         .ok_or("witness request census overflow")?;
     assert!(witness_requests > 0 && witness_requests <= 512);
     let public = root.join("public");
-    fs::DirBuilder::new().mode(0o700).create(&public)?;
+    create_private_directory(&public)?;
     let traffic_trace = if client.is_some() {
         let mut trace = String::new();
         for mode in ["bootstrap", "message"] {

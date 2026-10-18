@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! External consumer of the public installation, identity and TLS contracts.
-#![cfg(all(unix, feature = "connection-tls"))]
+#![cfg(all(any(unix, windows), feature = "connection-tls"))]
 
 use p::connection_transport::{
     Actor, Cancellation, ConnectionEndpoint, Consumer, Consumption, Run, RunLimits, Served,
@@ -20,13 +20,18 @@ use std::{
     fs,
     io::{self, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use zeroize::Zeroizing;
+
+#[path = "owned_connection/platform.rs"]
+mod platform;
+use platform::{
+    create_private_directory, create_private_file, sync_directory, temporary_directory,
+};
 
 #[path = "owned_connection/enrollment.rs"]
 pub(crate) mod enrollment;
@@ -49,14 +54,10 @@ pub(crate) fn now() -> io::Result<u64> {
         .as_secs())
 }
 pub(crate) fn store(path: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path.join(name))?;
+    let mut file = create_private_file(&path.join(name))?;
     file.write_all(bytes)?;
     file.sync_all()?;
-    fs::File::open(path)?.sync_all()
+    sync_directory(path)
 }
 fn publish_observation(
     path: &Path,
@@ -66,10 +67,7 @@ fn publish_observation(
     let mut pending = tempfile::NamedTempFile::new_in(path)?;
     write(pending.as_file_mut())?;
     pending.as_file().sync_all()?;
-    pending
-        .persist_noclobber(path.join(name))
-        .map_err(|error| error.error)?;
-    fs::File::open(path)?.sync_all()
+    platform::finish_observation(pending, path, name)
 }
 pub(crate) fn publish_marker(path: &Path, name: &str) -> io::Result<()> {
     publish_observation(path, name, |file| file.write_all(b"1"))
@@ -391,7 +389,7 @@ impl Peer {
 }
 
 pub(crate) struct Setup {
-    _directory: Option<tempfile::TempDir>,
+    _directory: Option<platform::FixtureDirectory>,
     pub(crate) initiator: PathBuf,
     pub(crate) responder: PathBuf,
     pub(crate) issuer: SdkIssuer,
@@ -568,13 +566,10 @@ fn setup_devices_for(
             return Err("reference evidence path must be absolute".into());
         }
         OwnedPrivateDirectory::open(path.parent().ok_or("evidence parent")?)?;
-        fs::DirBuilder::new().mode(0o700).create(&path)?;
+        create_private_directory(&path)?;
         (None, path.canonicalize()?)
     } else {
-        let dir = tempfile::Builder::new()
-            .prefix("continuity-public-service-")
-            .permissions(fs::Permissions::from_mode(0o700))
-            .tempdir()?;
+        let dir = temporary_directory("continuity-public-service-")?;
         let path = dir.path().canonicalize()?;
         (Some(dir), path)
     };
@@ -584,8 +579,7 @@ fn setup_devices_for(
     let mut all_paths = vec![&left, &right];
     all_paths.extend(extra.iter());
     for path in &all_paths {
-        fs::create_dir(path)?;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+        create_private_directory(path)?;
     }
     let issuer = SdkIssuer::new()?;
     let (policy, signature) = issuer.policy(1, true)?;
@@ -816,7 +810,7 @@ fn setup_devices_for(
     for index in 1..all_paths.len() {
         let peer = if multi {
             let path = left.join(format!("peer-{}", index - 1));
-            fs::DirBuilder::new().mode(0o700).create(&path)?;
+            create_private_directory(&path)?;
             path
         } else {
             left.clone()
@@ -1082,11 +1076,7 @@ pub(crate) fn wait(child: &mut OwnedChild) -> Result<ExitStatus> {
     }
 }
 fn child(path: &Path, attempt: u8, mode: &str) -> Result<OwnedChild> {
-    let log = fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .mode(0o600)
-        .open(path.join(format!("peer-{attempt}.log")))?;
+    let log = create_private_file(&path.join(format!("peer-{attempt}.log")))?;
     // The same archive-shipped workload can be included as a consumer fixture
     // module. Derive the real harness name rather than running an empty filter.
     let process_test = module_path!().split_once("::").map_or_else(

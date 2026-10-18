@@ -18,13 +18,7 @@ fn foreign_enrollment(
 ) -> Result<()> {
     let stdout_path = path.join(format!("successor-{label}.stdout"));
     let stderr_path = path.join(format!("successor-{label}.stderr"));
-    let create = |path: &Path| {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path)
-    };
+    let create = create_private_file;
     let mut command = Command::new(client);
     if let Some(witness) = witness {
         command.arg("--witness").arg(witness.address.to_string());
@@ -176,7 +170,7 @@ pub(super) fn prepare_with_client(
     let path = parent.join("replacement");
     let peer = parent.join("replacement-peer");
     for destination in [&path, &peer] {
-        fs::DirBuilder::new().mode(0o700).create(destination)?;
+        create_private_directory(destination)?;
         for name in [
             "sdk-policy",
             "sdk-signature",
@@ -783,10 +777,10 @@ pub(super) fn exercise() -> Result<()> {
     client.close();
     let parent = s.initiator.parent().ok_or("reference root")?;
     let public = parent.join("public");
-    fs::DirBuilder::new().mode(0o700).create(&public)?;
+    create_private_directory(&public)?;
     for (role, source) in [("old", &s.responder), ("new", &replacement.path)] {
         let destination = public.join(role);
-        fs::DirBuilder::new().mode(0o700).create(&destination)?;
+        create_private_directory(&destination)?;
         for name in [
             "request",
             "reopened-request",

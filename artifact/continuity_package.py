@@ -34,7 +34,7 @@ def source_inputs() -> dict:
     identity = sdk.source_identity()
     files = [*CANDIDATE.rglob("*"), *(ROOT / n for n in (
         "artifact/continuity_profiles.py", "artifact/test_continuity_profiles.py",
-        "artifact/continuity_first_configuration.py", "artifact/continuity_configuration_policy.py",
+        "artifact/continuity_connection_public.py", "artifact/continuity_first_configuration.py", "artifact/continuity_configuration_policy.py",
         "artifact/continuity_configuration_credential.py",
         "artifact/continuity_configuration_policy_credential.py",
         "artifact/continuity_peer_configuration.py",

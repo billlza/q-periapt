@@ -14,12 +14,13 @@ struct Capture {
     reply: Option<Vec<u8>>,
 }
 pub(super) struct Witness {
-    _directory: tempfile::TempDir,
     pub(super) configured: WitnessFixture,
     clock: Arc<AtomicU64>,
     stop: Arc<AtomicBool>,
     captures: Arc<Mutex<Vec<Capture>>>,
     worker: Option<std::thread::JoinHandle<Result<()>>>,
+    // Drop the store and its file leases before removing this private tree.
+    _directory: platform::FixtureDirectory,
 }
 impl Witness {
     pub(super) fn start(at: u64) -> Result<Self> {
@@ -30,9 +31,7 @@ impl Witness {
         Self::start_clock(now()?, true, 512)
     }
     fn start_clock(at: u64, realtime: bool, capture_limit: usize) -> Result<Self> {
-        let directory = tempfile::Builder::new()
-            .permissions(fs::Permissions::from_mode(0o700))
-            .tempdir()?;
+        let directory = temporary_directory("continuity-witness-")?;
         let path = directory.path().canonicalize()?;
         let store = Arc::new(Mutex::new(p::AnchorStore::provision(
             &path.join("witness.redb"),
@@ -304,7 +303,7 @@ pub(super) fn public_roster_refresh_recovers_original_intent_over_signed_tcp() -
     )?;
     let root = s.initiator.parent().ok_or("evidence root")?;
     let public = root.join("public");
-    fs::DirBuilder::new().mode(0o700).create(&public)?;
+    create_private_directory(&public)?;
     let path = &s.initiator;
     let address = witness.configured.address;
     let mut peer = Peer::open_at_with_witness(path, Some(&witness.configured), at)?;

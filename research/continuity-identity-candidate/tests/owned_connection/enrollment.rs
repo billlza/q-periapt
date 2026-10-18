@@ -336,7 +336,7 @@ pub(super) fn export(
         .parent()
         .ok_or("enrollment evidence root")?
         .join("enrollment-public");
-    fs::DirBuilder::new().mode(0o700).create(&public)?;
+    create_private_directory(&public)?;
     let forward_effect = read(
         &s.responder,
         &format!("application-{}", hex(forward.as_bytes())),
@@ -349,7 +349,7 @@ pub(super) fn export(
     )?;
     for (role, path) in [("initiator", &s.initiator), ("responder", &s.responder)] {
         let destination = public.join(role);
-        fs::DirBuilder::new().mode(0o700).create(&destination)?;
+        create_private_directory(&destination)?;
         for name in [
             "request",
             "reopened-request",
