@@ -6,37 +6,41 @@ No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
 
-The [Windows Continuity first-use cohort](https://github.com/billlza/q-periapt/actions/runs/39082463637)
-qualifies reference consumer `f8ea6984` with nine SDK Cargo archives from
+The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39088323189)
+qualifies reference consumer `2305e56e` with nine SDK Cargo archives from
 `a2b81972` and the Cargo-packaged identity candidate. Windows 2022/2025 each
 execute Debug and Release: 56 separate C case processes and four protected-page
 checks cover fixed/recoverable trust, initial configuration, exact-original
 reconciliation/current opening, duplicate creation, a competing store owner,
-missing wrapping keys and an advanced policy. Downloaded DLLs independently
-contain exactly 157 candidate exports. Rejected duplicate creation preserves
-all installation file bytes; Busy preserves the held runtime's policy floor.
-This is unpublished `qpc-owner/1` configuration ownership, separate from product
-ABI 2. It does not qualify C account enrollment, connection/lifecycle, physical
-power loss or performance. The shared archive-shipped Rust lifecycle workload
-now executes on Windows, but [its first native run](https://github.com/billlza/q-periapt/actions/runs/39085276018)
-fails in Debug on both systems with `PrivateFile` before lifecycle progress;
-the public readback jobs consequently lack a successful result receipt. Code
-inspection identifies a definite upstream admission gap: installation and
-enrollment reject every Windows drive-prefix component, including canonical
-verbatim drive paths already supported by the private storage adapter. The
-correction admits only those two local-drive forms and retains exact byte
-binding, relative/dot/parent/duplicate rejection and filesystem admission.
-The [native source matrix](https://github.com/billlza/q-periapt/actions/runs/39086863634)
-qualifies the path correction at `13a12c1b`: all four public path controls execute
-in Debug and Release on Windows 2022/2025 with Rust 1.90/1.98, alongside the
-existing private-storage checks. Downloaded artifacts pass independent readback.
-The [installed lifecycle run](https://github.com/billlza/q-periapt/actions/runs/39087286774)
-passes Debug path controls but fails during peer readiness on both systems.
-The shared fixture's Windows observation writer lost `AlreadyExists` through
-the intentionally opaque private-file provisioning API, preventing exact
-readback on repeated enrollment opening. It now uses the private byte publisher
-and checks collision refusal and unchanged original bytes. Full native lifecycle
-and public-readback qualification remain pending.
+missing wrapping keys and an advanced policy. All four downloaded DLLs
+independently contain exactly 157 candidate exports. Rejected duplicate creation
+preserves all installation file bytes; Busy preserves the held runtime's policy
+floor. This C evidence covers unpublished `qpc-owner/1` configuration ownership,
+separate from product ABI 2 and from C account enrollment or network lifecycle.
+
+All four profiles also execute the original archive-shipped Rust lifecycle suite
+(three test entrypoints, including the child-process entrypoint): registration,
+standard TLS, network rekey, process restart, unknown-delivery reconciliation,
+expiry/reopen, SDK revocation, roster renewal, device replacement and retirement.
+Each profile exports 279 public files. The unchanged public readers pass locally
+and in separate Linux CI jobs, producing byte-identical review documents.
+Producer checks confirm cleanup of the five owned private fixture trees before
+the success receipt. These are same-engine, same-host reference endpoints;
+independent protocol implementations, C network lifecycle, physical power loss,
+performance and overall release admission remain separate requirements.
+
+The [clean native source matrix](https://github.com/billlza/q-periapt/actions/runs/39086863634)
+qualifies the path correction at `13a12c1b` on Windows 2022/2025 with Rust
+1.90/1.98 in Debug and Release. Earlier failures remain retained for the
+[drive-path admission](https://github.com/billlza/q-periapt/actions/runs/39085276018),
+[Git Bash linker selection](https://github.com/billlza/q-periapt/actions/runs/39086863628)
+and [immutable-observation collision](https://github.com/billlza/q-periapt/actions/runs/39087286774)
+corrections. The newer source run at `2305e56e` is green but fails strict readback:
+Windows 2025/Rust 1.98 records 76 HTTP/2 framing warnings and two partial-download
+warnings. Its logs remain rejected. The source workflow now selects Cargo's
+HTTP/1.1 dependency transport while retaining certificate verification, lockfile
+checksums and existing bounds. It also rejects warning/error diagnostics in
+retained source logs before reporting success; new native evidence is pending.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe

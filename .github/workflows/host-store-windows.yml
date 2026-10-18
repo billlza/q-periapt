@@ -29,6 +29,9 @@ jobs:
       RUSTDOCFLAGS: -D warnings
       CARGO_TERM_COLOR: never
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      # Avoid the observed HTTP/2 framing failures during dependency acquisition.
+      # Cargo retains HTTPS certificate and lockfile checksum verification.
+      CARGO_HTTP_MULTIPLEXING: "false"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -40,6 +43,7 @@ jobs:
       - name: Check the native adapter and its tests
         shell: pwsh
         run: |
+          if ($env:CARGO_HTTP_MULTIPLEXING -cne 'false') { throw 'Cargo dependency transport differs' }
           New-Item -ItemType Directory -Path target/private-store-evidence | Out-Null
           git rev-parse HEAD | Set-Content target/private-store-evidence/commit.txt
           rustc -vV | Set-Content target/private-store-evidence/rustc.txt
@@ -141,6 +145,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --locked --release --manifest-path $manifest --lib first_install::windows_tests -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/first-use-release-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Reject source-check diagnostics
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $logs = @(Get-ChildItem -LiteralPath target/private-store-evidence -Filter '*.log' -File)
+          if ($logs.Count -eq 0) { throw 'Native source logs are missing' }
+          foreach ($log in $logs) {
+            $content = Get-Content -LiteralPath $log.FullName -Raw
+            if ($content -match '(?m)^\s*(?:warning|error)(?:\[|:)') {
+              throw "Source check emitted diagnostics: $($log.Name)"
+            }
+          }
       - name: Preserve native results including failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
