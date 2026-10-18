@@ -203,6 +203,14 @@ same-account, policy/witness, installed/cross-host or construction-wide analysis
 requirements. Its added opening queries are recorded as a cost, not a performance
 improvement.
 
+The [23280124 Apple Silicon native completion](../research/sdk-alpha1/evidence/20261018-native-mac-2328/README.md)
+records successful Debug/Release candidate and sealed-SDK suites, strict feature
+checks, lint and documentation. Local OpenSSL replays of the downloaded public
+vectors match hosted identity/bootstrap/rekey and witness/joint-renewal results.
+Compiled contract output matches the committed budgets; native bundle execution
+remains a producer receipt with checked public bytes and outputs. This completes
+the native job, not the still-running installed-consumer workflow or release.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,

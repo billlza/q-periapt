@@ -1,0 +1,98 @@
+{
+  "readback": {
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "run": 39129232908,
+    "job": 117680781073,
+    "job_conclusion": "success",
+    "artifact_id": 12146575765,
+    "artifact_bytes": 1936823,
+    "artifact_sha256": "38026deb113e5bf5410d76463a7c77149a444d5670ad97a7721a5ec5493b1479",
+    "artifact_members": 1939,
+    "terminal_log": {
+      "log_bytes": 613287,
+      "log_sha256": "9e95042d842adabebd080e08f42ec82d410c90da603603fd1f699769ebc21114",
+      "terminal_job": 117680781073,
+      "results": [
+        "2026-10-18T18:09:58.6890790Z test result: ok. 1037 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 796.79s",
+        "2026-10-18T18:09:58.7030040Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "2026-10-18T18:09:59.9622000Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s",
+        "2026-10-18T18:09:59.9997770Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "2026-10-18T18:10:14.4929200Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.47s",
+        "2026-10-18T18:10:15.9822550Z test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s",
+        "2026-10-18T18:23:49.9059430Z test result: ok. 1037 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 454.04s",
+        "2026-10-18T18:23:49.9250010Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "2026-10-18T18:23:50.6506430Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s",
+        "2026-10-18T18:23:50.6766860Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "2026-10-18T18:24:02.6982830Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.00s",
+        "2026-10-18T18:24:05.1820470Z test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s",
+        "2026-10-18T18:24:24.8529310Z test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+        "2026-10-18T18:24:25.0380490Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s",
+        "2026-10-18T18:24:45.5054210Z test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "2026-10-18T18:24:45.7543110Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s"
+      ]
+    },
+    "source_files": {
+      "research/continuity-identity-candidate/scripts/verify_public_vectors.py": "994c68dd66158fd10852e091fbbaacbe2f164423e6d9242d164148fd040f6aee",
+      "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py": "122f2f411d9cf47ac922d75d7bb2ab6fecf74f0a826ed4695c312b67343ae59b",
+      "research/continuity-identity-candidate/scripts/exercise_bootstrap_bundle.py": "63a476b9d888cd760ab0e80b4c0d6ab58010c93e9a34ed4400c6866365076abc",
+      "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+      "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+      "artifact/bounded_process.py": "4b54c1b09388970cf907b0eee60f11b44e384b7e7f625fcb39d66891a1fcd5b6",
+      "artifact/prekey_selection.py": "2f1f6e8cb30aeefffbb0441f4b9db9806d5f11c1e3808ab48ec4fb17d325a345",
+      "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "artifact/continuity_contract.py": "d0f954430816057ca62086249d4e15fa0236c83ce19a9c0b8784fc122ae1b5ca",
+      "docs/continuity/BUDGETS_V1.json": "35fc4086af9201f003de7b7069b2524f0d2749d9c25ec83a0eb57c9f79dbdcee",
+      ".github/workflows/ci.yml": "04f601d20423a221d38a6a4313425291337c9cda990105b9cf44a3de1217b145"
+    },
+    "public_replays": {
+      "public": {
+        "matching_fields": [
+          "authenticated_selections",
+          "bootstrap",
+          "fixture_sha256",
+          "membership_proofs",
+          "rekey_completion",
+          "rekey_offer",
+          "rekey_request",
+          "rekey_response",
+          "schema",
+          "scope",
+          "signed_envelopes",
+          "status"
+        ],
+        "input_files": 155,
+        "signed_envelopes": 20
+      },
+      "anchor": {
+        "matching_fields": [
+          "command_binding",
+          "enrollment",
+          "fence_and_state_advance",
+          "fresh_attempt_binding",
+          "inputs_sha256",
+          "joint_renewal",
+          "outcomes",
+          "requests",
+          "schema_version",
+          "scope",
+          "signature_negative_controls",
+          "signed_envelopes"
+        ],
+        "input_files": 77,
+        "signed_envelopes": 57
+      }
+    },
+    "bootstrap_bundle": {
+      "accepted": 1,
+      "refused": 25,
+      "native_execution": "producer observations, public input/output hashes checked locally"
+    },
+    "contract_matches_reviewed_budget": true,
+    "scope": "Terminal AppleSilicon native candidate and sealed-SDK producer tests, plus new independent OpenSSL replay of that downloaded artifact. No native executable supplied in this artifact; compiler/runtime execution and binary hashes remain producer receipts. Not complete installed-consumer workflow, physical-device/power-loss, construction-wide security or final release admission."
+  },
+  "capture": {
+    "bytes": 2069017,
+    "members": 1659,
+    "sha256": "92bdeedc24fab3e4528432e471c970066253ffc4232397958af63a4086cf9e14"
+  }
+}
