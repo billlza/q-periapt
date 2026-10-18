@@ -6,8 +6,6 @@
  * Match the documented ntifs.h signature and FileRenameInformation (10):
  * https://learn.microsoft.com/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntsetinformationfile
  * https://learn.microsoft.com/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information */
-__declspec(dllimport) NTSTATUS NTAPI NtSetInformationFile(
-    HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG, FILE_INFORMATION_CLASS);
 struct native_rename {
     union { BOOLEAN replace; ULONG flags; } action;
     HANDLE directory;
@@ -85,9 +83,13 @@ static int variant(HANDLE directory,unsigned kind) {
         WCHAR collision[]=L".rename-collision.tmp";
         HANDLE second=qpc_file_create(directory,collision,wcslen(collision));
         if(second==INVALID_HANDLE_VALUE || write_control(second,other,sizeof other-1)) return 7;
-        int replaced=native_publish(second,directory,target,&error);
+        /* Exercise the actual application publisher on the collision, including
+         * its primary-status handling; an unfilled completion slot is not success. */
+        int outcome=qpc_file_publish(second,directory,target);
+        error=GetLastError();
+        int replaced=outcome==0 ? 1 : outcome==1 ? 0 : -1;
         printf("WINDOWS_RENAME_COLLISION success=%d error=%lu\n",replaced,(unsigned long)error);
-        if(replaced!=0 || (error!=ERROR_FILE_EXISTS && error!=ERROR_ALREADY_EXISTS)
+        if(outcome!=1 || (error!=ERROR_FILE_EXISTS && error!=ERROR_ALREADY_EXISTS)
            || qpc_file_existing(directory,target,bytes,sizeof bytes-1)!=0
            || qpc_file_existing(directory,collision,other,sizeof other-1)!=0) return 8;
         if(dispose(second)) return 9;

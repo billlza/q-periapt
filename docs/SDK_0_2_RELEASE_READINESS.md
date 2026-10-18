@@ -86,7 +86,20 @@ write and file flush. An isolated experiment now compares the original Win32
 buffer, a fully padded buffer and the SDK storage path's native rename interface,
 including a no-overwrite collision control. It records observed outcomes and
 checks namespace preservation; it never selects a fallback for application
-publication. The parameter/API cause and a successful repair remain unverified.
+publication. In the subsequent `794c913a` controls (`39096629895`), both native
+systems reject the 174-byte and padded 184-byte Win32 requests with error 87 and
+preserve the original source. The native request with the same padded field
+layout succeeds, and a different file cannot replace the target (error 183;
+both original byte images preserved). This isolates the tested Win32
+root-relative invocation from a buffer-size failure. The application publisher
+now uses the native synchronous rename, retaining the original directory handle
+and no-replace flag. It checks the primary NT status before the completion slot;
+the Windows 2022 collision actually returned a failing primary status and a zero
+completion slot. Native rename/collision controls remain required in CI.
+The shared Windows caller entry also keeps stdout/stderr in binary mode to
+preserve the original UTF-8/LF report bytes; assertions are not normalized or
+weakened. The integrated publisher/connection repair still requires a new native
+run; the experiment alone does not qualify that runtime.
 
 The same C connection/recovery caller sources and all ten existing integration
 test entries are now wired into the Windows installed lane. Recovery report

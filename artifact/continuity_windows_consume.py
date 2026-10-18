@@ -124,6 +124,9 @@ def consume(args):
         observation = run([str(rename_probe), str(private_root)], profile + '-publication-probe', controls, timeout=30)
         require(observation.endswith('WINDOWS_RENAME_EXPERIMENT_COMPLETE publication_admission=false\n')
                 and not any(private_root.iterdir()), 'rename experiment incomplete; original state retained')
+        require(observation.splitlines().count('WINDOWS_RENAME_PROBE variant=2 bytes=184 success=1 error=0 source=1 target=0') == 1
+                and len(re.findall(r'^WINDOWS_RENAME_COLLISION success=0 error=(?:80|183)$', observation, re.M)) == 1,
+                'native relative rename or no-overwrite collision control failed')
         effect = run([str(effect_test), str(private_root)], profile + '-effect-preflight', controls, timeout=30)
         require(effect == 'effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n'
                 'record-contract: bounded read, exact retention, missing and changed originals refused\n',

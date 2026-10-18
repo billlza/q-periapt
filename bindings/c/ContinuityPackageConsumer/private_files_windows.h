@@ -13,6 +13,23 @@
 #include <string.h>
 #include <wchar.h>
 
+/* The user-mode SDK header omits this documented native declaration and class.
+ * Match ntifs.h FileRenameInformation (10), as the Rust storage adapter does:
+ * https://learn.microsoft.com/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntsetinformationfile
+ * https://learn.microsoft.com/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information */
+__declspec(dllimport) NTSTATUS NTAPI NtSetInformationFile(
+    HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG, FILE_INFORMATION_CLASS);
+struct qpc_native_rename {
+    union { BOOLEAN replace; ULONG flags; } action;
+    HANDLE directory;
+    ULONG name_bytes;
+    WCHAR name[1];
+};
+_Static_assert(sizeof(FILE_INFORMATION_CLASS)==4 && sizeof(struct qpc_native_rename)==24
+    && offsetof(struct qpc_native_rename,directory)==8
+    && offsetof(struct qpc_native_rename,name_bytes)==16
+    && offsetof(struct qpc_native_rename,name)==20, "Windows 64-bit native rename layout");
+
 struct qpc_file_user {
     union { TOKEN_USER alignment; unsigned char bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE]; } storage;
     PSID sid;
@@ -171,14 +188,19 @@ static inline int qpc_file_existing(HANDLE directory, WCHAR *name, const uint8_t
 static inline int qpc_file_publish(HANDLE file, HANDLE directory, WCHAR *name) {
     size_t length=wcslen(name);
     if(qpc_file_leaf(name,length)) return -1;
-    size_t size=offsetof(FILE_RENAME_INFO,FileName)+(length+1)*sizeof(WCHAR);
-    FILE_RENAME_INFO *rename=calloc(1,size);
+    size_t size=(sizeof(struct qpc_native_rename)+(length+1)*sizeof(WCHAR)+7)&~(size_t)7;
+    struct qpc_native_rename *rename=calloc(1,size);
     if(!rename) return -1;
-    rename->ReplaceIfExists=FALSE; rename->RootDirectory=directory;
-    rename->FileNameLength=(DWORD)(length*sizeof(WCHAR));
-    memcpy(rename->FileName,name,(length+1)*sizeof(WCHAR));
-    BOOL ok=SetFileInformationByHandle(file,FileRenameInfo,rename,(DWORD)size);
-    DWORD error=ok ? ERROR_SUCCESS : GetLastError(); free(rename);
+    rename->action.replace=FALSE; rename->directory=directory;
+    rename->name_bytes=(ULONG)(length*sizeof(WCHAR));
+    memcpy(rename->name,name,(length+1)*sizeof(WCHAR));
+    IO_STATUS_BLOCK completion={0};
+    /* The source handle has synchronous non-alertable I/O. The primary status
+     * must be checked before the completion slot, which can be zero on failure. */
+    NTSTATUS status=NtSetInformationFile(file,&completion,rename,(ULONG)size,(FILE_INFORMATION_CLASS)10);
+    int ok=status==0 && completion.Status==0;
+    DWORD error=RtlNtStatusToDosError(status!=0 ? status : completion.Status);
+    free(rename);
     SetLastError(error);
     return ok ? 0 : (error==ERROR_FILE_EXISTS || error==ERROR_ALREADY_EXISTS ? 1 : -1);
 }

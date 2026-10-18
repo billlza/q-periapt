@@ -5,9 +5,15 @@
  * supplies Unicode arguments; the existing C/SDK path contract consumes UTF-8. */
 #ifdef _WIN32
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
 #include <stdlib.h>
 int wmain(int argc,wchar_t **argv) {
     if(argc<=0) return 64;
+    /* Machine-readable records keep the existing UTF-8/LF byte contract;
+     * Windows CRT text mode would translate each LF into CRLF. */
+    if(_setmode(_fileno(stdout),_O_BINARY)==-1 || _setmode(_fileno(stderr),_O_BINARY)==-1) return 64;
     char **utf8=calloc((size_t)argc+1,sizeof *utf8);
     if(!utf8) return 64;
     int result=64;
