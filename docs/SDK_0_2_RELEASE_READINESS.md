@@ -11,9 +11,13 @@ path. Releasing the old decoded objects before the existing reload reduces the
 observed incremental requested Rust allocation peak by 13.88%–17.31% in the
 Release comparison. The uninstrumented implementation passes all 56 original
 fanout regressions, strict Clippy and WASM async compilation. Persistence,
-authorization and exact retry contracts are retained. This is local allocation
-evidence; browser runtime, installed foreign/Windows execution, latency and energy
-remain separate. The running Windows cohort at `b47eb541` predates this change.
+authorization and exact retry contracts are retained. The subsequent
+[installed browser checkpoint](../research/sdk-alpha1/evidence/20261018-browser-fanout-snapshot/README.md)
+passes four original complete-account scenarios and 212 Chrome invocations,
+including exact retry, application failure and actual Worker interruption.
+This supplies browser runtime validation; the allocation numbers remain native
+measurements. Other foreign/Windows execution, latency and energy remain separate.
+The running Windows cohort at `b47eb541` predates this change.
 
 
 The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39093522049)

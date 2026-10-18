@@ -1,0 +1,77 @@
+{
+  "source_head": "ca7e13fac927218e20b231804c1e93054117edfa",
+  "completed": true,
+  "browser_review": {
+    "source_head": "ca7e13fac927218e20b231804c1e93054117edfa",
+    "completed": true,
+    "cases": 4,
+    "browser_invocations": 212,
+    "browser_version": "Google Chrome 155.0.8059.80",
+    "archive_sha256": "8137791850b629203521f7961b66677c1c5a3149b4952aa81e11ca7f2c89a332",
+    "manifest_sha256": "fadb0f6d4a1a51644c07019f5e16377fc70cde2f861a3b594b4d93a4bf5521cc",
+    "native_peer_records": 28,
+    "witness_records": 2211,
+    "effects": [
+      {
+        "case": "local",
+        "slot": 0,
+        "bytes": 83,
+        "sha256": "387cd2f5907df82054f1f060ac3c9baba6d25dc2c319b60aa7a0141c0d8dec3e"
+      },
+      {
+        "case": "local",
+        "slot": 1,
+        "bytes": 83,
+        "sha256": "ae217dfbd4eb040a3ae02df543f44797861bafd9561865c30da1169464e33cf3"
+      },
+      {
+        "case": "required",
+        "slot": 0,
+        "bytes": 83,
+        "sha256": "ee097f551d2e5061c8762518992c72d554fe74bf864e0d2e018d850c14fce985"
+      },
+      {
+        "case": "required",
+        "slot": 1,
+        "bytes": 83,
+        "sha256": "e2f95706f3cd30e64503eeeb83b7306a87c504ecece26ec5b85ac87240f54ec6"
+      },
+      {
+        "case": "effect",
+        "slot": 0,
+        "bytes": 83,
+        "sha256": "d6e895c5f36641a8f4b560a88fbdb82b0d9116958eb1e8aac93ca7773f505817"
+      },
+      {
+        "case": "effect",
+        "slot": 1,
+        "bytes": 83,
+        "sha256": "fab8d0aebc5f48430d982b59298134ca19360507544bfef57d3ddb30ec78606a"
+      },
+      {
+        "case": "worker-cut",
+        "slot": 0,
+        "bytes": 83,
+        "sha256": "a8bf067f65dc4468e10fe35a8247de6fabeb593962c7900000a366af18684d1c"
+      },
+      {
+        "case": "worker-cut",
+        "slot": 1,
+        "bytes": 83,
+        "sha256": "99c387368dd9ce5a6a3aedf1ffb17fb567b87d2ac920c3c8441f30a4a56fd7f8"
+      }
+    ],
+    "source_and_producer_unchanged": true,
+    "scope": "Actual installed browser package and current native fixtures on one macOS host; two-recipient original account delivery, exact retry, application failure, real Worker termination and original aggregate retirement. Same protocol implementation. No browser allocation/latency/energy, reserve/commit cut census, independent implementation, other OS or release qualification."
+  },
+  "capture": {
+    "bytes": 26811989,
+    "members": 13619,
+    "sha256": "c5d400b9ba07078983a39eb027f1ffc5fef3554e6999b9aee7b5b91b6061ee6e"
+  },
+  "private_material_archived": false,
+  "source_identity": "Original ca7 Git tree, source-bound installed package manifest, unchanged native fixture sources with current dependency paths/lock. Only local harness output paths adapted.",
+  "rejected_preparation": "Original strict lock failure, unaccepted unseeded dependency versions and missing TypeScript offline cache are retained. Same compiled package was reconsumed after fixed compiler cache preparation.",
+  "scope": "Actual installed browser package and current native fixtures on one macOS host; two-recipient original account delivery, exact retry, application failure, real Worker termination and original aggregate retirement. Same protocol implementation. No browser allocation/latency/energy, reserve/commit cut census, independent implementation, other OS or release qualification.",
+  "release_claim_eligible": false
+}

@@ -37,8 +37,9 @@ original test. It passes all 56 original Release fanout regressions, including
 process loss, sync failures, exact retries, mixed roles, managed authority,
 witness losses, policy continuation, abandonment and archive retirement. Strict
 Release/all-features library Clippy, formatting and WASM async-library compilation
-also pass. WASM compilation is separate from browser/IndexedDB execution.
-Foreign consumers and the Windows cohort have not yet exercised this patch.
+also pass. The subsequent [installed browser checkpoint](../20261018-browser-fanout-snapshot/README.md)
+passes four original complete-account scenarios and 212 actual Chrome calls.
+Windows and other foreign targets have not yet exercised this patch.
 
 `CAPTURE.json` binds every member of `CAPTURE.zip`. The capture contains paired
 raw streams/CSV, source and binary identities, instrumentation and implementation
