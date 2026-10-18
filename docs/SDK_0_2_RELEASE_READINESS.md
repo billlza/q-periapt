@@ -20,6 +20,10 @@ measurements. The subsequent [uninstrumented latency comparison](../research/sdk
 retains all 4,800 sends: paired medians vary from -1.78% to +1.14%, while observed
 p95 increases at 10 of 12 workload positions. Desktop load varies materially;
 these adverse tails remain unresolved pending a cleaner-host comparison.
+The [native CI comparison protocol](continuity/FANOUT_LATENCY_V1.md) is prepared
+for separate Linux x86_64 and Apple Silicon jobs, each retaining all 200 paired
+blocks and an independent raw-record readback. Execution and interpretation
+remain pending; preparation checks do not qualify latency.
 No speed or tail-latency improvement is established. Other foreign/Windows
 execution and energy remain separate. The qualified Windows cohort at `b47eb541`
 predates this change.

@@ -1,0 +1,102 @@
+name: Native fanout latency comparison
+
+on:
+  push:
+    branches: [lza/windows-private-store]
+    paths:
+      - .github/workflows/fanout-latency.yml
+      - artifact/fanout_latency*.py
+      - artifact/test_fanout_latency.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASELINE_COMMIT: b47eb5417d3c25cb7bd05dd91e56ad73777c56fb
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            host: x86_64-unknown-linux-gnu
+          - os: macos-15
+            host: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Fetch the immutable baseline source
+        run: git fetch --no-tags --depth=1 https://github.com/billlza/q-periapt.git "$BASELINE_COMMIT"
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: llvm-tools-preview
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Check timing and source-substitution refusals
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest discover -s artifact -p test_fanout_latency.py
+      - name: Build both variants and run all paired samples
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_HOST: ${{ matrix.host }}
+        run: sh artifact/python-run.sh artifact/fanout_latency.py --output target/fanout-latency --host "$EXPECTED_HOST"
+      - name: Retain public commands, samples and failed phases
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fanout-latency-${{ matrix.os }}
+          path: target/fanout-latency/public/
+          if-no-files-found: error
+
+  readback:
+    needs: measure
+    if: always()
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Fetch the immutable baseline source
+        run: git fetch --no-tags --depth=1 https://github.com/billlza/q-periapt.git "$BASELINE_COMMIT"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: fanout-latency-${{ matrix.os }}
+          path: target/fanout-input
+      - name: Replay every raw sample and compare the complete report
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          mkdir -p target/fanout-readback
+          sh artifact/python-run.sh artifact/fanout_latency_review.py --input target/fanout-input \
+            --output target/fanout-readback/REVIEW.json --expected-head "$EXPECTED_HEAD"
+          cmp target/fanout-input/REVIEW.json target/fanout-readback/REVIEW.json
+          cmp target/fanout-input/REVIEW.csv target/fanout-readback/REVIEW.csv
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fanout-latency-readback-${{ matrix.os }}
+          path: target/fanout-readback/
+          if-no-files-found: error
