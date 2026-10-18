@@ -89,7 +89,7 @@ class Fixture:
             require(not (path / 'head').exists() and not (path / 'intent').exists()
                     and (path / 'authority').read_bytes() == marker, 'creation changed retained coordination')
             with owner._state(operational=False) as (snapshot, state):
-                require(state.format_version == 7 and state.local_authority is not None, 'current local coordination absent')
+                require(state.format_version == 8 and state.local_authority is not None, 'current local coordination absent')
                 require(encode(state) == snapshot.payload, 'canonical local coordination')
                 version, record = state.format_version, state.local_renewal
                 try:

@@ -19,6 +19,7 @@ sources, readers and manifest. It is 25,686,122 bytes with 107 members, SHA-256
 `4fd06f1bdec938993f6fc4abc2064175e22a2b64e5427104347e93eed0a4a12d`.
 
 The later local-only format-seven work is outside this source closure. The
-corresponding Apple Silicon job remains pending at this checkpoint. Public
+subsequent [Apple Silicon receipt](../20261018-hosted-independent-opening-mac/README.md)
+completes the same hosted matrix. Public
 readback does not rederive private journal MAC/AEAD or establish installed,
 cross-host, whole-store rollback, power-loss, erasure or full PCS guarantees.

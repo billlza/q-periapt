@@ -85,7 +85,9 @@ installed-package qualification, whole-witness rollback protection, physical
 erasure, hardware power-loss qualification or construction-wide PCS analysis.
 The Python/provider memory limitations in `README.md` still apply.
 An original local-only policy uses the separate [single-journal coordinator](LOCAL_CREDENTIAL.md)
-and conditional version seven. It does not weaken this mode's witness requirement.
+and conditional version eight, retaining seven's reader and original Pending
+completion. It does not weaken this mode's witness requirement or enlarge its
+required-witness storage budget.
 
 The journal's internal opening factory transfers its already recovered,
 authenticated snapshot directly into session construction. The constructor

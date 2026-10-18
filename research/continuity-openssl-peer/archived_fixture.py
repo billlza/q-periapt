@@ -11,15 +11,19 @@ import zipfile
 
 def load_version(private, version):
     from peer.wire import require
-    require(version in (2, 3, 4), "archived peer version")
-    checkpoint = {2: "20261018-independent-durable-rekey", 3: "20261018-independent-control", 4: "20261018-independent-witness"}[version]
+    require(version in (2, 3, 4, 7), "archived peer version")
+    checkpoint = {2: "20261018-independent-durable-rekey", 3: "20261018-independent-control",
+                  4: "20261018-independent-witness", 7: "20261018-independent-local-credential"}[version]
     archive = Path("research/sdk-alpha1/evidence") / checkpoint / "CAPTURE.zip"
     checks = json.loads(archive.with_name("CHECKS.json").read_text())
     require(hashlib.sha256(archive.read_bytes()).hexdigest() == checks["capture"]["sha256"],
             "archived peer capture changed")
     destination = private / "archived-peer"
     destination.mkdir(mode=0o700)
-    sources = checks["source_files"] if version == 2 else checks["witness" if version == 4 else "control"]["source_files"]
+    if version == 7:
+        sources = checks["readbacks"]["LOCAL_CREDENTIAL"]["source_files"]
+    else:
+        sources = checks["source_files"] if version == 2 else checks["witness" if version == 4 else "control"]["source_files"]
     with zipfile.ZipFile(archive) as saved:
         for name, expected in sources.items():
             if not name.startswith("peer/") or not name.endswith(".py"):

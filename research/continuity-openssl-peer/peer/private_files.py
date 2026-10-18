@@ -9,8 +9,9 @@ import stat
 import sys
 
 from .wire import require
+from .storage_budget import MAX_STATE, MAX_LOCAL_STATE
 
-MAX_FILE = 2 * 1024 * 1024 + 4096
+MAX_FILE = MAX_STATE + 4096
 MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 
 
@@ -45,8 +46,11 @@ def sync_file(fd: int) -> None:
 
 
 class PrivateDirectory:
-    def __init__(self, path: Path, observer=None):
+    def __init__(self, path: Path, observer=None, *, max_file=MAX_FILE):
         require(sys.platform in ("darwin", "linux"), "independent store requires POSIX")
+        require(type(max_file) is int and MAX_FILE <= max_file <= MAX_LOCAL_STATE + 4096,
+                "private file bound")
+        self.max_file = max_file
         self.path, self.observer = path, observer
         self.fd = open_directory(path)
         try:
@@ -81,7 +85,7 @@ class PrivateDirectory:
         try:
             before = os.fstat(fd)
             private_regular(before)
-            require(0 < before.st_size <= MAX_FILE, "store file capacity")
+            require(0 < before.st_size <= self.max_file, "store file capacity")
             result = bytearray()
             while len(result) < before.st_size:
                 part = os.read(fd, min(65536, before.st_size - len(result)))
@@ -114,7 +118,7 @@ class PrivateDirectory:
                 require(total + incoming <= MAX_DIRECTORY_BYTES, "store disk capacity")
 
     def publish(self, name: str, value: bytes, *, fixed_slot: str | None = None) -> None:
-        require(name in ("head", "intent", "authority") and 0 < len(value) <= MAX_FILE, "publication shape")
+        require(name in ("head", "intent", "authority") and 0 < len(value) <= self.max_file, "publication shape")
         if name == "head":
             require(fixed_slot is None, "head publication owns its reserved slot")
             self._publish_fixed(name, ".stage-head", value)

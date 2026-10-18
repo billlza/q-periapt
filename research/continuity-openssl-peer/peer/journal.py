@@ -17,10 +17,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 
 from .kem import hkdf
 from .private_files import PrivateDirectory
+from .storage_budget import MAX_STATE, MAX_LOCAL_STATE
 from .wire import MAX_U64, Reader, require
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-JOURNAL/v1/"
-MAX_STATE = 2 * 1024 * 1024
 
 
 def locked(function):
@@ -62,6 +62,7 @@ class Snapshot:
 
 class Journal:
     image_overhead = 128
+    max_payload = MAX_STATE
 
     def __init__(self, path: Path, scope: Scope, wrapping_key: bytes, validate, observer=None):
         require(type(wrapping_key) is bytes and len(wrapping_key) == 32, "wrapping key size")
@@ -69,7 +70,7 @@ class Journal:
         self.scope, self.validate = scope, validate
         self._cipher = AESSIV(hkdf(wrapping_key, scope.identity, DOMAIN + b"image-key/" + scope.wire(), 64))
         self._intent_key = hkdf(wrapping_key, scope.identity, DOMAIN + b"intent-key/" + scope.wire())
-        self._directory = PrivateDirectory(path, observer)
+        self._directory = PrivateDirectory(path, observer, max_file=self.max_payload + 4096)
 
     @classmethod
     def create(cls, path: Path, scope: Scope, key: bytes, initial: bytes, validate, observer=None):
@@ -109,14 +110,14 @@ class Journal:
         return self._directory
 
     def _seal(self, revision: int, payload: bytes) -> bytes:
-        require(type(payload) is bytes and len(payload) <= MAX_STATE and 0 < revision < MAX_U64,
+        require(type(payload) is bytes and len(payload) <= self.max_payload and 0 < revision < MAX_U64,
                 "journal payload/revision capacity")
         self.validate(payload)
         header = b"QPREFJ01" + self.scope.wire() + revision.to_bytes(8, "big")
         return header + self._cipher.encrypt(payload, [header])
 
     def _decode(self, wire: bytes) -> Snapshot:
-        require(128 <= len(wire) <= MAX_STATE + 128, "encrypted image capacity")
+        require(128 <= len(wire) <= self.max_payload + 128, "encrypted image capacity")
         require(wire[:104] == b"QPREFJ01" + self.scope.wire(), "journal identity/owner/context")
         revision = int.from_bytes(wire[104:112], "big")
         require(0 < revision < MAX_U64, "journal revision")
@@ -129,7 +130,7 @@ class Journal:
         return body + hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + body, "sha256")
 
     def _decode_intent(self, wire: bytes) -> tuple[int, bytes, bytes, Snapshot]:
-        require(84 + self.image_overhead <= len(wire) <= MAX_STATE + 84 + self.image_overhead, "write-intent capacity")
+        require(84 + self.image_overhead <= len(wire) <= self.max_payload + 84 + self.image_overhead, "write-intent capacity")
         expected = hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + wire[:-32], "sha256")
         require(hmac.compare_digest(expected, wire[-32:]), "write-intent authentication")
         r = Reader(wire[:-32])
@@ -209,3 +210,8 @@ class Journal:
             directory, self._directory = self._directory, None
             self._cipher, self._intent_key = None, None
             directory.close()
+
+
+class LocalSessionJournal(Journal):
+    """Same transaction engine; the session codec admits the extra v8 allocation."""
+    max_payload = MAX_LOCAL_STATE

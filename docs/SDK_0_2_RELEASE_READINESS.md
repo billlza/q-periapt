@@ -217,8 +217,9 @@ three queries becoming one; all fourteen runtime lanes and eight public readers
 pass, including unchanged renewal/revocation/cancellation boundaries. This is
 request/byte accounting, not latency/energy qualification. The subsequent
 [Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-opening-linux/README.md)
-completes fourteen lanes and seven frozen-source readers at `73760183`;
-the matching Apple Silicon job remains pending at this checkpoint.
+completes fourteen lanes and seven frozen-source readers at `73760183`.
+The [Apple Silicon receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-opening-mac/README.md)
+completes the same matrix with its own exact frozen source and binary checks.
 
 The [independent local-only credential checkpoint](../research/sdk-alpha1/evidence/20261018-independent-local-credential/README.md)
 adds conditional `QPREFS07`: current local identity, Pending grant, abandonment
@@ -236,6 +237,26 @@ cannot fall back to local-only mode. A full store first encountered after expiry
 same-account coordination, public registration without fixtures, installed/cross-host
 lifecycle, complete resource measurements and construction-wide security analysis
 remain open; this increment does not admit the full 0.2.0 release.
+
+The subsequent [Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-local-credential-linux/README.md)
+completes all sixteen lanes and eight frozen-source readers at `73b97e77`.
+The following [local lifecycle storage-budget checkpoint](../research/sdk-alpha1/evidence/20261018-independent-renewal-capacity/README.md)
+addresses its full-business-store renewal gap. Conditional `QPREFS08` allocates
+at most 213,291 extra bytes exclusively to bounded lifecycle metadata; business
+and control allowances, all old schema bounds and required-witness bounds remain.
+An original full store with 123 outboxes and an expired credential continues
+through two grants without deletion or outcome accounting, using the same native
+endpoint. Final capacity regression hashes show every retained epoch unchanged;
+a further business send still fails. An actual archived version-seven Pending
+operation completes in seven before the next explicit stage selects eight.
+All sixteen final runtime entries complete and nine public readers pass. One
+archived-test type mismatch is preserved and repaired by reauthenticating original
+public inputs through archived types; only that affected entrypoint was rerun.
+The runtime sources and the other fifteen entrypoints' dependencies are identical
+across the test repair, with exact provenance recorded for all 78 source files.
+This resolves the bounded local-only business-capacity case, not physical disk
+exhaustion, same-account coordination, complete installed/deployed lifecycle,
+resource measurements or construction-wide recovery analysis.
 
 The [23280124 Apple Silicon native completion](../research/sdk-alpha1/evidence/20261018-native-mac-2328/README.md)
 records successful Debug/Release candidate and sealed-SDK suites, strict feature

@@ -6,7 +6,8 @@ from contextlib import contextmanager
 import threading
 
 from .bootstrap import Initiator
-from .journal import Journal, Scope, MAX_STATE, locked
+from .journal import LocalSessionJournal, Scope, MAX_STATE, locked
+from .storage_budget import MAX_LOCAL_STATE
 from .state_codec import State, SendPlan, encode, decode
 from .epoch_state import EpochState
 from .rekey_owner import RekeyOwner
@@ -62,7 +63,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
         cls._scope(context, scope)
         state = State(Initiator(context, signer, now))
         try:
-            journal, snapshot = Journal._create(path, scope, key, encode(state), cls._validator(context), observer)
+            journal, snapshot = LocalSessionJournal._create(path, scope, key, encode(state), cls._validator(context), observer)
             return cls(journal, context, observer, snapshot)
         finally:
             state.close()
@@ -71,7 +72,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
     def open(cls, path, scope: Scope, key: bytes, context, *, creation=False, observer=None):
         require(context.witness is None, "required witness needs the witnessed session owner")
         cls._scope(context, scope)
-        journal, snapshot = Journal._open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
+        journal, snapshot = LocalSessionJournal._open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
         return cls(journal, context, observer, snapshot)
 
     @contextmanager
@@ -89,7 +90,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 state.peer_authority.check(now)
             yield snapshot, state
             authority_generation = self._authority_generation
-            if operational and now is not None and state.format_version in (5, 6, 7):
+            if operational and now is not None and state.format_version in (5, 6, 7, 8):
                 # A reentrant host observer may have committed revocation after
                 # this call's own write. Recheck the durable current authority
                 # before its result escapes; the earlier decoded view is stale.
@@ -186,7 +187,8 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                     return wire
                 # A committed outgoing row adds index+receipt+wire length+frame.
                 # Reserve space for that final state before persisting plaintext.
-                require(len(snapshot.payload) + 8 + 32 + 4 + 109 + len(plaintext) <= MAX_STATE,
+                limit = MAX_LOCAL_STATE if state.format_version == 8 else MAX_STATE
+                require(len(snapshot.payload) + 8 + 32 + 4 + 109 + len(plaintext) <= limit,
                         "final send image capacity")
                 state.pending = plan
                 snapshot = self._journal.update(snapshot.digest, encode(state))

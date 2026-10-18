@@ -77,7 +77,7 @@ def write(journal, control):
 def admit_snapshot(journal, state):
     if state.operation._context.witness is None:
         require(journal._admit().read("authority") is None, "witness coordination in local-only store")
-        if state.format_version == 7:
+        if state.format_version in (7, 8):
             require(state.local_renewal is not None, "local coordination absent")
             state.local_renewal.admit()
         else:

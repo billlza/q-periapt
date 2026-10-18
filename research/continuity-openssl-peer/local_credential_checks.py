@@ -70,7 +70,7 @@ def exercise(args, label):
             status(w('committed-readback', 'local_credential_status', op, now=now), 'Committed', first[0])
             require(hashlib.sha256((f.path / 'head').read_bytes()).hexdigest() == hashlib.sha256(committed_intent[52:-32]).hexdigest(),
                     'original committed image changed')
-            require(w('format-seven', 'storage_format', now=now) == 7, 'conditional local format')
+            require(w('format-eight', 'storage_format', now=now) == 8, 'conditional local format')
             if label == 'combined':
                 w('still-expired-peer-refused', 'resume', (original,), now=210, refusal='expired or premature authority')
                 peer = f.materials(1, peer=True)

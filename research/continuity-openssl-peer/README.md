@@ -131,9 +131,12 @@ only for that explicit transition; normal creation and generic upgrade stay at f
 
 For an original local-only policy, [LocalCredentialRenewal](LOCAL_CREDENTIAL.md)
 retains Pending, current local authority, abandonment and a time floor in the
-same journal. Conditional `QPREFS07` preserves the original session and outbox
+same journal. Conditional `QPREFS08` preserves the original session and outbox
 while coordinating expiry and exact-target recovery. It refuses required-witness
 contexts and preflights capacity for the completed identity before staging.
+Its bounded lifecycle allocation permits renewal of a full original business
+store after credential expiry. Version seven remains readable with its original
+limits; an already Pending operation completes in that version.
 
 This is not an admitted independent Continuity product implementation.
 Policy renewal and retirement, same-account coordination, account fanout,
@@ -192,10 +195,11 @@ cuts, lost Commit/Close/ACK replies, two local grants and policy-expired cleanup
 It also preserves the refusal to replace unrelated expired pending work.
 `local_credential_checks.py` exercises the separate local-only contract with
 29 real process cuts, original reserved sends, expiry floors and combined peer
-metadata. `local_credential_capacity_checks.py` checks final-image admission at
-the real business capacity boundary and continuation after explicit unknown-outcome
-accounting while old authority is current. Full storage first encountered after
-credential expiry remains a distinct availability gap.
+metadata. `local_credential_capacity_checks.py` checks the full 123-row business
+boundary across two renewals after original expiry, original seven-to-eight
+continuation and independent metadata/file limits. It preserves messages and
+does not perform unknown-outcome cleanup to make room. Physical disk or directory
+quota exhaustion still fails explicitly.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

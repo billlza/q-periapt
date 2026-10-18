@@ -5,7 +5,7 @@ from dataclasses import replace
 import threading
 from .durable import Session
 from .identity_state import IdentityState
-from .journal import Journal, locked
+from .journal import LocalSessionJournal, locked
 from .local_renewal_record import Record, Expired
 from .owner_guard import coordinated
 from .renewal import verify
@@ -23,7 +23,7 @@ class LocalCredentialRenewal:
         require(context.witness is None, "local credential coordinator requires original local-only policy")
         Session._scope(context, scope)
         require(type(operation) is bytes and len(operation) == 32 and any(operation), "original local renewal operation")
-        journal = Journal.open(path, scope, key, Session._validator(context), observer=observer)
+        journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
         owner = cls(journal, context, operation)
         try:
             with owner._state():
@@ -78,9 +78,9 @@ class LocalCredentialRenewal:
                 # first grant it can be larger than the pending grant alone;
                 # no ordinary traffic can drain space while coordination waits.
                 preview = replace(state, local_authority=successor,
-                                  local_renewal=replace(record, pending=None, expired=None), format_version=7)
+                                  local_renewal=replace(record, pending=None, expired=None), format_version=8)
                 encode(preview)
-                state.local_renewal = replace(record, pending=grant); state.format_version = 7
+                state.local_renewal = replace(record, pending=grant); state.format_version = 8
                 self._save(snapshot, state, "staged")
                 return state.local_renewal.status(current, self.operation)
         except BaseException:

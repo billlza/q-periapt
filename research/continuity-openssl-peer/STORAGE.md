@@ -123,8 +123,11 @@ Formal files must be private mode-0600 regular files with one link, with bounded
 reads and descriptor/path identity checks. Hostile code running as the same user
 is not isolated by these permissions.
 
-Plain state is capped at 2 MiB, each file at 2 MiB + 4096 bytes, and new writes
-respect 128 directory entries and 64 MiB of retained files. Multi-epoch message
+Raw journals and schemas one through seven cap plain state at 2 MiB and each
+file at 2 MiB + 4096 bytes. The explicit local-only version-eight transition has
+the separate bounded lifecycle allocation described in [LOCAL_CREDENTIAL](LOCAL_CREDENTIAL.md);
+it preserves the original business/control allowance and the directory quota.
+New writes respect 128 directory entries and 64 MiB of retained files. Multi-epoch message
 records reserve 64 KiB of the image for bootstrap/control/history completion.
 Both the pending plaintext record and its eventual ciphertext row must fit before
 the input is committed. Capacity for both
@@ -416,11 +419,13 @@ network serialization or a general application report API.
 ## Validation entrypoints
 
 The [local-only credential contract](LOCAL_CREDENTIAL.md) specifies conditional
-version seven. Pending grants, current local identity, the last abandonment and
+version eight, preserving the version-seven reader and original Pending completion.
+Pending grants, current local identity, the last abandonment and
 its time floor share the original authenticated journal transaction. It requires
 an established session under the original local-only policy. Both Pending and
-final metadata must fit before staging; combined metadata is charged to business
-capacity without shrinking control headroom. Initialization refuses any existing
+final metadata must fit before staging; version eight gives combined lifecycle
+metadata a separate 213,291-byte maximum without increasing the business cap or
+shrinking control headroom. Initialization refuses any existing
 head, intent or authority record before publishing a new head.
 
 The [joint local renewal contract](LOCAL_RENEWAL.md) specifies conditional

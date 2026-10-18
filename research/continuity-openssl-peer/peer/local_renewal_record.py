@@ -3,10 +3,8 @@
 from dataclasses import dataclass
 from .identity_state import IdentityState
 from .renewal import Renewal, verify
+from .storage_budget import MAX_LOCAL_RECORD as MAX_RECORD
 from .wire import MAX_U64, require
-
-MAX_RECORD = 8 + 1 + 40 + 4 + 65536 + 1 + 152
-MAX_IDENTITY = 40 + 4 + 65536 + 2 + 8192
 
 
 def time_value(value):

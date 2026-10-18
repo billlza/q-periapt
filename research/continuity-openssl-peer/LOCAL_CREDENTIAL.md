@@ -47,9 +47,9 @@ retains its time floor, including for ordinary business calls. The current
 completion and at most one abandonment are retained; this is not an unbounded
 operation ledger. Missing historical outcomes remain unavailable.
 
-## One journal transaction and conditional format seven
+## One journal transaction and a separate lifecycle allocation
 
-`QPREFS07` retains the current local identity, Pending grant, abandonment and
+`QPREFS08` retains the current local identity, Pending grant, abandonment and
 floor in the same encrypted journal as the session. It adds no authority sidecar.
 Publication uses the existing exact-target intent, synchronized head and recovery
 ordering. The coordinator reads back the durable head before returning a result.
@@ -57,7 +57,7 @@ Transactions reject reentrant operations; callbacks may close the owner.
 Initialization refuses existing head, intent or authority records before writing.
 
 The header, optional peer identity and original session transcript remain.
-Version seven then encodes a local-identity presence byte, the optional canonical
+Versions seven and eight then encode a local-identity presence byte, the optional canonical
 identity, and a coordination record: floor:u64, Pending presence byte, optional
 target[40] + grant length:u32 + grant bytes, abandonment presence byte and an
 optional 152-byte terminal. The terminal contains operation[32], statement[32],
@@ -66,16 +66,35 @@ Presence fields accept only zero or one. Historical root verification reconstruc
 retained grants without granting current traffic authority.
 
 Ordinary creation and generic upgrades still select version five. Version six is
-exclusively the required-witness renewal format. Older formats refuse local
-coordination rather than silently dropping it. Neither profile may fall back to
-the other, and original session keys, message identities and ciphertexts remain.
+exclusively the required-witness renewal format. Version seven remains readable
+with its original bounds; an already Pending version-seven operation commits in
+that original format. A new local credential stage explicitly selects version
+eight. Older readers refuse its tag rather than interpreting the new allocation
+under an old contract. Formats one through six refuse local coordination rather
+than silently dropping it. Neither policy profile may fall back to the other.
 
-The existing two-MiB snapshot bound and 64-KiB control reservation remain. Older
-formats retain their 73,728-byte metadata ceiling. Version seven allows at most
-213,291 metadata bytes: two bounded identity records, one bounded coordination
-record and the local presence byte. Every actual metadata byte is deducted from
-business capacity. Staging also preflights the completed identity: it can occupy
-more space than Pending. Insufficient capacity refuses before publishing Pending.
+Versions one through seven and raw journals retain their two-MiB aggregate bound.
+Formats one through six retain the 73,728-byte metadata ceiling; version seven
+allows at most 213,291 metadata bytes, charged to its business allowance. That
+charge can prevent renewal when a previously accepted store is full, even with
+a valid new grant. Expired old authority correctly cannot perform ordinary
+cleanup to make room.
+
+Version eight gives those same bounded lifecycle records a separate allocation:
+two identities, one coordination record and the local presence byte, at most
+213,291 bytes. Only their actual encoded bytes may sit outside the unchanged
+two-MiB base-state allowance. Business traffic still cannot exceed 2,031,616 bytes,
+and the existing 64-KiB control reservation remains. The maximum plaintext image
+is 2,310,443 bytes, encrypted head 2,310,571 bytes, and local-session file admission
+2,314,539 bytes. Raw and required-witness journal bounds remain unchanged. The
+64-MiB directory quota, 128-file limit and exact-target publication engine also
+remain. This is bounded additional storage, not a performance or energy result.
+
+Staging still preflights Pending and completed state before publication. It can
+now renew an already full original store after credential expiry without clearing
+outboxes, inventing delivery outcomes or authorizing work under expired authority.
+The grant and policy must be current. Physical storage exhaustion, directory quota
+exhaustion or malformed/oversized inputs still fail explicitly and retain state.
 
 ## Qualification and remaining scope
 
@@ -86,15 +105,16 @@ reentrant cancellation and simultaneous local/peer metadata. Four profiles use
 148 fresh-process operations and 29 SIGKILL cuts. Original reserved sends, outboxes,
 ACKs and four-flight rekey continue in the same session.
 
-`local_credential_capacity_checks.py` fills 122 real outbox rows. Pending fits but
-the completed metadata exceeds its allowance by 3,501 bytes; staging refuses
-without changing the head or creating an intent. While the old authority is still
-current, explicit host accounting records 64 old outboxes as DeliveryUnknown and
-releases their space. The same grant then commits and a surviving original
-ciphertext is accepted by the native peer. A full store first encountered after
-credential expiry still needs a separately authorized cleanup or replacement path.
-The combined profile verifies 88,703 actual metadata bytes, not the maximum of
-every possible signed input.
+`local_credential_capacity_checks.py` fills the entire business allowance with
+123 real outbox rows. Two root grants after original credential expiry preserve
+every encoded epoch's hash, all outboxes and original ciphertexts, with process
+cuts in staging and commit. The second Pending image exceeds the old physical
+image ceiling. A further business send remains refused despite unused lifecycle
+space. Boundary controls preserve old schema, raw-journal, file and aggregate
+limits. Its archived version-seven writer creates a real Pending operation;
+current recovery completes it in seven, then a new grant selects eight. The old
+reader explicitly refuses eight. The combined profile retains 88,703 actual
+metadata bytes; it does not qualify every maximum signed-input combination.
 
 The native traffic counterpart retains fixture time 170; independent calls use
 170/190/210/250/310/401 to exercise signed validity bounds. This is a bounded
