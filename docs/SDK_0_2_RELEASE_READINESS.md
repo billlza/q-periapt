@@ -45,6 +45,21 @@ at `ddb9dadc` passes all four jobs and eight profiles, including independent
 artifact readback with no warning/error diagnostics. This does not erase the
 earlier rejected source logs or expand the installed lifecycle scope above.
 
+The C reference callers now share native thread/monotonic-clock operations and
+a bounded in-memory recovery report writer. The writer replaces three POSIX
+`open_memstream` dependencies without changing the serialized formats or file
+publication path. Local macOS checks pass the original 10 C/Rust connection and
+recovery tests, complete-account cleanup with calibrated process cuts, and the
+independent Rust report comparison (two reservations, two unknown messages, five
+unconsumed messages and two skipped positions). Old and new C clients also emit
+byte-identical reconciliation reports from the same committed account state.
+The writer's exact-size limit, overflow refusal and sticky allocation failure
+pass sanitizer checks and strict Debug/Release compilation. These are current
+C-caller regressions against the recorded macOS library and fixtures, not a new
+installed-package cohort. Windows primitive checks are in CI; full Windows C
+filesystem publication and network lifecycle remain open. File length alone
+does not establish a runtime performance problem or an optimization gain.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

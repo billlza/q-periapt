@@ -62,7 +62,8 @@ def prepare(args) -> None:
     tracked = run(['git', 'ls-files', prefix], 'facade-inputs').decode().splitlines()
     selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
                 p[len(prefix):] in ('Cargo.toml', 'qpc_owner.h', 'first_configuration_client.c',
-                                   'consumer_platform.h', 'consumer_platform_test.c') or
+                                   'consumer_platform.h', 'consumer_platform_test.c',
+                                   'report_buffer.h', 'report_buffer_test.c') or
                 p[len(prefix):].startswith('configuration_') and p.endswith('_client.c')]
     source_hashes = {}
     for relative in selected:

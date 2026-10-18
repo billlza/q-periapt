@@ -109,7 +109,7 @@ def consume(args):
         client_source = outside / (profile + '-client')
         client_source.mkdir()
         for name in receipt['files']:
-            if '/' not in name and (name.endswith('.c') or name == 'consumer_platform.h'):
+            if '/' not in name and (name.endswith('.c') or name in ('consumer_platform.h', 'report_buffer.h')):
                 shutil.copyfile(consumer / name, client_source / name)
         platform_test = installed / 'consumer-platform-test.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
@@ -119,6 +119,14 @@ def consume(args):
         platform_result = run([str(platform_test)], profile + '-platform-runtime', installed, timeout=30)
         require(platform_result.strip() == 'CONSUMER_PLATFORM_PASS native_worker_join=true monotonic_clock=true sleep_completed=true',
                 'native caller platform contract did not execute')
+        report_test = installed / 'report-buffer-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'report_buffer_test.c'), '-o', str(report_test)],
+            profile + '-report-compile', client_source)
+        report_result = run([str(report_test)], profile + '-report-runtime', installed, timeout=30)
+        require(report_result.strip() == 'REPORT_BUFFER_PASS canonical_bytes=true size_limit=true failure_sticky=true',
+                'native bounded report contract did not execute')
         executable = installed / 'first-configuration.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              str(client_source / 'first_configuration_client.c'), '-I', str(installed),

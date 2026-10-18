@@ -510,6 +510,13 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             loader = dependencies
         verify_linkage(dependencies, loader, filename, darwin=darwin)
         client_identity = sdk.snapshot(executable, maximum=MAX_BINARY)
+        report_test = installed / "qpc-report-buffer-test"
+        run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+             *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
+             str(consumer / "report_buffer_test.c"), "-I", str(consumer), "-o", str(report_test)], "report-compile-" + profile)
+        sdk.require(run([str(report_test)], "report-contract-" + profile)
+                    == b"REPORT_BUFFER_PASS canonical_bytes=true size_limit=true failure_sticky=true\n",
+                    "C bounded recovery report contract failed")
         effect_test = installed / "qpc-application-effect-test"
         run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
              *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
