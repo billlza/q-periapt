@@ -79,6 +79,13 @@ qualification of this increment is pending. Different internal reservation cuts
 still need disclosure/refinement analysis; required witnesses, authority renewal,
 revocation, application epoch resolution, control requests and installed/cross-host
 lifecycle remain open. Process recovery is not hardware power-loss or PCS proof.
+The subsequent [Linux hosted durable-rekey checkpoint](../research/sdk-alpha1/evidence/20261018-hosted-independent-durable-rekey/README.md)
+passes at `0466b276`, including all six runtime lanes. Independent readback of the
+downloaded artifact verifies the exact 36 committed sources, actual ELF binary,
+32 signed flights, 150 worker operations and their cut/result records. Its separate
+primitive and epoch-zero lanes retain 19 and six real kills respectively. The
+capacity boundary and explicit archived-writer upgrade pass unchanged. Apple
+Silicon hosted execution remains queued; local ARM64 evidence is separate.
 
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
@@ -142,8 +149,17 @@ archive guard because the packaging extraction left two obsolete local-variable
 references. The guard now consumes the original returned archive record; the
 actual failed-run archive passes the corrected call site, and 30 focused tests
 pass, including same-length substitution refusal. The original job remains failed;
-a new complete installed run is still required. The obsolete full runs at `fd42`
+that checkpoint still required a new complete installed run. The obsolete full runs at `fd42`
 and `1183` were cancelled after retaining their job states and terminal failure.
+The subsequent [Linux installed completion](../research/sdk-alpha1/evidence/20261018-linux-installed-archive-completion/README.md)
+passes the full Debug/Release Rust/C job at `23280124`, including the repaired
+final archive guard. Local readback verifies 1,132 committed source inputs,
+unchanged before/after inventories, the original installed dependency graph,
+strict C11 runtime outputs, ten Rust lifecycle public records and fourteen C
+account contracts. The complete terminal job is successful; other C checks retain
+producer observations and the overall multi-platform workflow still has queued
+jobs. This closes the new installed-run requirement without rewriting the earlier
+failure or claiming complete release readiness.
 
 The subsequent full CI at `71421773` identifies two separate integration defects:
 the Rust source inventory still expected 718 files after adding the Windows C
