@@ -1,6 +1,8 @@
 """Public C exports must replay, omit private stores and reject substitutions."""
 import copy
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -10,6 +12,33 @@ from test_continuity_c_account import STDOUT as ACCOUNT_STDOUT, fixture as accou
 
 
 class CPublicExportTests(unittest.TestCase):
+    def test_non_posix_import_does_not_enable_process_management(self):
+        # A fresh interpreter avoids a cached POSIX module concealing the
+        # Windows import failure. No child command may be launched by it.
+        script = '''
+import os, signal, subprocess, sys
+sys.path.insert(0, sys.argv[1])
+os.name = "nt"
+if hasattr(signal, "SIGHUP"):
+    del signal.SIGHUP
+import bounded_process
+def forbidden(*args, **kwargs):
+    raise AssertionError("unsupported process launch attempted")
+subprocess.Popen = forbidden
+try:
+    bounded_process.capture_output([sys.executable, "-c", "pass"], timeout_seconds=1,
+                                  maximum_stdout_bytes=100, maximum_stderr_bytes=100)
+except bounded_process.BoundedProcessError as error:
+    assert error.kind == "start" and "POSIX host" in str(error)
+else:
+    raise AssertionError("unsupported operation accepted")
+'''
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', script,
+                                 str(Path(__file__).resolve().parent)],
+                                capture_output=True, timeout=10, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(result.stdout, b'')
+
     def test_account_count_is_not_a_file_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)

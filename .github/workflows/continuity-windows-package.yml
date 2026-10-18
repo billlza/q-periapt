@@ -7,6 +7,7 @@ on:
       - .github/workflows/continuity-windows-package.yml
       - artifact/continuity_windows_*.py
       - artifact/test_continuity_windows_*.py
+      - artifact/bounded_process.py
       - artifact/continuity_connection_public.py
       - research/continuity-identity-candidate/**
       - artifact/installed_rust_graph.py
@@ -88,6 +89,14 @@ jobs:
         with:
           name: windows-installed-input
           path: target/windows-installed-input
+      - name: Check native public C reader import and contracts
+        shell: bash
+        env:
+          WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}
+        run: |
+          QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
+          export QPERIAPT_PYTHON
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_windows_*.py'
       - name: Select native MSVC environment and owned private test root
         shell: pwsh
         run: |

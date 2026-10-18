@@ -63,7 +63,7 @@ _INTERRUPTION_SIGNALS = (
     signal.SIGINT,
     signal.SIGHUP,
     signal.SIGTERM,
-)
+) if os.name == "posix" else ()
 _MAX_ADDITIONAL_SIGNAL_COUNT = 255
 
 
@@ -94,6 +94,12 @@ class _SignalCoordinator:
     """Turn process termination signals into synchronous ownership checks."""
 
     def __init__(self) -> None:
+        # Pure report readers also import this module's result/error types.
+        # Importing them does not admit process management on another host.
+        if os.name != "posix":
+            raise BoundedProcessError(
+                "start", "bounded process groups require a POSIX host"
+            )
         self._previous_handlers: dict[signal.Signals, object] = {}
         self._requested_signal: int | None = None
         self._additional_signal_counts = {
