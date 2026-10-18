@@ -136,4 +136,12 @@ class RekeyScope:
 
     def completed(self, offer, response, final, receipt, root):
         self.verify_receipt(offer, response, final, receipt, root)
+        return self.public_completed(offer, response, final, receipt)
+
+    def public_completed(self, offer, response, final, receipt):
+        """Validate retained public history after its old root has been dropped."""
+        bodies = [self.open(flight, wire) for flight, wire in enumerate((offer, response, final, receipt))]
+        first, second, third = digest(b"offer-wire", offer), digest(b"response-wire", response), digest(b"final-wire", final)
+        require(bodies[1][153:185] == first and bodies[2][153:217] == first + second
+                and bodies[3][153:249] == first + second + third, "completed rekey transcript")
         return digest(b"completed-epoch", offer + response + final + receipt)

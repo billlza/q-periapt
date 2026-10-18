@@ -26,15 +26,20 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
         try:
-            self.process = subprocess.Popen([str(executable), str(output / "public")],
+            command = [str(executable), str(output / "public")]
+            if send_budget is not None:
+                if type(send_budget) is not int or not 0 < send_budget <= 65535:
+                    raise ValueError("explicit native send budget")
+                command += ["--send-budget", str(send_budget)]
+            self.process = subprocess.Popen(command,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr,
                 bufsize=0, start_new_session=True)
-        except OSError:
+        except (OSError, ValueError):
             self.stderr.close()
             raise
         if self.process.stdin is None or self.process.stdout is None:

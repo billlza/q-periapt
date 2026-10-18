@@ -83,8 +83,8 @@ No wrapping key or encrypted private image is uploaded. Reopen here is within
 the original process; it is not a process-crash or power-loss experiment.
 
 The [independent storage/session implementation](STORAGE.md) now separately
-persists waiting bootstrap, confirmed roots, traffic state, exact send reservations
-and consumption. It reopens the original material in fresh OS processes and tests
+persists waiting bootstrap, confirmed roots, traffic epochs, exact send reservations,
+four-flight rekey and consumption. It reopens the original material in fresh OS processes and tests
 real process interruption before results are returned. Identity signing keys stay
 outside the session journal. `storage_checks.py` covers the file transaction;
 `durability_checks.py` covers persisted protocol recovery against the Rust peer.
@@ -92,14 +92,15 @@ The separate `rekey_checks.py` lane now computes all four signed rekey flights
 with independent KEM, root/confirmation and epoch traffic/ACK derivations. Eight
 alternating exchanges interoperate with real Rust journal cutovers, including
 asymmetric progress after final, cached control replay and bidirectional traffic.
-These rekey computations remain volatile: the durable `Session` still admits
-epoch zero only. Its snapshot codec explicitly refuses nonzero traffic epochs.
-Independent durable rekey reservations/outboxes, aggregate unconfirmed send
-budget, retained-epoch resolution and full lifecycle are not implemented by this
-computational lane. No completed exchange count asserts post-compromise security.
+The computational lane remains volatile. The subsequent `durable_rekey_checks.py`
+uses the journal-owned `Session`, an explicit `QPREFS01` to `QPREFS02` upgrade,
+separate directional cutovers, exact control outboxes and the aggregate unconfirmed
+send budget. It retains unsettled epochs and resumes after process loss. Closed-epoch
+application resolution, control-request scheduling and full identity lifecycle
+remain required. No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
-This is not an admitted independent Continuity product implementation. Durable rekey,
+This is not an admitted independent Continuity product implementation. Required
 witnesses, renewal, revocation, account fanout, the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 The Rust side is

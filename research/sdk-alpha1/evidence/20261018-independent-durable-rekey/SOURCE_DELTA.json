@@ -1,0 +1,8 @@
+{
+  "file": "research/continuity-openssl-peer/session_driver.py",
+  "tested_sha256": "56dbb1ee312fde8bca1737c42657fbee6a6e4d14b42ae4a46fcfed9be7573381",
+  "committed_sha256": "2450a716207bc8c23316f2760f782e3c72f5619815eb63b5b5b944d1b8f6549d",
+  "change": "Remove exactly one extra final newline found by staged diff whitespace check.",
+  "AST_identical": true,
+  "validation_scope": "The capture preserves exact tested bytes. No behavioral test rerun for an EOF whitespace-only correction; hosted run will hash the committed source."
+}

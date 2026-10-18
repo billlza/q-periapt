@@ -39,6 +39,16 @@ fn send(output: &mut impl Write, status: u8, bytes: &[u8]) -> Result<()> {
 fn main() -> Result<()> {
     let mut args = std::env::args_os().skip(1);
     let path = args.next().ok_or("expected new public output directory")?;
+    let budget = match args.next() {
+        None => 1024,
+        Some(flag) if flag == "--send-budget" => args
+            .next()
+            .ok_or("missing send budget")?
+            .to_str()
+            .ok_or("non-UTF8 send budget")?
+            .parse::<u16>()?,
+        _ => return Err("unexpected argument".into()),
+    };
     if args.next().is_some() {
         return Err("unexpected argument".into());
     }
@@ -47,7 +57,7 @@ fn main() -> Result<()> {
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
     let peer_key = PublicKey::decode(&receive(&mut input)?)?;
-    let fixture = fixture::create(directory, peer_key)?;
+    let fixture = fixture::create(directory, peer_key, budget)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;

@@ -55,6 +55,7 @@ class VolatileTraffic:
     def _initialize(self, context, session, epoch, material):
         self._context, self._session = context, session
         self._epoch = epoch
+        self._send_closed, self._receive_limit = False, None
         self._rekey, self._send, self._receive = material[:32], material[32:64], material[64:96]
         self._send_ack, self._receive_ack = material[96:128], material[128:160]
         self._sent = self._received = self._send_floor = self._receive_floor = 0
@@ -103,6 +104,7 @@ class VolatileTraffic:
             previous, wire = self._outbox[index]
             require(receipt == previous, "conflicting send input")
             return wire
+        require(not self._send_closed, "closed sending epoch")
         require(index == self._sent and self._sent < MAX_U64 - 1, "send slot")
         require(len(self._outbox) < 64 and self._sent < self._context.send_budget,
                 "send capacity or signed budget")
@@ -121,6 +123,7 @@ class VolatileTraffic:
         ciphertext = reader.take(size + 16)
         reader.finish()
         require(index >= self._receive_floor, "retired receive")
+        require(self._receive_limit is None or index < self._receive_limit, "closed receiving epoch")
         receipt = commitment(b"receive-intent", wire, ad)
         if index in self._inbox:
             previous, plaintext = self._inbox[index]
@@ -135,6 +138,7 @@ class VolatileTraffic:
             key = skipped.pop(index)
         else:
             require(index < MAX_U64 - 1 and len(skipped) + index - received <= 128, "skipped-key capacity")
+            require(index < self._context.send_budget, "received signed budget")
             while received <= index:
                 chain, key = step(chain, received)
                 if received != index:
@@ -145,6 +149,8 @@ class VolatileTraffic:
         # Authentication errors do not consume persisted-equivalent candidate
         # keys or advance counters. Durable commit is not supplied by this class.
         self._receive, self._received, self._skipped = chain, received, skipped
+        if self._receive_limit is not None and self._received >= self._receive_limit:
+            self._receive = bytes(32)
         self._inbox[index] = (receipt, plaintext)
         return identity, plaintext
 

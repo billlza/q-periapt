@@ -1,4 +1,4 @@
-"""Owned independent bootstrap/epoch-zero session over the exact-target store."""
+"""Owned independent bootstrap and multi-epoch session over the exact-target store."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from __future__ import annotations
 
@@ -8,6 +8,9 @@ import threading
 from .bootstrap import Initiator
 from .journal import Journal, Scope, MAX_STATE, locked
 from .state_codec import State, SendPlan, encode, decode
+from .epoch_state import EpochState
+from .rekey_owner import RekeyOwner
+from .traffic import message_id
 from .wire import ldh, require
 
 
@@ -15,7 +18,7 @@ def owner_binding(context) -> bytes:
     return ldh(b"Q-PERIAPT-INDEPENDENT-OWNER/v1", context.initiator.raw)
 
 
-class Session:
+class Session(RekeyOwner):
     def __init__(self, journal, context, observer):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
@@ -69,6 +72,9 @@ class Session:
             except BaseException:
                 self._journal.close()
                 raise
+            # A diagnostic/cancellation observer may close this owner without
+            # raising. A committed result still needs a live owner to release.
+            self._journal._admit()
 
     @locked
     def initial(self, now: int) -> bytes:
@@ -95,7 +101,7 @@ class Session:
         with self._state() as (snapshot, state):
             self._context.check_established(now)
             if state.traffic is None:
-                state.traffic = state.operation.activate_volatile_traffic(now)
+                state.traffic = EpochState.initial(state.operation.activate_volatile_traffic(now))
                 self._journal.update(snapshot.digest, encode(state))
             return state.operation.session_id()
 
@@ -139,14 +145,11 @@ class Session:
     def resume(self, identity: bytes, now: int) -> bytes:
         with self._state() as (snapshot, state):
             require(state.traffic is not None, "traffic not activated")
-            state.traffic._admit(now)
+            state.traffic.admit(now)
             if state.pending is not None:
                 require(state.pending.identity == identity, "different reserved operation")
                 return self._complete_send(snapshot, state, now)
-            index = state.traffic._index(identity, 1)
-            require(index >= state.traffic._send_floor, "retired send")
-            require(index in state.traffic._outbox, "send operation absent")
-            return state.traffic._outbox[index][1]
+            return state.traffic.resume(identity, now)
 
     @locked
     def receive(self, wire: bytes, ad: bytes, now: int) -> tuple[bytes, bytes]:
@@ -182,6 +185,32 @@ class Session:
             return state.traffic.acknowledgement(now)
 
     @locked
+    def acknowledgement_for_epoch(self, epoch: int, now: int) -> bytes:
+        with self._state() as (_snapshot, state):
+            require(state.traffic is not None, "traffic not activated")
+            return state.traffic.acknowledgement(now, epoch)
+
+    @locked
+    def storage_format(self) -> int:
+        """Read-only upgrade disposition; it grants no protocol permission."""
+        with self._state() as (_snapshot, state):
+            return state.format_version
+
+    @locked
+    def upgrade_format(self, now: int) -> int:
+        """Explicitly commit the original state into the multi-epoch format."""
+        with self._state() as (snapshot, state):
+            if state.traffic is None:
+                self._admit_bootstrap(now)
+            else:
+                self._context.check_established(now)
+            if state.format_version == 1:
+                state.format_version = 2
+                self._journal.update(snapshot.digest, encode(state))
+                self._observe("protocol:format-upgraded")
+            return state.format_version
+
+    @locked
     def accept_acknowledgement(self, wire: bytes, now: int) -> int:
         with self._state() as (snapshot, state):
             require(state.traffic is not None and state.pending is None, "traffic absent or send reserved")
@@ -199,10 +228,15 @@ class Session:
             if identity is None:
                 return "Traffic" if state.traffic is not None else ("Confirmed" if state.operation._reply is not None else "Waiting")
             require(state.traffic is not None, "traffic not activated")
-            index = state.traffic._index(identity, 1)
-            if index < state.traffic._send_floor:
+            require(len(identity) == 32, "message ID length")
+            epoch, index = int.from_bytes(identity[:8], "big"), int.from_bytes(identity[8:16], "big")
+            require(identity == message_id(state.traffic.session, 1, index, epoch), "message ID scope")
+            if epoch < min(state.traffic.epochs):
+                return "Retired"
+            traffic = state.traffic.for_id(identity, 1)
+            if index < traffic._send_floor:
                 return "Acknowledged"
-            if index in state.traffic._outbox:
+            if index in traffic._outbox:
                 return "Committed"
             if state.pending is not None and identity == state.pending.identity:
                 return "Reserved"

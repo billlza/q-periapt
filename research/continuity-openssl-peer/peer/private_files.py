@@ -68,8 +68,11 @@ class PrivateDirectory:
     def observe(self, stage: str) -> None:
         if self.observer is not None:
             self.observer(stage)
+        # Do not let reentrant close turn dir_fd=None into an implicit cwd path.
+        require(self.fd is not None, "closed store directory")
 
     def read(self, name: str) -> bytes | None:
+        require(self.fd is not None, "closed store directory")
         require(name in ("head", "intent"), "unknown formal record")
         try:
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=self.fd)
@@ -97,6 +100,7 @@ class PrivateDirectory:
             os.close(fd)
 
     def quota(self, incoming: int, files: int = 1) -> None:
+        require(self.fd is not None, "closed store directory")
         total, count = 0, 0
         with os.scandir(self.fd) as entries:
             for entry in entries:
@@ -111,6 +115,9 @@ class PrivateDirectory:
 
     def publish(self, name: str, value: bytes) -> None:
         require(name in ("head", "intent") and 0 < len(value) <= MAX_FILE, "publication shape")
+        if name == "head":
+            self._publish_head(value)
+            return
         self.check()
         self.quota(len(value))
         temporary = ".stage-" + os.urandom(16).hex()
@@ -131,6 +138,50 @@ class PrivateDirectory:
             os.fsync(self.fd)
             sync_file(fd)
             self.observe("committed:" + name)
+        finally:
+            os.close(fd)
+
+    def _publish_head(self, value: bytes) -> None:
+        # The caller supplies the complete authenticated intent target. This
+        # reserved output slot never supplies state or authority on its own.
+        # Repeated interrupted recovery must not allocate another orphan each
+        # time and exhaust the very quota reserved by the original commit.
+        self.check()
+        temporary = ".stage-head"
+        flags = os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
+        try:
+            fd = os.open(temporary, flags, dir_fd=self.fd)
+        except FileNotFoundError:
+            self.quota(len(value))
+            fd = os.open(temporary, flags | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=self.fd)
+        try:
+            before = os.fstat(fd)
+            private_regular(before)
+            require(before.st_size <= len(value), "staged head exceeds original target")
+            self.quota(len(value) - before.st_size, 0)
+            offset = 0
+            while offset < before.st_size:
+                part = os.read(fd, min(65536, before.st_size - offset))
+                require(bool(part) and part == value[offset:offset + len(part)],
+                        "staged head differs from original target")
+                offset += len(part)
+            require(not os.read(fd, 1), "staged head grew during recovery")
+            remaining = memoryview(value)[offset:]
+            while remaining:
+                count = os.write(fd, remaining)
+                require(count > 0, "zero-length staged head write")
+                remaining = remaining[count:]
+            sync_file(fd)
+            self.observe("stage-synced:head")
+            current = os.stat(temporary, dir_fd=self.fd, follow_symlinks=False)
+            private_regular(current)
+            require((current.st_dev, current.st_ino) == (before.st_dev, before.st_ino),
+                    "staged head replaced")
+            os.replace(temporary, "head", src_dir_fd=self.fd, dst_dir_fd=self.fd)
+            self.observe("published:head")
+            os.fsync(self.fd)
+            sync_file(fd)
+            self.observe("committed:head")
         finally:
             os.close(fd)
 

@@ -1,9 +1,11 @@
-# Independent local-only storage and session recovery
+# Independent local-only storage, rekey and session recovery
 
 This is an unpublished single-session implementation for interoperability work.
 It is independent of the Rust protocol state machine and redb image format.
-It does not yet implement rekey, witnesses, credential/roster/policy renewal,
-revocation, account fanout, installed consumers or a complete installation owner.
+It implements bounded four-flight rekey and four retained traffic epochs. It does
+not yet implement required witnesses, credential/roster/policy renewal, revocation,
+account fanout, closed-epoch application resolution, independent control requests,
+installed consumers or a complete installation owner.
 Its original verified authority snapshot and trusted time remain explicit inputs.
 It is not a replacement product package or a completed security proof.
 
@@ -24,13 +26,18 @@ Restoration checks that the seed reproduces the signed public reply key and that
 the saved secret verifies the signed initial confirmation. It never generates a
 replacement key to reopen an operation. Restored entropy is not fresh recovery.
 
-Completed snapshots retain both exact signed flights, final confirmation, session
-identity and the confirmed root. Traffic activation removes that root field and
-installs the five derived traffic/rekey/ACK seeds atomically. Public transcript
-bytes remain available for exact reconciliation. Restoring private local state
+Completed bootstrap snapshots retain both exact signed flights, final confirmation,
+session identity and the confirmed root. Activation transfers it into one current
+rekey root and four traffic/ACK seeds for epoch zero. Each later epoch has its own
+directional chains, ACK keys, counters and records; old rekey roots are not copied
+into those traffic records. Public transcript bytes remain available for exact
+reconciliation. Restoring private local state
 does not grant output permission: bootstrap replay retains advertisement expiry;
 established traffic checks the separate credential, roster and policy windows.
 Status exposes dispositions without ciphertext or plaintext and can survive expiry.
+The external signing owner is required for unsigned rekey work. Once a control
+flight is committed, its exact outbox can be recovered without that private owner,
+while current policy/identity/roster validity is still required for release.
 
 ## Private file boundary
 
@@ -43,7 +50,10 @@ reads and descriptor/path identity checks. Hostile code running as the same user
 is not isolated by these permissions.
 
 Plain state is capped at 2 MiB, each file at 2 MiB + 4096 bytes, and new writes
-respect 128 directory entries and 64 MiB of retained files. Capacity for both
+respect 128 directory entries and 64 MiB of retained files. Version-two message
+records reserve 64 KiB of the image for bootstrap/control/history completion.
+Both the pending plaintext record and its eventual ciphertext row must fit before
+the input is committed. Capacity for both
 staged publications is checked before admitting a write intent. Failed staging
 files remain private and are not chosen as recovery inputs or swept automatically.
 An I/O failure can be an unknown commit; it closes the active owner and requires
@@ -79,8 +89,14 @@ target encryption and its protocol payload are verified before any recovery writ
 3. Publish those exact target bytes as `head`.
 4. Remove the intent durably, then acknowledge the transition.
 
-Each publication writes a private exclusive staging file, syncs it, renames it
-under the held directory lease and syncs the parent. macOS additionally requests
+Intent publication writes a private exclusive staging file, syncs it, renames it
+under the held directory lease and syncs the parent. Head publication uses one
+reserved `.stage-head` output slot. An interrupted slot is completed only when its
+existing bytes are an exact prefix of the authenticated intent target. Its bytes
+never choose a target or supply authority. A conflicting prefix fails unchanged;
+other staging files are neither selected nor swept. Repeated interruption of the
+same head publication therefore does not allocate new files or exhaust the slots
+reserved by the original commit. macOS additionally requests
 `F_FULLFSYNC`; an unsupported barrier is an error, not a weaker fallback.
 These are OS durability requests, not hardware power-loss qualification.
 
@@ -94,12 +110,19 @@ recover only revision-one genesis, and refuses advanced state. A crash before
 formal intent publication can leave only a private staging orphan; creation
 recovery then reports missing original intent without guessing or recreating.
 The caller's original creation/configuration lifecycle is a precondition; this
-primitive does not supply a complete installation manager or migration workflow.
+primitive does not supply a complete installation manager. Snapshot migration
+below is narrower than a product installation or backup-restore workflow.
 
 ## Protocol records and release
 
-`QPREFS01` encodes the original context and exactly one waiting, confirmed or
-traffic phase. Unknown tags/phases, extra bytes, malformed transcripts and wrong
+`QPREFS02` encodes the original context and exactly one waiting, confirmed or
+traffic phase. The original `QPREFS01` remains readable as an epoch-zero format.
+Opening it does not migrate it: `upgrade_format(now)` explicitly commits the same
+session, secrets, reservations and outboxes into version two. Repeated upgrade is
+idempotent; `storage_format()` reports its disposition even after authority expiry.
+An old reader rejects version two. Migration that cannot retain all state and the
+control headroom fails without replacing the old image. Unknown tags/phases,
+extra bytes, malformed transcripts and wrong
 KEM ownership fail. Traffic records validate exact outbox coverage, disjoint
 inbox/skipped-key coverage, contiguous consumption, counters, send budget and
 the bounded record counts. There is no unbounded allocation from a stored count.
@@ -110,16 +133,65 @@ ciphertext outbox commit before release. A retry cannot change the reservation;
 resume uses its stored input. Completed outboxes retain the original send-intent
 digest and frame, not another plaintext copy. Receive and consumption similarly
 commit before plaintext or an ACK is returned. Rejected packets leave the previous
-chain/skipped keys intact. While a send is reserved, other mutations must wait
-for that original operation, preserving its reserved final-image capacity.
+chain/skipped keys intact. While a send is reserved, receive, consumption and ACK
+mutations wait for that original operation. Cutover preparation also waits.
+Control preparation and receipt reconciliation use separately reserved headroom
+and cannot replace the original send input. Closing an owner from a commit
+observer prevents result release even when the target is already committed;
+reopening the original store can reconcile that result. Closed-directory and
+observer-close checks prevent a `None` handle from selecting the working directory.
+
+## Rekey ownership and retained epochs
+
+Version two stores separate confirmed, sending and receiving epochs, the exact
+predecessor, the latest completed four-flight transcript and one pending exchange.
+The original initiator proposes odd targets; its peer proposes even targets.
+Targets advance exactly one step and use the existing signed v6 profile.
+
+| Phase | Retained private/public state |
+| --- | --- |
+| 1 | Original 96-byte hybrid key seed; no releasable offer |
+| 2 | That seed and the exact committed offer |
+| 3 | Authenticated peer offer, computed unsigned response body and pending root |
+| 4 | Offer, exact committed response and pending root |
+| 5 | Offer/response, confirmed pending root and frozen unsigned final body |
+| 6 | Exact final and installed new sending epoch; receiving/completion still prior |
+| 7 | Offer/response/final, pending root and frozen unsigned receipt body |
+
+Receipt commit installs both responder directions and the completed transcript.
+Receipt acceptance commits the proposer's receiving cutover and completion.
+Phases 5 and 7 fence new sends, fixing the identity-signed old sending count.
+Cached sends remain available. Future-epoch receives are refused until admitted;
+old epochs retain their own delayed frames, outboxes, consumption and ACKs.
+No rekey root is used directly as a traffic key.
+
+This implementation persists a generated key seed before signing an offer, and
+persists computed response body/root before signing a response. It does not use
+the Rust engine's pre-computation sealed-randomness tokens. An unsigned fixed body
+may be signed again if its first signature was never committed or released; once
+an exact signed outbox or authenticated write intent exists, recovery uses those
+original bytes. Signing private keys remain external. These different internal
+reservation cuts need their own disclosure/refinement analysis; restoring retained
+material is not fresh entropy.
+
+At most four traffic epochs are retained. Before each first flight, all epochs
+below `max(0, target-3)` must be settled. Unacknowledged sends and unconsumed
+plaintext block retirement. Identity-signed close counts bound the old receiving
+chain; only already-consumed metadata and skipped keys beyond that count may
+expire. The signed send budget covers committed sends across confirmed through
+current sending epoch plus an outstanding reservation. Consumption and outbox
+deletion do not refund that budget. Receipt confirmation advances the window.
+Application resolution of uncertain closed epochs and independent control-request
+scheduling remain unimplemented; this owner refuses their unresolved boundaries.
 
 These rules provide SDK consumption accounting, not atomic external application
 effects. The host must deduplicate and commit its own effects before consumption.
 Same-key backups and old filesystem pages can retain prior secrets. Logical
 removal is not cryptographic erasure; consistent whole-store rollback is not
 detected by this local-only profile. Python bytes/provider temporaries do not
-provide a zeroization guarantee. No completed rekey or post-compromise recovery
-claim is made.
+provide a zeroization guarantee. Observed rekey completion is a protocol counter,
+not evidence that an adversary has lost keys. No post-compromise security proof
+is claimed by these runtime checks.
 
 ## Validation entrypoints
 
@@ -127,6 +199,9 @@ claim is made.
 for both genesis and update, and checks exact-target/idempotent recovery, lost
 acknowledgements, wrong keys/scopes, malformed files, leases, CAS races, conflicting
 authenticated predecessors and capacity before intent publication.
+It also repeats interrupted head recovery at the 128-file limit, retains unrelated
+staging files, checks constructed partial output prefixes and rejects conflicting
+output-slot bytes without overwriting them.
 Workers run directly under the already admitted isolated Python bootstrap and
 the parent's private empty cache prefix. Each cut records the actual worker PID,
 which must equal the PID being killed and waited for. Waiting only for a launcher
@@ -140,3 +215,13 @@ malformed snapshot controls. The identity signing key is not passed to any worke
 The test clock is explicit: bootstrap at 150, advertisement expiry at 160,
 established traffic at 170, authority expiry at 200. Rust process restart,
 network/TLS carriers, hardware power loss and the broader lifecycle remain separate.
+
+`durable_rekey_checks.py` uses the archived old writer to create a genuine version-one
+snapshot, interrupts its explicit upgrade, then runs eight alternating exchanges
+with fresh worker processes. Nine protocol-stage kills, one publication kill and
+the upgrade kill exercise exact control recovery, directional switches, external
+signer availability, current validity, a real signed budget of four and blocked
+retirement until the original old ACK arrives. `capacity_checks.py` builds a real
+two-epoch journal with 122 maximum-size outboxes, rejects a reservation whose
+ciphertext cannot fit, and commits/reopens/decrypts an exact-fit message. Private
+signing fixtures remain outside the session and public artifact trees.

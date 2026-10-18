@@ -1,0 +1,105 @@
+{
+  "base_head": "dcc7857a0f8ebfe5948c5111bf479b42892cf0b9",
+  "source_files": {
+    "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+    "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+    "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+    "peer/durable.py": "76a3444e83bc69142edb5feb2da49b4ac2037bdc2b9d8a5afb11fa1ed53c9fd3",
+    "peer/epoch_codec.py": "b1b16d2ca986cad2a22714bdbc5fa62d23ba4cfa17233a636d85ff70a74cd55f",
+    "peer/epoch_state.py": "55ba2fef453ae67f5ec17fb1d769a228fd550da1a1d1135ac21abf0254040dec",
+    "peer/epoch_validation.py": "62d4a92357ff3712e14948ac1bec8f48433e2df668e90c9d85da4b654fab3b69",
+    "peer/journal.py": "a11d257e3001ac09ca34b452200210930869601b9368e38dfb59c7f983c5a592",
+    "peer/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+    "peer/private_files.py": "f5caf9b5b20b5eef728c3fbe2df455736f71b08bdee0e1ed3722759e28b81bbf",
+    "peer/rekey.py": "eecad42aaadfc2c47a7782be5a30047fb71054951971ce1ca3bd59c36e177497",
+    "peer/rekey_owner.py": "c482648569c01d7876a7c16711df317541eb4ed745a8e1ca1d65f0d9464026a6",
+    "peer/snapshot_fields.py": "2d5d3a33410fd58ccd217640fe5ccf654c66a55d51ef09b02948e001c68a135f",
+    "peer/state_codec.py": "fb6496bb78038334da348b545db65b5c66d1524ed51a1ee317c248b398513ba1",
+    "peer/traffic.py": "bf9a6bc9720b81c9f43b88cbb3c1f2dccfe49d2f20786a6135d35cbe3720f37a",
+    "peer/traffic_codec.py": "2d8d9e72f337e071e9494e29b8c6371c7d90bb8eb01de17e6d2247fac9ea8836",
+    "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+    "capacity_checks.py": "9e9978c0e17b11f8c025fdff97ec2dde56049931a6d51174d25dfece518960c5",
+    "durability_checks.py": "765682a4c44de90ef6afa2a1dfaf5098bb468dafeb35c77d01a854cbb190014a",
+    "durable_rekey_checks.py": "25457997fcbd60a33447de4c36403214eebe23cfef08cc6973f21baf355fa8ad",
+    "fixture_inputs.py": "863030ed12e7f4c73d21f391cc206e995c46ef431b8135c44a4f76dce1b771c0",
+    "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+    "rekey_checks.py": "6832e9ece53a89dee35ad37859dc7aca9c94483d50460343b4a308dacc361dcc",
+    "run.py": "d58640930262fa38a07680b30d643a149ce65ddc5236b2a07e4e3c6a0789b5a0",
+    "session_driver.py": "56dbb1ee312fde8bca1737c42657fbee6a6e4d14b42ae4a46fcfed9be7573381",
+    "session_worker.py": "006566118a86642492d94f0be0c365f3e47325b36b833450ad0f4a8e553ba01b",
+    "signing_fixture.py": "e0c4b8aae18cc19e5f5a6b75516cad4f1bc053d2a5397316eee3322836e6ca23",
+    "storage_checks.py": "3fbe623f57ccef48d562513d48947f91f4239861ce311ce1b7155c45bc435056",
+    "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+    "worker_process.py": "c5569ff0eaf18720e73984dee556dc596b5ae048bffef314884022e8c1f11c55",
+    "native/src/fixture.rs": "b1f5e397e74b633337efdfa605c26465a27835048d5079eecbd52f6692181ff4",
+    "native/src/journal.rs": "4ab313edadce4c56978468b3e0c990edd81570921e07749c02afa1060763f0d5",
+    "native/src/main.rs": "8b33637a6a7bbee489ea8f8817ff3b5295d9ca7a2215360b16d2ab384688e986",
+    "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+    "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+    "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+  },
+  "native_sha256": "a84528fed78e1774820e5095bc5f8ed5f1c57109a7d11c360fdf9457a2b8607b",
+  "native_architecture": "MachO64 ARM64",
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "owner": {
+    "epochs": 8,
+    "worker_operations": 150,
+    "process_kills": 11,
+    "native_commands": 75,
+    "signed_budget": 4,
+    "signed_flights": 32
+  },
+  "store": {
+    "process_kills": 19,
+    "controls": 46
+  },
+  "capacity": {
+    "messages": 122,
+    "reservation_plaintext": 13700,
+    "exact_fit_plaintext": 13587,
+    "red_green": true
+  },
+  "regressions": {
+    "bootstrap_native": 41,
+    "bootstrap_refusals": 51,
+    "rekey_native": 132,
+    "rekey_refusals": 108,
+    "base_workers": 27,
+    "base_kills": 6,
+    "base_native": 9
+  },
+  "upgrade_from_archived_writer": "9124e96df2652e4fec9cb55322ab27b317beaa5c018bffdcb3d1152959a77232",
+  "three_real_regressions_retained": true,
+  "limits": [
+    "public readback does not load private images or rederive private MAC/AEAD keys",
+    "native counterpart remains the same process; independent workers restart",
+    "local-only fixed authority; no required witness, identity renewal/revocation, application epoch resolution or control-request scheduler",
+    "no hardware power-loss, erasure, PCS proof, installed independent product or complete lifecycle admission"
+  ],
+  "validation": {
+    "strict_release_build": true,
+    "strict_all_target_clippy": true,
+    "rustfmt": true,
+    "actionlint": true,
+    "python_AST_and_public_readback": true,
+    "tracked_Rust_files": 722
+  },
+  "private_state": "Original private failed fixtures remain local; only path references, never their contents, are captured.",
+  "red_scope": "Three defects in the new uncommitted independent reference prototype, not the established Rust SDK.",
+  "capture": {
+    "bytes": 4810083,
+    "members": 2025,
+    "sha256": "8d940db077b694086028ded0ad0bd1d20fae6b030e29530357521985c59c6aa4"
+  },
+  "post_validation_source_delta": {
+    "file": "research/continuity-openssl-peer/session_driver.py",
+    "tested_sha256": "56dbb1ee312fde8bca1737c42657fbee6a6e4d14b42ae4a46fcfed9be7573381",
+    "committed_sha256": "2450a716207bc8c23316f2760f782e3c72f5619815eb63b5b5b944d1b8f6549d",
+    "change": "Remove exactly one extra final newline found by staged diff whitespace check.",
+    "AST_identical": true,
+    "validation_scope": "The capture preserves exact tested bytes. No behavioral test rerun for an EOF whitespace-only correction; hosted run will hash the committed source."
+  }
+}

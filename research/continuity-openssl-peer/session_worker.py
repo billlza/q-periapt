@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--request", type=Path, required=True)
     parser.add_argument("--cut")
+    parser.add_argument("--signer", type=Path)
     args = parser.parse_args()
     sys.path.append(str(Path(__file__).resolve().parent))
     from provider import load_provider
@@ -48,7 +49,9 @@ def main():
     arguments = [bytes.fromhex(x) for x in request["arguments"]]
     action, now = request["action"], request["now"]
     allowed = {"initial", "finish", "activate", "next_id", "send", "resume", "receive", "consume",
-               "acknowledgement", "accept_acknowledgement", "status"}
+               "acknowledgement", "accept_acknowledgement", "status", "upgrade_format", "storage_format",
+               "acknowledgement_for_epoch", "prepare_rekey_offer", "respond_rekey_offer",
+               "accept_rekey_response", "finish_rekey", "accept_rekey_receipt", "rekey_outbox", "rekey_progress"}
     require(action in allowed, "unknown session action")
     def observe(stage):
         if stage == args.cut:
@@ -57,14 +60,21 @@ def main():
             raise RuntimeError("killed session worker unexpectedly resumed")
     owner = Session.open(args.root, scope, key, context, observer=observe)
     try:
-        if action == "status":
-            result = owner.status(*arguments)
+        if action in ("status", "rekey_progress", "storage_format"):
+            result = getattr(owner, action)(*arguments)
+        elif action in ("prepare_rekey_offer", "respond_rekey_offer", "accept_rekey_response", "finish_rekey"):
+            from signing_fixture import read
+            signer = read(args.signer) if args.signer is not None else None
+            result = getattr(owner, action)(*arguments, signer=signer, now=now)
         else:
+            if action in ("rekey_outbox", "acknowledgement_for_epoch"):
+                require(all(len(value) == 8 for value in arguments), "integer argument size")
+                arguments = [int.from_bytes(value, "big") for value in arguments]
             result = getattr(owner, action)(*arguments, now=now)
         if isinstance(result, bytes):
             result = result.hex()
         elif isinstance(result, tuple):
-            result = [value.hex() for value in result]
+            result = [value.hex() if isinstance(value, bytes) else value for value in result]
         require(type(result) in (str, int, list), "worker output schema")
         print(json.dumps({"result": result}))
     finally:

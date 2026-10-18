@@ -92,7 +92,7 @@ def main():
         stream.write(key + scope.wire())
         stream.flush()
         os.fsync(stream.fileno())
-    results = []
+    results, killed_pids = [], []
 
     def new_store(name):
         directory = private / name
@@ -128,6 +128,7 @@ def main():
                 require(marker == {"pid": process.pid, "stage": cut}, "wrong worker identity or stage")
                 os.killpg(process.pid, signal.SIGKILL)
                 require(process.wait(timeout=5) == -signal.SIGKILL, "worker was not killed")
+                killed_pids.append(process.pid)
                 (output / (name + ".stage")).write_bytes(line)
             finally:
                 if process.poll() is None:
@@ -261,12 +262,65 @@ def main():
     before = snapshot(directory)
     rejected("capacity-reserved-before-intent", lambda: owner.update(owner.read().digest, NEW), (ValueError,))
     require(snapshot(directory) == before and not (directory / "intent").exists(), "capacity failure admitted intent")
+
+    directory, owner = new_store("capacity-during-recovery")
+    for number in range(125):
+        fd = os.open(directory / (".stage-held-" + str(number)), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(fd)
+    held = {name: value for name, value in snapshot(directory).items() if name.startswith(".stage-held-")}
+    target = owner._seal(2, NEW)
+    owner.close()
+    killed("quota-update-cut", directory, "update", "stage-synced:head")
+    for length in (0, 7, len(target) - 1):
+        partial = private / ("partial-target-" + str(length))
+        shutil.copytree(directory, partial)
+        with (partial / ".stage-head").open("r+b") as stream:
+            stream.truncate(length)
+            stream.flush()
+            os.fsync(stream.fileno())
+        recovered = Journal.open(partial, scope, key, validate)
+        require(recovered.read().revision == 2 and (partial / "head").read_bytes() == target,
+                "partial output slot changed the original target")
+        recovered.close()
+        results.append({"case": "partial-reserved-output", "constructed_prefix_bytes": length, "exact_target": True})
+    conflict = private / "conflicting-reserved-output"
+    shutil.copytree(directory, conflict)
+    staged = (conflict / ".stage-head").read_bytes()
+    (conflict / ".stage-head").write_bytes(staged[:-1] + bytes([staged[-1] ^ 1]))
+    before_conflict = snapshot(conflict)
+    rejected("conflicting-reserved-output", lambda: Journal.open(conflict, scope, key, validate), (ValueError,))
+    require(snapshot(conflict) == before_conflict, "conflicting output slot was overwritten")
+    for number in range(2):
+        require(len(list(directory.iterdir())) == 128, "write exceeded admitted file count")
+        killed("quota-recovery-cut-" + str(number), directory, "open", "stage-synced:head")
+    owner = Journal.open(directory, scope, key, validate)
+    require(owner.read().revision == 2 and (directory / "head").read_bytes() == target,
+            "bounded recovery changed the original target")
+    owner.close()
+    require({name: value for name, value in snapshot(directory).items() if name.startswith(".stage-held-")} == held,
+            "recovery removed unrelated staging files")
+    results.append({"case": "repeated-recovery-at-file-quota", "process_kills": 3,
+                    "exact_target": True, "unrelated_staging_files_preserved": 125})
+    directory, owner = new_store("close-during-publication")
+    def close_after_write(stage):
+        if stage == "stage-synced:head":
+            owner.close()
+    owner._directory.observer = close_after_write
+    rejected("close-during-publication", lambda: owner.update(owner.read().digest, NEW), (ValueError,))
+    rejected("publication-owner-closed", owner.read, (ValueError,))
+    recovered = Journal.open(directory, scope, key, validate)
+    require(recovered.read().payload == NEW and recovered.read().revision == 2, "closed publication lost target")
+    lease = recovered._directory
+    recovered.close()
+    rejected("closed-directory-read", lambda: lease.read("head"), (ValueError,))
+    rejected("closed-directory-quota", lambda: lease.quota(1), (ValueError,))
     report = {"scope": "Independent local-only journal primitive with tagged test payloads; protocol owner recovery is a separate validation lane",
               "provider": {"cryptography": cryptography.__version__, "openssl": backend.openssl_version_text()},
-              "process_kills": 16, "results": results, "hardware_power_loss": False,
+              "process_kills": len(killed_pids), "killed_worker_pids": killed_pids,
+              "results": results, "hardware_power_loss": False,
               "private_keys_or_images_in_artifact": False}
     (output / "RESULT.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"process_kills": 16, "controls": len(results), "scope": report["scope"]}))
+    print(json.dumps({"process_kills": len(killed_pids), "controls": len(results), "scope": report["scope"]}))
 
 
 if __name__ == "__main__":

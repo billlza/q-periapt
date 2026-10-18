@@ -8,12 +8,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import select
-import signal
-import subprocess
 import sys
 import tempfile
-import time
 
 
 def main():
@@ -34,7 +30,6 @@ def main():
     from peer.wire import SigningKey, require
     from run import Counterpart
     from traffic_checks import application
-    from worker_process import command as worker_command
     output = args.output.resolve()
     output.mkdir()
     native_output = output / "native"
@@ -79,69 +74,9 @@ def main():
         owner.close()
         signer = None  # The restarted workers receive no identity signing key.
 
-        def worker(name, action, arguments=(), now=170, cut=None, refusal=None):
-            request = output / (name + ".request.json")
-            with request.open("x") as stream:
-                json.dump({"action": action, "now": now, "arguments": [x.hex() for x in arguments]}, stream)
-                stream.flush(); os.fsync(stream.fileno())
-            command = worker_command(peer_root / "session_worker.py",
-                       "--provider-root", str(provider), "--public", str(native_output / "public"),
-                       "--configuration", str(configuration), "--root", str(path), "--request", str(request))
-            if cut is not None:
-                command += ["--cut", cut]
-            with (output / (name + ".stderr")).open("xb") as stderr:
-                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=stderr,
-                                           start_new_session=True, bufsize=0)
-                try:
-                    require(process.stdout is not None, "worker output missing")
-                    if cut is not None:
-                        value = bytearray()
-                        deadline = time.monotonic() + 30
-                        while not value.endswith(b"\n"):
-                            ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.monotonic()))
-                            require(bool(ready), "worker cut timeout")
-                            part = os.read(process.stdout.fileno(), 1)
-                            require(bool(part) and len(value) < 128, "worker cut output")
-                            value.extend(part)
-                        require(json.loads(value) == {"pid": process.pid, "stage": cut},
-                                "wrong session worker identity or cut")
-                        os.killpg(process.pid, signal.SIGKILL)
-                        require(process.wait(timeout=5) == -signal.SIGKILL, "session worker not killed")
-                        (output / (name + ".stdout")).write_bytes(value)
-                        require((output / (name + ".stderr")).stat().st_size == 0, "killed worker diagnostics")
-                        results.append({"case": name, "action": action, "cut": cut, "signal": "SIGKILL",
-                                        "worker_pid": process.pid})
-                        return None
-                    received = bytearray()
-                    deadline = time.monotonic() + 30
-                    while True:
-                        ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.monotonic()))
-                        require(bool(ready), "worker output timeout")
-                        part = os.read(process.stdout.fileno(), min(65536, 65537 - len(received)))
-                        if not part:
-                            break
-                        received.extend(part)
-                        require(len(received) <= 65536, "worker output capacity")
-                    process.wait(timeout=max(0.001, deadline - time.monotonic()))
-                    value = bytes(received)
-                    (output / (name + ".stdout")).write_bytes(value)
-                    if refusal is not None:
-                        require(process.returncode != 0 and refusal in (output / (name + ".stderr")).read_text(),
-                                "wrong session refusal: " + name)
-                        require(not value, "failed session released output")
-                        results.append({"case": name, "action": action, "refused": refusal})
-                        return None
-                    require(process.returncode == 0 and (output / (name + ".stderr")).stat().st_size == 0,
-                            "session worker failed: " + name)
-                    result = json.loads(value)
-                    require(set(result) == {"result"}, "worker result schema")
-                    results.append({"case": name, "action": action, "stdout_sha256": hashlib.sha256(value).hexdigest()})
-                    return result["result"]
-                finally:
-                    if process.poll() is None:
-                        os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=5)
-                    if process.stdout is not None:
-                        process.stdout.close()
+        from session_driver import SessionDriver
+        driver = SessionDriver(output, provider, native_output / "public", configuration, path)
+        worker, results = driver.run, driver.operations
 
         require(bytes.fromhex(worker("reopened-initial", "initial", now=150)) == initial, "initial changed across process")
         reply = counterpart.command("persisted-initial", 4, initial, 1)

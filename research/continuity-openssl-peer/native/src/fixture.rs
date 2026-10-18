@@ -64,7 +64,7 @@ fn runtime(directory: &Path) -> Result<Arc<Runtime>> {
     Ok(runtime)
 }
 
-pub(super) fn create(directory: &Path, peer_key: PublicKey) -> Result<Fixture> {
+pub(super) fn create(directory: &Path, peer_key: PublicKey, budget: u16) -> Result<Fixture> {
     let runtime = runtime(directory)?;
     let authority = PolicySigningKey::generate()?;
     let validity = Validity::new(100, 200)?;
@@ -76,7 +76,7 @@ pub(super) fn create(directory: &Path, peer_key: PublicKey) -> Result<Fixture> {
             validity,
             AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
             AnchorRequirement::local_only(),
-            ApplicationSendBudget::new(1024)?,
+            ApplicationSendBudget::new(budget)?,
         )?,
     )?;
     save(

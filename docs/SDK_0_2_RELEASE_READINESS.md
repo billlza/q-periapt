@@ -61,6 +61,34 @@ regressions remain passing. Python rekey state is still volatile; its durable
 snapshot codec rejects nonzero epochs. Independent durable rekey, aggregate
 unconfirmed-send budgeting and retained-epoch resolution remain required.
 
+The subsequent [independent durable-rekey checkpoint](../research/sdk-alpha1/evidence/20261018-independent-durable-rekey/README.md)
+persists all four flights, directional cutovers and four bounded traffic epochs.
+Eight alternating exchanges pass with 150 fresh-process operations, 11 real
+SIGKILL cuts and 75 native commands. An actual archived old writer supplies the
+epoch-zero image for explicit, interruption-safe format upgrade; ordinary open
+does not migrate or reset. A signed budget of four remains charged across
+unconfirmed epochs despite ACKs, and old unresolved outboxes block retirement
+until their original acknowledgement. Three prototype defects have preserved
+red/green evidence: final-row capacity underestimated by 113 bytes, interrupted
+recovery exhausting its reserved file quota, and output released after an observer
+closed the owner. The repaired capacity run fills 122 actual full-size outboxes;
+primitive storage passes 19 kills and 46 controls. Original bootstrap, traffic and
+epoch-zero recovery lanes remain passing on the exact 36-source closure. Strict
+build/Clippy, format, workflow lint and public readback pass locally. Hosted
+qualification of this increment is pending. Different internal reservation cuts
+still need disclosure/refinement analysis; required witnesses, authority renewal,
+revocation, application epoch resolution, control requests and installed/cross-host
+lifecycle remain open. Process recovery is not hardware power-loss or PCS proof.
+
+The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
+passes the producer, both native Windows systems and both Linux public readers.
+Local replays of the downloaded artifacts preserve all 56 initial C cases,
+40 owner entries, 28 C workloads, 16 root routes and 24 registration scenarios.
+Complete cloud/local review JSON agrees; all four actual DLLs expose exactly
+157 declared exports. Product/candidate/binding/toolchain inputs are unchanged
+through the independent-reference increment. These existing installed lifecycle
+results do not qualify the new independent implementation.
+
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send
 path. Releasing the old decoded objects before the existing reload reduces the
