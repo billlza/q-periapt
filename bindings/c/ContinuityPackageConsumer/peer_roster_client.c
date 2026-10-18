@@ -49,13 +49,13 @@ static int peer_roster_command(int argc,char **argv,uint64_t parent) {
         if(argc!=(cancelling ? 6 : 5)) fail("peer roster interruption arguments");
         struct PeerRosterCall call={.parent=parent,.wire=wire,.length=length,.pin=&pin,.result=result};
         if(cancelling) {
-            pthread_t worker;if(pthread_create(&worker,NULL,peer_roster_call,&call)) fail("roster worker create");
+            qpc_thread worker;if(qpc_thread_start(&worker,peer_roster_call,&call)) fail("roster worker create");
             wait_marker(argv[5]);
             credential_expect(qpc_owner_v1_close(parent,&error),QPC_BUSY,&error);
-            struct timespec before,after;if(clock_gettime(CLOCK_MONOTONIC,&before)) fail("roster cancel clock");
+            struct timespec before,after;if(qpc_monotonic_time(&before)) fail("roster cancel clock");
             require(qpc_owner_v1_cancel(parent,&error),&error);
-            if(pthread_join(worker,NULL)) fail("roster worker join");
-            if(clock_gettime(CLOCK_MONOTONIC,&after)) fail("roster cancel clock");
+            if(qpc_thread_join(worker)) fail("roster worker join");
+            if(qpc_monotonic_time(&after)) fail("roster cancel clock");
             int64_t ns=(int64_t)(after.tv_sec-before.tv_sec)*1000000000LL+after.tv_nsec-before.tv_nsec;
             if(ns<0 || ns>=1000000000LL) fail("roster cancellation exceeded observation bound");
         } else peer_roster_call(&call);

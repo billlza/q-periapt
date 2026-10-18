@@ -109,8 +109,16 @@ def consume(args):
         client_source = outside / (profile + '-client')
         client_source.mkdir()
         for name in receipt['files']:
-            if '/' not in name and name.endswith('.c'):
+            if '/' not in name and (name.endswith('.c') or name == 'consumer_platform.h'):
                 shutil.copyfile(consumer / name, client_source / name)
+        platform_test = installed / 'consumer-platform-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'consumer_platform_test.c'), '-o', str(platform_test)],
+            profile + '-platform-compile', client_source)
+        platform_result = run([str(platform_test)], profile + '-platform-runtime', installed, timeout=30)
+        require(platform_result.strip() == 'CONSUMER_PLATFORM_PASS native_worker_join=true monotonic_clock=true sleep_completed=true',
+                'native caller platform contract did not execute')
         executable = installed / 'first-configuration.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              str(client_source / 'first_configuration_client.c'), '-I', str(installed),

@@ -7,7 +7,7 @@
 #include "qpc_owner.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
+#include "consumer_platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,7 +112,7 @@ static void *send_call(void *opaque) {
 }
 static void wait_marker(const char *path) {
     struct timespec start, current, interval = {0, 25000000};
-    if (clock_gettime(CLOCK_MONOTONIC, &start)) fail("clock unavailable");
+    if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
         FILE *file = fopen(path, "rb");
         if (file) {
@@ -121,9 +121,9 @@ static void wait_marker(const char *path) {
             return;
         }
         if (errno != ENOENT) fail("test marker read failed");
-        if (clock_gettime(CLOCK_MONOTONIC, &current)) fail("clock unavailable");
+        if (qpc_monotonic_time(&current)) fail("clock unavailable");
         if (current.tv_sec - start.tv_sec >= 10) fail("socket barrier timed out");
-        if (nanosleep(&interval, NULL) && errno != EINTR) fail("test wait failed");
+        if (qpc_sleep(&interval) && errno != EINTR) fail("test wait failed");
     }
 }
 static void self_check(void) {
@@ -403,18 +403,18 @@ int main(int argc, char **argv) {
         decode(argv[4], s.session); decode(argv[5], s.message);
         if (cancelled) require(qpc_owner_v1_cancel(handle, &error), &error);
         if (busy || witness_cancel) {
-            pthread_t worker;
-            if (pthread_create(&worker, NULL, send_call, &s)) fail("worker creation failed");
+            qpc_thread worker;
+            if (qpc_thread_start(&worker,send_call,&s)) fail("worker creation failed");
             /* Parent observed TLS bytes, or the witness committed and sent a partial reply. */
             wait_marker(argv[6]);
             int32_t code = qpc_owner_v1_close(handle, &error);
             record(code, &error);
             if (code != QPC_BUSY) fail("close did not preserve active owner");
             struct timespec before, after;
-            if (clock_gettime(CLOCK_MONOTONIC, &before)) fail("clock unavailable");
+            if (qpc_monotonic_time(&before)) fail("clock unavailable");
             require(qpc_owner_v1_cancel(handle, &error), &error);
-            if (pthread_join(worker, NULL)) fail("worker join failed");
-            if (clock_gettime(CLOCK_MONOTONIC, &after)) fail("clock unavailable");
+            if (qpc_thread_join(worker)) fail("worker join failed");
+            if (qpc_monotonic_time(&after)) fail("clock unavailable");
             cancellation_ms = ((int64_t)after.tv_sec - (int64_t)before.tv_sec) * 1000
                 + ((int64_t)after.tv_nsec - (int64_t)before.tv_nsec) / 1000000;
         } else {

@@ -111,15 +111,15 @@ static int account_command(int argc, char **argv,const qpc_witness_v1 *witness,i
         else if(!strcmp(mode,"cancel-active")){
             if(argc!=13)fail("account socket barrier missing");
             uint64_t idle=device_peer_open(parent,argv[3],1,s.targets[0].session);
-            pthread_t worker;if(pthread_create(&worker,NULL,account_call,&s))fail("account thread create");
+            qpc_thread worker;if(qpc_thread_start(&worker,account_call,&s))fail("account thread create");
             wait_marker(argv[12]);
             close_owner(idle);
             uint64_t busy[3]={parent,peers[0],peers[1]};
             for(size_t i=0;i<3;++i){int32_t code=qpc_owner_v1_close(busy[i],&error);record(code,&error);if(code!=QPC_BUSY)fail("aggregate owner closed during call");}
-            struct timespec before,after;if(clock_gettime(CLOCK_MONOTONIC,&before))fail("account clock");
+            struct timespec before,after;if(qpc_monotonic_time(&before))fail("account clock");
             require(qpc_owner_v1_cancel(peers[1],&error),&error);
-            if(pthread_join(worker,NULL))fail("account thread join");
-            if(clock_gettime(CLOCK_MONOTONIC,&after))fail("account clock");
+            if(qpc_thread_join(worker))fail("account thread join");
+            if(qpc_monotonic_time(&after))fail("account clock");
             int64_t ns=(int64_t)(after.tv_sec-before.tv_sec)*1000000000LL+after.tv_nsec-before.tv_nsec;
             if(ns<0 || ns>=1000000000LL)fail("account cancellation exceeded observation bound");
             account_failed(&s,QPC_CANCELLED,mode);

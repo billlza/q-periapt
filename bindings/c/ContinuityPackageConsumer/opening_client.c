@@ -2,7 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "qpc_owner.h"
 #include <errno.h>
-#include <pthread.h>
+#include "consumer_platform.h"
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@ static void expect(int32_t code, int32_t wanted, const qpc_error_v1 *error) {
 }
 static void wait_marker(const char *path) {
     struct timespec start, now, interval = {0, 25000000};
-    if (clock_gettime(CLOCK_MONOTONIC, &start)) fail("clock unavailable");
+    if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
         FILE *file = fopen(path, "rb");
         if (file) {
@@ -31,9 +31,9 @@ static void wait_marker(const char *path) {
             return;
         }
         if (errno != ENOENT) fail("barrier read failed");
-        if (clock_gettime(CLOCK_MONOTONIC, &now) || now.tv_sec - start.tv_sec >= 10)
+        if (qpc_monotonic_time(&now) || now.tv_sec - start.tv_sec >= 10)
             fail("socket barrier timed out");
-        if (nanosleep(&interval, NULL) && errno != EINTR) fail("wait failed");
+        if (qpc_sleep(&interval) && errno != EINTR) fail("wait failed");
     }
 }
 struct Opening { uint64_t handle; int32_t code; qpc_error_v1 error; };
@@ -82,17 +82,17 @@ int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int tl
         printf("prepared-pre-cancel:%u\n", kind);
     } else if (cancel) {
         struct Opening call = {.handle = handle};
-        pthread_t thread;
-        if (pthread_create(&thread, NULL, finish_call, &call)) fail("thread creation");
+        qpc_thread thread;
+        if (qpc_thread_start(&thread,finish_call,&call)) fail("thread creation");
         wait_marker(argv[4]);
         expect(qpc_owner_v1_close(handle, &error), QPC_BUSY, &error);
         expect(qpc_owner_v1_finish_open(handle, &error), QPC_BUSY, &error);
         expect(qpc_recovery_v1_session_count(handle, &count, &error), QPC_BUSY, &error);
         struct timespec start, end;
-        if (clock_gettime(CLOCK_MONOTONIC, &start)) fail("clock unavailable");
+        if (qpc_monotonic_time(&start)) fail("clock unavailable");
         expect(qpc_owner_v1_cancel(handle, &error), 0, &error);
-        if (pthread_join(thread, NULL)) fail("thread join");
-        if (clock_gettime(CLOCK_MONOTONIC, &end)) fail("clock unavailable");
+        if (qpc_thread_join(thread)) fail("thread join");
+        if (qpc_monotonic_time(&end)) fail("clock unavailable");
         int64_t ns = (int64_t)(end.tv_sec-start.tv_sec)*1000000000LL + end.tv_nsec-start.tv_nsec;
         if (ns < 0 || ns >= 1000000000LL) fail("constructor cancellation exceeded observation bound");
         /* Preserve the native witness failure, not a fabricated successful open. */
@@ -150,7 +150,7 @@ static void *device_wait(void *opaque) {
         if (call->result.kind) fail("busy admission published a served event");
         call->busy_admissions++;
         struct timespec interval={0,1000000};
-        if (nanosleep(&interval,NULL) && errno!=EINTR) fail("admission wait failed");
+        if (qpc_sleep(&interval) && errno!=EINTR) fail("admission wait failed");
     }
     atomic_store_explicit(&call->done,1,memory_order_release);
     return NULL;
@@ -235,11 +235,11 @@ int device_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls
     const char *address="127.0.0.1:0";
     expect(qpc_owner_v1_listen(second,(const uint8_t *)address,strlen(address),&port,&error),0,&error);
     if (!port) fail("listener port absent");
-    struct DeviceWait call={.peer=second}; pthread_t thread;
+    struct DeviceWait call={.peer=second}; qpc_thread thread;
     atomic_init(&call.done,0);
-    if (pthread_create(&thread,NULL,device_wait,&call)) fail("listener thread creation");
+    if (qpc_thread_start(&thread,device_wait,&call)) fail("listener thread creation");
     struct timespec start, now, interval={0,2000000};
-    if (clock_gettime(CLOCK_MONOTONIC,&start)) fail("clock unavailable");
+    if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
         int32_t code=qpc_owner_v1_message_status(sibling,session,message,&state,&error);
         if (code==QPC_BUSY) { expect(code,QPC_BUSY,&error); break; }
@@ -248,18 +248,18 @@ int device_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls
             fprintf(stderr,"listener returned before parent contention: status=%d\n",call.code);
             fail("listener call did not retain parent");
         }
-        if (clock_gettime(CLOCK_MONOTONIC,&now) || now.tv_sec-start.tv_sec>=3) fail("parent borrow was not observed");
-        if (nanosleep(&interval,NULL) && errno!=EINTR) fail("parent wait failed");
+        if (qpc_monotonic_time(&now) || now.tv_sec-start.tv_sec>=3) fail("parent borrow was not observed");
+        if (qpc_sleep(&interval) && errno!=EINTR) fail("parent wait failed");
     }
     /* BUSY above proves an unrelated child holds the actual parent service. */
     expect(qpc_owner_v1_close(parent,&error),QPC_BUSY,&error);
     expect(qpc_owner_v1_close(sibling,&error),0,&error);
     expect(qpc_peer_v1_prepare(parent,(const uint8_t *)peer,strlen(peer),1,role,&pending,&error),0,&error);
     expect(qpc_owner_v1_close(pending,&error),0,&error);
-    if (clock_gettime(CLOCK_MONOTONIC,&start)) fail("clock unavailable");
+    if (qpc_monotonic_time(&start)) fail("clock unavailable");
     expect(qpc_owner_v1_cancel(parent,&error),0,&error);
-    if (pthread_join(thread,NULL)) fail("listener thread join");
-    if (clock_gettime(CLOCK_MONOTONIC,&now)) fail("clock unavailable");
+    if (qpc_thread_join(thread)) fail("listener thread join");
+    if (qpc_monotonic_time(&now)) fail("clock unavailable");
     int64_t ns=(int64_t)(now.tv_sec-start.tv_sec)*1000000000LL+now.tv_nsec-start.tv_nsec;
     if (ns<0 || ns>=1000000000LL) fail("parent cancellation exceeded observation bound");
     expect(call.code,QPC_CANCELLED,&call.error);

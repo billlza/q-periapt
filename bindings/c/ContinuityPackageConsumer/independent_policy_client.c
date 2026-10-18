@@ -36,9 +36,9 @@ static void *independent_request_worker(void *opaque) {
 static int32_t independent_request_on_worker(uint64_t handle,const uint8_t operation[32],
     qpc_policy_renewal_request_v1 *request,qpc_error_v1 *error,int witnessed) {
     independent_request_call call={handle,operation,request,error,witnessed,-1};
-    pthread_t worker;
-    if(pthread_create(&worker,NULL,independent_request_worker,&call)) fail("policy request worker creation");
-    if(pthread_join(worker,NULL)) fail("policy request worker join");
+    qpc_thread worker;
+    if(qpc_thread_start(&worker,independent_request_worker,&call)) fail("policy request worker creation");
+    if(qpc_thread_join(worker)) fail("policy request worker join");
     return call.code;
 }
 static uint64_t independent_policy_parent(const char *path,const qpc_witness_v1 *witness,int tls) {

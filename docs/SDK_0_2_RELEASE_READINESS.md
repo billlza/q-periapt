@@ -40,7 +40,10 @@ Windows 2025/Rust 1.98 records 76 HTTP/2 framing warnings and two partial-downlo
 warnings. Its logs remain rejected. The source workflow now selects Cargo's
 HTTP/1.1 dependency transport while retaining certificate verification, lockfile
 checksums and existing bounds. It also rejects warning/error diagnostics in
-retained source logs before reporting success; new native evidence is pending.
+retained source logs before reporting success. The [refreshed source matrix](https://github.com/billlza/q-periapt/actions/runs/39090247789)
+at `ddb9dadc` passes all four jobs and eight profiles, including independent
+artifact readback with no warning/error diagnostics. This does not erase the
+earlier rejected source logs or expand the installed lifecycle scope above.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe

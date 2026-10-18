@@ -100,8 +100,8 @@ static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, i
     } else if (!code && (prepare || activate || cancel)) {
         if (cancel) {
             struct SetupActivation call = {.handle=handle};
-            pthread_t worker;
-            if (pthread_create(&worker,NULL,setup_activation,&call)) fail("setup thread create");
+            qpc_thread worker;
+            if (qpc_thread_start(&worker,setup_activation,&call)) fail("setup thread create");
             wait_marker(argv[3]);
             int32_t busy = qpc_owner_v1_close(handle,&error);
             record(busy,&error);
@@ -111,10 +111,10 @@ static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, i
             record(busy,&error);
             if (busy != QPC_BUSY) fail("active setup owner admitted another call");
             struct timespec before, after;
-            if (clock_gettime(CLOCK_MONOTONIC,&before)) fail("setup cancellation clock");
+            if (qpc_monotonic_time(&before)) fail("setup cancellation clock");
             require(qpc_owner_v1_cancel(handle,&error),&error);
-            if (pthread_join(worker,NULL)) fail("setup thread join");
-            if (clock_gettime(CLOCK_MONOTONIC,&after)) fail("setup cancellation clock");
+            if (qpc_thread_join(worker)) fail("setup thread join");
+            if (qpc_monotonic_time(&after)) fail("setup cancellation clock");
             int64_t ns = (int64_t)(after.tv_sec-before.tv_sec)*1000000000LL + after.tv_nsec-before.tv_nsec;
             if (ns < 0 || ns >= 1000000000LL) fail("setup cancellation exceeded observation bound");
             record(call.code,&call.error);

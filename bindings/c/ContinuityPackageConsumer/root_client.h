@@ -5,7 +5,7 @@
 #include "client_inputs.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
+#include "consumer_platform.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -114,7 +114,7 @@ static void pause_for_kill(const char *path,const char *mode) {
     /* The observer sees the complete file atomically, never a create-before-write prefix. */
     if(link(source,destination)) fail("atomic cut publication");
     struct timespec tick={0,10000000};
-    for(unsigned i=0;i<3000;i++) if(nanosleep(&tick,NULL) && errno!=EINTR) fail("cut wait");
+    for(unsigned i=0;i<3000;i++) if(qpc_sleep(&tick) && errno!=EINTR) fail("cut wait");
     fail("owned process was not killed within the bounded cut window");
 }
 #endif

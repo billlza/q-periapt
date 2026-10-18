@@ -100,7 +100,7 @@ static void *run(void *context) {
     invocation *call=context;call->result=execute(call->argc,call->argv);return NULL;
 }
 int main(int argc,char **argv) {
-    invocation call={argc,argv,1};pthread_t thread;
-    if(pthread_create(&thread,NULL,run,&call) || pthread_join(thread,NULL)) return 1;
+    invocation call={argc,argv,1};qpc_thread thread;
+    if(qpc_thread_start(&thread,run,&call) || qpc_thread_join(thread)) return 1;
     return call.result;
 }

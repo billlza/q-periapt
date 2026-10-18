@@ -334,8 +334,8 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
         close_owner(handle);printf("enrollment-activation-refused:%d\n",wanted);return 0;
     } else if(!strcmp(argv[1],"enrollment-cancel-activate")) {
         if(argc!=4 || !witness) fail("enrollment activation cancellation inputs");
-        struct EnrollmentActivation call={.handle=handle};pthread_t worker;
-        if(pthread_create(&worker,NULL,enrollment_activation,&call)) fail("enrollment activation thread");
+        struct EnrollmentActivation call={.handle=handle};qpc_thread worker;
+        if(qpc_thread_start(&worker,enrollment_activation,&call)) fail("enrollment activation thread");
         wait_marker(argv[3]);
         int32_t code=qpc_enrollment_v1_status(handle,&status,&error);record(code,&error);
         if(code!=QPC_BUSY) fail("inflight enrollment status not busy");
@@ -344,7 +344,7 @@ static int enrollment_command(int argc,char **argv,const qpc_witness_v1 *witness
         code=qpc_owner_v1_close(handle,&error);record(code,&error);
         if(code!=QPC_BUSY) fail("inflight registration lease closed");
         require(qpc_owner_v1_cancel(handle,&error),&error);
-        if(pthread_join(worker,NULL)) fail("join registration activation");
+        if(qpc_thread_join(worker)) fail("join registration activation");
         record(call.code,&call.error);
         if(call.code!=QPC_ANCHOR) fail("cancelled witness result lost native uncertainty");
         code=qpc_enrollment_v1_status(handle,&status,&error);record(code,&error);
