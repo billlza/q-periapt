@@ -21,7 +21,7 @@ impl Drop for FixtureDirectory {
     }
 }
 
-pub(super) fn create_private_directory(path: &Path) -> io::Result<()> {
+pub(crate) fn create_private_directory(path: &Path) -> io::Result<()> {
     #[cfg(unix)]
     {
         fs::DirBuilder::new().mode(0o700).create(path)
@@ -35,7 +35,7 @@ pub(super) fn create_private_directory(path: &Path) -> io::Result<()> {
     }
 }
 
-pub(super) fn create_private_file(path: &Path) -> io::Result<fs::File> {
+pub(crate) fn create_private_file(path: &Path) -> io::Result<fs::File> {
     #[cfg(unix)]
     {
         fs::OpenOptions::new()

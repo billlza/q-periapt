@@ -55,7 +55,7 @@ static void retirement_prepare_ack(uint64_t handle,const char *path) {
 static int retirement_command(int argc,char **argv) {
     if(argc!=4) fail("retirement command arguments");
     const char *path=argv[2],*mode=argv[3];
-    uint8_t pid[8];uint64_t process=(uint64_t)getpid();
+    uint8_t pid[8];uint64_t process=qpc_process_id();
     for(size_t i=0;i<8;i++) pid[7-i]=(uint8_t)(process>>(8*i));
     char marker[128];int n=snprintf(marker,sizeof(marker),"retirement-process-%s",mode);
     if(n<=0 || (size_t)n>=sizeof(marker)) fail("retirement process marker");

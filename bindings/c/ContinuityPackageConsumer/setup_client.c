@@ -12,6 +12,7 @@ static void *setup_activation(void *opaque) {
 }
 
 /* Qualification-only phase receipts in the harness-owned probe log. */
+#ifndef _WIN32
 static void setup_io_phase(unsigned phase) {
     const char *action=getenv("QPC_TEST_SYNC_ACTION"), *path=getenv("QPC_TEST_SYNC_LOG");
     if (!action || strcmp(action,"io") || !path || path[0]!='/' || phase<1 || phase>4)
@@ -31,7 +32,12 @@ static void setup_io_phase(unsigned phase) {
     }
     if (close(fd)) fail("setup I/O phase close");
 }
+#endif
 static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
+#ifdef _WIN32
+    (void)argc; (void)argv; (void)witness; (void)tls;
+    fail("setup I/O injection requires the Unix sync probe");
+#else
     if (argc!=3) fail("setup I/O observation arguments");
     qpc_open_options_v1 options={3,0,witness ? (tls ? 2U : 1U) : 0U,witness};qpc_error_v1 error;uint64_t handle=0;
     require(qpc_setup_v1_prepare_resume((const uint8_t *)argv[2],strlen(argv[2]),&options,&handle,&error),&error);
@@ -58,6 +64,7 @@ static int setup_io_activate(int argc, char **argv, const qpc_witness_v1 *witnes
     if (!code) encode(batch);
     if (fflush(stdout)) fail("setup I/O output failed");
     return 0;
+#endif
 }
 
 static int setup_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {

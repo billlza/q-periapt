@@ -6,13 +6,17 @@
 #include "qpc_owner.h"
 #include "report_buffer.h"
 #include <errno.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include "private_record_windows.h"
+#else
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 _Static_assert(sizeof(qpc_closure_header_v1) == 200, "closure header layout");
 _Static_assert(sizeof(qpc_closure_epoch_v1) == 104, "closure epoch layout");
@@ -44,6 +48,19 @@ static void decode(const char *text, uint8_t id[32]) {
     for (size_t i=0;i<32;++i) id[i]=(uint8_t)((digit(text[2*i])<<4)|digit(text[2*i+1]));
 }
 static uint8_t *read_file(const char *path, const char *name, size_t *length) {
+#ifdef _WIN32
+    struct qpc_private_record record;
+    if(qpc_record_open(&record,path,name,1048576,1)) bad("retained file admission");
+    uint8_t *bytes=malloc(record.length+1);
+    if(!bytes) {
+        if(qpc_record_close(&record)) bad("read allocation and close");
+        bad("read allocation");
+    }
+    int failed=qpc_record_read(&record,bytes,record.length);
+    if(qpc_record_close(&record)) failed=1;
+    if(failed) { free(bytes); bad("retained read, sync or close"); }
+    bytes[record.length]=0; *length=record.length; return bytes;
+#else
     int dir=open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
     if (dir<0) bad("read directory");
     int file=openat(dir,name,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
@@ -64,8 +81,12 @@ static uint8_t *read_file(const char *path, const char *name, size_t *length) {
     if (fsync(file) || fsync(dir)) bad("retained sync");
     if (close(file) || close(dir)) bad("retained close");
     bytes[used]=0; *length=used; return bytes;
+#endif
 }
 static void retain(const char *path, const char *name, const uint8_t *bytes, size_t length, int create) {
+#ifdef _WIN32
+    if(qpc_record_retain(path,name,bytes,length,create)) bad("original retained report unavailable or different");
+#else
     int dir=open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
     if (dir<0) bad("retain directory");
     struct stat st;
@@ -92,6 +113,7 @@ static void retain(const char *path, const char *name, const uint8_t *bytes, siz
     if (linkat(dir,temporary,dir,name,0)) bad("no-overwrite report publication");
     if (unlinkat(dir,temporary,0) || fsync(dir)) bad("report directory sync");
     if (close(dir)) bad("report directory close");
+#endif
 }
 static uint64_t open_recovery(const char *path,const qpc_witness_v1 *witness,int witness_tls) {
     uint64_t handle=0; qpc_error_v1 e;

@@ -5,6 +5,32 @@
 #endif
 #define _POSIX_C_SOURCE 200809L
 #include "application_effect.h"
+#ifdef _WIN32
+#include "private_record_windows.h"
+static int retained_record_control(const char *path) {
+    char name[sizeof("application-")+64];
+    int width=snprintf(name,sizeof name,"application-02%062u",0u);
+    if(width<=0 || (size_t)width>=sizeof name) return -1;
+    struct qpc_private_record record;
+    if(!qpc_record_open(&record,path,name,1,1)) { (void)qpc_record_close(&record); return -1; }
+    if(qpc_record_open(&record,path,name,128,1)) return -1;
+    uint8_t bytes[128]; size_t length=record.length;
+    int bad=length!=64+sizeof(payload)-1;
+    /* A capacity refusal must precede reading; the same handle can still read. */
+    if(!bad && !qpc_record_read(&record,bytes,length-1)) bad=1;
+    if(!bad && qpc_record_read(&record,bytes,sizeof bytes)) bad=1;
+    if(qpc_record_close(&record)) bad=1;
+    if(bad) return -1;
+    if(qpc_record_retain(path,name,bytes,length,0)
+       || !qpc_record_retain(path,"missing-report",bytes,length,0)) return -1;
+    bytes[0]^=1;
+    if(!qpc_record_retain(path,name,bytes,length,0)
+       || !qpc_record_retain(path,name,bytes,length,1)) return -1;
+    bytes[0]^=1;
+    if(qpc_record_retain(path,name,bytes,length,0)) return -1;
+    return 0;
+}
+#endif
 
 static int record_matches(const char *root, const uint8_t session[32],
                           const uint8_t message[32], const uint8_t *body, size_t length) {
@@ -34,7 +60,7 @@ static int record_matches(const char *root, const uint8_t session[32],
     return !bad && length<=sizeof(data)-64 && (size_t)count==64+length
         && !memcmp(data,session,32) && !memcmp(data+32,message,32) && !memcmp(data+64,body,length);
 }
-static int effect_main(int argc,char **argv) {
+static int qpc_consumer_main(int argc,char **argv) {
     if(argc==3 && !strcmp(argv[1],"--reject")) {
         struct Application refused={.path=argv[2],.mode="message"};
         uint8_t session[32]={1},message[32]={2};
@@ -46,8 +72,20 @@ static int effect_main(int argc,char **argv) {
     struct Application app={.path=argv[1],.mode="message"};
     uint8_t session[32]={1},original[32]={2},fresh[32]={3},wrong[32]={4};
     const uint8_t next[]="continued after pending recovery";
-    if(persist_effect(&app,session,original,payload,sizeof(payload)-1)
-        ||persist_effect(&app,session,original,payload,sizeof(payload)-1)||app.created!=1)return 20;
+    int initial=persist_effect(&app,session,original,payload,sizeof(payload)-1);
+    if(initial) {
+#ifdef _WIN32
+        fprintf(stderr,"initial effect refused: stage=%d observed_win32_error=%lu\n",initial,(unsigned long)GetLastError());
+#else
+        fprintf(stderr,"initial effect refused: %d\n",initial);
+#endif
+        return 20;
+    }
+    int repeated=persist_effect(&app,session,original,payload,sizeof(payload)-1);
+    if(repeated || app.created!=1) {
+        fprintf(stderr,"duplicate effect refused: stage=%d created=%u\n",repeated,app.created);
+        return 20;
+    }
     app.mode="fresh-message";
     int result=persist_effect(&app,session,fresh,next,sizeof(next)-1);
     if(result){fprintf(stderr,"fresh effect refused: %d\n",result);return 23;}
@@ -58,24 +96,13 @@ static int effect_main(int argc,char **argv) {
     if(!persist_effect(&app,session,wrong,next,sizeof(next)-1)||app.created!=2)return 27;
     if(!record_matches(argv[1],session,original,payload,sizeof(payload)-1)
         ||!record_matches(argv[1],session,fresh,next,sizeof(next)-1))return 28;
+#ifdef _WIN32
+    if(retained_record_control(argv[1])) return 30;
+#endif
     puts("effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused");
+#ifdef _WIN32
+    puts("record-contract: bounded read, exact retention, missing and changed originals refused");
+#endif
     return 0;
 }
-#ifdef _WIN32
-int wmain(int argc,wchar_t **argv) {
-    if(argc<2 || argc>3) return 64;
-    char *utf8[3]={0}; int result=64;
-    for(int i=0;i<argc;++i) {
-        int size=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,argv[i],-1,NULL,0,NULL,NULL);
-        if(size<=0) goto done;
-        utf8[i]=malloc((size_t)size);
-        if(!utf8[i] || WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,argv[i],-1,utf8[i],size,NULL,NULL)!=size) goto done;
-    }
-    result=effect_main(argc,utf8);
-done:
-    for(int i=0;i<argc;++i) free(utf8[i]);
-    return result;
-}
-#else
-int main(int argc,char **argv) { return effect_main(argc,argv); }
-#endif
+#include "consumer_entry.h"

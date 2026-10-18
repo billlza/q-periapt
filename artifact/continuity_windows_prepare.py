@@ -61,12 +61,8 @@ def prepare(args) -> None:
     prefix = 'bindings/c/ContinuityPackageConsumer/'
     tracked = run(['git', 'ls-files', prefix], 'facade-inputs').decode().splitlines()
     selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
-                p[len(prefix):] in ('Cargo.toml', 'qpc_owner.h', 'first_configuration_client.c',
-                                   'consumer_platform.h', 'consumer_platform_test.c',
-                                   'report_buffer.h', 'report_buffer_test.c',
-                                   'application_effect.h', 'application_effect_test.c',
-                                   'private_files_windows.h') or
-                p[len(prefix):].startswith('configuration_') and p.endswith('_client.c')]
+                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs') or
+                '/' not in p[len(prefix):] and p.endswith(('.c', '.h'))]
     source_hashes = {}
     for relative in selected:
         snap = sdk.snapshot(sdk.ROOT / relative)

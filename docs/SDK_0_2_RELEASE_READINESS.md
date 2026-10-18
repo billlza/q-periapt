@@ -6,8 +6,8 @@ No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
 
-The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39092696539)
-qualifies reference consumer `f12533a1` with nine SDK Cargo archives from
+The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39093522049)
+qualifies reference consumer `54c20de8` with nine SDK Cargo archives from
 `a2b81972` and the Cargo-packaged identity candidate. Windows 2022/2025 each
 execute Debug and Release: 56 separate C case processes and four protected-page
 checks cover fixed/recoverable trust, initial configuration, exact-original
@@ -20,6 +20,8 @@ separate from product ABI 2 and from C account enrollment or network lifecycle.
 Four additional C processes verify native worker completion/join, monotonic
 clock observations and a minimum sleep interval. These primitive checks do not
 establish SDK execution on a Windows C worker or its complete network lifecycle.
+Four bounded report-writer processes also verify canonical bytes, size limits
+and sticky failures; the Windows cohort does not yet execute complete C recovery.
 
 All four profiles also execute the original archive-shipped Rust lifecycle suite
 (three test entrypoints, including the child-process entrypoint): registration,
@@ -59,8 +61,8 @@ byte-identical reconciliation reports from the same committed account state.
 The writer's exact-size limit, overflow refusal and sticky allocation failure
 pass sanitizer checks and strict Debug/Release compilation. These are current
 C-caller regressions against the recorded macOS library and fixtures, not a new
-installed-package cohort. Windows thread/clock primitives passed the cohort
-above; the bounded report writer's Windows run remains in CI. File length alone
+installed-package cohort. Windows thread/clock and bounded report primitives
+passed the cohort above. File length alone
 does not establish a runtime performance problem or an optimization gain.
 
 The Windows C application-record publisher is now implemented with relative
@@ -72,10 +74,29 @@ records independently admitted/read by Rust, and refusals for directory/ancestor
 reparse points, a leaf reparse point, hard links and a broad directory DACL.
 The linked-file controls contain valid original bytes, so a missing admission
 check cannot pass merely by rejecting different contents. Local strict C11
-Debug/sanitizer and Release effect controls pass on macOS. Windows compilation
-and runtime validation of this new publisher are pending; recovery/public-input
-file operations, full C network lifecycle and crash/durability qualification
-remain open. These application helpers add no candidate or product ABI exports.
+Debug/sanitizer and Release effect controls pass on macOS. In the first native
+attempt (`668a15a5`, run `39094447985`), both Windows systems compile the helper
+in both profiles but the first Debug effect process exits 20. No C first-use
+or complete lifecycle result is admitted from that failed cohort. The original
+output does not distinguish initial publication from duplicate reconciliation;
+new diagnostics preserve the failing operation stage and observed Windows error.
+An early C effect/readback check now runs before the Rust build and preserves
+failure state. The publisher failure is not yet explained or repaired.
+
+The same C connection/recovery caller sources and all ten existing integration
+test entries are now wired into the Windows installed lane. Recovery report
+reads retain their size bounds, exact-byte checks and file/directory barriers;
+missing original reports cannot be recreated when reopening. Public output
+creation still refuses an existing file. Native Unicode arguments, input-file
+reads, 64-bit file positions and protected-page peer checks replace the remaining
+Unix-specific caller operations. The test driver reuses the existing private
+file/directory and complete-marker helpers; original assertions are retained.
+Unix sync-probe injection remains an explicit unsupported Windows operation,
+refused before owner preparation. Current Mac C code and test-driver regression
+passes all ten original entries against the recorded reference library. Windows
+execution, separate C public readbacks, broader foreign lifecycle and
+crash/durability qualification remain open. These application helpers add no
+candidate or product ABI exports.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe

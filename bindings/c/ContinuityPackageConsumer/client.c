@@ -6,14 +6,17 @@
 #define _POSIX_C_SOURCE 200809L
 #include "qpc_owner.h"
 #include <errno.h>
-#include <fcntl.h>
 #include "consumer_platform.h"
+#include "consumer_input.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef _WIN32
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 _Static_assert(sizeof(qpc_error_v1) == 524, "diagnostic ABI size");
 _Static_assert(offsetof(qpc_error_v1, message) == 12, "diagnostic ABI offset");
@@ -114,7 +117,7 @@ static void wait_marker(const char *path) {
     struct timespec start, current, interval = {0, 25000000};
     if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
-        FILE *file = fopen(path, "rb");
+        FILE *file = qpc_input_file(path);
         if (file) {
             int byte = fgetc(file), end = fgetc(file), bad = ferror(file);
             if (fclose(file) != 0 || bad || byte != '1' || end != EOF) fail("invalid test marker");
@@ -249,7 +252,7 @@ uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, cons
 #include "credential_peer_client.c"
 #include "peer_roster_client.c"
 #include "peer_configuration_client.c"
-int main(int argc, char **argv) {
+static int qpc_consumer_main(int argc, char **argv) {
     if (argc < 2) fail("missing command");
     if (!strcmp(argv[1], "retired")) return retirement_command(argc, argv);
     if (!strcmp(argv[1], "peer-configuration-guard")) return configured_peer_guard();
@@ -468,3 +471,5 @@ int main(int argc, char **argv) {
     if (ferror(stdout) || fflush(stdout)) fail("output flush failed");
     return 0;
 }
+
+#include "consumer_entry.h"

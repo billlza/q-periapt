@@ -12,6 +12,7 @@
 #include <process.h>
 _Static_assert(sizeof(time_t)>=sizeof(int64_t), "Windows caller clock requires 64-bit time_t");
 typedef HANDLE qpc_thread;
+static inline uint64_t qpc_process_id(void) { return GetCurrentProcessId(); }
 struct qpc_thread_call {
     void *(*function)(void *);
     void *argument;
@@ -81,7 +82,9 @@ static inline int qpc_sleep(const struct timespec *interval) {
 }
 #else
 #include <pthread.h>
+#include <unistd.h>
 typedef pthread_t qpc_thread;
+static inline uint64_t qpc_process_id(void) { return (uint64_t)getpid(); }
 static inline int qpc_thread_start(qpc_thread *thread, void *(*function)(void *), void *argument) {
     return pthread_create(thread,NULL,function,argument);
 }

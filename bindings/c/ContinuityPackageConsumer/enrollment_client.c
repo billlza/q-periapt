@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
 /* Qualification client only: authority grants are independent public inputs. */
+#ifdef _WIN32
+#include "private_record_windows.h"
+#endif
 _Static_assert(sizeof(qpc_enrollment_intent_v1)==88,"enrollment intent ABI");
 _Static_assert(sizeof(qpc_account_pin_v1)==120,"account pin ABI");
 _Static_assert(sizeof(qpc_enrollment_status_v1)==152,"enrollment status ABI");
@@ -12,11 +15,21 @@ _Static_assert(sizeof(qpc_credential_renewal_proposal_v1)==296,"renewal proposal
 _Static_assert(sizeof(qpc_credential_renewal_cancellation_v1)==248,"renewal cancellation ABI");
 _Static_assert(_Alignof(qpc_credential_renewal_cancellation_v1)==1,"renewal cancellation alignment");
 _Static_assert(_Alignof(qpc_credential_renewal_proposal_v1)==1,"renewal proposal alignment");
+#ifndef _WIN32
 static void enrollment_path(char out[4096],const char *path,const char *name) {
     int n=snprintf(out,4096,"%s/%s",path,name);
     if(n<=0 || n>=4096) fail("enrollment test path");
 }
+#endif
 static size_t enrollment_read(const char *path,const char *name,uint8_t *out,size_t maximum) {
+#ifdef _WIN32
+    struct qpc_private_record record;
+    if(qpc_record_open(&record,path,name,maximum,0)) fail("enrollment public input admission");
+    int bad=qpc_record_read(&record,out,maximum);
+    if(qpc_record_close(&record)) bad=1;
+    if(bad) fail("enrollment public input read or close");
+    return record.length;
+#else
     char file[4096];enrollment_path(file,path,name);
     int fd=open(file,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);struct stat st;
     if(fd<0 || fstat(fd,&st) || !S_ISREG(st.st_mode) || st.st_size<=0 ||
@@ -30,11 +43,16 @@ static size_t enrollment_read(const char *path,const char *name,uint8_t *out,siz
     }
     if(close(fd)) fail("enrollment public close");
     return length;
+#endif
 }
 static void enrollment_exact(const char *path,const char *name,uint8_t *out,size_t length) {
     if(enrollment_read(path,name,out,length)!=length) fail("enrollment input width");
 }
 static void enrollment_write(const char *path,const char *name,const uint8_t *bytes,size_t length) {
+#ifdef _WIN32
+    int created=0;
+    if(qpc_file_commit(path,name,bytes,length,&created) || !created) fail("exclusive enrollment output publication");
+#else
     char file[4096];enrollment_path(file,path,name);
     int fd=open(file,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);
     if(fd<0) fail("enrollment public output");
@@ -50,6 +68,7 @@ static void enrollment_write(const char *path,const char *name,const uint8_t *by
      * native fixture's file-plus-directory commit before any witness ACK. */
     int parent=open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
     if(parent<0 || fsync(parent) || close(parent)) fail("enrollment output directory sync");
+#endif
 }
 static uint64_t enrollment_counter(const uint8_t bytes[8]) {
     uint64_t n=0;for(size_t i=0;i<8;i++) n=(n<<8)|bytes[i];return n;

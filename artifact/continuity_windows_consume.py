@@ -49,7 +49,7 @@ def consume(args):
               'AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc': '/WX /Ddllexport='}
     environment.update(aws_lc)
     result = {'schema': 1, 'input_sha256': digest(args.input), 'input': receipt, 'aws_lc_build': aws_lc,
-              'scope': 'Installed Windows C first use plus archive-shipped Rust lifecycle tests; public lifecycle readbacks require the separate existing verifier; no release admission', 'profiles': {}}
+              'scope': 'Installed Windows C first use and original C owner integration suite plus archive-shipped Rust lifecycle tests; public lifecycle readbacks require the separate existing verifier; no release admission', 'profiles': {}}
     def run(argv, label, cwd=consumer, timeout=900):
         prefix = output / label
         with prefix.with_suffix('.stdout').open('xb') as out, prefix.with_suffix('.stderr').open('xb') as err:
@@ -92,8 +92,7 @@ def consume(args):
         client_source = outside / (profile + '-client')
         client_source.mkdir()
         for name in receipt['files']:
-            if '/' not in name and (name.endswith('.c') or name in (
-                    'consumer_platform.h', 'report_buffer.h', 'application_effect.h', 'private_files_windows.h')):
+            if '/' not in name and name.endswith(('.c', '.h')) and name != 'qpc_owner.h':
                 shutil.copyfile(consumer / name, client_source / name)
         platform_test = controls / 'consumer-platform-test.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
@@ -116,6 +115,31 @@ def consume(args):
              *(['-O2'] if profile == 'release' else ['-O0', '-g']),
              str(client_source / 'application_effect_test.c'), '-lntdll', '-ladvapi32', '-o', str(effect_test)],
             profile + '-effect-compile', client_source)
+        require(not any(private_root.iterdir()), 'application effect preflight requires an empty owned root')
+        effect = run([str(effect_test), str(private_root)], profile + '-effect-preflight', controls, timeout=30)
+        require(effect == 'effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n'
+                'record-contract: bounded read, exact retention, missing and changed originals refused\n',
+                'application effect preflight did not execute')
+        records = {'application-' + (bytes([identifier]) + bytes(31)).hex():
+                   bytes([1]) + bytes(31) + bytes([identifier]) + bytes(31) + body
+                   for identifier, body in ((2, b'persisted before process exit'), (3, b'continued after pending recovery'))}
+        require({p.name for p in private_root.iterdir()} == set(records), 'application effect preflight leaked or omitted records')
+        for name, expected in records.items():
+            require(read_regular_snapshot(private_root / name, maximum=128, label='C application effect').data == expected,
+                    'application effect preflight bytes differ')
+        # Only these two complete public test records belong to this preflight.
+        # Failures above retain their state; native Rust later checks fresh records and ACLs.
+        for name in records:
+            (private_root / name).unlink()
+        require(not any(private_root.iterdir()), 'application effect preflight cleanup incomplete')
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             '-c', str(client_source / 'recovery_client.c'), '-I', str(consumer),
+             '-o', str(controls / 'recovery-client.obj')],
+            profile + '-recovery-compile', client_source)
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             '-fsyntax-only', str(client_source / 'client.c'), str(client_source / 'opening_client.c'),
+             '-I', str(consumer)], profile + '-owner-syntax', client_source)
         return client_source, effect_test
     # Check the independent C platform boundary before the expensive Rust build.
     # The actual effect processes still execute under the native Rust reader below.
@@ -161,10 +185,42 @@ def consume(args):
         effects = re.findall(r'^WINDOWS_C_EFFECT case=([a-z-]+) original_boundary=true$', stderr, re.M)
         require(len(effects) == 6 and set(effects) == {'commit', 'directory-reparse', 'ancestor-reparse',
                 'leaf-reparse', 'hardlink', 'public-acl'}, 'C application effect contract census differs')
+        require(stderr.splitlines().count('WINDOWS_C_RECORD bounded_read=true exact_retention=true missing_original_refused=true') == 1,
+                'C original record read/retention controls did not execute')
         require(all(digest(installed / name) == sha for name, sha in hashes.items()), 'installed C inputs changed')
         result['profiles'][profile] = {'files': hashes, 'zip_sha256': hashlib.sha256(zipped).hexdigest(),
             'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers)}
         require(not any(private_root.iterdir()), 'C fixture leaked private state after closing')
+        owner_client = installed / 'owner-client.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             *(str(client_source / name) for name in ('client.c', 'recovery_client.c', 'opening_client.c')),
+             '-I', str(installed), str(installed / (LIB + '.dll.lib')), '-lntdll', '-ladvapi32',
+             '-o', str(owner_client)], profile + '-owner-compile', client_source)
+        environment.update(QPERIAPT_C_OWNER_CLIENT=str(owner_client), QPERIAPT_INSTALLED_CLIENT_LANGUAGE='C')
+        owner = run(['cargo', 'test', '--locked', '--test', 'c_owner', *flags,
+                     '--', '--nocapture'], profile + '-owner-runtime')
+        environment.pop('QPERIAPT_C_OWNER_CLIENT')
+        environment.pop('QPERIAPT_INSTALLED_CLIENT_LANGUAGE')
+        owner_names = re.findall(r'^test ([a-z_:]+) \.\.\. ok$', owner, re.M)
+        expected_owner = {
+            'c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery',
+            'c_device_parents_keep_peer_lifetimes_and_reconcile_original_delivery',
+            'c_configured_peers_reopen_and_reconcile_original_delivery',
+            'c_server_preserves_callback_failures_unknown_commits_replay_and_rekey',
+            'c_recovery_preserves_complete_loss_accounting_after_revocation_and_process_exit',
+            'installed_owner_restores_expired_advertisement_and_reconciles_original_message',
+            'c_account_owner_requires_all_devices_and_reconciles_original_members',
+            'fixture::service_peer_process',
+            'fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery',
+            'fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls',
+        }
+        require(len(owner_names) == 10 and set(owner_names) == expected_owner and
+                'test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' in owner,
+                'original C owner integration suite did not execute completely')
+        require(not any(private_root.iterdir()), 'C owner fixture leaked private state after closing')
+        result['profiles'][profile]['owner_tests'] = sorted(owner_names)
+        result['profiles'][profile]['owner_client_sha256'] = digest(owner_client)
         evidence = private_root / (profile + '-runtime')
         environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
         native = run(['cargo', 'test', '--locked', '--test', 'owned_connection', *flags,
@@ -191,6 +247,7 @@ def consume(args):
         require(digest(consumer / name) == (hashlib.sha256(lock).hexdigest() if name == 'Cargo.lock' else sha), 'consumed source changed: ' + name)
     (output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
     print('WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles=2 trust_modes=2 cases_per_profile=14')
+    print('WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles=2 entries_per_profile=10 separate_public_readback=pending')
     print('WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles=2 public_readback_verification=pending')
 
 

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 OR MIT */
 /* Qualification client only. Public fixtures model independently supplied trust;
  * the SDK receives owned copies and never receives the fixture directory. */
+#ifndef _WIN32
 #include <sys/mman.h>
+#endif
 _Static_assert(sizeof(qpc_peer_device_v1) == 144, "peer device ABI size");
 _Static_assert(sizeof(qpc_peer_configuration_v1) == 384, "peer configuration ABI size");
 _Static_assert(offsetof(qpc_peer_configuration_v1, initiator) == 16, "peer initiator ABI");
@@ -68,11 +70,21 @@ static void peer_config_reject(const void *input) {
     if(code!=QPC_ARGUMENT || handle) fail("short peer reopen configuration admitted");
 }
 static int configured_peer_guard(void) {
+#ifdef _WIN32
+    SYSTEM_INFO system;GetSystemInfo(&system);
+    size_t page=system.dwPageSize;if(!page) fail("page size unavailable");
+    size_t length=page*2;
+    uint8_t *memory=VirtualAlloc(NULL,length,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    if(!memory) fail("guard mapping");
+    DWORD previous;
+    if(!VirtualProtect(memory+page,page,PAGE_NOACCESS,&previous)) fail("guard protection");
+#else
     long page=sysconf(_SC_PAGESIZE);if(page<=0) fail("page size unavailable");
     size_t length=(size_t)page*2;
     uint8_t *memory=mmap(NULL,length,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANON,-1,0);
     if(memory==MAP_FAILED) fail("guard mapping");
     if(mprotect(memory+page,(size_t)page,PROT_NONE)) fail("guard protection");
+#endif
     uint32_t *size=(void *)(memory+page-4);*size=4;
     peer_config_reject(size); /* Only the first four bytes are readable. */
     qpc_configuration_header_v1 *header=(void *)(memory+page-8);
@@ -80,7 +92,11 @@ static int configured_peer_guard(void) {
     *header=(qpc_configuration_header_v1){sizeof(qpc_peer_configuration_v1),2};peer_config_reject(header);
     *header=(qpc_configuration_header_v1){sizeof(qpc_peer_configuration_v1)+8,1};peer_config_reject(header);
     peer_config_reject(NULL);
+#ifdef _WIN32
+    if(!VirtualFree(memory,0,MEM_RELEASE)) fail("guard unmap");
+#else
     if(munmap(memory,length)) fail("guard unmap");
+#endif
     puts("QPC_PEER_CONFIGURATION_HEADER_GUARD_PASS");
     return 0;
 }

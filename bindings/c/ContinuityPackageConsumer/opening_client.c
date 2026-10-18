@@ -3,6 +3,7 @@
 #include "qpc_owner.h"
 #include <errno.h>
 #include "consumer_platform.h"
+#include "consumer_input.h"
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@ static void wait_marker(const char *path) {
     struct timespec start, now, interval = {0, 25000000};
     if (qpc_monotonic_time(&start)) fail("clock unavailable");
     for (;;) {
-        FILE *file = fopen(path, "rb");
+        FILE *file = qpc_input_file(path);
         if (file) {
             int byte = fgetc(file), end = fgetc(file), bad = ferror(file);
             if (fclose(file) || bad || byte != '1' || end != EOF) fail("invalid socket barrier");
@@ -164,10 +165,10 @@ struct DeviceImage { unsigned char *bytes; size_t length; };
 static struct DeviceImage device_image(const char *root, const char *name) {
     char path[8192]; int n=snprintf(path,sizeof(path),"%s/%s",root,name);
     if (n<=0 || (size_t)n>=sizeof(path)) fail("state image path");
-    FILE *file=fopen(path,"rb");
-    if (!file || fseeko(file,0,SEEK_END)) fail("state image open");
-    off_t size=ftello(file);
-    if (size<=0 || size>16*1024*1024 || fseeko(file,0,SEEK_SET)) fail("state image bound");
+    FILE *file=qpc_input_file(path);
+    if (!file || qpc_input_seek(file,0,SEEK_END)) fail("state image open");
+    int64_t size=qpc_input_position(file);
+    if (size<=0 || size>16*1024*1024 || qpc_input_seek(file,0,SEEK_SET)) fail("state image bound");
     struct DeviceImage image={.bytes=malloc((size_t)size),.length=(size_t)size};
     if (!image.bytes || fread(image.bytes,1,image.length,file)!=image.length ||
         fgetc(file)!=EOF || ferror(file) || fclose(file)) fail("state image read");

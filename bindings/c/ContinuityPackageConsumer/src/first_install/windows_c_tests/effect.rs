@@ -40,7 +40,8 @@ fn run(root: &Path, path: &Path, label: &str, reject: bool) -> TestResult<()> {
         if reject {
             "effect-refusal: original directory and file boundary retained\n"
         } else {
-            "effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n"
+            concat!("effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n",
+                    "record-contract: bounded read, exact retention, missing and changed originals refused\n")
         }
     );
     eprintln!("WINDOWS_C_EFFECT case={label} original_boundary=true");
@@ -51,6 +52,9 @@ pub(super) fn check(root: &Path) -> TestResult<()> {
     let effects = root.join("effects-\u{6d4b}\u{8bd5}");
     directory(&effects)?;
     run(root, &effects, "commit", false)?;
+    eprintln!(
+        "WINDOWS_C_RECORD bounded_read=true exact_retention=true missing_original_refused=true"
+    );
     let retained = OwnedPrivateDirectory::open(&effects).map_err(io::Error::other)?;
     assert_eq!(fs::read_dir(&effects)?.count(), 2, "staging files remain");
     for (id, body) in [

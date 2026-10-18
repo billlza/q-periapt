@@ -31,7 +31,8 @@ use zeroize::Zeroizing;
 mod platform;
 #[cfg(unix)]
 use platform::sync_directory;
-use platform::{create_private_directory, create_private_file, temporary_directory};
+use platform::temporary_directory;
+pub(crate) use platform::{create_private_directory, create_private_file};
 
 #[path = "owned_connection/enrollment.rs"]
 pub(crate) mod enrollment;

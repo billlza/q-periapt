@@ -113,7 +113,7 @@ jobs:
           '@
           & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoLogo -NoProfile -NonInteractive -Command $privateRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Execute installed C first use and native Rust lifecycle
+      - name: Execute installed C and Rust lifecycle
         shell: bash
         env:
           WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}

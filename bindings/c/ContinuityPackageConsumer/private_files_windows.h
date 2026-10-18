@@ -179,8 +179,17 @@ static inline int qpc_file_publish(HANDLE file, HANDLE directory, WCHAR *name) {
     memcpy(rename->FileName,name,(length+1)*sizeof(WCHAR));
     BOOL ok=SetFileInformationByHandle(file,FileRenameInfo,rename,(DWORD)size);
     DWORD error=ok ? ERROR_SUCCESS : GetLastError(); free(rename);
+    SetLastError(error);
     return ok ? 0 : (error==ERROR_FILE_EXISTS || error==ERROR_ALREADY_EXISTS ? 1 : -1);
 }
+/* Failure stages belong to this private application helper, not the SDK ABI.
+ * They keep a native failure distinguishable from input/record admission. */
+enum qpc_file_failure {
+    QPC_FILE_DIRECTORY=-2, QPC_FILE_ORIGINAL=-3, QPC_FILE_STAGING=-4,
+    QPC_FILE_SHAPE=-5, QPC_FILE_WRITE=-6, QPC_FILE_FLUSH=-7,
+    QPC_FILE_PUBLICATION=-8, QPC_FILE_DISPOSAL=-9, QPC_FILE_CLOSE=-10,
+    QPC_FILE_READBACK=-11, QPC_FILE_PARENT_CLOSE=-12
+};
 static inline int qpc_file_commit(const char *path, const char *name, const uint8_t *bytes, size_t length, int *created) {
     *created=0;
     if(!length || length>1048576) return -1;
@@ -190,32 +199,39 @@ static inline int qpc_file_commit(const char *path, const char *name, const uint
     int count=swprintf(temporary,256,L".%ls.%lu.tmp",final,(unsigned long)GetCurrentProcessId());
     if(count<0 || count>=256) return -1;
     HANDLE directory=qpc_file_directory(path);
-    if(directory==INVALID_HANDLE_VALUE) return -1;
+    if(directory==INVALID_HANDLE_VALUE) return QPC_FILE_DIRECTORY;
     int found=qpc_file_existing(directory,final,bytes,length);
-    if(found!=1) { if(!CloseHandle(directory)) return -1; return found; }
+    if(found!=1) { if(!CloseHandle(directory)) return QPC_FILE_PARENT_CLOSE; return found ? QPC_FILE_ORIGINAL : 0; }
     HANDLE file=qpc_file_create(directory,temporary,(size_t)count);
-    if(file==INVALID_HANDLE_VALUE) { (void)CloseHandle(directory); return -1; }
+    if(file==INVALID_HANDLE_VALUE) {
+        DWORD error=GetLastError(); (void)CloseHandle(directory); SetLastError(error);
+        return QPC_FILE_STAGING;
+    }
     BY_HANDLE_FILE_INFORMATION info;
-    int bad=qpc_file_information(file,0,&info) || qpc_file_private(file);
+    int bad=(qpc_file_information(file,0,&info) || qpc_file_private(file)) ? QPC_FILE_SHAPE : 0;
     size_t used=0;
     while(!bad && used<length) {
         DWORD written=0;
-        if(!WriteFile(file,bytes+used,(DWORD)(length-used),&written,NULL) || !written || written>length-used) bad=1;
+        if(!WriteFile(file,bytes+used,(DWORD)(length-used),&written,NULL) || !written || written>length-used) bad=QPC_FILE_WRITE;
         else used+=written;
     }
-    if(!bad && (!FlushFileBuffers(file) || qpc_file_private(directory))) bad=1;
+    if(!bad && (!FlushFileBuffers(file) || qpc_file_private(directory))) bad=QPC_FILE_FLUSH;
     if(!bad) {
         int published=qpc_file_publish(file,directory,final);
         if(published==0) *created=1;
-        else if(published<0) bad=1;
+        else if(published<0) bad=QPC_FILE_PUBLICATION;
     }
+    DWORD original_error=GetLastError();
     if(!*created) {
         FILE_DISPOSITION_INFO disposition={TRUE};
-        if(!SetFileInformationByHandle(file,FileDispositionInfo,&disposition,sizeof disposition)) bad=1;
+        if(!SetFileInformationByHandle(file,FileDispositionInfo,&disposition,sizeof disposition) && !bad) {
+            bad=QPC_FILE_DISPOSAL; original_error=GetLastError();
+        }
     }
-    if(!CloseHandle(file)) bad=1;
-    if(!bad && qpc_file_existing(directory,final,bytes,length)!=0) bad=1;
-    if(!CloseHandle(directory)) bad=1;
-    return bad ? -1 : 0;
+    if(!CloseHandle(file) && !bad) { bad=QPC_FILE_CLOSE; original_error=GetLastError(); }
+    if(!bad && qpc_file_existing(directory,final,bytes,length)!=0) { bad=QPC_FILE_READBACK; original_error=GetLastError(); }
+    if(!CloseHandle(directory) && !bad) { bad=QPC_FILE_PARENT_CLOSE; original_error=GetLastError(); }
+    if(bad) SetLastError(original_error);
+    return bad;
 }
 #endif

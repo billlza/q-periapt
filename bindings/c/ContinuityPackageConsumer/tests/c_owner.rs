@@ -7,9 +7,8 @@ use q_periapt_continuity_identity_candidate as p;
 use std::{
     ffi::OsString,
     fs,
-    io::{self, Read, Write},
+    io::{self, Read},
     net::TcpListener,
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::Duration,
@@ -30,16 +29,8 @@ fn start(path: &Path, label: &str, arguments: &[OsString]) -> Result<CProcess> {
     }
     let stdout = path.join(format!("c-{label}.stdout"));
     let stderr = path.join(format!("c-{label}.stderr"));
-    let out = fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .mode(0o600)
-        .open(&stdout)?;
-    let err = fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .mode(0o600)
-        .open(&stderr)?;
+    let out = fixture::create_private_file(&stdout)?;
+    let err = fixture::create_private_file(&stderr)?;
     let child = fixture::OwnedChild(
         Command::new(client)
             .args(arguments)
@@ -271,11 +262,7 @@ fn c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery() -> 
     let mut first = [0];
     stream.read_exact(&mut first)?;
     assert_eq!(first, [22], "observed TLS ClientHello record");
-    let mut ready = tempfile::NamedTempFile::new_in(path)?;
-    ready.write_all(b"1")?;
-    ready.as_file().sync_all()?;
-    ready.persist_noclobber(&marker).map_err(|e| e.error)?;
-    fs::File::open(path)?.sync_all()?;
+    fixture::publish_marker(path, "c-socket-ready")?;
     assert_eq!(finish(pending)?, "cancelled-committed-reopened\n");
     drop(stream);
     drop(listener);
@@ -398,10 +385,9 @@ fn device_parent_workload(configured: bool) -> Result<()> {
     let mut reopen_changed = 0;
     for (root, role) in [(&setup.initiator, "1"), (&setup.responder, "2")] {
         let peer = root.join("peer");
-        fs::create_dir(&peer)?;
-        fs::set_permissions(&peer, fs::Permissions::from_mode(0o700))?;
+        fixture::create_private_directory(&peer)?;
         if configured {
-            fs::copy(root.join("family"), peer.join("family"))?;
+            fixture::store(&peer, "family", &fixture::array::<32>(root, "family")?)?;
         }
         let mut names = vec![
             "bootstrap.bundle".to_owned(),
@@ -1738,13 +1724,7 @@ fn c_account_owner_requires_all_devices_and_reconciles_original_members() -> Res
     let mut first = [0];
     stream.read_exact(&mut first)?;
     assert_eq!(first, [22]);
-    let mut ready = tempfile::NamedTempFile::new_in(left)?;
-    ready.write_all(b"1")?;
-    ready.as_file().sync_all()?;
-    ready
-        .persist_noclobber(&marker)
-        .map_err(|error| error.error)?;
-    fs::File::open(left)?.sync_all()?;
+    fixture::publish_marker(left, "account-socket-ready")?;
     let observed = finish(pending)?;
     assert!(observed.starts_with("account-refused:302\naccount-cancel-active:"));
     let observation = observed.lines().nth(1).ok_or("cancel observation")?;
