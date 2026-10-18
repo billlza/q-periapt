@@ -30,5 +30,5 @@ class WitnessSession(Session):
         require(context.witness is not None, "required witness profile missing")
         cls._scope(context, scope)
         require(client.signer is not None and client.signer.public() == context.initiator, "witness signer is not original session owner")
-        journal = WitnessJournal.open(path, scope, key, cls._validator(context), context.witness, client, observer)
-        return cls(journal, context, observer)
+        journal, snapshot = WitnessJournal._open(path, scope, key, cls._validator(context), context.witness, client, observer)
+        return cls(journal, context, observer, snapshot)

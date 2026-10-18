@@ -98,8 +98,13 @@ class Controls:
         require((self.path / 'intent').read_bytes() == original, 'cancellation erased original intent')
 
     def adopted(self, private):
-        owner = WitnessSession.open(self.path, self.scope, self.key, self.context, client=self.client())
+        opening = []; carrier = TcpTransport(self.address)
+        def transport(request, deadline):
+            opening.append(request[204])
+            return carrier(request, deadline)
+        owner = WitnessSession.open(self.path, self.scope, self.key, self.context, client=self.client(transport))
         try:
+            require(opening == [1], 'renewed opening repeated its authenticated witness query')
             with owner._state(operational=False) as (snapshot, state):
                 require(state.format_version == 6 and state.local_authority is not None, 'adopted local metadata')
                 require(encode(state) == snapshot.payload, 'canonical local snapshot')

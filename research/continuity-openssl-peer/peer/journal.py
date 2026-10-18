@@ -73,22 +73,32 @@ class Journal:
 
     @classmethod
     def create(cls, path: Path, scope: Scope, key: bytes, initial: bytes, validate, observer=None):
+        owner, _snapshot = cls._create(path, scope, key, initial, validate, observer)
+        return owner
+
+    @classmethod
+    def _create(cls, path: Path, scope: Scope, key: bytes, initial: bytes, validate, observer=None):
         owner = cls(path, scope, key, validate, observer)
         try:
             if owner._directory.read("head") is not None or owner._directory.read("intent") is not None:
                 raise Conflict("existing state is not new creation")
-            owner._commit(0, bytes(32), initial)
-            return owner
+            snapshot = owner._commit(0, bytes(32), initial)
+            return owner, snapshot
         except BaseException:
             owner.close()
             raise
 
     @classmethod
     def open(cls, path: Path, scope: Scope, key: bytes, validate, *, creation=False, observer=None):
+        owner, _snapshot = cls._open(path, scope, key, validate, creation=creation, observer=observer)
+        return owner
+
+    @classmethod
+    def _open(cls, path: Path, scope: Scope, key: bytes, validate, *, creation=False, observer=None):
         owner = cls(path, scope, key, validate, observer)
         try:
-            owner._recover(creation)
-            return owner
+            snapshot = owner._recover(creation)
+            return owner, snapshot
         except BaseException:
             owner.close()
             raise

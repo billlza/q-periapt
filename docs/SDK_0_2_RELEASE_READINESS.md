@@ -199,11 +199,24 @@ unprepared close and refused replacement of unrelated expired pending work.
 The original target, outbox and session survive lost replies and terminal cleanup
 after policy expiry. All fourteen local lanes and seven public readers pass on
 70 identical source files; strict build/lint checks pass and the Rust census
-remains 725. Hosted qualification is pending. This bounded increment preserves
+remains 725. The subsequent [Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-local-renewal-linux/README.md)
+completes the same fourteen lanes with seven exact-source public readers at
+`061ff030`. The [Apple Silicon receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-local-renewal-mac/README.md)
+completes the same fourteen-lane matrix, with its own seven readers and frozen
+source/binary verification. This bounded increment preserves
 the ordinary pending-write availability gap and does not close local-only,
 same-account, policy/witness, installed/cross-host or construction-wide analysis
 requirements. Its added opening queries are recorded as a cost, not a performance
 improvement.
+
+The [independent opening checkpoint](../research/sdk-alpha1/evidence/20261018-independent-opening/README.md)
+then removes two duplicate witness queries by transferring the already recovered,
+authenticated opening snapshot into construction. Local control admission and
+all operational current-authority/output checks remain. Real signed probes measure
+three queries becoming one; all fourteen runtime lanes and eight public readers
+pass, including unchanged renewal/revocation/cancellation boundaries. This is
+request/byte accounting, not latency/energy qualification; optimized hosted
+execution remains pending.
 
 The [23280124 Apple Silicon native completion](../research/sdk-alpha1/evidence/20261018-native-mac-2328/README.md)
 records successful Debug/Release candidate and sealed-SDK suites, strict feature

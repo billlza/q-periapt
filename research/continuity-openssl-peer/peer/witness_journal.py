@@ -69,10 +69,15 @@ class WitnessJournal(Journal):
 
     @classmethod
     def open(cls, path, scope, key, validate, profile, client, observer=None):
+        owner, _snapshot = cls._open(path, scope, key, validate, profile, client, observer)
+        return owner
+
+    @classmethod
+    def _open(cls, path, scope, key, validate, profile, client, observer=None):
         owner = cls(path, scope, key, validate, profile, client, observer)
         try:
-            owner._recover(False)
-            return owner
+            snapshot = owner._recover(False)
+            return owner, snapshot
         except BaseException:
             owner.close()
             raise

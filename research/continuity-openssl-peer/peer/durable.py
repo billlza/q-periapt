@@ -24,13 +24,21 @@ def owner_binding(context) -> bytes:
 
 
 class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
-    def __init__(self, journal, context, observer):
+    def __init__(self, journal, context, observer, opening_snapshot):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
         self._authority_generation = 0
         try:
-            with self._state(operational=False):
-                pass
+            # The owning factory already recovered/authenticated this image and,
+            # for required stores, checked its exact live witness head. Transfer
+            # that opening result directly; it is neither cached for later work
+            # nor an output permit. Every operation still performs its own reads
+            # and current-authority/release checks in _state.
+            state = decode(opening_snapshot.payload, context)
+            try:
+                admit_snapshot(journal, state)
+            finally:
+                state.close()
         except BaseException:
             journal.close()
             raise
@@ -54,8 +62,8 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
         cls._scope(context, scope)
         state = State(Initiator(context, signer, now))
         try:
-            journal = Journal.create(path, scope, key, encode(state), cls._validator(context), observer)
-            return cls(journal, context, observer)
+            journal, snapshot = Journal._create(path, scope, key, encode(state), cls._validator(context), observer)
+            return cls(journal, context, observer, snapshot)
         finally:
             state.close()
 
@@ -63,8 +71,8 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
     def open(cls, path, scope: Scope, key: bytes, context, *, creation=False, observer=None):
         require(context.witness is None, "required witness needs the witnessed session owner")
         cls._scope(context, scope)
-        journal = Journal.open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
-        return cls(journal, context, observer)
+        journal, snapshot = Journal._open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
+        return cls(journal, context, observer, snapshot)
 
     @contextmanager
     def _state(self, *, operational=True, now=None, peer_maintenance=False):

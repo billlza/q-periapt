@@ -85,8 +85,13 @@ installed-package qualification, whole-witness rollback protection, physical
 erasure, hardware power-loss qualification or construction-wide PCS analysis.
 The Python/provider memory limitations in `README.md` still apply.
 
-The current opening check performs additional fresh witness reads to validate
-local control before returning an owner. In the unchanged 36-worker witnessed
-regression this adds 64 native requests (265 to 329). This is an observed request
-count, not latency or energy data. Reusing an authenticated opening read is a
-future optimization candidate; current-authority/output checks remain mandatory.
+The journal's internal opening factory transfers its already recovered,
+authenticated snapshot directly into session construction. The constructor
+still validates the local control record and closes on failure. It neither
+retains that snapshot as a cache nor treats it as permission to release output;
+each operation keeps its own fresh reads and current-authority/release checks.
+The real opening probe now performs one signed Query instead of three, removing
+two duplicate exchanges and 14,682 framed protocol bytes. This is request/byte
+accounting, not a latency or energy measurement. Plain journal `create/open`
+continue returning only a journal; the snapshot transfer is an internal factory
+contract, not an import or reopening input accepted from a caller.

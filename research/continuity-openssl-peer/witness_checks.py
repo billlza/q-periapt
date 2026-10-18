@@ -77,6 +77,11 @@ def main():
         require(genesis == value('repeat-original-genesis', 'witness_genesis'), 'original genesis changed')
         worker('unenrolled-refusal', 'initial', now=150, refusal='truncated witness reply')
         bridge.call('trusted-enrollment', 30, genesis, b'enrolled')
+        start = len(bridge.records)
+        opening = open_owner()
+        opening.close()
+        opening_queries = [row['kind'] for row in bridge.records[start:]]
+        require(opening_queries == [1], 'opening repeated an already authenticated witness query')
         initial = value('initial', 'initial', now=150)
         reply = bridge.call('bootstrap-response', 4, initial)
         worker('final-witness-kill', 'finish', (reply,), now=150, cut='witness:advanced')
@@ -169,6 +174,7 @@ def main():
                 'process_kills':3,'transport_controls':transport_cases,'scope':'Required witness with actual Rust provider and both journal owners; loopback byte bridge is test orchestration, not separate-host deployment. No witness rollback, renewal/migration, power loss, erasure or PCS proof claim.'}
         # Retain public challenges, exact commands, signed replies and failure cuts.
         report['witness_attempts']=saved_bridge.records
+        report['opening_request_kinds']=opening_queries
         (out/'RESULT.json').write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps({k:v for k,v in report.items() if k not in ('source_files','worker_operations','native_commands','witness_attempts','refusals')}))
     finally:
