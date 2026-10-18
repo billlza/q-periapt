@@ -116,6 +116,14 @@ def consume(args):
              str(client_source / 'application_effect_test.c'), '-lntdll', '-ladvapi32', '-o', str(effect_test)],
             profile + '-effect-compile', client_source)
         require(not any(private_root.iterdir()), 'application effect preflight requires an empty owned root')
+        rename_probe = controls / 'publication-probe.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'windows_publication_probe.c'), '-lntdll', '-ladvapi32', '-o', str(rename_probe)],
+            profile + '-publication-probe-compile', client_source)
+        observation = run([str(rename_probe), str(private_root)], profile + '-publication-probe', controls, timeout=30)
+        require(observation.endswith('WINDOWS_RENAME_EXPERIMENT_COMPLETE publication_admission=false\n')
+                and not any(private_root.iterdir()), 'rename experiment incomplete; original state retained')
         effect = run([str(effect_test), str(private_root)], profile + '-effect-preflight', controls, timeout=30)
         require(effect == 'effect-contract: two exact effects, duplicate idempotence, wrong payload and conflicting replay refused\n'
                 'record-contract: bounded read, exact retention, missing and changed originals refused\n',

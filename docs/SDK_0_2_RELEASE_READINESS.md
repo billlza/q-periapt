@@ -80,8 +80,13 @@ in both profiles but the first Debug effect process exits 20. No C first-use
 or complete lifecycle result is admitted from that failed cohort. The original
 output does not distinguish initial publication from duplicate reconciliation;
 new diagnostics preserve the failing operation stage and observed Windows error.
-An early C effect/readback check now runs before the Rust build and preserves
-failure state. The publisher failure is not yet explained or repaired.
+The early check at `453acf9e` (`39095784897`) fails on both systems at publication
+stage -8 with Windows error 87, after directory admission, exclusive creation,
+write and file flush. An isolated experiment now compares the original Win32
+buffer, a fully padded buffer and the SDK storage path's native rename interface,
+including a no-overwrite collision control. It records observed outcomes and
+checks namespace preservation; it never selects a fallback for application
+publication. The parameter/API cause and a successful repair remain unverified.
 
 The same C connection/recovery caller sources and all ten existing integration
 test entries are now wired into the Windows installed lane. Recovery report
