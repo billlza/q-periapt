@@ -16,37 +16,42 @@ authorization and exact retry contracts are retained. The subsequent
 passes four original complete-account scenarios and 212 Chrome invocations,
 including exact retry, application failure and actual Worker interruption.
 This supplies browser runtime validation; the allocation numbers remain native
-measurements. Other foreign/Windows execution, latency and energy remain separate.
-The running Windows cohort at `b47eb541` predates this change.
+measurements. The subsequent [uninstrumented latency comparison](../research/sdk-alpha1/evidence/20261018-fanout-latency/README.md)
+retains all 4,800 sends: paired medians vary from -1.78% to +1.14%, while observed
+p95 increases at 10 of 12 workload positions. Desktop load varies materially;
+these adverse tails remain unresolved pending a cleaner-host comparison.
+No speed or tail-latency improvement is established. Other foreign/Windows
+execution and energy remain separate. The qualified Windows cohort at `b47eb541`
+predates this change.
 
 
-The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39093522049)
-qualifies reference consumer `54c20de8` with nine SDK Cargo archives from
-`a2b81972` and the Cargo-packaged identity candidate. Windows 2022/2025 each
-execute Debug and Release: 56 separate C case processes and four protected-page
-checks cover fixed/recoverable trust, initial configuration, exact-original
-reconciliation/current opening, duplicate creation, a competing store owner,
-missing wrapping keys and an advanced policy. All four downloaded DLLs
-independently contain exactly 157 candidate exports. Rejected duplicate creation
-preserves all installation file bytes; Busy preserves the held runtime's policy
-floor. This C evidence covers unpublished `qpc-owner/1` configuration ownership,
-separate from product ABI 2 and from C account enrollment or network lifecycle.
-Four additional C processes verify native worker completion/join, monotonic
-clock observations and a minimum sleep interval. These primitive checks do not
-establish SDK execution on a Windows C worker or its complete network lifecycle.
-Four bounded report-writer processes also verify canonical bytes, size limits
-and sticky failures; the Windows cohort does not yet execute complete C recovery.
+The [installed Windows lifecycle checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-lifecycle/README.md)
+qualifies `b47eb541` ([run 39108513606](https://github.com/billlza/q-periapt/actions/runs/39108513606))
+with nine SDK Cargo archives from `a2b81972` and the source-bound candidate.
+Windows 2022/2025 each execute Debug and Release. Across all four profiles this
+covers 56 separate first-configuration case processes, 40 original owner-suite
+entries, 28 separately exported C owner workloads, 16 root replacement routes
+and 24 first-registration carrier/trust scenarios. Real expiry, independent
+renewal, original-message recovery and the original path/sharing/lock/ACL,
+publication-bound and protected-header controls remain in place. All four
+actual downloaded DLLs independently contain exactly 157 candidate exports.
+This is the unpublished `qpc-owner/1` boundary, separate from product ABI 2.
 
 All four profiles also execute the original archive-shipped Rust lifecycle suite
 (three test entrypoints, including the child-process entrypoint): registration,
 standard TLS, network rekey, process restart, unknown-delivery reconciliation,
 expiry/reopen, SDK revocation, roster renewal, device replacement and retirement.
-Each profile exports 279 public files. The unchanged public readers pass locally
-and in separate Linux CI jobs, producing byte-identical review documents.
-Producer checks confirm cleanup of the five owned private fixture trees before
-the success receipt. These are same-engine, same-host reference endpoints;
-independent protocol implementations, C network lifecycle, physical power loss,
-performance and overall release admission remain separate requirements.
+Each profile exports 190 first-registration and 279 Rust public files alongside
+its C owner/root records. The original readers pass locally and in separate Linux
+CI jobs, producing byte-identical complete review documents for both systems.
+Final native receipts follow source-immutability and owned-fixture cleanup checks.
+The earlier [54c20de8 cohort](https://github.com/billlza/q-periapt/actions/runs/39093522049)
+retains its narrower initial-configuration and Rust lifecycle scope.
+
+These are same-engine, same-host reference endpoints. Root interruptions use
+Windows TerminateProcess. Independent protocol implementations, physical power
+loss, performance and overall release admission remain separate requirements.
+The newer fanout snapshot change is not covered by this `b47eb541` cohort.
 
 The [clean native source matrix](https://github.com/billlza/q-periapt/actions/runs/39086863634)
 qualifies the path correction at `13a12c1b` on Windows 2022/2025 with Rust

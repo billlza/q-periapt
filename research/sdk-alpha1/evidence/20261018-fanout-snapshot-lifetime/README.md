@@ -58,3 +58,8 @@ pinned toolchain's library directory supplied through the process environment.
 Earlier reviews retain their original pending-work fields; the uninstrumented
 receipts record the subsequent regression/async/lint results. This checkpoint
 supports this local optimization, not complete 0.2.0 release admission.
+
+The later [uninstrumented latency observations](../20261018-fanout-latency/README.md)
+retain an adverse tail signal: p95 increases at 10 of 12 workload positions while
+paired median changes have no consistent direction. That unresolved result is
+not absorbed into the allocation claim; a cleaner-host comparison is still needed.
