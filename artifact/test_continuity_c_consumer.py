@@ -111,7 +111,7 @@ def evidence(root):
                "connect": report["session"] + "\n", "next": report["first_message"] + "\n",
                "next-after-rekey": report["post_rekey_message"] + "\n"}
     for name, output in outputs.items():
-        (root / "initiator" / f"c-{name}.stdout").write_text(output)
+        (root / "initiator" / f"c-{name}.stdout").write_bytes(output.encode())
         (root / "initiator" / f"c-{name}.stderr").write_bytes(b"")
     (root / "c-public-result.json").write_text(json.dumps(report))
     return report

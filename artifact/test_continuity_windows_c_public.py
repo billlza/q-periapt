@@ -95,6 +95,11 @@ else:
             receipt = public.capture_case('client', STDOUT, source, target)
             with self.assertRaisesRegex(ValueError, 'not executed completely'):
                 public.review_case('client', STDOUT.replace(b'0 ignored', b'1 ignored'), target, receipt)
+            log = source / 'initiator/c-self-check.stdout'
+            log.write_bytes(b'self-check-passed\r\n')
+            with self.assertRaisesRegex(ValueError, 'command output or diagnostic differs'):
+                public.capture_case('client', STDOUT, source, base / 'crlf-refused')
+            self.assertFalse((base / 'crlf-refused').exists())
             (target / 'initiator/c-self-check.stdout').unlink()
             with self.assertRaisesRegex(ValueError, 'inventory differs'):
                 public.review_case('client', STDOUT, target, receipt)
