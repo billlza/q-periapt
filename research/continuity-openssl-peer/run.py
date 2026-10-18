@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -38,6 +38,8 @@ class Counterpart:
                 command += ["--send-budget", str(send_budget)]
             if local_lifecycle:
                 command += ["--local-lifecycle"]
+            if short_roster:
+                command += ["--local-roster-expiry"]
             if peer_lifecycle:
                 command += ["--peer-lifecycle"]
             if required_witness:

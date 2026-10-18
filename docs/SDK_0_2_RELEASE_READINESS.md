@@ -215,8 +215,27 @@ authenticated opening snapshot into construction. Local control admission and
 all operational current-authority/output checks remain. Real signed probes measure
 three queries becoming one; all fourteen runtime lanes and eight public readers
 pass, including unchanged renewal/revocation/cancellation boundaries. This is
-request/byte accounting, not latency/energy qualification; optimized hosted
-execution remains pending.
+request/byte accounting, not latency/energy qualification. The subsequent
+[Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-opening-linux/README.md)
+completes fourteen lanes and seven frozen-source readers at `73760183`;
+the matching Apple Silicon job remains pending at this checkpoint.
+
+The [independent local-only credential checkpoint](../research/sdk-alpha1/evidence/20261018-independent-local-credential/README.md)
+adds conditional `QPREFS07`: current local identity, Pending grant, abandonment
+and a durable time floor share the original journal transaction. Four profiles
+exercise 148 worker operations and 29 real kills, preserving original reserved
+sends, outboxes and rekey after recovery. A separate 122-row capacity case proves
+that completed identity metadata can exceed Pending by 3,501 bytes; preflight
+refuses before staging, and explicit current-authority unknown-outcome accounting
+permits later continuation. Combined peer/local/Pending metadata reaches 88,703
+bytes. This is not maximum qualification of every signed-input combination.
+An actual initialization side effect is also repaired: retained authority records
+are now rejected before publishing a head. All sixteen local lanes and eight
+public readers pass on 76 identical source files. Required-witness coordination
+cannot fall back to local-only mode. A full store first encountered after expiry,
+same-account coordination, public registration without fixtures, installed/cross-host
+lifecycle, complete resource measurements and construction-wide security analysis
+remain open; this increment does not admit the full 0.2.0 release.
 
 The [23280124 Apple Silicon native completion](../research/sdk-alpha1/evidence/20261018-native-mac-2328/README.md)
 records successful Debug/Release candidate and sealed-SDK suites, strict feature

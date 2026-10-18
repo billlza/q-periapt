@@ -89,7 +89,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 state.peer_authority.check(now)
             yield snapshot, state
             authority_generation = self._authority_generation
-            if operational and now is not None and state.format_version in (5, 6):
+            if operational and now is not None and state.format_version in (5, 6, 7):
                 # A reentrant host observer may have committed revocation after
                 # this call's own write. Recheck the durable current authority
                 # before its result escapes; the earlier decoded view is stale.

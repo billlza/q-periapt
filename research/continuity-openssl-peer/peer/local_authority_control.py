@@ -75,6 +75,16 @@ def write(journal, control):
 
 
 def admit_snapshot(journal, state):
+    if state.operation._context.witness is None:
+        require(journal._admit().read("authority") is None, "witness coordination in local-only store")
+        if state.format_version == 7:
+            require(state.local_renewal is not None, "local coordination absent")
+            state.local_renewal.admit()
+        else:
+            require(state.local_authority is None and state.local_renewal is None,
+                    "local-only authority requires atomic coordination")
+        return
+    require(state.local_renewal is None, "local coordination cannot bypass required witness")
     control = read(journal)
     if control is None:
         require(state.local_authority is None, "missing original local authority control")

@@ -73,6 +73,7 @@ pub(super) fn create(
     witness: Option<Arc<crate::witness::Witness>>,
     peer_lifecycle: bool,
     local_lifecycle: bool,
+    short_roster: bool,
 ) -> Result<Fixture> {
     let runtime = runtime(directory)?;
     let authority = PolicySigningKey::generate()?;
@@ -125,10 +126,9 @@ pub(super) fn create(
                 [id; 16],
                 1,
                 family,
-                if local_lifecycle {
-                    Validity::new(100, if id == 1 { 200 } else { 350 })?
-                } else if peer_lifecycle {
-                    Validity::new(100, if id == 1 { 350 } else { 200 })?
+                if local_lifecycle || peer_lifecycle {
+                    let renewed = (local_lifecycle && id == 1) || (peer_lifecycle && id == 2);
+                    Validity::new(100, if renewed { 200 } else { 350 })?
                 } else {
                     validity
                 },
@@ -170,10 +170,11 @@ pub(super) fn create(
                 crate::peer_lifecycle::Scope {
                     policy: policy.checkpoint().digest(),
                     family,
-                    local: local_lifecycle,
+                    local: role == "i",
+                    short_roster: role == "i" && short_roster,
                 },
             )?;
-            if local_lifecycle {
+            if role == "i" {
                 local_grants = grants;
             }
         }

@@ -88,6 +88,8 @@ class IdentityState:
 
 
 def admit_local(state, context, now):
+    if state.local_renewal is not None:
+        state.local_renewal.current_time(now)
     context.intervals[0].check(now)
     if state.local_authority is None:
         for interval in context.intervals[1:3]:

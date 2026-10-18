@@ -13,7 +13,9 @@ FIELDS = (("seed", 96), ("offer", 4746), ("response", 4714), ("final", 3634), ("
 
 def encode_epochs(owner, pending, *, with_request=False, with_resolution=False, extra_metadata=0):
     validate(owner, pending)
-    require(0 <= extra_metadata <= 73728, "peer metadata capacity")
+    # The snapshot schema bounds its identity/coordination records. This layer
+    # reserves their exact byte cost without taking it from control headroom.
+    require(type(extra_metadata) is int and 0 <= extra_metadata <= MAX_STATE - 65536, "metadata capacity")
     traffic_limit = MAX_STATE - 65536 - extra_metadata
     result = bytearray(owner.root)
     for value in (owner.confirmed, owner.sending, owner.receiving):

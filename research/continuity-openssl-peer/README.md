@@ -129,8 +129,14 @@ the exact sealed target and terminal before ACK, permits historical cleanup, and
 reopens the same session under its adopted local authority. `QPREFS06` is selected
 only for that explicit transition; normal creation and generic upgrade stay at five.
 
-This is not an admitted independent Continuity product implementation. Local-only
-credential renewal, policy renewal and retirement, same-account coordination, account fanout,
+For an original local-only policy, [LocalCredentialRenewal](LOCAL_CREDENTIAL.md)
+retains Pending, current local authority, abandonment and a time floor in the
+same journal. Conditional `QPREFS07` preserves the original session and outbox
+while coordinating expiry and exact-target recovery. It refuses required-witness
+contexts and preflights capacity for the completed identity before staging.
+
+This is not an admitted independent Continuity product implementation.
+Policy renewal and retirement, same-account coordination, account fanout,
 the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,
@@ -184,6 +190,12 @@ cases have preserved failing pre-fix runs and passing repaired runs.
 `local_renewal_checks.py` verifies original joint targets across real process
 cuts, lost Commit/Close/ACK replies, two local grants and policy-expired cleanup.
 It also preserves the refusal to replace unrelated expired pending work.
+`local_credential_checks.py` exercises the separate local-only contract with
+29 real process cuts, original reserved sends, expiry floors and combined peer
+metadata. `local_credential_capacity_checks.py` checks final-image admission at
+the real business capacity boundary and continuation after explicit unknown-outcome
+accounting while old authority is current. Full storage first encountered after
+credential expiry remains a distinct availability gap.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

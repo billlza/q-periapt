@@ -46,6 +46,7 @@ fn main() -> Result<()> {
     let mut required = false;
     let mut peer_lifecycle = false;
     let mut local_lifecycle = false;
+    let mut short_roster = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -59,11 +60,12 @@ fn main() -> Result<()> {
             Some("--required-witness") if !required => required = true,
             Some("--peer-lifecycle") if !peer_lifecycle => peer_lifecycle = true,
             Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
+            Some("--local-roster-expiry") if !short_roster => short_roster = true,
             _ => return Err("unexpected argument".into()),
         }
     }
-    if peer_lifecycle && local_lifecycle {
-        return Err("choose one lifecycle fixture".into());
+    if short_roster && !local_lifecycle {
+        return Err("local roster expiry requires local lifecycle fixture".into());
     }
     let directory = Path::new(&path);
     fs::create_dir(directory)?;
@@ -82,6 +84,7 @@ fn main() -> Result<()> {
         witness,
         peer_lifecycle,
         local_lifecycle,
+        short_roster,
     )?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;

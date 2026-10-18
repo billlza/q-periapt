@@ -62,6 +62,14 @@ def main():
         signer_path = private/'signer'; write(signer_path, signer)
         path = private/'session'; path.mkdir(mode=0o700)
         refuses('local-required-owner', lambda: Session.create(path, scope, key, ctx, signer, 150), 'required witness')
+        retained = private/'retained-coordination'; retained.mkdir(mode=0o700)
+        marker = b'original coordination'
+        with os.fdopen(os.open(retained/'authority', os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600), 'wb') as stream:
+            stream.write(marker); stream.flush(); os.fsync(stream.fileno())
+        refuses('witness-genesis-cannot-replace-coordination',
+                lambda: WitnessSession.provision(retained, scope, key, ctx, signer, 150), 'existing witnessed creation')
+        require(not (retained/'head').exists() and not (retained/'intent').exists()
+                and (retained/'authority').read_bytes() == marker, 'genesis changed retained coordination')
         bridge = Bridge(native, out)
         driver = SessionDriver(out, args.provider_root.resolve(), public, config, path, signer_path,
                                witness_address=bridge.address[0]+':'+str(bridge.address[1]))

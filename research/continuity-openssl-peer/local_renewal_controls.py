@@ -37,6 +37,10 @@ class Controls:
 
     def grants(self, materials):
         operation, wire, target = materials; ctx = self.context
+        from peer.local_credential import LocalCredentialRenewal
+        self.refuses('required-policy-cannot-use-local-coordinator',
+                     lambda: LocalCredentialRenewal.open(self.path, self.scope, self.key, ctx, operation),
+                     'original local-only policy')
         def check(data=wire, checkpoint=target, policy=ctx.policy_digest, device=ctx.devices[0], now=210):
             return verify(data, device, ctx.family, policy, checkpoint, now=now)
         for size in (0, 7, 8, 9, len(wire) - 1):

@@ -1,7 +1,6 @@
 """Original-owner joint head/credential coordination; never a runtime activation."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
-import functools
 import threading
 
 from .durable import Session
@@ -10,24 +9,12 @@ from .journal import locked
 from .local_authority_control import Control, admit_snapshot, read as read_control, write as write_control
 from .local_renewal_intent import Intent
 from .local_renewal_protocol import Proposal
+from .owner_guard import coordinated
 from .renewal import verify
 from .state_codec import decode, encode
 from .witness import Head
 from .witness_journal import WitnessJournal
 from .wire import require
-
-
-def coordinated(function):
-    @functools.wraps(function)
-    def call(self, *args, **kwargs):
-        with self._lock:
-            require(not self._busy, "local renewal operation already in progress")
-            self._busy = True
-            try:
-                return function(self, *args, **kwargs)
-            finally:
-                self._busy = False
-    return call
 
 
 class LocalRenewal:

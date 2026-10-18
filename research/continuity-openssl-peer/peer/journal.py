@@ -80,7 +80,7 @@ class Journal:
     def _create(cls, path: Path, scope: Scope, key: bytes, initial: bytes, validate, observer=None):
         owner = cls(path, scope, key, validate, observer)
         try:
-            if owner._directory.read("head") is not None or owner._directory.read("intent") is not None:
+            if any(owner._directory.read(name) is not None for name in ("head", "intent", "authority")):
                 raise Conflict("existing state is not new creation")
             snapshot = owner._commit(0, bytes(32), initial)
             return owner, snapshot

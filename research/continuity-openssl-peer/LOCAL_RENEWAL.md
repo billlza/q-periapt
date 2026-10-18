@@ -1,4 +1,4 @@
-# Independent local credential renewal
+# Independent credential renewal under a required-witness policy
 
 `peer.local_renewal.LocalRenewal` coordinates one original session's same-key
 credential extension under its original required-witness policy. It does not
@@ -42,7 +42,7 @@ explicit generic upgrades remain version five. Versions one through five keep
 their previous encoding. Version six adds the same canonical identity-state
 encoding used for peer metadata, directly after the optional peer metadata. It
 requires an established session and a retained original-root renewal grant.
-Older encoders refuse the local authority rather than omitting it. Both local and
+Version six requires the original required-witness context. Older encoders refuse the local authority rather than omitting it. Both local and
 peer metadata count against the business allowance, preserving control headroom;
 maximum combined metadata adoption still needs its own capacity qualification.
 
@@ -79,11 +79,13 @@ this documented availability gap is not solved by the joint renewal interface.
 
 Only the latest coordinator receipt is retained after completion; starting a
 later renewal does not provide an unbounded historical operation ledger. This
-increment does not provide local-only renewal, same-account joint coordination,
+mode does not provide same-account joint coordination,
 policy/witness replacement, device replacement, a separately deployed authority,
 installed-package qualification, whole-witness rollback protection, physical
 erasure, hardware power-loss qualification or construction-wide PCS analysis.
 The Python/provider memory limitations in `README.md` still apply.
+An original local-only policy uses the separate [single-journal coordinator](LOCAL_CREDENTIAL.md)
+and conditional version seven. It does not weaken this mode's witness requirement.
 
 The journal's internal opening factory transfers its already recovered,
 authenticated snapshot directly into session construction. The constructor

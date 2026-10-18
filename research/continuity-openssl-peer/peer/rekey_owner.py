@@ -10,7 +10,7 @@ from .wire import require
 
 class RekeyOwner:
     def _rekey_state(self, state, now):
-        require(state.format_version in (2, 3, 4, 5, 6), "explicit snapshot upgrade required")
+        require(state.format_version in (2, 3, 4, 5, 6, 7), "explicit snapshot upgrade required")
         require(state.traffic is not None, "traffic not activated")
         state.traffic.admit(now)
         return state.traffic

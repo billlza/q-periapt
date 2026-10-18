@@ -16,6 +16,7 @@ from .traffic_codec import encode_traffic, decode_traffic
 from .snapshot_fields import SendPlan, encode_pending, decode_pending
 from .wire import Reader, require
 from .identity_state import IdentityState, bind
+from .local_renewal_record import Record, MAX_IDENTITY, MAX_RECORD
 
 
 @dataclass(repr=False)
@@ -26,6 +27,7 @@ class State:
     format_version: int = 5
     peer_authority: IdentityState | None = None
     local_authority: IdentityState | None = None
+    local_renewal: Record | None = None
 
     def close(self):
         self.operation.close()
@@ -38,8 +40,8 @@ def encode(state: State) -> bytes:
     op = state.operation
     require(not op._closed, "closed snapshot owner")
     phase = 3 if state.traffic is not None else (2 if op._reply is not None else 1)
-    require(state.format_version in (1, 2, 3, 4, 5, 6), "snapshot format version")
-    tag = {1: b"QPREFS01", 2: b"QPREFS02", 3: b"QPREFS03", 4: b"QPREFS04", 5: b"QPREFS05", 6: b"QPREFS06"}[state.format_version]
+    require(state.format_version in (1, 2, 3, 4, 5, 6, 7), "snapshot format version")
+    tag = {1: b"QPREFS01", 2: b"QPREFS02", 3: b"QPREFS03", 4: b"QPREFS04", 5: b"QPREFS05", 6: b"QPREFS06", 7: b"QPREFS07"}[state.format_version]
     result = bytearray(tag + op._context.digest + bytes([phase]))
     peer_bytes = state.peer_authority.encode() if state.peer_authority is not None else b""
     if state.format_version >= 5:
@@ -50,11 +52,29 @@ def encode(state: State) -> bytes:
     else:
         require(state.peer_authority is None, "peer authority requires snapshot version five")
     local_bytes = state.local_authority.encode() if state.local_authority is not None else b""
+    coordination = b""
     if state.format_version == 6:
-        require(phase == 3 and state.local_authority is not None, "local authority requires established format six")
+        require(phase == 3 and state.local_authority is not None and op._context.witness is not None,
+                "local authority requires established witnessed format six")
         result.extend(local_bytes)
+    elif state.format_version == 7:
+        require(phase == 3 and op._context.witness is None and state.local_renewal is not None,
+                "local coordination requires established local-only format seven")
+        current = state.local_authority or IdentityState.initial(op._context, role=0)
+        state.local_renewal.validate(current)
+        coordination = state.local_renewal.encode()
+        result.append(state.local_authority is not None)
+        result.extend(local_bytes + coordination)
     else:
         require(state.local_authority is None, "local authority requires snapshot version six")
+    if state.format_version != 7:
+        require(state.local_renewal is None, "local coordination requires snapshot version seven")
+    metadata = len(peer_bytes) + len(local_bytes) + len(coordination) + (1 if state.format_version == 7 else 0)
+    # Version seven has two current identity records plus one bounded pending
+    # grant/terminal record. Deduct every byte from business space; the existing
+    # versions retain their previous bound and 64-KiB control reservation.
+    metadata_limit = 2 * MAX_IDENTITY + MAX_RECORD + 1 if state.format_version == 7 else 73728
+    require(metadata <= metadata_limit, "peer metadata capacity")
     result.extend(op._initial)
     if phase == 1:
         require(op._reply_key is not None and op._first_secret is not None and state.pending is None,
@@ -79,7 +99,7 @@ def encode(state: State) -> bytes:
                 result.extend(encode_pending(state.pending))
             else:
                 result.extend(encode_epochs(owner, state.pending, with_request=state.format_version >= 3,
-                                            with_resolution=state.format_version >= 4, extra_metadata=len(peer_bytes) + len(local_bytes)))
+                                            with_resolution=state.format_version >= 4, extra_metadata=metadata))
     require(len(result) <= MAX_STATE, "snapshot aggregate capacity")
     return bytes(result)
 
@@ -88,11 +108,11 @@ def decode(payload: bytes, context: Context) -> State:
     require(len(payload) <= MAX_STATE, "snapshot aggregate capacity")
     reader = Reader(payload)
     tag = reader.take(8)
-    require(tag in (b"QPREFS01", b"QPREFS02", b"QPREFS03", b"QPREFS04", b"QPREFS05", b"QPREFS06") and reader.take(32) == context.digest, "snapshot schema/context")
+    require(tag in (b"QPREFS01", b"QPREFS02", b"QPREFS03", b"QPREFS04", b"QPREFS05", b"QPREFS06", b"QPREFS07") and reader.take(32) == context.digest, "snapshot schema/context")
     phase = reader.integer(1)
     require(phase in (1, 2, 3), "snapshot phase")
     peer_authority = None
-    if tag in (b"QPREFS05", b"QPREFS06"):
+    if tag in (b"QPREFS05", b"QPREFS06", b"QPREFS07"):
         present = reader.integer(1)
         require(present in (0, 1), "peer authority presence")
         if present:
@@ -100,16 +120,24 @@ def decode(payload: bytes, context: Context) -> State:
             peer_authority = IdentityState.read(reader, context)
     local_authority = None
     if tag == b"QPREFS06":
-        require(phase == 3, "local authority requires established state")
+        require(phase == 3 and context.witness is not None, "local authority requires established witnessed state")
         local_authority = IdentityState.read(reader, context, role=0)
         require(local_authority.renewal is not None, "local authority requires original root renewal")
+    local_renewal = None
+    if tag == b"QPREFS07":
+        require(phase == 3 and context.witness is None, "local coordination requires established local-only state")
+        present = reader.integer(1); require(present in (0, 1), "local identity presence")
+        if present:
+            local_authority = IdentityState.read(reader, context, role=0)
+            require(local_authority.renewal is not None, "local authority requires original root renewal")
+        local_renewal = Record.read(reader, context)
     op = Initiator.__new__(Initiator)
     op._context, op._closed = context, False
     op._initial = reader.take(5817)
     body = context.initiator.open(op._initial, 5, 2440)
     require(body[:40] == b"QPBSI001" + context.digest, "snapshot initial scope")
     op._reply_key = op._first_secret = op._reply = op._final = op._session_id = op._root = None
-    state = State(op, format_version={b"QPREFS01": 1, b"QPREFS02": 2, b"QPREFS03": 3, b"QPREFS04": 4, b"QPREFS05": 5, b"QPREFS06": 6}[tag], peer_authority=peer_authority, local_authority=local_authority)
+    state = State(op, format_version={b"QPREFS01": 1, b"QPREFS02": 2, b"QPREFS03": 3, b"QPREFS04": 4, b"QPREFS05": 5, b"QPREFS06": 6, b"QPREFS07": 7}[tag], peer_authority=peer_authority, local_authority=local_authority, local_renewal=local_renewal)
     try:
         if phase == 1:
             op._reply_key = HybridPrivate._restore(reader.take(96))

@@ -64,13 +64,19 @@ def main():
                "admit_peer_credential_renewal", "admit_peer_roster", "peer_authority_status"}
     renewal_actions = {"local_renewal_prepare", "local_renewal_status", "local_renewal_recover",
                        "local_renewal_commit", "local_renewal_close"}
-    require(action in allowed or (witness_pin is not None and
+    local_actions = {"local_credential_stage", "local_credential_status", "local_credential_commit", "local_credential_expire"}
+    require(action in (allowed | local_actions) or (witness_pin is not None and
             action in ({"witness_provision", "witness_genesis"} | renewal_actions)), "unknown session action")
     def observe(stage):
         if stage == args.cut:
             print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
             signal.pause()
             raise RuntimeError("killed session worker unexpectedly resumed")
+    if action in local_actions:
+        from local_renewal_actions import run_local
+        result = run_local(action, arguments, now, args.root, scope, key, context, observe)
+        print(json.dumps({"result": result}))
+        return
     if witness_pin is not None:
         from peer.witness import Client, TcpTransport
         from peer.witness_session import WitnessSession

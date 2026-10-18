@@ -44,7 +44,7 @@ class WitnessJournal(Journal):
         owner = cls(path, scope, key, validate, profile, None, observer)
         try:
             directory = owner._admit()
-            require(directory.read("head") is None and directory.read("intent") is None, "existing witnessed creation")
+            require(all(directory.read(name) is None for name in ("head", "intent", "authority")), "existing witnessed creation")
             # Original first image has no enrolled witness yet. No Session or
             # bootstrap output is returned from this explicitly inactive operation.
             target = owner._seal(1, initial)

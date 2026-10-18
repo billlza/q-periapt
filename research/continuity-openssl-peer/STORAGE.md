@@ -415,6 +415,14 @@ network serialization or a general application report API.
 
 ## Validation entrypoints
 
+The [local-only credential contract](LOCAL_CREDENTIAL.md) specifies conditional
+version seven. Pending grants, current local identity, the last abandonment and
+its time floor share the original authenticated journal transaction. It requires
+an established session under the original local-only policy. Both Pending and
+final metadata must fit before staging; combined metadata is charged to business
+capacity without shrinking control headroom. Initialization refuses any existing
+head, intent or authority record before publishing a new head.
+
 The [joint local renewal contract](LOCAL_RENEWAL.md) specifies conditional
 version six, its separate authenticated control record, typed exact-target intent,
 terminal-before-ACK ordering and historical cleanup. It keeps the original
