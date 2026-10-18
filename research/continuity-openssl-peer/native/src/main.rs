@@ -87,7 +87,7 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
-            4..=20 => {
+            4..=23 => {
                 if durable.is_none() {
                     if command != 4 {
                         return Err("durable operation before explicit creation".into());

@@ -13,9 +13,8 @@ import zipfile
 
 
 class Scenario:
-    def __init__(self, args):
+    def __init__(self, args, *, archived_v2=False):
         from peer.wire import SigningKey, require
-        from peer.bootstrap import Initiator
         from peer.durable import Session, owner_binding
         from peer.journal import Journal, Scope
         from fixture_inputs import load
@@ -52,12 +51,16 @@ class Scenario:
             source = saved.read("source/peer/state_codec.py")
         expected = json.loads(archive.with_name("CHECKS.json").read_text())["source_files"]["peer/state_codec.py"]
         require(hashlib.sha256(source).hexdigest() == expected, "old codec source changed")
-        self.old_codec_sha256 = expected
-        self.old = types.ModuleType("peer.old_snapshot_fixture")
-        self.old.__package__ = "peer"
-        sys.modules[self.old.__name__] = self.old
-        exec(compile(source, "archived-state-codec", "exec"), self.old.__dict__)
-        original = self.old.State(Initiator(self.context, signer, 150))
+        if archived_v2:
+            from archived_fixture import version_two
+            self.old, self.old_codec_sha256 = version_two(self.private)
+        else:
+            self.old_codec_sha256 = expected
+            self.old = types.ModuleType("peer.old_snapshot_fixture")
+            self.old.__package__ = "peer"
+            sys.modules[self.old.__name__] = self.old
+            exec(compile(source, "archived-state-codec", "exec"), self.old.__dict__)
+        original = self.old.State(self.old.Initiator(self.context, signer, 150))
         owner = Journal.create(self.path, self.scope, self.key, self.old.encode(original), Session._validator(self.context))
         owner.close();original.close()
         self.driver = SessionDriver(self.output, args.provider_root.resolve(), self.output / "native/public",
@@ -95,10 +98,10 @@ class Scenario:
         self.unchanged_refusal("legacy-rekey-refused", "prepare_rekey_offer", (), "explicit snapshot upgrade required")
         self.worker("upgrade-result-lost", "upgrade_format", cut="protocol:format-upgraded")
         stable = (self.path / "head").read_bytes()
-        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 2, "upgrade result")
+        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 3, "upgrade result")
         self.require((self.path / "head").read_bytes() == stable, "upgrade replay rewrote head")
         def old_reader(snapshot, state):
-            self.require(state.format_version == 2 and state.operation.session_id() == self.session, "migration changed session")
+            self.require(state.format_version == 3 and state.operation.session_id() == self.session, "migration changed session")
             try:
                 self.old.decode(snapshot.payload, self.context)
             except ValueError:
@@ -257,7 +260,7 @@ class Scenario:
         self.unchanged_refusal("retired-old-resume","resume",(self.old_id,),"retired or unadmitted epoch")
         self.close_before_release()
         self.require(self.worker("expired-progress","rekey_progress",now=200)==[8,8,8,0],"expired progress unavailable")
-        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==2,"expired upgrade status unavailable")
+        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==3,"expired upgrade status unavailable")
         self.unchanged_refusal("expired-cached-control","rekey_outbox",((8).to_bytes(8,"big"),(3).to_bytes(8,"big")),"expired or premature authority",now=200)
         self.native_call("close",3,expected=b"closed")
         self.require(self.native.process.wait(timeout=5)==0,"native close")

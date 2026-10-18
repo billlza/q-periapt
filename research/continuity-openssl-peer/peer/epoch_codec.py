@@ -1,6 +1,6 @@
-"""Bounded version-two epoch inventory and exact control reservations."""
+"""Bounded epoch inventory with explicitly versioned control reservations."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from .epoch_state import EpochState, RekeyPlan
+from .epoch_state import EpochState, RekeyPlan, RequestPlan
 from .epoch_validation import validate
 from .journal import MAX_STATE
 from .snapshot_fields import blob, read_blob, encode_pending, decode_pending
@@ -10,7 +10,7 @@ from .wire import require
 FIELDS = (("seed", 96), ("offer", 4746), ("response", 4714), ("final", 3634), ("body", 1337), ("root", 32))
 
 
-def encode_epochs(owner, pending):
+def encode_epochs(owner, pending, *, with_request=False):
     validate(owner, pending)
     result = bytearray(owner.root)
     for value in (owner.confirmed, owner.sending, owner.receiving):
@@ -23,6 +23,13 @@ def encode_epochs(owner, pending):
     if owner.plan is not None:
         for name, cap in FIELDS:
             result.extend(blob(getattr(owner.plan, name), cap))
+    if with_request:
+        request = owner.request
+        result.append(0 if request is None else (2 if request.wire else 1))
+        if request is not None:
+            result.extend(request.wire if request.wire else request.body)
+    else:
+        require(owner.request is None, "control request requires snapshot version three")
     traffic = bytearray([len(owner.epochs)])
     for value in owner.epochs.values():
         traffic.extend(encode_traffic(value))
@@ -38,7 +45,7 @@ def encode_epochs(owner, pending):
     return bytes(result + traffic)
 
 
-def decode_epochs(reader, context, session):
+def decode_epochs(reader, context, session, *, with_request=False):
     owner = EpochState()
     owner.context, owner.session, owner.root = context, session, reader.take(32)
     owner.confirmed, owner.sending, owner.receiving = (reader.integer(8) for _ in range(3))
@@ -49,6 +56,15 @@ def decode_epochs(reader, context, session):
     phase = reader.integer(1)
     require(0 <= phase <= 7, "unknown rekey phase")
     owner.plan = RekeyPlan(phase, **{name: read_blob(reader, cap) for name, cap in FIELDS}) if phase else None
+    owner.request = None
+    if with_request:
+        request_phase = reader.integer(1)
+        require(request_phase in (0, 1, 2), "unknown request phase")
+        if request_phase == 1:
+            owner.request = RequestPlan(reader.take(153))
+        elif request_phase == 2:
+            wire = reader.take(3530)
+            owner.request = RequestPlan(wire[4:157], wire)
     count = reader.integer(1)
     require(1 <= count <= 4, "retained epoch capacity")
     owner.epochs = {}

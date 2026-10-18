@@ -51,7 +51,9 @@ def main():
     allowed = {"initial", "finish", "activate", "next_id", "send", "resume", "receive", "consume",
                "acknowledgement", "accept_acknowledgement", "status", "upgrade_format", "storage_format",
                "acknowledgement_for_epoch", "prepare_rekey_offer", "respond_rekey_offer",
-               "accept_rekey_response", "finish_rekey", "accept_rekey_receipt", "rekey_outbox", "rekey_progress"}
+               "accept_rekey_response", "finish_rekey", "accept_rekey_receipt", "rekey_outbox", "rekey_progress",
+               "prepare_rekey_request", "respond_rekey_request", "rekey_request_status",
+               "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control"}
     require(action in allowed, "unknown session action")
     def observe(stage):
         if stage == args.cut:
@@ -60,11 +62,16 @@ def main():
             raise RuntimeError("killed session worker unexpectedly resumed")
     owner = Session.open(args.root, scope, key, context, observer=observe)
     try:
-        if action in ("status", "rekey_progress", "storage_format"):
+        if action in ("status", "rekey_progress", "storage_format", "rekey_request_status"):
             result = getattr(owner, action)(*arguments)
-        elif action in ("prepare_rekey_offer", "respond_rekey_offer", "accept_rekey_response", "finish_rekey"):
+        elif action in ("prepare_rekey_offer", "respond_rekey_offer", "accept_rekey_response", "finish_rekey",
+                        "prepare_rekey_request", "respond_rekey_request", "advance_rekey_control",
+                        "receive_rekey_control", "start_rekey_control"):
             from signing_fixture import read
             signer = read(args.signer) if args.signer is not None else None
+            if action in ("advance_rekey_control", "start_rekey_control"):
+                require(len(arguments) == 1 and len(arguments[0]) == 8, "control target argument")
+                arguments = [int.from_bytes(arguments[0], "big")]
             result = getattr(owner, action)(*arguments, signer=signer, now=now)
         else:
             if action in ("rekey_outbox", "acknowledgement_for_epoch"):

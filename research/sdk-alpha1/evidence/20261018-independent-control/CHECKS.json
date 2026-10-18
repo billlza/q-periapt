@@ -1,0 +1,202 @@
+{
+  "control": {
+    "base_head": "582d4283a613c181cfc90476eedd93d737538d29",
+    "source_files": {
+      "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+      "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+      "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+      "peer/control.py": "8a9c31ca6322e105f7139e4131db4a3c638bba2190127f7a6f48eb60f9b9f04e",
+      "peer/durable.py": "6d6e48f4f39aab484d475f2303c01de2ca8004b977e1e22ca0ce551c2cb0c58e",
+      "peer/epoch_codec.py": "b4612436b0201c87d81c5042ab8b5b97898431d5f167f197afde0c4dfe8f791e",
+      "peer/epoch_state.py": "915419b846281d3b2c5bc32da4aa5fcd51997aa57607d59d2952b1b0101fe97d",
+      "peer/epoch_validation.py": "5d02aa7a71a9a3c5d5a796258a0c3a33345757a7a7bded1e59c4f7c913c06165",
+      "peer/journal.py": "a11d257e3001ac09ca34b452200210930869601b9368e38dfb59c7f983c5a592",
+      "peer/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+      "peer/private_files.py": "f5caf9b5b20b5eef728c3fbe2df455736f71b08bdee0e1ed3722759e28b81bbf",
+      "peer/rekey.py": "2e8c6bf5115c2bff9e854c2d71773e93a864fbf6bb902d4a8ac63159233ac897",
+      "peer/rekey_owner.py": "20be44a732d29a3e2590707b775ad824696d90bc3cffea6be1b8260cc5f20ba9",
+      "peer/snapshot_fields.py": "2d5d3a33410fd58ccd217640fe5ccf654c66a55d51ef09b02948e001c68a135f",
+      "peer/state_codec.py": "6a3abd5ce107b9fb97fa0a76b8fb221e1ec1de189c210db89acc379d8a2cbefd",
+      "peer/traffic.py": "bf9a6bc9720b81c9f43b88cbb3c1f2dccfe49d2f20786a6135d35cbe3720f37a",
+      "peer/traffic_codec.py": "2d8d9e72f337e071e9494e29b8c6371c7d90bb8eb01de17e6d2247fac9ea8836",
+      "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+      "archived_fixture.py": "8b70dd9e60254770a377544d31aa787cffe7f649331492d936be5669dd26b98f",
+      "capacity_checks.py": "9e9978c0e17b11f8c025fdff97ec2dde56049931a6d51174d25dfece518960c5",
+      "control_checks.py": "cbe507c68f4517ce220b39c91b1c799a3b1b7c19f49297e78fec46a54f93a412",
+      "control_scenario.py": "f9bdb140f6125ac6b6c2a0a4235d9381220bd0be5045ea79929a0fa944aa489e",
+      "durability_checks.py": "765682a4c44de90ef6afa2a1dfaf5098bb468dafeb35c77d01a854cbb190014a",
+      "durable_rekey_checks.py": "45bc70170c655507d5c8843d8236ccf2b9285a1eba1bd0a5d2b370e69d193ed9",
+      "fixture_inputs.py": "863030ed12e7f4c73d21f391cc206e995c46ef431b8135c44a4f76dce1b771c0",
+      "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+      "rekey_checks.py": "6832e9ece53a89dee35ad37859dc7aca9c94483d50460343b4a308dacc361dcc",
+      "run.py": "d58640930262fa38a07680b30d643a149ce65ddc5236b2a07e4e3c6a0789b5a0",
+      "session_driver.py": "2450a716207bc8c23316f2760f782e3c72f5619815eb63b5b5b944d1b8f6549d",
+      "session_worker.py": "4d58efd3bfd990725f635aac4f0b63321fcde1e311299f9630fdd90db44713b1",
+      "signing_fixture.py": "e0c4b8aae18cc19e5f5a6b75516cad4f1bc053d2a5397316eee3322836e6ca23",
+      "storage_checks.py": "3fbe623f57ccef48d562513d48947f91f4239861ce311ce1b7155c45bc435056",
+      "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+      "worker_process.py": "c5569ff0eaf18720e73984dee556dc596b5ae048bffef314884022e8c1f11c55",
+      "native/src/fixture.rs": "b1f5e397e74b633337efdfa605c26465a27835048d5079eecbd52f6692181ff4",
+      "native/src/journal.rs": "641894c525dcef1991c2029d83a43b329b53af47d46e52a909d212e282684f98",
+      "native/src/main.rs": "90294edfa9fd083acf354cea78f34ccc58d255bd70bb0e39b62093c14873450e",
+      "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+      "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+      "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+    },
+    "native_sha256": "2eac9edaafbc7ba0d83bef73601718d27a82a6ed3dedb0d8210b46787a272417",
+    "native_architecture": "MachO64 ARM64",
+    "provider": {
+      "cryptography": "48.0.1",
+      "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+    },
+    "epochs": 7,
+    "worker_operations": 111,
+    "native_commands": 80,
+    "process_kills": 13,
+    "control_steps": 101,
+    "unique_identity_signed_controls": 33,
+    "codec_refusals": 13,
+    "schedules": [
+      {
+        "target": 4,
+        "active_role": 1,
+        "attempts": 4,
+        "lost_flights": 5,
+        "duplicated_flights": 5,
+        "dummy_application_messages": 0
+      },
+      {
+        "target": 5,
+        "active_role": 1,
+        "attempts": 4,
+        "lost_flights": 4,
+        "duplicated_flights": 4,
+        "dummy_application_messages": 0
+      },
+      {
+        "target": 6,
+        "active_role": 2,
+        "attempts": 4,
+        "lost_flights": 4,
+        "duplicated_flights": 4,
+        "dummy_application_messages": 0
+      },
+      {
+        "target": 7,
+        "active_role": 2,
+        "attempts": 4,
+        "lost_flights": 5,
+        "duplicated_flights": 5,
+        "dummy_application_messages": 0
+      }
+    ],
+    "archived_writer_capture": "8d940db077b694086028ded0ad0bd1d20fae6b030e29530357521985c59c6aa4",
+    "scope": "Public output/signature/transcript/PID/identity readback; actual runtimes check secret KEM/MAC/AEAD. Codec refusal and no-dummy-message checks remain runtime assertions because private images are not exported. The pipe schedule is not a network transport or performance claim."
+  },
+  "regressions": {
+    "base_head": "582d4283a613c181cfc90476eedd93d737538d29",
+    "source_files": {
+      "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+      "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+      "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+      "peer/control.py": "8a9c31ca6322e105f7139e4131db4a3c638bba2190127f7a6f48eb60f9b9f04e",
+      "peer/durable.py": "6d6e48f4f39aab484d475f2303c01de2ca8004b977e1e22ca0ce551c2cb0c58e",
+      "peer/epoch_codec.py": "b4612436b0201c87d81c5042ab8b5b97898431d5f167f197afde0c4dfe8f791e",
+      "peer/epoch_state.py": "915419b846281d3b2c5bc32da4aa5fcd51997aa57607d59d2952b1b0101fe97d",
+      "peer/epoch_validation.py": "5d02aa7a71a9a3c5d5a796258a0c3a33345757a7a7bded1e59c4f7c913c06165",
+      "peer/journal.py": "a11d257e3001ac09ca34b452200210930869601b9368e38dfb59c7f983c5a592",
+      "peer/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+      "peer/private_files.py": "f5caf9b5b20b5eef728c3fbe2df455736f71b08bdee0e1ed3722759e28b81bbf",
+      "peer/rekey.py": "2e8c6bf5115c2bff9e854c2d71773e93a864fbf6bb902d4a8ac63159233ac897",
+      "peer/rekey_owner.py": "20be44a732d29a3e2590707b775ad824696d90bc3cffea6be1b8260cc5f20ba9",
+      "peer/snapshot_fields.py": "2d5d3a33410fd58ccd217640fe5ccf654c66a55d51ef09b02948e001c68a135f",
+      "peer/state_codec.py": "6a3abd5ce107b9fb97fa0a76b8fb221e1ec1de189c210db89acc379d8a2cbefd",
+      "peer/traffic.py": "bf9a6bc9720b81c9f43b88cbb3c1f2dccfe49d2f20786a6135d35cbe3720f37a",
+      "peer/traffic_codec.py": "2d8d9e72f337e071e9494e29b8c6371c7d90bb8eb01de17e6d2247fac9ea8836",
+      "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+      "archived_fixture.py": "8b70dd9e60254770a377544d31aa787cffe7f649331492d936be5669dd26b98f",
+      "capacity_checks.py": "9e9978c0e17b11f8c025fdff97ec2dde56049931a6d51174d25dfece518960c5",
+      "control_checks.py": "cbe507c68f4517ce220b39c91b1c799a3b1b7c19f49297e78fec46a54f93a412",
+      "control_scenario.py": "f9bdb140f6125ac6b6c2a0a4235d9381220bd0be5045ea79929a0fa944aa489e",
+      "durability_checks.py": "765682a4c44de90ef6afa2a1dfaf5098bb468dafeb35c77d01a854cbb190014a",
+      "durable_rekey_checks.py": "45bc70170c655507d5c8843d8236ccf2b9285a1eba1bd0a5d2b370e69d193ed9",
+      "fixture_inputs.py": "863030ed12e7f4c73d21f391cc206e995c46ef431b8135c44a4f76dce1b771c0",
+      "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+      "rekey_checks.py": "6832e9ece53a89dee35ad37859dc7aca9c94483d50460343b4a308dacc361dcc",
+      "run.py": "d58640930262fa38a07680b30d643a149ce65ddc5236b2a07e4e3c6a0789b5a0",
+      "session_driver.py": "2450a716207bc8c23316f2760f782e3c72f5619815eb63b5b5b944d1b8f6549d",
+      "session_worker.py": "4d58efd3bfd990725f635aac4f0b63321fcde1e311299f9630fdd90db44713b1",
+      "signing_fixture.py": "e0c4b8aae18cc19e5f5a6b75516cad4f1bc053d2a5397316eee3322836e6ca23",
+      "storage_checks.py": "3fbe623f57ccef48d562513d48947f91f4239861ce311ce1b7155c45bc435056",
+      "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+      "worker_process.py": "c5569ff0eaf18720e73984dee556dc596b5ae048bffef314884022e8c1f11c55",
+      "native/src/fixture.rs": "b1f5e397e74b633337efdfa605c26465a27835048d5079eecbd52f6692181ff4",
+      "native/src/journal.rs": "641894c525dcef1991c2029d83a43b329b53af47d46e52a909d212e282684f98",
+      "native/src/main.rs": "90294edfa9fd083acf354cea78f34ccc58d255bd70bb0e39b62093c14873450e",
+      "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+      "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+      "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+    },
+    "native_sha256": "2eac9edaafbc7ba0d83bef73601718d27a82a6ed3dedb0d8210b46787a272417",
+    "native_architecture": "MachO64 ARM64",
+    "provider": {
+      "cryptography": "48.0.1",
+      "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+    },
+    "owner": {
+      "epochs": 8,
+      "worker_operations": 150,
+      "process_kills": 11,
+      "native_commands": 75,
+      "signed_budget": 4,
+      "signed_flights": 32
+    },
+    "store": {
+      "process_kills": 19,
+      "controls": 46
+    },
+    "capacity": {
+      "messages": 122,
+      "reservation_plaintext": 13700,
+      "exact_fit_plaintext": 13587,
+      "capacity_boundary_replayed": true
+    },
+    "regressions": {
+      "bootstrap_native": 41,
+      "bootstrap_refusals": 51,
+      "rekey_native": 132,
+      "rekey_refusals": 108,
+      "base_workers": 27,
+      "base_kills": 6,
+      "base_native": 9
+    },
+    "upgrade_from_archived_writer": "9124e96df2652e4fec9cb55322ab27b317beaa5c018bffdcb3d1152959a77232",
+    "local_red_records": "separate 20261018-independent-durable-rekey capture",
+    "limits": [
+      "public readback does not load private images or rederive private MAC/AEAD keys",
+      "native counterpart remains the same process; independent workers restart",
+      "fixed-authority local-only owner; no required witness, renewal/revocation, application epoch resolution or network scheduler",
+      "no hardware power-loss, erasure, PCS proof, installed independent product or complete lifecycle admission"
+    ]
+  },
+  "validation": {
+    "strict_release_build": true,
+    "strict_all_target_clippy": true,
+    "rustfmt": true,
+    "actionlint": true,
+    "Python_AST": true,
+    "tracked_Rust_files": 722
+  },
+  "capture": {
+    "bytes": 5242751,
+    "members": 2177,
+    "sha256": "0ba3dd7df6b3edbbcebfaec32b4c8c92ae5abfd1c52ad61b816494ef4b81eae5"
+  },
+  "failed_attempts": [
+    "run-01: test helper method name conflicted with output directory attribute",
+    "run-02: expected budget-error wording differed from actual unchanged refusal",
+    "first regression reader expected old upgrade version2; corrected to explicit new version3"
+  ],
+  "hosted_qualification": "Pending; this is the completed local ARM64 checkpoint.",
+  "private_state": "Original private fixtures including failed attempts remain local; only path references are captured."
+}

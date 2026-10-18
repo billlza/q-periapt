@@ -2,7 +2,7 @@
 //! Actual Rust storage boundary, separate from the independent Python state.
 use crate::{fixture::Fixture, Result, NOW};
 use q_periapt_continuity_identity_candidate::{
-    DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId,
+    DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId, RekeyControlStep,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use std::{
@@ -44,6 +44,22 @@ fn ad_and_payload(input: &[u8]) -> std::result::Result<(&[u8], &[u8]), DurableEr
 
 fn id(input: &[u8]) -> std::result::Result<MessageId, DurableError> {
     MessageId::from_trusted_state(input.try_into().map_err(|_| encoding())?).map_err(Into::into)
+}
+
+fn control(step: RekeyControlStep) -> Vec<u8> {
+    match step {
+        RekeyControlStep::Output(message) => {
+            let mut wire = vec![1];
+            wire.extend_from_slice(&message.target_epoch().to_be_bytes());
+            wire.extend_from_slice(message.as_bytes());
+            wire
+        }
+        RekeyControlStep::LocallyConfirmed(target) => {
+            let mut wire = vec![0];
+            wire.extend_from_slice(&target.to_be_bytes());
+            wire
+        }
+    }
 }
 
 impl Journal {
@@ -190,7 +206,7 @@ impl Journal {
                 self.owner
                     .message_acknowledgement(context, session, TRAFFIC_TIME)
             }
-            14..=20 => self.rekey_command(fixture, command, payload),
+            14..=23 => self.rekey_command(fixture, command, payload),
             _ => Err(encoding()),
         }
     }
@@ -247,6 +263,21 @@ impl Journal {
                 self.owner
                     .message_acknowledgement_for_epoch(context, session, epoch, TRAFFIC_TIME)
             }
+            21 => {
+                let target = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
+                self.owner
+                    .advance_rekey_control(context, session, target, &fixture.signer, TRAFFIC_TIME)
+                    .map(control)
+            }
+            22 => self
+                .owner
+                .receive_rekey_control(context, session, payload, &fixture.signer, TRAFFIC_TIME)
+                .map(control),
+            23 if payload.is_empty() => Ok(format!(
+                "{:?}",
+                self.owner.rekey_request_status(context, session)?
+            )
+            .into_bytes()),
             _ => Err(encoding()),
         }
     }

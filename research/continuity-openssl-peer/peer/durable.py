@@ -10,6 +10,7 @@ from .journal import Journal, Scope, MAX_STATE, locked
 from .state_codec import State, SendPlan, encode, decode
 from .epoch_state import EpochState
 from .rekey_owner import RekeyOwner
+from .control import ControlOwner
 from .traffic import message_id
 from .wire import ldh, require
 
@@ -18,7 +19,7 @@ def owner_binding(context) -> bytes:
     return ldh(b"Q-PERIAPT-INDEPENDENT-OWNER/v1", context.initiator.raw)
 
 
-class Session(RekeyOwner):
+class Session(ControlOwner, RekeyOwner):
     def __init__(self, journal, context, observer):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
@@ -198,14 +199,14 @@ class Session(RekeyOwner):
 
     @locked
     def upgrade_format(self, now: int) -> int:
-        """Explicitly commit the original state into the multi-epoch format."""
+        """Explicitly commit the original state into the current control format."""
         with self._state() as (snapshot, state):
             if state.traffic is None:
                 self._admit_bootstrap(now)
             else:
                 self._context.check_established(now)
-            if state.format_version == 1:
-                state.format_version = 2
+            if state.format_version < 3:
+                state.format_version = 3
                 self._journal.update(snapshot.digest, encode(state))
                 self._observe("protocol:format-upgraded")
             return state.format_version

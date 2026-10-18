@@ -22,7 +22,7 @@ class State:
     operation: Initiator
     traffic: EpochState | None = None
     pending: SendPlan | None = None
-    format_version: int = 2
+    format_version: int = 3
 
     def close(self):
         self.operation.close()
@@ -35,8 +35,8 @@ def encode(state: State) -> bytes:
     op = state.operation
     require(not op._closed, "closed snapshot owner")
     phase = 3 if state.traffic is not None else (2 if op._reply is not None else 1)
-    require(state.format_version in (1, 2), "snapshot format version")
-    tag = b"QPREFS01" if state.format_version == 1 else b"QPREFS02"
+    require(state.format_version in (1, 2, 3), "snapshot format version")
+    tag = {1: b"QPREFS01", 2: b"QPREFS02", 3: b"QPREFS03"}[state.format_version]
     result = bytearray(tag + op._context.digest + bytes([phase]))
     result.extend(op._initial)
     if phase == 1:
@@ -56,11 +56,12 @@ def encode(state: State) -> bytes:
             if state.format_version == 1:
                 validate(owner, state.pending)
                 require(owner.confirmed == owner.sending == owner.receiving == 0
-                        and owner.plan is None and owner.last is None, "legacy snapshot requires epoch zero")
+                        and owner.plan is None and owner.last is None and owner.request is None,
+                        "legacy snapshot requires epoch zero")
                 result.extend(encode_traffic(owner.traffic(0), legacy_root=owner.root))
                 result.extend(encode_pending(state.pending))
             else:
-                result.extend(encode_epochs(owner, state.pending))
+                result.extend(encode_epochs(owner, state.pending, with_request=state.format_version == 3))
     require(len(result) <= MAX_STATE, "snapshot aggregate capacity")
     return bytes(result)
 
@@ -69,7 +70,7 @@ def decode(payload: bytes, context: Context) -> State:
     require(len(payload) <= MAX_STATE, "snapshot aggregate capacity")
     reader = Reader(payload)
     tag = reader.take(8)
-    require(tag in (b"QPREFS01", b"QPREFS02") and reader.take(32) == context.digest, "snapshot schema/context")
+    require(tag in (b"QPREFS01", b"QPREFS02", b"QPREFS03") and reader.take(32) == context.digest, "snapshot schema/context")
     phase = reader.integer(1)
     require(phase in (1, 2, 3), "snapshot phase")
     op = Initiator.__new__(Initiator)
@@ -78,7 +79,7 @@ def decode(payload: bytes, context: Context) -> State:
     body = context.initiator.open(op._initial, 5, 2440)
     require(body[:40] == b"QPBSI001" + context.digest, "snapshot initial scope")
     op._reply_key = op._first_secret = op._reply = op._final = op._session_id = op._root = None
-    state = State(op, format_version=1 if tag == b"QPREFS01" else 2)
+    state = State(op, format_version={b"QPREFS01": 1, b"QPREFS02": 2, b"QPREFS03": 3}[tag])
     try:
         if phase == 1:
             op._reply_key = HybridPrivate._restore(reader.take(96))
@@ -102,7 +103,8 @@ def decode(payload: bytes, context: Context) -> State:
                     state.pending = decode_pending(reader)
                     validate(state.traffic, state.pending)
                 else:
-                    state.traffic, state.pending = decode_epochs(reader, context, op._session_id)
+                    state.traffic, state.pending = decode_epochs(reader, context, op._session_id,
+                                                                 with_request=state.format_version == 3)
         reader.finish()
         require(encode(state) == payload, "noncanonical snapshot")
         return state

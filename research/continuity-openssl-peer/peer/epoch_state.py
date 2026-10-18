@@ -18,6 +18,12 @@ class RekeyPlan:
     root: bytes = b""
 
 
+@dataclass(repr=False)
+class RequestPlan:
+    body: bytes
+    wire: bytes = b""
+
+
 class EpochState:
     @classmethod
     def initial(cls, traffic):
@@ -27,7 +33,7 @@ class EpochState:
         owner.epochs = {0: traffic}
         owner.confirmed = owner.sending = owner.receiving = 0
         owner.predecessor = genesis(owner.session, owner.context.digest)
-        owner.last, owner.plan = None, None
+        owner.last, owner.plan, owner.request = None, None, None
         return owner
 
     def scope(self):
@@ -143,9 +149,10 @@ class EpochState:
     def complete(self, scope, wires, root):
         self.predecessor = scope.completed(*wires, root)
         self.confirmed, self.last, self.plan = scope.target, wires, None
+        self.request = None
 
     def close(self):
         for traffic in self.epochs.values():
             traffic.close()
         self.epochs.clear()
-        self.root, self.plan = b"", None
+        self.root, self.plan, self.request = b"", None, None

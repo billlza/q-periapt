@@ -93,11 +93,18 @@ with independent KEM, root/confirmation and epoch traffic/ACK derivations. Eight
 alternating exchanges interoperate with real Rust journal cutovers, including
 asymmetric progress after final, cached control replay and bidirectional traffic.
 The computational lane remains volatile. The subsequent `durable_rekey_checks.py`
-uses the journal-owned `Session`, an explicit `QPREFS01` to `QPREFS02` upgrade,
+uses the journal-owned `Session`, an explicit upgrade from `QPREFS01`,
 separate directional cutovers, exact control outboxes and the aggregate unconfirmed
-send budget. It retains unsettled epochs and resumes after process loss. Closed-epoch
-application resolution, control-request scheduling and full identity lifecycle
-remain required. No completed exchange count asserts post-compromise security.
+send budget. It retains unsettled epochs and resumes after process loss.
+`control_checks.py` exercises signed progress requests and one-step control driving
+without dummy application traffic. `QPREFS03` adds the retained request; both older
+formats remain readable without implicit migration. The new driver requires
+explicit upgrade, including when a version-two send or rekey is already pending.
+Control calls select one target, replay committed output and distinguish local
+confirmation from delivery of the final receipt. The host bounds retries and
+continues servicing peer controls. Network transport and scheduling policy,
+closed-epoch application resolution and full identity lifecycle remain required.
+No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
 This is not an admitted independent Continuity product implementation. Required

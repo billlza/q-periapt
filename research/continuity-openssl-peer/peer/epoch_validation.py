@@ -41,6 +41,11 @@ def validate(owner, pending):
         require(scope.public_completed(*owner.last) == owner.predecessor, "completed predecessor")
     if phase:
         validate_plan(owner)
+    if owner.request is not None:
+        scope = owner.scope()
+        require(scope.role(1) == 1 and owner.request.body == scope.request_body(), "reserved request binding")
+        if owner.request.wire:
+            scope.open_request(owner.request.wire)
 
 
 def validate_plan(owner):

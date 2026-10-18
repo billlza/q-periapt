@@ -4,7 +4,7 @@ This is an unpublished single-session implementation for interoperability work.
 It is independent of the Rust protocol state machine and redb image format.
 It implements bounded four-flight rekey and four retained traffic epochs. It does
 not yet implement required witnesses, credential/roster/policy renewal, revocation,
-account fanout, closed-epoch application resolution, independent control requests,
+account fanout, closed-epoch application resolution, network control scheduling,
 installed consumers or a complete installation owner.
 Its original verified authority snapshot and trusted time remain explicit inputs.
 It is not a replacement product package or a completed security proof.
@@ -50,7 +50,7 @@ reads and descriptor/path identity checks. Hostile code running as the same user
 is not isolated by these permissions.
 
 Plain state is capped at 2 MiB, each file at 2 MiB + 4096 bytes, and new writes
-respect 128 directory entries and 64 MiB of retained files. Version-two message
+respect 128 directory entries and 64 MiB of retained files. Multi-epoch message
 records reserve 64 KiB of the image for bootstrap/control/history completion.
 Both the pending plaintext record and its eventual ciphertext row must fit before
 the input is committed. Capacity for both
@@ -115,12 +115,14 @@ below is narrower than a product installation or backup-restore workflow.
 
 ## Protocol records and release
 
-`QPREFS02` encodes the original context and exactly one waiting, confirmed or
-traffic phase. The original `QPREFS01` remains readable as an epoch-zero format.
-Opening it does not migrate it: `upgrade_format(now)` explicitly commits the same
-session, secrets, reservations and outboxes into version two. Repeated upgrade is
+`QPREFS03` encodes the original context and exactly one waiting, confirmed or
+traffic phase, including an optional control request. `QPREFS01` remains readable
+as an epoch-zero format; `QPREFS02` retains its multi-epoch operations without
+control requests. Opening either does not migrate it: `upgrade_format(now)`
+explicitly commits the same session, secrets, reservations and outboxes into
+version three. Repeated upgrade is
 idempotent; `storage_format()` reports its disposition even after authority expiry.
-An old reader rejects version two. Migration that cannot retain all state and the
+Older readers reject version three. Migration that cannot retain all state and the
 control headroom fails without replacing the old image. Unknown tags/phases,
 extra bytes, malformed transcripts and wrong
 KEM ownership fail. Traffic records validate exact outbox coverage, disjoint
@@ -143,7 +145,7 @@ observer-close checks prevent a `None` handle from selecting the working directo
 
 ## Rekey ownership and retained epochs
 
-Version two stores separate confirmed, sending and receiving epochs, the exact
+Versions two and three store separate confirmed, sending and receiving epochs, the exact
 predecessor, the latest completed four-flight transcript and one pending exchange.
 The original initiator proposes odd targets; its peer proposes even targets.
 Targets advance exactly one step and use the existing signed v6 profile.
@@ -181,8 +183,35 @@ chain; only already-consumed metadata and skipped keys beyond that count may
 expire. The signed send budget covers committed sends across confirmed through
 current sending epoch plus an outstanding reservation. Consumption and outbox
 deletion do not refund that budget. Receipt confirmation advances the window.
-Application resolution of uncertain closed epochs and independent control-request
-scheduling remain unimplemented; this owner refuses their unresolved boundaries.
+Application resolution of uncertain closed epochs remains unimplemented; this
+owner refuses its unresolved boundaries.
+
+## Independent progress requests
+
+Version three separately retains an optional exact request body or committed
+signed request. The body uses purpose 13 and the unchanged `QPRKRQ01` wire grammar.
+Only the non-proposer can request the next target. A request asserts no settled
+history, allocates no KEM key and grants no application credit. Its current
+identity/policy/roster authority is checked before release. `BodyPrepared` status
+means a durable public body, not Rust's reserved signature randomness; an
+uncommitted signature may be computed again. Once committed, only exact wire bytes
+are returned. Completion clears that target's request in the same transaction.
+
+`advance_rekey_control(target, signer, now)` performs one preparation/resumption
+and returns `(target, wire)` or `(target, None)` for local confirmation. It never
+implicitly begins the following target. `receive_rekey_control` dispatches one
+bounded input through the original authenticated handlers. A replayed request for
+the retained completed target returns the old offer; older or future targets fail.
+Invalid authentication or scope cannot allocate replacement work.
+
+`start_rekey_control` additionally resends the last receipt when the responder has
+completed locally but may never have dispatched it. `replay_rekey_control` checks
+the original output against its committed outbox and current authority; it cannot
+create a new request after the old target has completed. Status remains readable
+after expiry. The host must bound transport attempts/deadlines and continue
+servicing incoming controls after local completion. Dropping output stops host
+dispatch; it does not undo a commit. The control-pipe tests are not an implemented
+network carrier, timer scheduler or energy optimization.
 
 These rules provide SDK consumption accounting, not atomic external application
 effects. The host must deduplicate and commit its own effects before consumption.
@@ -194,6 +223,14 @@ not evidence that an adversary has lost keys. No post-compromise security proof
 is claimed by these runtime checks.
 
 ## Validation entrypoints
+
+`control_checks.py` uses an archived version-two writer and its complete peer
+source closure, preserves a pending send and original offer through explicit
+upgrade, and exercises the request/body/signature boundaries in fresh workers.
+Its fixed schedules drop and duplicate each distinct control flight once, bound
+attempts/queue size and exercise both initiating roles without dummy traffic.
+This checks the one-step driver and host retry contract; it is not a measurement
+of a real network scheduler or a fully restarted Rust endpoint.
 
 `storage_checks.py` kills real worker process groups at eight write boundaries
 for both genesis and update, and checks exact-target/idempotent recovery, lost

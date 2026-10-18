@@ -87,6 +87,21 @@ primitive and epoch-zero lanes retain 19 and six real kills respectively. The
 capacity boundary and explicit archived-writer upgrade pass unchanged. Apple
 Silicon hosted execution remains queued; local ARM64 evidence is separate.
 
+The subsequent [independent control checkpoint](../research/sdk-alpha1/evidence/20261018-independent-control/README.md)
+adds durable signed progress requests and an explicit-target one-step driver.
+Seven targets pass with 111 fresh-process operations, 80 native commands and
+13 real kills. Public readback verifies 101 control results and 33 distinct signed
+controls. Four bounded schedules lose and duplicate every flight once and finish
+both peers without dummy application messages. Requests consume no application
+credit, assert no history settlement and replay the original offer; explicit
+delivery recovers a lost final receipt after local completion. A complete archived
+version-two writer supplies a pending send and signed offer that survive explicit
+upgrade to `QPREFS03`; older formats are not implicitly migrated. All six prior
+regression lanes, strict build/Clippy, formatting, workflow lint and public
+readback pass on the 40-source closure. Hosted qualification remains pending.
+Network carriers/scheduling, closed-epoch application resolution, required
+witnesses, identity lifecycle and disclosure/refinement analysis remain open.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,

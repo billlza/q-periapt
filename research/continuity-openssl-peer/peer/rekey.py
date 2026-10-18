@@ -78,6 +78,16 @@ class RekeyScope:
         require(len(public) == 1216, "rekey public key size")
         return self.prefix(0) + public
 
+    def request_body(self):
+        """The non-proposer asks for this target, without attesting settlement."""
+        return b"QPRKRQ01" + self.prefix(1)[8:]
+
+    def open_request(self, wire):
+        identity = self.context.initiator if self.role(1) == 1 else self.context.responder
+        body = identity.open(wire, 13, 153)
+        require(body == self.request_body(), "control request scope")
+        return body
+
     def response_body(self, offer, ciphertext, shared, old_root):
         self.open(0, offer)
         require(len(ciphertext) == 1120 and len(shared) == len(old_root) == 32, "rekey response material")
