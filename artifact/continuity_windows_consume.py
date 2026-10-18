@@ -89,6 +89,10 @@ def consume(args):
     run(['cargo', 'clippy', '--locked', '--lib', '--tests', '--', '-D', 'warnings'], 'clippy')
     for profile in ('debug', 'release'):
         flags = ['--release'] if profile == 'release' else []
+        paths = run(['cargo', 'test', '--locked', '--test', 'configuration_paths', *flags,
+                     '--', '--nocapture'], profile + '-configuration-paths')
+        require('test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' in paths,
+                'public configuration path controls did not execute')
         run(['cargo', 'build', '--locked', '--lib', *flags], profile + '-build')
         files = {'qpc_owner.h': (consumer / 'qpc_owner.h').read_bytes()}
         for suffix in ('.dll', '.dll.lib'):

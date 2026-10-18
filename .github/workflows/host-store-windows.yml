@@ -64,6 +64,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test --locked --release --manifest-path $manifest --lib --no-default-features windows_key_reopen -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/client-release-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Exercise public installation and enrollment path admission
+        shell: pwsh
+        run: |
+          $manifest = 'research/continuity-identity-candidate/Cargo.toml'
+          cargo test --locked --manifest-path $manifest --test configuration_paths -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/path-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --release --manifest-path $manifest --test configuration_paths -- --nocapture 2>&1 | Tee-Object target/private-store-evidence/path-release-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Exercise acknowledged signer retirement on native Windows
         shell: pwsh
         run: |

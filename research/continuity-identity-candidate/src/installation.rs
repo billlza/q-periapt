@@ -39,6 +39,8 @@ pub struct InstallationPaths {
 }
 impl InstallationPaths {
     /// Bind three distinct absolute UTF-8 paths without dot/parent components.
+    /// Windows accepts local drive paths, including verbatim drive prefixes;
+    /// network and device namespaces are rejected without rewriting path bytes.
     /// Existing private parent directories are required by each file operation.
     pub fn new(
         configuration: &Path,
@@ -83,9 +85,18 @@ pub(crate) fn validate_paths(paths: &[&Path]) -> Result<(), DurableError> {
             || path.to_str().is_none_or(|s| s.len() > 4096)
             || path.file_name().is_none()
             || path.components().collect::<PathBuf>().as_os_str() != path.as_os_str()
-            || path
-                .components()
-                .any(|c| !matches!(c, Component::RootDir | Component::Normal(_)))
+            || path.components().any(|component| match component {
+                Component::RootDir | Component::Normal(_) => false,
+                // Match the private storage adapter's local-drive namespace,
+                // including the spelling returned by Windows canonicalize().
+                // Keep the original path bytes in the persisted binding.
+                #[cfg(windows)]
+                Component::Prefix(prefix) => !matches!(
+                    prefix.kind(),
+                    std::path::Prefix::Disk(_) | std::path::Prefix::VerbatimDisk(_)
+                ),
+                _ => true,
+            })
         {
             return Err(DurableError::PrivateFile);
         }

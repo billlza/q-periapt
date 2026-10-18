@@ -7,8 +7,7 @@ on:
       - .github/workflows/continuity-windows-package.yml
       - artifact/continuity_windows_*.py
       - artifact/continuity_connection_public.py
-      - research/continuity-identity-candidate/tests/owned_connection*
-      - research/continuity-identity-candidate/tests/owned_connection/**
+      - research/continuity-identity-candidate/**
       - artifact/installed_rust_graph.py
       - artifact/continuity_package.py
       - artifact/continuity_package_archive.py

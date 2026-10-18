@@ -70,7 +70,10 @@ def prepare(args) -> None:
         source_hashes[relative] = snap.sha256
     files['original-Cargo.lock'] = sdk.snapshot(candidate.CANDIDATE / 'Cargo.lock').data
     files['Cargo.lock'] = files['original-Cargo.lock']
-    manifest = files['Cargo.toml'].decode() + '\n[[test]]\nname = \"owned_connection\"\npath = \"packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs\"\n\n[patch.crates-io]\n'
+    manifest = files['Cargo.toml'].decode()
+    for target in ('configuration_paths', 'owned_connection'):
+        manifest += f'\n[[test]]\nname = "{target}"\npath = "packages/q-periapt-continuity-identity-candidate-0.0.0/tests/{target}.rs"\n'
+    manifest += '\n[patch.crates-io]\n'
     manifest += ''.join(f'{name} = {{ path = "packages/{name}-{version}" }}\n' for name, version in versions.items())
     files['Cargo.toml'] = manifest.encode()
     zipped = bundle.archive(files)

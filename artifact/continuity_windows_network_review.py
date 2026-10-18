@@ -16,6 +16,15 @@ def review(root: Path, output: Path, expected_head: str) -> dict:
                 and 'host: x86_64-pc-windows-msvc' in report['rustc'], 'native Windows compiler differs')
     observed = {}
     for profile in ('debug', 'release'):
+        path_command = parse_strict_json_bytes(sdk.snapshot(root / (profile + '-configuration-paths.json')).data,
+                                               label='native path admission command')
+        sdk.require(path_command['returncode'] == 0 and path_command['argv'] ==
+                    ['cargo', 'test', '--locked', '--test', 'configuration_paths',
+                     *(['--release'] if profile == 'release' else []), '--', '--nocapture'],
+                    'native path admission execution differs')
+        path_stdout = sdk.snapshot(root / (profile + '-configuration-paths.stdout')).data
+        sdk.require(b'test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' in path_stdout,
+                    'native path admission controls did not execute')
         folder = root / (profile + '-network-public')
         hashes = report['profiles'][profile]['network_public']
         sdk.require(set(hashes) == {'connection', 'reopen', 'roster', 'replacement', 'retirement'},

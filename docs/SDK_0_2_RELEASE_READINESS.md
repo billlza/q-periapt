@@ -18,8 +18,16 @@ all installation file bytes; Busy preserves the held runtime's policy floor.
 This is unpublished `qpc-owner/1` configuration ownership, separate from product
 ABI 2. It does not qualify C account enrollment, connection/lifecycle, physical
 power loss or performance. The shared archive-shipped Rust lifecycle workload
-and public readback collector are being extended to Windows; their native
-results remain a separate gate.
+now executes on Windows, but [its first native run](https://github.com/billlza/q-periapt/actions/runs/39085276018)
+fails in Debug on both systems with `PrivateFile` before lifecycle progress;
+the public readback jobs consequently lack a successful result receipt. Code
+inspection identifies a definite upstream admission gap: installation and
+enrollment reject every Windows drive-prefix component, including canonical
+verbatim drive paths already supported by the private storage adapter. The
+correction admits only those two local-drive forms and retains exact byte
+binding, relative/dot/parent/duplicate rejection and filesystem admission.
+Public path controls accompany the original lifecycle tests; native results
+remain required before this correction or the Windows lifecycle is qualified.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
