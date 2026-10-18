@@ -15,7 +15,7 @@ PAYLOAD = b"persisted before process exit"
 
 
 def verify(directory: Path, read, *, authority: bytes, original: bytes, target: bytes, history: bytes,
-           previous_pids: list[int], darwin: bool, cut_ready: bool = False) -> dict:
+           previous_pids: list[int], darwin: bool, cut_ready: bool = False, windows: bool = False) -> dict:
     def public(name, maximum=65536):
         return read("public/traffic/" + name, maximum)
 
@@ -29,7 +29,8 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
         sdk.require(len(wire) == 8, "traffic root process width differs")
         return int.from_bytes(wire, "big")
 
-    sdk.require(public("result") == MARKER, "root traffic scope or completion differs")
+    marker = MARKER.replace(b'sigkill', b'terminateprocess') if windows else MARKER
+    sdk.require(public("result") == marker, "root traffic scope or completion differs")
     session, before, after = (public(name, 32) for name in ("session", "message-before", "message-after"))
     sdk.require(all(len(v) == 32 and any(v) for v in (session, before, after))
                 and before[:16] == bytes(16) and after[:16] == (1).to_bytes(8, "big") + bytes(8)
@@ -83,7 +84,7 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
             wanted = f"served:{kind}:0:{calls}:{created}\n{session.hex()}\n{message.hex()}\n".encode()
         sdk.require(data[ready.end():] == wanted, "root traffic peer consumption or deduplication differs")
     reverse_result = reverse.verify(read, pid, log, session=session, outbound=after,
-                                    payload=PAYLOAD, darwin=darwin, cut_ready=cut_ready)
+                                    payload=PAYLOAD, darwin=darwin, cut_ready=cut_ready, windows=windows)
     sdk.require({p.name for p in (directory / "traffic").glob("*.std*")} == logs,
                 "root traffic process log census differs")
     traffic_history = public("witness-transcript", RECORD_BYTES * 4096)
@@ -96,7 +97,7 @@ def verify(directory: Path, read, *, authority: bytes, original: bytes, target: 
     # consumption. Replaying either original operation must not add another one.
     sdk.require(observed["logical_advances"] == 60, "root traffic durable transition census differs")
     return {"completed": True, "sender_processes": 7, "peer_processes": 5,
-            "sender_sigkill": 1, "peer_exit_after_effect": 77, "application_records": 2,
+            "sender_terminateprocess" if windows else "sender_sigkill": 1, "peer_exit_after_effect": 77, "application_records": 2,
             "session": session.hex(), "original_message": before.hex(), "after_rekey_message": after.hex(),
             "rekey_epoch": 1, "independent_peer_association": True, "default_thread_stacks": stacks,
             "reverse": reverse_result,

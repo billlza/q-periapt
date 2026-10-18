@@ -4,13 +4,17 @@
 #include "qpc_owner.h"
 #include "client_inputs.h"
 #include <errno.h>
+#ifdef _WIN32
+#include "private_files_windows.h"
+#else
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 #include "consumer_platform.h"
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
 
 static _Noreturn void fail(const char *message) {
     fprintf(stderr,"root C failure: %s\n",message);exit(1);
@@ -36,6 +40,10 @@ static void path_join(char out[4096],const char *path,const char *name) {
     if(n<=0 || n>=4096) fail("path length");
 }
 static void save(const char *path,const char *name,const uint8_t *bytes,size_t length) {
+#ifdef _WIN32
+    int created=0;
+    if(qpc_file_commit(path,name,bytes,length,&created) || !created) fail("exclusive public output");
+#else
     char file[4096];path_join(file,path,name);
     int fd=open(file,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);
     if(fd<0) fail("exclusive public output");
@@ -49,6 +57,7 @@ static void save(const char *path,const char *name,const uint8_t *bytes,size_t l
     if(fsync(fd) || close(fd)) fail("public output sync");
     fd=open(path,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);
     if(fd<0 || fsync(fd) || close(fd)) fail("public directory sync");
+#endif
 }
 static void save_number(const char *path,const char *name,uint64_t value) {
     uint8_t wire[8];for(size_t i=0;i<8;i++) wire[7-i]=(uint8_t)(value>>(8*i));
@@ -106,13 +115,19 @@ static void active(uint64_t handle,uint8_t id[32]) {
 static void pause_for_kill(const char *path,const char *mode) {
     char name[128];int n=snprintf(name,sizeof name,"cut-%s",mode);
     if(n<=0 || (size_t)n>=sizeof name) fail("cut name");
+#ifdef _WIN32
+    /* The pinned publisher exposes the complete PID in one no-replace rename.
+     * This marks a process cut after the SDK call, not a power-loss experiment. */
+    save_number(path,name,qpc_process_id());
+#else
     char pending[128],source[4096],destination[4096];
     n=snprintf(pending,sizeof pending,".ready-%s",mode);
     if(n<=0 || (size_t)n>=sizeof pending) fail("pending cut name");
-    save_number(path,pending,(uint64_t)getpid());
+    save_number(path,pending,qpc_process_id());
     path_join(source,path,pending);path_join(destination,path,name);
     /* The observer sees the complete file atomically, never a create-before-write prefix. */
     if(link(source,destination)) fail("atomic cut publication");
+#endif
     struct timespec tick={0,10000000};
     for(unsigned i=0;i<3000;i++) if(qpc_sleep(&tick) && errno!=EINTR) fail("cut wait");
     fail("owned process was not killed within the bounded cut window");

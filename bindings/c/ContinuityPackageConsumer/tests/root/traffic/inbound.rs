@@ -141,7 +141,7 @@ pub(super) fn exercise(
                 u64::from(root.child.0.id())
             );
             root.child.0.kill()?;
-            assert_eq!(fixture::wait(&mut root.child)?.signal(), Some(9));
+            require_forced_exit(fixture::wait(&mut root.child)?);
             assert!(fs::read(&root.stderr)?.is_empty());
             let stdout = fs::read_to_string(&root.stdout)?;
             assert_eq!(
@@ -195,8 +195,8 @@ pub(super) fn exercise(
             .count(),
         1
     );
-    let marker = b"ROOT_C_REVERSE processes=5 receiver_sigkill=1 original_reply_recovered=true application_records=1 epoch=1\n";
-    fixture::store(public, "reverse-result", marker)?;
-    print!("{}", std::str::from_utf8(marker)?);
+    let marker = cut_marker("ROOT_C_REVERSE processes=5 receiver_sigkill=1 original_reply_recovered=true application_records=1 epoch=1\n");
+    fixture::store(public, "reverse-result", marker.as_bytes())?;
+    print!("{marker}");
     Ok(ids)
 }

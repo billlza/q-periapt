@@ -25,7 +25,9 @@ SCOPE = ("same-host installed compiled C root controller on default pthread attr
          "process variants, independent implementation, cross-host/device or full release qualification.")
 
 
-def scope(variant):
+def scope(variant, *, windows=False):
+    if windows:
+        return scope(variant).replace('default pthread attributes', 'default native thread attributes').replace('SIGKILL', 'TerminateProcess')
     if variant == "original":
         return SCOPE
     stages, cuts = alternatives.layout(variant)
@@ -36,9 +38,12 @@ def scope(variant):
             "cross-host/device, power-loss or full release qualification.")
 
 
-def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: str = "original", cut_ready: bool = False) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: str = "original", cut_ready: bool = False, windows: bool = False) -> dict:
+    sdk.require(not (darwin and windows), 'root platform observations conflict')
     stages, cuts = (STAGES, CUTS) if variant == "original" else alternatives.layout(variant)
     marker = MARKER if variant == "original" else alternatives.marker(variant)
+    if windows:
+        marker = marker.replace(b'sigkill', b'terminateprocess')
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
                 and re.search(r"^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out;",
@@ -109,13 +114,15 @@ def verify_execution(stdout: bytes, directory: Path, *, darwin: bool, variant: s
         headers = {"approved-plan": b"QPAFPL01", "bound-proposal": b"QPARPL02", "host-report": b"QPRDMD01"}
         sdk.require(name not in headers or wire.startswith(headers[name]), "root public proof grammar differs")
     alternative = None if variant == "original" else alternatives.verify(read, variant)
-    sdk.require(traffic.MARKER.decode().rstrip("\n") in text.splitlines(), "root traffic workload marker absent")
-    sdk.require(REVERSE_MARKER.decode().rstrip("\n") in text.splitlines(), "reverse root workload marker absent")
+    traffic_marker = traffic.MARKER.replace(b'sigkill', b'terminateprocess') if windows else traffic.MARKER
+    reverse_marker = REVERSE_MARKER.replace(b'sigkill', b'terminateprocess') if windows else REVERSE_MARKER
+    sdk.require(traffic_marker.decode().rstrip("\n") in text.splitlines(), "root traffic workload marker absent")
+    sdk.require(reverse_marker.decode().rstrip("\n") in text.splitlines(), "reverse root workload marker absent")
     traffic_result = traffic.verify(directory, read, authority=authority, original=old, target=target,
                                    history=setup + read("public/witness-transcript", RECORD_BYTES * 4096),
-                                   previous_pids=pids, darwin=darwin, cut_ready=cut_ready)
-    return {"completed": True, "scope": scope(variant), "alternative": alternative, "release_claim_eligible": False,
-            "processes": len(pids) + 17, "sigkill_cuts": len(cuts) + 2, "native_readbacks": 3,
+                                   previous_pids=pids, darwin=darwin, cut_ready=cut_ready, windows=windows)
+    return {"completed": True, "scope": scope(variant, windows=windows), "alternative": alternative, "release_claim_eligible": False,
+            "processes": len(pids) + 17, "terminateprocess_cuts" if windows else "sigkill_cuts": len(cuts) + 2, "native_readbacks": 3,
             "application_traffic": traffic_result, "witness": observed, "default_thread_stacks": stacks,
             "public_readbacks": public, "command_logs": logs}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Shared installed-controller driver across owned SIGKILL cuts.
+//! Shared installed-controller driver across owned forced-process cuts.
 //! ROOT_C_* names identify the existing fixture wire format, not a client language.
 #[path = "root/alternatives.rs"]
 mod alternatives;
@@ -12,10 +12,8 @@ mod traffic;
 #[path = "common/witness.rs"]
 mod witness;
 use q_periapt_continuity_identity_candidate as p;
-use std::os::unix::{
-    fs::{DirBuilderExt, OpenOptionsExt},
-    process::ExitStatusExt,
-};
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -24,15 +22,24 @@ use std::{
 };
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+fn require_forced_exit(status: std::process::ExitStatus) {
+    #[cfg(unix)]
+    assert_eq!(status.signal(), Some(9));
+    // std::process::Child::kill calls TerminateProcess(handle, 1) on Windows.
+    #[cfg(windows)]
+    assert_eq!(status.code(), Some(1));
+}
+
+fn cut_marker(text: &str) -> String {
+    #[cfg(windows)]
+    return text.replace("sigkill", "terminateprocess");
+    #[cfg(not(windows))]
+    text.to_owned()
+}
+
 fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u32> {
     let log = case.public.parent().ok_or("parent")?;
-    let output = |name: &str| {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(log.join(name))
-    };
+    let output = |name: &str| fixture::create_private_file(&log.join(name));
     let mut child = fixture::OwnedChild(
         Command::new(client)
             .arg(case.command_mode(mode))
@@ -68,7 +75,7 @@ fn stage(client: &Path, case: &setup::Case, mode: &str, kill: bool) -> Result<u3
         );
         child.0.kill()?;
         let status = fixture::wait(&mut child)?;
-        assert_eq!(status.signal(), Some(9));
+        require_forced_exit(status);
         assert_eq!(
             fs::read(log.join(format!("{mode}.stdout")))?,
             case.cut_output(mode).as_bytes()
@@ -111,7 +118,7 @@ fn installed_c_root_controller_recovers_original_state_and_erasure_after_process
         PathBuf::from(std::env::var_os("QPC_ROOT_CLIENT").ok_or("compiled root client required")?);
     let path =
         PathBuf::from(std::env::var_os("QPC_ROOT_EVIDENCE").ok_or("fresh root evidence required")?);
-    fs::DirBuilder::new().mode(0o700).create(&path)?;
+    fixture::create_private_directory(&path)?;
     let path = path.canonicalize()?;
     let variant = alternatives::Variant::selected()?;
     let mut case = setup::Case::new(

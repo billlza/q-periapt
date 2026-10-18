@@ -8,6 +8,9 @@ on:
       - artifact/continuity_windows_*.py
       - artifact/test_continuity_windows_*.py
       - artifact/bounded_process.py
+      - artifact/continuity_c_*.py
+      - artifact/test_continuity_c_consumer.py
+      - artifact/test_continuity_c_root*.py
       - artifact/continuity_connection_public.py
       - research/continuity-identity-candidate/**
       - artifact/installed_rust_graph.py

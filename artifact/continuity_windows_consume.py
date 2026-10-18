@@ -15,6 +15,7 @@ import continuity_package_archive as bundle
 from installed_rust_graph import require, verify_resolution
 from continuity_connection_public import capture
 from continuity_windows_c_public import CASES, capture_case
+from continuity_windows_root import qualify as qualify_roots
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -150,7 +151,8 @@ def consume(args):
              '-o', str(controls / 'recovery-client.obj')],
             profile + '-recovery-compile', client_source)
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
-             '-fsyntax-only', str(client_source / 'client.c'), str(client_source / 'opening_client.c'),
+             '-fsyntax-only', *(str(client_source / name) for name in
+                              ('client.c', 'opening_client.c', 'root_client.c', 'root_contract_client.c')),
              '-I', str(consumer)], profile + '-owner-syntax', client_source)
         return client_source, effect_test
     # Check the independent C platform boundary before the expensive Rust build.
@@ -250,6 +252,8 @@ def consume(args):
             require(not any(private_root.iterdir()), 'C public fixture cleanup incomplete')
         result['profiles'][profile]['owner_public'] = public
         environment.pop('QPERIAPT_C_OWNER_CLIENT')
+        result['profiles'][profile]['roots'] = qualify_roots(
+            run, profile, environment, installed, client_source, private_root, output, LIB)
         evidence = private_root / (profile + '-runtime')
         environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
         native = run(['cargo', 'test', '--locked', '--test', 'owned_connection', *flags,

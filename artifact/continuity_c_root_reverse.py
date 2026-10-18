@@ -7,7 +7,7 @@ MARKER = (b"ROOT_C_REVERSE processes=5 receiver_sigkill=1 original_reply_recover
           b"application_records=1 epoch=1\n")
 
 
-def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, darwin: bool, cut_ready: bool = False) -> dict:
+def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, darwin: bool, cut_ready: bool = False, windows: bool = False) -> dict:
     def public(name, maximum=128):
         return read("public/traffic/" + name, maximum)
 
@@ -16,7 +16,8 @@ def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, d
         sdk.require(len(wire) == 8, "reverse traffic counter width differs")
         return int.from_bytes(wire, "big")
 
-    sdk.require(public("reverse-result", 1024) == MARKER, "reverse traffic scope or completion differs")
+    marker = MARKER.replace(b'sigkill', b'terminateprocess') if windows else MARKER
+    sdk.require(public("reverse-result", 1024) == marker, "reverse traffic scope or completion differs")
     reply = public("reply-message", 32)
     sdk.require(len(reply) == 32 and reply[:16] == (1).to_bytes(8, "big") + bytes(8)
                 and reply != outbound and public("reply-received", 32) == reply,
@@ -49,7 +50,7 @@ def verify(read, pid, log, *, session: bytes, outbound: bytes, payload: bytes, d
             configured = number("stack-default-traffic-receive-" + stage, root=True)
             sdk.require(actual > 0 and configured > 0, "reverse default stack observation absent")
             stacks[stage] = {"system_default_bytes": configured, "observed_bytes": actual}
-    return {"completed": True, "processes": 5, "receiver_sigkill": 1,
+    return {"completed": True, "processes": 5, "receiver_terminateprocess" if windows else "receiver_sigkill": 1,
             "message": reply.hex(), "application_records": 1,
             "original_reply_recovered": True, "epoch": 1,
             "default_thread_stacks": stacks, "release_claim_eligible": False}

@@ -2,10 +2,8 @@
 //! The original signed witness socket, shared by independent installed test targets.
 use super::{fixture, p, Result};
 use std::{
-    fs,
     io::{self, Read, Write},
     net::TcpListener,
-    os::unix::fs::PermissionsExt,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, AtomicU8, Ordering},
@@ -20,7 +18,6 @@ pub(crate) struct Capture {
     pub(crate) delivered: bool,
 }
 pub(crate) struct Witness {
-    pub(crate) _directory: tempfile::TempDir,
     pub(crate) configured: fixture::WitnessFixture,
     stop: Arc<AtomicBool>,
     pub(crate) fault: Arc<AtomicU8>,
@@ -28,6 +25,8 @@ pub(crate) struct Witness {
     pub(crate) captured: Arc<Mutex<Vec<Capture>>>,
     pub(crate) unprocessed: Arc<Mutex<Vec<Vec<u8>>>>,
     worker: Option<thread::JoinHandle<Result<()>>>,
+    // Close the store and joined worker before removing their directory.
+    pub(crate) _directory: fixture::FixtureDirectory,
 }
 
 /// Only used after intentionally withholding a processed reply. A killed peer
@@ -47,9 +46,7 @@ pub(crate) fn require_held_peer_disconnect(observed: io::Result<usize>) -> io::R
 
 impl Witness {
     pub(crate) fn start() -> Result<Self> {
-        let directory = tempfile::Builder::new()
-            .permissions(fs::Permissions::from_mode(0o700))
-            .tempdir()?;
+        let directory = fixture::temporary_directory("continuity-foreign-witness-")?;
         let path = directory.path().canonicalize()?;
         let key = p::JournalKey::provision(&path.join("wrap.key"))?;
         let store = p::AnchorStore::provision(

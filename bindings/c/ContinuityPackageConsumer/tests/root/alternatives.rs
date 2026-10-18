@@ -40,7 +40,7 @@ impl Variant {
             Self::BoundTransition => " route=bound-transition",
             Self::Adoption => " route=adoption",
         };
-        format!("ROOT_C_LIFECYCLE processes={count} sigkill={cuts} witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=true{route}\n")
+        cut_marker(&format!("ROOT_C_LIFECYCLE processes={count} sigkill={cuts} witness_unknown=218 native_readbacks=3 original_revision=2 report_preserved=true cleanup_keeps_successor=true close_revokes_successor=true application_traffic=true{route}\n"))
     }
 }
 fn freeze(case: &setup::Case) -> Result<Vec<u8>> {

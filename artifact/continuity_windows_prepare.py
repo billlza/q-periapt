@@ -61,7 +61,8 @@ def prepare(args) -> None:
     prefix = 'bindings/c/ContinuityPackageConsumer/'
     tracked = run(['git', 'ls-files', prefix], 'facade-inputs').decode().splitlines()
     selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
-                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs') or
+                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs', 'tests/common/witness.rs') or
+                p[len(prefix):].startswith('tests/root/') or
                 '/' not in p[len(prefix):] and p.endswith(('.c', '.h'))]
     source_hashes = {}
     for relative in selected:

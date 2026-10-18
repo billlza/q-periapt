@@ -80,7 +80,7 @@ pub(super) fn peers(case: &setup::Case) -> Result<(PathBuf, PathBuf)> {
         case.reference.responder.join("root-peer"),
     );
     for path in [&paths.0, &paths.1] {
-        fs::DirBuilder::new().mode(0o700).create(path)?;
+        fixture::create_private_directory(path)?;
         fixture::store(path, "bootstrap.bundle", bundle.as_bytes())?;
         fixture::store(path, "directory", &[99; 32])?;
         for name in ["certificate", "roster"] {

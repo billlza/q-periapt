@@ -175,6 +175,33 @@ native Windows Unicode-path qualification. Initial local harness attempts with
 a duplicate dependency graph and then a missing receiver configuration are
 retained separately from that successful execution.
 
+At `266b006d` (`39099355349`), the Windows public-reader imports and explicit
+non-POSIX process refusal execute, but three of seven Python boundary tests fail.
+Their shared synthetic client fixture writes command logs in text mode, which
+translates LF to CRLF on Windows; the exact-byte reader correctly rejects it.
+The fixture now writes the specified UTF-8/LF bytes, with an explicit regression
+that still rejects CRLF before export. No native SDK runtime ran in this failed
+cohort, and the failure logs remain retained.
+
+The Windows installed lane now also includes all four existing root-controller
+routes: original replacement, transition, bound transition and adoption. The C
+caller shares native private publication and Unicode entry helpers; guarded
+short-option checks retain their protected-page assertions. Test directories
+and command files use the existing private fixture boundary. Witness and root
+fixture directory lifetimes now outlast their stores. Child termination retains
+the original process-ID marker and exact exit checks: SIGKILL on Unix, and the
+Rust Windows `TerminateProcess` exit code on Windows. Public markers and receipts
+distinguish those mechanisms. This remains process loss, not physical power loss.
+
+Local current-caller regressions against the recorded Mac reference library pass
+all four routes: 123 child processes, 40 SIGKILL cuts and 795 exported public
+files replayed through the existing readers. Original approval binding, witness
+unknown outcomes, retained reports, erasure state, successor lifetime, bidirectional
+message recovery and rekey assertions remain in place. Strict C11, protected-page,
+Clippy, Rust formatting and 25 related Python checks pass. The root orchestration
+is kept in a separate Windows collector module. Native Windows root execution,
+its independent hosted readback and full release qualification remain pending.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

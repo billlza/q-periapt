@@ -31,8 +31,9 @@ use zeroize::Zeroizing;
 mod platform;
 #[cfg(unix)]
 use platform::sync_directory;
-use platform::temporary_directory;
-pub(crate) use platform::{create_private_directory, create_private_file};
+pub(crate) use platform::{create_private_directory, create_private_file, temporary_directory};
+// The foreign witness fixture needs the same native private-directory lifetime.
+pub(crate) type FixtureDirectory = platform::FixtureDirectory;
 
 #[path = "owned_connection/enrollment.rs"]
 pub(crate) mod enrollment;
@@ -408,7 +409,7 @@ impl Peer {
 }
 
 pub(crate) struct Setup {
-    _directory: Option<platform::FixtureDirectory>,
+    _directory: Option<FixtureDirectory>,
     pub(crate) initiator: PathBuf,
     pub(crate) responder: PathBuf,
     pub(crate) issuer: SdkIssuer,

@@ -4,7 +4,6 @@ use super::*;
 use q_periapt_continuity_c_consumer::first_install::{
     FirstInstallConfiguration, ProtocolConfiguration, SdkConfiguration, TlsConfiguration,
 };
-use std::os::unix::fs::DirBuilderExt;
 
 pub(super) struct Account {
     pub(super) path: PathBuf,
@@ -47,8 +46,6 @@ pub(super) struct Case {
     language: ClientLanguage,
     pub(super) recovery: Recovery,
     pub(super) original_target: [u8; 32],
-    pub(super) witness: witness::Witness,
-    pub(super) reference: fixture::Setup,
     pub(super) sdk: q_periapt_host_store::PolicyStore,
     pub(super) policy: std::sync::Arc<p::VerifiedSessionPolicy>,
     pub(super) pin: p::AnchorPin,
@@ -59,6 +56,9 @@ pub(super) struct Case {
     pub(super) checkpoint: p::AccountAuthorityCheckpoint,
     pub(super) plan: p::AnchorAccountReplacementPlan,
     pub(super) public: PathBuf,
+    // Private directories outlive every SDK/store owner that can hold them.
+    pub(super) witness: witness::Witness,
+    pub(super) reference: fixture::Setup,
 }
 impl Case {
     pub(super) fn new(path: &Path, transition: bool, language: ClientLanguage) -> Result<Self> {
@@ -76,7 +76,7 @@ impl Case {
         let old = account(&path.join("original"), &configuration, &policy, &pin)?;
         let original_target = account(&path.join("target"), &configuration, &policy, &pin)?;
         let registry_path = path.join("registry");
-        fs::DirBuilder::new().mode(0o700).create(&registry_path)?;
+        fixture::create_private_directory(&registry_path)?;
         let identity = p::AccountAuthorityIdentity::generate()?;
         let mut registry = p::AccountAuthorityStore::provision(
             &registry_path.join("authority.redb"),
@@ -114,7 +114,7 @@ impl Case {
             original_target
         };
         let public = path.join("public");
-        fs::DirBuilder::new().mode(0o700).create(&public)?;
+        fixture::create_private_directory(&public)?;
         for (name, wire) in [
             ("registry-id", identity.as_bytes().to_vec()),
             ("family", policy.family().to_vec()),

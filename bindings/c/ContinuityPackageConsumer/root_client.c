@@ -19,7 +19,7 @@ static int execute(int argc,char **argv) {
     read_inputs(in,public,old,target);
     char marker[128];int n=snprintf(marker,sizeof marker,"process-%s",mode);
     if(n<=0 || (size_t)n>=sizeof marker) fail("process label");
-    save_number(public,marker,(uint64_t)getpid());
+    save_number(public,marker,qpc_process_id());
 #ifdef __APPLE__
     n=snprintf(marker,sizeof marker,"stack-%s",mode);if(n<=0 || (size_t)n>=sizeof marker) fail("stack label");
     save_number(public,marker,(uint64_t)pthread_get_stacksize_np(pthread_self()));
@@ -99,8 +99,9 @@ typedef struct { int argc;char **argv;int result; } invocation;
 static void *run(void *context) {
     invocation *call=context;call->result=execute(call->argc,call->argv);return NULL;
 }
-int main(int argc,char **argv) {
+static int qpc_consumer_main(int argc,char **argv) {
     invocation call={argc,argv,1};qpc_thread thread;
     if(qpc_thread_start(&thread,run,&call) || qpc_thread_join(thread)) return 1;
     return call.result;
 }
+#include "consumer_entry.h"

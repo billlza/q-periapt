@@ -9,8 +9,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 _Static_assert(sizeof(qpc_root_scope_v1) == 128, "scope layout");
 _Static_assert(offsetof(qpc_root_scope_v1, checkpoint) == 8, "scope checkpoint");
@@ -18,6 +22,15 @@ _Static_assert(sizeof(qpc_root_alternative_v1) == 72, "alternative layout");
 _Static_assert(offsetof(qpc_root_alternative_v1, original) == 8, "alternative input");
 
 int main(void) {
+#ifdef _WIN32
+    SYSTEM_INFO info; GetSystemInfo(&info);
+    size_t span=info.dwPageSize;
+    if(span<128 || span>SIZE_MAX/2) return 1;
+    uint8_t *mapping=VirtualAlloc(NULL,span*2,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    if(!mapping) return 2;
+    DWORD old=0;
+    if(!VirtualProtect(mapping+span,span,PAGE_NOACCESS,&old)) return 3;
+#else
     long page = sysconf(_SC_PAGESIZE);
     if (page < 128) return 1;
     size_t span = (size_t)page;
@@ -25,6 +38,7 @@ int main(void) {
                            MAP_PRIVATE | MAP_ANON, -1, 0);
     if (mapping == MAP_FAILED) return 2;
     if (mprotect(mapping + span, span, PROT_NONE) != 0) return 3;
+#endif
     /* Readable aligned size prefix ends immediately before the guarded page. */
     uint8_t *prefix = mapping + span - 8;
     uint32_t short_size = 4;
@@ -48,7 +62,11 @@ int main(void) {
         if (proposal[i] != 0x5a) return 8;
     }
     free(proposal);
+#ifdef _WIN32
+    if(!VirtualFree(mapping,0,MEM_RELEASE)) return 9;
+#else
     if (munmap(mapping, span * 2) != 0) return 9;
+#endif
     puts("ROOT_C_CONTRACT guarded_short_scope=true guarded_short_alternative=true outputs_preserved=true lifecycle_qualified=false");
     return 0;
 }

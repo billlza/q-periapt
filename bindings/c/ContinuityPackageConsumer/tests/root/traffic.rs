@@ -15,13 +15,7 @@ struct Process {
 fn spawn(command: &mut Command, path: &Path, name: &str) -> Result<Process> {
     let stdout = path.join(format!("{name}.stdout"));
     let stderr = path.join(format!("{name}.stderr"));
-    let file = |p: &Path| {
-        fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(p)
-    };
+    let file = |p: &Path| fixture::create_private_file(p);
     Ok(Process {
         child: fixture::OwnedChild(
             command
@@ -115,7 +109,7 @@ fn cut_sender(case: &setup::Case, process: &mut Process, public: &Path) -> Resul
         u64::from(process.child.0.id())
     );
     process.child.0.kill()?;
-    assert_eq!(fixture::wait(&mut process.child)?.signal(), Some(9));
+    require_forced_exit(fixture::wait(&mut process.child)?);
     assert_eq!(
         fs::read(&process.stdout)?,
         case.cut_output("sender").as_bytes()
@@ -146,7 +140,7 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
     let public = case.public.join("traffic");
     let logs = case.public.parent().ok_or("root parent")?.join("traffic");
     for path in [&public, &logs] {
-        fs::DirBuilder::new().mode(0o700).create(path)?;
+        fixture::create_private_directory(path)?;
     }
     let (left, right) = inputs::peers(case)?;
     let mut ids = Vec::new();
@@ -264,8 +258,8 @@ pub(super) fn exercise(client: &Path, case: &setup::Case) -> Result<Vec<u32>> {
     ids.extend(inbound::exercise(
         client, case, &left, &right, &public, &logs,
     )?);
-    let marker = b"ROOT_C_TRAFFIC sender_processes=7 peer_processes=5 sender_sigkill=1 peer_exit_after_effect=77 unknown_peer_refused=201 independent_peer_association=1 original_message_recovered=true application_records=2 rekey_epoch=1\n";
-    fixture::store(&public, "result", marker)?;
-    print!("{}", std::str::from_utf8(marker)?);
+    let marker = cut_marker("ROOT_C_TRAFFIC sender_processes=7 peer_processes=5 sender_sigkill=1 peer_exit_after_effect=77 unknown_peer_refused=201 independent_peer_association=1 original_message_recovered=true application_records=2 rekey_epoch=1\n");
+    fixture::store(&public, "result", marker.as_bytes())?;
+    print!("{marker}");
     Ok(ids)
 }

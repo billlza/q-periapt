@@ -4,12 +4,12 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::{fs, io, path::Path};
 
 #[cfg(unix)]
-pub(super) type FixtureDirectory = tempfile::TempDir;
+pub(crate) type FixtureDirectory = tempfile::TempDir;
 #[cfg(windows)]
-pub(super) struct FixtureDirectory(std::path::PathBuf);
+pub(crate) struct FixtureDirectory(std::path::PathBuf);
 #[cfg(windows)]
 impl FixtureDirectory {
-    pub(super) fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Path {
         &self.0
     }
 }
@@ -64,7 +64,7 @@ pub(super) fn sync_directory(path: &Path) -> io::Result<()> {
     fs::File::open(path)?.sync_all()
 }
 
-pub(super) fn temporary_directory(prefix: &str) -> io::Result<FixtureDirectory> {
+pub(crate) fn temporary_directory(prefix: &str) -> io::Result<FixtureDirectory> {
     #[cfg(unix)]
     {
         tempfile::Builder::new()
