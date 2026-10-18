@@ -6,7 +6,6 @@
 #include "live_image_windows.h"
 
 static const unsigned char body[]="original bytes under an exclusive live owner";
-static const WCHAR leaf[]=L"live-image-probe";
 static const char name[]="live-image-probe";
 
 /* Execute the old stdio image sequence and preserve the failing operation. */
@@ -54,6 +53,7 @@ static int writer_refused(HANDLE observer) {
 
 static int live_image_probe(int argc,char **argv) {
     if(argc!=2) return 64;
+    WCHAR leaf[]=L"live-image-probe";
     int created=0;
     if(qpc_file_commit(argv[1],name,body,sizeof body-1,&created) || !created) return 10;
     char path[8192]; int n=snprintf(path,sizeof path,"%s/%s",argv[1],name);
