@@ -24,6 +24,21 @@ def metadata(root):
 
 
 class IndependentPackageTests(unittest.TestCase):
+    def test_complete_counterpart_setup_retains_lock_and_refuses_existing_state(self):
+        with tempfile.TemporaryDirectory() as temp:
+            consumer = Path(temp) / "counterpart"
+            original = installed.prepare_counterpart(consumer)
+            self.assertEqual(original, (installed.SOURCE / "Cargo.lock").read_bytes())
+            self.assertEqual((consumer / "Cargo.lock").read_bytes(), original)
+            for path in installed.native_files():
+                if path.name != "Cargo.toml":
+                    self.assertEqual((consumer / path.relative_to(installed.SOURCE)).read_bytes(), path.read_bytes())
+            generated = tomllib.loads((consumer / "Cargo.toml").read_text())
+            self.assertTrue(generated["workspace"]["exclude"])
+            with self.assertRaisesRegex(ValueError, "must be fresh"):
+                installed.prepare_counterpart(consumer)
+            self.assertEqual((consumer / "Cargo.lock").read_bytes(), original)
+
     def test_archive_edges_preserve_source_build_and_lint_settings(self):
         original = (installed.SOURCE / "Cargo.toml").read_bytes()
         before = tomllib.loads(original.decode())

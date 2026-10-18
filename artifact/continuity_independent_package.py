@@ -88,6 +88,15 @@ def source_inputs() -> dict[str, str]:
     return {p.relative_to(ROOT).as_posix(): sdk.snapshot(p).sha256 for p in sorted(files)}
 
 
+def prepare_counterpart(consumer: Path) -> bytes:
+    sdk.require(not consumer.exists(), "counterpart installation must be fresh")
+    for path in native_files():
+        sdk.copy(path, consumer / path.relative_to(SOURCE))
+    manifest = installed_manifest(sdk.snapshot(consumer / "Cargo.toml").data)
+    (consumer / "Cargo.toml").write_bytes(manifest)
+    return sdk.snapshot(consumer / "Cargo.lock").data
+
+
 def build(args: argparse.Namespace) -> dict:
     sdk.validate_no_registry_credentials(os.environ)
     host = (os.uname().sysname, os.uname().machine)
@@ -142,10 +151,7 @@ def build(args: argparse.Namespace) -> dict:
             args.report.parent, cohort, packages, output, run, environment)
         result["candidate_archive"] = record
         consumer = outside / "counterpart"
-        for p in native_files():
-            sdk.copy(p, consumer / p.relative_to(SOURCE))
-        manifest = installed_manifest(sdk.snapshot(SOURCE / "Cargo.toml").data)
-        (consumer / "Cargo.toml").write_bytes(manifest)
+        original = prepare_counterpart(consumer)
         sdk.copy(consumer / "Cargo.toml", output / "consumer-Cargo.toml")
         for name in PRODUCTS:
             row = cohort["crates"][name]
@@ -160,8 +166,6 @@ def build(args: argparse.Namespace) -> dict:
         for relative, body in candidate.items():
             path = destination / relative; path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("xb") as stream: stream.write(body)
-        sdk.copy(SOURCE / "Cargo.lock", consumer / "Cargo.lock")
-        original = sdk.snapshot(SOURCE / "Cargo.lock").data
         environment["CARGO_TARGET_DIR"] = str(outside / "consumer-build")
         metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--locked", "--offline", "--format-version", "1"],
                                                "consumer-metadata", consumer), label="installed counterpart metadata")
