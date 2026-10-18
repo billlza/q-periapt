@@ -183,8 +183,10 @@ admission and a final authority-generation check. All thirteen final local lanes
 and six public readers pass on the same 63-source closure; strict build/lint and
 46 source-contract tests pass, with 725 tracked Rust sources. The subsequent
 [Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-peer-linux/README.md)
-completes all thirteen lanes and six frozen-source public readbacks at `a0ac7cd9`;
-Apple Silicon remains pending for that commit. Independent peer expiry uses test times 210/310 while the native
+completes all thirteen lanes and six frozen-source public readbacks at `a0ac7cd9`.
+The [Apple Silicon receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-peer-mac/README.md)
+then completes the same matrix, again with all six readers on its own frozen
+63-source closure and actual native binary. Independent peer expiry uses test times 210/310 while the native
 counterpart stays at 170; this is not its local enrollment renewal. Local joint
 authority, same-account coordination, installed/cross-host lifecycle, complete
 resource qualification and construction-wide security analysis remain open.

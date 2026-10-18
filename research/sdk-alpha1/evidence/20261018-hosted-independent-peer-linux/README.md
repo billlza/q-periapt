@@ -32,4 +32,5 @@ Reentrant ordering and output refusal remain preserved runtime assertions.
 Whole-service restart, separately deployed/installed lifecycle, same-account
 coordination, complete capacity and energy qualification, physical erasure,
 power loss and construction-wide PCS analysis remain separate requirements.
-Apple Silicon qualification for this commit is still pending at this checkpoint.
+The subsequent [Apple Silicon receipt](../20261018-hosted-independent-peer-mac/README.md)
+completes this same commit's hosted matrix with its own exact-source readbacks.
