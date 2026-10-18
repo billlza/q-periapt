@@ -103,8 +103,12 @@ replacement of another operation's sealed target. The older authority-only metho
 is not a coordinator recovery path: it requires the same current original policy
 and is excluded after joint/independent authority transactions. Do not reset the
 pending row, substitute local protection, backdate time or infer NoCommit from a
-transport error. This is a remaining **in-place renewal availability gap**, not a
-permission to relax ordinary witness validity.
+transport error. G/T alone cannot resolve this **in-place renewal ordering gap**.
+The separate [exact pending-write recovery](PENDING_WRITE_RECOVERY.md) flow can
+complete that original write after independent controller approval and a fresh
+Query confirming its exact target and original Advance command. It preserves the
+ordinary validity rule; it does not restore traffic permission or substitute for
+subsequent renewal.
 
 Independent device replacement is a different, implemented native exit path. Its
 permanent retirement receipt freezes the old subject, and the restricted retired

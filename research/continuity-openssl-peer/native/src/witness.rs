@@ -2,9 +2,9 @@
 //! Actual persistent witness and explicit test control plane, never peer enrollment.
 use crate::{fixture::Fixture, Result, NOW};
 use q_periapt_continuity_identity_candidate::{
-    AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity, AnchorPin,
-    AnchorSigningKey, AnchorStore, AnchorSubject, AnchorTransport, BootstrapRole, DeviceSigningKey,
-    DurableError, JournalKey, SigningKeyId,
+    AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity,
+    AnchorPendingWriteRecoveryProposal, AnchorPin, AnchorSigningKey, AnchorStore, AnchorSubject,
+    AnchorTransport, BootstrapRole, DeviceSigningKey, DurableError, JournalKey, SigningKeyId,
 };
 use std::{
     fs, io,
@@ -186,8 +186,118 @@ impl Witness {
                 };
                 Ok(format!("{result:?}").into_bytes())
             }
+            36 => self.approve_pending(fixture, payload),
+            37 => self.complete_pending(payload),
             _ => Err("witness test command shape".into()),
         }
+    }
+
+    fn approval_path(&self, proposal: &AnchorPendingWriteRecoveryProposal) -> PathBuf {
+        let mut name = String::from("pending-approval-");
+        for byte in proposal.binding() {
+            name.push_str(&format!("{byte:02x}"));
+        }
+        self.path.join(name)
+    }
+
+    // These two commands are the harness's independently authorized controller,
+    // outside the ordinary signed device endpoint31. Approval has no device
+    // signature input and is durably retained before completion can be invoked.
+    fn approve_pending(&self, fixture: &Fixture, payload: &[u8]) -> Result<Vec<u8>> {
+        let size = AnchorPendingWriteRecoveryProposal::ENCODED_BYTES;
+        let proposal = AnchorPendingWriteRecoveryProposal::from_trusted_state(
+            payload.get(..size).ok_or("pending approval shape")?,
+        )?;
+        let metadata = payload.get(size..).ok_or("pending approval metadata")?;
+        let inspection = proposal.inspect_metadata(metadata)?;
+        let account = fixture
+            .context
+            .device(BootstrapRole::Initiator)
+            .account_id();
+        for view in [inspection.source(), inspection.target()] {
+            if view.local_account != account
+                || view
+                    .records
+                    .iter()
+                    .any(|r| r.context != fixture.context.digest())
+            {
+                return Err("independent approval account/context differs".into());
+            }
+        }
+        if proposal.expected_policy_digest()
+            != fixture.context.original_policy().checkpoint().digest()
+        {
+            return Err("independent approval policy differs".into());
+        }
+        let path = self.approval_path(&proposal);
+        if path.try_exists()? {
+            if fs::read(&path)? != payload {
+                return Err("conflicting retained pending approval".into());
+            }
+        } else {
+            let count = fs::read_dir(&self.path)?.try_fold(0usize, |count, item| {
+                let item = item?;
+                Ok::<_, io::Error>(
+                    count
+                        + usize::from(
+                            item.file_name()
+                                .as_encoded_bytes()
+                                .starts_with(b"pending-approval-"),
+                        ),
+                )
+            })?;
+            if count >= 4 {
+                return Err("pending approval fixture capacity".into());
+            }
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&path)?;
+            file.write_all(payload)?;
+            file.sync_all()?;
+            fs::File::open(&self.path)?.sync_all()?;
+        }
+        if fs::read(&path)? != payload {
+            return Err("pending approval durable readback differs".into());
+        }
+        let mut result = proposal.binding().to_vec();
+        result.extend_from_slice(&(inspection.source().records.len() as u64).to_be_bytes());
+        result.extend_from_slice(&(inspection.target().records.len() as u64).to_be_bytes());
+        Ok(result)
+    }
+
+    fn complete_pending(&self, signed: &[u8]) -> Result<Vec<u8>> {
+        let size = AnchorPendingWriteRecoveryProposal::ENCODED_BYTES;
+        if signed.get(..4) != Some(&(size as u32).to_be_bytes()) {
+            return Err("pending signed request shape".into());
+        }
+        let proposal = AnchorPendingWriteRecoveryProposal::from_trusted_state(
+            signed.get(4..4 + size).ok_or("pending signed body")?,
+        )?;
+        let recorded = fs::read(self.approval_path(&proposal))?;
+        if recorded.get(..size) != Some(proposal.to_bytes().as_slice()) {
+            return Err("independently retained pending approval differs".into());
+        }
+        let metadata = recorded
+            .get(size..)
+            .ok_or("missing retained pending metadata")?;
+        let head = self
+            .store
+            .lock()
+            .map_err(|_| "witness lock poisoned")?
+            .as_mut()
+            .ok_or("closed witness")?
+            .complete_pending_write_recovery(
+                &proposal,
+                signed,
+                metadata,
+                self.now.load(Ordering::SeqCst),
+            )?;
+        let mut result = head.fence().to_be_bytes().to_vec();
+        result.extend_from_slice(&head.revision().to_be_bytes());
+        result.extend_from_slice(&head.digest());
+        Ok(result)
     }
 }
 

@@ -78,5 +78,6 @@ directory quota exhaustion still fails explicitly. Native traffic uses time 170;
 independent calls exercise signed expiry at 210/250/310/401. Same-account and full
 registration, policy/witness/device replacement, installed/deployed lifecycle,
 whole-store rollback, erasure, power loss, resource/energy measurement and full
-retained-state PCS/refinement remain open. Hosted qualification of the version-eight
-change is pending; this is not full 0.2.0 release admission.
+retained-state PCS/refinement remain open. [Hosted Linux qualification](../20261018-hosted-independent-renewal-capacity-linux/README.md)
+now covers the exact committed version-eight change; its Apple Silicon job remains
+pending. This is not full 0.2.0 release admission.

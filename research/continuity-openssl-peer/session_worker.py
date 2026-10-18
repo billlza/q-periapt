@@ -65,8 +65,9 @@ def main():
     renewal_actions = {"local_renewal_prepare", "local_renewal_status", "local_renewal_recover",
                        "local_renewal_commit", "local_renewal_close"}
     local_actions = {"local_credential_stage", "local_credential_status", "local_credential_commit", "local_credential_expire"}
+    pending_actions = {"pending_recovery_request_files", "pending_recovery_confirm_files"}
     require(action in (allowed | local_actions) or (witness_pin is not None and
-            action in ({"witness_provision", "witness_genesis"} | renewal_actions)), "unknown session action")
+            action in ({"witness_provision", "witness_genesis"} | renewal_actions | pending_actions)), "unknown session action")
     def observe(stage):
         if stage == args.cut:
             print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
@@ -92,6 +93,11 @@ def main():
             return
         host, port = args.witness_address.rsplit(":", 1)
         client = Client(witness_pin, context.witness.subject(scope.identity), signer, TcpTransport((host, int(port))))
+        if action in pending_actions:
+            from pending_recovery_actions import run
+            result = run(action, arguments, args.request.parent, args.root, scope, key, context, client, observe)
+            print(json.dumps({"result": result}))
+            return
         if action in renewal_actions:
             from local_renewal_actions import run
             result = run(action, arguments, now, args.root, scope, key, context, client, observe)

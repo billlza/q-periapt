@@ -18,15 +18,28 @@ mod witness;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const NOW: u64 = 150;
 
-fn receive(input: &mut impl Read) -> Result<Vec<u8>> {
+fn receive(input: &mut impl Read, control: bool) -> Result<Vec<u8>> {
     let mut prefix = [0; 4];
     input.read_exact(&mut prefix)?;
     let length = usize::try_from(u32::from_be_bytes(prefix))?;
-    if length == 0 || length > 32768 {
+    if length == 0 {
+        return Err("control frame size".into());
+    }
+    let mut first = [0];
+    input.read_exact(&mut first)?;
+    // Only explicit test-controller metadata may exceed the ordinary pipe cap.
+    // This is not a device/network request format or a larger traffic allowance.
+    let limit = if control && first[0] == 36 {
+        8 * 1024 * 1024 + 394
+    } else {
+        32768
+    };
+    if length > limit {
         return Err("control frame size".into());
     }
     let mut bytes = vec![0; length];
-    input.read_exact(&mut bytes)?;
+    bytes[0] = first[0];
+    input.read_exact(&mut bytes[1..])?;
     Ok(bytes)
 }
 
@@ -71,7 +84,7 @@ fn main() -> Result<()> {
     fs::create_dir(directory)?;
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
-    let peer_key = PublicKey::decode(&receive(&mut input)?)?;
+    let peer_key = PublicKey::decode(&receive(&mut input, false)?)?;
     let witness = if required {
         Some(witness::Witness::create(directory)?)
     } else {
@@ -90,7 +103,7 @@ fn main() -> Result<()> {
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;
     loop {
-        let frame = receive(&mut input)?;
+        let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
         let result = match command {
             1 => operation
@@ -115,7 +128,7 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
-            30..=35 => fixture
+            30..=37 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?

@@ -1,0 +1,167 @@
+{
+  "package_readback": {
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "source_files": 39,
+    "workspace_files": 383,
+    "workspace_sha256": "29af0ceab9cf09df260a2507cf35de05aad4e3892cb9a5fc243e03858605c67e",
+    "archive": {
+      "sha256": "abfad372183680f7fb492ccbe96670313eee795c296bf10abfd28fe916da6eb5",
+      "members": 303
+    },
+    "binary_sha256": "8c41247e36632253195805d9a35bc71277f05d977b301274a87960bd0ce215c7",
+    "manifest_sha256": "9341aba75748b9281e67cdfe0a3ed3e76637cb1255886fe3a9897b0bb8231b40",
+    "payload_files": 206,
+    "license_packages": 90,
+    "producer_migration_cases": 7,
+    "binary": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+    "observations": {
+      "file": {
+        "command": [
+          "file",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt"
+        ],
+        "exit": 0,
+        "stdout_sha256": "2f47cc030496757abb5e4d4edd2ba8f98b796233c0bac43c8041a3f349f63723"
+      },
+      "load": {
+        "command": [
+          "otool",
+          "-l",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt"
+        ],
+        "exit": 0,
+        "stdout_sha256": "b001483d7e77b6fb88c198870b55f2a81d6622d3f206ed229f433405c649bc96"
+      },
+      "version": {
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "--version"
+        ],
+        "exit": 0,
+        "stdout_sha256": "bb01869ece199d2769d3168908e244616fe7f6f8d43993fcdfce881e9d73bbb0"
+      }
+    },
+    "scope": "Package bytes and producer raw outputs verified. Minimum OS, Continuity migration, power-loss and release not claimed."
+  },
+  "local_consumption": {
+    "schema": "q-periapt-policy-store-migration-installed/1",
+    "binary": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+    "binary_sha256": "8c41247e36632253195805d9a35bc71277f05d977b301274a87960bd0ce215c7",
+    "fixture_producer": "redb 2.6.3",
+    "fixture_sha256": "5c3f3551281e2d1fe83d123601c93db428d291202fec9668bce5eedbf7cdc95f",
+    "attempts": [
+      {
+        "case": "legacy-conversion",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/policy.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 0,
+        "stdout_sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "case": "already-current-retry",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/policy.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 0,
+        "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "case": "oversized-independent-state",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/policy.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+      },
+      {
+        "case": "missing-store",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/missing.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+      },
+      {
+        "case": "corrupt-slot-64",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/corrupt-64.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+      },
+      {
+        "case": "corrupt-slot-192",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/corrupt-192.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+      },
+      {
+        "case": "final-current-retry",
+        "command": [
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-maintenance-2328-1x8yq49v/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+          "policy-store-upgrade",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/policy.redb",
+          "--root",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/root.bin",
+          "--expected-state",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-installed-migration-2328-wsmghf6u/state.bin"
+        ],
+        "returncode": 0,
+        "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "scope": "Actual installed executable outside checkout; public policy fixture; no Continuity or power-loss claim"
+  },
+  "capture": {
+    "bytes": 1287849,
+    "members": 39,
+    "sha256": "573c567cbe167c61a67c175317585dd2cef7bf5724387ba18e97ddd792ab18c6"
+  },
+  "scope": "Exact terminal CI archive executed outside checkout on Apple Silicon using retained public redb2.6.3 fixture. Seven local cases and producer raw outputs. No global installation, real user database, minimum macOS execution, Continuity migration, power-loss or release claim."
+}

@@ -201,6 +201,11 @@ continuation and independent metadata/file limits. It preserves messages and
 does not perform unknown-outcome cleanup to make room. Physical disk or directory
 quota exhaustion still fails explicitly.
 
+The independent [pending-write recovery](PENDING_WRITE_RECOVERY.md) owner prepares
+complete public views without replaying an expired ordinary write. Its separate
+controller approval and fresh Query confirmation preserve the original sealed
+target and leave renewal and traffic authorization separate.
+
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)
 and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API
