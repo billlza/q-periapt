@@ -99,6 +99,27 @@ STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
 
 
 class ContinuityPackageTests(unittest.TestCase):
+    def test_final_archive_check_uses_original_record_and_refuses_substitution(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            name = f"{package.NAME}-{package.VERSION}.crate"
+            path = root / name
+            path.write_bytes(b"original produced archive")
+            original = sdk.snapshot(path)
+            record = {"file": name, "sha256": original.sha256, "bytes": original.size}
+            package.verify_candidate_archive(root, record)
+            with self.assertRaisesRegex(ValueError, "filename changed"):
+                package.verify_candidate_archive(root, dict(record, file="../another.crate"))
+            with self.assertRaisesRegex(ValueError, "archive changed"):
+                package.verify_candidate_archive(root, dict(record, bytes=original.size + 1))
+            path.write_bytes(b"substitute bytes of same!".ljust(original.size, b"!"))
+            self.assertEqual(path.stat().st_size, original.size)
+            with self.assertRaisesRegex(ValueError, "archive changed"):
+                package.verify_candidate_archive(root, record)
+            path.unlink()
+            with self.assertRaises(ValueError):
+                package.verify_candidate_archive(root, record)
+
     def test_android_roster_readers_are_bound_to_package_source(self):
         import continuity_android_contract as contract
         import continuity_android_roster as roster

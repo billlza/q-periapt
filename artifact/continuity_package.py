@@ -154,6 +154,14 @@ def package_candidate(cargo: list[str], producer: Path, build: Path, sdk_output:
     return record, files
 
 
+def verify_candidate_archive(output: Path, record: dict) -> None:
+    """Recheck the produced archive after all installed consumers have run."""
+    sdk.require(record["file"] == f"{NAME}-{VERSION}.crate", "candidate archive filename changed")
+    current = sdk.snapshot(output / record["file"])
+    sdk.require(current.sha256 == record["sha256"] and current.size == record["bytes"],
+                "candidate archive changed")
+
+
 def verify_execution(stdout: bytes, directory: Path, reopen_directory: Path, roster_directory: Path,
                      replacement_directory: Path, retirement_directory: Path) -> dict:
     from continuity_roster_renewal import verify as verify_roster_renewal
@@ -465,7 +473,7 @@ def qualify(args: argparse.Namespace) -> dict:
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"])
         verify_candidate_files(destination, files)
-        sdk.require(sdk.snapshot(output / filename).sha256 == archive.sha256, "candidate archive changed")
+        verify_candidate_archive(output, result["archive"])
         sdk.require(sdk.snapshot(args.report).sha256 == pinned.sha256, "SDK report changed")
         sdk.require(before == source_inputs() and tools == compiler_identity(toolchain)
                     and sdk.inspect_package_source(ROOT, allow_dirty=False) == (commit, dirty),
