@@ -29,6 +29,11 @@ CASES = (
     ("acknowledged.message", "peer-retry"), ("rekeyed", "peer-rekey"),
     ("reverse", "peer-serve"), ("cancelled", "peer-cancel"),
 )
+PUBLIC = (
+    "original.request", "resumed.request", "after-rejection.request", "activated.request",
+    "rejected", "active-reopened", "rekeyed", "cancelled", "connected.session",
+    "uncertain.message", "acknowledged.message", "reverse.result",
+)
 
 
 def source_files() -> dict[str, bytes]:

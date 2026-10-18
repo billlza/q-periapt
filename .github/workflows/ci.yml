@@ -2264,6 +2264,7 @@ jobs:
             target/continuity-installed-swift/*.crate
             target/continuity-installed-swift/continuity-android-classes.jar
             target/continuity-installed-swift/android-jni-*.public
+            target/continuity-installed-swift/android-jni-*-inputs/**/*.public
             target/continuity-installed-swift/android-jni-*-policy-credential-*/**
             target/continuity-installed-swift/android-jni-*-joint-policy-*/**
             target/continuity-installed-swift/android-jni-*-witness-joint-*/**

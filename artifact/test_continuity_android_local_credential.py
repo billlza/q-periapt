@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 import unittest
 import continuity_android_local_credential as local
+import continuity_android_jni as android
+import rust_sdk_profile as sdk
 from test_continuity_android_jni import fixture as baseline
 
 def fixture(root):
@@ -15,6 +17,8 @@ def fixture(root):
         expired=(3).to_bytes(4,"big")+first+previous+(100).to_bytes(8,"big")
         committed=(2).to_bytes(4,"big")+second+target+bytes(8)
         values={"inputs/local-first-operation":first[:32],"inputs/local-first-statement":first[32:],
+         "inputs/local-first-version":(2).to_bytes(8,"big"),"inputs/local-first-digest":b"k"*32,
+         "inputs/local-first-grant":b"synthetic first grant","inputs/local-second-grant":b"synthetic second grant",
          "inputs/local-second-operation":second[:32],"inputs/local-second-statement":second[32:],
          "inputs/trusted-roster-version":previous[:8],"inputs/trusted-roster-digest":previous[8:],
          "inputs/local-second-version":target[:8],"inputs/local-second-digest":target[8:],
@@ -31,6 +35,38 @@ def fixture(root):
     return stdout
 
 class LocalCredentialTests(unittest.TestCase):
+    def test_exported_public_inventory_replays_without_private_state(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); source = root / "source"; source.mkdir()
+            stdout = fixture(source); replay = root / "public"
+            files = local.PUBLIC + tuple(name + "." + suffix for name, _ in android.CASES
+                                        for suffix in ("stdout", "stderr"))
+            for trust in ("fixed", "recoverable"):
+                for name in files:
+                    sdk.copy(source / trust / name, replay / trust / name)
+            self.assertEqual(local.verify_execution(stdout, replay), local.verify_execution(stdout, source))
+
+    def test_workflow_uploads_nested_public_inputs(self):
+        workflow = Path(__file__).resolve().parent.parent / ".github/workflows/ci.yml"
+        partition = workflow.read_text().split(
+            "name: continuity-installed-${{ matrix.consumer }}-${{ matrix.profile }}", 1)[1]
+        upload = partition.split("          path: |", 1)[1].split("\n\n", 1)[0]
+        prefix = "target/continuity-installed-swift/"
+        patterns = [line.strip()[len(prefix):] for line in upload.splitlines()
+                    if line.strip().startswith(prefix + "android-jni-")]
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            names = [f"android-jni-debug-fixed-{name}.public" for name in local.PUBLIC]
+            names.append("android-jni-debug-policy-renewal-local-fixed-inputs/policy-target/protocol-policy.public")
+            for name in names:
+                path = output / name; path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"synthetic public record")
+            private = output / "android-jni-debug-fixed-inputs/configuration"
+            private.write_bytes(b"synthetic excluded configuration")
+            published = {path.relative_to(output).as_posix() for pattern in patterns
+                         for path in output.glob(pattern) if path.is_file()}
+            self.assertEqual(published, set(names))
+
     def test_complete_and_missing_process(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);stdout=fixture(root);result=local.verify_execution(stdout,root)

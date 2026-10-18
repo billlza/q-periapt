@@ -12,7 +12,7 @@ CASES=(("local-original","credential-local-identity"),("local-rejected","credent
  ("local-retained-terminal","credential-local-reconcile"),("local-next-active","credential-local-next-activate"),
  ("local-next-status","credential-local-next-status"),("local-next-expiry","credential-local-next-expiry"),
  ("local-next-reopened","credential-local-next-reopen"))
-PUBLIC=tuple(name for name,_ in CASES)+tuple(name+"."+suffix for name,_ in CASES for suffix in ("stdout","stderr"))+(
+PUBLIC=android.PUBLIC+tuple(name for name,_ in CASES)+tuple(name+"."+suffix for name,_ in CASES for suffix in ("stdout","stderr"))+(
  "local-receiver.log","local-expiry-observation","local-peer-admitted","local-effect","local-effect-count","inputs/local-next-message",
  "inputs/trusted-roster-version","inputs/trusted-roster-digest")+tuple(
  "inputs/local-"+prefix+"-"+name for prefix in ("first","second") for name in ("operation","statement","version","digest","grant"))
