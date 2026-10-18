@@ -11,7 +11,7 @@ def read_public(directory, name):
     return value
 
 
-def load(directory, admission_time, *, witness_pin=None):
+def inputs(directory):
     def read(name):
         return read_public(directory, name)
     def device(role):
@@ -27,7 +27,21 @@ def load(directory, admission_time, *, witness_pin=None):
     materials = Materials(*(read(name) for name in (
         "sdk-document", "sdk-signature", "policy", "i-credential", "i-roster",
         "r-credential", "r-roster", "manifest", "proof-1", "proof-3")))
+    return pins, materials
+
+
+def load(directory, admission_time, *, witness_pin=None):
+    pins, materials = inputs(directory)
     return pins, materials, authenticate(pins, materials, admission_time, witness_pin=witness_pin)
+
+
+def load_original(directory, original_context, now, *, witness_pin=None):
+    from peer.bootstrap_bundle import BootstrapBundle
+    pins, materials = inputs(directory)
+    bundle = BootstrapBundle.from_materials(materials)
+    context = bundle.verify_original(pins, materials.sdk_document, materials.sdk_signature, materials.policy, now,
+                                     original_context=original_context, required_quality=2, witness_pin=witness_pin)
+    return pins, materials, context
 
 
 def load_witness_pin(directory):

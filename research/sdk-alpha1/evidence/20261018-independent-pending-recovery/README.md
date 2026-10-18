@@ -72,3 +72,7 @@ lifecycle, same-account coordination, installed/deployed enrollment and root/
 witness/policy/device replacement, power-loss/erasure, resource/energy bounds,
 full retained-state PCS/refinement, final ABI/integration and user-owned external
 review remain open. This is not full 0.2.0 release admission.
+
+[Hosted Linux qualification](../20261018-hosted-independent-pending-recovery-linux/README.md)
+now verifies the exact committed 17-entrypoint/9-reader cohort. Its Apple Silicon
+job remains separately pending; no full platform conclusion is implied.

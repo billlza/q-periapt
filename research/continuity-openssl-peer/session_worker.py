@@ -23,7 +23,7 @@ def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from provider import load_provider
     load_provider(args.provider_root)
-    from fixture_inputs import load
+    from fixture_inputs import load_original
     from peer.durable import Session
     from peer.journal import Scope
     from peer.resolution import ResolutionReport
@@ -38,7 +38,6 @@ def main():
     if args.witness_address is not None:
         from fixture_inputs import load_witness_pin
         witness_pin = load_witness_pin(args.public)
-    _, _, context = load(args.public, 150, witness_pin=witness_pin)
     with args.request.open("rb") as stream:
         raw = stream.read(65537)
     require(len(raw) <= 65536, "worker request capacity")
@@ -54,6 +53,7 @@ def main():
             "worker request schema")
     arguments = [bytes.fromhex(x) for x in request["arguments"]]
     action, now = request["action"], request["now"]
+    _, _, context = load_original(args.public, scope.context, now, witness_pin=witness_pin)
     allowed = {"initial", "finish", "activate", "next_id", "send", "resume", "receive", "consume",
                "acknowledgement", "accept_acknowledgement", "status", "upgrade_format", "storage_format",
                "acknowledgement_for_epoch", "prepare_rekey_offer", "respond_rekey_offer",

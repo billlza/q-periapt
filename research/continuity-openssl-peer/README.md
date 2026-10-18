@@ -206,6 +206,11 @@ complete public views without replaying an expired ordinary write. Its separate
 controller approval and fresh Query confirmation preserve the original sealed
 target and leave renewal and traffic authorization separate.
 
+The byte-oriented [public input API](PUBLIC_INPUTS.md) accepts the existing
+QPBNDL01 container with separate trust expectations. Original-state reconstruction
+uses the retained context digest and current trusted time, without a fixed fixture
+admission time or a new operational grant.
+
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)
 and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API
