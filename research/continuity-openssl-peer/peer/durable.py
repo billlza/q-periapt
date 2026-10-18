@@ -13,6 +13,8 @@ from .rekey_owner import RekeyOwner
 from .control import ControlOwner
 from .resolution_owner import ResolutionOwner
 from .peer_owner import PeerOwner
+from .identity_state import admit_local, local_binding
+from .local_authority_control import admit_snapshot
 from .traffic import message_id
 from .wire import ldh, require
 
@@ -26,10 +28,16 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
         self._authority_generation = 0
+        try:
+            with self._state(operational=False):
+                pass
+        except BaseException:
+            journal.close()
+            raise
 
     @staticmethod
     def _scope(context, scope):
-        require(context.current_peer is None, "derived session authority is not a creation/opening input")
+        require(context.current_peer is None and context.current_local is None, "derived session authority is not a creation/opening input")
         require(scope.owner == owner_binding(context) and scope.context == context.digest,
                 "independent session scope")
 
@@ -63,27 +71,32 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
         snapshot = self._journal.read()
         state = decode(snapshot.payload, self._context)
         try:
+            admit_snapshot(self._journal, state)
+            authority = local_binding(state, self._context)
             if self._context.witness is not None:
-                self._journal.admit(snapshot, operational)
+                self._journal.admit(snapshot, operational, authority)
+            if operational and now is not None:
+                admit_local(state, self._context, now)
             if operational and now is not None and not peer_maintenance and state.peer_authority is not None:
                 state.peer_authority.check(now)
             yield snapshot, state
             authority_generation = self._authority_generation
-            if operational and now is not None and state.format_version == 5:
+            if operational and now is not None and state.format_version in (5, 6):
                 # A reentrant host observer may have committed revocation after
                 # this call's own write. Recheck the durable current authority
                 # before its result escapes; the earlier decoded view is stale.
                 current = self._journal.read()
                 fresh = decode(current.payload, self._context)
                 try:
-                    for interval in self._context.intervals[:3]:
-                        interval.check(now)
+                    admit_snapshot(self._journal, fresh)
+                    admit_local(fresh, self._context, now)
+                    authority = local_binding(fresh, self._context)
                     if not peer_maintenance and fresh.peer_authority is not None:
                         fresh.peer_authority.check(now)
                 finally:
                     fresh.close()
             if self._context.witness is not None:
-                self._journal.release(operational)
+                self._journal.release(operational, authority)
             if operational:
                 require(self._authority_generation == authority_generation,
                         "peer authority changed during output admission")
@@ -236,8 +249,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
             if state.traffic is None:
                 self._admit_bootstrap(now)
             else:
-                for interval in self._context.intervals[:3]:
-                    interval.check(now)
+                admit_local(state, self._context, now)
             if state.format_version < 5:
                 state.format_version = 5
                 self._journal.update(snapshot.digest, encode(state))

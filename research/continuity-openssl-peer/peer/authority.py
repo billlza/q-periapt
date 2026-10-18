@@ -11,7 +11,7 @@ import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .peer_authority import PeerState
+    from .identity_state import IdentityState
 
 from cryptography.hazmat.primitives.asymmetric import mldsa
 
@@ -89,7 +89,8 @@ class Context:
     devices: tuple[Device, Device] | None = None
     family: bytes = bytes(32)
     policy_digest: bytes = bytes(32)
-    current_peer: PeerState | None = None
+    current_peer: IdentityState | None = None
+    current_local: IdentityState | None = None
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
@@ -98,8 +99,12 @@ class Context:
     def check_established(self, now: int) -> None:
         # The first five windows are policy, two credentials and two rosters.
         # Advertisement/leaf expiry gates bootstrap, not established traffic.
-        for interval in self.intervals[:3]:
-            interval.check(now)
+        self.intervals[0].check(now)
+        if self.current_local is None:
+            for interval in self.intervals[1:3]:
+                interval.check(now)
+        else:
+            self.current_local.check(now)
         if self.current_peer is None:
             for interval in self.intervals[3:5]:
                 interval.check(now)

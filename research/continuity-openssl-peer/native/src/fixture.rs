@@ -5,7 +5,7 @@ use q_periapt_continuity_identity_candidate::{
     ApplicationSendBudget, BootstrapContext, ClassicalChoice, DeviceDescription, DeviceSigningKey,
     DirectoryExpectation, LeafKind, ManifestContext, PolicyPin, PolicySigningKey, PqChoice,
     PrekeyLeaf, PrekeyQuality, PublicKey, RootSigningKey, SessionPolicyParameters, Validity,
-    VerifiedDevice,
+    VerifiedCredentialRenewal, VerifiedDevice,
 };
 use q_periapt_core::ZeroizingBytes;
 use q_periapt_sdk::{Limits, Runtime};
@@ -21,6 +21,7 @@ pub(super) struct Fixture {
     pub prekey: q_periapt_sdk::HybridKey,
     pub responder: Arc<VerifiedDevice>,
     pub witness: Option<Arc<crate::witness::Witness>>,
+    pub local_grants: Vec<VerifiedCredentialRenewal>,
 }
 
 pub(super) fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -71,10 +72,18 @@ pub(super) fn create(
     budget: u16,
     witness: Option<Arc<crate::witness::Witness>>,
     peer_lifecycle: bool,
+    local_lifecycle: bool,
 ) -> Result<Fixture> {
     let runtime = runtime(directory)?;
     let authority = PolicySigningKey::generate()?;
-    let validity = Validity::new(100, if peer_lifecycle { 400 } else { 200 })?;
+    let validity = Validity::new(
+        100,
+        if peer_lifecycle || local_lifecycle {
+            400
+        } else {
+            200
+        },
+    )?;
     let family = authority.policy_family()?;
     let policy = authority.issue_session_policy(
         &runtime,
@@ -108,6 +117,7 @@ pub(super) fn create(
         None => DeviceSigningKey::generate()?,
     };
     let mut devices = Vec::new();
+    let mut local_grants = Vec::new();
     for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
         let root = RootSigningKey::generate()?;
         let certificate = root.issue_device(
@@ -115,7 +125,9 @@ pub(super) fn create(
                 [id; 16],
                 1,
                 family,
-                if peer_lifecycle {
+                if local_lifecycle {
+                    Validity::new(100, if id == 1 { 200 } else { 350 })?
+                } else if peer_lifecycle {
                     Validity::new(100, if id == 1 { 350 } else { 200 })?
                 } else {
                     validity
@@ -148,16 +160,22 @@ pub(super) fn create(
         save(directory, &format!("pin-{role}-head"), &expectation)?;
         save(directory, &format!("{role}-credential"), &certificate)?;
         save(directory, &format!("{role}-roster"), roster.as_bytes())?;
-        if peer_lifecycle && role == "r" {
-            crate::peer_lifecycle::publish(
+        if (peer_lifecycle && role == "r") || (local_lifecycle && role == "i") {
+            let grants = crate::peer_lifecycle::publish(
                 directory,
                 &root,
                 &certificate,
                 devices.last().ok_or("missing renewed peer")?,
                 roster.as_bytes(),
-                policy.checkpoint().digest(),
-                family,
+                crate::peer_lifecycle::Scope {
+                    policy: policy.checkpoint().digest(),
+                    family,
+                    local: local_lifecycle,
+                },
             )?;
+            if local_lifecycle {
+                local_grants = grants;
+            }
         }
     }
     let initiator = devices.first().ok_or("missing initiator")?;
@@ -212,5 +230,6 @@ pub(super) fn create(
         prekey: key,
         responder: Arc::clone(responder),
         witness,
+        local_grants,
     })
 }

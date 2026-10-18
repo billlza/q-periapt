@@ -415,6 +415,11 @@ network serialization or a general application report API.
 
 ## Validation entrypoints
 
+The [joint local renewal contract](LOCAL_RENEWAL.md) specifies conditional
+version six, its separate authenticated control record, typed exact-target intent,
+terminal-before-ACK ordering and historical cleanup. It keeps the original
+witness subject and does not turn an unsubmitted ordinary write into renewal.
+
 `control_checks.py` uses an archived version-two writer and its complete peer
 source closure, preserves a pending send and original offer through explicit
 upgrade, and exercises the request/body/signature boundaries in fresh workers.

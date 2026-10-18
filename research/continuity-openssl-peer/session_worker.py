@@ -62,7 +62,10 @@ def main():
                "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control",
                "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status",
                "admit_peer_credential_renewal", "admit_peer_roster", "peer_authority_status"}
-    require(action in allowed or (witness_pin is not None and action in ("witness_provision", "witness_genesis")), "unknown session action")
+    renewal_actions = {"local_renewal_prepare", "local_renewal_status", "local_renewal_recover",
+                       "local_renewal_commit", "local_renewal_close"}
+    require(action in allowed or (witness_pin is not None and
+            action in ({"witness_provision", "witness_genesis"} | renewal_actions)), "unknown session action")
     def observe(stage):
         if stage == args.cut:
             print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
@@ -83,6 +86,11 @@ def main():
             return
         host, port = args.witness_address.rsplit(":", 1)
         client = Client(witness_pin, context.witness.subject(scope.identity), signer, TcpTransport((host, int(port))))
+        if action in renewal_actions:
+            from local_renewal_actions import run
+            result = run(action, arguments, now, args.root, scope, key, context, client, observe)
+            print(json.dumps({"result": result.hex() if isinstance(result, bytes) else result}))
+            return
         owner = WitnessSession.open(args.root, scope, key, context, client=client, observer=observe)
     else:
         owner = Session.open(args.root, scope, key, context, observer=observe)

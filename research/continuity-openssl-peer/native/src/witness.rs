@@ -2,9 +2,9 @@
 //! Actual persistent witness and explicit test control plane, never peer enrollment.
 use crate::{fixture::Fixture, Result, NOW};
 use q_periapt_continuity_identity_candidate::{
-    AnchorClient, AnchorGenesis, AnchorIdentity, AnchorPin, AnchorSigningKey, AnchorStore,
-    AnchorSubject, AnchorTransport, BootstrapRole, DeviceSigningKey, DurableError, JournalKey,
-    SigningKeyId,
+    AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity, AnchorPin,
+    AnchorSigningKey, AnchorStore, AnchorSubject, AnchorTransport, BootstrapRole, DeviceSigningKey,
+    DurableError, JournalKey, SigningKeyId,
 };
 use std::{
     fs, io,
@@ -160,6 +160,31 @@ impl Witness {
                 self.now
                     .store(u64::from_be_bytes(payload.try_into()?), Ordering::SeqCst);
                 Ok(b"witness clock set".to_vec())
+            }
+            34 | 35 if payload.len() == 296 => {
+                let proposal = AnchorCredentialRenewalProposal::from_trusted_state(payload)?;
+                let grant = fixture
+                    .local_grants
+                    .iter()
+                    .find(|g| g.operation() == proposal.operation())
+                    .ok_or("unknown independently retained local grant")?;
+                let mut store = self.store.lock().map_err(|_| "witness lock poisoned")?;
+                let store = store.as_mut().ok_or("closed witness")?;
+                let result = if command == 34 {
+                    store.prepare_credential_renewal(
+                        proposal,
+                        grant,
+                        fixture.context.current_policy()?,
+                        self.now.load(Ordering::SeqCst),
+                    )?
+                } else {
+                    store.close_credential_renewal(
+                        proposal,
+                        grant.historical(),
+                        fixture.context.original_policy(),
+                    )?
+                };
+                Ok(format!("{result:?}").into_bytes())
             }
             _ => Err("witness test command shape".into()),
         }

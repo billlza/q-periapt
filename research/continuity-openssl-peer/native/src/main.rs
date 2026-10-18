@@ -45,6 +45,7 @@ fn main() -> Result<()> {
     let mut budget = 1024;
     let mut required = false;
     let mut peer_lifecycle = false;
+    let mut local_lifecycle = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -57,8 +58,12 @@ fn main() -> Result<()> {
             }
             Some("--required-witness") if !required => required = true,
             Some("--peer-lifecycle") if !peer_lifecycle => peer_lifecycle = true,
+            Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
             _ => return Err("unexpected argument".into()),
         }
+    }
+    if peer_lifecycle && local_lifecycle {
+        return Err("choose one lifecycle fixture".into());
     }
     let directory = Path::new(&path);
     fs::create_dir(directory)?;
@@ -70,7 +75,14 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let fixture = fixture::create(directory, peer_key, budget, witness, peer_lifecycle)?;
+    let fixture = fixture::create(
+        directory,
+        peer_key,
+        budget,
+        witness,
+        peer_lifecycle,
+        local_lifecycle,
+    )?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;
@@ -100,7 +112,7 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
-            30..=33 => fixture
+            30..=35 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?

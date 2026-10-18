@@ -123,8 +123,14 @@ The original transcript, keys, outbox IDs and ciphertexts remain unchanged.
 The local owner still needs current authority. Same-account updates require the
 separate local account coordinator; this entry cannot bypass that joint workflow.
 
-This is not an admitted independent Continuity product implementation. Local
-credential/policy renewal and retirement, same-account coordination, account fanout,
+An independent [joint local credential coordinator](LOCAL_RENEWAL.md) now binds
+the original required-witness head transition to the actual root grant. It retains
+the exact sealed target and terminal before ACK, permits historical cleanup, and
+reopens the same session under its adopted local authority. `QPREFS06` is selected
+only for that explicit transition; normal creation and generic upgrade stay at five.
+
+This is not an admitted independent Continuity product implementation. Local-only
+credential renewal, policy renewal and retirement, same-account coordination, account fanout,
 the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,
@@ -175,6 +181,9 @@ remote acceptance/recovery path, not the native peer's local enrollment renewal.
 `peer_reply_release_checks.py` verifies that a host witness callback committing
 revocation cannot release a result under the earlier permission. Both callback
 cases have preserved failing pre-fix runs and passing repaired runs.
+`local_renewal_checks.py` verifies original joint targets across real process
+cuts, lost Commit/Close/ACK replies, two local grants and policy-expired cleanup.
+It also preserves the refusal to replace unrelated expired pending work.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

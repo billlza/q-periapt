@@ -73,7 +73,7 @@ class PrivateDirectory:
 
     def read(self, name: str) -> bytes | None:
         require(self.fd is not None, "closed store directory")
-        require(name in ("head", "intent"), "unknown formal record")
+        require(name in ("head", "intent", "authority"), "unknown formal record")
         try:
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=self.fd)
         except FileNotFoundError:
@@ -106,17 +106,23 @@ class PrivateDirectory:
             for entry in entries:
                 count += 1
                 require(count + files <= 128, "store file count capacity")
-                require(entry.name in ("head", "intent") or entry.name.startswith(".stage-"),
+                require(entry.name in ("head", "intent", "authority") or entry.name.startswith(".stage-"),
                         "unknown store file")
                 value = entry.stat(follow_symlinks=False)
                 private_regular(value)
                 total += value.st_size
                 require(total + incoming <= MAX_DIRECTORY_BYTES, "store disk capacity")
 
-    def publish(self, name: str, value: bytes) -> None:
-        require(name in ("head", "intent") and 0 < len(value) <= MAX_FILE, "publication shape")
+    def publish(self, name: str, value: bytes, *, fixed_slot: str | None = None) -> None:
+        require(name in ("head", "intent", "authority") and 0 < len(value) <= MAX_FILE, "publication shape")
         if name == "head":
-            self._publish_head(value)
+            require(fixed_slot is None, "head publication owns its reserved slot")
+            self._publish_fixed(name, ".stage-head", value)
+            return
+        if fixed_slot is not None:
+            require(name == "authority" and fixed_slot in tuple("authority-" + str(i) for i in range(6)),
+                    "unknown reserved publication slot")
+            self._publish_fixed(name, ".stage-" + fixed_slot, value)
             return
         self.check()
         self.quota(len(value))
@@ -141,13 +147,12 @@ class PrivateDirectory:
         finally:
             os.close(fd)
 
-    def _publish_head(self, value: bytes) -> None:
+    def _publish_fixed(self, name: str, temporary: str, value: bytes) -> None:
         # The caller supplies the complete authenticated intent target. This
         # reserved output slot never supplies state or authority on its own.
         # Repeated interrupted recovery must not allocate another orphan each
         # time and exhaust the very quota reserved by the original commit.
         self.check()
-        temporary = ".stage-head"
         flags = os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
         try:
             fd = os.open(temporary, flags, dir_fd=self.fd)
@@ -172,16 +177,16 @@ class PrivateDirectory:
                 require(count > 0, "zero-length staged head write")
                 remaining = remaining[count:]
             sync_file(fd)
-            self.observe("stage-synced:head")
+            self.observe("stage-synced:" + name)
             current = os.stat(temporary, dir_fd=self.fd, follow_symlinks=False)
             private_regular(current)
             require((current.st_dev, current.st_ino) == (before.st_dev, before.st_ino),
                     "staged head replaced")
-            os.replace(temporary, "head", src_dir_fd=self.fd, dst_dir_fd=self.fd)
-            self.observe("published:head")
+            os.replace(temporary, name, src_dir_fd=self.fd, dst_dir_fd=self.fd)
+            self.observe("published:" + name)
             os.fsync(self.fd)
             sync_file(fd)
-            self.observe("committed:head")
+            self.observe("committed:" + name)
         finally:
             os.close(fd)
 

@@ -7,15 +7,26 @@ use q_periapt_continuity_identity_candidate::{
 };
 use std::path::Path;
 
+pub(super) struct Scope {
+    pub policy: [u8; 32],
+    pub family: [u8; 32],
+    pub local: bool,
+}
+
 pub(super) fn publish(
     output: &Path,
     root: &RootSigningKey,
     original: &[u8],
     previous: &VerifiedDevice,
     previous_roster: &[u8],
-    policy: [u8; 32],
-    family: [u8; 32],
-) -> Result<()> {
+    scope: Scope,
+) -> Result<Vec<VerifiedCredentialRenewal>> {
+    let Scope {
+        policy,
+        family,
+        local,
+    } = scope;
+    let prefix = if local { "local" } else { "peer" };
     let first = root.issue_credential_extension(previous, 300, 170)?;
     let first_roster =
         root.issue_roster(2, Validity::new(100, 390)?, &[root.roster_entry(&first)?])?;
@@ -40,19 +51,28 @@ pub(super) fn publish(
     };
     let grant = root.issue_credential_renewal(materials(), &authorization, &first_pin, 210)?;
     let replay = root.issue_credential_renewal(materials(), &authorization, &first_pin, 210)?;
-    let verified = VerifiedCredentialRenewal::verify(grant.as_bytes(), &first_pin, policy, 210)?;
-    save(output, "peer-renewal-1", grant.as_bytes())?;
-    save(output, "peer-renewal-1-resigned", replay.as_bytes())?;
-    save(output, "peer-renewal-1-operation", id1.as_bytes())?;
+    let first_verified =
+        VerifiedCredentialRenewal::verify(grant.as_bytes(), &first_pin, policy, 210)?;
+    save(output, &format!("{prefix}-renewal-1"), grant.as_bytes())?;
     save(
         output,
-        "peer-renewal-1-statement",
-        &verified.statement_digest(),
+        &format!("{prefix}-renewal-1-resigned"),
+        replay.as_bytes(),
+    )?;
+    save(
+        output,
+        &format!("{prefix}-renewal-1-operation"),
+        id1.as_bytes(),
+    )?;
+    save(
+        output,
+        &format!("{prefix}-renewal-1-statement"),
+        &first_verified.statement_digest(),
     )?;
     let mut target = first_roster.checkpoint().version().to_be_bytes().to_vec();
     target.extend_from_slice(&first_roster.checkpoint().digest());
-    save(output, "pin-peer-renewal-1-target", &target)?;
-    let next = verified.successor_device();
+    save(output, &format!("pin-{prefix}-renewal-1-target"), &target)?;
+    let next = first_verified.successor_device();
     let second = root.issue_credential_extension(next, 350, 250)?;
     let second_roster =
         root.issue_roster(3, Validity::new(100, 390)?, &[root.roster_entry(&second)?])?;
@@ -82,16 +102,24 @@ pub(super) fn publish(
     )?;
     let verified =
         VerifiedCredentialRenewal::verify(second_grant.as_bytes(), &second_pin, policy, 310)?;
-    save(output, "peer-renewal-2", second_grant.as_bytes())?;
-    save(output, "peer-renewal-2-operation", id2.as_bytes())?;
     save(
         output,
-        "peer-renewal-2-statement",
+        &format!("{prefix}-renewal-2"),
+        second_grant.as_bytes(),
+    )?;
+    save(
+        output,
+        &format!("{prefix}-renewal-2-operation"),
+        id2.as_bytes(),
+    )?;
+    save(
+        output,
+        &format!("{prefix}-renewal-2-statement"),
         &verified.statement_digest(),
     )?;
     let mut target = second_roster.checkpoint().version().to_be_bytes().to_vec();
     target.extend_from_slice(&second_roster.checkpoint().digest());
-    save(output, "pin-peer-renewal-2-target", &target)?;
+    save(output, &format!("pin-{prefix}-renewal-2-target"), &target)?;
     let revoked = root.issue_roster(4, Validity::new(100, 390)?, &[])?;
     let reappeared =
         root.issue_roster(5, Validity::new(100, 390)?, &[root.roster_entry(&second)?])?;
@@ -101,10 +129,14 @@ pub(super) fn publish(
         ("reappeared", reappeared),
         ("fork", fork),
     ] {
-        save(output, &format!("peer-{name}-roster"), roster.as_bytes())?;
+        save(
+            output,
+            &format!("{prefix}-{name}-roster"),
+            roster.as_bytes(),
+        )?;
         let mut target = roster.checkpoint().version().to_be_bytes().to_vec();
         target.extend_from_slice(&roster.checkpoint().digest());
-        save(output, &format!("pin-peer-{name}-target"), &target)?;
+        save(output, &format!("pin-{prefix}-{name}-target"), &target)?;
     }
-    Ok(())
+    Ok(vec![first_verified, verified])
 }

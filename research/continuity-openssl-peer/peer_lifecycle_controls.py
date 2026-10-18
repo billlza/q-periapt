@@ -23,10 +23,10 @@ def grant_controls(ctx, wire, operation, target, refuses):
     value=check();require(value.operation==operation,'grant original operation')
     # The certificate and target roster alone cannot authorize replacement of
     # an observed same-generation credential without the signed renewal grant.
-    from peer.peer_authority import PeerState
+    from peer.identity_state import IdentityState
     same_account=replace(ctx,devices=(ctx.devices[1],ctx.devices[1]))
-    refuses('same-account-cannot-bypass-local-coordination',lambda:PeerState.initial(same_account),'local account coordinator')
-    initial=PeerState.initial(ctx)
+    refuses('same-account-cannot-bypass-local-coordination',lambda:IdentityState.initial(same_account),'local account coordinator')
+    initial=IdentityState.initial(ctx)
     refuses('plain-roster-cannot-substitute-for-grant',
             lambda:initial.update_roster(value.successor_roster.wire,target,210),'requires renewal grant')
 

@@ -181,11 +181,27 @@ and 14 real kills; their witnessed paths retain 479 signed attempts. Two actual
 reentrant output failures are preserved and repaired with current durable peer
 admission and a final authority-generation check. All thirteen final local lanes
 and six public readers pass on the same 63-source closure; strict build/lint and
-46 source-contract tests pass, with 725 tracked Rust sources. Hosted qualification
-remains pending. Independent peer expiry uses test times 210/310 while the native
+46 source-contract tests pass, with 725 tracked Rust sources. The subsequent
+[Linux x86_64 hosted receipt](../research/sdk-alpha1/evidence/20261018-hosted-independent-peer-linux/README.md)
+completes all thirteen lanes and six frozen-source public readbacks at `a0ac7cd9`;
+Apple Silicon remains pending for that commit. Independent peer expiry uses test times 210/310 while the native
 counterpart stays at 170; this is not its local enrollment renewal. Local joint
 authority, same-account coordination, installed/cross-host lifecycle, complete
 resource qualification and construction-wide security analysis remain open.
+
+The next [independent local joint-renewal checkpoint](../research/sdk-alpha1/evidence/20261018-independent-local-renewal/README.md)
+adds an exact required-witness head/credential transaction and conditional
+`QPREFS06` local authority. Four profiles exercise 104 fresh-process operations,
+22 real kills and 471 signed replies across Applied, prepared Closed, explicit
+unprepared close and refused replacement of unrelated expired pending work.
+The original target, outbox and session survive lost replies and terminal cleanup
+after policy expiry. All fourteen local lanes and seven public readers pass on
+70 identical source files; strict build/lint checks pass and the Rust census
+remains 725. Hosted qualification is pending. This bounded increment preserves
+the ordinary pending-write availability gap and does not close local-only,
+same-account, policy/witness, installed/cross-host or construction-wide analysis
+requirements. Its added opening queries are recorded as a cost, not a performance
+improvement.
 
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.

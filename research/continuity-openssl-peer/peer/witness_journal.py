@@ -113,6 +113,7 @@ class WitnessJournal(Journal):
             raise MissingState("missing original witnessed image")
         head = self._decode(wire); pending = directory.read("intent")
         if pending is not None:
+            require(not pending.startswith(b"QPRFLI01"), "local renewal coordination remains pending")
             revision, prior, target, result = self._decode_intent(pending)
             require(revision > 0, "inactive creation requires explicit genesis recovery")
             if head.digest != result.digest and (head.revision != revision or head.digest != prior):
@@ -135,27 +136,27 @@ class WitnessJournal(Journal):
         self._query(snapshot)
         return snapshot
 
-    def _authorize(self, snapshot):
+    def _authorize(self, snapshot, authority=None):
         expected = Head(1, snapshot.revision, snapshot.digest)
-        reply = self.client.exchange(Operation.authority(self.profile.authority))
+        reply = self.client.exchange(Operation.authority(self.profile.authority if authority is None else authority))
         require(reply.outcome == 5 and reply.head == expected, "witness current authority denied")
         self._admit()
 
     @locked
-    def admit(self, snapshot, operational):
+    def admit(self, snapshot, operational, authority=None):
         try:
             if operational:
-                self._authorize(snapshot)
+                self._authorize(snapshot, authority)
         except BaseException:
             self.close()
             raise
 
     @locked
-    def release(self, operational):
+    def release(self, operational, authority=None):
         try:
             snapshot = self._recover(False)
             if operational:
-                self._authorize(snapshot)
+                self._authorize(snapshot, authority)
         except BaseException:
             self.close()
             raise
