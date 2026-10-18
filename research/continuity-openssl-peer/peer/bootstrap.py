@@ -80,6 +80,15 @@ class Initiator:
         require(not self._closed and self._session_id is not None, "no completed pending session")
         return self._session_id
 
+    def activate_volatile_traffic(self, now: int):
+        """Transfer the root into the explicitly non-durable experiment state."""
+        from .traffic import VolatileTraffic
+        require(not self._closed and self._root is not None and self._session_id is not None,
+                "no untransferred pending root")
+        traffic = VolatileTraffic(self._context, self._session_id, self._root, now)
+        self._root = None
+        return traffic
+
     def close(self) -> None:
         self._closed = True
         self._reply_key = self._first_secret = self._root = None

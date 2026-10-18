@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Actual Rust storage boundary, separate from the independent Python state.
+use crate::{fixture::Fixture, Result, NOW};
+use q_periapt_continuity_identity_candidate::{
+    DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId,
+};
+use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
+use std::{
+    fs,
+    io::Write,
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+const TRAFFIC_TIME: u64 = 170;
+
+pub(super) struct Journal {
+    owner: DeviceJournal,
+    path: PathBuf,
+    identity: JournalIdentity,
+    initial: Option<Vec<u8>>,
+    session: Option<[u8; 32]>,
+}
+
+fn encoding() -> DurableError {
+    DurableError::Protocol(Error::Encoding)
+}
+
+fn ad_and_payload(input: &[u8]) -> std::result::Result<(&[u8], &[u8]), DurableError> {
+    let prefix: [u8; 2] = input
+        .get(..2)
+        .ok_or_else(encoding)?
+        .try_into()
+        .map_err(|_| encoding())?;
+    let length = usize::from(u16::from_be_bytes(prefix));
+    if length > 1024 {
+        return Err(encoding());
+    }
+    let ad = input.get(2..2 + length).ok_or_else(encoding)?;
+    let payload = input.get(2 + length..).ok_or_else(encoding)?;
+    Ok((ad, payload))
+}
+
+fn id(input: &[u8]) -> std::result::Result<MessageId, DurableError> {
+    MessageId::from_trusted_state(input.try_into().map_err(|_| encoding())?).map_err(Into::into)
+}
+
+impl Journal {
+    pub(super) fn create(fixture: &Fixture, public: &Path) -> Result<Self> {
+        // Keep the private fixture even on failure. It is outside the public
+        // artifact directory; no wrapping key or sealed secret is uploaded.
+        let path = tempfile::Builder::new()
+            .prefix("qperiapt-independent-journal-")
+            .permissions(fs::Permissions::from_mode(0o700))
+            .tempdir()?
+            .keep()
+            .canonicalize()?;
+        let public_path = public.canonicalize()?;
+        let artifact_root = public_path
+            .parent()
+            .ok_or("missing experiment artifact boundary")?;
+        if path.starts_with(artifact_root) {
+            return Err("private fixture must remain outside the artifact tree".into());
+        }
+        fs::write(
+            public.join("private-fixture-path"),
+            path.as_os_str().as_encoded_bytes(),
+        )?;
+        let identity = JournalIdentity::generate()?;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path.join("identity"))?;
+        file.write_all(identity.as_bytes())?;
+        file.sync_all()?;
+        fs::File::open(&path)?.sync_all()?;
+        let owner = DeviceJournal::provision(
+            &path.join("journal"),
+            JournalKey::provision(&path.join("key"))?,
+            &fixture.responder,
+            identity,
+        )?;
+        Ok(Self {
+            owner,
+            path,
+            identity,
+            initial: None,
+            session: None,
+        })
+    }
+
+    pub(super) fn command(
+        &mut self,
+        fixture: &Fixture,
+        command: u8,
+        payload: &[u8],
+    ) -> std::result::Result<Vec<u8>, DurableError> {
+        let context = &fixture.context;
+        match command {
+            4 => {
+                if self
+                    .initial
+                    .as_ref()
+                    .is_some_and(|initial| initial != payload)
+                {
+                    return Err(DurableError::Conflict);
+                }
+                let reply = self.owner.respond(
+                    Arc::clone(context),
+                    payload,
+                    &fixture.signer,
+                    PqKeySource::from_key(&fixture.prekey),
+                    TraditionalKeySource::from_key(&fixture.prekey),
+                    NOW,
+                )?;
+                self.initial = Some(payload.to_vec());
+                Ok(reply)
+            }
+            5 => {
+                let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
+                let session = self
+                    .owner
+                    .finish(Arc::clone(context), initial, payload, NOW)?;
+                self.session = Some(session);
+                Ok(session.to_vec())
+            }
+            6 if payload.is_empty() => {
+                let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
+                let session =
+                    self.owner
+                        .activate_responder_messages(Arc::clone(context), initial, NOW)?;
+                if Some(session) != self.session {
+                    return Err(DurableError::Conflict);
+                }
+                Ok(session.to_vec())
+            }
+            7 => {
+                let (ad, wire) = ad_and_payload(payload)?;
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                Ok(self
+                    .owner
+                    .receive_message(context, session, wire, ad, TRAFFIC_TIME)?
+                    .as_bytes()
+                    .to_vec())
+            }
+            8 if payload.is_empty() => {
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                Ok(self
+                    .owner
+                    .next_message_id(context, session, TRAFFIC_TIME)?
+                    .as_bytes()
+                    .to_vec())
+            }
+            9 => {
+                let identity = id(payload.get(..32).ok_or_else(encoding)?)?;
+                let (ad, plaintext) = ad_and_payload(payload.get(32..).ok_or_else(encoding)?)?;
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                self.owner
+                    .send_message(context, session, identity, plaintext, ad, TRAFFIC_TIME)
+            }
+            10 => {
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                self.owner
+                    .consume_message(context, session, id(payload)?, TRAFFIC_TIME)?;
+                self.owner
+                    .message_acknowledgement(context, session, TRAFFIC_TIME)
+            }
+            11 => {
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                Ok(self
+                    .owner
+                    .accept_message_acknowledgement(context, session, payload, TRAFFIC_TIME)?
+                    .to_be_bytes()
+                    .to_vec())
+            }
+            12 if payload.is_empty() => {
+                self.owner.close();
+                self.owner = DeviceJournal::open(
+                    &self.path.join("journal"),
+                    JournalKey::open(&self.path.join("key"))?,
+                    &fixture.responder,
+                    self.identity,
+                )?;
+                Ok(b"reopened".to_vec())
+            }
+            13 if payload.is_empty() => {
+                let session = self.session.ok_or(DurableError::Suspended)?;
+                self.owner
+                    .message_acknowledgement(context, session, TRAFFIC_TIME)
+            }
+            _ => Err(encoding()),
+        }
+    }
+
+    pub(super) fn close(mut self) {
+        self.owner.close();
+    }
+}

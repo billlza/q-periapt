@@ -17,6 +17,7 @@ q-periapt-sdk = { path = "../../../crates/q-periapt-sdk" }
 q-periapt-sig = { path = "../../../crates/q-periapt-sig" }
 getrandom = "0.4"
 zeroize = "1"
+tempfile = "=3.27.0"
 
 [lints.rust]
 unsafe_code = "forbid"

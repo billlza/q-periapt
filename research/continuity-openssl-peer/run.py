@@ -57,7 +57,7 @@ class Counterpart:
             wire = wire[count:]
         prefix = self.read(4, deadline)
         size = int.from_bytes(prefix, "big")
-        if not 1 <= size <= 8192:
+        if not 1 <= size <= 32768:
             raise ValueError("native output capacity")
         return self.read(size, deadline)
 
@@ -114,7 +114,7 @@ def main() -> None:
     sys.path.append(str(provider))
     sys.path.append(str(Path(__file__).resolve().parent))
     import cryptography
-    from cryptography.exceptions import InvalidSignature
+    from cryptography.exceptions import InvalidSignature, InvalidTag
     from cryptography.hazmat.backends.openssl.backend import backend
     from peer.authority import DevicePin, Materials, Pins, authenticate
     from peer.bootstrap import Initiator, digest
@@ -131,7 +131,7 @@ def main() -> None:
     def refused(name, function, reason=None):
         try:
             function()
-        except (ValueError, InvalidSignature) as error:
+        except (ValueError, InvalidSignature, InvalidTag) as error:
             if reason is not None and str(error) != reason:
                 raise ValueError("wrong rejection boundary: " + name) from error
             refusals.append({"case": name, "exception": type(error).__name__})
@@ -238,6 +238,8 @@ def main() -> None:
         refused("closed-initial", lambda: initiator.initial(150))
         refused("closed-finish", lambda: initiator.finish(reply, 150))
         refused("closed-session", initiator.session_id)
+        from traffic_checks import exercise
+        traffic_result = exercise(context, signer, counterpart, output, refused)
         counterpart.command("close", 3, b"", 1, b"closed")
         require(counterpart.process.wait(timeout=5) == 0, "native exit")
         for name, value in (("initial.bin", initial), ("reply.bin", reply),
@@ -248,10 +250,10 @@ def main() -> None:
                           for name, module in tuple(sys.modules.items())
                           if name.startswith(("cryptography", "cffi", "_cffi_backend", "pycparser"))
                           and getattr(module, "__file__", None)}
-        sources = [*sorted((peer_root / "peer").glob("*.py")), peer_root / "run.py",
-                   peer_root / "native" / "src" / "main.rs", peer_root / "native" / "Cargo.toml",
+        sources = [*sorted((peer_root / "peer").glob("*.py")), peer_root / "run.py", peer_root / "traffic_checks.py",
+                   *sorted((peer_root / "native" / "src").glob("*.rs")), peer_root / "native" / "Cargo.toml",
                    peer_root / "native" / "Cargo.lock", peer_root / "requirements.txt"]
-        report = {"scope": "Independent volatile initiator and real Rust responder; no durable admission, traffic, rekey, witness, installed package or release claim",
+        report = {"scope": "Independent volatile bootstrap/epoch-zero traffic and actual Rust journal; no independent durable state, rekey, witness, installed package or release claim",
                   "provider": {"cryptography": cryptography.__version__, "openssl": backend.openssl_version_text(),
                                "loaded_files": provider_files},
                   "python": {"executable": sys.executable, "version": sys.version},
@@ -259,6 +261,7 @@ def main() -> None:
                   "native_sha256": hashlib.sha256(native.read_bytes()).hexdigest(),
                   "canonical_context_and_selection_equal": True,
                   "three_flight_mutual_confirmation": True,
+                  "traffic": traffic_result,
                   "native_commands": counterpart.commands, "python_refusals": refusals,
                   "case_files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                  for p in sorted(counterpart.cases.iterdir())},

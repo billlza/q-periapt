@@ -149,9 +149,16 @@ class Context:
     responder_prekey: bytes
     intervals: tuple[Interval, ...]
     selection: bytes
+    send_budget: int
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
+            interval.check(now)
+
+    def check_established(self, now: int) -> None:
+        # The first five windows are policy, two credentials and two rosters.
+        # Advertisement/leaf expiry gates bootstrap, not established traffic.
+        for interval in self.intervals[:5]:
             interval.check(now)
 
 
@@ -171,7 +178,8 @@ def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
     require(modes & ~15 == 0 and modes & 2 != 0, "reusable quality not permitted")
     require(reader.integer(1) == 0 and reader.take(32) == bytes(32),
             "volatile peer cannot admit required-witness profile")
-    require(reader.integer(2) != 0, "zero send allowance")
+    budget = reader.integer(2)
+    require(budget != 0, "zero send allowance")
     reader.finish()
     initiator = verify_device(pins.initiator, materials.initiator_credential,
                               materials.initiator_roster, family, now)
@@ -239,4 +247,4 @@ def authenticate(pins: Pins, materials: Materials, now: int) -> Context:
                   + initiator.context() + responder.context() + selection + pins.directory)
     return Context(sdk, context, initiator.key, responder.key, pq[2] + classical[2],
                    (validity, initiator.validity, initiator.roster_validity, responder.validity,
-                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection)
+                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget)

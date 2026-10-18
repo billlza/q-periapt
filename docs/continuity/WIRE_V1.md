@@ -241,8 +241,9 @@ specifies the chain/KDF and retained-input commitments.
 
 Append `HMAC-SHA256(directional_epoch_ack_key, M || "acknowledgement" || prefix)`.
 Direction identifies the acknowledged sender, not the producer of the ACK.
-A valid prefix cannot exceed that epoch's sent count and cannot regress the
-retained floor. The old format is only the canonical zero-epoch form; accepting
+A valid prefix cannot exceed that epoch's sent count. An authenticated stale
+prefix is ignored idempotently and cannot regress the retained floor. The old
+format is only the canonical zero-epoch form; accepting
 it as a positive-epoch ACK would cross an authority boundary. An ACK commits
 contiguous application consumption, not merely receipt or queued work. Below an
 erased receive prefix, reconciliation can prove prior consumption of the ID,

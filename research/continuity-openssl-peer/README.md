@@ -1,4 +1,4 @@
-# Independent Continuity bootstrap peer
+# Independent Continuity interoperability peer
 
 This unpublished Python endpoint implements a first, deliberately bounded part
 of the candidate protocol independently of the Q-Periapt engine. It constructs
@@ -23,8 +23,9 @@ identity chains, exact roster heads, validity, key separation, the manifest and
 both leaf proofs. It constructs the canonical selection and role-ordered context
 before doing the policy-bound hybrid KEM and confirmation schedule.
 
-The protocol code is in `peer/wire.py`, `peer/authority.py`, `peer/kem.py`, and
-`peer/bootstrap.py`. The bounded runner and Rust test counterpart are separate.
+The protocol code is in `peer/wire.py`, `peer/authority.py`, `peer/kem.py`,
+`peer/bootstrap.py`, and `peer/traffic.py`. The bounded runner and Rust test
+counterpart are separate.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
 fails. Every operation checks the supplied trusted time. Close is idempotent
@@ -49,7 +50,7 @@ CPython 3.14 wheels into a new job-local directory, using `--no-deps` and
 `--require-hashes`. The hardened repository launcher remains in use;
 the runner does not process `.pth` files, import `site`, or use `PYTHONPATH`.
 Nothing is installed globally. This first control-pipe runner supports POSIX.
-Each control exchange has a 30-second deadline and an 8192-byte response cap.
+Each control exchange has a 30-second deadline and a 32768-byte response cap.
 Failures terminate the owned native process group and remain failures.
 
 `RESULT.json` records actual versions, loaded provider/source hashes, the native
@@ -62,11 +63,30 @@ re-signed with the real initiator key so it reaches KEM confirmation.
 
 ## Limits and next integration
 
-This is **volatile bootstrap interoperability**, not an admitted independent
-Continuity product implementation. It has no durable journal, traffic interface,
-rekey, recovery, witness, renewal, revocation, account fanout, network carrier or
-installed-package qualification. The Rust side is a separate Cargo consumer of
-the current source graph. A pending root is never exposed as a usable session.
+The second experiment transfers a confirmed root into independent epoch-zero
+traffic and exchanges real application ciphertext with a Rust `DeviceJournal`.
+It covers both directions, empty/ordinary/16-KiB plaintext, up to 1-KiB application
+AD, reordered delivery, rejected tags/AD, skipped keys, exact outbox replay,
+contiguous consumption ACKs and retired IDs. Five Rust journal close/reopen
+boundaries retain reply, completed bootstrap, skipped keys, outbox and ACK state.
+Traffic runs at trusted time 170 after the prekey advertisement expires at 160;
+the credentials, rosters and policy remain valid until 200. An authenticated stale
+ACK leaves the current higher floor unchanged. This is interoperability evidence
+for the root/traffic schedule, not merely agreement on the public session ID.
+
+`peer/traffic.py` is explicitly **volatile**: it does not supply commit-before-
+release or independent persistence. `traffic_checks.py` contains the separate
+experiment driver. Rust enrollment, control framing and durable operations are
+separate modules. Private Rust fixture files stay outside the public artifact
+directory and are retained, including on failure; only their path is recorded.
+No wrapping key or encrypted private image is uploaded. Reopen here is within
+the original process; it is not a process-crash or power-loss experiment.
+
+This is not an admitted independent Continuity product implementation. Independent
+durability, rekey, recovery, witness, renewal, revocation, account fanout, network
+carriers and installed-package qualification remain required. The Rust side is
+a separate Cargo consumer of the current source graph. Root transfer into the
+volatile experiment is one-use and adds no root-export hook to the Rust SDK.
 The synthetic confirmation control changes a test verification key directly;
 that context is never passed to the real Rust counterpart.
 

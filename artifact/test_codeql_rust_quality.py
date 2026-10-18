@@ -1462,6 +1462,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             tracked,
         )
         for sdk_source in (
+            "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/journal.rs",
             "research/continuity-openssl-peer/native/src/main.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             "crates/q-periapt-sdk-wasm/src/continuity.rs",
@@ -1734,6 +1736,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/journal.rs",
             "research/continuity-openssl-peer/native/src/main.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             'crates/q-periapt-cli/src/scanner.rs',

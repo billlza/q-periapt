@@ -1,4 +1,4 @@
-name: Independent Continuity bootstrap
+name: Independent Continuity interoperability
 
 on:
   push:
@@ -83,6 +83,7 @@ jobs:
       - name: Exchange real flights and exercise rejection and replay boundaries
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
         run: |
           sh artifact/python-run.sh research/continuity-openssl-peer/run.py \
             --provider-root "$RUNNER_TEMP/independent-peer-provider" \

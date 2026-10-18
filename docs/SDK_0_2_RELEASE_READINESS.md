@@ -17,6 +17,16 @@ bootstrap implementation; durable traffic, rekey, recovery, witness and lifecycl
 interoperability still remain open. It does not qualify an independent complete
 Continuity endpoint or an installed distribution.
 
+The subsequent [independent traffic checkpoint](../research/sdk-alpha1/evidence/20261018-independent-traffic/README.md)
+uses the independently derived root to exchange epoch-zero application ciphertext
+and ACKs with an actual Rust journal. Both directions, maximum-size frames/AD,
+reordering, rejection without key consumption and five native journal reopens
+pass in 41 native commands and 51 Python refusal controls. Established traffic
+continues after advertisement expiry while current identity/policy authority
+remains valid. The independent Python state is still volatile; this does not
+close independent durability or crash recovery. The current traffic increment
+has local evidence; the earlier hosted bootstrap result is kept separate.
+
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send
 path. Releasing the old decoded objects before the existing reload reduces the
@@ -57,6 +67,14 @@ dependency locks and compiler configuration are unchanged through `71421773`;
 its evidence-tool corrections retain separate CI obligations. This closes the
 snapshot change's installed Windows lifecycle regression, not its latency or
 overall release requirements.
+
+The subsequent [installed Windows C11 caller checkpoint](../research/sdk-alpha1/evidence/20261018-windows-c11-callers/README.md)
+qualifies `fd42b370` after the shared input-header correction. All five jobs in
+run `39119367355` succeed. The original complete C/Rust lifecycle counts remain
+unchanged, all four actual DLLs have 157 candidate exports, and complete local
+and cloud readbacks are byte-identical. The ten Cargo archives remain identical
+to the prior cohort; the changed C callers have their own runtime evidence.
+The repaired Linux installed run remains separate and pending.
 
 The subsequent full CI at `71421773` identifies two separate integration defects:
 the Rust source inventory still expected 718 files after adding the Windows C
