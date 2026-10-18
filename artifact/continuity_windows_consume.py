@@ -32,11 +32,19 @@ def consume(args):
     consumer, build = outside / 'consumer', outside / 'build'
     bundle.unpack(payload, receipt['files'], consumer)
     environment = {k: v for k, v in os.environ.items()
-                   if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_'))}
+                   if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_', 'AWS_LC_'))}
     environment.update(CARGO_HOME=str(outside / 'cargo-home'), CARGO_TARGET_DIR=str(build),
                        CARGO_INCREMENTAL='0', CARGO_TERM_COLOR='never', RUSTFLAGS='-D warnings',
                        RUSTDOCFLAGS='-D warnings', QPC_FIRST_USE_ROOT=str(args.private_root.resolve()))
-    result = {'schema': 1, 'input_sha256': digest(args.input), 'input': receipt,
+    # Same private static AWS-LC boundary as artifact/windows-package.ps1.
+    # The bundled jitter header exports its internals even in a static build.
+    # Remove only that storage-class modifier; retain dllimport, other declspec
+    # attributes and every entropy operation. The final export set stays exact.
+    aws_lc = {'AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc': '1',
+              'AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc': '0',
+              'AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc': '/WX /Ddllexport='}
+    environment.update(aws_lc)
+    result = {'schema': 1, 'input_sha256': digest(args.input), 'input': receipt, 'aws_lc_build': aws_lc,
               'scope': 'Installed Windows C first-use only; no full session or release admission', 'profiles': {}}
     def run(argv, label, cwd=consumer, timeout=900):
         prefix = output / label
