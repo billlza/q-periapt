@@ -109,6 +109,12 @@ Apple Silicon hosted execution remains queued; the local ARM64 result retains it
 own scope. The deterministic control-pipe schedule does not close network carrier,
 scheduling/energy or full independent lifecycle qualification.
 
+The subsequent [Apple Silicon hosted control completion](../research/sdk-alpha1/evidence/20261018-hosted-independent-control-mac/README.md)
+passes all seven lanes for the same `a6760a65` commit. Both public readers verify
+the 40 committed sources and actual ARM64 binary, with 33 signed controls and
+101 control results. This completes that historical hosted matrix; it does not
+substitute for the later version-four resolution qualification.
+
 The subsequent [independent outcome-resolution checkpoint](../research/sdk-alpha1/evidence/20261018-independent-resolution/README.md)
 adds explicit closed-epoch freeze/report and application acknowledgement. Original
 floors remain unchanged; unresolved sends become `DeliveryUnknown`, with old
@@ -126,6 +132,17 @@ PCS claim. All ten final local lanes and three public readbacks pass on the
 contract tests pass; the tracked Rust inventory is now 723. No new CodeQL database
 scan is claimed. Hosted runtime, required witnesses, authority/identity lifecycle,
 network/package qualification and construction-wide analysis remain open.
+
+The [Linux hosted outcome-resolution checkpoint](../research/sdk-alpha1/evidence/20261018-hosted-independent-resolution/README.md)
+then passes all ten lanes at `9f7a2e7a`. Three public readers verify the 48 committed
+sources, actual ELF binary, original message/report IDs, application decisions,
+all 1-MiB report plaintexts and 53 signed resolution/disclosure controls. The
+out-of-range ACK is refused and the same blocked offer resumes only after explicit
+unknown-outcome accounting. The seven earlier lanes remain passing. Apple Silicon
+for this commit remains queued at this observation; the earlier hosted matrix is
+a different source cohort. Required witnesses, authority/identity lifecycle,
+network/package qualification, construction-wide analysis and integration remain
+open; no additional CodeQL database, power-loss or PCS claim follows.
 
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
