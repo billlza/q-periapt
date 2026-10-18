@@ -202,6 +202,29 @@ Clippy, Rust formatting and 25 related Python checks pass. The root orchestratio
 is kept in a separate Windows collector module. Native Windows root execution,
 its independent hosted readback and full release qualification remain pending.
 
+At `7d85bae2` (`39100051840`), both native Debug owner suites execute all ten
+entries: eight pass and the two device-parent variants fail at the live database
+image read. Five actual C workloads pass their test assertions (client, account,
+server, revoked recovery and expired-session restoration), alongside the three
+Rust fixture entries. The separate public exports and root routes are not reached,
+so this remains a failed installed cohort. The Unicode first-use cases and native
+file-admission controls do run successfully in Debug on both systems. The source
+matrix at this commit (`39100051791`) separately passes all four jobs/eight profiles
+and the unchanged independent artifact verifier.
+
+The device image observer had used `_wfopen_s`, which does not allow sharing with
+the live writable database. The SDK also retains a mandatory whole-file lock on
+Windows. The test observer now takes a bounded read-only mapped view through the
+existing pinned private-file reader, copies the image, and closes the view before
+returning. Both comparisons still occur under the same live SDK parent; no SDK
+lock or persistence operation is changed. A native control first exercises the
+old CRT sequence without an owner, with a writable owner and with its whole-file
+lock, recording the exact failure stage and error. It also requires ordinary
+reads and competing writer locks to fail while mapped snapshots match the exact
+original bytes, bounds are enforced and verbatim paths work. The mapping repair
+and these Windows controls still require native execution; local checks only
+confirm the unchanged Unix caller compiles and its self-check passes.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

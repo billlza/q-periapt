@@ -4,6 +4,9 @@
 #include <errno.h>
 #include "consumer_platform.h"
 #include "consumer_input.h"
+#ifdef _WIN32
+#include "live_image_windows.h"
+#endif
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -173,6 +176,15 @@ static uint32_t selected_role(const char *text) {
 }
 struct DeviceImage { unsigned char *bytes; size_t length; };
 static struct DeviceImage device_image(const char *root, const char *name) {
+#ifdef _WIN32
+    struct DeviceImage image={0};
+    int code=qpc_live_image_read(root,name,16*1024*1024,&image.bytes,&image.length);
+    if(code) {
+        fprintf(stderr,"state image failed: file=%s stage=%d error=%lu\n",name,code,(unsigned long)GetLastError());
+        fail("state image read-only mapping");
+    }
+    return image;
+#else
     char path[8192]; int n=snprintf(path,sizeof(path),"%s/%s",root,name);
     if (n<=0 || (size_t)n>=sizeof(path)) fail("state image path");
     FILE *file=qpc_input_file(path);
@@ -183,6 +195,7 @@ static struct DeviceImage device_image(const char *root, const char *name) {
     if (!image.bytes || fread(image.bytes,1,image.length,file)!=image.length ||
         fgetc(file)!=EOF || ferror(file) || fclose(file)) fail("state image read");
     return image;
+#endif
 }
 int device_command(int argc, char **argv, const qpc_witness_v1 *witness, int tls) {
     if (!strcmp(argv[1],"device-reject-open") && argc==3) {

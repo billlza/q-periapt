@@ -145,6 +145,14 @@ def consume(args):
         for name in records:
             (private_root / name).unlink()
         require(not any(private_root.iterdir()), 'application effect preflight cleanup incomplete')
+        image_test = controls / 'live-image-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'live_image_test.c'), '-lntdll', '-ladvapi32', '-o', str(image_test)],
+            profile + '-live-image-compile', client_source)
+        observed = run([str(image_test), str(private_root)], profile + '-live-image', controls, timeout=30)
+        require(observed.splitlines().count('WINDOWS_LIVE_IMAGE_PASS bounded=true original_bytes=true original_lock_held=true ordinary_read_refused=true competing_writer_refused=true verbatim_path=true') == 1
+                and not any(private_root.iterdir()), 'live database image or retained lock control failed')
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              *(['-O2'] if profile == 'release' else ['-O0', '-g']),
              '-c', str(client_source / 'recovery_client.c'), '-I', str(consumer),
