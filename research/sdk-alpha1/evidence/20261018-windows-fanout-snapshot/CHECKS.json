@@ -1,0 +1,924 @@
+{
+  "capture": {
+    "bytes": 812475,
+    "members": 30,
+    "sha256": "98648755c01d98b2e9b2e1eaf84f3e3c8c735e2351450d8ec46c71f1fdee1ec7"
+  },
+  "full_native_artifacts": "Exact native ZIPs retained in target/windows-installed-6b-01; GitHub artifact identities in public_readback are required for complete replay. The compact capture contains reviews and DLL export listings, not the DLLs or all raw records.",
+  "head": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+  "installed_lifecycle_qualified": true,
+  "native": {
+    "C_case_processes": 56,
+    "SDK_archives": 9,
+    "artifacts": [
+      {
+        "artifact_bytes": 40896893,
+        "artifact_id": 12132153628,
+        "artifact_sha256": "sha256:0015d381fed4a90372bc1622496f50be278a7bf1668efe9a59ed147f31968b07",
+        "metadata_and_original_dependency_lock_verified": true,
+        "os": "windows-2022",
+        "profiles": {
+          "debug": {
+            "actual_C_process_cases": 14,
+            "client_sha256_producer_observation": "ee152962498b2e032025725d3cbda28f61bd5e15c0ccb59f074ceacf968a9d2a",
+            "configuration_public_files": 190,
+            "duplicate_complete_file_image_preserved": true,
+            "effect_controls": 6,
+            "extended_input_and_shared_marker_control": true,
+            "first_registration_scenarios": 6,
+            "guard_passed": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "independent_DLL_sha256": "8f6de1d43b3102d082cba439c4fb56a2da1f5bb823fd5afc5f9f598508b90f44",
+            "independent_exports": 157,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "original_owner_entries": 10,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "root_publication_bytes": 8388608,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ]
+          },
+          "release": {
+            "actual_C_process_cases": 14,
+            "client_sha256_producer_observation": "d6559dff4df07f601bb0f90a6c269505ebb52856830b785291c84e092cdcb3fd",
+            "configuration_public_files": 190,
+            "duplicate_complete_file_image_preserved": true,
+            "effect_controls": 6,
+            "extended_input_and_shared_marker_control": true,
+            "first_registration_scenarios": 6,
+            "guard_passed": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "independent_DLL_sha256": "db3263d0e116c05455613a2089c29ca7b8be14e3177a1adeff7cc6ac8503360c",
+            "independent_exports": 157,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "original_owner_entries": 10,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "root_publication_bytes": 8388608,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ]
+          }
+        }
+      },
+      {
+        "artifact_bytes": 40892403,
+        "artifact_id": 12132541131,
+        "artifact_sha256": "sha256:92f39e10926751823d35ec7c1d56a5f6922a7b2e38c10b58b0f8e020968b7899",
+        "metadata_and_original_dependency_lock_verified": true,
+        "os": "windows-2025",
+        "profiles": {
+          "debug": {
+            "actual_C_process_cases": 14,
+            "client_sha256_producer_observation": "495d346a25578673398e551396993334f5f30a4026f3a75bae8c1a8138473931",
+            "configuration_public_files": 190,
+            "duplicate_complete_file_image_preserved": true,
+            "effect_controls": 6,
+            "extended_input_and_shared_marker_control": true,
+            "first_registration_scenarios": 6,
+            "guard_passed": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "independent_DLL_sha256": "b454e1a3bff058e53cf8465379a7a9fb0f7c3cbf47394f9444064c33fc3fe286",
+            "independent_exports": 157,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "original_owner_entries": 10,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "root_publication_bytes": 8388608,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ]
+          },
+          "release": {
+            "actual_C_process_cases": 14,
+            "client_sha256_producer_observation": "8fc7ef51a57057758ee515826f3a54535393f2004d2b7e787628dd6eb98cd573",
+            "configuration_public_files": 190,
+            "duplicate_complete_file_image_preserved": true,
+            "effect_controls": 6,
+            "extended_input_and_shared_marker_control": true,
+            "first_registration_scenarios": 6,
+            "guard_passed": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "independent_DLL_sha256": "6c57f90f909922d343183c625def990b2dc57638157115cfa7de2da0e5979003",
+            "independent_exports": 157,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "original_owner_entries": 10,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "root_publication_bytes": 8388608,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ]
+          }
+        }
+      }
+    ],
+    "bounded_report_processes": 4,
+    "candidate_archives": 1,
+    "client_digest_scope": "Client executable hashes are producer observations; downloaded DLL/header/import-library hashes and PE exports were independently checked.",
+    "guard_processes": 4,
+    "head": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+    "jobs": 2,
+    "platform_processes": 4,
+    "platform_scope": "Native caller worker/join/clock/sleep only; no C SDK foreign-worker or full lifecycle qualification",
+    "profiles": 4,
+    "qualified": true,
+    "run": 39113443714,
+    "scope": "Installed Windows C controls, initial configuration and original ten owner test entries; root/public lifecycle semantics require separate independent replay. Same engine and host; no independent implementation, power-loss or release admission."
+  },
+  "native_source_matrix": {
+    "artifacts": [
+      {
+        "artifact_id": 12131747002,
+        "bytes": 100950,
+        "compiler": "1.98.1",
+        "members_sha256": {
+          "client-clippy.log": "9850a3ddf05a5c75952d9ac79429b3b3f2c4d1bf8baa8e9bc2a60e723c3f985c",
+          "client-release-tests.log": "5fd15c33310c69969db4280c91cac856e32860fc48471ecf735ac18b974b7a67",
+          "client-tests.log": "8bb617b1bb295b57fd2836b11d5ac0ca1af85dc35db893c4ec2d028a1ffe27ed",
+          "clippy.log": "aef0634872523e49c8e35cada3d1da6c774667aecc7b2b454a4633602ce0f1a4",
+          "commit.txt": "b44af34754a0eebba9413af75580dc366bdab8c1002becbc78a112d51c76d0e8",
+          "consumer-Cargo.lock": "de088d9505385cb2acd360086e1af606a331c025b5d581ee84fac136b8499f3d",
+          "consumer-Cargo.toml": "074bcff832d6fa03bbc34a3512488c7c4847eff0f28ef3c1ea6087faca8348b2",
+          "consumer-clippy.log": "413c16beedc84874d162631526a3c064bbdc3c36f6faf5ad6287477b8c71fefc",
+          "consumer-library.json": "26ab4b083d252000541209e86658ad6cd2430d8edbc88015c2b78b690b913fb2",
+          "consumer-metadata.json": "3651da793fe3b44cd679332b7299be0d8b57fda2dedf57363fa3fcb05436d3d9",
+          "consumer-release.log": "a67ff748f1b7b86181b592cae1f63b6741dc136c8996c2b8b26f699c12b3fc8b",
+          "consumer-resolution.log": "5ef424e84ccc9dfb5aeed8cff39d28d0ebf927d0a04a31ba4c4970cd61d50127",
+          "doc-tests.log": "df392c4fd814ac75cc47e9f8a7a2dcfeea6cb96e037a785b8071eeb5a26e5b17",
+          "first-use-clippy.log": "aa760f3aae3a33bb84a5627562f96797c6561558336b75b73fcac8bcf251fc58",
+          "first-use-release-tests.log": "b04a39d11ccf42fccea104ff321b9962ff1a9fe2d5036f2d0c4d5359d89b17ef",
+          "first-use-tests.log": "1f4e6bac1af23c0e264065f5e055716db16ab562d6ac1f58a9b3be379359e9ed",
+          "path-release-tests.log": "04d0e2a5b23588e1402d33bfe10bec41232254dba7f37326aaea747d0d7e1b2d",
+          "path-tests.log": "836047fe5712d3dfe84d0741d3029cae16019f719014e0ccc69e054641386052",
+          "release-tests.log": "840d951d16d5c602c75e7b1e9b925b44c593fc8b979761679a7f793dc47d33d0",
+          "retirement-release-tests.log": "d0cf502910bd4d4016799d6d28e2149431e27fbd4700f7b14aadcf2723644099",
+          "retirement-tests.log": "7732229a139affda211af452c61beee3bf452b42b25ba7d0c861a9ab07c909c4",
+          "rustc.txt": "67d86fbf74071a3c2fbf23eb9e4e28e3ecc0f81b6fce3d35f5bbc88b7de1ecfb",
+          "tests.log": "b457cd5f2f09d0885ecb4f6e6eaefb8712212c97e52eba94af26b410045e00f2"
+        },
+        "name": "private-store-windows-2022-1.98.1",
+        "profiles": {
+          "C_facade": {
+            "observed_DLL_bytes": 8735744,
+            "package_qualified": false,
+            "producer_DLL_sha256": "d180ab7394bc73d53cc1bd10b2ddcb4127503d7806a369c4073153c58b8ca187",
+            "release_link": true,
+            "runtime_qualified": false,
+            "source_build": true,
+            "strict_clippy": true
+          },
+          "client-release-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "client-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "configuration": {
+            "actual_acl_changes": 2,
+            "pinned_parent": true,
+            "read_only": true,
+            "tests_passed": 3
+          },
+          "first-use-release-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "first-use-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "path-release-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "path-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "release-tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "sharing_violation",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          },
+          "retirement-release-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "retirement-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "sharing_violation",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          }
+        },
+        "sha256": "sha256:b13af956573a1d765030568af863c8c27982a0c5122845d2c3e3fde6db2c2c90"
+      },
+      {
+        "artifact_id": 12131737023,
+        "bytes": 100922,
+        "compiler": "1.90.0",
+        "members_sha256": {
+          "client-clippy.log": "cb603a2b6ea775bbbbde2a7e1ac0086b8fe5aa0c7fa5d2d284a42d6a3ea2ff98",
+          "client-release-tests.log": "35fe755edcfabadd836316d1cb9b9e2c78a9a266009a3d15d5a98e5bacb93d6c",
+          "client-tests.log": "7a82eedff26213a0664a8fd1c13d4c23ca22347da2eaf5746517579556672499",
+          "clippy.log": "8b27dcfc23d9340b0f09d3b387e6ee6e99c5153a67b9248cc08a8c216520479d",
+          "commit.txt": "b44af34754a0eebba9413af75580dc366bdab8c1002becbc78a112d51c76d0e8",
+          "consumer-Cargo.lock": "de088d9505385cb2acd360086e1af606a331c025b5d581ee84fac136b8499f3d",
+          "consumer-Cargo.toml": "074bcff832d6fa03bbc34a3512488c7c4847eff0f28ef3c1ea6087faca8348b2",
+          "consumer-clippy.log": "8805fafccd1bd521e7a6ac2bd6675b9e23c372646f03b12967d9292f08e920bc",
+          "consumer-library.json": "12891af67364f9d78d11df537bd8dca66264d4bd70a18fd2c84c8bde225a8831",
+          "consumer-metadata.json": "8919ff0c9f08409d18f117fbf8fff3dd63c5bf69f039ed7f307ae20a8b566a9e",
+          "consumer-release.log": "72e1ea3a7e1ea45c0d1efa8cd3628a58dc1c6108246c5987255c441b665b41e1",
+          "consumer-resolution.log": "7a7821ad72f2f35837d74b6e3216962a323d654d9b9827c0bb6e34e68e605eee",
+          "doc-tests.log": "926ac2a113547a0cdc5d04d308e56207987b4f064bd7378496bd8aa12746fe18",
+          "first-use-clippy.log": "78ef6a97897c16582d624930a8fd366d73c622cfa4cbb7859d52ea3324c43b0e",
+          "first-use-release-tests.log": "6c79c2dc5ee3f6295cad51c7f8b6f46869fcf33602cf0654e8c2656edb778278",
+          "first-use-tests.log": "b42a05ef3b090e130ab07057c19334b65b528f2f51e8dc21a68d1c6561fb092b",
+          "path-release-tests.log": "f0fa26d2dc83fab871bb07117a032a4f20324b58ec9de9cbfcdc4574c4a5dda6",
+          "path-tests.log": "10f51b3f36237af934b2ef8666b332ec63f7de8b66d843a1cf261e2b6d890540",
+          "release-tests.log": "d73d7e4a83d8a692e9592eb93dc0690fe0e2fd017c9cb8e54fb3945f7e38925b",
+          "retirement-release-tests.log": "444a4bf95aa056e8eb102238cf2e0e1e049e6868d0659ff6b0415008a7520f22",
+          "retirement-tests.log": "5cb2869b13f5be2d3a6502c4b4862fbcf04024b1418d47ab38747fceea0627a8",
+          "rustc.txt": "82295090c0b57a0bd865fc4811668e4a2081065066150ca20d434d3e0d4d206b",
+          "tests.log": "093fbcba9caf56c6b8e454490f1dd8f5d59d19b945820e659e66f2750d62b1e0"
+        },
+        "name": "private-store-windows-2025-1.90.0",
+        "profiles": {
+          "C_facade": {
+            "observed_DLL_bytes": 8895488,
+            "package_qualified": false,
+            "producer_DLL_sha256": "1958f8862d3ca50956fa5bc91804fc21827959cf9d7b4b5480bc85aca72d4cd2",
+            "release_link": true,
+            "runtime_qualified": false,
+            "source_build": true,
+            "strict_clippy": true
+          },
+          "client-release-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "client-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "configuration": {
+            "actual_acl_changes": 2,
+            "pinned_parent": true,
+            "read_only": true,
+            "tests_passed": 3
+          },
+          "first-use-release-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "first-use-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "path-release-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "path-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "release-tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "permitted",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          },
+          "retirement-release-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "retirement-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "permitted",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          }
+        },
+        "sha256": "sha256:68d0ee2a872e988882b585b786dd463b847b5fb3a42d374c1e11ce605e0749c2"
+      },
+      {
+        "artifact_id": 12131098636,
+        "bytes": 100930,
+        "compiler": "1.90.0",
+        "members_sha256": {
+          "client-clippy.log": "1cd1c5d3e5e0d42fd50e6c852d955e9ba055b7205afae04660617cea4cbf57e0",
+          "client-release-tests.log": "2b17e5c2d3340d8939acd51b56a1f8fd1d4eb14ed96a9f11d3258e4a1d8127af",
+          "client-tests.log": "720f4ae6970aebbf0f03760a168996cd60ea115cadb51bd2e648148a2362a25f",
+          "clippy.log": "b727fac8aa5aed5447b60ae433d10611fb970bb36c6e1fa234d0e190772e394e",
+          "commit.txt": "b44af34754a0eebba9413af75580dc366bdab8c1002becbc78a112d51c76d0e8",
+          "consumer-Cargo.lock": "de088d9505385cb2acd360086e1af606a331c025b5d581ee84fac136b8499f3d",
+          "consumer-Cargo.toml": "074bcff832d6fa03bbc34a3512488c7c4847eff0f28ef3c1ea6087faca8348b2",
+          "consumer-clippy.log": "66b25cec59054ea0b30cfeb38963da58418548ef2c94e81f682a118bdf419a0c",
+          "consumer-library.json": "e221b056fe11570f3a0e3736f4c12f2febe336d79e6fb27356f801894698e0db",
+          "consumer-metadata.json": "8919ff0c9f08409d18f117fbf8fff3dd63c5bf69f039ed7f307ae20a8b566a9e",
+          "consumer-release.log": "6fb3cab6faff8ec9af36450fcd0f8d60e86ec09e4de8322e01d07ecf67d53f74",
+          "consumer-resolution.log": "c8f284689d361ae78f1fdd4a4aa13b92cad72e9e1fab6131d66550a801e5185d",
+          "doc-tests.log": "0c09c83715c2724566a1700947ed21f89c67a7f94a0010797bedf6a4bde87bf4",
+          "first-use-clippy.log": "ebb504a662d26ee3718e26940284f9b1ff1c24b1a2d047f7dcfbb97ea6ba9fba",
+          "first-use-release-tests.log": "2f85ec998930710c1610bd50e1aec389f3896d459a0963ca2e69fbfe352b0e08",
+          "first-use-tests.log": "408eb6053a923548353edc746daa6b1eeda9bcfdc2f6c43b9469feece7980a33",
+          "path-release-tests.log": "af104a7d88900136dcc47453a2917f726264eb2aa1459842ddf6503d1253423f",
+          "path-tests.log": "1040ab69763abf44e516a6bc9804d8efdae33979aa222f491dcfadcc4e31aeb8",
+          "release-tests.log": "a3aa00281c9fdd54e4adfa6fd194ad2d2f3a8c5b90e63b68b72e4b1cd211c3a8",
+          "retirement-release-tests.log": "9a9da1b71b46dbed3d85a06b3a3219a15f4582140bb2290535b50ac39a9c0db1",
+          "retirement-tests.log": "51427c4bc520e491afeec02c95573d0c47b6261d0404048e125d6103c84a56e7",
+          "rustc.txt": "82295090c0b57a0bd865fc4811668e4a2081065066150ca20d434d3e0d4d206b",
+          "tests.log": "1345f02b684da46471ce75f4ffcdcbc408b99fcab2ecd234191a35404af3f3e4"
+        },
+        "name": "private-store-windows-2022-1.90.0",
+        "profiles": {
+          "C_facade": {
+            "observed_DLL_bytes": 8893952,
+            "package_qualified": false,
+            "producer_DLL_sha256": "7ec6eeadb9f9b22c231e0c5fbe5314efa72584fb5c733cf3c062aa004151b761",
+            "release_link": true,
+            "runtime_qualified": false,
+            "source_build": true,
+            "strict_clippy": true
+          },
+          "client-release-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "client-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "configuration": {
+            "actual_acl_changes": 2,
+            "pinned_parent": true,
+            "read_only": true,
+            "tests_passed": 3
+          },
+          "first-use-release-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "first-use-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "path-release-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "path-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "release-tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "sharing_violation",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          },
+          "retirement-release-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "retirement-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "sharing_violation",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          }
+        },
+        "sha256": "sha256:487f76931b78f2455c0acd895558c36a4efbd556de6d024205f323f2aa0df736"
+      },
+      {
+        "artifact_id": 12130904525,
+        "bytes": 100970,
+        "compiler": "1.98.1",
+        "members_sha256": {
+          "client-clippy.log": "ea39d06e99589768142acb8f944bc7eac598e8c7f2a0c0e5acedd74e5867fac6",
+          "client-release-tests.log": "e0f48551b0d28a507cfd2ac782a358e33e3645295d85f62d8308475e1f6e2633",
+          "client-tests.log": "715c8161c14476353390074c84d6b1383dff482d3b6a996ec13e8ab786a258a5",
+          "clippy.log": "42d05716890193ff0c4b649854abca65533dc0bd89d34a513f68dbc7fe652667",
+          "commit.txt": "b44af34754a0eebba9413af75580dc366bdab8c1002becbc78a112d51c76d0e8",
+          "consumer-Cargo.lock": "de088d9505385cb2acd360086e1af606a331c025b5d581ee84fac136b8499f3d",
+          "consumer-Cargo.toml": "074bcff832d6fa03bbc34a3512488c7c4847eff0f28ef3c1ea6087faca8348b2",
+          "consumer-clippy.log": "c1be81daa49676972cb4abce01efd9173dc1d49b1f7ce666ad28722e96c775cc",
+          "consumer-library.json": "10469b276ba8640ea55642caa598c0d5f8b4096fad2b5fd60db5638bf1026ebc",
+          "consumer-metadata.json": "3651da793fe3b44cd679332b7299be0d8b57fda2dedf57363fa3fcb05436d3d9",
+          "consumer-release.log": "739b88669f1c75ab0cc906b6dbd467da54085399f43b0092f0e197193562ea89",
+          "consumer-resolution.log": "35616f6f6fa908080792d8d0ac0978abd2f5b05240699c10936afe67ec1faab9",
+          "doc-tests.log": "2f56188901c8ccf085ddc4fd3d715364c4082b4193c8d705498916e5dd53423d",
+          "first-use-clippy.log": "5aea87b066e655e17b9726e57733f61165b6cb31d8c64aaa3a737dc947c8930d",
+          "first-use-release-tests.log": "4ed2a04579e8291f92833a449bf719a73a3a0e0ffbf7553bab8300d49d07d5a6",
+          "first-use-tests.log": "4e44b2c40291e14828894fa2a5e3c1018b57f146c32c3243206063d134f215da",
+          "path-release-tests.log": "cd8ceb50f5c6b0eb3e785219b40f310f7bfc7a6982f42e68a1b7deb32ca1d896",
+          "path-tests.log": "543b90637f57ef4544cbb0569b7c5887f7eda921c363bdd5a6f8e7a1c412396c",
+          "release-tests.log": "c3b9b3b2f0f26262fb3361c3706cbb068ee583c8aad5d73899cb00a6d49e9941",
+          "retirement-release-tests.log": "67164f58eee05f7d7fbdf99d97e8610255673fca70216ae859ba628f2908c13c",
+          "retirement-tests.log": "21e8ef0a5e3f81b28a0473b0e7e60771b7734efa2d80b6bd5a130b7f63d3d3c9",
+          "rustc.txt": "67d86fbf74071a3c2fbf23eb9e4e28e3ecc0f81b6fce3d35f5bbc88b7de1ecfb",
+          "tests.log": "738c4cf71a0d7c269a117bf9817df9bb745927032449d0f50d549d9c5cf95695"
+        },
+        "name": "private-store-windows-2025-1.98.1",
+        "profiles": {
+          "C_facade": {
+            "observed_DLL_bytes": 8737792,
+            "package_qualified": false,
+            "producer_DLL_sha256": "5a903d6c193b190a970bd92ae1c3e9428532587cfb3d69d9423edf538df41916",
+            "release_link": true,
+            "runtime_qualified": false,
+            "source_build": true,
+            "strict_clippy": true
+          },
+          "client-release-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "client-tests.log": {
+            "actual_acl_changes": 2,
+            "signing_roles": 4,
+            "sync_faults": 8,
+            "tests_passed": 4
+          },
+          "configuration": {
+            "actual_acl_changes": 2,
+            "pinned_parent": true,
+            "read_only": true,
+            "tests_passed": 3
+          },
+          "first-use-release-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "first-use-tests.log": {
+            "actual_competing_process_outcomes": [
+              "busy",
+              "changed",
+              "missing"
+            ],
+            "actual_process_cuts": 4,
+            "child_entrypoints_included": 1,
+            "fault_boundaries": 4,
+            "fixed_and_recoverable_trust": true,
+            "scope": "Rust entry of source reference first-use coordinator, not C ABI or installed-package admission",
+            "tests_passed": 7
+          },
+          "path-release-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "path-tests.log": {
+            "cases": [
+              "every_duplicate_pair_is_rejected",
+              "local_absolute_paths_are_admitted",
+              "non_utf8_paths_are_rejected",
+              "noncanonical_or_nonlocal_paths_are_rejected_at_every_position"
+            ],
+            "scope": "Public lexical path constructors on real Windows, not filesystem or lifecycle admission",
+            "tests_passed": 4
+          },
+          "release-tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "permitted",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          },
+          "retirement-release-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "retirement-tests.log": {
+            "authenticated_host_ACK": true,
+            "io_boundaries": 10,
+            "metadata_preserves_lock": true,
+            "partial_headers": 9,
+            "substitution_refused": true,
+            "tests_passed": 5
+          },
+          "tests.log": {
+            "directory_faults": 8,
+            "directory_process_cuts": 4,
+            "early_delete_control": "permitted",
+            "process_cuts": 5,
+            "publication_faults": 6,
+            "sync_faults": 16,
+            "tests_passed": 30
+          }
+        },
+        "sha256": "sha256:638a204ae47d5270d753e51cacff128749c51c2de22cbd6d215130426b74b50c"
+      }
+    ],
+    "review_completed": true,
+    "reviewed_at": "2026-10-18T09:29:43.639126+00:00",
+    "run": 39113443780,
+    "schema": 1,
+    "scope": "Windows public path constructors plus native directory publication and first-use source coordinator fixed/recoverable admission, fault and actual process-cut/competition checks, plus prior storage/key/retirement matrix and C facade source compilation/link. No C ABI execution, installed-package, full session/device lifecycle or power-loss qualification.",
+    "source_commit": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+    "url": "https://github.com/billlza/q-periapt/actions/runs/39113443780"
+  },
+  "producer": {
+    "artifact": 12132045289,
+    "artifact_bytes": 8704257,
+    "artifact_sha256": "5d949a1f8d5ae3e3e0d5606cc0acd1ae1bdb5258432930ae7c87ed37eacaed3b",
+    "candidate_Rust_sources_independently_verified": 373,
+    "candidate_changed_members_from_7d": [
+      "packages/q-periapt-continuity-identity-candidate-0.0.0/README.md",
+      "packages/q-periapt-continuity-identity-candidate-0.0.0/src/durable/messages/fanout.rs"
+    ],
+    "declared_exports": 157,
+    "facade_sources_verified": 123,
+    "head": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+    "nine_sdk_archives_and_package_bytes_unchanged_from_7d": true,
+    "payload_members": 926,
+    "run": 39113443714,
+    "scope": "Producer source closure only; native controls and installed lifecycle remain separate."
+  },
+  "profiles": 4,
+  "public_readback": {
+    "C_scope": "56 initial-configuration cases,40 original owner suite entries,28 independently replayed C owner workloads and16 root replacement routes, plus24 first-registration carrier/trust scenarios with190 public files perprofile; original strict controls retained (seeNATIVE_C_REVIEW.json); same engine/host, not independent protocol implementation",
+    "Rust_scope": "All original installed public lifecycle contracts, same-engine/same-host;279publicfiles/profile; original reader and cloud/local review bytesmatch; no powerloss/performance/release claim",
+    "head": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+    "profiles": 4,
+    "rows": [
+      {
+        "local_and_cloud_review_bytes_identical": true,
+        "native_artifact_id": 12132153628,
+        "native_bytes": 40896893,
+        "native_digest": "sha256:0015d381fed4a90372bc1622496f50be278a7bf1668efe9a59ed147f31968b07",
+        "os": "windows-2022",
+        "readback_artifact_id": 12132955587,
+        "readback_digest": "sha256:c6fee81da1f45f27cba3237956b9ea34f7e2a0d4f4249078cff6085b10160b5f"
+      },
+      {
+        "local_and_cloud_review_bytes_identical": true,
+        "native_artifact_id": 12132541131,
+        "native_bytes": 40892403,
+        "native_digest": "sha256:92f39e10926751823d35ec7c1d56a5f6922a7b2e38c10b58b0f8e020968b7899",
+        "os": "windows-2025",
+        "readback_artifact_id": 12132586883,
+        "readback_digest": "sha256:0d49beeb4ef88c2873b069b041fc458e3a9f8eebe3f4f5b8779c461e5332d016"
+      }
+    ],
+    "run": 39113443714
+  },
+  "release_claim_eligible": false,
+  "run": 39113443714,
+  "scope": "Installed Windows 2022/2025 Debug/Release same-engine and same-host lifecycle at the fanout snapshot implementation. No independent implementation, power-loss, latency/energy or full release admission.",
+  "source_continuity": {
+    "all_tracked_Rust_bytes_identical": true,
+    "changed_files": [
+      ".github/workflows/fanout-latency.yml",
+      "artifact/fanout_latency.py",
+      "artifact/fanout_latency_review.py",
+      "artifact/test_fanout_latency.py",
+      "docs/SDK_0_2_RELEASE_READINESS.md",
+      "docs/continuity/FANOUT_LATENCY_V1.md"
+    ],
+    "head": "714217739d642b7f78ea1d15abc523491a4133f1",
+    "identical_paths": [
+      "crates",
+      "bindings",
+      "research/continuity-identity-candidate",
+      "Cargo.toml",
+      "Cargo.lock",
+      ".cargo"
+    ],
+    "runtime_cohort_head": "6b97539412d81569563cb0bbb3d579ec00acaaaf",
+    "scope": "Product SDK, candidate, foreign bindings, manifests and compiler configuration unchanged. New evidence-tool behavior still requires its own current CI; runtime equivalence is not whole-head release admission.",
+    "tracked_Rust_files": 719
+  }
+}

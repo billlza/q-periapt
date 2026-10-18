@@ -46,7 +46,9 @@ jobs:
       - name: Check timing and source-substitution refusals
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
-        run: sh artifact/python-run.sh -m unittest discover -s artifact -p test_fanout_latency.py
+        run: |
+          sh artifact/python-run.sh -m unittest discover -s artifact -p test_evidence_io.py
+          sh artifact/python-run.sh -m unittest discover -s artifact -p test_fanout_latency.py
       - name: Build both variants and run all paired samples
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}

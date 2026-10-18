@@ -24,9 +24,23 @@ The [native CI comparison protocol](continuity/FANOUT_LATENCY_V1.md) is prepared
 for separate Linux x86_64 and Apple Silicon jobs, each retaining all 200 paired
 blocks and an independent raw-record readback. Execution and interpretation
 remain pending; preparation checks do not qualify latency.
-No speed or tail-latency improvement is established. Other foreign/Windows
-execution and energy remain separate. The qualified Windows cohort at `b47eb541`
-predates this change.
+No speed or tail-latency improvement is established. Other foreign distribution
+qualification and energy remain separate. The newer installed Windows cohort
+below covers this snapshot change.
+
+The [installed Windows snapshot checkpoint](../research/sdk-alpha1/evidence/20261018-windows-fanout-snapshot/README.md)
+qualifies `6b975394` in [run 39113443714](https://github.com/billlza/q-periapt/actions/runs/39113443714).
+Both native systems and both independent Linux readers complete successfully.
+All original workload counts below are retained; four downloaded DLLs each
+contain exactly 157 candidate exports, and complete local/cloud public reviews
+are byte-identical for both systems. The nine SDK archives remain unchanged;
+the candidate archive changes only its README and fanout module. The companion
+Windows source matrix also passes all four jobs and eight profiles, with strict
+independent artifact readback. All 719 tracked Rust files, language bindings,
+dependency locks and compiler configuration are unchanged through `71421773`;
+its evidence-tool corrections retain separate CI obligations. This closes the
+snapshot change's installed Windows lifecycle regression, not its latency or
+overall release requirements.
 
 
 The [installed Windows lifecycle checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-lifecycle/README.md)
