@@ -91,6 +91,21 @@ jobs:
             --output target/independent-peer-ci/exchange \
             > target/independent-peer-ci/exchange.stdout 2> target/independent-peer-ci/exchange.stderr
           git diff --exit-code
+      - name: Exercise independent storage cuts and persisted session recovery
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/storage_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --output target/independent-peer-ci/storage-cuts \
+            > target/independent-peer-ci/storage-cuts.stdout 2> target/independent-peer-ci/storage-cuts.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/durability_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/session-recovery \
+            > target/independent-peer-ci/session-recovery.stdout 2> target/independent-peer-ci/session-recovery.stderr
+          git diff --exit-code
       - name: Preserve the executable, public transcripts and failed phases
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

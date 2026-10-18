@@ -12,8 +12,8 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from .wire import lp, require
 
 
-def hkdf(secret: bytes, salt: bytes, info: bytes) -> bytes:
-    return HKDF(hashes.SHA256(), 32, salt, info).derive(secret)
+def hkdf(secret: bytes, salt: bytes | None, info: bytes, length: int = 32) -> bytes:
+    return HKDF(hashes.SHA256(), length, salt, info).derive(secret)
 
 
 @dataclass(frozen=True)
@@ -73,3 +73,14 @@ class HybridPrivate:
         pq = self._pq.decapsulate(wire[:1088])
         dh = self._dh.exchange(x25519.X25519PublicKey.from_public_bytes(wire[1088:]))
         return sdk.combine(pq, dh, wire, self.public(), context)
+
+    def _checkpoint(self) -> bytes:
+        return self._pq.private_bytes_raw() + self._dh.private_bytes_raw()
+
+    @classmethod
+    def _restore(cls, raw: bytes):
+        require(len(raw) == 96, "hybrid checkpoint length")
+        owner = cls.__new__(cls)
+        owner._pq = mlkem.MLKEM768PrivateKey.from_seed_bytes(raw[:64])
+        owner._dh = x25519.X25519PrivateKey.from_private_bytes(raw[64:])
+        return owner

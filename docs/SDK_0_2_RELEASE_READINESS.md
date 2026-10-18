@@ -24,8 +24,23 @@ reordering, rejection without key consumption and five native journal reopens
 pass in 41 native commands and 51 Python refusal controls. Established traffic
 continues after advertisement expiry while current identity/policy authority
 remains valid. The independent Python state is still volatile; this does not
-close independent durability or crash recovery. The current traffic increment
-has local evidence; the earlier hosted bootstrap result is kept separate.
+close independent durability or crash recovery. The later
+[hosted traffic checkpoint](../research/sdk-alpha1/evidence/20261018-hosted-independent-traffic/README.md)
+qualifies this same increment on Linux x86_64 and Apple Silicon, with both original
+artifacts and their independent public readbacks retained.
+
+The subsequent [independent storage checkpoint](../research/sdk-alpha1/evidence/20261018-independent-storage/README.md)
+adds a separate encrypted local journal and persisted bootstrap/epoch-zero owner.
+The final local run passes 37 storage controls with 16 real process kills,
+27 session operations with six kills and nine live native commands, six malformed
+snapshot controls, and the original 41-command/51-refusal volatile regression.
+An expired bootstrap replay accepted by the new prototype was observed before
+repair; the original Rust contract already rejected it. Both red and green traces
+remain. Identity signing keys stay outside session snapshots. This closes the
+tested local independent process-recovery increment only. Hosted storage runtime,
+rekey, required witnesses, authority renewal/revocation, full installation and
+upgrade lifecycle, cross-host carriers and installed independent packages remain
+open. SIGKILL is not hardware power-loss qualification or rollback detection.
 
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send
@@ -74,7 +89,14 @@ run `39119367355` succeed. The original complete C/Rust lifecycle counts remain
 unchanged, all four actual DLLs have 157 candidate exports, and complete local
 and cloud readbacks are byte-identical. The ten Cargo archives remain identical
 to the prior cohort; the changed C callers have their own runtime evidence.
-The repaired Linux installed run remains separate and pending.
+The later [Linux terminal readback](../research/sdk-alpha1/evidence/20261018-installed-archive-final-check/README.md)
+confirms strict C11 Debug/Release input tests. The overall job failed in the final
+archive guard because the packaging extraction left two obsolete local-variable
+references. The guard now consumes the original returned archive record; the
+actual failed-run archive passes the corrected call site, and 30 focused tests
+pass, including same-length substitution refusal. The original job remains failed;
+a new complete installed run is still required. The obsolete full runs at `fd42`
+and `1183` were cancelled after retaining their job states and terminal failure.
 
 The subsequent full CI at `71421773` identifies two separate integration defects:
 the Rust source inventory still expected 718 files after adding the Windows C

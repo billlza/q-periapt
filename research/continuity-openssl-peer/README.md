@@ -82,17 +82,27 @@ directory and are retained, including on failure; only their path is recorded.
 No wrapping key or encrypted private image is uploaded. Reopen here is within
 the original process; it is not a process-crash or power-loss experiment.
 
-This is not an admitted independent Continuity product implementation. Independent
-durability, rekey, recovery, witness, renewal, revocation, account fanout, network
-carriers and installed-package qualification remain required. The Rust side is
+The [independent storage/session implementation](STORAGE.md) now separately
+persists waiting bootstrap, confirmed roots, traffic state, exact send reservations
+and consumption. It reopens the original material in fresh OS processes and tests
+real process interruption before results are returned. Identity signing keys stay
+outside the session journal. `storage_checks.py` covers the file transaction;
+`durability_checks.py` covers persisted protocol recovery against the Rust peer.
+The earlier volatile class remains a cryptographic core, not a durable facade.
+
+This is not an admitted independent Continuity product implementation. Rekey,
+witnesses, renewal, revocation, account fanout, the complete installation/migration
+lifecycle, network carriers and installed-package qualification remain required.
+The Rust side is
 a separate Cargo consumer of the current source graph. Root transfer into the
 volatile experiment is one-use and adds no root-export hook to the Rust SDK.
 The synthetic confirmation control changes a test verification key directly;
 that context is never passed to the real Rust counterpart.
 
 Python bytes and provider temporaries do not provide the Rust SDK's zeroizing
-owner guarantee; dropping references does not prove erasure. No secret is saved
-or logged. The peer's fixed authority snapshot and trusted-time input do not
+owner guarantee; dropping references does not prove erasure. Private session state
+is sealed in its store; public artifacts omit wrapping keys and private images.
+The peer's fixed authority snapshot and trusted-time input do not
 implement concurrent policy replacement or persistent rollback protection.
 Those need explicit integration before this lane can close the independent
 implementation requirement.

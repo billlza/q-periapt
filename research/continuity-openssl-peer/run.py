@@ -106,20 +106,14 @@ class Counterpart:
 
 def main() -> None:
     args = arguments()
-    provider = args.provider_root.resolve(strict=True)
-    if not provider.is_dir() or not (provider / "cryptography").is_dir():
-        raise ValueError("missing explicit cryptography provider directory")
-    # The repository's -I -S -B launcher remains intact. Add only the explicitly
-    # selected dependency root, without running site or processing .pth files.
-    sys.path.append(str(provider))
     sys.path.append(str(Path(__file__).resolve().parent))
-    import cryptography
+    from provider import load_provider
+    cryptography, backend = load_provider(args.provider_root)
     from cryptography.exceptions import InvalidSignature, InvalidTag
-    from cryptography.hazmat.backends.openssl.backend import backend
-    from peer.authority import DevicePin, Materials, Pins, authenticate
+    from peer.authority import authenticate
+    from fixture_inputs import load as load_inputs, read_public
     from peer.bootstrap import Initiator, digest
-    from peer.wire import ORDER, Reader, SigningKey, VerificationKey, require
-    require(cryptography.__version__ == "48.0.1", "unqualified cryptography version")
+    from peer.wire import ORDER, SigningKey, require
     require(sys.platform in ("darwin", "linux"), "this pipe harness requires POSIX")
     output = args.output.resolve()
     output.mkdir()
@@ -139,28 +133,11 @@ def main() -> None:
             raise ValueError("negative control accepted: " + name)
 
     def read(name: str) -> bytes:
-        with (output / "public" / name).open("rb") as stream:
-            value = stream.read(65537)
-        require(len(value) <= 65536, "public material bound")
-        return value
-
-    def device_pin(role: str):
-        reader = Reader(read("pin-" + role + "-head"))
-        pin = DevicePin(VerificationKey(read("pin-" + role + "-root")), reader.take(32),
-                        reader.integer(8), reader.take(32), reader.take(16), reader.integer(8))
-        reader.finish()
-        return pin
+        return read_public(output / "public", name)
 
     try:
         require(counterpart.transfer(signer.public().raw) == b"\1ready", "native preparation")
-        head = Reader(read("pin-policy-head"))
-        pins = Pins(read("pin-sdk-root"), read("pin-sdk-state"), VerificationKey(read("pin-policy-root")),
-                    head.integer(8), head.take(32), device_pin("i"), device_pin("r"), read("pin-directory"))
-        head.finish()
-        materials = Materials(*(read(name) for name in (
-            "sdk-document", "sdk-signature", "policy", "i-credential", "i-roster",
-            "r-credential", "r-roster", "manifest", "proof-1", "proof-3")))
-        context = authenticate(pins, materials, 150)
+        pins, materials, context = load_inputs(output / "public", 150)
         require(context.digest == read("expected-context")
                 and context.selection == read("expected-selection"), "independent canonical inputs")
         for field in dataclasses.fields(materials):
@@ -250,7 +227,7 @@ def main() -> None:
                           for name, module in tuple(sys.modules.items())
                           if name.startswith(("cryptography", "cffi", "_cffi_backend", "pycparser"))
                           and getattr(module, "__file__", None)}
-        sources = [*sorted((peer_root / "peer").glob("*.py")), peer_root / "run.py", peer_root / "traffic_checks.py",
+        sources = [*sorted((peer_root / "peer").glob("*.py")), *sorted(peer_root.glob("*.py")),
                    *sorted((peer_root / "native" / "src").glob("*.rs")), peer_root / "native" / "Cargo.toml",
                    peer_root / "native" / "Cargo.lock", peer_root / "requirements.txt"]
         report = {"scope": "Independent volatile bootstrap/epoch-zero traffic and actual Rust journal; no independent durable state, rekey, witness, installed package or release claim",

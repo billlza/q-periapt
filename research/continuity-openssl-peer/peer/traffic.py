@@ -8,18 +8,17 @@ from __future__ import annotations
 
 import hmac
 
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from .authority import Context
+from .kem import hkdf as expand
 from .wire import MAX_U64, Reader, ldh, require
 
 DOMAIN = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/"
 
 
-def expand(secret: bytes, salt: bytes | None, info: bytes, length: int) -> bytes:
-    return HKDF(hashes.SHA256(), length, salt, info).derive(secret)
+def commitment(label: bytes, value: bytes, ad: bytes) -> bytes:
+    return ldh(DOMAIN + label, len(value).to_bytes(8, "big") + value + ad)
 
 
 def message_id(session: bytes, direction: int, index: int) -> bytes:
@@ -44,8 +43,8 @@ class VolatileTraffic:
         self._rekey, self._send, self._receive = material[:32], material[32:64], material[64:96]
         self._send_ack, self._receive_ack = material[96:128], material[128:160]
         self._sent = self._received = self._send_floor = self._receive_floor = 0
-        self._outbox: dict[int, tuple[bytes, bytes, bytes]] = {}
-        self._inbox: dict[int, tuple[bytes, bytes, bytes | None]] = {}
+        self._outbox: dict[int, tuple[bytes, bytes]] = {}
+        self._inbox: dict[int, tuple[bytes, bytes | None]] = {}
         self._skipped: dict[int, bytes] = {}
         self._closed = False
 
@@ -64,25 +63,35 @@ class VolatileTraffic:
         return message_id(self._session, 1, self._sent)
 
     def send(self, identity: bytes, plaintext: bytes, ad: bytes, now: int) -> bytes:
-        self._admit(now)
-        require(len(plaintext) <= 16384 and len(ad) <= 1024, "message capacity")
+        cached = self.validate_send(identity, plaintext, ad, now)
+        if cached is not None:
+            return cached
         index = self._index(identity, 1)
-        require(index >= self._send_floor, "retired send")
-        if index in self._outbox:
-            previous, previous_ad, wire = self._outbox[index]
-            require((plaintext, ad) == (previous, previous_ad), "conflicting send input")
-            return wire
-        require(index == self._sent and self._sent < MAX_U64 - 1, "send slot")
-        require(len(self._outbox) < 64 and self._sent < self._context.send_budget,
-                "send capacity or signed budget")
+        receipt = commitment(b"send-intent", plaintext, ad)
         chain, key = step(self._send, index)
         header = (b"QPCMSG03" + self._session + b"\1" + bytes(8) + index.to_bytes(8, "big")
                   + identity + len(plaintext).to_bytes(4, "big"))
         wire = header + ChaCha20Poly1305(key).encrypt(bytes(12), plaintext,
             DOMAIN + b"aead" + header + len(ad).to_bytes(2, "big") + ad)
-        self._outbox[index] = (plaintext, ad, wire)
+        self._outbox[index] = (receipt, wire)
         self._send, self._sent = chain, index + 1
         return wire
+
+    def validate_send(self, identity: bytes, plaintext: bytes, ad: bytes, now: int) -> bytes | None:
+        """Validate or replay without advancing a chain or computing ciphertext."""
+        self._admit(now)
+        require(len(plaintext) <= 16384 and len(ad) <= 1024, "message capacity")
+        index = self._index(identity, 1)
+        require(index >= self._send_floor, "retired send")
+        receipt = commitment(b"send-intent", plaintext, ad)
+        if index in self._outbox:
+            previous, wire = self._outbox[index]
+            require(receipt == previous, "conflicting send input")
+            return wire
+        require(index == self._sent and self._sent < MAX_U64 - 1, "send slot")
+        require(len(self._outbox) < 64 and self._sent < self._context.send_budget,
+                "send capacity or signed budget")
+        return None
 
     def receive(self, wire: bytes, ad: bytes, now: int) -> tuple[bytes, bytes]:
         self._admit(now)
@@ -97,9 +106,10 @@ class VolatileTraffic:
         ciphertext = reader.take(size + 16)
         reader.finish()
         require(index >= self._receive_floor, "retired receive")
+        receipt = commitment(b"receive-intent", wire, ad)
         if index in self._inbox:
-            previous, previous_ad, plaintext = self._inbox[index]
-            require((wire, ad) == (previous, previous_ad), "conflicting received input")
+            previous, plaintext = self._inbox[index]
+            require(receipt == previous, "conflicting received input")
             require(plaintext is not None, "retired receive")
             return identity, plaintext
         require(len(self._inbox) < 64, "inbox capacity")
@@ -120,7 +130,7 @@ class VolatileTraffic:
         # Authentication errors do not consume persisted-equivalent candidate
         # keys or advance counters. Durable commit is not supplied by this class.
         self._receive, self._received, self._skipped = chain, received, skipped
-        self._inbox[index] = (wire, ad, plaintext)
+        self._inbox[index] = (receipt, plaintext)
         return identity, plaintext
 
     def consume(self, identity: bytes, now: int) -> bytes:
@@ -128,9 +138,9 @@ class VolatileTraffic:
         index = self._index(identity, 2)
         if index >= self._receive_floor:
             require(index in self._inbox, "unreceived consumption")
-            wire, ad, _plaintext = self._inbox[index]
-            self._inbox[index] = (wire, ad, None)
-            while self._receive_floor in self._inbox and self._inbox[self._receive_floor][2] is None:
+            receipt, _plaintext = self._inbox[index]
+            self._inbox[index] = (receipt, None)
+            while self._receive_floor in self._inbox and self._inbox[self._receive_floor][1] is None:
                 del self._inbox[self._receive_floor]
                 self._receive_floor += 1
         return self.acknowledgement(now)

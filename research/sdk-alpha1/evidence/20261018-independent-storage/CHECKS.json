@@ -1,0 +1,63 @@
+{
+  "base_head": "1183ad3c0709513b69d90c7744f36a9c22c5897f",
+  "source_files": {
+    "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+    "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+    "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+    "peer/durable.py": "e8eac5c4174d743e14bbe39b33b649a670da4f2815114908b3b4966e34e7da3b",
+    "peer/journal.py": "a11d257e3001ac09ca34b452200210930869601b9368e38dfb59c7f983c5a592",
+    "peer/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+    "peer/private_files.py": "212e485e67020a87dc8742ecfc2a9fad2b87dcb87074ff5c3ea85face03b6756",
+    "peer/state_codec.py": "9124e96df2652e4fec9cb55322ab27b317beaa5c018bffdcb3d1152959a77232",
+    "peer/traffic.py": "494097ecff4a7d198ab278d14da8bd4a3ec6242f475ae5ce4a8d66dc197c1666",
+    "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+    "durability_checks.py": "7e3217e83a7193c7e2808717e509e7c1d318681d131ae51804018ab355fa72f2",
+    "fixture_inputs.py": "863030ed12e7f4c73d21f391cc206e995c46ef431b8135c44a4f76dce1b771c0",
+    "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+    "run.py": "ccff899cfdf30d77a60f9cbf6d41bc226cddb4e53b0613a3923cdee61a41e8e7",
+    "session_worker.py": "20bb52524913453c30018f2ea2f745fb446786e2adf1ed5bc787263ea93e59b3",
+    "storage_checks.py": "55629b0164001598fb61cbaa6d5c37b7d929257e9bff31da4c50011cdfe69eee",
+    "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+    "native/src/fixture.rs": "c5f14e4fe4d9a5fa8bf2c4069d2494e8dc3dc91f52e48b1f4368109ca3b5269f",
+    "native/src/journal.rs": "d11c455b85fa40aa04d704a708aa32fb239868e154694e302be853464633be06",
+    "native/src/main.rs": "f1753339aa6335fedbba09c6e5fcc343967188fb647c93bea138349a5a0cb211",
+    "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+    "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+    "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+  },
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "native_sha256": "21ddc37b5707b8ad9c1bc65a5830dbe7d7bda9c246bb0cb2c361034fa1df8caf",
+  "storage": {
+    "process_kills": 16,
+    "checks": 37
+  },
+  "session": {
+    "process_kills": 6,
+    "worker_operations": 27,
+    "native_commands": 9,
+    "codec_refusals": 6
+  },
+  "volatile_regression": {
+    "native_commands": 41,
+    "refusals": 51
+  },
+  "public_signatures_and_transcript_reverified": true,
+  "bootstrap_expiry_red_green_retained": true,
+  "limits": [
+    "local-only fixed-authority pairwise bootstrap and epoch zero",
+    "no rekey/witness/renewal/revocation/full installation lifecycle",
+    "independent workers restart; native process survives",
+    "no hardware power loss, key erasure or rollback detection",
+    "public readback does not rederive secret MAC/AEAD keys",
+    "new storage implementation has no hosted runtime result yet"
+  ],
+  "capture": {
+    "sha256": "a5cda5e8d6851331aad73fe09858dc0d68ad17e2423bc000ecb5fb6cc844d533",
+    "bytes": 640402,
+    "members": 357,
+    "complete_member_readback": true
+  }
+}
