@@ -24,11 +24,11 @@ both leaf proofs. It constructs the canonical selection and role-ordered context
 before doing the policy-bound hybrid KEM and confirmation schedule.
 
 The protocol code is in `peer/wire.py`, `peer/authority.py`, `peer/kem.py`,
-`peer/bootstrap.py`, and `peer/traffic.py`. The bounded runner and Rust test
+`peer/bootstrap.py`, `peer/traffic.py`, and `peer/rekey.py`. The bounded runner and Rust test
 counterpart are separate.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
-fails. Every operation checks the supplied trusted time. Close is idempotent
+fails. Bootstrap owner operations check the supplied trusted time. Close is idempotent
 and prevents future operations.
 
 ## Run
@@ -88,9 +88,18 @@ and consumption. It reopens the original material in fresh OS processes and test
 real process interruption before results are returned. Identity signing keys stay
 outside the session journal. `storage_checks.py` covers the file transaction;
 `durability_checks.py` covers persisted protocol recovery against the Rust peer.
+The separate `rekey_checks.py` lane now computes all four signed rekey flights
+with independent KEM, root/confirmation and epoch traffic/ACK derivations. Eight
+alternating exchanges interoperate with real Rust journal cutovers, including
+asymmetric progress after final, cached control replay and bidirectional traffic.
+These rekey computations remain volatile: the durable `Session` still admits
+epoch zero only. Its snapshot codec explicitly refuses nonzero traffic epochs.
+Independent durable rekey reservations/outboxes, aggregate unconfirmed send
+budget, retained-epoch resolution and full lifecycle are not implemented by this
+computational lane. No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
-This is not an admitted independent Continuity product implementation. Rekey,
+This is not an admitted independent Continuity product implementation. Durable rekey,
 witnesses, renewal, revocation, account fanout, the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 The Rust side is

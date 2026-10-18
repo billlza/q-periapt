@@ -1,7 +1,9 @@
-"""Independent epoch-zero traffic state for interoperability experiments.
+"""Independent per-epoch traffic computations for interoperability experiments.
 
 State changes here are volatile. A durable wrapper must commit the reservation,
 candidate state and release boundary before exposing frames or plaintext.
+Nonzero epochs additionally require a separate control owner to enforce the
+directional cutovers, aggregate unconfirmed send budget and retained history.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from __future__ import annotations
@@ -21,10 +23,10 @@ def commitment(label: bytes, value: bytes, ad: bytes) -> bytes:
     return ldh(DOMAIN + label, len(value).to_bytes(8, "big") + value + ad)
 
 
-def message_id(session: bytes, direction: int, index: int) -> bytes:
-    require(len(session) == 32 and direction in (1, 2) and 0 <= index < MAX_U64,
+def message_id(session: bytes, direction: int, index: int, epoch: int = 0) -> bytes:
+    require(len(session) == 32 and direction in (1, 2) and 0 <= index < MAX_U64 and 0 <= epoch < MAX_U64,
             "message identity scope")
-    counters = bytes(8) + index.to_bytes(8, "big")
+    counters = epoch.to_bytes(8, "big") + index.to_bytes(8, "big")
     return counters + ldh(DOMAIN + b"epoch-message-id", session + bytes([direction]) + counters)[:16]
 
 
@@ -39,7 +41,20 @@ class VolatileTraffic:
         context.check_established(now)
         require(len(session) == len(root) == 32, "session material size")
         material = expand(root, session, DOMAIN + b"initial/HKDF-SHA256/ChaCha20Poly1305" + context.digest, 160)
+        self._initialize(context, session, 0, material)
+
+    @classmethod
+    def _from_epoch(cls, context, session, epoch, root, material, now):
+        context.check_established(now)
+        require(0 < epoch < MAX_U64 and len(session) == len(root) == 32
+                and len(material) == 128, "epoch traffic material")
+        owner = cls.__new__(cls)
+        owner._initialize(context, session, epoch, root + material)
+        return owner
+
+    def _initialize(self, context, session, epoch, material):
         self._context, self._session = context, session
+        self._epoch = epoch
         self._rekey, self._send, self._receive = material[:32], material[32:64], material[64:96]
         self._send_ack, self._receive_ack = material[96:128], material[128:160]
         self._sent = self._received = self._send_floor = self._receive_floor = 0
@@ -55,12 +70,12 @@ class VolatileTraffic:
     def _index(self, identity: bytes, direction: int) -> int:
         require(len(identity) == 32, "message ID length")
         index = int.from_bytes(identity[8:16], "big")
-        require(identity == message_id(self._session, direction, index), "message ID scope")
+        require(identity == message_id(self._session, direction, index, self._epoch), "message ID scope")
         return index
 
     def next_id(self, now: int) -> bytes:
         self._admit(now)
-        return message_id(self._session, 1, self._sent)
+        return message_id(self._session, 1, self._sent, self._epoch)
 
     def send(self, identity: bytes, plaintext: bytes, ad: bytes, now: int) -> bytes:
         cached = self.validate_send(identity, plaintext, ad, now)
@@ -69,7 +84,7 @@ class VolatileTraffic:
         index = self._index(identity, 1)
         receipt = commitment(b"send-intent", plaintext, ad)
         chain, key = step(self._send, index)
-        header = (b"QPCMSG03" + self._session + b"\1" + bytes(8) + index.to_bytes(8, "big")
+        header = (b"QPCMSG03" + self._session + b"\1" + self._epoch.to_bytes(8, "big") + index.to_bytes(8, "big")
                   + identity + len(plaintext).to_bytes(4, "big"))
         wire = header + ChaCha20Poly1305(key).encrypt(bytes(12), plaintext,
             DOMAIN + b"aead" + header + len(ad).to_bytes(2, "big") + ad)
@@ -99,9 +114,9 @@ class VolatileTraffic:
         reader = Reader(wire)
         require(reader.take(8) == b"QPCMSG03" and reader.take(32) == self._session
                 and reader.integer(1) == 2, "received session/direction")
-        require(reader.integer(8) == 0, "unadmitted traffic epoch")
+        require(reader.integer(8) == self._epoch, "unadmitted traffic epoch")
         index, identity, size = reader.integer(8), reader.take(32), reader.integer(4)
-        require(identity == message_id(self._session, 2, index), "received message identity")
+        require(identity == message_id(self._session, 2, index, self._epoch), "received message identity")
         require(size <= 16384, "received plaintext capacity")
         ciphertext = reader.take(size + 16)
         reader.finish()
@@ -147,15 +162,18 @@ class VolatileTraffic:
 
     def acknowledgement(self, now: int) -> bytes:
         self._admit(now)
-        prefix = b"QPCMACK1" + self._session + b"\2" + self._receive_floor.to_bytes(8, "big")
+        prefix = ((b"QPCMACK1" if self._epoch == 0 else b"QPCMACK2") + self._session + b"\2"
+                  + (self._epoch.to_bytes(8, "big") if self._epoch else b"") + self._receive_floor.to_bytes(8, "big"))
         return prefix + hmac.digest(self._receive_ack, DOMAIN + b"acknowledgement" + prefix, "sha256")
 
     def accept_acknowledgement(self, wire: bytes, now: int) -> int:
         self._admit(now)
-        require(len(wire) == 81 and wire[:41] == b"QPCMACK1" + self._session + b"\1", "ACK scope")
-        expected = hmac.digest(self._send_ack, DOMAIN + b"acknowledgement" + wire[:49], "sha256")
-        require(hmac.compare_digest(expected, wire[49:]), "ACK authentication")
-        floor = int.from_bytes(wire[41:49], "big")
+        prefix = ((b"QPCMACK1" if self._epoch == 0 else b"QPCMACK2") + self._session + b"\1"
+                  + (self._epoch.to_bytes(8, "big") if self._epoch else b""))
+        require(len(wire) == len(prefix) + 40 and wire.startswith(prefix), "ACK scope")
+        expected = hmac.digest(self._send_ack, DOMAIN + b"acknowledgement" + wire[:-32], "sha256")
+        require(hmac.compare_digest(expected, wire[-32:]), "ACK authentication")
+        floor = int.from_bytes(wire[-40:-32], "big")
         require(floor <= self._sent, "ACK prefix")
         if floor <= self._send_floor:
             return self._send_floor

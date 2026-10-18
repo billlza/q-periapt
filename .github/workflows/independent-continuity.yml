@@ -91,6 +91,17 @@ jobs:
             --output target/independent-peer-ci/exchange \
             > target/independent-peer-ci/exchange.stdout 2> target/independent-peer-ci/exchange.stderr
           git diff --exit-code
+      - name: Verify independent four-flight rekey computations and epoch traffic
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/rekey_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/rekey \
+            > target/independent-peer-ci/rekey.stdout 2> target/independent-peer-ci/rekey.stderr
+          git diff --exit-code
       - name: Exercise independent storage cuts and persisted session recovery
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}

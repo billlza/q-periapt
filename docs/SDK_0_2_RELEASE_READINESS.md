@@ -47,7 +47,19 @@ the shell exited before its Python child's directory lease was released. The
 harness now starts and waits for the actual Python owner and checks its PID at
 every cut. The unchanged 37 storage and 27 session controls pass locally; Linux
 runtime validation of this repair remains required. The storage lock and refusal
-contract are unchanged.
+contract are unchanged. The subsequent
+[Linux hosted storage readback](../research/sdk-alpha1/evidence/20261018-hosted-independent-storage/README.md)
+passes all original and persistence controls at `0cff3934`, including direct worker
+PID checks. The original failed run remains retained; hosted macOS is still separate.
+
+The [independent rekey computation checkpoint](../research/sdk-alpha1/evidence/20261018-independent-rekey/README.md)
+now computes and authenticates all four flights and fresh epoch KEM/MAC/AEAD/ACK
+material independently. Eight alternating exchanges, 132 native commands and 108
+refusals pass against actual Rust journal cutovers. Public readback checks all 32
+signed flights and application bytes. The original volatile and epoch-zero durable
+regressions remain passing. Python rekey state is still volatile; its durable
+snapshot codec rejects nonzero epochs. Independent durable rekey, aggregate
+unconfirmed-send budgeting and retained-epoch resolution remain required.
 
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send

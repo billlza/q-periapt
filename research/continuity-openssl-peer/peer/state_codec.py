@@ -65,6 +65,7 @@ def encode(state: State) -> bytes:
             require(op._root is None and state.traffic is not None, "root transfer marker")
             traffic = state.traffic
             require(not traffic._closed, "closed traffic snapshot")
+            require(traffic._epoch == 0, "snapshot does not yet support rekey epochs")
             for key in (traffic._rekey, traffic._send, traffic._receive, traffic._send_ack, traffic._receive_ack):
                 require(len(key) == 32, "snapshot key length")
                 result.extend(key)
@@ -103,6 +104,7 @@ def _indices(reader: Reader, cap: int):
 def _traffic(reader: Reader, context: Context, session: bytes) -> tuple[VolatileTraffic, SendPlan | None]:
     value = VolatileTraffic.__new__(VolatileTraffic)
     value._context, value._session, value._closed = context, session, False
+    value._epoch = 0
     value._rekey, value._send, value._receive, value._send_ack, value._receive_ack = (reader.take(32) for _ in range(5))
     value._sent, value._received, value._send_floor, value._receive_floor = (reader.integer(8) for _ in range(4))
     require(0 <= value._send_floor <= value._sent < MAX_U64

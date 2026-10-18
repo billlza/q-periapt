@@ -190,6 +190,63 @@ impl Journal {
                 self.owner
                     .message_acknowledgement(context, session, TRAFFIC_TIME)
             }
+            14..=20 => self.rekey_command(fixture, command, payload),
+            _ => Err(encoding()),
+        }
+    }
+
+    fn rekey_command(
+        &mut self,
+        fixture: &Fixture,
+        command: u8,
+        payload: &[u8],
+    ) -> std::result::Result<Vec<u8>, DurableError> {
+        let context = &fixture.context;
+        let session = self.session.ok_or(DurableError::Suspended)?;
+        match command {
+            14 => self.owner.respond_rekey_offer(
+                context,
+                session,
+                payload,
+                &fixture.signer,
+                TRAFFIC_TIME,
+            ),
+            15 => self
+                .owner
+                .finish_rekey(context, session, payload, &fixture.signer, TRAFFIC_TIME),
+            16 if payload.is_empty() => {
+                let progress = self.owner.rekey_progress(context, session)?;
+                Ok([
+                    progress.confirmed_epoch,
+                    progress.sending_epoch,
+                    progress.receiving_epoch,
+                    progress.pending_epoch.unwrap_or(0),
+                ]
+                .into_iter()
+                .flat_map(u64::to_be_bytes)
+                .collect())
+            }
+            17 if payload.is_empty() => {
+                self.owner
+                    .prepare_rekey_offer(context, session, &fixture.signer, TRAFFIC_TIME)
+            }
+            18 => self.owner.accept_rekey_response(
+                context,
+                session,
+                payload,
+                &fixture.signer,
+                TRAFFIC_TIME,
+            ),
+            19 => Ok(self
+                .owner
+                .accept_rekey_receipt(context, session, payload, TRAFFIC_TIME)?
+                .to_be_bytes()
+                .to_vec()),
+            20 => {
+                let epoch = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
+                self.owner
+                    .message_acknowledgement_for_epoch(context, session, epoch, TRAFFIC_TIME)
+            }
             _ => Err(encoding()),
         }
     }
