@@ -338,6 +338,9 @@ impl DeviceJournal {
             {
                 return Err(DurableError::Conflict);
             }
+            // Resume reloads the journal; the checked intent snapshot is no longer needed.
+            drop(batch);
+            drop(image);
             return self
                 .resume_account_message(input.id, input.targets, now)
                 .await;
@@ -418,6 +421,10 @@ impl DeviceJournal {
         self.persist(&mut image).await?;
         #[cfg(all(test, unix))]
         tests::after_stage("fanout-reserved");
+        // Persistence completed. Release the old snapshot before resume reloads it.
+        drop(batch);
+        drop(selected);
+        drop(image);
         self.resume_account_message(input.id, input.targets, now)
             .await
     }

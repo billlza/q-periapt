@@ -5,6 +5,16 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
+measures overlapping old/new journal snapshots on the actual native account-send
+path. Releasing the old decoded objects before the existing reload reduces the
+observed incremental requested Rust allocation peak by 13.88%–17.31% in the
+Release comparison. The uninstrumented implementation passes all 56 original
+fanout regressions, strict Clippy and WASM async compilation. Persistence,
+authorization and exact retry contracts are retained. This is local allocation
+evidence; browser runtime, installed foreign/Windows execution, latency and energy
+remain separate. The running Windows cohort at `b47eb541` predates this change.
+
 
 The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39093522049)
 qualifies reference consumer `54c20de8` with nine SDK Cargo archives from
