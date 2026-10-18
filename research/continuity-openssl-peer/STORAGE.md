@@ -127,6 +127,10 @@ claim is made.
 for both genesis and update, and checks exact-target/idempotent recovery, lost
 acknowledgements, wrong keys/scopes, malformed files, leases, CAS races, conflicting
 authenticated predecessors and capacity before intent publication.
+Workers run directly under the already admitted isolated Python bootstrap and
+the parent's private empty cache prefix. Each cut records the actual worker PID,
+which must equal the PID being killed and waited for. Waiting only for a launcher
+shell does not establish that a child journal owner's lease has been released.
 
 `durability_checks.py` uses fresh processes for operations against a live Rust
 journal. It kills the independent peer after final commit, send reservation, send

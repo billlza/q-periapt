@@ -34,6 +34,7 @@ def main():
     from peer.wire import SigningKey, require
     from run import Counterpart
     from traffic_checks import application
+    from worker_process import command as worker_command
     output = args.output.resolve()
     output.mkdir()
     native_output = output / "native"
@@ -83,9 +84,9 @@ def main():
             with request.open("x") as stream:
                 json.dump({"action": action, "now": now, "arguments": [x.hex() for x in arguments]}, stream)
                 stream.flush(); os.fsync(stream.fileno())
-            command = ["sh", "artifact/python-run.sh", str(peer_root / "session_worker.py"),
+            command = worker_command(peer_root / "session_worker.py",
                        "--provider-root", str(provider), "--public", str(native_output / "public"),
-                       "--configuration", str(configuration), "--root", str(path), "--request", str(request)]
+                       "--configuration", str(configuration), "--root", str(path), "--request", str(request))
             if cut is not None:
                 command += ["--cut", cut]
             with (output / (name + ".stderr")).open("xb") as stderr:
@@ -102,12 +103,14 @@ def main():
                             part = os.read(process.stdout.fileno(), 1)
                             require(bool(part) and len(value) < 128, "worker cut output")
                             value.extend(part)
-                        require(value.decode().strip() == cut, "wrong session cut")
+                        require(json.loads(value) == {"pid": process.pid, "stage": cut},
+                                "wrong session worker identity or cut")
                         os.killpg(process.pid, signal.SIGKILL)
                         require(process.wait(timeout=5) == -signal.SIGKILL, "session worker not killed")
                         (output / (name + ".stdout")).write_bytes(value)
                         require((output / (name + ".stderr")).stat().st_size == 0, "killed worker diagnostics")
-                        results.append({"case": name, "action": action, "cut": cut, "signal": "SIGKILL"})
+                        results.append({"case": name, "action": action, "cut": cut, "signal": "SIGKILL",
+                                        "worker_pid": process.pid})
                         return None
                     received = bytearray()
                     deadline = time.monotonic() + 30

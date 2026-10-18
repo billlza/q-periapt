@@ -55,6 +55,7 @@ def main():
     from cryptography.exceptions import InvalidTag
     from peer.journal import Journal, Scope, Conflict, MissingState
     from peer.wire import require
+    from worker_process import command as worker_command
 
     if args.worker:
         require(args.root is not None and args.configuration is not None, "worker inputs")
@@ -63,7 +64,7 @@ def main():
         key, scope = raw[:32], Scope(raw[32:64], raw[64:96], raw[96:128])
         def observe(stage):
             if stage == args.cut:
-                print(stage, flush=True)
+                print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
                 signal.pause()
                 raise RuntimeError("interrupted worker unexpectedly resumed")
         if args.worker == "create":
@@ -108,9 +109,9 @@ def main():
             raise ValueError("negative control accepted: " + name)
 
     def killed(name, directory, action, cut):
-        command = ["sh", "artifact/python-run.sh", str(Path(__file__).relative_to(Path.cwd())),
+        command = worker_command(Path(__file__),
                    "--provider-root", str(provider), "--worker", action, "--root", str(directory),
-                   "--configuration", str(configuration), "--cut", cut]
+                   "--configuration", str(configuration), "--cut", cut)
         with (output / (name + ".stderr")).open("xb") as err:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=err, start_new_session=True, bufsize=0)
             try:
@@ -123,7 +124,8 @@ def main():
                     part = os.read(process.stdout.fileno(), 1)
                     require(bool(part) and len(line) < 128, "worker stage missing or oversized")
                     line.extend(part)
-                require(line.decode().strip() == cut, "wrong worker stage")
+                marker = json.loads(line)
+                require(marker == {"pid": process.pid, "stage": cut}, "wrong worker identity or stage")
                 os.killpg(process.pid, signal.SIGKILL)
                 require(process.wait(timeout=5) == -signal.SIGKILL, "worker was not killed")
                 (output / (name + ".stage")).write_bytes(line)

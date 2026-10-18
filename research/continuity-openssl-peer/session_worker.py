@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import argparse
 import json
+import os
 from pathlib import Path
 import signal
 import sys
@@ -51,7 +52,7 @@ def main():
     require(action in allowed, "unknown session action")
     def observe(stage):
         if stage == args.cut:
-            print(stage, flush=True)
+            print(json.dumps({"pid": os.getpid(), "stage": stage}), flush=True)
             signal.pause()
             raise RuntimeError("killed session worker unexpectedly resumed")
     owner = Session.open(args.root, scope, key, context, observer=observe)

@@ -41,6 +41,13 @@ tested local independent process-recovery increment only. Hosted storage runtime
 rekey, required witnesses, authority renewal/revocation, full installation and
 upgrade lifecycle, cross-host carriers and installed independent packages remain
 open. SIGKILL is not hardware power-loss qualification or rollback detection.
+The first hosted storage attempt found a
+[launcher teardown race](../research/sdk-alpha1/evidence/20261018-independent-worker-reap/README.md):
+the shell exited before its Python child's directory lease was released. The
+harness now starts and waits for the actual Python owner and checks its PID at
+every cut. The unchanged 37 storage and 27 session controls pass locally; Linux
+runtime validation of this repair remains required. The storage lock and refusal
+contract are unchanged.
 
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send
