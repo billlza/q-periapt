@@ -106,10 +106,15 @@ components; the two bodies must be byte-identical. The statement commitment is
 
 Approvals cannot select trust pins, the original journal or predecessor state.
 Current target policy and credential admission, original profile equality and
-durable predecessor comparison remain mandatory. The current implementation
-supports a coupled same-key credential and policy validity extension for local
-retained sessions only. It supplies neither fresh-bootstrap permission nor
-required-witness continuation. See the [operational and recovery contract](../../research/continuity-identity-candidate/POLICY_CONTINUATION.md).
+durable predecessor comparison remain mandatory. This approval supports a
+coupled same-key credential and policy validity extension for retained sessions;
+it grants no fresh-bootstrap permission. Local-only reconciliation and
+required-witness coordination use separate operational paths. The local
+reconciliation entry refuses required-witness protection. That profile uses the
+original witness and the exact retained credential/policy proposal, independent
+durable readback and ACK, then fresh operational admission before releasing an
+owner. See the [required-witness transaction and recovery contract](../../research/continuity-identity-candidate/POLICY_CONTINUATION.md#required-witness-integration-under-development)
+and its [operational admission conditions](../../research/continuity-identity-candidate/POLICY_CONTINUATION.md#required-witness-operational-admission-under-qualification).
 
 ## Account, device, roster and prekey materials
 
