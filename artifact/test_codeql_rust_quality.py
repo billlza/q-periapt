@@ -1464,6 +1464,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         for sdk_source in (
             "research/continuity-openssl-peer/native/src/fixture.rs",
             "research/continuity-openssl-peer/native/src/journal.rs",
+            "research/continuity-openssl-peer/native/src/resolution.rs",
             "research/continuity-openssl-peer/native/src/main.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             "crates/q-periapt-sdk-wasm/src/continuity.rs",
@@ -1738,6 +1739,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         required = (
             "research/continuity-openssl-peer/native/src/fixture.rs",
             "research/continuity-openssl-peer/native/src/journal.rs",
+            "research/continuity-openssl-peer/native/src/resolution.rs",
             "research/continuity-openssl-peer/native/src/main.rs",
             "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             'crates/q-periapt-cli/src/scanner.rs',

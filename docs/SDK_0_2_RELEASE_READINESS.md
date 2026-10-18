@@ -109,6 +109,24 @@ Apple Silicon hosted execution remains queued; the local ARM64 result retains it
 own scope. The deterministic control-pipe schedule does not close network carrier,
 scheduling/energy or full independent lifecycle qualification.
 
+The subsequent [independent outcome-resolution checkpoint](../research/sdk-alpha1/evidence/20261018-independent-resolution/README.md)
+adds explicit closed-epoch freeze/report and application acknowledgement. Original
+floors remain unchanged; unresolved sends become `DeliveryUnknown`, with old
+operations fenced and fresh traffic still available. The main scenario passes six
+epochs, 99 fresh-process operations, 59 native commands and six real kills.
+An archived version-three writer upgrades explicitly to `QPREFS04` without losing
+old traffic. A full business-capacity image can resolve 64 old outboxes, and a
+separate 64-message/1-MiB plaintext report survives reopening and host accounting.
+An isolated old-send-chain disclosure makes a real peer emit ACK floor three for
+one honest send. The sender refuses it, retains the outbox and blocks target four;
+explicit unknown-outcome accounting then completes the same original offer and
+continues to epoch six. This is that specific accounting/progress result, not a
+PCS claim. All ten final local lanes and three public readbacks pass on the
+48-source closure. Strict build/Clippy, formatting, workflow lint and 46 source
+contract tests pass; the tracked Rust inventory is now 723. No new CodeQL database
+scan is claimed. Hosted runtime, required witnesses, authority/identity lifecycle,
+network/package qualification and construction-wide analysis remain open.
+
 The [23280124 Windows installed checkpoint](../research/sdk-alpha1/evidence/20261018-windows-installed-2328/README.md)
 passes the producer, both native Windows systems and both Linux public readers.
 Local replays of the downloaded artifacts preserve all 56 initial C cases,

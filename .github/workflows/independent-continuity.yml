@@ -144,6 +144,27 @@ jobs:
             --output target/independent-peer-ci/control \
             > target/independent-peer-ci/control.stdout 2> target/independent-peer-ci/control.stderr
           git diff --exit-code
+      - name: Verify explicit outcome accounting, report bounds and old-chain disclosure
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution \
+            > target/independent-peer-ci/resolution.stdout 2> target/independent-peer-ci/resolution.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution-capacity \
+            > target/independent-peer-ci/resolution-capacity.stdout 2> target/independent-peer-ci/resolution-capacity.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_disclosure_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution-disclosure \
+            > target/independent-peer-ci/resolution-disclosure.stdout 2> target/independent-peer-ci/resolution-disclosure.stderr
+          git diff --exit-code
       - name: Preserve the executable, public transcripts and failed phases
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

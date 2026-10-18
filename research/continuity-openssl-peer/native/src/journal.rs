@@ -207,6 +207,14 @@ impl Journal {
                     .message_acknowledgement(context, session, TRAFFIC_TIME)
             }
             14..=23 => self.rekey_command(fixture, command, payload),
+            24..=27 => crate::resolution::command(
+                &mut self.owner,
+                context,
+                self.session.ok_or(DurableError::Suspended)?,
+                command,
+                payload,
+                TRAFFIC_TIME,
+            ),
             _ => Err(encoding()),
         }
     }

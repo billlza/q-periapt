@@ -34,6 +34,7 @@ class EpochState:
         owner.confirmed = owner.sending = owner.receiving = 0
         owner.predecessor = genesis(owner.session, owner.context.digest)
         owner.last, owner.plan, owner.request = None, None, None
+        owner.resolutions = {}
         return owner
 
     def scope(self):
@@ -46,10 +47,17 @@ class EpochState:
         require(epoch in self.epochs, "retired or unadmitted epoch")
         return self.epochs[epoch]
 
-    def for_id(self, identity, direction):
+    def operational_traffic(self, epoch):
+        traffic = self.traffic(epoch)
+        require(epoch not in self.resolutions, "resolution freezes old epoch operations")
+        return traffic
+
+    def for_id(self, identity, direction, *, metadata=False):
         require(len(identity) == 32, "message ID length")
         traffic = self.traffic(int.from_bytes(identity[:8], "big"))
         traffic._index(identity, direction)
+        if not metadata:
+            self.operational_traffic(traffic._epoch)
         return traffic
 
     def fenced(self):
@@ -60,7 +68,7 @@ class EpochState:
 
     def next_id(self, now):
         self.admit(now)
-        return self.traffic(self.sending).next_id(now)
+        return self.operational_traffic(self.sending).next_id(now)
 
     def validate_send(self, identity, plaintext, ad, now):
         self.admit(now)
@@ -88,7 +96,7 @@ class EpochState:
         require(109 <= len(wire) <= 16493, "received message capacity")
         epoch = int.from_bytes(wire[41:49], "big")
         require(epoch <= self.receiving, "unadmitted traffic epoch")
-        return self.traffic(epoch).receive(wire, ad, now)
+        return self.operational_traffic(epoch).receive(wire, ad, now)
 
     def consume(self, identity, now):
         self.admit(now)
@@ -96,7 +104,7 @@ class EpochState:
 
     def acknowledgement(self, now, epoch=None):
         self.admit(now)
-        return self.traffic(self.receiving if epoch is None else epoch).acknowledgement(now)
+        return self.operational_traffic(self.receiving if epoch is None else epoch).acknowledgement(now)
 
     def accept_acknowledgement(self, wire, now):
         self.admit(now)
@@ -104,11 +112,13 @@ class EpochState:
                 or (len(wire) == 89 and wire[:8] == b"QPCMACK2"), "ACK encoding")
         epoch = 0 if wire[:8] == b"QPCMACK1" else int.from_bytes(wire[41:49], "big")
         require(epoch == 0 if len(wire) == 81 else epoch > 0, "ACK epoch encoding")
-        return self.traffic(epoch).accept_acknowledgement(wire, now)
+        return self.operational_traffic(epoch).accept_acknowledgement(wire, now)
 
-    @staticmethod
-    def can_retire(traffic):
+    def can_retire(self, traffic):
         limit = traffic._receive_limit
+        if traffic._epoch in self.resolutions:
+            return (self.resolutions[traffic._epoch].phase == 2 and traffic._send_closed and limit is not None
+                    and not traffic._outbox and not traffic._inbox and not traffic._skipped)
         return (traffic._send_closed and traffic._send_floor == traffic._sent and not traffic._outbox
                 and limit is not None and traffic._receive_floor >= limit
                 and all(index >= limit for index in traffic._skipped)
@@ -129,6 +139,7 @@ class EpochState:
         for epoch in list(self.epochs):
             if epoch < first:
                 self.epochs.pop(epoch).close()
+                self.resolutions.pop(epoch, None)
         self.epochs[scope.target] = fresh
         self.root = root
 
@@ -155,4 +166,5 @@ class EpochState:
         for traffic in self.epochs.values():
             traffic.close()
         self.epochs.clear()
+        self.resolutions.clear()
         self.root, self.plan, self.request = b"", None, None

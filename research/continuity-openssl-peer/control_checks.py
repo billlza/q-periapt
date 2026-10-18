@@ -27,7 +27,7 @@ def main():
     before = inventory()
     native_before = hashlib.sha256(args.native.read_bytes()).hexdigest()
     from control_scenario import ControlScenario
-    scenario = ControlScenario(args, archived_v2=True)
+    scenario = ControlScenario(args, archived_version=2)
     try:
         scenario.run()
         schedules = []

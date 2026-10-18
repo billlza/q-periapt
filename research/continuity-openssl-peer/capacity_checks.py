@@ -80,11 +80,44 @@ def main():
         with owner._state()as(_snapshot,state):
             actual=2+sum(len(encode_traffic(t))for t in state.traffic.epochs.values())
             require(actual==cap and state.pending is None,'exact-fit committed capacity')
+        # Resolution metadata uses control headroom. A full traffic image must
+        # still freeze and account for its old outboxes without inventing ACKs.
+        def close_after_freeze(stage):
+            if stage == 'protocol:resolution-frozen':
+                owner.close()
+        owner._observer = close_after_freeze
+        try:owner.begin_closed_epoch_resolution(0,170)
+        except ValueError as error:require('closed journal' in str(error),'wrong closed-freeze refusal')
+        else:raise ValueError('closed owner released maximum-capacity report')
+        owner=Session.open(path,scope,key,context)
+        resolution=owner.begin_closed_epoch_resolution(0,170).public_record()
+        require(len(resolution['outgoing'])==64 and resolution['acknowledged_before']==0
+                and resolution['sent']==64,'maximum outbox resolution')
+        from application_fixture import record
+        decision=record(private/'application-decision',session,1,resolution)
+        (output/'APPLICATION_DECISION.json').write_text(json.dumps(decision,indent=2)+'\n')
+        def close_after_ack(stage):
+            if stage == 'protocol:resolution-acknowledged':
+                owner.close()
+        owner._observer=close_after_ack
+        try:owner.acknowledge_closed_epoch_resolution(0,bytes.fromhex(resolution['id']),170)
+        except ValueError as error:require('closed journal' in str(error),'wrong closed-ack refusal')
+        else:raise ValueError('closed owner released resolution acknowledgement')
+        owner=Session.open(path,scope,key,context)
+        require(owner.closed_epoch_resolution_status(0)==('Acknowledged',bytes.fromhex(resolution['id'])),'capacity acknowledgement recovery')
+        require(all(owner.status(bytes.fromhex(row['id']))=='DeliveryUnknown'for row in resolution['outgoing']),'capacity cleanup invented delivery')
+        require(owner.resume(identity,170)==wire,'resolution changed the current epoch outbox')
+        with owner._state()as(_snapshot,state):
+            require(state.traffic.traffic(0)._send_floor==0 and state.traffic.traffic(0)._sent==64
+                    and not state.traffic.traffic(0)._outbox,'capacity resolution changed original counters')
+        (output/'RESOLUTION.json').write_text(json.dumps(resolution,indent=2)+'\n')
         native.command('close',3,b'',1,b'closed');require(native.process.wait(timeout=5)==0,'native close')
         sources=[*sorted((peer/'peer').glob('*.py')),*sorted(peer.glob('*.py')),*sorted((peer/'native/src').glob('*.rs')),peer/'native/Cargo.toml',peer/'native/Cargo.lock',peer/'requirements.txt']
         report={'scope':'Real two-epoch journal at its reserved-control capacity; no mocked state or weakened cap',
                 'full_size_outbox_messages':122,'signed_budget':1024,'admission':observation,
                 'exact_fit_plaintext_bytes':len(accepted),'exact_fit_committed_and_reopened':True,
+                'full_capacity_resolution_messages':64,'resolution_callbacks_close_without_release':True,
+                'resolution_original_floor':0,'resolution_preserves_current_outbox':True,
                 'native_commands':native.commands,'provider':{'cryptography':crypto.__version__,'openssl':backend.openssl_version_text()},
                 'source_files':{str(p.relative_to(peer)):hashlib.sha256(p.read_bytes()).hexdigest()for p in sources},
                 'private_keys_or_images_uploaded':False}

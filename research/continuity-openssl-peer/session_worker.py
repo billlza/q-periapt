@@ -25,6 +25,7 @@ def main():
     from fixture_inputs import load
     from peer.durable import Session
     from peer.journal import Scope
+    from peer.resolution import ResolutionReport
     from peer.wire import require
     with args.configuration.open("rb") as stream:
         private = stream.read(129)
@@ -53,7 +54,8 @@ def main():
                "acknowledgement_for_epoch", "prepare_rekey_offer", "respond_rekey_offer",
                "accept_rekey_response", "finish_rekey", "accept_rekey_receipt", "rekey_outbox", "rekey_progress",
                "prepare_rekey_request", "respond_rekey_request", "rekey_request_status",
-               "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control"}
+               "advance_rekey_control", "receive_rekey_control", "start_rekey_control", "replay_rekey_control",
+               "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"}
     require(action in allowed, "unknown session action")
     def observe(stage):
         if stage == args.cut:
@@ -62,7 +64,10 @@ def main():
             raise RuntimeError("killed session worker unexpectedly resumed")
     owner = Session.open(args.root, scope, key, context, observer=observe)
     try:
-        if action in ("status", "rekey_progress", "storage_format", "rekey_request_status"):
+        if action in ("begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status"):
+            require(arguments and len(arguments[0]) == 8, "resolution epoch argument")
+            arguments[0] = int.from_bytes(arguments[0], "big")
+        if action in ("status", "rekey_progress", "storage_format", "rekey_request_status", "closed_epoch_resolution_status"):
             result = getattr(owner, action)(*arguments)
         elif action in ("prepare_rekey_offer", "respond_rekey_offer", "accept_rekey_response", "finish_rekey",
                         "prepare_rekey_request", "respond_rekey_request", "advance_rekey_control",
@@ -78,11 +83,13 @@ def main():
                 require(all(len(value) == 8 for value in arguments), "integer argument size")
                 arguments = [int.from_bytes(value, "big") for value in arguments]
             result = getattr(owner, action)(*arguments, now=now)
-        if isinstance(result, bytes):
+        if isinstance(result, ResolutionReport):
+            result = result.public_record()
+        elif isinstance(result, bytes):
             result = result.hex()
         elif isinstance(result, tuple):
             result = [value.hex() if isinstance(value, bytes) else value for value in result]
-        require(type(result) in (str, int, list), "worker output schema")
+        require(type(result) in (str, int, list, dict), "worker output schema")
         print(json.dumps({"result": result}))
     finally:
         owner.close()

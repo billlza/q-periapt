@@ -12,6 +12,7 @@ use std::{
 };
 mod fixture;
 mod journal;
+mod resolution;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const NOW: u64 = 150;
 
@@ -87,7 +88,7 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
-            4..=23 => {
+            4..=27 => {
                 if durable.is_none() {
                     if command != 4 {
                         return Err("durable operation before explicit creation".into());

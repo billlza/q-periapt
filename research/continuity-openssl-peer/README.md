@@ -102,14 +102,29 @@ formats remain readable without implicit migration. The new driver requires
 explicit upgrade, including when a version-two send or rekey is already pending.
 Control calls select one target, replay committed output and distinguish local
 confirmation from delivery of the final receipt. The host bounds retries and
-continues servicing peer controls. Network transport and scheduling policy,
-closed-epoch application resolution and full identity lifecycle remain required.
+continues servicing peer controls. The following outcome-reporting lane adds
+`QPREFS04`: an explicit freeze of a closed epoch, an immutable report and the host's
+separate durable acknowledgement. Unconfirmed sends then remain `DeliveryUnknown`;
+the original acknowledgement floor is preserved. Frozen old operations cannot
+release traffic, while new epochs remain usable. Versions one through three stay
+readable without implicit migration. Network transport/scheduling and full identity
+lifecycle remain required.
 No completed exchange count asserts post-compromise security.
 The earlier volatile class remains a cryptographic core, not a durable facade.
 
 This is not an admitted independent Continuity product implementation. Required
 witnesses, renewal, revocation, account fanout, the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
+`resolution_checks.py` exercises process interruption, exact report recovery,
+application accounting and subsequent history collection. `resolution_capacity_checks.py`
+uses the direct host API for all 64 retained 16-KiB plaintexts; the bounded test
+pipe is not an application report transport. `resolution_disclosure_checks.py`
+gives an isolated forge function only one old sending chain. A real Rust peer
+consumes two forged old messages and emits an out-of-range ACK; the independent
+sender refuses it and retains its genuine outbox. Explicit unknown-outcome
+accounting allows the same later rekey offer to proceed. This does not establish
+post-compromise confidentiality or undo effects of old forged traffic.
+
 The Rust side is
 a separate Cargo consumer of the current source graph. Root transfer into the
 volatile experiment is one-use and adds no root-export hook to the Rust SDK.

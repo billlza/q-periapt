@@ -5,12 +5,13 @@ from .epoch_validation import validate
 from .journal import MAX_STATE
 from .snapshot_fields import blob, read_blob, encode_pending, decode_pending
 from .traffic_codec import encode_traffic, decode_traffic
+from .resolution import encode_resolutions, decode_resolutions
 from .wire import require
 
 FIELDS = (("seed", 96), ("offer", 4746), ("response", 4714), ("final", 3634), ("body", 1337), ("root", 32))
 
 
-def encode_epochs(owner, pending, *, with_request=False):
+def encode_epochs(owner, pending, *, with_request=False, with_resolution=False):
     validate(owner, pending)
     result = bytearray(owner.root)
     for value in (owner.confirmed, owner.sending, owner.receiving):
@@ -30,6 +31,10 @@ def encode_epochs(owner, pending, *, with_request=False):
             result.extend(request.wire if request.wire else request.body)
     else:
         require(owner.request is None, "control request requires snapshot version three")
+    if with_resolution:
+        result.extend(encode_resolutions(owner.resolutions))
+    else:
+        require(not owner.resolutions, "resolution requires snapshot version four")
     traffic = bytearray([len(owner.epochs)])
     for value in owner.epochs.values():
         traffic.extend(encode_traffic(value))
@@ -45,7 +50,7 @@ def encode_epochs(owner, pending, *, with_request=False):
     return bytes(result + traffic)
 
 
-def decode_epochs(reader, context, session, *, with_request=False):
+def decode_epochs(reader, context, session, *, with_request=False, with_resolution=False):
     owner = EpochState()
     owner.context, owner.session, owner.root = context, session, reader.take(32)
     owner.confirmed, owner.sending, owner.receiving = (reader.integer(8) for _ in range(3))
@@ -65,12 +70,14 @@ def decode_epochs(reader, context, session, *, with_request=False):
         elif request_phase == 2:
             wire = reader.take(3530)
             owner.request = RequestPlan(wire[4:157], wire)
+    owner.resolutions = decode_resolutions(reader) if with_resolution else {}
+    resolved = {epoch for epoch, resolution in owner.resolutions.items() if resolution.phase == 2}
     count = reader.integer(1)
     require(1 <= count <= 4, "retained epoch capacity")
     owner.epochs = {}
     previous = -1
     for _ in range(count):
-        traffic = decode_traffic(reader, context, session)
+        traffic = decode_traffic(reader, context, session, resolved_epochs=resolved)
         require(traffic._epoch > previous, "epoch order")
         previous = traffic._epoch
         owner.epochs[traffic._epoch] = traffic

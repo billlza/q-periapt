@@ -36,7 +36,7 @@ def encode_traffic(value, *, legacy_root=None):
     return bytes(result)
 
 
-def decode_traffic(reader, context, session, *, legacy=False):
+def decode_traffic(reader, context, session, *, legacy=False, resolved_epochs=()):
     value = VolatileTraffic.__new__(VolatileTraffic)
     value._context, value._session, value._closed = context, session, False
     value._epoch, value._send_closed, value._receive_limit = 0, False, None
@@ -71,6 +71,12 @@ def decode_traffic(reader, context, session, *, legacy=False):
         value._inbox[index] = (receipt, None if consumed else read_blob(reader, 16384))
     for index in indices(reader, 128):
         value._skipped[index] = reader.take(32)
+    if value._epoch in resolved_epochs:
+        require(not value._outbox and not value._inbox and not value._skipped
+                and value._send_closed and value._receive_limit is not None
+                and all(key == bytes(32) for key in (value._send, value._receive, value._send_ack, value._receive_ack)),
+                "resolved traffic retained secret/data owners")
+        return value
     require(value._sent - value._send_floor == len(value._outbox)
             and list(value._outbox) == list(range(value._send_floor, value._sent)), "snapshot outgoing coverage")
     incoming = set(value._inbox) | set(value._skipped)

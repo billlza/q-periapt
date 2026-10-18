@@ -29,7 +29,7 @@ def output(wire):
 
 class ControlOwner:
     def _control_state(self, state, now):
-        require(state.format_version == 3, "control requires explicit snapshot upgrade")
+        require(state.format_version in (3, 4), "control requires explicit snapshot upgrade")
         return self._rekey_state(state, now)
 
     @locked

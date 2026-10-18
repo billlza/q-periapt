@@ -13,7 +13,7 @@ import zipfile
 
 
 class Scenario:
-    def __init__(self, args, *, archived_v2=False):
+    def __init__(self, args, *, archived_version=1, send_budget=4):
         from peer.wire import SigningKey, require
         from peer.durable import Session, owner_binding
         from peer.journal import Journal, Scope
@@ -28,11 +28,11 @@ class Scenario:
         self.private = Path(tempfile.mkdtemp(prefix="qperiapt-independent-rekey-")).resolve()
         require(not self.private.is_relative_to(self.output), "private rekey state inside artifact")
         (self.output / "private-fixture-path").write_text(str(self.private) + "\n")
-        self.native = Counterpart(args.native.resolve(strict=True), self.output / "native", send_budget=4)
+        self.native = Counterpart(args.native.resolve(strict=True), self.output / "native", send_budget=send_budget)
         signer = SigningKey()
         require(self.native.transfer(signer.public().raw) == b"\1ready", "native enrollment")
         _, _, self.context = load(self.output / "native/public", 150)
-        require(self.context.send_budget == 4, "actual signed budget differs")
+        require(self.context.send_budget == send_budget, "actual signed budget differs")
         self.key = os.urandom(32)
         self.scope = Scope(os.urandom(32), owner_binding(self.context), self.context.digest)
         configuration = self.private / "configuration"
@@ -51,9 +51,10 @@ class Scenario:
             source = saved.read("source/peer/state_codec.py")
         expected = json.loads(archive.with_name("CHECKS.json").read_text())["source_files"]["peer/state_codec.py"]
         require(hashlib.sha256(source).hexdigest() == expected, "old codec source changed")
-        if archived_v2:
-            from archived_fixture import version_two
-            self.old, self.old_codec_sha256 = version_two(self.private)
+        require(archived_version in (1, 2, 3), "archived fixture version")
+        if archived_version > 1:
+            from archived_fixture import load_version
+            self.old, self.old_codec_sha256 = load_version(self.private, archived_version)
         else:
             self.old_codec_sha256 = expected
             self.old = types.ModuleType("peer.old_snapshot_fixture")
@@ -98,10 +99,10 @@ class Scenario:
         self.unchanged_refusal("legacy-rekey-refused", "prepare_rekey_offer", (), "explicit snapshot upgrade required")
         self.worker("upgrade-result-lost", "upgrade_format", cut="protocol:format-upgraded")
         stable = (self.path / "head").read_bytes()
-        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 3, "upgrade result")
+        self.require(self.worker("upgrade-reconciled", "upgrade_format") == 4, "upgrade result")
         self.require((self.path / "head").read_bytes() == stable, "upgrade replay rewrote head")
         def old_reader(snapshot, state):
-            self.require(state.format_version == 3 and state.operation.session_id() == self.session, "migration changed session")
+            self.require(state.format_version == 4 and state.operation.session_id() == self.session, "migration changed session")
             try:
                 self.old.decode(snapshot.payload, self.context)
             except ValueError:
@@ -260,7 +261,7 @@ class Scenario:
         self.unchanged_refusal("retired-old-resume","resume",(self.old_id,),"retired or unadmitted epoch")
         self.close_before_release()
         self.require(self.worker("expired-progress","rekey_progress",now=200)==[8,8,8,0],"expired progress unavailable")
-        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==3,"expired upgrade status unavailable")
+        self.require(self.worker("expired-upgrade-status","storage_format",now=200)==4,"expired upgrade status unavailable")
         self.unchanged_refusal("expired-cached-control","rekey_outbox",((8).to_bytes(8,"big"),(3).to_bytes(8,"big")),"expired or premature authority",now=200)
         self.native_call("close",3,expected=b"closed")
         self.require(self.native.process.wait(timeout=5)==0,"native close")

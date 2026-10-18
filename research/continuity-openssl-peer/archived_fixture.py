@@ -9,16 +9,19 @@ import sys
 import zipfile
 
 
-def version_two(private):
+def load_version(private, version):
     from peer.wire import require
-    archive = Path("research/sdk-alpha1/evidence/20261018-independent-durable-rekey/CAPTURE.zip")
+    require(version in (2, 3), "archived peer version")
+    checkpoint = "20261018-independent-durable-rekey" if version == 2 else "20261018-independent-control"
+    archive = Path("research/sdk-alpha1/evidence") / checkpoint / "CAPTURE.zip"
     checks = json.loads(archive.with_name("CHECKS.json").read_text())
     require(hashlib.sha256(archive.read_bytes()).hexdigest() == checks["capture"]["sha256"],
             "archived peer capture changed")
     destination = private / "archived-peer"
     destination.mkdir(mode=0o700)
+    sources = checks["source_files"] if version == 2 else checks["control"]["source_files"]
     with zipfile.ZipFile(archive) as saved:
-        for name, expected in checks["source_files"].items():
+        for name, expected in sources.items():
             if not name.startswith("peer/") or not name.endswith(".py"):
                 continue
             require(Path(name).parent == Path("peer"), "archived peer source path")
@@ -32,4 +35,4 @@ def version_two(private):
     package = importlib.util.module_from_spec(spec)
     sys.modules[name] = package
     spec.loader.exec_module(package)
-    return importlib.import_module(name + ".state_codec"), checks["source_files"]["peer/state_codec.py"]
+    return importlib.import_module(name + ".state_codec"), sources["peer/state_codec.py"]

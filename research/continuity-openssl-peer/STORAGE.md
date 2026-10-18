@@ -4,7 +4,7 @@ This is an unpublished single-session implementation for interoperability work.
 It is independent of the Rust protocol state machine and redb image format.
 It implements bounded four-flight rekey and four retained traffic epochs. It does
 not yet implement required witnesses, credential/roster/policy renewal, revocation,
-account fanout, closed-epoch application resolution, network control scheduling,
+account fanout, network control scheduling,
 installed consumers or a complete installation owner.
 Its original verified authority snapshot and trusted time remain explicit inputs.
 It is not a replacement product package or a completed security proof.
@@ -115,14 +115,16 @@ below is narrower than a product installation or backup-restore workflow.
 
 ## Protocol records and release
 
-`QPREFS03` encodes the original context and exactly one waiting, confirmed or
-traffic phase, including an optional control request. `QPREFS01` remains readable
+`QPREFS04` encodes the original context and exactly one waiting, confirmed or
+traffic phase, including optional control requests and closed-epoch resolution.
+`QPREFS01` remains readable
 as an epoch-zero format; `QPREFS02` retains its multi-epoch operations without
-control requests. Opening either does not migrate it: `upgrade_format(now)`
+control requests. `QPREFS03` retains its explicit-target control operations without
+resolution. Opening these formats does not migrate them: `upgrade_format(now)`
 explicitly commits the same session, secrets, reservations and outboxes into
-version three. Repeated upgrade is
+version four. Repeated upgrade is
 idempotent; `storage_format()` reports its disposition even after authority expiry.
-Older readers reject version three. Migration that cannot retain all state and the
+Older readers reject version four. Migration that cannot retain all state and the
 control headroom fails without replacing the old image. Unknown tags/phases,
 extra bytes, malformed transcripts and wrong
 KEM ownership fail. Traffic records validate exact outbox coverage, disjoint
@@ -145,7 +147,7 @@ observer-close checks prevent a `None` handle from selecting the working directo
 
 ## Rekey ownership and retained epochs
 
-Versions two and three store separate confirmed, sending and receiving epochs, the exact
+Multi-epoch versions store separate confirmed, sending and receiving epochs, the exact
 predecessor, the latest completed four-flight transcript and one pending exchange.
 The original initiator proposes odd targets; its peer proposes even targets.
 Targets advance exactly one step and use the existing signed v6 profile.
@@ -183,12 +185,12 @@ chain; only already-consumed metadata and skipped keys beyond that count may
 expire. The signed send budget covers committed sends across confirmed through
 current sending epoch plus an outstanding reservation. Consumption and outbox
 deletion do not refund that budget. Receipt confirmation advances the window.
-Application resolution of uncertain closed epochs remains unimplemented; this
-owner refuses its unresolved boundaries.
+An acknowledged local resolution can also settle an epoch, as specified below;
+a pending report alone cannot grant retirement.
 
 ## Independent progress requests
 
-Version three separately retains an optional exact request body or committed
+Versions three and four separately retain an optional exact request body or committed
 signed request. The body uses purpose 13 and the unchanged `QPRKRQ01` wire grammar.
 Only the non-proposer can request the next target. A request asserts no settled
 history, allocates no KEM key and grants no application credit. Its current
@@ -222,6 +224,55 @@ provide a zeroization guarantee. Observed rekey completion is a protocol counter
 not evidence that an adversary has lost keys. No post-compromise security proof
 is claimed by these runtime checks.
 
+## Closed-epoch application accounting
+
+`begin_closed_epoch_resolution(epoch, now)` explicitly and irreversibly freezes
+an already closed old epoch. Both directional cutovers must be committed.
+Creating a new report is refused while a request or rekey is pending. An existing
+frozen report remains retrievable during later control work, with current
+authority. Status can be queried after expiry without releasing its plaintext.
+
+The immutable report contains the original unconfirmed IDs and ciphertext digests,
+retained unconsumed plaintext, skipped indices, counters/floors and signed peer
+close count. A hole does not assert an honest message existed. Old-key disclosure
+may have invalidated the authenticity of retained plaintext. The host must retain
+and account for this data without silently treating it as a new business effect.
+Old send/resume/receive/consume/ACK operations are fenced as soon as the freeze
+commits; current-epoch operations, including an already reserved send, remain valid.
+
+Each report gets a separate platform-random 32-byte HMAC-SHA256 key. Its immutable
+ID uses the exact body/domain in the native [resolution contract](../continuity-identity-candidate/EPOCH_RESOLUTION.md#identity-and-stored-state).
+Private intent fingerprints and plaintext digests stream into the MAC; they are
+not exposed as public report fields. The report key is sealed with the frozen
+traffic, never returned, and is unrelated to old traffic/ACK keys. A saved intent
+or report restores the same key and ID. A pre-intent interruption releases no
+report and does not turn an orphan staging file into authority.
+
+The host durably records its own deduplication/quarantine/unknown-outcome decisions
+before `acknowledge_closed_epoch_resolution(epoch, id, now)`. That second commit
+removes the old ciphertext rows, plaintext, intent fingerprints, skipped keys,
+four traffic/ACK keys and report key. The exact ID and original counters/floors
+remain. Unconfirmed sends become `DeliveryUnknown`, never `Acknowledged`; a
+different report ID conflicts and repeating the original acknowledgement is
+idempotent until collection. No cancellation reactivates old keys. The host's
+application file/database is a separate transaction; SDK acknowledgement neither
+undoes earlier effects nor prevents already released packets reaching a peer.
+
+Version four stores a bounded sorted resolution metadata map in the reserved
+control headroom: count:u8, then epoch:u64, phase:u8 and ID[32], with key[32] only
+for frozen phase one. Phase two is acknowledged; ordinary epochs have no entry.
+There are at most four entries. The report body is reconstructed from the frozen
+traffic, avoiding a second serialized plaintext copy. Decoding verifies its MAC.
+Acknowledged traffic has a distinct invariant: empty maps and zeroed four keys,
+no report key, but its original unacknowledged range. Only that acknowledged state
+can satisfy retirement in place of ordinary draining. A later signed cutover
+collects the epoch and its resolution metadata together.
+
+Removal is logical: Python bytes, old images, intents, filesystem pages and backups
+do not provide physical erasure. The direct host report can contain up to 64
+retained 16-KiB plaintexts. Test orchestration's bounded native pipe is not a
+network serialization or a general application report API.
+
 ## Validation entrypoints
 
 `control_checks.py` uses an archived version-two writer and its complete peer
@@ -231,6 +282,27 @@ Its fixed schedules drop and duplicate each distinct control flight once, bound
 attempts/queue size and exercise both initiating roles without dummy traffic.
 This checks the one-step driver and host retry contract; it is not a measurement
 of a real network scheduler or a fully restarted Rust endpoint.
+
+`resolution_checks.py` begins with the complete archived version-three writer,
+retains a pending current-epoch send while freezing old traffic, and loses both
+pre-intent and committed results in real worker processes. It checks exact
+reports, explicit application decisions, all old-operation fences, unchanged
+floors and later collection. `resolution_capacity_checks.py` returns all 64
+retained 16-KiB plaintexts through the direct Python API. The existing capacity
+lane freezes 64 old outboxes when the business-record allowance is full and
+checks observers closing the owner after freeze/acknowledgement commit.
+
+`resolution_disclosure_checks.py` is an isolated counterexample, not a production
+forge API. Only the epoch-zero send chain after the first honest message is given
+to its forge function; it receives no identity, root, KEM, journal or ACK key.
+Two forged old packets are consumed by the real Rust peer. Its resulting ACK
+floor is three while the honest sender sent only one message, so the sender must
+refuse the ACK and retain the original outbox. The earlier valid ACK is deliberately
+not delivered to the sender; if a host retained that ACK, ordinary recovery would
+remain available. After three actual rekeys the original epoch blocks target
+four. Explicit unknown-outcome accounting then admits the same original offer
+and permits further traffic. This establishes that specific accounting/progress
+behavior, not recovery of confidentiality or authenticity after compromise.
 
 `storage_checks.py` kills real worker process groups at eight write boundaries
 for both genesis and update, and checks exact-target/idempotent recovery, lost

@@ -11,6 +11,7 @@ from .state_codec import State, SendPlan, encode, decode
 from .epoch_state import EpochState
 from .rekey_owner import RekeyOwner
 from .control import ControlOwner
+from .resolution_owner import ResolutionOwner
 from .traffic import message_id
 from .wire import ldh, require
 
@@ -19,7 +20,7 @@ def owner_binding(context) -> bytes:
     return ldh(b"Q-PERIAPT-INDEPENDENT-OWNER/v1", context.initiator.raw)
 
 
-class Session(ControlOwner, RekeyOwner):
+class Session(ResolutionOwner, ControlOwner, RekeyOwner):
     def __init__(self, journal, context, observer):
         self._journal, self._context, self._observer = journal, context, observer
         self._lock = threading.RLock()
@@ -199,14 +200,14 @@ class Session(ControlOwner, RekeyOwner):
 
     @locked
     def upgrade_format(self, now: int) -> int:
-        """Explicitly commit the original state into the current control format."""
+        """Explicitly commit the original state into the current outcome format."""
         with self._state() as (snapshot, state):
             if state.traffic is None:
                 self._admit_bootstrap(now)
             else:
                 self._context.check_established(now)
-            if state.format_version < 3:
-                state.format_version = 3
+            if state.format_version < 4:
+                state.format_version = 4
                 self._journal.update(snapshot.digest, encode(state))
                 self._observe("protocol:format-upgraded")
             return state.format_version
@@ -234,9 +235,12 @@ class Session(ControlOwner, RekeyOwner):
             require(identity == message_id(state.traffic.session, 1, index, epoch), "message ID scope")
             if epoch < min(state.traffic.epochs):
                 return "Retired"
-            traffic = state.traffic.for_id(identity, 1)
+            traffic = state.traffic.for_id(identity, 1, metadata=True)
             if index < traffic._send_floor:
                 return "Acknowledged"
+            resolution = state.traffic.resolutions.get(epoch)
+            if index < traffic._sent and resolution is not None:
+                return "ResolutionPending" if resolution.phase == 1 else "DeliveryUnknown"
             if index in traffic._outbox:
                 return "Committed"
             if state.pending is not None and identity == state.pending.identity:

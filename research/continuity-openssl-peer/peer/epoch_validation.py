@@ -20,6 +20,10 @@ def validate(owner, pending):
             "directional epoch state")
     require(len(owner.root) == len(owner.predecessor) == 32, "epoch root/predecessor size")
     require(list(owner.epochs) == list(range(max(0, s - 3), s + 1)), "retained epoch inventory")
+    from .resolution import validate as validate_resolution
+    for epoch, resolution in owner.resolutions.items():
+        require(epoch in owner.epochs and epoch < min(s, r), "resolution outside closed history")
+        validate_resolution(owner.traffic(epoch), resolution)
     for epoch, traffic in owner.epochs.items():
         require(traffic._epoch == epoch and traffic._rekey == b""
                 and traffic._send_closed == (epoch < s)
