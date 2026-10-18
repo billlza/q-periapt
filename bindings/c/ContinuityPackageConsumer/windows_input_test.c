@@ -34,6 +34,14 @@ static int run(const char *path) {
     printf("WINDOWS_INPUT_RAW_EXTENDED success=%d error=%lu\n",original==0,(unsigned long)path_error);
     if(original==0 || exact_input(ordinary,0) || exact_input(extended,0)) return 14;
     if(qpc_marker_read(ordinary)!=1 || qpc_marker_read(extended)!=1) return 15;
+    /* Inspect the UTF-8 spelling before any C input helper can normalize it:
+     * these same joined paths are also passed directly to the Rust SDK. */
+    char joined[32768],expected[32768],short_path[2];
+    int expected_width=snprintf(expected,sizeof expected,"%s\\%s",canonical,name);
+    if(expected_width<=0 || (size_t)expected_width>=sizeof expected
+       || qpc_path_join(joined,sizeof joined,canonical,name) || strcmp(joined,expected)
+       || strchr(joined,'/') || exact_input(joined,1)
+       || !qpc_path_join(short_path,sizeof short_path,canonical,name)) return 26;
     HANDLE publisher=qpc_file_relative(directory,leaf,wcslen(leaf),GENERIC_READ|GENERIC_WRITE|DELETE,0,0,NULL);
     if(publisher==INVALID_HANDLE_VALUE) return 16;
     SetLastError(ERROR_SUCCESS);
@@ -62,7 +70,7 @@ static int run(const char *path) {
            || !CloseHandle(file)) return 24;
     }
     if(!FlushFileBuffers(directory) || !CloseHandle(directory)) return 25;
-    puts("WINDOWS_INPUT_PASS unicode=true extended_separator=true held_publisher_read=true mandatory_lock_preserved=true missing_pending=true malformed_refused=true");
+    puts("WINDOWS_INPUT_PASS unicode=true extended_separator=true native_sdk_child_path=true held_publisher_read=true mandatory_lock_preserved=true missing_pending=true malformed_refused=true");
     return 0;
 }
 static int qpc_consumer_main(int argc,char **argv) {

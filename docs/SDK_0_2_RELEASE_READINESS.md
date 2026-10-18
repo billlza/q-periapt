@@ -278,6 +278,31 @@ boundary tests pass. The Windows package now ships this driver and its shared
 inputs; both native profiles require the same six scenarios and separate Linux
 public replay. This remains a pending Windows requirement, not native admission.
 
+The `b7ec85f4` attempt ([run `39103720080`](https://github.com/billlza/q-periapt/actions/runs/39103720080))
+confirms both repaired input boundaries on both systems and in both early profiles:
+the raw extended path fails with error 123, the old marker reader fails with sharing
+error 32, and the corrected readers pass while the mandatory lock still rejects
+ordinary reads. Both Debug profiles also pass all ten owner entries, all seven
+separate C public workloads and all four root replacement routes. Independent
+readback checks 262 C files plus 613 root files per host, including 123 root-related
+child processes and 40 TerminateProcess cuts. Both downloaded Debug DLLs retain
+exactly 157 exports. This is partial evidence from a failed cohort; Release
+installed execution is still unqualified.
+
+The new first-registration workload fails on both systems after real P0 expiry:
+the resumed receiver exits with status 500 before readiness. Its continued-policy
+C helper joins `independent-sdk` with a forward slash and passes the resulting
+extended path directly to the SDK, bypassing C file-open normalization. The common
+bounded child-path helper now emits native UTF-8 separators before that FFI call;
+the SDK's private-path admission remains unchanged. An isolated comparison of
+the exact old and new C functions reproduces the lexical mismatch and correction
+on macOS, with sanitizer checks and truncation refusal. This is not Windows API
+execution. The native input control now also checks the joined spelling before
+any normalization. The updated C receiver passes both original local test entries
+and all six carrier/trust combinations in 376.24 seconds against the recorded Mac
+reference library; all 190 public files replay through the original reader.
+Complete native Windows registration still requires the next run.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

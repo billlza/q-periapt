@@ -5,6 +5,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+/* A child path may be passed directly to the SDK, without a C file open. */
+static inline int qpc_path_join(char *out,size_t capacity,const char *parent,const char *name) {
+    int length=snprintf(out,capacity,"%s/%s",parent,name);
+    if(length<=0 || (size_t)length>=capacity) return -1;
+#ifdef _WIN32
+    for(int i=0;i<length;++i) if(out[i]=='/') out[i]='\\';
+#endif
+    return 0;
+}
 #ifdef _WIN32
 #include <windows.h>
 /* Caller owns the returned Windows path and releases it with free(). */

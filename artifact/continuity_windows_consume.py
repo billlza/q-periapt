@@ -168,7 +168,7 @@ def consume(args):
              str(client_source / 'windows_input_test.c'), '-lntdll', '-ladvapi32', '-o', str(input_test)],
             profile + '-input-compile', client_source)
         observed = run([str(input_test), str(private_root)], profile + '-input', controls, timeout=30)
-        require(observed.splitlines().count('WINDOWS_INPUT_PASS unicode=true extended_separator=true held_publisher_read=true mandatory_lock_preserved=true missing_pending=true malformed_refused=true') == 1
+        require(observed.splitlines().count('WINDOWS_INPUT_PASS unicode=true extended_separator=true native_sdk_child_path=true held_publisher_read=true mandatory_lock_preserved=true missing_pending=true malformed_refused=true') == 1
                 and not any(private_root.iterdir()), 'public path or marker sharing control failed')
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              *(['-O2'] if profile == 'release' else ['-O0', '-g']),

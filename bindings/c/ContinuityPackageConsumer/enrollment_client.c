@@ -17,8 +17,7 @@ _Static_assert(_Alignof(qpc_credential_renewal_cancellation_v1)==1,"renewal canc
 _Static_assert(_Alignof(qpc_credential_renewal_proposal_v1)==1,"renewal proposal alignment");
 /* Shared lexical join: the included policy callers also use it on Windows. */
 static void enrollment_path(char out[4096],const char *path,const char *name) {
-    int n=snprintf(out,4096,"%s/%s",path,name);
-    if(n<=0 || n>=4096) fail("enrollment test path");
+    if(qpc_path_join(out,4096,path,name)) fail("enrollment test path");
 }
 static size_t enrollment_read(const char *path,const char *name,uint8_t *out,size_t maximum) {
 #ifdef _WIN32
