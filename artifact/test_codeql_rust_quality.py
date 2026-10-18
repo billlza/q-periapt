@@ -1462,6 +1462,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             tracked,
         )
         for sdk_source in (
+            "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             "crates/q-periapt-sdk-wasm/src/continuity.rs",
             "crates/q-periapt-sdk-wasm/src/continuity/status.rs",
             "crates/q-periapt-sdk-wasm/src/continuity/publication.rs",
@@ -1732,6 +1733,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
             'crates/q-periapt-cli/src/scanner.rs',
             'crates/q-periapt-cli/src/scanner/tests.rs',
             'bindings/c/ContinuityPackageConsumer/tests/common/android_account.rs',
