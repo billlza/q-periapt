@@ -7,6 +7,7 @@ from pathlib import Path
 import continuity_package as candidate
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
+from continuity_windows_c_public import review_profile
 
 
 def review(root: Path, output: Path, expected_head: str) -> dict:
@@ -14,7 +15,7 @@ def review(root: Path, output: Path, expected_head: str) -> dict:
     sdk.require(report['input']['source_commit'] == expected_head, 'runtime source differs')
     sdk.require(report['rustc'].splitlines()[0] == 'rustc 1.98.1 (48a229cea 2026-09-01)'
                 and 'host: x86_64-pc-windows-msvc' in report['rustc'], 'native Windows compiler differs')
-    observed = {}
+    observed, c_owners = {}, {}
     for profile in ('debug', 'release'):
         path_command = parse_strict_json_bytes(sdk.snapshot(root / (profile + '-configuration-paths.json')).data,
                                                label='native path admission command')
@@ -46,8 +47,10 @@ def review(root: Path, output: Path, expected_head: str) -> dict:
                     'native lifecycle execution or selected workload differs')
         observed[profile] = candidate.verify_execution(stdout, folder / 'connection', folder / 'reopen',
             folder / 'roster', folder / 'replacement', folder / 'retirement')
+        c_owners[profile] = review_profile(root, profile, report['profiles'][profile]['owner_public'])
     result = {'source_commit': expected_head, 'native_receipt_sha256': hashlib.sha256(sdk.snapshot(root / 'RESULT.json').data).hexdigest(),
-              'profiles': observed, 'scope': 'Installed archive-shipped native Rust public lifecycle on Windows; same engine/host, original existing verifier and assertions; separate from C connection or release admission'}
+              'profiles': observed, 'c_owners': c_owners,
+              'scope': 'Installed archive-shipped Rust lifecycle and seven C owner public contracts on Windows; same engine/host, original existing verifiers and assertions; not independent protocol implementation or release admission'}
     sdk.write_json(output, result)
     return result
 

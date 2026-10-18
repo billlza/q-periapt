@@ -127,6 +127,26 @@ execution, separate C public readbacks, broader foreign lifecycle and
 crash/durability qualification remain open. These application helpers add no
 candidate or product ABI exports.
 
+The Windows runner's explicit `QPERIAPT_INSTALLED_CLIENT_LANGUAGE=C` was also
+incompatible with the shared driver: C is selected by an absent override, while
+only Swift/Kotlin use explicit overrides. A local execution reproduces that
+refusal before SDK work. The runner now follows the existing C convention.
+Seven additional, separately rooted executions retain the original test names,
+assertions and public readers: client, device parent, configured peers, complete
+account, server, revoked recovery and expired-session restoration. The complete
+ten-entry integration run remains required. Only verified public records and
+command streams are exported, then replayed both before private fixture cleanup
+and in the separate Linux reader job. No private store is exported.
+
+All seven original workloads and public export/replay checks pass locally against
+the recorded Mac reference library and dependencies. An initial export attempt
+mistook the account report's numeric `application_readbacks` count for a file
+inventory; the exporter now selects each verifier's defined inventory, and the
+failed attempt is retained. Regression controls reject altered message bytes
+even with an updated hash receipt, missing logs, skipped execution and extra
+private files. This validates the collector locally, not the new Windows runtime
+cohort; Windows execution and independent hosted readback remain pending.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

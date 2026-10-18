@@ -14,6 +14,7 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_package_archive as bundle
 from installed_rust_graph import require, verify_resolution
 from continuity_connection_public import capture
+from continuity_windows_c_public import CASES, capture_case
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -208,11 +209,11 @@ def consume(args):
              *(str(client_source / name) for name in ('client.c', 'recovery_client.c', 'opening_client.c')),
              '-I', str(installed), str(installed / (LIB + '.dll.lib')), '-lntdll', '-ladvapi32',
              '-o', str(owner_client)], profile + '-owner-compile', client_source)
-        environment.update(QPERIAPT_C_OWNER_CLIENT=str(owner_client), QPERIAPT_INSTALLED_CLIENT_LANGUAGE='C')
+        # The shared driver uses an absent override for C; only Swift/Kotlin
+        # wrappers supply QPERIAPT_INSTALLED_CLIENT_LANGUAGE.
+        environment['QPERIAPT_C_OWNER_CLIENT'] = str(owner_client)
         owner = run(['cargo', 'test', '--locked', '--test', 'c_owner', *flags,
                      '--', '--nocapture'], profile + '-owner-runtime')
-        environment.pop('QPERIAPT_C_OWNER_CLIENT')
-        environment.pop('QPERIAPT_INSTALLED_CLIENT_LANGUAGE')
         owner_names = re.findall(r'^test ([a-z_:]+) \.\.\. ok$', owner, re.M)
         expected_owner = {
             'c_client_owns_installed_connection_rekeys_and_reconciles_exact_delivery',
@@ -232,6 +233,23 @@ def consume(args):
         require(not any(private_root.iterdir()), 'C owner fixture leaked private state after closing')
         result['profiles'][profile]['owner_tests'] = sorted(owner_names)
         result['profiles'][profile]['owner_client_sha256'] = digest(owner_client)
+        public = {}
+        for kind, (test, suffix, _, _) in CASES.items():
+            evidence = private_root / (profile + '-owner-' + kind)
+            environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
+            stdout = run(['cargo', 'test', '--locked', '--test', 'c_owner', *flags,
+                          '--', '--exact', test, '--nocapture'], profile + '-owner-' + kind)
+            environment.pop('QPERIAPT_PUBLIC_SERVICE_EVIDENCE')
+            evidence = evidence.with_name(evidence.name + suffix)
+            require(set(private_root.iterdir()) == {evidence}, 'C public workload leaked unexpected state')
+            public[kind] = capture_case(kind, stdout.encode(), evidence,
+                                       output / (profile + '-owner-public') / kind)
+            # Only this successful invocation's private fixture is removed,
+            # after exact public bytes replay through the original verifier.
+            shutil.rmtree(evidence)
+            require(not any(private_root.iterdir()), 'C public fixture cleanup incomplete')
+        result['profiles'][profile]['owner_public'] = public
+        environment.pop('QPERIAPT_C_OWNER_CLIENT')
         evidence = private_root / (profile + '-runtime')
         environment['QPERIAPT_PUBLIC_SERVICE_EVIDENCE'] = str(evidence)
         native = run(['cargo', 'test', '--locked', '--test', 'owned_connection', *flags,
@@ -258,7 +276,7 @@ def consume(args):
         require(digest(consumer / name) == (hashlib.sha256(lock).hexdigest() if name == 'Cargo.lock' else sha), 'consumed source changed: ' + name)
     (output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
     print('WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles=2 trust_modes=2 cases_per_profile=14')
-    print('WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles=2 entries_per_profile=10 separate_public_readback=pending')
+    print('WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles=2 entries_per_profile=10 public_workloads_per_profile=7 independent_host_readback=pending')
     print('WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles=2 public_readback_verification=pending')
 
 
