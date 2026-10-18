@@ -517,6 +517,15 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         sdk.require(run([str(report_test)], "report-contract-" + profile)
                     == b"REPORT_BUFFER_PASS canonical_bytes=true size_limit=true failure_sticky=true\n",
                     "C bounded recovery report contract failed")
+        input_test = installed / "qpc-consumer-input-test"
+        run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
+             *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
+             str(consumer / "consumer_input_test.c"), "-I", str(consumer), "-o", str(input_test)],
+            "input-compile-" + profile)
+        sdk.require(run([str(input_test)], "input-contract-" + profile)
+                    == b"CONSUMER_INPUT_PASS c11=true seek_set_cur_end=true exact_position=true original_bytes=true\n",
+                    "C standard input positioning contract failed")
+        input_identity = sdk.snapshot(input_test, maximum=MAX_BINARY)
         effect_test = installed / "qpc-application-effect-test"
         run([str(cc), *platform_flags, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wpedantic",
              *( ["-O2"] if profile == "release" else ["-O0", "-g"] ),
@@ -548,6 +557,9 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         result["execution"][profile]["application_effect_contract"] = {
             "completed": True, "sha256": effect_identity.sha256, "bytes": effect_identity.size,
             "effects": 2, "duplicate_idempotence": True, "wrong_payload_and_conflict_refused": True}
+        result["execution"][profile]["input_contract"] = {
+            "completed": True, "sha256": input_identity.sha256, "bytes": input_identity.size,
+            "c11": True, "seek_set_cur_end": True, "original_bytes": True}
         from continuity_c_root_contract import qualify as qualify_root_contract
         result["execution"][profile]["root_contract"] = qualify_root_contract(
             consumer, installed, cc, platform_flags, profile, run,
@@ -848,6 +860,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
             "path": str(witness_helper), "sha256": witness_identity.sha256, "bytes": witness_identity.size}
         binaries = {}
         for name, path, identity in (("C_client", executable, client_identity),
+                                     ("C_input_contract", input_test, input_identity),
                                      ("C_library", installed / filename, library_identity),
                                      ("Rust_admission", unit_test, unit_identity),
                                      ("Rust_trace", trace, trace_identity)):

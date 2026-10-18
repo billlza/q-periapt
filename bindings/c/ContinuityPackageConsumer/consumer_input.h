@@ -2,6 +2,7 @@
 #ifndef QPC_CONSUMER_INPUT_H
 #define QPC_CONSUMER_INPUT_H
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,13 +41,16 @@ static inline FILE *qpc_input_file(const char *path) {
 static inline int qpc_input_seek(FILE *file, int64_t offset, int origin) { return _fseeki64(file,offset,origin); }
 static inline int64_t qpc_input_position(FILE *file) { return _ftelli64(file); }
 #else
-#include <sys/types.h>
+/* Standard C declarations remain available when a caller includes stdio before
+ * this header without enabling POSIX extensions. Keep narrowing explicit. */
+_Static_assert(LONG_MAX <= INT64_MAX, "file position exceeds the public width");
 static inline FILE *qpc_input_file(const char *path) { return fopen(path,"rb"); }
 static inline int qpc_input_seek(FILE *file, int64_t offset, int origin) {
-    off_t native=(off_t)offset;
-    if((int64_t)native!=offset) { errno=EOVERFLOW; return -1; }
-    return fseeko(file,native,origin);
+#if LONG_MAX < INT64_MAX
+    if(offset<LONG_MIN || offset>LONG_MAX) { errno=EOVERFLOW; return -1; }
+#endif
+    return fseek(file,(long)offset,origin);
 }
-static inline int64_t qpc_input_position(FILE *file) { return (int64_t)ftello(file); }
+static inline int64_t qpc_input_position(FILE *file) { return (int64_t)ftell(file); }
 #endif
 #endif
