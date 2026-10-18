@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_package_archive as bundle
@@ -55,6 +56,8 @@ def consume(args):
               'scope': 'Installed Windows C first use and original C owner integration suite plus archive-shipped Rust lifecycle tests; public lifecycle readbacks require the separate existing verifier; no release admission', 'profiles': {}}
     def run(argv, label, cwd=consumer, timeout=900):
         prefix = output / label
+        started = time.monotonic()
+        print(f'WINDOWS_COMMAND label={label} state=started timeout_seconds={timeout}', flush=True)
         with prefix.with_suffix('.stdout').open('xb') as out, prefix.with_suffix('.stderr').open('xb') as err:
             child = subprocess.Popen(argv, cwd=cwd, env=environment, stdout=out, stderr=err)
             try:
@@ -65,6 +68,8 @@ def consume(args):
                                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
                     child.wait(timeout=10)
                 raise
+        elapsed = int((time.monotonic() - started) * 1000)
+        print(f'WINDOWS_COMMAND label={label} state=finished returncode={code} elapsed_ms={elapsed}', flush=True)
         prefix.with_suffix('.json').write_text(json.dumps({'argv': argv, 'cwd': str(cwd), 'returncode': code}))
         require(code == 0, f'{label} failed ({code}); see retained command streams')
         require(all(prefix.with_suffix(ext).stat().st_size <= 16 * 1024**2 for ext in ('.stdout', '.stderr')), 'command log exceeds bound')

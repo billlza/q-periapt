@@ -74,7 +74,10 @@ jobs:
       matrix:
         os: [windows-2022, windows-2025]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    # Both profiles now include six real-expiry registration routes (~370 s
+    # each profile), in addition to owner/root and original Rust lifecycle work.
+    # Individual command and protocol deadlines remain unchanged.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:

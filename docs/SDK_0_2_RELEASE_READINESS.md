@@ -303,6 +303,25 @@ and all six carrier/trust combinations in 376.24 seconds against the recorded Ma
 reference library; all 190 public files replay through the original reader.
 Complete native Windows registration still requires the next run.
 
+The `44528b0e` attempt ([run `39105347592`](https://github.com/billlza/q-periapt/actions/runs/39105347592))
+passes the native child-path control and all six Debug first-registration routes
+on Windows 2022 and 2025. These real-expiry routes take 370.32 and 366.88 seconds
+respectively; the original Debug Rust lifecycle entries also pass. Independent
+readback accepts the 190 first-registration exports and the original Rust public
+records on each host, plus all seven C workloads and all four root routes in both
+Debug and Release. All four actual DLLs retain exactly 157 exports.
+
+Both native jobs reach the 35-minute overall job limit during Release
+first-registration. No completed command receipt reports failure, but the Release
+registration command has no final receipt, the subsequent Rust lifecycle has not
+run, and neither host emits the final cohort result. This is partial evidence,
+not whole-cohort admission. The native job budget is now 45 minutes to accommodate
+the expanded workload, including approximately six minutes of real policy expiry
+per profile. Individual command and protocol deadlines and all assertions remain
+unchanged. Flushed start/completion timing records identify interrupted phases in
+future CI logs. Complete Release execution, final source/cleanup checks and hosted
+public replay still require a successful new cohort.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata
