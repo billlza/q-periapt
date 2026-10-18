@@ -211,6 +211,11 @@ QPBNDL01 container with separate trust expectations. Original-state reconstructi
 uses the retained context digest and current trusted time, without a fixed fixture
 admission time or a new operational grant.
 
+The [protected registration owner](REGISTRATION.md) now retains its own identity,
+original proof-of-possession request, accepted authority and original child
+installation. Borrowed session and recovery owners share that lifetime; the
+reference does not require a cleartext test signer file for these operations.
+
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)
 and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API

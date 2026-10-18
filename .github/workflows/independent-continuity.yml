@@ -80,6 +80,7 @@ jobs:
             > target/independent-peer-ci/metadata.json
           rustc -vV > target/independent-peer-ci/rustc.txt
           cp "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" target/independent-peer-ci/counterpart
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-importer"
           importer_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo clippy --release --locked --manifest-path "$importer_manifest" --example import_bootstrap_bundle -- -D warnings \
             > target/independent-peer-ci/importer-clippy.stdout 2> target/independent-peer-ci/importer-clippy.stderr
@@ -247,6 +248,17 @@ jobs:
             --importer target/independent-peer-ci/importer \
             --output target/independent-peer-ci/public-inputs \
             > target/independent-peer-ci/public-inputs.stdout 2> target/independent-peer-ci/public-inputs.stderr
+          git diff --exit-code
+      - name: Verify protected registration and original child lifecycle
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/registration_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/registration \
+            > target/independent-peer-ci/registration.stdout 2> target/independent-peer-ci/registration.stderr
           git diff --exit-code
       - name: Preserve the executable, public transcripts and failed phases
         if: always()

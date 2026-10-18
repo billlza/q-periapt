@@ -26,22 +26,30 @@ SUITE = digest(b"BOOTSTRAP-SUITE", b"ML-KEM-768+X25519/ContextBound;"
 
 
 @dataclass(frozen=True)
-class Pins:
+class PolicyPins:
     sdk_root: bytes
     sdk_state: bytes
     policy_root: VerificationKey
     policy_version: int
     policy_digest: bytes
+
+
+@dataclass(frozen=True)
+class Pins(PolicyPins):
     initiator: DevicePin
     responder: DevicePin
     directory: bytes
 
 
 @dataclass(frozen=True)
-class Materials:
+class PolicyMaterials:
     sdk_document: bytes
     sdk_signature: bytes
     policy: bytes
+
+
+@dataclass(frozen=True)
+class Materials(PolicyMaterials):
     initiator_credential: bytes
     initiator_roster: bytes
     responder_credential: bytes
@@ -112,7 +120,17 @@ class Context:
             self.current_peer.check(now)
 
 
-def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None) -> Context:
+@dataclass(frozen=True)
+class PolicySnapshot:
+    sdk: SdkBinding
+    family: bytes
+    version: int
+    digest: bytes
+    validity: Interval
+    budget: int
+
+
+def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, *, witness_pin=None) -> PolicySnapshot:
     sdk = verify_sdk(pins, materials)
     family = digest(b"POLICY-AUTHORITY", pins.policy_root.raw)
     body = pins.policy_root.open(materials.policy, 4, 200)
@@ -137,6 +155,12 @@ def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None
     budget = reader.integer(2)
     require(budget != 0, "zero send allowance")
     reader.finish()
+    return PolicySnapshot(sdk, family, version, pins.policy_digest, validity, budget)
+
+
+def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None) -> Context:
+    policy = authenticate_policy(pins, materials, now, witness_pin=witness_pin)
+    sdk, family, version, validity, budget = policy.sdk, policy.family, policy.version, policy.validity, policy.budget
     initiator = verify_device(pins.initiator, materials.initiator_credential,
                               materials.initiator_roster, family, now)
     responder = verify_device(pins.responder, materials.responder_credential,

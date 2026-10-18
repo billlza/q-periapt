@@ -13,6 +13,7 @@ use std::{
 mod fixture;
 mod journal;
 mod peer_lifecycle;
+mod registration;
 mod resolution;
 mod witness;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -60,6 +61,7 @@ fn main() -> Result<()> {
     let mut peer_lifecycle = false;
     let mut local_lifecycle = false;
     let mut short_roster = false;
+    let mut registration = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -74,6 +76,7 @@ fn main() -> Result<()> {
             Some("--peer-lifecycle") if !peer_lifecycle => peer_lifecycle = true,
             Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
+            Some("--registration") if !registration => registration = true,
             _ => return Err("unexpected argument".into()),
         }
     }
@@ -84,7 +87,14 @@ fn main() -> Result<()> {
     fs::create_dir(directory)?;
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
-    let peer_key = PublicKey::decode(&receive(&mut input, false)?)?;
+    let (peer_key, registration) = if registration {
+        let pending = registration::Pending::new(local_lifecycle, peer_lifecycle)?;
+        send(&mut output, 1, pending.independent_intent())?;
+        let accepted = pending.accept(&receive(&mut input, false)?)?;
+        (accepted.public.clone(), Some(accepted))
+    } else {
+        (PublicKey::decode(&receive(&mut input, false)?)?, None)
+    };
     let witness = if required {
         Some(witness::Witness::create(directory)?)
     } else {
@@ -93,11 +103,14 @@ fn main() -> Result<()> {
     let fixture = fixture::create(
         directory,
         peer_key,
-        budget,
+        fixture::Options {
+            budget,
+            peer_lifecycle,
+            local_lifecycle,
+            short_roster,
+        },
         witness,
-        peer_lifecycle,
-        local_lifecycle,
-        short_roster,
+        registration,
     )?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
@@ -128,6 +141,12 @@ fn main() -> Result<()> {
                 send(&mut output, 1, b"closed")?;
                 break;
             }
+            38 => fixture
+                .registration
+                .as_ref()
+                .ok_or("registration fixture unavailable")?
+                .retry(payload)
+                .map_err(|error| error.to_string()),
             30..=37 => fixture
                 .witness
                 .as_ref()

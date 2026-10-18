@@ -13,11 +13,13 @@ from peer.wire import require
 
 
 class SessionDriver:
-    def __init__(self, output, provider, public, configuration, path, signer_path=None, *, witness_address=None):
+    def __init__(self, output, provider, public, configuration, path, signer_path=None, *, witness_address=None, worker_script="session_worker.py"):
         self.output, self.provider, self.public = output, provider, public
         self.configuration, self.path, self.signer_path = configuration, path, signer_path
         self.operations = []
         self.witness_address = witness_address
+        require(worker_script in ("session_worker.py", "registration_worker.py"), "explicit worker profile")
+        self.worker_script = worker_script
 
     def run(self, name, action, arguments=(), now=170, cut=None, refusal=None, with_signer=True):
         output, provider, public = self.output, self.provider, self.public
@@ -27,7 +29,7 @@ class SessionDriver:
         with request.open("x") as stream:
             json.dump({"action": action, "now": now, "arguments": [x.hex() for x in arguments]}, stream)
             stream.flush(); os.fsync(stream.fileno())
-        command = worker_command(peer_root / "session_worker.py",
+        command = worker_command(peer_root / self.worker_script,
                    "--provider-root", str(provider), "--public", str(public),
                    "--configuration", str(configuration), "--root", str(path), "--request", str(request))
         if with_signer and self.signer_path is not None:

@@ -22,6 +22,7 @@ pub(super) struct Fixture {
     pub responder: Arc<VerifiedDevice>,
     pub witness: Option<Arc<crate::witness::Witness>>,
     pub local_grants: Vec<VerifiedCredentialRenewal>,
+    pub registration: Option<crate::registration::Retained>,
 }
 
 pub(super) fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -66,17 +67,35 @@ fn runtime(directory: &Path) -> Result<Arc<Runtime>> {
     Ok(runtime)
 }
 
+pub(super) struct Options {
+    pub budget: u16,
+    pub peer_lifecycle: bool,
+    pub local_lifecycle: bool,
+    pub short_roster: bool,
+}
+
 pub(super) fn create(
     directory: &Path,
     peer_key: PublicKey,
-    budget: u16,
+    options: Options,
     witness: Option<Arc<crate::witness::Witness>>,
-    peer_lifecycle: bool,
-    local_lifecycle: bool,
-    short_roster: bool,
+    registration: Option<crate::registration::Approved>,
 ) -> Result<Fixture> {
+    let Options {
+        budget,
+        peer_lifecycle,
+        local_lifecycle,
+        short_roster,
+    } = options;
     let runtime = runtime(directory)?;
-    let authority = PolicySigningKey::generate()?;
+    let (authority, mut registered, retained) = match registration {
+        Some(value) => (
+            value.policy,
+            Some((value.root, value.certificate)),
+            Some(value.retained),
+        ),
+        None => (PolicySigningKey::generate()?, None, None),
+    };
     let validity = Validity::new(
         100,
         if peer_lifecycle || local_lifecycle {
@@ -120,21 +139,28 @@ pub(super) fn create(
     let mut devices = Vec::new();
     let mut local_grants = Vec::new();
     for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
-        let root = RootSigningKey::generate()?;
-        let certificate = root.issue_device(
-            DeviceDescription::new(
-                [id; 16],
-                1,
-                family,
-                if local_lifecycle || peer_lifecycle {
-                    let renewed = (local_lifecycle && id == 1) || (peer_lifecycle && id == 2);
-                    Validity::new(100, if renewed { 200 } else { 350 })?
-                } else {
-                    validity
-                },
+        let registered_device = if role == "i" { registered.take() } else { None };
+        let (root, existing_certificate) = match registered_device {
+            Some((root, certificate)) => (root, Some(certificate)),
+            None => (RootSigningKey::generate()?, None),
+        };
+        let certificate = match existing_certificate {
+            Some(certificate) => certificate,
+            None => root.issue_device(
+                DeviceDescription::new(
+                    [id; 16],
+                    1,
+                    family,
+                    if local_lifecycle || peer_lifecycle {
+                        let renewed = (local_lifecycle && id == 1) || (peer_lifecycle && id == 2);
+                        Validity::new(100, if renewed { 200 } else { 350 })?
+                    } else {
+                        validity
+                    },
+                )?,
+                public,
             )?,
-            public,
-        )?;
+        };
         let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
         let pin = AccountPin::new(
             root.account_id()?,
@@ -232,5 +258,6 @@ pub(super) fn create(
         responder: Arc::clone(responder),
         witness,
         local_grants,
+        registration: retained,
     })
 }

@@ -101,7 +101,9 @@ def exercise(args, label):
                             'input_sha256': hashlib.sha256(data).hexdigest(),
                             'stdout_sha256': hashlib.sha256(result.stdout).hexdigest(), 'stderr_sha256': hashlib.sha256(result.stderr).hexdigest()})
             if valid: require(result.returncode == 0 and not result.stderr and result.stdout.strip().decode() == original.digest.hex(), 'native exact imported context')
-            else: require(result.returncode == 1 and not result.stdout and result.stderr.startswith(b'Error:'), 'native typed refusal')
+            else:
+                error = 'Scope' if name == 'native-wrong-quality' else ('Validity' if name == 'native-expired-advertisement' else 'Authentication')
+                require(result.returncode == 1 and not result.stdout and result.stderr == ('Error: ' + error + '\n').encode(), 'native exact typed refusal')
         imported('native-valid', bundle.wire, 2, 150, True)
         imported('native-wrong-quality', bundle.wire, 1, 150, False)
         imported('native-expired-advertisement', bundle.wire, 2, 170, False)
