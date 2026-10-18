@@ -63,7 +63,9 @@ def prepare(args) -> None:
     selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
                 p[len(prefix):] in ('Cargo.toml', 'qpc_owner.h', 'first_configuration_client.c',
                                    'consumer_platform.h', 'consumer_platform_test.c',
-                                   'report_buffer.h', 'report_buffer_test.c') or
+                                   'report_buffer.h', 'report_buffer_test.c',
+                                   'application_effect.h', 'application_effect_test.c',
+                                   'private_files_windows.h') or
                 p[len(prefix):].startswith('configuration_') and p.endswith('_client.c')]
     source_hashes = {}
     for relative in selected:

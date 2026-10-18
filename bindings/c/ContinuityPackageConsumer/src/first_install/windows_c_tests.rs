@@ -11,6 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 type TestResult<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+mod effect;
 struct OwnedChild(Child);
 impl Drop for OwnedChild {
     fn drop(&mut self) {
@@ -23,6 +24,18 @@ impl Drop for OwnedChild {
 enum Expected {
     Success(&'static str),
     Refused(i32),
+}
+fn wait_for_c(child: &mut OwnedChild, label: &str) -> TestResult<std::process::ExitStatus> {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if let Some(status) = child.0.try_wait()? {
+            return Ok(status);
+        }
+        if Instant::now() >= deadline {
+            return Err(format!("C client deadline: {label}").into());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 fn image(path: &Path) -> TestResult<BTreeMap<OsString, Zeroizing<Vec<u8>>>> {
     let mut files = BTreeMap::new();
@@ -61,16 +74,7 @@ fn run(
             .stderr(Stdio::from(fs::File::create_new(&stderr)?))
             .spawn()?,
     );
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.0.try_wait()? {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            return Err(format!("C client deadline: {label}").into());
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    };
+    let status = wait_for_c(&mut child, label)?;
     let out = fs::read_to_string(stdout)?;
     let err = fs::read_to_string(stderr)?;
     let success = matches!(expected, Expected::Success(_));
@@ -106,6 +110,9 @@ fn run(
 fn installed_c_first_use_reopens_original_inputs_and_preserves_refused_state() -> TestResult<()> {
     for recoverable in [false, true] {
         let mut c = Case::new()?;
+        if !recoverable {
+            effect::check(&c.root)?;
+        }
         let source = c.root.join("c-inputs");
         let mut recovery = None;
         if recoverable {

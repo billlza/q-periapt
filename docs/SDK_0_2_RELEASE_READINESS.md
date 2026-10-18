@@ -6,8 +6,8 @@ No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
 
-The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39088323189)
-qualifies reference consumer `2305e56e` with nine SDK Cargo archives from
+The [installed Windows Continuity cohort](https://github.com/billlza/q-periapt/actions/runs/39092696539)
+qualifies reference consumer `f12533a1` with nine SDK Cargo archives from
 `a2b81972` and the Cargo-packaged identity candidate. Windows 2022/2025 each
 execute Debug and Release: 56 separate C case processes and four protected-page
 checks cover fixed/recoverable trust, initial configuration, exact-original
@@ -17,6 +17,9 @@ independently contain exactly 157 candidate exports. Rejected duplicate creation
 preserves all installation file bytes; Busy preserves the held runtime's policy
 floor. This C evidence covers unpublished `qpc-owner/1` configuration ownership,
 separate from product ABI 2 and from C account enrollment or network lifecycle.
+Four additional C processes verify native worker completion/join, monotonic
+clock observations and a minimum sleep interval. These primitive checks do not
+establish SDK execution on a Windows C worker or its complete network lifecycle.
 
 All four profiles also execute the original archive-shipped Rust lifecycle suite
 (three test entrypoints, including the child-process entrypoint): registration,
@@ -56,9 +59,23 @@ byte-identical reconciliation reports from the same committed account state.
 The writer's exact-size limit, overflow refusal and sticky allocation failure
 pass sanitizer checks and strict Debug/Release compilation. These are current
 C-caller regressions against the recorded macOS library and fixtures, not a new
-installed-package cohort. Windows primitive checks are in CI; full Windows C
-filesystem publication and network lifecycle remain open. File length alone
+installed-package cohort. Windows thread/clock primitives passed the cohort
+above; the bounded report writer's Windows run remains in CI. File length alone
 does not establish a runtime performance problem or an optimization gain.
+
+The Windows C application-record publisher is now implemented with relative
+non-reparse directory handles, current-user ownership and protected creation
+DACLs, exclusive staging, no-replace publication and file/directory flushes.
+The existing application effect format, exact duplicate comparison and conflict
+refusal remain unchanged. Native checks now require Unicode paths, two actual C
+records independently admitted/read by Rust, and refusals for directory/ancestor
+reparse points, a leaf reparse point, hard links and a broad directory DACL.
+The linked-file controls contain valid original bytes, so a missing admission
+check cannot pass merely by rejecting different contents. Local strict C11
+Debug/sanitizer and Release effect controls pass on macOS. Windows compilation
+and runtime validation of this new publisher are pending; recovery/public-input
+file operations, full C network lifecycle and crash/durability qualification
+remain open. These application helpers add no candidate or product ABI exports.
 
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe

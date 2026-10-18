@@ -2,12 +2,16 @@
 #ifndef QPC_APPLICATION_EFFECT_H
 #define QPC_APPLICATION_EFFECT_H
 #include <errno.h>
-#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
+#include "private_files_windows.h"
+#else
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 static const uint8_t payload[] = "persisted before process exit";
 static const uint8_t continued_payload[] = "continued after pending recovery";
@@ -20,6 +24,7 @@ struct Application {
 /* This test application atomically publishes effect+dedup bytes under one ID.
  * A retry compares the complete original record; it never overwrites a conflict.
  * SDK callback success follows both file and directory fsync. */
+#ifndef _WIN32
 static int existing_effect(int directory, const char *name, const uint8_t *bytes, size_t length) {
     if (length > 64 + QPC_EFFECT_MAX_PAYLOAD) return -1;
     int file = openat(directory, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
@@ -40,6 +45,7 @@ static int existing_effect(int directory, const char *name, const uint8_t *bytes
     if (!bad && fsync(directory)) bad = 1;
     return bad ? -1 : 0;
 }
+#endif
 static int persist_effect(struct Application *app, const uint8_t session[32],
                           const uint8_t message[32], const uint8_t *plaintext, size_t length) {
     const uint8_t *expected = payload;
@@ -51,12 +57,19 @@ static int persist_effect(struct Application *app, const uint8_t session[32],
     uint8_t bytes[64 + QPC_EFFECT_MAX_PAYLOAD];
     size_t record_length = 64 + length;
     memcpy(bytes, session, 32); memcpy(bytes+32, message, 32); memcpy(bytes+64, plaintext, length);
-    char name[sizeof("application-") + 64], temporary[sizeof(name) + 64];
+    char name[sizeof("application-") + 64];
     memcpy(name, "application-", sizeof("application-")-1);
     for (size_t i = 0; i < 32; ++i) {
         int n = snprintf(name + sizeof("application-")-1 + i*2, 3, "%02x", message[i]);
         if (n != 2) return -1;
     }
+#ifdef _WIN32
+    int created=0;
+    int result=qpc_file_commit(app->path,name,bytes,record_length,&created);
+    if(created) app->created++;
+    return result;
+#else
+    char temporary[sizeof(name) + 64];
     int n = snprintf(temporary, sizeof(temporary), ".%s.%ld.tmp", name, (long)getpid());
     if (n < 0 || (size_t)n >= sizeof(temporary)) return -1;
     int directory = open(app->path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
@@ -83,5 +96,6 @@ static int persist_effect(struct Application *app, const uint8_t session[32],
     if (!bad && existing_effect(directory, name, bytes, record_length) != 0) bad = 1;
     if (close(directory)) bad = 1;
     return bad ? -1 : 0;
+#endif
 }
 #endif

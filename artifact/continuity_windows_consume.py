@@ -86,6 +86,40 @@ def consume(args):
     require(candidate['publish'] == [] and {'connection-tls', 'control-tls', 'anchor-tls'} <= set(node['features']), 'candidate features changed')
     (output / 'Cargo.lock').write_bytes(lock)
     environment['CARGO_NET_OFFLINE'] = 'true'
+    def caller_controls(profile):
+        controls = outside / (profile + '-caller-controls')
+        controls.mkdir()
+        client_source = outside / (profile + '-client')
+        client_source.mkdir()
+        for name in receipt['files']:
+            if '/' not in name and (name.endswith('.c') or name in (
+                    'consumer_platform.h', 'report_buffer.h', 'application_effect.h', 'private_files_windows.h')):
+                shutil.copyfile(consumer / name, client_source / name)
+        platform_test = controls / 'consumer-platform-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'consumer_platform_test.c'), '-o', str(platform_test)],
+            profile + '-platform-compile', client_source)
+        platform_result = run([str(platform_test)], profile + '-platform-runtime', controls, timeout=30)
+        require(platform_result.strip() == 'CONSUMER_PLATFORM_PASS native_worker_join=true monotonic_clock=true sleep_completed=true',
+                'native caller platform contract did not execute')
+        report_test = controls / 'report-buffer-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'report_buffer_test.c'), '-o', str(report_test)],
+            profile + '-report-compile', client_source)
+        report_result = run([str(report_test)], profile + '-report-runtime', controls, timeout=30)
+        require(report_result.strip() == 'REPORT_BUFFER_PASS canonical_bytes=true size_limit=true failure_sticky=true',
+                'native bounded report contract did not execute')
+        effect_test = controls / 'application-effect-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'application_effect_test.c'), '-lntdll', '-ladvapi32', '-o', str(effect_test)],
+            profile + '-effect-compile', client_source)
+        return client_source, effect_test
+    # Check the independent C platform boundary before the expensive Rust build.
+    # The actual effect processes still execute under the native Rust reader below.
+    caller_checks = {profile: caller_controls(profile) for profile in ('debug', 'release')}
     run(['cargo', 'clippy', '--locked', '--lib', '--tests', '--', '-D', 'warnings'], 'clippy')
     for profile in ('debug', 'release'):
         flags = ['--release'] if profile == 'release' else []
@@ -105,28 +139,8 @@ def consume(args):
         exports = run(['dumpbin', '/nologo', '/exports', str(installed / (LIB + '.dll'))], profile + '-exports', installed)
         names = re.findall(r'^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(\S+)\s*$', exports, re.M)
         require(len(names) == len(receipt['exports']) and set(names) == set(receipt['exports']), 'C export set differs')
-        # Compile the client with only the installed public header and import library.
-        client_source = outside / (profile + '-client')
-        client_source.mkdir()
-        for name in receipt['files']:
-            if '/' not in name and (name.endswith('.c') or name in ('consumer_platform.h', 'report_buffer.h')):
-                shutil.copyfile(consumer / name, client_source / name)
-        platform_test = installed / 'consumer-platform-test.exe'
-        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
-             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
-             str(client_source / 'consumer_platform_test.c'), '-o', str(platform_test)],
-            profile + '-platform-compile', client_source)
-        platform_result = run([str(platform_test)], profile + '-platform-runtime', installed, timeout=30)
-        require(platform_result.strip() == 'CONSUMER_PLATFORM_PASS native_worker_join=true monotonic_clock=true sleep_completed=true',
-                'native caller platform contract did not execute')
-        report_test = installed / 'report-buffer-test.exe'
-        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
-             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
-             str(client_source / 'report_buffer_test.c'), '-o', str(report_test)],
-            profile + '-report-compile', client_source)
-        report_result = run([str(report_test)], profile + '-report-runtime', installed, timeout=30)
-        require(report_result.strip() == 'REPORT_BUFFER_PASS canonical_bytes=true size_limit=true failure_sticky=true',
-                'native bounded report contract did not execute')
+        # This client sees only the installed public header/import library.
+        client_source, effect_test = caller_checks[profile]
         executable = installed / 'first-configuration.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              str(client_source / 'first_configuration_client.c'), '-I', str(installed),
@@ -134,6 +148,7 @@ def consume(args):
         guard = run([str(executable), '--guard'], profile + '-guard', installed, timeout=30)
         require(guard.strip() == 'QPC_CONFIGURATION_HEADER_GUARD_PASS', 'C header guard did not pass')
         environment['QPC_FIRST_USE_CLIENT'] = str(executable)
+        environment['QPC_EFFECT_CLIENT'] = str(effect_test)
         tests = run(['cargo', 'test', '--locked', '--lib', *flags,
                      'first_install::windows_c_tests::', '--', '--nocapture'], profile + '-runtime')
         stderr = (output / (profile + '-runtime.stderr')).read_text(encoding='utf-8')
@@ -143,6 +158,9 @@ def consume(args):
                     for case in ('create', 'reconcile', 'open', 'duplicate', 'busy', 'missing', 'advanced')
                     for trust in ('fixed', 'recoverable')}
         require(len(markers) == len(expected) and set(markers) == expected, 'C runtime case census differs')
+        effects = re.findall(r'^WINDOWS_C_EFFECT case=([a-z-]+) original_boundary=true$', stderr, re.M)
+        require(len(effects) == 6 and set(effects) == {'commit', 'directory-reparse', 'ancestor-reparse',
+                'leaf-reparse', 'hardlink', 'public-acl'}, 'C application effect contract census differs')
         require(all(digest(installed / name) == sha for name, sha in hashes.items()), 'installed C inputs changed')
         result['profiles'][profile] = {'files': hashes, 'zip_sha256': hashlib.sha256(zipped).hexdigest(),
             'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers)}
