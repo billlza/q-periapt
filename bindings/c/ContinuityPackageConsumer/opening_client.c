@@ -14,6 +14,16 @@ static _Noreturn void fail(const char *reason) {
     fprintf(stderr, "C opening failure: %s\n", reason);
     exit(1);
 }
+/* Copy the complete declared endpoint span, even when it is not a C string.
+ * The SDK still validates it; the caller's later mutation stays within this copy. */
+static char *copy_open_input(const void *bytes, size_t length) {
+    if(length==SIZE_MAX || (length && !bytes)) return NULL;
+    char *copy=malloc(length+1);
+    if(!copy) return NULL;
+    if(length) memcpy(copy,bytes,length);
+    copy[length]=0;
+    return copy;
+}
 static void expect(int32_t code, int32_t wanted, const qpc_error_v1 *error) {
     if (code != wanted || error->code != code || error->length > sizeof(error->message) ||
         error->truncated > 1 || ((code == 0) != (error->length == 0))) {
@@ -50,8 +60,8 @@ int opening_command(int argc, char **argv, const qpc_witness_v1 *witness, int tl
     if (!cancel && !precancel && strcmp(argv[1], "opening-prepare")) fail("opening mode");
     uint32_t kind = !strcmp(argv[3], "operational") ? 1U : !strcmp(argv[3], "recovery") ? 2U : 0U;
     if (!kind || argc != (cancel ? 5 : 4) || (cancel && kind != 1) || (existing && kind != 1)) fail("opening selection");
-    char *path = strdup(argv[2]);
-    char *address = witness ? strndup((const char *)witness->address, witness->address_length) : NULL;
+    char *path = copy_open_input(argv[2],strlen(argv[2]));
+    char *address = witness ? copy_open_input(witness->address,witness->address_length) : NULL;
     if (!path || (witness && !address)) fail("input copy allocation");
     qpc_witness_v1 selected = {0};
     if (witness) selected = (qpc_witness_v1){(const uint8_t *)address, witness->address_length, witness->timeout_ms};
@@ -123,7 +133,7 @@ uint64_t device_open(const char *path, const qpc_witness_v1 *witness, int tls) {
 }
 uint64_t device_peer_open(uint64_t parent, const char *path, uint32_t role, const uint8_t *existing) {
     uint64_t handle=0; qpc_error_v1 error;
-    char *copied=strdup(path); uint8_t session[32]={0};
+    char *copied=copy_open_input(path,strlen(path)); uint8_t session[32]={0};
     if (!copied) fail("peer input allocation");
     if (existing) memcpy(session,existing,sizeof(session));
     int32_t code=existing ? qpc_peer_v1_prepare_reopen(parent,(const uint8_t *)copied,strlen(copied),1,role,session,&handle,&error) :

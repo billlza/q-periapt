@@ -101,6 +101,17 @@ preserve the original UTF-8/LF report bytes; assertions are not normalized or
 weakened. The integrated publisher/connection repair still requires a new native
 run; the experiment alone does not qualify that runtime.
 
+The `d2f33f8e` attempt (`39097319165`) passes both Windows Debug application-record
+and bounded-read/retention controls, including the actual publisher's no-replace
+collision and exact LF output bytes. It then fails the complete caller syntax
+check: the portable `enrollment_path` helper had been hidden from included policy
+callers, and the CRT lacks `strndup` while rejecting deprecated `strdup` under
+the existing strict flags. The lexical helper is now shared on both platforms,
+and owned input copies use bounded standard C operations. All ten existing Mac
+C/Rust cases pass again. Release, the native Rust ACL/link readbacks and complete
+Windows C owner execution still require the next run; this failed attempt is
+retained and is not admitted as a complete installed cohort.
+
 The same C connection/recovery caller sources and all ten existing integration
 test entries are now wired into the Windows installed lane. Recovery report
 reads retain their size bounds, exact-byte checks and file/directory barriers;

@@ -15,12 +15,11 @@ _Static_assert(sizeof(qpc_credential_renewal_proposal_v1)==296,"renewal proposal
 _Static_assert(sizeof(qpc_credential_renewal_cancellation_v1)==248,"renewal cancellation ABI");
 _Static_assert(_Alignof(qpc_credential_renewal_cancellation_v1)==1,"renewal cancellation alignment");
 _Static_assert(_Alignof(qpc_credential_renewal_proposal_v1)==1,"renewal proposal alignment");
-#ifndef _WIN32
+/* Shared lexical join: the included policy callers also use it on Windows. */
 static void enrollment_path(char out[4096],const char *path,const char *name) {
     int n=snprintf(out,4096,"%s/%s",path,name);
     if(n<=0 || n>=4096) fail("enrollment test path");
 }
-#endif
 static size_t enrollment_read(const char *path,const char *name,uint8_t *out,size_t maximum) {
 #ifdef _WIN32
     struct qpc_private_record record;
