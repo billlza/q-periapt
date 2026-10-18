@@ -1,0 +1,99 @@
+name: Independent Continuity bootstrap
+
+on:
+  push:
+    paths:
+      - .github/workflows/independent-continuity.yml
+      - research/continuity-openssl-peer/**
+      - research/continuity-identity-candidate/src/**
+      - research/continuity-identity-candidate/Cargo.lock
+      - crates/q-periapt-core/**
+      - crates/q-periapt-backends/**
+      - crates/q-periapt-sdk/**
+      - crates/q-periapt-policy/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: "-D warnings"
+  CARGO_TERM_COLOR: never
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Verify source and native architecture
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          mkdir -p target/independent-peer-ci
+          git rev-parse HEAD > target/independent-peer-ci/source-head.txt
+          uname -a > target/independent-peer-ci/host.txt
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Install the exact independent provider into an isolated directory
+        env:
+          PEER_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          "$PEER_PYTHON" -I -m pip --isolated install --disable-pip-version-check \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps --require-hashes \
+            --target "$RUNNER_TEMP/independent-peer-provider" \
+            -r research/continuity-openssl-peer/requirements.txt \
+            > target/independent-peer-ci/provider.stdout 2> target/independent-peer-ci/provider.stderr
+      - name: Build and lint the real Rust counterpart
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --release --locked --manifest-path "$manifest" -- -D warnings \
+            > target/independent-peer-ci/clippy.stdout 2> target/independent-peer-ci/clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" \
+            > target/independent-peer-ci/build.stdout 2> target/independent-peer-ci/build.stderr
+          cargo metadata --locked --format-version 1 --manifest-path "$manifest" \
+            > target/independent-peer-ci/metadata.json
+          rustc -vV > target/independent-peer-ci/rustc.txt
+          cp "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" target/independent-peer-ci/counterpart
+      - name: Exchange real flights and exercise rejection and replay boundaries
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/run.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/exchange \
+            > target/independent-peer-ci/exchange.stdout 2> target/independent-peer-ci/exchange.stderr
+          git diff --exit-code
+      - name: Preserve the executable, public transcripts and failed phases
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: independent-bootstrap-${{ matrix.os }}
+          path: target/independent-peer-ci/
+          if-no-files-found: error

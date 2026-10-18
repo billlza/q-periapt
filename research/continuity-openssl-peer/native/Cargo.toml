@@ -1,0 +1,29 @@
+[package]
+name = "q-periapt-independent-peer-counterpart"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+license = "Apache-2.0 OR MIT"
+
+[workspace]
+
+[dependencies]
+q-periapt-continuity-identity-candidate = { path = "../../continuity-identity-candidate" }
+q-periapt-backends = { path = "../../../crates/q-periapt-backends" }
+q-periapt-core = { path = "../../../crates/q-periapt-core" }
+q-periapt-policy = { path = "../../../crates/q-periapt-policy" }
+q-periapt-sdk = { path = "../../../crates/q-periapt-sdk" }
+q-periapt-sig = { path = "../../../crates/q-periapt-sig" }
+getrandom = "0.4"
+zeroize = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+panic = "deny"
+
+[profile.release]
+overflow-checks = true

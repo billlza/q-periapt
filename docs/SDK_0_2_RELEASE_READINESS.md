@@ -5,6 +5,18 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+The [independent bootstrap checkpoint](../research/sdk-alpha1/evidence/20261018-independent-bootstrap/README.md)
+adds a Python/OpenSSL initiator that authenticates public authority and prekey
+inputs, constructs its own canonical context, and exchanges all three real
+flights with the Rust responder. Ten native interactions and 35 refusal controls
+pass locally, including correctly signed invalid-confirmation inputs and exact
+replay/conflict behavior. The source counterpart passes strict Clippy and the
+new 720-file inventory passes its 46 gate tests. A separate Linux x86_64/Apple
+Silicon workflow is prepared. This supplies the first independent volatile
+bootstrap implementation; durable traffic, rekey, recovery, witness and lifecycle
+interoperability still remain open. It does not qualify an independent complete
+Continuity endpoint or an installed distribution.
+
 The [fanout snapshot lifetime checkpoint](../research/sdk-alpha1/evidence/20261018-fanout-snapshot-lifetime/README.md)
 measures overlapping old/new journal snapshots on the actual native account-send
 path. Releasing the old decoded objects before the existing reload reduces the
