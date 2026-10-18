@@ -61,7 +61,10 @@ class FanoutLatencyChecks(unittest.TestCase):
             encoded = json.dumps(record).encode()
             self.assertEqual(test_binary(encoded, source, target), binary)
             wrong = dict(record, target={'src_path': str(source / 'other.rs')})
-            for invalid in (b'', encoded + b'\n' + encoded, json.dumps(wrong).encode()):
+            duplicated = encoded[:-1] + b', "reason": "compiler-artifact"}'
+            nonfinite = encoded[:-1] + b', "unrelated": NaN}'
+            for invalid in (b'', encoded + b'\n' + encoded, json.dumps(wrong).encode(),
+                            duplicated, nonfinite):
                 with self.assertRaises(ValueError):
                     test_binary(invalid, source, target)
 

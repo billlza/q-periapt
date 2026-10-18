@@ -11,7 +11,7 @@ import time
 import tomllib
 
 from bounded_process import capture_output
-from evidence_io import fresh_output_directory, read_regular_snapshot
+from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from fanout_latency_review import BASELINE, PREFIX, BLOCKS, WARMUPS, TEST, catalog, identities, review, samples, snapshot, unpack_source
 from rust_sdk_profile import require, write_json
 
@@ -90,7 +90,8 @@ def verify_sources(work: Path, source: dict) -> None:
 def test_binary(data: bytes, source: Path, target: Path) -> Path:
     candidates = []
     for line in data.splitlines():
-        row = json.loads(line)
+        row = parse_strict_json_bytes(line, label='Cargo build event')
+        require(isinstance(row, dict), 'Cargo build event is not an object')
         if row.get('reason') == 'compiler-artifact' and row['profile']['test'] and row.get('executable'):
             require(row['target']['src_path'] == str(source / 'src/lib.rs'), 'unexpected test executable')
             path = Path(row['executable'])
