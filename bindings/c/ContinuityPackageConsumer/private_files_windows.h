@@ -212,9 +212,10 @@ enum qpc_file_failure {
     QPC_FILE_PUBLICATION=-8, QPC_FILE_DISPOSAL=-9, QPC_FILE_CLOSE=-10,
     QPC_FILE_READBACK=-11, QPC_FILE_PARENT_CLOSE=-12
 };
-static inline int qpc_file_commit(const char *path, const char *name, const uint8_t *bytes, size_t length, int *created) {
+static inline int qpc_file_commit_bounded(const char *path, const char *name, const uint8_t *bytes,
+                                         size_t length, size_t maximum, int *created) {
     *created=0;
-    if(!length || length>1048576) return -1;
+    if(!maximum || maximum>8388608 || !bytes || !length || length>maximum) return -1;
     WCHAR final[256],temporary[256];
     int width=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,name,-1,final,256);
     if(width<=0 || qpc_file_leaf(final,(size_t)width-1)) return -1;
@@ -255,5 +256,10 @@ static inline int qpc_file_commit(const char *path, const char *name, const uint
     if(!CloseHandle(directory) && !bad) { bad=QPC_FILE_PARENT_CLOSE; original_error=GetLastError(); }
     if(bad) SetLastError(original_error);
     return bad;
+}
+/* Existing application and recovery callers retain their original 1 MiB cap.
+ * Larger root reports require an explicit bound at their own call site. */
+static inline int qpc_file_commit(const char *path, const char *name, const uint8_t *bytes, size_t length, int *created) {
+    return qpc_file_commit_bounded(path,name,bytes,length,1048576,created);
 }
 #endif

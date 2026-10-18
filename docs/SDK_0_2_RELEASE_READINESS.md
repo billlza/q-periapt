@@ -225,6 +225,24 @@ original bytes, bounds are enforced and verbatim paths work. The mapping repair
 and these Windows controls still require native execution; local checks only
 confirm the unchanged Unix caller compiles and its self-check passes.
 
+The `42c58a4f` attempt (`39101605359`) stops while compiling the live-image
+control on both Windows hosts. Three calls passed a const wide-character array
+to the existing native helper's mutable `UNICODE_STRING` buffer. The control now
+uses a function-owned writable array, with no cast or warning suppression. The
+mapped observer and its sharing/lock controls have not executed in that cohort;
+the compiler failures are retained.
+
+The root caller's existing report limit is 8 MiB, while the reused Windows
+publisher previously rejected every record above 1 MiB. An explicitly bounded
+publication entry now permits the root caller's full limit. Existing application
+and recovery callers still use the original 1 MiB wrapper. A native boundary
+control publishes and independently reads all 8 MiB, verifies unchanged bytes
+after a last-byte conflict and an exact duplicate, and checks that default-cap,
+root-cap, invalid-limit and empty-input refusals create no files. This adds no
+SDK export or storage format. The native control and full root routes still
+require execution; local strict C compilation confirms the Unix caller remains
+buildable with the same report bound.
+
 The [installed-consumer analysis checkpoint](../research/sdk-alpha1/evidence/20261015-codeql-consumer-context/README.md)
 qualifies `5377b8e4`'s temporary Cargo context, all 19 consumer targets and safe
 cleanup with Rust 1.98.1, plus 73 related tests. It fixes a reproduced metadata

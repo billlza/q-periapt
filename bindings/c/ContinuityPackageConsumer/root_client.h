@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#define QPC_ROOT_REPORT_LIMIT ((size_t)8388608)
 
 static _Noreturn void fail(const char *message) {
     fprintf(stderr,"root C failure: %s\n",message);exit(1);
@@ -42,7 +43,8 @@ static void path_join(char out[4096],const char *path,const char *name) {
 static void save(const char *path,const char *name,const uint8_t *bytes,size_t length) {
 #ifdef _WIN32
     int created=0;
-    if(qpc_file_commit(path,name,bytes,length,&created) || !created) fail("exclusive public output");
+    if(qpc_file_commit_bounded(path,name,bytes,length,QPC_ROOT_REPORT_LIMIT,&created) || !created)
+        fail("exclusive public output");
 #else
     char file[4096];path_join(file,path,name);
     int fd=open(file,O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0600);

@@ -19,7 +19,7 @@ static void cleanup(uint64_t root,root_inputs *in,const char *path,const char *m
         uint8_t inventory[3690];if(fixed(path,"inventory-receipt",inventory,sizeof inventory)) fail("inventory receipt");
         size_t n=receipt(in,path,"report-receipt",3730);qpc_retired_report_info_v1 info;
         require(qpc_retired_v1_load_report(root,inventory,sizeof inventory,in->receipt,n,&info,&error),&error);
-        if(!info.length || info.length>8388608 || info.reserved_zero) fail("report size");
+        if(!info.length || info.length>QPC_ROOT_REPORT_LIMIT || info.reserved_zero) fail("report size");
         uint8_t *report=malloc(info.length);if(!report) fail("report allocation");
         require(qpc_retired_v1_copy_report(root,report,info.length,&error),&error);
         if(!strcmp(mode,"report")) save(path,"host-report",report,info.length);

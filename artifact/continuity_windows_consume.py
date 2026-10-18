@@ -153,6 +153,14 @@ def consume(args):
         observed = run([str(image_test), str(private_root)], profile + '-live-image', controls, timeout=30)
         require(observed.splitlines().count('WINDOWS_LIVE_IMAGE_PASS bounded=true original_bytes=true original_lock_held=true ordinary_read_refused=true competing_writer_refused=true verbatim_path=true') == 1
                 and not any(private_root.iterdir()), 'live database image or retained lock control failed')
+        root_publication = controls / 'root-publication-test.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(client_source / 'root_publication_test.c'), '-lntdll', '-ladvapi32', '-o', str(root_publication)],
+            profile + '-root-publication-compile', client_source)
+        observed = run([str(root_publication), str(private_root)], profile + '-root-publication', controls, timeout=30)
+        require(observed.strip() == 'WINDOWS_ROOT_PUBLICATION_PASS maximum=8388608 default_limit=1048576 exact_duplicate_retained=true conflict_preserves_original=true bounds_before_publication=true full_readback=true'
+                and not any(private_root.iterdir()), 'root report publication bound or original bytes differ')
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
              *(['-O2'] if profile == 'release' else ['-O0', '-g']),
              '-c', str(client_source / 'recovery_client.c'), '-I', str(consumer),
