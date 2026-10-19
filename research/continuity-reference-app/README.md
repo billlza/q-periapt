@@ -16,9 +16,10 @@ The HTTP application provides account creation, explicit login, adding a second
 Passkey, logout and reopening the original account database. Its private Rust
 service now also provides root preparation, explicit device approval, transactional
 issuance, exact original-response recovery and an enrollment suspension fence.
-**These enrollment methods are not connected to HTTP/browser controls or an
-installed independent client yet.** A login session is not a device credential
-or permission to send Continuity traffic.
+The same-origin [HTTP enrollment adapter](HTTP_ENROLLMENT.md) now exposes those
+existing transactions using the host login session. **Browser enrollment controls
+and the installed independent client are not connected yet.** A login session is
+not a device credential or permission to send Continuity traffic.
 
 The implementation and remaining integration follow the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
 It binds original requests, explicit approval, complete membership and durable
@@ -141,15 +142,15 @@ first use, invitation creation, reapproval and issuance commit. Tests reopen the
 original client and check that its signing files and request bytes survive a
 roster conflict and a newly authorized decision. Synthetic historical-time
 fixtures test expiry rejection; they are not real-time expiry measurements.
-A separate test exercises actual
-loopback TCP. This is local component evidence, not installed cross-host or
-physical-device acceptance. The child entrypoint is a test dispatcher and does
+Three enrollment HTTP scenarios exercise actual loopback TCP, including an
+issuance-body disconnect and same-database restart. This is local component
+evidence, not installed cross-host or physical-device acceptance. The child entrypoint is a test dispatcher and does
 not count as another recovery scenario.
 
 The same transaction suite runs in debug and release configurations. The
-reference account binary still exposes only account HTTP routes; release tests
-therefore execute the enrollment library directly instead of treating a linked
-or successfully built executable as enrollment-runtime evidence.
+tests execute both the enrollment library and the binary's HTTP router over
+actual loopback TCP. A successfully built standalone executable alone is not
+installed-client or deployed enrollment evidence.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

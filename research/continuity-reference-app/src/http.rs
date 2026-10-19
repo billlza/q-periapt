@@ -16,6 +16,8 @@ use std::{
 use tokio::sync::Semaphore;
 use webauthn_rs::prelude::{PublicKeyCredential, RegisterPublicKeyCredential};
 
+mod enrollment;
+
 const CEREMONY: &str = "qpc_reference_ceremony";
 const SESSION: &str = "qpc_reference_session";
 #[derive(Clone)]
@@ -85,6 +87,7 @@ pub fn router(state: Shared) -> Router {
         .route("/api/login/finish", post(login_finish))
         .route("/api/me", get(identity))
         .route("/api/logout", post(logout))
+        .merge(enrollment::routes())
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), boundary))
         .with_state(state)

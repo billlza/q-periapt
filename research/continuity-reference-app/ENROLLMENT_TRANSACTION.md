@@ -1,9 +1,9 @@
 # Host-authorized enrollment transaction
 
-Status: native reference-host transaction implemented and locally tested through
-its Rust service API. HTTP/browser enrollment controls, installed-client
-qualification, revocation and complete root/device replacement are **not
-connected or qualified yet**. The remaining requirements below stay open where
+Status: native reference-host transaction and its same-origin HTTP adapter are
+implemented. Browser enrollment controls, installed-client qualification,
+revocation and complete root/device replacement are **not connected or qualified
+yet**. The remaining requirements below stay open where
 the observations do not cover them. This does not define a new cryptographic
 protocol, require Passkeys in the SDK, or freeze a product ABI.
 
