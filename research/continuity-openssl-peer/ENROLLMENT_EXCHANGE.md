@@ -6,9 +6,10 @@ reference host. It adds no account service, browser-cookie dependency, key expor
 or replacement crypto implementation. An embedding application can provide its
 own authenticated administrator or account-authorization channel.
 
-This adapter is an input/acceptance boundary. A complete installed command-line
-consumer, persistent host configuration/bootstrap workflow, operational policy
-publisher and real browser-to-device qualification are still being integrated.
+This adapter is an input/acceptance boundary. The [local enrollment client](ENROLLMENT_CLIENT.md)
+adds persistent original configuration, request export, acceptance and reopen.
+The complete session CLI, operational policy publisher and real browser-to-device
+qualification are still being integrated.
 The existing test issuer must not be relabelled as production account authority.
 
 ## Independent inputs

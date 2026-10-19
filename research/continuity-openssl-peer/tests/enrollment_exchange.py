@@ -74,10 +74,18 @@ class ExchangeChecks(unittest.TestCase):
             file.write(self.key + self.local_id + self.offer.intent.wire()); file.flush(); os.fsync(file.fileno())
         self.owner = Registration.provision(self.path, self.local_id, self.key, self.offer.intent)
         self.request = self.owner.request(self.now)
-        self.signing, self.public = self.offer.intent.verify_request(self.request, self.now)
+        self.issue_for(self.request)
+        retained = args.private_output / (self._testMethodName + '.public.json')
+        with os.fdopen(os.open(retained, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as file:
+            file.write(wire({'authority':self.authority_json,'invitation':self.offer_json,
+                             'policy_pins':self.policy_pins,'policy_materials':self.policy_materials,
+                             'issued':self.issued_json,'current':self.membership_json})); file.flush(); os.fsync(file.fileno())
+
+    def issue_for(self, request):
+        self.signing, self.public = self.offer.intent.verify_request(request, self.now)
         self.account = digest(b'ACCOUNT', self.root.public().raw)
         cert_body = (b'QPCERT01' + self.account + self.offer.intent.device + (1).to_bytes(8, 'big')
-                     + self.start.to_bytes(8, 'big') + self.end.to_bytes(8, 'big') + family + self.public.raw)
+                     + self.start.to_bytes(8, 'big') + self.end.to_bytes(8, 'big') + self.family + self.public.raw)
         self.certificate = self.root.sign(1, cert_body)
         self.certificate_digest = digest(b'CREDENTIAL', cert_body)
         first, first_digest = self.roster(1, True)
@@ -85,15 +93,10 @@ class ExchangeChecks(unittest.TestCase):
                             'roster':b64(first),'checkpoint':{'version':1,'digest':list(first_digest)}}
         current, current_digest = self.roster(2, True)
         self.membership_json = {'revision':1,'account':list(self.account),'public_key':self.authority_json['root'],
-                                'family':list(family),'suspended':False,
+                                'family':list(self.family),'suspended':False,
                                 'roster':{'checkpoint':{'version':2,'digest':list(current_digest)},'bytes':b64(current)}}
         self.issued = exchange.IssuedEnrollment.decode(wire(self.issued_json))
         self.current = exchange.CurrentMembership.from_trusted(wire(self.membership_json), self.authority)
-        retained = args.private_output / (self._testMethodName + '.public.json')
-        with os.fdopen(os.open(retained, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as file:
-            file.write(wire({'authority':self.authority_json,'invitation':self.offer_json,
-                             'policy_pins':self.policy_pins,'policy_materials':self.policy_materials,
-                             'issued':self.issued_json,'current':self.membership_json})); file.flush(); os.fsync(file.fileno())
 
     def roster(self, version, include):
         body = (b'QPROST01' + self.account + version.to_bytes(8, 'big') + self.start.to_bytes(8, 'big')

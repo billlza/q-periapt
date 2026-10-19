@@ -31,8 +31,8 @@ def snapshot(path):
 
 def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
-    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'pyproject.toml', 'README.md',
-               'ENROLLMENT_EXCHANGE.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
+    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'pyproject.toml', 'README.md',
+               'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
     paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
@@ -66,7 +66,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':1, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':2, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside)}
 
@@ -86,26 +86,28 @@ def qualify(args):
         installed = installed_files(application)
         verify_installation(installed, files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         (output / 'INSTALLED_FILES.json').write_text(json.dumps({n:hashlib.sha256(b).hexdigest() for n,b in installed.items()}, indent=2)+'\n')
-        test = snapshot(SOURCE / 'tests/enrollment_exchange.py')
-        harness = outside / 'exchange_checks.py'; harness.write_bytes(test.data)
-        expected = sorted(node.name for node in ast.walk(ast.parse(test.data))
-                          if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'))
-        require(expected and len(expected) == len(set(expected)), 'exchange test inventory')
-        execution = run([sys.executable, '-I', '-S', '-B', str(harness), '--implementation-root', str(application),
-                         '--provider-root', str(provider), '--private-output', str(outside / 'private-fixtures')], 'exchange')
-        observed = parse_strict_json_bytes(execution.stdout, label='installed exchange results')
-        require(observed['successful'] is True and observed['tests'] == len(expected)
-                and all(observed[k] == 0 for k in ('failures', 'errors', 'skipped', 'expected_failures', 'unexpected_successes')),
-                'installed exchange test results differ')
-        require(observed['implementation'] == str(application / PACKAGE / 'enrollment_exchange.py')
-                and observed['provider_version'] == '48.0.1', 'installed implementation or provider differs')
-        for name in expected:
-            require((name + ' (__main__.ExchangeChecks.' + name + ') ... ok').encode() in execution.stderr,
-                    'missing executed exchange test: ' + name)
+        for label, class_name in (('exchange', 'ExchangeChecks'), ('client', 'ClientChecks')):
+            test = snapshot(SOURCE / ('tests/enrollment_' + label + '.py'))
+            harness = outside / ('enrollment_' + label + '.py'); harness.write_bytes(test.data)
+            expected = sorted(node.name for node in ast.walk(ast.parse(test.data))
+                              if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'))
+            require(expected and len(expected) == len(set(expected)), label + ' test inventory')
+            execution = run([sys.executable, '-I', '-S', '-B', str(harness), '--implementation-root', str(application),
+                             '--provider-root', str(provider), '--private-output', str(outside / ('private-' + label))], label)
+            observed = parse_strict_json_bytes(execution.stdout, label='installed ' + label + ' results')
+            require(observed['successful'] is True and observed['tests'] == len(expected)
+                    and all(observed[k] == 0 for k in ('failures', 'errors', 'skipped', 'expected_failures', 'unexpected_successes')),
+                    'installed ' + label + ' test results differ')
+            require(observed['implementation'] == str(application / PACKAGE / ('enrollment_' + label + '.py'))
+                    and observed['provider_version'] == '48.0.1', 'installed implementation or provider differs')
+            for name in expected:
+                require((name + ' (__main__.' + class_name + '.' + name + ') ... ok').encode() in execution.stderr,
+                        'missing executed ' + label + ' test: ' + name)
+            result.update({label + '_test_names':expected, label + '_execution':observed})
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
-        result.update(completed=True, test_names=expected, execution=observed,
-                      scope='Installed independent adapter and real OpenSSL signatures/journals with explicit test issuers; no native host/browser authorization or deployed policy-publisher admission.')
+        result.update(completed=True,
+                      scope='Installed independent adapter/client, CLI processes and SIGKILL recovery with real OpenSSL signatures/journals and explicit test issuers; no native host/browser authorization or deployed policy-publisher admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise

@@ -320,6 +320,12 @@ original proof-of-possession request, accepted authority and original child
 installation. Borrowed session and recovery owners share that lifetime; the
 reference does not require a cleartext test signer file for these operations.
 
+The [local enrollment client](ENROLLMENT_CLIENT.md) coordinates original host
+configuration, request export, credential acceptance and reopen through an
+installed CLI. Its authorization inputs are supplied by the embedding host;
+it introduces no account signup requirement. Full session CLI integration and
+the documented pre-publication first-use recovery boundary remain open.
+
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)
 and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API

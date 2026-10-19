@@ -7,6 +7,7 @@ on:
       - research/continuity-reference-app/**
       - research/continuity-openssl-peer/qperiapt_continuity_reference/**
       - research/continuity-openssl-peer/tests/enrollment_exchange.py
+      - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/pyproject.toml
       - research/continuity-openssl-peer/*requirements.txt
       - artifact/continuity_host_exchange.py
@@ -20,6 +21,7 @@ on:
       - research/continuity-reference-app/**
       - research/continuity-openssl-peer/qperiapt_continuity_reference/**
       - research/continuity-openssl-peer/tests/enrollment_exchange.py
+      - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/pyproject.toml
       - research/continuity-openssl-peer/*requirements.txt
       - artifact/continuity_host_exchange.py
