@@ -131,3 +131,4 @@ fn policy_monotonic(target: PolicyCheckpoint, prior: PolicyCheckpoint) -> Result
 mod adoption;
 mod codec;
 mod history;
+mod roster;

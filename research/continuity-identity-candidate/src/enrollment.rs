@@ -25,6 +25,8 @@ const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
 const MAX_PREINSTALLATION_IMAGE: usize = 192 * 1024;
+mod public_admission;
+pub use public_admission::EnrollmentPublicAdmission;
 mod preinstallation;
 use preinstallation::Preparation;
 pub use preinstallation::{
@@ -242,6 +244,7 @@ pub enum EnrollmentStatus {
     /// supply a valid snapshot for this credential. No owner may be released.
     RosterResolved(RosterRefreshResolution),
 }
+
 #[derive(Clone)]
 struct Admission {
     certificate: Vec<u8>,
@@ -801,6 +804,17 @@ impl DeviceEnrollment {
         if image.renewal.is_some() {
             return self
                 .refresh_renewed_roster(image, previous, roster, pin, policy, now)
+                .await;
+        }
+        if matches!(
+            &image.phase,
+            Phase::Accepted {
+                stage: AdmissionPhase::Accepted,
+                ..
+            }
+        ) {
+            return self
+                .refresh_unprepared_roster(image, previous, roster, pin, policy, now)
                 .await;
         }
         let expected_intent = self.installation_intent(&image)?;

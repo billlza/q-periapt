@@ -111,6 +111,66 @@ fn accepted(c: &Case) -> (DeviceEnrollment, Vec<u8>, JournalIdentity) {
 }
 
 #[test]
+fn public_admission_is_history_without_private_key_access_or_implicit_creation() {
+    let c = case();
+    let mut owner = create(&c);
+    assert!(owner.public_admission().is_err());
+    assert!(!c.paths.signer.exists());
+    let request = owner.request(150).expect("original request");
+    assert!(owner.public_admission().is_err());
+    let (certificate, roster, pin) = response(&c, &request);
+    let journal = owner
+        .accept(&certificate, roster.as_bytes(), &pin, &c.policy, 150)
+        .expect("accept");
+    owner.close();
+    let retained = c.paths.signer.with_extension("retained");
+    fs::rename(&c.paths.signer, &retained).expect("preserve unavailable private key");
+    let mut owner = open(&c);
+    let public = owner
+        .public_admission()
+        .expect("public history needs no signer");
+    assert_eq!(public.certificate(), certificate);
+    assert_eq!(public.roster(), roster.as_bytes());
+    assert_eq!(public.checkpoint(), roster.checkpoint());
+    assert_eq!(public.journal(), journal);
+    assert!(owner.prepare(&c.policy, 150).is_err());
+    assert!(!c.paths.signer.exists());
+    assert!(retained.exists());
+}
+
+#[test]
+fn public_admission_reauthenticates_the_certificate_and_original_possession_proof(
+) -> Result<(), DurableError> {
+    for certificate in [false, true] {
+        let c = case();
+        let (mut owner, _, _) = accepted(&c);
+        let mut image = owner.image().expect("original image");
+        let Phase::Accepted {
+            admission, request, ..
+        } = &mut image.phase
+        else {
+            return Err(DurableError::Corrupt);
+        };
+        let signed = if certificate {
+            &mut admission.certificate
+        } else {
+            request
+        };
+        *signed.last_mut().expect("signed bytes") ^= 1;
+        owner
+            .save(&image)
+            .expect("retain structurally valid corrupted signature fixture");
+        assert!(owner.public_admission().is_err());
+        assert!(owner.active.is_none());
+        assert!(c.paths.signer.exists());
+        let mut reopened = open(&c);
+        assert!(reopened.public_admission().is_err());
+        assert!(reopened.active.is_none());
+    }
+    Ok(())
+}
+
+#[test]
 fn original_enrollment_restarts_through_request_acceptance_activation_and_real_prekey() {
     let c = case();
     assert!(DeviceEnrollment::open(c.paths.clone(), c.intent.clone()).is_err());

@@ -4,6 +4,8 @@ use super::*;
 mod codec;
 #[path = "preinstallation_process_tests.rs"]
 mod process;
+#[path = "preinstallation_roster_tests.rs"]
+mod roster;
 #[path = "preinstallation_witness_tests.rs"]
 mod witness;
 use crate::{
@@ -116,6 +118,11 @@ fn preinstallation_extension_after_credential_and_policy_expiry_reaches_real_own
         journal
     );
     assert_eq!(row(&mut owner), saved);
+    let public = owner.public_admission().expect("retained public admission");
+    assert_eq!(public.certificate(), next.certificate);
+    assert_eq!(public.roster(), next.roster.as_bytes());
+    assert_eq!(public.checkpoint(), next.roster.checkpoint());
+    assert_eq!(public.journal(), journal);
     assert!(
         matches!(owner.image().expect("image").phase,Phase::Accepted{request,..} if request==proof)
     );
@@ -202,6 +209,10 @@ fn preinstallation_extension_after_credential_and_policy_expiry_reaches_real_own
     active.close();
     let mut owner = open(&c);
     assert_eq!(owner.identity().expect("identity"), identity);
+    let public = owner.public_admission().expect("actual retained G target");
+    assert_eq!(public.certificate(), successor);
+    assert_eq!(public.roster(), listing.as_bytes());
+    assert_eq!(public.journal(), journal);
     assert_eq!(
         owner
             .credential_extension_status()

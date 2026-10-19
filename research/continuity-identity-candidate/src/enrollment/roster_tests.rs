@@ -208,7 +208,7 @@ fn expired_roster_refresh_preserves_original_request_key_journal_and_real_prekey
 }
 
 #[test]
-fn refresh_refuses_new_lineage_expired_intent_replacement_and_pending_target_substitution() {
+fn refresh_keeps_pending_targets_and_supports_tracked_unprepared_admission() {
     let c = case();
     let original = local(&c);
     let next = next_roster(&c, &original);
@@ -244,20 +244,30 @@ fn refresh_refuses_new_lineage_expired_intent_replacement_and_pending_target_sub
     let mut owner = create(&c);
     let wire = owner.request(150).expect("request");
     let (certificate, first, account) = response(&c, &wire);
-    owner
+    let journal = owner
         .accept(&certificate, first.as_bytes(), &account, &c.policy, 150)
-        .expect("accepted, not active");
+        .expect("accepted with tracked unprepared state");
     let update = roster(&c, &certificate, 2, interval());
-    assert!(matches!(
-        owner.refresh_roster(
-            first.checkpoint(),
-            update.as_bytes(),
-            &pin(&c, &update),
-            &c.policy,
-            150
-        ),
-        Err(DurableError::Protocol(Error::State))
-    ));
+    assert_eq!(
+        owner
+            .refresh_roster(
+                first.checkpoint(),
+                update.as_bytes(),
+                &pin(&c, &update),
+                &c.policy,
+                150
+            )
+            .expect("explicit current roster before any child"),
+        EnrollmentStatus::Accepted(journal)
+    );
+    assert_eq!(
+        owner
+            .public_admission()
+            .expect("retained target")
+            .checkpoint(),
+        update.checkpoint()
+    );
+    assert_eq!(owner.request(150).expect("original proof"), wire);
     assert!(!c
         .paths
         .installation

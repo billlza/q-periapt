@@ -50,6 +50,13 @@ original acceptance; they do not replace its stored bytes or journal ID.
 
 ## Fresh credential extension before installation
 
+`public_admission` returns the exact retained certificate, roster/checkpoint and
+journal identity after authenticating their signatures and original possession
+proof. It does not open the private signer or grant current permission. When no
+admission has been accepted, it returns a state error. The result can be expired
+or superseded, so the host
+must supply independently current membership and policy before operation.
+
 An accepted credential can expire before the first installation is selected.
 `adopt_credential_extension` admits an independently authorized same-key extension
 for that case. It is a new admission of the original device, not retained-session
@@ -84,6 +91,12 @@ even loss of every child file cannot enable retargeting. Older Accepted records
 cannot establish this history from file absence and refuse extension with
 `Suspended`; their original preparation/activation path remains available.
 Explicit reconciliation for those older records is still an open migration task.
+
+The existing `refresh_roster` entry point also accepts a positively tracked
+Unprepared record. It checks the exact retained predecessor, current membership,
+complete original key and unchanged policy, then commits only the new roster.
+Retries preserve the first target bytes and original request/journal. Selected
+and legacy Untracked records cannot use this path, even if all children are absent.
 
 `QPENST19` wraps this metadata under the existing enrollment authentication and
 original path/intent binding, with a 192 KiB bound. Older formats retain their

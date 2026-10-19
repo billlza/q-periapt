@@ -2,9 +2,10 @@
 use super::*;
 
 /// Provision through an authenticated operator channel, separately from distributed materials.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PolicyPins {
-    schema: &'static str,
+    schema: String,
     #[serde(with = "wire")]
     sdk_root: Vec<u8>,
     #[serde(with = "wire")]
@@ -13,24 +14,83 @@ pub struct PolicyPins {
     policy_root: Vec<u8>,
     policy_version: u64,
     policy_digest: [u8; 32],
+    #[serde(deserialize_with = "required_witness")]
     witness: Option<Witness>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Witness {
     identity: [u8; 32],
     #[serde(with = "wire")]
     key: Vec<u8>,
 }
 /// Signed public distribution, with no implied authority to choose a client's trust pins.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PolicyMaterials {
-    schema: &'static str,
+    schema: String,
     #[serde(with = "wire")]
     sdk_document: Vec<u8>,
     #[serde(with = "wire")]
     sdk_signature: Vec<u8>,
     #[serde(with = "wire")]
     policy: Vec<u8>,
+}
+fn required_witness<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Witness>, D::Error> {
+    Option::<Witness>::deserialize(d)
+}
+impl PolicyPins {
+    /// Verify distributed materials under independently supplied exact pins.
+    /// The requested family is retained by the enrollment, not selected by the
+    /// materials. Witness pins must match the signed requirement exactly.
+    pub fn verify(
+        &self,
+        materials: &PolicyMaterials,
+        family: [u8; 32],
+        now: u64,
+    ) -> Result<(sdk::VerifiedSessionPolicy, Option<sdk::AnchorPin>), Error> {
+        if self.schema != "qperiapt-policy-pins/1"
+            || materials.schema != "qperiapt-policy-materials/1"
+        {
+            return Err(Error::Invalid("Protocol policy input schema"));
+        }
+        let runtime = SdkInput {
+            root: self.sdk_root.clone(),
+            state: self.sdk_state.clone(),
+            document: materials.sdk_document.clone(),
+            signature: materials.sdk_signature.clone(),
+        }
+        .verify()?;
+        let pin = sdk::PolicyPin::new(
+            family,
+            sdk::PublicKey::decode(&self.policy_root).map_err(|_| Error::Invalid("Policy root"))?,
+            sdk::PolicyCheckpoint::from_trusted_state(self.policy_version, self.policy_digest)
+                .map_err(|_| Error::Invalid("Policy checkpoint"))?,
+        )
+        .map_err(|_| Error::Invalid("Policy scope"))?;
+        let policy = pin
+            .verify(&materials.policy, runtime, now)
+            .map_err(|_| Error::Invalid("Current protocol policy"))?;
+        let witness = self
+            .witness
+            .as_ref()
+            .map(|w| -> Result<_, Error> {
+                Ok(sdk::AnchorPin::new(
+                    sdk::AnchorIdentity::from_trusted_state(w.identity)
+                        .map_err(|_| Error::Invalid("Witness identity"))?,
+                    sdk::PublicKey::decode(&w.key).map_err(|_| Error::Invalid("Witness key"))?,
+                ))
+            })
+            .transpose()?;
+        let expected = witness.as_ref().map_or_else(
+            sdk::AnchorRequirement::local_only,
+            sdk::AnchorRequirement::required,
+        );
+        if policy.anchor_requirement() != expected {
+            return Err(Error::Invalid("Witness pin differs from signed policy"));
+        }
+        Ok((policy, witness))
+    }
 }
 impl Publisher {
     /// Exact original public formats consumed by the independent client's PolicyInputs.
@@ -45,7 +105,7 @@ impl Publisher {
         };
         Ok((
             PolicyPins {
-                schema: "qperiapt-policy-pins/1",
+                schema: "qperiapt-policy-pins/1".into(),
                 sdk_root: authority.sdk_root,
                 sdk_state: authority.sdk_state,
                 policy_root: authority.policy_root,
@@ -54,7 +114,7 @@ impl Publisher {
                 witness,
             },
             PolicyMaterials {
-                schema: "qperiapt-policy-materials/1",
+                schema: "qperiapt-policy-materials/1".into(),
                 sdk_document: config.sdk.document,
                 sdk_signature: config.sdk.signature,
                 policy: publication.policy,

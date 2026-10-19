@@ -12,6 +12,12 @@ protocol-policy signer and independently supplied signed SDK policy inputs.
 Its CLI has no account-login dependency. Issuance and public export are separate
 from consumer activation and authenticated trust provisioning.
 
+The [native device consumer](NATIVE_DEVICE.md) provides real-time CLI entry points
+for original enrollment, accepted-credential extension, supported roster refresh,
+and recoverable public advertisement. It uses the SDK's existing controlled signer
+and storage owners with independently supplied host approval and policy pins.
+Peer connection serving and the full session CLI remain separate work.
+
 This unpublished host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses
 `webauthn-rs 0.5.5` for Passkey registration and authentication. Authentication
@@ -106,8 +112,9 @@ retained-session grant G, update a client installation, extend protocol policy o
 authorize old traffic. Replacing the certificate changes its roster membership
 commitment; callers must coordinate consumers explicitly. The independent
 [client adoption API](../continuity-openssl-peer/ENROLLMENT_CLIENT.md) handles
-accepted-but-unprepared state separately. The native enrollment equivalent,
-browser extension control and complete live recovery path remain open. Do not
+accepted-but-unprepared state separately. The native candidate and CLI also
+support positively tracked Unprepared records. Browser extension control, legacy
+state reconciliation and the complete live recovery path remain open. Do not
 reset an expired client's original state or substitute this response for G.
 
 The service's invitation API requires a caller-retained random request ID. Retry

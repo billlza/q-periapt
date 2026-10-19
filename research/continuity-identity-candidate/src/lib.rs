@@ -64,11 +64,11 @@ pub use enrollment::{
     AccountRootEnrollmentRecovery, AccountRootEnrollmentState, CredentialRenewalRequest,
     CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentExtensionApproval,
     EnrollmentExtensionInputs, EnrollmentExtensionStatus, EnrollmentIntent, EnrollmentPaths,
-    EnrollmentPreparationStatus, EnrollmentRecovery, EnrollmentStatus, ManagedAccountRootAdoption,
-    ManagedAccountRootReplacement, ManagedAccountRootTransition, PolicyRenewalAbandonment,
-    PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment, RosterRefreshOutcome,
-    RosterRefreshResolution, SigningFileErasureState, VerifiedEnrollmentRequest,
-    WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
+    EnrollmentPreparationStatus, EnrollmentPublicAdmission, EnrollmentRecovery, EnrollmentStatus,
+    ManagedAccountRootAdoption, ManagedAccountRootReplacement, ManagedAccountRootTransition,
+    PolicyRenewalAbandonment, PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment,
+    RosterRefreshOutcome, RosterRefreshResolution, SigningFileErasureState,
+    VerifiedEnrollmentRequest, WitnessedPolicyRenewalDisposition, WitnessedPolicyRenewalProgress,
     WitnessedRosterRefreshDisposition, WitnessedRosterRefreshProgress,
 };
 pub use installation::{
