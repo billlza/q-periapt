@@ -22,6 +22,7 @@ from continuity_independent_python_run import installed_files
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 from continuity_host_native_exchange import qualify as qualify_native_exchange
+from continuity_host_network import qualify as qualify_network
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
@@ -34,9 +35,9 @@ def snapshot(path):
 
 def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
-    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'pyproject.toml', 'README.md',
+    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
-    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py',
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
@@ -80,7 +81,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':5, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':6, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -102,9 +103,13 @@ def qualify(args):
         installed = installed_files(application)
         verify_installation(installed, files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         (output / 'INSTALLED_FILES.json').write_text(json.dumps({n:hashlib.sha256(b).hexdigest() for n,b in installed.items()}, indent=2)+'\n')
-        for label, class_name in (('exchange', 'ExchangeChecks'), ('client', 'ClientChecks'), ('extension', 'ExtensionChecks')):
-            test = snapshot(SOURCE / ('tests/enrollment_' + label + '.py'))
-            harness = outside / ('enrollment_' + label + '.py'); harness.write_bytes(test.data)
+        for label, class_name, filename, module in (
+                ('exchange','ExchangeChecks','enrollment_exchange.py','enrollment_exchange.py'),
+                ('client','ClientChecks','enrollment_client.py','enrollment_client.py'),
+                ('extension','ExtensionChecks','enrollment_extension.py','enrollment_extension.py'),
+                ('network','NetworkChecks','network.py','network_server.py')):
+            test = snapshot(SOURCE / 'tests' / filename)
+            harness = outside / filename; harness.write_bytes(test.data)
             expected = sorted(node.name for node in ast.walk(ast.parse(test.data))
                               if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'))
             require(expected and len(expected) == len(set(expected)), label + ' test inventory')
@@ -114,7 +119,7 @@ def qualify(args):
             require(observed['successful'] is True and observed['tests'] == len(expected)
                     and all(observed[k] == 0 for k in ('failures', 'errors', 'skipped', 'expected_failures', 'unexpected_successes')),
                     'installed ' + label + ' test results differ')
-            require(observed['implementation'] == str(application / PACKAGE / ('enrollment_' + label + '.py'))
+            require(observed['implementation'] == str(application / PACKAGE / module)
                     and observed['provider_version'] == '48.0.1', 'installed implementation or provider differs')
             for name in expected:
                 require((name + ' (__main__.' + class_name + '.' + name + ') ... ok').encode() in execution.stderr,
@@ -159,10 +164,11 @@ def qualify(args):
             destination.write_bytes(snapshot(private / name).data)
         result['native_policy_publication'] = observed
         result['native_exchange'] = qualify_native_exchange(args,REFERENCE,application,provider,outside,output,snapshot,run)
+        result['native_network'] = qualify_network(args,REFERENCE,application,provider,outside,output,snapshot,run)
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs, plus actual-time owned bidirectional sessions, durable application consumption/replay and three PQ rekeys. Native exchange uses explicit test authority and a bounded file carrier. No real host/browser authorization, deployed network, authority replacement or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs; file/process-recovery workload plus fresh local TCP bootstrap, bidirectional reply loss/retry, service restart and two PQ rekeys. Explicit test authority. No real host/browser authorization, TLS or cross-host deployment, authority replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise

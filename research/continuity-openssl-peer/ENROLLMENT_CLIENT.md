@@ -239,8 +239,10 @@ contract. A carrier supplies neither identity nor commit evidence. It must bound
 its own allocations and honor the original absolute monotonic deadline and
 one-way cancellation while blocked. Synchronous callbacks cannot be forcibly
 interrupted; late results are rejected and the owner is closed. The included
-interface is carrier-independent; a deployed bidirectional network service
-remains separate work.
+interface is carrier-independent. The explicit `network.TcpTransport` and
+`network_server.Server` provide bounded TCP exchange and owned incoming work;
+see the [reference network contract](../continuity-reference-app/NETWORK.md).
+This carrier exposes public metadata and is never a TLS fallback.
 
 Each `Run` lasts more than zero and at most 120 seconds, uses real OS time by
 default, and can receive a trusted host `clock` and `Cancellation` token.

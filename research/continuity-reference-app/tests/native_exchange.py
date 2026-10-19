@@ -18,6 +18,7 @@ import time
 parser = argparse.ArgumentParser(description=__doc__)
 for name in ('native-device','native-session','native-outgoing','crash-probe','implementation-root','provider-root','output'):
     parser.add_argument('--'+name,type=Path,required=True)
+parser.add_argument('--network',action='store_true',help='Fresh bidirectional TCP workload instead of the file/crash workload')
 args = parser.parse_args()
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0,str(implementation))
@@ -144,14 +145,16 @@ try:
     require(not (root/'wrong-inbox-output.bin').exists(),'wrong inbox journal released data')
     client.prepare(session_dir,publication.inputs(pins,issuer.policy.materials,certificate,issuer.roster),int(time.time()))
 
+    native_inputs={'device_directory':str(native_dir),'wrapping_key':str(root/'native-wrap.key'),
+        'invitation':str(root/'native-invitation.json'),'current_root':str(root/'current.json'),
+        'policy_pins':str(root/'policy-pins.json'),'policy_materials':str(root/'policy-materials.json'),
+        'witness_endpoint':'none','peer_trust':str(root/'peer-trust.json'),'bundle':str(root/'bundle.bin')}
+
     def make_invocation(label, operation, request, *, inbox=None, trust_path=None):
         target=root/(label+'-output'); target.mkdir(mode=0o700)
         save(root/(label+'.request'),request)
-        invocation={'schema':'qperiapt-native-exchange/1','device_directory':str(native_dir),
-            'wrapping_key':str(root/'native-wrap.key'),'invitation':str(root/'native-invitation.json'),
-            'current_root':str(root/'current.json'),'policy_pins':str(root/'policy-pins.json'),
-            'policy_materials':str(root/'policy-materials.json'),'witness_endpoint':'none',
-            'peer_trust':str(trust_path or root/'peer-trust.json'),'bundle':str(root/'bundle.bin'),
+        invocation={**native_inputs,'schema':'qperiapt-native-exchange/1',
+            'peer_trust':str(trust_path or root/'peer-trust.json'),
             'operation':operation,'request':str(root/(label+'.request')),'inbox':str(inbox or root/'inbox.redb'),
             'output_directory':str(target)}
         save(root/(label+'.json'),invocation)
@@ -163,6 +166,17 @@ try:
         run([session_cli,'exchange',invocation],label,success=success,deadline=deadline)
         if success: return (target/'response.bin').read_bytes()
         require(not (target/'response.bin').exists(),'rejected request released output')
+
+    if args.network:
+        from native_network_flow import exercise as network_flow
+        client,report=network_flow(client,client_dir,client_id,key,root,session_cli,outgoing,native_inputs,
+                                   bytes(accepted['journal']),run,refusals)
+        require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}==native_hashes,'native executable changed')
+        report.update(native_sha256=native_hashes,commands=commands,refusals=refusals,
+                      provider=provider.__version__,implementation=str(implementation/'qperiapt_continuity_reference/network.py'),
+                      clock='actual OS time')
+        save(root/'RESULT.json',report);print(json.dumps(report))
+        raise SystemExit(0)
 
     with client.session(int(time.time())) as child:
         initial = child.initial(now=int(time.time()))

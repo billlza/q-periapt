@@ -12,6 +12,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+#[path = "../network_service.rs"]
+mod network_service;
 #[path = "../operator_io.rs"]
 mod operator_io;
 use operator_io::{export_directory, identifier, print, read};
@@ -19,6 +21,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
     "q-periapt-native-session provision-inbox <absolute-new-database> <original-journal-base64url> | ",
     "exchange <absolute-invocation-json> | ",
+    "serve <absolute-service-json> | ",
     "read-inbox <absolute-database> <journal-base64url> <session-base64url> <message-base64url> <fresh-private-output>"
 );
 
@@ -54,6 +57,7 @@ fn main() -> Result<()> {
             print(&serde_json::json!({"inbox":"Provisioned"}))
         }
         Some("exchange") if args.len() == 3 => exchange(json(Path::new(&args[2]), 16384)?),
+        Some("serve") if args.len() == 3 => network_service::serve(Path::new(&args[2])),
         Some("read-inbox") if args.len() == 7 => {
             let inbox = Mailbox::open(Path::new(&args[2]), identifier(&args[3])?)?;
             let bytes = inbox.delivery(identifier(&args[4])?, identifier(&args[5])?)?;

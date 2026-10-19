@@ -19,9 +19,13 @@ mod client;
 mod codec;
 mod control;
 mod server;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+mod tcp;
 pub use account::{AccountDelivered, AccountDeliveryOutcome, AccountSubmission};
 use codec::{frame, payload, ACK, FINAL, INITIAL, MESSAGE, READY, REPLY};
 pub use control::RekeyCompleted;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use tcp::TcpTransport;
 
 /// Failure retains its responsible boundary; no variant establishes rollback.
 #[derive(Debug)]
@@ -96,26 +100,69 @@ impl<'a> Run<'a> {
             deadline: Instant::now().checked_add(timeout).ok_or(Error::Deadline)?,
         })
     }
+    /// Preserve an enclosing absolute deadline after admission or request I/O.
+    /// The remaining interval must be nonzero and at most 120 seconds.
+    pub fn until(cancel: &'a Cancellation, deadline: Instant) -> Result<Self, Error> {
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .ok_or(Error::Deadline)?;
+        if remaining.is_zero()
+            || remaining > Duration::from_secs(crate::contract::MAX_RUN_TIMEOUT_SECONDS)
+        {
+            return Err(crate::Error::Encoding.into());
+        }
+        Ok(Self { cancel, deadline })
+    }
+    /// Check only cancellation and time bounds. This grants no identity, policy
+    /// or storage authority; owned protocol operations still admit those inputs.
+    pub fn check(&self) -> Result<(), Error> {
+        if self.cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        if Instant::now() >= self.deadline {
+            return Err(Error::Deadline);
+        }
+        Ok(())
+    }
     fn time(
         &self,
         context: &BootstrapContext,
         clock: &mut impl FnMut() -> io::Result<u64>,
     ) -> Result<u64, Error> {
-        if self.cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        if Instant::now() >= self.deadline {
-            return Err(Error::Deadline);
-        }
+        self.check()?;
         let now = clock().map_err(Error::Clock)?;
         context.check_session_identity(now)?;
-        if self.cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        if Instant::now() >= self.deadline {
-            return Err(Error::Deadline);
-        }
+        self.check()?;
         Ok(now)
+    }
+}
+
+/// Unauthenticated request routing metadata. It selects no trust root and grants
+/// no authority; the owner must still authenticate/admit the original operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RequestRoute {
+    /// An initial/final flight under separately configured peer expectations.
+    Bootstrap,
+    /// Application input naming an original session.
+    Message([u8; 32]),
+    /// Signed control input naming an original session.
+    Control([u8; 32]),
+}
+impl RequestRoute {
+    /// Bound and inspect the existing QPCXCH01 frame; this does not authenticate it.
+    pub fn inspect(request: &[u8]) -> Result<Self, Error> {
+        let (kind, body) = codec::open(request)?;
+        match kind {
+            INITIAL | FINAL => Ok(Self::Bootstrap),
+            MESSAGE => {
+                let (_, message) = codec::split(body)?;
+                Ok(Self::Message(crate::durable::message_route(message)?.0))
+            }
+            codec::CONTROL => Ok(Self::Control(crate::RekeyControlMessage::inspect_session(
+                body,
+            )?)),
+            _ => Err(crate::Error::Encoding.into()),
+        }
     }
 }
 

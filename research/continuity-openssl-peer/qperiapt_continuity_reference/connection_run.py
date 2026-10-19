@@ -36,6 +36,16 @@ class Run:
         self._cancellation=Cancellation() if cancellation is None else cancellation
         self._clock=(lambda:int(time.time())) if clock is None else clock
 
+    @classmethod
+    def until(cls,deadline,*,cancellation=None,clock=None):
+        """Retain an enclosing absolute deadline after network admission/read."""
+        require(type(deadline) in (int,float) and math.isfinite(deadline),'connection absolute deadline')
+        remaining=deadline-time.monotonic()
+        require(0<remaining<=120,'connection absolute deadline range')
+        value=cls(remaining,cancellation=cancellation,clock=clock)
+        value._deadline=deadline
+        value.check(); return value
+
     @property
     def deadline(self): return self._deadline
 

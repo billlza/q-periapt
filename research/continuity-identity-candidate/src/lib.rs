@@ -34,6 +34,8 @@ pub mod contract;
 #[cfg(feature = "control-tls")]
 pub mod control_transport;
 mod crypto;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+mod tcp_io;
 pub use account_authority::{
     AccountAuthorityAccess, AccountAuthorityCheckpoint, AccountAuthorityIdentity,
     AccountAuthorityLease, AccountAuthorityReplacementState, AccountAuthorityStore,

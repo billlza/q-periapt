@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-use super::{remaining, AnchorTransport};
+use super::AnchorTransport;
+use crate::tcp_io::{receive, send};
 use crate::{Cancellation, MonotonicInstant as Instant};
-use std::{
-    io::{self, Read, Write},
-    net::{SocketAddr, TcpStream},
-    time::Duration,
-};
+use std::{io, net::SocketAddr, time::Duration};
 
 /// Reference TCP carrier: one connection and one length-framed exchange per attempt.
 /// Signatures authenticate endpoints; this carrier does not encrypt metadata.
@@ -30,66 +27,7 @@ pub(in crate::anchor) fn checked_remaining(
     deadline: Instant,
     cancel: &Cancellation,
 ) -> io::Result<Duration> {
-    if cancel.is_cancelled() {
-        return Err(io::Error::new(
-            io::ErrorKind::Interrupted,
-            "witness dispatch cancelled; reconcile original command",
-        ));
-    }
-    remaining(deadline)
-}
-fn send(
-    stream: &mut TcpStream,
-    mut bytes: &[u8],
-    deadline: Instant,
-    cancel: &Cancellation,
-) -> io::Result<()> {
-    while !bytes.is_empty() {
-        stream.set_write_timeout(Some(
-            checked_remaining(deadline, cancel)?.min(Duration::from_millis(25)),
-        ))?;
-        match stream.write(bytes) {
-            Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
-            Ok(written) => bytes = bytes.get(written..).ok_or(io::ErrorKind::InvalidData)?,
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::Interrupted
-                        | io::ErrorKind::WouldBlock
-                        | io::ErrorKind::TimedOut
-                ) => {}
-            Err(error) => return Err(error),
-        }
-    }
-    checked_remaining(deadline, cancel)?;
-    Ok(())
-}
-fn receive(
-    stream: &mut TcpStream,
-    bytes: &mut [u8],
-    deadline: Instant,
-    cancel: &Cancellation,
-) -> io::Result<()> {
-    let mut offset = 0;
-    while offset < bytes.len() {
-        stream.set_read_timeout(Some(
-            checked_remaining(deadline, cancel)?.min(Duration::from_millis(25)),
-        ))?;
-        match stream.read(bytes.get_mut(offset..).ok_or(io::ErrorKind::InvalidData)?) {
-            Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
-            Ok(read) => offset += read,
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::Interrupted
-                        | io::ErrorKind::WouldBlock
-                        | io::ErrorKind::TimedOut
-                ) => {}
-            Err(error) => return Err(error),
-        }
-    }
-    checked_remaining(deadline, cancel)?;
-    Ok(())
+    crate::tcp_io::remaining(deadline, cancel)
 }
 impl AnchorTransport for AnchorTcpTransport {
     fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
@@ -120,8 +58,14 @@ impl AnchorTransport for AnchorTcpTransport {
 
 #[cfg(test)]
 mod tests {
+    use super::super::remaining;
     use super::*;
-    use std::{net::TcpListener, sync::mpsc, thread};
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::mpsc,
+        thread,
+    };
     type HeldReply = (
         SocketAddr,
         mpsc::Receiver<()>,

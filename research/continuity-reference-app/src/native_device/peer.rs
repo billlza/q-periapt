@@ -72,6 +72,24 @@ pub enum ExchangeOperation {
     Message { session: [u8; 32] },
     Control { session: [u8; 32] },
 }
+impl ExchangeOperation {
+    /// Untrusted routing only. The original owner must still authenticate it
+    /// under separately retained policy and exact peer expectations.
+    pub fn inspect(request: &[u8]) -> Result<Self> {
+        Ok(
+            match sdk::session_exchange::RequestRoute::inspect(request)? {
+                sdk::session_exchange::RequestRoute::Bootstrap => Self::Bootstrap,
+                sdk::session_exchange::RequestRoute::Message(session) => Self::Message { session },
+                sdk::session_exchange::RequestRoute::Control(session) => Self::Control { session },
+            },
+        )
+    }
+}
+/// One routed frame; neither field is an authorization capability.
+pub struct ExchangeRequest<'a> {
+    pub operation: &'a ExchangeOperation,
+    pub frame: &'a [u8],
+}
 impl ActiveDevice {
     pub fn exchange(
         &mut self,
@@ -82,11 +100,38 @@ impl ActiveDevice {
         request: &[u8],
         consumer: &mut impl sdk::session_exchange::Consumer,
     ) -> Result<Vec<u8>> {
+        let cancel = sdk::Cancellation::default();
+        let run = sdk::session_exchange::Run::new(&cancel, Duration::from_secs(30))?;
+        self.exchange_in_run(
+            trust,
+            bundle,
+            policy,
+            ExchangeRequest {
+                operation,
+                frame: request,
+            },
+            consumer,
+            &run,
+        )
+    }
+    /// Serve within the network admission's original deadline and cancellation.
+    pub fn exchange_in_run(
+        &mut self,
+        trust: &PeerTrust,
+        bundle: &sdk::BootstrapBundle,
+        policy: Arc<sdk::VerifiedSessionPolicy>,
+        input: ExchangeRequest<'_>,
+        consumer: &mut impl sdk::session_exchange::Consumer,
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<Vec<u8>> {
         let result = (|| {
+            run.check()?;
+            let ExchangeRequest {
+                operation,
+                frame: request,
+            } = input;
             let (initiator, responder) = trust.pins(policy.family())?;
             let required = trust.requirements(&initiator, &responder)?;
-            let cancel = sdk::Cancellation::default();
-            let run = sdk::session_exchange::Run::new(&cancel, Duration::from_secs(30))?;
             match operation {
                 ExchangeOperation::Bootstrap => {
                     let context = Arc::new(bundle.verify(policy, required, clock()?)?);
@@ -97,7 +142,7 @@ impl ActiveDevice {
                     )?;
                     Ok(self
                         .owner
-                        .serve_session_exchange(&peer, request, consumer, &run, clock)?)
+                        .serve_session_exchange(&peer, request, consumer, run, clock)?)
                 }
                 ExchangeOperation::Message { session } | ExchangeOperation::Control { session } => {
                     let reopened = self.owner.parts()?.0.reopen_peer_bundle(
@@ -112,10 +157,10 @@ impl ActiveDevice {
                     match operation {
                         ExchangeOperation::Message { .. } => Ok(self
                             .owner
-                            .serve_session_message(&session, request, consumer, &run, clock)?),
+                            .serve_session_message(&session, request, consumer, run, clock)?),
                         ExchangeOperation::Control { .. } => Ok(self
                             .owner
-                            .serve_session_control(&session, request, &run, clock)?),
+                            .serve_session_control(&session, request, run, clock)?),
                         ExchangeOperation::Bootstrap => Err("Exchange operation changed".into()),
                     }
                 }

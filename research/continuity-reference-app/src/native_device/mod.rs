@@ -14,7 +14,7 @@ mod mailbox;
 mod peer;
 mod publication;
 pub use mailbox::Mailbox;
-pub use peer::{DeviceExpectation, ExchangeOperation, PeerTrust};
+pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use publication::{clock, Publication, PublicationPlan};
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

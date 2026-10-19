@@ -38,7 +38,7 @@ The `action` object selects one operation; unknown fields are refused:
 All static payload/carrier options are checked before opening or activating the
 device. Errors retain the original operation and close the SDK owner. After an
 unknown result, retain every state file and the original message/input or rekey
-target; reopen using new empty carrier directories. Do not choose another ID to
+target; for file exchange, reopen using new empty carrier directories. Do not choose another ID to
 hide a failed operation. A lost output may already have committed at either peer.
 
 ## Private-file carrier
@@ -59,7 +59,8 @@ the SDK checks the exact session/epoch ACK or signed control response.
 
 This carrier supports integration and process-recovery qualification. It is not
 a network listener and does not implement the distinct TLS-bound `QPCNET01`
-carrier. Deployable network service admission and resource management remain open.
+carrier. The separate [TCP service and explicit outgoing actions](NETWORK.md)
+provide bounded network exchange of the same inner frames.
 
 ## Independent receiver
 

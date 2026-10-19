@@ -9,6 +9,17 @@ pub struct RekeyControlMessage {
     wire: Vec<u8>,
 }
 impl RekeyControlMessage {
+    pub(crate) fn inspect_session(wire: &[u8]) -> Result<[u8; 32], Error> {
+        Self::inspect_target(wire)?;
+        let session: [u8; 32] = open_envelope(wire)?
+            .0
+            .get(72..104)
+            .ok_or(Error::Encoding)?
+            .try_into()
+            .map_err(|_| Error::Encoding)?;
+        crate::codec::nonzero(&session)?;
+        Ok(session)
+    }
     pub(crate) fn inspect_target(wire: &[u8]) -> Result<u64, Error> {
         if wire.is_empty() || wire.len() > crate::contract::MAX_CONTROL_BYTES {
             return Err(Error::Encoding);

@@ -37,3 +37,22 @@ def acknowledgement_epoch(proof):
     require(len(proof)==89 and proof[:8]==b'QPCMACK2','exchange acknowledgement shape')
     epoch=int.from_bytes(proof[41:49],'big'); require(epoch>0,'exchange epoch acknowledgement')
     return epoch
+
+
+def request_route(request):
+    """Unauthenticated (kind, session-or-None) metadata, never trust inputs."""
+    require(type(request) is bytes and 10<=len(request)<=MAX_FRAME and request[:8]==b'QPCXCH01',
+            'exchange request frame')
+    kind=request[8];body=request[9:]
+    if kind in (INITIAL,FINAL):return kind,None
+    if kind==MESSAGE:
+        ad,ciphertext=split(body)
+        require(len(ad)<=1024 and 109<=len(ciphertext)<=16493 and ciphertext[:8]==b'QPCMSG03',
+                'exchange message route')
+        session=ciphertext[8:40]
+    elif kind==CONTROL:
+        from .control import inspect
+        inspect(body);session=body[76:108]
+    else:raise ValueError('unknown exchange request kind')
+    require(len(session)==32 and any(session),'exchange session route')
+    return kind,session

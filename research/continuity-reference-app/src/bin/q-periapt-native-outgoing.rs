@@ -18,6 +18,7 @@ mod operator_io;
 mod outgoing_files;
 use operator_io::{identifier, print, read};
 use outgoing_files::FileTransport;
+use q_periapt_continuity_reference_app::network::TcpTransport;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Deserialize)]
@@ -55,9 +56,37 @@ enum Action {
         request_directory: PathBuf,
         response_directory: PathBuf,
     },
+    DeliverTcp {
+        message: [u8; 32],
+        plaintext: Vec<u8>,
+        associated_data: Vec<u8>,
+        address: std::net::SocketAddr,
+    },
+    RekeyTcp {
+        target: u64,
+        exchanges: u16,
+        address: std::net::SocketAddr,
+    },
+}
+enum Carrier {
+    Files(FileTransport),
+    Tcp(TcpTransport),
+}
+impl sdk::session_exchange::Transport for Carrier {
+    fn exchange(
+        &mut self,
+        request: &[u8],
+        deadline: sdk::MonotonicInstant,
+        cancel: &sdk::Cancellation,
+    ) -> std::io::Result<Vec<u8>> {
+        match self {
+            Self::Files(value) => value.exchange(request, deadline, cancel),
+            Self::Tcp(value) => value.exchange(request, deadline, cancel),
+        }
+    }
 }
 impl Action {
-    fn preflight(&self) -> Result<Option<FileTransport>> {
+    fn preflight(&self) -> Result<Option<Carrier>> {
         let directories = match self {
             Self::Next => return Ok(None),
             Self::Status { message } => {
@@ -88,8 +117,33 @@ impl Action {
                 }
                 (request_directory, response_directory)
             }
+            Self::DeliverTcp {
+                message,
+                plaintext,
+                associated_data,
+                address,
+            } => {
+                sdk::MessageId::from_trusted_state(*message)?;
+                if plaintext.len() > 16384 || associated_data.len() > 1024 {
+                    return Err("Outgoing message capacity".into());
+                }
+                return Ok(Some(Carrier::Tcp(TcpTransport::new(*address)?)));
+            }
+            Self::RekeyTcp {
+                target,
+                exchanges,
+                address,
+            } => {
+                if *target == 0 || *target == u64::MAX || !(1..=128).contains(exchanges) {
+                    return Err("Outgoing rekey target or allowance".into());
+                }
+                return Ok(Some(Carrier::Tcp(TcpTransport::new(*address)?)));
+            }
         };
-        Ok(Some(FileTransport::new(directories.0, directories.1)?))
+        Ok(Some(Carrier::Files(FileTransport::new(
+            directories.0,
+            directories.1,
+        )?)))
     }
 }
 fn json<T: DeserializeOwned>(path: &Path, maximum: usize) -> Result<T> {
@@ -140,6 +194,12 @@ fn main() -> Result<()> {
             plaintext,
             associated_data,
             ..
+        }
+        | Action::DeliverTcp {
+            message,
+            plaintext,
+            associated_data,
+            ..
         } => {
             let input = sdk::session_exchange::Submission {
                 message: sdk::MessageId::from_trusted_state(message)?,
@@ -155,6 +215,9 @@ fn main() -> Result<()> {
             serde_json::json!({"consumption":format!("{outcome:?}")})
         }
         Action::Rekey {
+            target, exchanges, ..
+        }
+        | Action::RekeyTcp {
             target, exchanges, ..
         } => {
             let done = active.rekey(

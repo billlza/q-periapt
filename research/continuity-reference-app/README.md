@@ -18,7 +18,8 @@ and recoverable public advertisement. It uses the SDK's existing controlled sign
 and storage owners with independently supplied host approval and policy pins.
 The [native session exchange](NATIVE_SESSION.md) consumes its publication through
 the independent implementation and serves owned bootstrap, durable inbox delivery
-and rekey control. A bidirectional network service remains separate work.
+and rekey control. The explicit [TCP reference service](NETWORK.md) connects
+native and independent owners with bounded admission and original-operation retry.
 
 This unpublished host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses

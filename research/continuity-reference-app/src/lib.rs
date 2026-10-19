@@ -4,6 +4,7 @@ pub mod auth;
 pub mod enrollment;
 pub mod error;
 pub mod native_device;
+pub mod network;
 pub mod policy_publisher;
 pub mod sdk_authority;
 pub mod sdk_inputs;
