@@ -33,6 +33,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from native_exchange_fixture import Issuer,b64,save,wire
 from native_exchange_cuts import exercise as crash_cuts
 from native_connection_checks import exercise as connection_checks
+from native_connection_flow import exercise as connection_flow
 
 root = args.output.resolve(); root.mkdir(mode=0o700)
 issuer = Issuer(root)
@@ -172,7 +173,7 @@ try:
         require(child.accept_acknowledgement(proof,now=int(time.time())) == 0,'initial authenticated consumption prefix')
         require((session_dir/'head').read_bytes()==traffic_head,'zero-prefix ACK unexpectedly changed traffic image')
 
-    client,confirmation=connection_checks(client,client_dir,client_id,key,session,proof,root,refuse)
+    client,confirmation=connection_checks(client,client_dir,client_id,key,session,proof,root,refuse,(initial,reply,final,ready))
     client.close(); client=EnrollmentClient.open(client_dir,client_id,key)
     require(client.status()['journal'] == original_journal,'client journal changed on reopen')
     with client.connection_session(int(time.time())) as child:
@@ -210,14 +211,19 @@ try:
         require(child.connection_identity(int(time.time()))==session,'reopened epoch-one connection differs')
         require(child.status(next_message)=='Acknowledged','reopened epoch-one status differs')
     confirmation['post_rekey_reopen']=True
+    client,last_message,last_plaintext,flow=connection_flow(client,client_dir,client_id,key,session,ack,exchange,refusals)
+    run([session_cli,'read-inbox',root/'inbox.redb',b64(bytes(accepted['journal'])),b64(session),b64(last_message),
+         root/'facade-received.bin'],'facade-read-delivery')
+    require((root/'facade-received.bin').read_bytes()==last_plaintext,'owned connection host effect differs')
     require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}==native_hashes,'native executable changed')
-    report={'schema_version':3,'kind':'qperiapt.native_reference_exchange','completed':True,
+    report={'schema_version':4,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':native_hashes,'commands':commands,'refusals':refusals,
             'process_kills':kills,
             'connection_confirmation':confirmation,
+            'connection_operations':flow,
             'provider':provider.__version__,'implementation':str(implementation/'qperiapt_continuity_reference/publication.py'),
-            'confirmed_epoch':target,'control_exchanges':attempts,'clock':'actual OS time',
-            'scope':'Explicit test authority; separate original native and independent owners, authenticated peer confirmation retained across two SIGKILL cuts, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, exact original retry and one PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
+            'confirmed_epoch':flow['confirmed_epoch'],'control_exchanges':attempts+flow['control_exchanges'],'clock':'actual OS time',
+            'scope':'Explicit test authority; separate original native and independent owners, authenticated peer confirmation retained across two SIGKILL cuts, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, owned delivery cancellation/deadline/lost-ACK recovery and bounded recovery of a second PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
     save(root/'RESULT.json',report); print(json.dumps(report))
 finally:
     client.close()

@@ -210,7 +210,65 @@ The borrowed-session facade itself changes no session storage format or
 cryptographic domain. Explicit pre-child adoption and peer confirmation use the
 registration formats described above.
 
-## Recovery and failure boundaries
+## Owned connection operations
+
+For the supported initiator profile, `client.connect(carrier, run)` coordinates
+the original initial/reply/final flights and the authenticated READY commit.
+If that commit already exists, it opens the confirmed original child without
+another bootstrap. `client.reopen_connection(run)` requires that record and
+performs no network exchange. Both accept a separate `witness_transport` for a
+required-witness child; the application carrier cannot replace it.
+
+```python
+from qperiapt_continuity_reference.connection import Consumption
+from qperiapt_continuity_reference.connection_run import Run
+
+with client.connect(carrier, Run(30)) as connection:
+    message = connection.next_id(Run())
+    # Retain message and original associated data before delivery; a failed
+    # invocation may have committed locally or at the peer.
+    result = connection.deliver(message, plaintext, associated_data, carrier, Run(30))
+    if result is Consumption.PREFIX_PENDING:
+        # The authenticated prefix does not yet cover this message.
+        result = connection.resume(message, associated_data, carrier, Run(30))
+```
+
+`carrier(request, deadline, cancellation)` exchanges one `QPCXCH01` frame and
+returns response bytes. Frames are bounded at 32 KiB, matching the native
+contract. A carrier supplies neither identity nor commit evidence. It must bound
+its own allocations and honor the original absolute monotonic deadline and
+one-way cancellation while blocked. Synchronous callbacks cannot be forcibly
+interrupted; late results are rejected and the owner is closed. The included
+interface is carrier-independent; a deployed bidirectional network service and
+an independent inbound application-consumption adapter remain separate work.
+
+Each `Run` lasts more than zero and at most 120 seconds, uses real OS time by
+default, and can receive a trusted host `clock` and `Cancellation` token.
+`cancel()` works from another thread and has no reset operation. Every protocol
+operation checks cancellation/deadline and current authority around dispatch
+and result release. The connection serializes complete operations under the
+client's owner lock; reentrant protocol operations fail, while reentrant close
+withholds the in-flight result. Closing the connection releases its child borrow;
+closing the client revokes all children. An operation error closes the client.
+
+After any unknown delivery result, reopen the original `EnrollmentClient` and
+call `reopen_connection`. `connection.status(message)` returns historical
+disposition without claiming current permission. `Reserved` or `Committed` can
+be resumed with the original ID and associated data; `resume` uses the exact
+stored send intent/outbox and does not need replacement plaintext. `Acknowledged`
+means that original ID was consumed, not that new plaintext for it is acceptable.
+Retired/unknown resolution states require their existing maintenance operations,
+after closing this borrow. No error creates a new message, journal or identity.
+
+`connection.rekey(target, carrier, run, exchanges=8)` drives one explicit target,
+with an allowance of 1 through 128 request/reply exchanges. It returns the exact
+locally confirmed epoch and requests attempted in that successful invocation.
+Allowance exhaustion closes the owner and retains the same target for recovery.
+The unsigned empty carrier marker is accepted only if the local authenticated
+state already proves that target completed. Neither completion nor an ACK
+establishes fresh peer liveness or secrecy recovery from prior compromise.
+
+## Original storage recovery
 
 `open` (used by every command except `begin`) never invokes device provision.
 It reopens the configuration and original device, then completes a pending

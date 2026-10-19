@@ -249,6 +249,26 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def connect(self,transport,run,*,witness_transport=None):
+        """Establish/reconcile this original child and its authenticated READY."""
+        try:
+            from .connection import Connection
+            self._alive(); result=Connection._connect(self,transport,run,witness_transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def reopen_connection(self,run,*,witness_transport=None):
+        """Open recorded original traffic; performs no network or bootstrap."""
+        try:
+            from .connection import Connection
+            self._alive(); result=Connection._open(self,run,witness_transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def credential_renewal(self, operation, now, *, transport=None):
         """Borrow local/joint renewal without creating a replacement registration."""
         try:

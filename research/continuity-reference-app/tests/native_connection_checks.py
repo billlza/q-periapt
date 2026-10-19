@@ -6,10 +6,18 @@ import signal
 import time
 
 from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
+from qperiapt_continuity_reference.connection_run import Run
+from qperiapt_continuity_reference.connection_wire import frame, pair
 from qperiapt_continuity_reference.wire import require
 
 
-def exercise(client, path, identity, key, session, proof, root, refuse):
+def exercise(client, path, identity, key, session, proof, root, refuse, transcript):
+    initial,reply,final,ready=transcript
+    def replay(request,deadline,cancellation):
+        require(deadline>time.monotonic() and not cancellation.is_cancelled(),'invalid replay invocation')
+        if request==frame(1,initial): return reply
+        require(request==frame(2,pair(initial,final)),'changed original replay transcript')
+        return ready
     def open_original(observer=None):
         return EnrollmentClient.open(path,identity,key,observer=observer)
 
@@ -30,6 +38,12 @@ def exercise(client, path, identity, key, session, proof, root, refuse):
     other=bytes([session[0]^1])+session[1:]
     refuse('wrong-ready-session',lambda:client.confirm_connection(other,proof,int(time.time())))
     require(files()==before,'wrong confirmation scope changed registration')
+    client=open_original()
+    def forged_ready(request,deadline,cancellation):
+        result=replay(request,deadline,cancellation)
+        return result[:-1]+bytes([result[-1]^1]) if request[:9]==frame(2,b'x')[:9] else result
+    refuse('forged-connect-ready',lambda:client.connect(forged_ready,Run()))
+    require(files()==before,'forged connect READY changed registration')
     client=open_original()
 
     # Host cancellation at a real prepublication boundary must close both owners
@@ -61,7 +75,10 @@ def exercise(client, path, identity, key, session, proof, root, refuse):
                 os.kill(os.getpid(),signal.SIGKILL)
             try:
                 child=open_original(kill_at_stage)
-                child.confirm_connection(session,proof,int(time.time()))
+                if cut=='committed:intent':
+                    with child.connect(replay,Run()) as connection:
+                        require(connection.identity==session,'connected original identity differs')
+                else: child.confirm_connection(session,proof,int(time.time()))
                 child.close()
             except BaseException: os._exit(71)
             os._exit(72)
@@ -102,5 +119,8 @@ def exercise(client, path, identity, key, session, proof, root, refuse):
         client.close()
         refuse('closed-confirmed-owner',lambda:child.connection_identity(int(time.time())))
     client=open_original()
+    def no_exchange(*_args): raise AssertionError('confirmed reconnect attempted another bootstrap')
+    with client.connect(no_exchange,Run()) as connection:
+        require(connection.identity==session,'reconciled original connection differs')
     return client,{'schema_version':1,'process_kills':kills,'recovery_failure':recovery_failure,
                    'raw_traffic_unrecorded':True,'exact_retry_unchanged':True,'closed_owner_refused':True}
