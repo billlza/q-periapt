@@ -2,8 +2,9 @@
 
 This optional local host exposes its existing enrollment transactions. It does
 not add an account service, WebAuthn requirement or HTTP dependency to the SDK.
-The browser currently exposes login only; enrollment controls and installed
-independent-client acceptance remain to be connected and qualified.
+The [browser controls](BROWSER_ENROLLMENT.md) call these same transactions.
+Installed independent-client acceptance and a complete real browser/device
+ceremony remain to be connected and qualified.
 
 The server still binds IPv4 loopback and admits one exact `localhost` origin.
 Every request must match the configured Host. Every POST must also carry that

@@ -87,10 +87,37 @@ pub fn router(state: Shared) -> Router {
         .route("/api/login/finish", post(login_finish))
         .route("/api/me", get(identity))
         .route("/api/logout", post(logout))
+        .merge(browser_modules())
         .merge(enrollment::routes())
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), boundary))
         .with_state(state)
+}
+fn browser_modules() -> Router<Shared> {
+    let mut routes = Router::new();
+    for (path, source) in [
+        ("/transport.mjs", include_str!("../web/transport.mjs")),
+        (
+            "/enrollment-records.mjs",
+            include_str!("../web/enrollment-records.mjs"),
+        ),
+        (
+            "/enrollment-model.mjs",
+            include_str!("../web/enrollment-model.mjs"),
+        ),
+        ("/enrollment.mjs", include_str!("../web/enrollment.mjs")),
+    ] {
+        routes = routes.route(
+            path,
+            get(move || async move {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    source,
+                )
+            }),
+        );
+    }
+    routes
 }
 async fn boundary(State(state): State<Shared>, request: Request, next: Next) -> Response {
     if request

@@ -82,6 +82,7 @@ pub fn directory() -> Result<tempfile::TempDir> {
 pub struct Reply {
     pub code: u16,
     pub body: Vec<u8>,
+    pub content_type: Option<String>,
 }
 impl Reply {
     pub fn json<T: DeserializeOwned>(&self) -> Result<T> {
@@ -180,8 +181,12 @@ impl Client {
             .nth(1)
             .ok_or("HTTP status code absent")?
             .parse()?;
+        let mut content_type = None;
         for line in header.lines().skip(1) {
             let (name, value) = line.split_once(':').ok_or("HTTP header syntax")?;
+            if name.eq_ignore_ascii_case("content-type") {
+                content_type = Some(value.trim().to_owned());
+            }
             if name.eq_ignore_ascii_case("set-cookie") {
                 let pair = value.trim().split(';').next().ok_or("cookie pair absent")?;
                 let (key, value) = pair.split_once('=').ok_or("cookie syntax")?;
@@ -202,6 +207,7 @@ impl Client {
         Ok(Reply {
             code,
             body: bytes[end + 4..].to_vec(),
+            content_type,
         })
     }
     pub async fn post(

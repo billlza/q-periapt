@@ -17,9 +17,10 @@ Passkey, logout and reopening the original account database. Its private Rust
 service now also provides root preparation, explicit device approval, transactional
 issuance, exact original-response recovery and an enrollment suspension fence.
 The same-origin [HTTP enrollment adapter](HTTP_ENROLLMENT.md) now exposes those
-existing transactions using the host login session. **Browser enrollment controls
-and the installed independent client are not connected yet.** A login session is
-not a device credential or permission to send Continuity traffic.
+existing transactions using the host login session. The [browser controls](BROWSER_ENROLLMENT.md)
+retain original correlations and support explicit approval/reapproval and recovery.
+**Installed independent-client acceptance is not connected yet.** A login session
+is not a device credential or permission to send Continuity traffic.
 
 The implementation and remaining integration follow the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
 It binds original requests, explicit approval, complete membership and durable
@@ -151,6 +152,15 @@ The same transaction suite runs in debug and release configurations. The
 tests execute both the enrollment library and the binary's HTTP router over
 actual loopback TCP. A successfully built standalone executable alone is not
 installed-client or deployed enrollment evidence.
+
+The browser-model and transport regressions run with
+`node --test --test-reporter=tap research/continuity-reference-app/tests/web/*.test.mjs`.
+They use explicitly substituted HTTP and storage objects. They verify exact u64
+round trips, retained operation recovery, write failures, immutable submitted
+proofs, historical/current separation, account-bound imports and response errors.
+The Rust TCP suite separately verifies that the actual router serves every
+browser module with the expected source and MIME type. These checks do not
+establish a complete browser-to-installed-device enrollment ceremony.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

@@ -1,6 +1,45 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Q-Periapt reference account</title><link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script></head>
-<body><main><p class="eyebrow">CONTINUITY / OPTIONAL LOCAL EXAMPLE</p><h1>Your account.<br>Your devices.</h1><p>This local application demonstrates account authorization for device enrollment. Using the Q-Periapt SDK does not require this account or a passkey; your application can supply its own authentication and trusted provisioning.</p><p>For this example, use a passkey to create a local test account or sign in. Your device handles the biometric or PIN check; this application never receives it.</p>
-<form id="account-form"><p>First visit? Choose <strong>Create account</strong> before signing in. This creates a passkey, not a password.</p><label for="name">Account name</label><input id="name" name="name" autocomplete="username webauthn" pattern="[a-z0-9_-]{1,64}" maxlength="64" required placeholder="your-account"><div class="actions"><button id="sign-in" type="submit">Sign in with a passkey</button><button id="create" type="button" class="secondary">Create account</button></div></form>
-<section id="identity" hidden><h2>Signed in</h2><p id="account-detail"></p><div class="actions"><button id="add" type="button">Add another passkey</button><button id="sign-out" type="button" class="secondary">Sign out</button></div></section>
-<p id="status" role="status" aria-live="polite">Ready.</p><p class="scope">Device enrollment HTTP endpoints are available, but browser enrollment controls and the installed-client flow are not connected yet. Signing in alone does not authorize a Continuity device.</p></main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local device enrollment example</title>
+  <link rel="stylesheet" href="/app.css"><script type="module" src="/app.js"></script>
+</head>
+<body><main>
+  <p class="eyebrow">CONTINUITY / OPTIONAL LOCAL EXAMPLE</p>
+  <h1>Device enrollment<br>reference app.</h1>
+  <p>This local application demonstrates account authorization for device enrollment. Using the Q-Periapt SDK does not require this account or a passkey; your application can supply its own authentication and trusted provisioning.</p>
+  <p>For this example, use a passkey to create a local test account or sign in. Your device handles the biometric or PIN check; this application never receives it.</p>
+  <form id="account-form">
+    <p>First visit? Choose <strong>Create account</strong> before signing in.</p>
+    <label for="name">Local account name</label>
+    <input id="name" name="name" autocomplete="username webauthn" pattern="[a-z0-9_-]{1,64}" maxlength="64" required placeholder="your-account">
+    <div class="actions"><button id="sign-in" type="submit">Sign in with a passkey</button><button id="create" type="button" class="secondary">Create account</button></div>
+  </form>
+  <section id="identity" hidden>
+    <h2>Signed in</h2><p id="account-detail"></p>
+    <div class="actions"><button id="add" type="button">Add another passkey</button><button id="sign-out" type="button" class="secondary">Sign out</button></div>
+  </section>
+  <p id="status" role="status" aria-live="polite">Ready.</p>
+  <section id="enrollment" hidden>
+    <h2>Authorize a device</h2>
+    <p>Signing in does not authorize a device. Prepare the host root, create an invitation, and transfer it through your trusted provisioning channel. Keep the private signing key on the device; load only its original public request here.</p>
+    <div class="actions"><button id="prepare-root" type="button">Prepare or reopen account root</button><button id="read-root" type="button" class="secondary">Read current root and roster</button></div>
+    <pre id="root-detail"></pre>
+    <div class="actions"><button id="save-root" type="button" class="secondary">Save displayed root and roster</button></div>
+    <h3>Original operation</h3>
+    <p>Recover an interrupted operation before creating another invitation. Browser records retain the correlation and original request, and remain here after sign-out. Back them up before clearing browser data.</p>
+    <label for="operations">Retained operation</label><select id="operations"><option value="">Select an original operation</option></select>
+    <div class="actions"><button id="new-invitation" type="button">Create a new device invitation</button><button id="recover-operation" type="button" class="secondary">Recover or refresh selected operation</button></div>
+    <pre id="operation-detail"></pre>
+    <div class="actions"><button id="save-invitation" type="button" class="secondary">Save invitation for the device</button></div>
+    <label for="request-file">Original device request file (binary, at most 8192 bytes)</label><input id="request-file" type="file">
+    <p>Review the device, validity interval and request fingerprint above. Approve only the original request from the device you intend to add.</p>
+    <div class="actions"><button id="approve-request" type="button">Approve this device request</button><button id="issue-device" type="button">Issue or recover credential</button></div>
+    <div class="actions"><button id="reapprove-request" type="button" class="secondary">Reapprove against displayed roster</button><button id="select-successor" type="button" class="secondary">Select recorded successor</button><button id="cancel-operation" type="button" class="secondary">Cancel selected pending operation</button></div>
+    <p>Reapproval keeps the original device description and credential interval. An already approved request cannot change keys. An unapproved source can receive a separately selected request through a new explicit decision; earlier requests remain retained. Reapproval cannot renew an expired credential. A recorded successor must be selected explicitly.</p>
+    <div class="actions"><button id="save-issued" type="button" class="secondary">Save historical issuance result</button><button id="save-records" type="button" class="secondary">Back up browser recovery records</button></div>
+    <label for="recovery-file">Import recovery records for this same account and origin</label><input id="recovery-file" type="file" accept="application/json,.json">
+    <p class="scope">An issued result records a past operation. It is not current traffic permission. Client acceptance must verify the original device key, current independently authenticated root/roster, signed policy and trusted time. The installed independent-client path is still being integrated.</p>
+  </section>
+</main></body></html>

@@ -46,6 +46,9 @@ jobs:
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "26.10.0"
       - name: Prepare native OpenSSL on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
@@ -66,6 +69,15 @@ jobs:
           rustc -vV > target/reference-account-ci/rustc.txt
           uname -a > target/reference-account-ci/host.txt
           pkg-config --modversion openssl > target/reference-account-ci/openssl.txt
+          node --version > target/reference-account-ci/node.txt
+      - name: Verify browser recovery and exact integer transport
+        run: |
+          for module in research/continuity-reference-app/web/*.mjs; do
+            node --check "$module"
+          done
+          node --input-type=module --check < research/continuity-reference-app/web/app.js
+          node --test --test-reporter=tap research/continuity-reference-app/tests/web/*.test.mjs \
+            > target/reference-account-ci/web-tests.stdout 2> target/reference-account-ci/web-tests.stderr
       - name: Verify account, enrollment transactions and process recovery
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build

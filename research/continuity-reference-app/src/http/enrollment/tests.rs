@@ -68,6 +68,32 @@ async fn http_enrollment_requires_host_auth_and_recovers_exact_response_after_re
     let path = dir.path().canonicalize()?;
     let server = Server::start(&path, "127.0.0.1:0".parse()?, true).await?;
     let mut alice = Client::default();
+    // The real router must deliver every module referenced by the browser entry.
+    for (url, source) in [
+        (
+            "/transport.mjs",
+            include_bytes!("../../../web/transport.mjs").as_slice(),
+        ),
+        (
+            "/enrollment-records.mjs",
+            include_bytes!("../../../web/enrollment-records.mjs").as_slice(),
+        ),
+        (
+            "/enrollment-model.mjs",
+            include_bytes!("../../../web/enrollment-model.mjs").as_slice(),
+        ),
+        (
+            "/enrollment.mjs",
+            include_bytes!("../../../web/enrollment.mjs").as_slice(),
+        ),
+    ] {
+        let reply = alice.get(&server, url).await?.checked(200)?;
+        assert_eq!(
+            reply.content_type.as_deref(),
+            Some("text/javascript; charset=utf-8")
+        );
+        assert_eq!(reply.body, source);
+    }
     let mut authenticator = alice.register(&server, "alice").await?;
     let root: RootInfo = alice
         .post(&server, "/api/enrollment/root/prepare", json!({}))
