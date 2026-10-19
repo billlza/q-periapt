@@ -2448,31 +2448,45 @@ jobs:
         if: matrix.os == 'macos-15'
         run: test "$(uname -m)" = arm64
       - name: Check and exercise candidate with the selected compiler
+        shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
+          candidate_log=target/continuity-native-checks
+          mkdir -p "$candidate_log"
+          git rev-parse HEAD > "$candidate_log/source-commit.txt"
+          rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
           candidate_manifest=research/continuity-identity-candidate/Cargo.toml
-          cargo +"$CANDIDATE_TOOLCHAIN" check --manifest-path "$candidate_manifest" --all-targets --locked --no-default-features
-          cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --all-features --locked -- -D warnings
+          cargo +"$CANDIDATE_TOOLCHAIN" check --manifest-path "$candidate_manifest" --all-targets --locked --no-default-features 2>&1 | tee "$candidate_log/check.log"
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --all-features --locked -- -D warnings 2>&1 | tee "$candidate_log/clippy-all.log"
           for candidate_feature in control-tls connection-tls; do
-            cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings
+            cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings 2>&1 | tee "$candidate_log/clippy-$candidate_feature.log"
           done
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture 2>&1 | tee "$candidate_log/debug.log"
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture 2>&1 | tee "$candidate_log/release.log"
       - name: Verify sealed SDK operations with the selected compiler
+        shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
-          cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings
-          cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations
-          cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations
+          cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings 2>&1 | tee target/continuity-native-checks/sdk-clippy.log
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-debug.log
+          cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-release.log
       - name: Check canonical formatting and documentation
         if: matrix.toolchain == '1.98.1'
+        shell: bash
         env:
           RUSTDOCFLAGS: -D warnings
         run: |
-          cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check
-          cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps
+          cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check 2>&1 | tee target/continuity-native-checks/format.log
+          cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps 2>&1 | tee target/continuity-native-checks/doc.log
+      - name: Preserve native compiler and test results including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: target/continuity-native-checks/
+          if-no-files-found: error
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         if: matrix.os == 'macos-15'
         id: candidate_python
