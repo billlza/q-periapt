@@ -18,9 +18,11 @@ class RegistrationJournal(Journal):
 
 
 class Registration:
-    def __init__(self, journal, key, intent, observer):
+    def __init__(self, journal, key, intent, observer, parent=None):
         self._journal, self._key, self._intent, self._observer = journal, key, intent, observer
-        self._lock = threading.RLock(); self._busy = False; self._child = None
+        self._parent = parent
+        self._lock = threading.RLock() if parent is None else parent._lock
+        self._busy = False; self._child = None
 
     @staticmethod
     def _store_observer(observer):
@@ -37,20 +39,27 @@ class Registration:
         return lambda wire: Image.decode(wire, intent)
 
     @classmethod
-    def provision(cls, path, registration_id, key, intent, *, observer=None):
+    def provision(cls, path, registration_id, key, intent, *, observer=None, _parent=None):
         # First use is explicit. A missing/failed open never selects this method.
         value = Image(os.urandom(32), seed_from(SigningKey()))
         journal = RegistrationJournal.create(path, intent.scope(registration_id), key, value.encode(intent), cls._validator(intent), cls._store_observer(observer))
-        return cls(journal, key, intent, observer)
+        return cls(journal, key, intent, observer, _parent)
 
     @classmethod
-    def open(cls, path, registration_id, key, intent, *, recover_initial=False, observer=None):
+    def open(cls, path, registration_id, key, intent, *, recover_initial=False, observer=None, _parent=None):
         journal = RegistrationJournal.open(path, intent.scope(registration_id), key, cls._validator(intent), creation=recover_initial, observer=cls._store_observer(observer))
-        return cls(journal, key, intent, observer)
+        return cls(journal, key, intent, observer, _parent)
 
     def _alive(self):
+        if self._parent is not None: self._parent._alive()
         require(self._journal is not None, 'closed registration owner')
         self._journal._admit()
+
+    def _close_after_error(self):
+        # A borrowed operation must revoke the whole owning client, including
+        # its configuration lease. Both layers use the same reentrant lock.
+        if self._parent is not None: self._parent.close()
+        else: self.close()
 
     def _image(self):
         self._alive(); snapshot = self._journal.read()
@@ -73,7 +82,7 @@ class Registration:
                       'public_key': signer(image.seed).public().raw,
                       'journal': None if image.admission is None else image.admission.journal}
             self._alive(); return result
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def request(self, now):
@@ -86,7 +95,7 @@ class Registration:
             require(self._intent.verify_request(image.request, now) == (image.identity, signer(image.seed).public()),
                     'registration original signing owner differs')
             self._alive(); return image.request
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def accept(self, certificate, roster, pin, policy_pins, policy_materials, now, *, witness_pin=None):
@@ -111,35 +120,35 @@ class Registration:
                 image.admission = Admission(pin.checkpoint(), policy_head, os.urandom(32), certificate, roster)
                 snapshot, image = self._save(snapshot, image, 'acceptance-committed')
             self._alive(); return image.admission.journal
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def prepare(self, path, inputs, now):
         try:
             from .registration_session import prepare
             return prepare(self, path, inputs, now)
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def session(self, now, *, transport=None):
         try:
             from .registration_session import open_child
             return open_child(self, 'session', now, transport=transport)
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def credential_renewal(self, operation, now, *, transport=None):
         try:
             from .registration_session import open_child
             return open_child(self, 'credential', now, operation=operation, transport=transport)
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @coordinated
     def pending_write_recovery(self, now, *, transport):
         try:
             from .registration_session import open_child
             return open_child(self, 'pending', now, transport=transport)
-        except BaseException: self.close(); raise
+        except BaseException: self._close_after_error(); raise
 
     @locked
     def close(self):
@@ -147,6 +156,7 @@ class Registration:
         # Reentrant close can revoke the result before it leaves a callback.
         child, self._child = self._child, None
         journal, self._journal = self._journal, None; self._key = None
+        self._parent = None
         try:
             if child is not None: child._close()
         finally:

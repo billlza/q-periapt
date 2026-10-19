@@ -323,8 +323,10 @@ reference does not require a cleartext test signer file for these operations.
 The [local enrollment client](ENROLLMENT_CLIENT.md) coordinates original host
 configuration, request export, credential acceptance and reopen through an
 installed CLI. Its authorization inputs are supplied by the embedding host;
-it introduces no account signup requirement. Full session CLI integration and
-the documented pre-publication first-use recovery boundary remain open.
+it introduces no account signup requirement. The same API now borrows the
+registered session, rekey, credential renewal and pending recovery under the
+client lifetime. Full session CLI integration and the documented pre-publication
+first-use recovery boundary remain open.
 
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)

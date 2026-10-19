@@ -61,8 +61,8 @@ class EnrollmentClient:
 
     `begin` requires an empty, existing private directory. `open` only recovers
     authenticated original journals; it never calls `Registration.provision`.
-    After acceptance, session/bootstrap operations remain on the Registration
-    API; this wrapper does not yet expose the complete session lifecycle.
+    After acceptance, prepare the original child and borrow its existing
+    session or recovery operations. Closing this client revokes every child.
     """
     def __init__(self, path, observer):
         self._lock = threading.RLock(); self._busy = False
@@ -98,7 +98,7 @@ class EnrollmentClient:
             owner._configuration = Journal.create(path / 'configuration', context, key, configuration.wire(),
                                                  Configuration.read, owner._observe('client-config:'))
             owner._registration = Registration.provision(path / 'registration', configuration.registration,
-                                                        key, original.intent, observer=owner._observe('client-device:'))
+                                                        key, original.intent, observer=owner._observe('client-device:'), _parent=owner)
             owner._finish(configuration)
             return owner
         except BaseException:
@@ -119,7 +119,7 @@ class EnrollmentClient:
             _, original = configuration.inputs()
             owner._registration = Registration.open(path / 'registration', configuration.registration,
                                                     key, original.intent, recover_initial=not configuration.ready,
-                                                    observer=owner._observe('client-device:'))
+                                                    observer=owner._observe('client-device:'), _parent=owner)
             owner._finish(configuration)
             return owner
         except BaseException:
@@ -159,6 +159,49 @@ class EnrollmentClient:
                                    HostInvitation.decode(approved, self._authority), IssuedEnrollment.decode(issued),
                                    CurrentMembership.from_trusted(current, self._authority),
                                    PolicyInputs.from_trusted(policy_pins, policy_materials), now)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def prepare(self, path, inputs, now):
+        """Prepare or recover the same accepted child with independent trust inputs."""
+        try:
+            self._alive()
+            # Keep the child outside configuration and device ownership. Each
+            # journal has its own lease and fixed on-disk record inventory.
+            require(path != self._root.path and not path.is_relative_to(self._root.path)
+                    and not self._root.path.is_relative_to(path),
+                    'client and session directories must be separate')
+            result = self._registration.prepare(path, inputs, now)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def session(self, now, *, transport=None):
+        """Borrow the original session; the owning client must remain open."""
+        try:
+            self._alive(); result = self._registration.session(now, transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def credential_renewal(self, operation, now, *, transport=None):
+        """Borrow local/joint renewal without creating a replacement registration."""
+        try:
+            self._alive()
+            result = self._registration.credential_renewal(operation, now, transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def pending_write_recovery(self, now, *, transport):
+        """Borrow original witnessed recovery; this does not renew authority."""
+        try:
+            self._alive(); result = self._registration.pending_write_recovery(now, transport=transport)
             self._alive(); return result
         except BaseException:
             self.close(); raise

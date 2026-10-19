@@ -50,10 +50,10 @@ class BorrowedOwner:
         def invoke(*args, **kwargs):
             parent = self._parent
             with parent._lock:
-                parent._alive(); require(self._owner is not None, 'closed registered child')
                 require(not parent._busy, 'registration operation already in progress')
                 parent._busy = True
                 try:
+                    parent._alive(); require(self._owner is not None, 'closed registered child')
                     if name in SIGNING:
                         require('signer' not in kwargs, 'registered signing owner cannot be substituted')
                         kwargs['signer'] = _Signer(parent)
@@ -61,7 +61,7 @@ class BorrowedOwner:
                     parent._alive(); require(self._owner is not None, 'closed registered child')
                     return value
                 except BaseException:
-                    parent.close(); raise
+                    parent._close_after_error(); raise
                 finally: parent._busy = False
         return invoke
 

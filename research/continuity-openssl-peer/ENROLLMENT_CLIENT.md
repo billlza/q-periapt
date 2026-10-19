@@ -8,9 +8,11 @@ Passkey or Q-Periapt account service is required by these interfaces.
 
 This is an unpublished reference consumer on Apple Silicon/macOS and Linux
 x86_64, using CPython 3.14 and the pinned OpenSSL provider. It is not the final
-0.2.0 product entry point. Session opening/traffic, ongoing credential renewal,
-policy updates, device/root replacement and multi-session coordination are not
-yet exposed through this CLI. Do not treat `Accepted` as traffic authorization.
+0.2.0 product entry point. The API owns one registered child session and exposes
+its existing traffic, rekey, credential renewal and exact witnessed recovery
+operations. The CLI still exposes enrollment only. Policy updates, device/root
+replacement and multi-session coordination remain separate gaps. Do not treat
+`Accepted` as traffic authorization.
 
 ## Host responsibilities and original state
 
@@ -74,9 +76,38 @@ from the host's independently authenticated current observation, and policy
 pins come from independent provisioning. The issuance response cannot replace
 those inputs. Current roster removal, wrong authority, malformed inputs, policy
 failure or expired credentials still fail. The CLI uses the host OS clock and
-has no time override. An operational policy publisher and actual authenticated
-browser-to-client ceremony are still outstanding; test-issued policy files do
-not substitute for them.
+has no time override. The [reference host](../continuity-reference-app/README.md)
+provides separate account authorization and protected policy-publisher tools;
+test-issued files do not substitute for an actual host authorization ceremony.
+
+## Registered session and recovery API
+
+After acceptance, call `client.prepare(session_directory, inputs, now)` with the
+existing independently trusted `registration_inputs.Inputs`. The private child
+directory must be outside the client directory and cannot contain it. This
+commits its original path, context, public inputs and journal identity before
+preparing the child. Retry that same preparation after an unknown result;
+never select a different path or create a replacement registration.
+
+`with client.session(now, transport=...) as session` borrows the existing
+bootstrap, traffic and rekey operations described in [REGISTRATION.md](REGISTRATION.md).
+The client retains the signing owner; callers do not supply a signer or access
+private seeds. Required-witness preparation still returns genesis for separate
+authorized enrollment. It never falls back to a local session.
+
+The same owner exposes `credential_renewal(operation, now, transport=...)` and
+`pending_write_recovery(now, transport=...)`. They retain the existing original
+grant, independent approval and fresh-Query requirements. An unresolved send
+reservation must be recovered by its original identity before selecting a
+different message. Recovery alone does not extend authority or grant traffic.
+
+Client, registration and borrowed operations share one reentrant lock, and every
+borrowed operation checks the outer directory lease as well as its own journal.
+Closing the client revokes existing children; a new client cannot revive them.
+An operation failure closes the owning client and releases its configuration
+lease. Reopen the original client explicitly. Reentrant close can withhold a
+result after durable commitment; resume that original operation after reopening.
+No stored format changes or new cryptographic domain are introduced here.
 
 ## Recovery and failure boundaries
 
@@ -120,3 +151,11 @@ The installed qualification driver binds both test sources and all package
 modules to Git, installs the wheel outside the checkout, and checks installed
 bytes before and after both suites. This establishes the stated local behavior,
 not real host authorization, physical-device acceptance or the full lifecycle.
+
+`enrollment_session_checks.py` additionally drives real native issuance, traffic,
+rekey, same-key renewal and exact pending recovery through the public client API
+for local and witnessed profiles. It checks parent closure, nested calls,
+callback closure after commitment, outer-directory admission and original
+ciphertext across reopen/renewal. Its clocks and issuer are explicit test inputs.
+The installed-wheel driver runs this suite against the exact selected native
+counterpart; this still does not qualify a live account's complete session path.

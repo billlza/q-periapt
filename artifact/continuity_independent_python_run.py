@@ -147,6 +147,22 @@ def qualify(args: argparse.Namespace) -> dict:
         require(observed["local"] == {"workers": 42, "native_commands": 15, "process_kills": 10}
                 and observed["witness"] == {"workers": 50, "native_commands": 232, "process_kills": 11},
                 "installed registration workload differs")
+        run([*interpreter, str(application / "enrollment_session_checks.py"),
+             "--implementation-root", str(application), "--provider-root", str(provider),
+             "--native", str(args.native), "--output", str(output / "client-session")], "client-session")
+        client_session = parse_strict_json_bytes(snapshot(output / "client-session/RESULT.json").data,
+                                                label="installed enrollment client session")
+        refusals = ["configuration-directory-alias", "closed-client-revokes-child", "nested-client-operation",
+                    "callback-close-withholds-result", "outer-directory-admission", "repaired-path-does-not-revive-child"]
+        require(client_session["completed"] is True and client_session["provider"] == "48.0.1"
+                and client_session["implementation"] == str(application / PACKAGE / "enrollment_client.py")
+                and client_session["native_sha256"] == native.sha256
+                and client_session["profiles"] == [
+                    {"completed": True, "profile": "local", "witness_requests": 0,
+                     "native_commands": 7, "refusal_cases": refusals},
+                    {"completed": True, "profile": "witness", "witness_requests": 138,
+                     "native_commands": 150, "refusal_cases": refusals + ["original-write-result-unknown"]}],
+                "installed enrollment client session workload or implementation differs")
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -157,7 +173,8 @@ def qualify(args: argparse.Namespace) -> dict:
                 and snapshot(args.wheel).sha256 == wheel.sha256 and snapshot(args.native).sha256 == native.sha256,
                 "Python qualification inputs changed")
         result.update(completed=True, sources_unchanged=True, modules=expected,
-                      registration={label: observed[label] for label in ("local", "witness")}, provider=observed["provider"])
+                      registration={label: observed[label] for label in ("local", "witness")},
+                      client_session=client_session, provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}
         raise
