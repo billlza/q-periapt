@@ -222,6 +222,33 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def confirm_connection(self, session, proof, now, *, transport=None):
+        """Record actual authenticated peer confirmation in the original owner."""
+        try:
+            self._alive(); result=self._registration.confirm_connection(session,proof,now,transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def connection_confirmation(self):
+        """Historical peer-confirmation metadata, never current permission."""
+        try:
+            self._alive(); result=self._registration.connection_confirmation()
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def connection_session(self, now, *, transport=None):
+        """Borrow recorded peer-confirmed traffic without a new bootstrap."""
+        try:
+            self._alive(); result=self._registration.connection_session(now,transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def credential_renewal(self, operation, now, *, transport=None):
         """Borrow local/joint renewal without creating a replacement registration."""
         try:

@@ -3,20 +3,25 @@ import copy
 import hashlib
 from pathlib import Path
 import unittest
-from continuity_host_native_exchange import CUT_STAGES, LABELS, REFUSALS, expected_exit, verify
+from continuity_host_native_exchange import CUT_STAGES, CONFIRMATION_CUTS, LABELS, REFUSALS, expected_exit, verify
 
 
 class NativeExchangeReceiptTests(unittest.TestCase):
     def setUp(self):
         self.binaries={'/native/device':'a'*64,'/native/session':'b'*64,'/tests/crash-probe':'c'*64}
         self.application=Path('/installed')
-        self.valid={'schema_version':2,'kind':'qperiapt.native_reference_exchange','completed':True,
+        self.valid={'schema_version':3,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':self.binaries.copy(),'implementation':'/installed/qperiapt_continuity_reference/publication.py',
             'provider':'48.0.1','confirmed_epoch':1,'control_exchanges':2,'clock':'actual OS time',
             'commands':[{'label':name,'exit':expected_exit(name)} for name in LABELS],
             'refusals':list(REFUSALS),'process_kills':[
                 {'stage':stage,'pid':i+100,'exit':-9,'inbox_flags':6,'marker_sha256':hashlib.sha256(f'{i+100} {stage}\n'.encode()).hexdigest()}
-                for i,stage in enumerate(CUT_STAGES)]}
+                for i,stage in enumerate(CUT_STAGES)],
+            'connection_confirmation':{'schema_version':1,'recovery_failure':True,'raw_traffic_unrecorded':True,
+                'exact_retry_unchanged':True,'closed_owner_refused':True,'post_rekey_reopen':True,'process_kills':[
+                    {'stage':stage,'pid':i+200,'exit':-9,'marker_sha256':hashlib.sha256(
+                        f'{i+200} client-device:registration-store:{stage}\n'.encode()).hexdigest()}
+                    for i,stage in enumerate(CONFIRMATION_CUTS)]}}
         verify(self.valid,self.binaries,self.application)
 
     def reject(self, change):
@@ -47,6 +52,15 @@ class NativeExchangeReceiptTests(unittest.TestCase):
         self.reject(lambda r:r['process_kills'][1].update(exit=0))
         self.reject(lambda r:r['process_kills'][1].update(marker_sha256='a'*64))
         self.reject(lambda r:r['process_kills'][1].update(inbox_flags=2))
+
+    def test_unrecorded_confirmation_missing_cuts_and_unproven_reopen_are_rejected(self):
+        self.reject(lambda r:r.update(schema_version=2))
+        self.reject(lambda r:r.pop('connection_confirmation'))
+        self.reject(lambda r:r['connection_confirmation'].update(process_kills=[]))
+        self.reject(lambda r:r['connection_confirmation'].update(post_rekey_reopen=False))
+        self.reject(lambda r:r['connection_confirmation']['process_kills'][0].update(exit=0))
+        self.reject(lambda r:r['connection_confirmation']['process_kills'][0].update(pid=100))
+        self.reject(lambda r:r['connection_confirmation']['process_kills'][1].update(marker_sha256='a'*64))
 
 
 if __name__=='__main__': unittest.main()

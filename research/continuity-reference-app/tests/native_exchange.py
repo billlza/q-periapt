@@ -32,6 +32,7 @@ from qperiapt_continuity_reference.wire import require
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from native_exchange_fixture import Issuer,b64,save,wire
 from native_exchange_cuts import exercise as crash_cuts
+from native_connection_checks import exercise as connection_checks
 
 root = args.output.resolve(); root.mkdir(mode=0o700)
 issuer = Issuer(root)
@@ -167,11 +168,14 @@ try:
         require(exchange('final-retry',{'operation':'bootstrap'},frame(2,pair(initial,final))) == ready,'native READY replay changed')
         session, proof = split(payload(ready,130))
         require(child.activate(now=int(time.time())) == session,'session agreement')
+        traffic_head=(session_dir/'head').read_bytes()
         require(child.accept_acknowledgement(proof,now=int(time.time())) == 0,'initial authenticated consumption prefix')
+        require((session_dir/'head').read_bytes()==traffic_head,'zero-prefix ACK unexpectedly changed traffic image')
 
+    client,confirmation=connection_checks(client,client_dir,client_id,key,session,proof,root,refuse)
     client.close(); client=EnrollmentClient.open(client_dir,client_id,key)
     require(client.status()['journal'] == original_journal,'client journal changed on reopen')
-    with client.session(int(time.time())) as child:
+    with client.connection_session(int(time.time())) as child:
         message=child.next_id(now=int(time.time()))
         plaintext=b'original native reference delivery'; ad=b'actual-time reference'
         ciphertext=child.send(message,plaintext,ad,now=int(time.time()))
@@ -200,13 +204,20 @@ try:
         ack=exchange('epoch-one-message',operation,frame(3,pair(ad,next_wire)))
         child.accept_acknowledgement(payload(ack,131),now=int(time.time()))
         require(child.status(next_message)=='Acknowledged','epoch-one delivery was not authenticated')
+    client.close(); client=EnrollmentClient.open(client_dir,client_id,key)
+    require(client.confirm_connection(session,proof,int(time.time()))==session,'historical confirmation after rekey differs')
+    with client.connection_session(int(time.time())) as child:
+        require(child.connection_identity(int(time.time()))==session,'reopened epoch-one connection differs')
+        require(child.status(next_message)=='Acknowledged','reopened epoch-one status differs')
+    confirmation['post_rekey_reopen']=True
     require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}==native_hashes,'native executable changed')
-    report={'schema_version':2,'kind':'qperiapt.native_reference_exchange','completed':True,
+    report={'schema_version':3,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':native_hashes,'commands':commands,'refusals':refusals,
             'process_kills':kills,
+            'connection_confirmation':confirmation,
             'provider':provider.__version__,'implementation':str(implementation/'qperiapt_continuity_reference/publication.py'),
             'confirmed_epoch':target,'control_exchanges':attempts,'clock':'actual OS time',
-            'scope':'Explicit test authority; separate original native and independent owners, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, exact original retry and one PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
+            'scope':'Explicit test authority; separate original native and independent owners, authenticated peer confirmation retained across two SIGKILL cuts, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, exact original retry and one PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
     save(root/'RESULT.json',report); print(json.dumps(report))
 finally:
     client.close()

@@ -102,6 +102,15 @@ authorization and persistent owner checks.
 
 The qualification workload generates explicit test authorities, uses real OS time,
 restarts the native process for each exchange, and checks exact handshake/data retries.
+The independent client records the authenticated READY in its original encrypted
+registration before reopening confirmed traffic. Tests reject absent or forged
+confirmation, conflicting retries and closed owners. Two SIGKILL cuts distinguish
+unpublished confirmation staging from a formal recoverable intent; an additional
+observer error after recovery commits the head withholds success, then ordinary
+reopen reconciles that same target. Exact retries preserve the parent image.
+The client reopens confirmed traffic again after one PQ rekey. These checks use
+the [registered connection API](../continuity-openssl-peer/ENROLLMENT_CLIENT.md);
+they do not treat local Traffic phase as evidence of a completed peer exchange.
 An isolated `inbox-crash-probe` example delegates to the same public owner and
 Mailbox implementations and stops at three points: before host effect commit,
 after host effect commit but before SDK consumption, and after SDK consumption

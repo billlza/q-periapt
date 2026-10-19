@@ -181,6 +181,31 @@ class Registration:
         except BaseException: self._close_after_error(); raise
 
     @coordinated
+    def confirm_connection(self, session, proof, now, *, transport=None):
+        """Verify READY and persist its exact original evidence before success."""
+        try:
+            from .registration_connection import confirm
+            return confirm(self,session,proof,now,transport)
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
+    def connection_confirmation(self):
+        """Historical recorded session ID, or None when no proof was recorded."""
+        try:
+            _,image=self._image()
+            result=None if image.confirmation is None else image.confirmation.session
+            self._alive(); return result
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
+    def connection_session(self, now, *, transport=None):
+        """Reopen only recorded peer-confirmed traffic, with current admission."""
+        try:
+            from .registration_session import open_child
+            return open_child(self,'connection',now,transport=transport)
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
     def credential_renewal(self, operation, now, *, transport=None):
         try:
             from .registration_session import open_child

@@ -161,6 +161,18 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
             return state.operation.session_id()
 
     @locked
+    def connection_identity(self, now: int) -> bytes:
+        """Current local traffic identity; this alone is not peer confirmation.
+
+        Unlike activate(), it cannot create traffic from a pending handshake.
+        The original registration separately retains authenticated READY evidence.
+        """
+        with self._state(now=now) as (_snapshot, state):
+            require(state.traffic is not None, 'original traffic state is not active')
+            state.traffic.admit(now)
+            return state.operation.session_id()
+
+    @locked
     def next_id(self, now: int) -> bytes:
         with self._state(now=now) as (_snapshot, state):
             require(state.traffic is not None, "traffic not activated")

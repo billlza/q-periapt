@@ -5,6 +5,7 @@ import hashlib
 
 CUT_STAGES = ('before-effect','after-effect','after-consumption')
 CUT_LABELS = tuple('cut-'+stage for stage in CUT_STAGES)
+CONFIRMATION_CUTS = ('stage-synced:intent','committed:intent')
 
 LABELS = ('native-key','native-begin','native-request','native-accept','native-prepare',
           'native-publication-id','native-publish','native-inbox','wrong-inbox-journal','missing-inbox',
@@ -13,6 +14,8 @@ LABELS = ('native-key','native-begin','native-request','native-accept','native-p
           'control-1','control-2','epoch-one-message')
 REFUSALS = ('wrong-directory','wrong-responder','manifest-signature','membership-proof',
             'publication-cannot-select-root','journal-correlation','duplicate-json','wrong-inbox-journal','missing-inbox',
+            'unrecorded-connection','forged-ready','wrong-ready-session','confirmation-close-during-write',
+            'conflicting-ready-retry','closed-confirmed-owner',
             'cut-before-effect-inspect')
 
 
@@ -22,7 +25,7 @@ def expected_exit(label):
 
 
 def verify(observed, binaries, application):
-    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 2
+    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 3
             and observed.get('kind') == 'qperiapt.native_reference_exchange'
             and observed.get('completed') is True, 'native exchange report schema/completion')
     require(observed.get('native_sha256') == binaries
@@ -51,6 +54,22 @@ def verify(observed, binaries, application):
         pids.add(kill['pid'])
         require(kill['marker_sha256']==hashlib.sha256(f'{kill["pid"]} {stage}\n'.encode()).hexdigest(),
                 'native inbox crash marker differs')
+    confirmation=observed.get('connection_confirmation')
+    flags=('recovery_failure','raw_traffic_unrecorded','exact_retry_unchanged','closed_owner_refused','post_rekey_reopen')
+    require(type(confirmation) is dict and set(confirmation)=={'schema_version','process_kills',*flags}
+            and type(confirmation['schema_version']) is int and confirmation['schema_version']==1
+            and all(confirmation[flag] is True for flag in flags),'connection confirmation evidence differs')
+    kills=confirmation['process_kills']
+    require(type(kills) is list and len(kills)==2,'connection confirmation crash inventory')
+    for stage,kill in zip(CONFIRMATION_CUTS,kills):
+        require(type(kill) is dict and set(kill)=={'stage','pid','exit','marker_sha256'}
+                and kill['stage']==stage and type(kill['pid']) is int and kill['pid']>0
+                and kill['pid'] not in pids and type(kill['exit']) is int and kill['exit']==-9,
+                'connection confirmation crash observation differs')
+        pids.add(kill['pid'])
+        require(kill['marker_sha256']==hashlib.sha256(
+            f'{kill["pid"]} client-device:registration-store:{stage}\n'.encode()).hexdigest(),
+            'connection confirmation crash marker differs')
 
 
 def qualify(args, reference, application, provider, outside, output, snapshot, run):
@@ -59,7 +78,7 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
     probe = args.crash_probe.resolve(strict=True)
     binaries = {str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
                 for path in (device,session,probe)}
-    for name in ('native_exchange.py','native_exchange_fixture.py','native_exchange_cuts.py'):
+    for name in ('native_exchange.py','native_exchange_fixture.py','native_exchange_cuts.py','native_connection_checks.py'):
         (outside/name).write_bytes(snapshot(reference/'tests'/name).data)
     private = outside/'private-native-exchange'
     import sys
@@ -77,6 +96,10 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
     for kill in observed['process_kills']:
         name='cut-'+kill['stage']+'.ready'; marker=snapshot(private/name)
         require(marker.sha256==kill['marker_sha256'],'native inbox retained marker differs')
+        (public/name).write_bytes(marker.data)
+    for kill in observed['connection_confirmation']['process_kills']:
+        name='confirmation-'+kill['stage'].replace(':','-')+'.ready'; marker=snapshot(private/name)
+        require(marker.sha256==kill['marker_sha256'],'connection confirmation retained marker differs')
         (public/name).write_bytes(marker.data)
     require({str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
              for path in (device,session,probe)} == binaries, 'native exchange executable changed')

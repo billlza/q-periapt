@@ -7,6 +7,7 @@ from .identity import DevicePin, credential, roster
 from .registration_inputs import Inputs
 from .registration_protocol import authenticate_request
 from .enrollment_extension import ExtensionApproval, monotonic, verify_history
+from .connection_confirmation import Confirmation, TAG as CONNECTION_TAG, OVERHEAD as CONNECTION_OVERHEAD
 from .wire import Reader, SigningKey, digest, require
 
 MAX_IMAGE = 128 * 1024
@@ -128,6 +129,7 @@ class Image:
     child: Child | None = None
     active: bool = False
     extension: Extension | None = None
+    confirmation: Confirmation | None = None
 
     def effective(self, intent):
         if self.extension is None: return intent, self.admission
@@ -157,11 +159,26 @@ class Image:
         if self.extension is not None: wire += self.extension.wire()
         if self.child is not None: wire += self.child.wire()
         require(len(wire) <= (MAX_IMAGE if self.extension is None else MAX_EXTENDED_IMAGE), 'registration image capacity')
+        if self.confirmation is not None:
+            require(self.active and self.child is not None, 'connection confirmation requires original active child')
+            wire = CONNECTION_TAG + blob(wire, MAX_EXTENDED_IMAGE) + self.confirmation.wire()
         return wire
 
     @classmethod
     def decode(cls, wire, intent):
-        require(type(wire) is bytes and len(wire) <= MAX_EXTENDED_IMAGE, 'registration image capacity')
+        require(type(wire) is bytes and len(wire) <= MAX_EXTENDED_IMAGE + CONNECTION_OVERHEAD, 'registration image capacity')
+        if wire.startswith(CONNECTION_TAG):
+            r=Reader(wire); r.take(8); inner=take_blob(r, MAX_EXTENDED_IMAGE)
+            require(inner[:8] in (b'QPREGS01', b'QPREGS02'), 'nested or unknown connection registration')
+            value=cls.decode(inner,intent)
+            require(value.active and value.child is not None, 'connection confirmation lacks original active child')
+            value.confirmation=Confirmation.read(r); r.finish()
+            # Inner decoding already verified its original proof, admission and
+            # canonical bytes. The wrapper adds only this bounded public record.
+            require(CONNECTION_TAG+blob(inner,MAX_EXTENDED_IMAGE)+value.confirmation.wire()==wire,
+                    'connection confirmation canonical encoding')
+            return value
+        require(len(wire) <= MAX_EXTENDED_IMAGE, 'legacy registration image capacity')
         r = Reader(wire); tag = r.take(8)
         require(tag in (b'QPREGS01', b'QPREGS02') and (tag != b'QPREGS01' or len(wire) <= MAX_IMAGE), 'registration state schema')
         identity, seed, phase, request = r.take(32), r.take(64), r.integer(1), take_blob(r, 8192)

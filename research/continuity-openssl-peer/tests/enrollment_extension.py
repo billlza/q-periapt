@@ -153,6 +153,51 @@ class ExtensionChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'retained predecessor'): self.adopt(branch)
         self.assertEqual(self.state(), before)
 
+    def check_confirmation_codec(self, extended):
+        """Crafted records test decoding only; they are not authenticated READY."""
+        from dataclasses import replace
+        from qperiapt_continuity_reference.connection_confirmation import Confirmation, TAG, OVERHEAD
+        from qperiapt_continuity_reference.registration_state import Image, MAX_EXTENDED_IMAGE
+        if extended:
+            self.renew_policy(); target=self.bundle(); self.adopt(target)
+        else: target=(None,self.issued_json,self.membership_json)
+        path=fixture.args.private_output/(self._testMethodName+'.session'); path.mkdir(mode=0o700)
+        self.client.prepare(path,self.session_inputs(target,self.now),self.now)
+        with self.client.session(self.now) as child: original_initial=child.initial(self.now)
+        registration=self.client._registration
+        snapshot,image=registration._image(); original=image.encode(self.offer.intent)
+        self.assertEqual(original[:8],b'QPREGS02' if extended else b'QPREGS01')
+        self.assertIsNone(Image.decode(original,self.offer.intent).confirmation)
+        self.assertEqual(Image.decode(original,self.offer.intent).encode(self.offer.intent),original)
+        session=os.urandom(32); record=Confirmation(session,b'QPCMACK1'+session+b'\1'+bytes(40))
+        image.confirmation=record; encoded=image.encode(self.offer.intent)
+        self.assertEqual(len(encoded),len(original)+OVERHEAD)
+        self.assertEqual(encoded[12:-113],original)
+        self.assertEqual(Image.decode(encoded,self.offer.intent).confirmation,record)
+        self.assertEqual(Image.decode(encoded,self.offer.intent).encode(self.offer.intent),encoded)
+        bad=[encoded[:-1],encoded+b'\0',TAG+len(encoded).to_bytes(4,'big')+encoded+record.wire(),
+             TAG+(MAX_EXTENDED_IMAGE+1).to_bytes(4,'big')+original+record.wire(),
+             TAG+len(original).to_bytes(4,'big')+original+record.wire()[:32]+bytes(81)]
+        inactive=replace(image,active=False,confirmation=None).encode(self.offer.intent)
+        bad.append(TAG+len(inactive).to_bytes(4,'big')+inactive+record.wire())
+        for value in bad:
+            with self.subTest(size=len(value)),self.assertRaises(ValueError): Image.decode(value,self.offer.intent)
+        # Model a retained parent receipt with a child rolled back to pretraffic.
+        # Opening a connection must never activate that child to hide the loss.
+        registration._save(snapshot,image,'test-crafted-historical-confirmation')
+        before={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in path.iterdir() if p.is_file()}
+        with self.assertRaisesRegex(ValueError,'original traffic state is not active'):
+            self.client.connection_session(self.now)
+        self.assertEqual({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in path.iterdir() if p.is_file()},before)
+        self.client=self.reopen()
+        with self.client.session(self.now) as child: self.assertEqual(child.initial(self.now),original_initial)
+
+    def test_ordinary_confirmation_codec_preserves_old_payload_and_refuses_missing_traffic(self):
+        self.check_confirmation_codec(False)
+
+    def test_extended_confirmation_codec_preserves_old_payload_and_refuses_missing_traffic(self):
+        self.check_confirmation_codec(True)
+
     def test_roster_refresh_after_adoption_preserves_original_and_issued_history(self):
         from qperiapt_continuity_reference.enrollment_exchange import encoded
         self.renew_policy(); target = self.bundle(); now = self.end+120; self.adopt(target,now=now)

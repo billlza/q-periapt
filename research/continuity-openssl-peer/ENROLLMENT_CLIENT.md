@@ -159,6 +159,41 @@ The client retains the signing owner; callers do not supply a signer or access
 private seeds. Required-witness preparation still returns genesis for separate
 authorized enrollment. It never falls back to a local session.
 
+After authenticating the reply and exporting the original final flight, close
+the borrowed child and pass the received READY session ID and epoch-zero ACK to
+`client.confirm_connection(session_id, proof, now, transport=...)`. This method
+authenticates the ACK through that original child, then commits the exact public
+confirmation inside the encrypted registration journal before returning success.
+A locally Active registration or Traffic session alone does not imply this
+confirmation: a valid initial ACK at consumption prefix zero need not change
+the traffic journal.
+
+Use `client.connection_session(now, transport=...)` to borrow recorded confirmed
+traffic. It reopens the same child, checks current authority and required witness,
+and verifies the original session ID without activating a pending handshake.
+The returned child exposes traffic, control and maintenance operations; it has
+no `initial`, `finish` or `activate` capability. This is a local session owner,
+not a network liveness probe or a completed network connection facade.
+`client.connection_confirmation()` returns a historical session ID, or `None`
+when no proof has been recorded. Neither result grants current traffic authority.
+
+Confirmation adds a bounded `QPREGC01` envelope around the unchanged canonical
+`QPREGS01` or `QPREGS02` payload: 125 bytes for its tag, length, session ID and
+81-byte ACK. Existing images are not upgraded by reading them. Older readers
+refuse this envelope; use a reader supporting confirmation once explicitly
+recorded. The child session codec and cryptographic domains do not change.
+Exact confirmation retries preserve the parent image, including after rekey;
+they admit current traffic rather than reauthenticate with retired epoch-zero
+keys. A different proof or ID fails. For an old session with no recorded proof,
+confirmation still requires the authentic original ACK and its retained epoch
+state; no confirmation is inferred from phase, files or later local activity.
+
+After an unknown confirmation result, reopen the original client. An authenticated
+formal intent recovers its exact target; unpublished random staging is retained
+and does not imply confirmation. If no proof was committed, retry the same
+READY. Missing original child traffic fails; reopening never creates replacement
+traffic to make the historical parent record appear usable.
+
 The same owner exposes `credential_renewal(operation, now, transport=...)` and
 `pending_write_recovery(now, transport=...)`. They retain the existing original
 grant, independent approval and fresh-Query requirements. An unresolved send
@@ -172,8 +207,8 @@ An operation failure closes the owning client and releases its configuration
 lease. Reopen the original client explicitly. Reentrant close can withhold a
 result after durable commitment; resume that original operation after reopening.
 The borrowed-session facade itself changes no session storage format or
-cryptographic domain; explicit pre-child adoption uses the registration format
-described above.
+cryptographic domain. Explicit pre-child adoption and peer confirmation use the
+registration formats described above.
 
 ## Recovery and failure boundaries
 

@@ -5,7 +5,7 @@ from .durable import Session, owner_binding
 from .journal import Scope
 from .kem import hkdf
 from .private_files import PrivateDirectory
-from .registered_owner import BorrowedOwner, _Signer, SESSION, LOCAL_RENEWAL, JOINT_RENEWAL, PENDING
+from .registered_owner import BorrowedOwner, _Signer, SESSION, CONNECTION, LOCAL_RENEWAL, JOINT_RENEWAL, PENDING
 from .registration_inputs import Inputs
 from .registration_protocol import DOMAIN
 from .registration_state import Child, signer
@@ -75,6 +75,8 @@ def prepare(parent, path, inputs, now):
 def open_child(parent, kind, now, *, operation=None, transport=None):
     require(parent._child is None, 'registration already has a borrowed child')
     snapshot, image = parent._image(); require(image.child is not None, 'registration child was not prepared')
+    if kind == 'connection':
+        require(image.confirmation is not None and image.active, 'no recorded authenticated peer confirmation')
     require(kind == 'session' or image.active, 'maintenance requires an original active registration')
     context = image.child.inputs.original(image.child.context, now); validate_context(parent, image, context)
     scope, key = selected(parent, image, context); path = image.child.path
@@ -85,10 +87,12 @@ def open_child(parent, kind, now, *, operation=None, transport=None):
         client = Client(context.witness.pin, context.witness.subject(scope.identity), _Signer(parent), transport)
     owner = None
     try:
-        if kind == 'session':
+        if kind in ('session','connection'):
             owner = (Session.open(path, scope, key, context, observer=parent._child_observer) if client is None else
                      WitnessSession.open(path, scope, key, context, client=client, observer=parent._child_observer))
-            allowed = SESSION
+            allowed = CONNECTION if kind == 'connection' else SESSION
+            if kind == 'connection':
+                require(owner.connection_identity(now)==image.confirmation.session, 'confirmed original session differs')
             if not image.active:
                 image.active = True; parent._save(snapshot, image, 'activation-committed')
         elif kind == 'credential':
