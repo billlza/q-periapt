@@ -128,7 +128,13 @@ jobs:
           cp target/independent-peer-ci/installed/consumer-build.stderr target/independent-peer-ci/build.stderr
           cp target/independent-peer-ci/installed/consumer-clippy.stdout target/independent-peer-ci/clippy.stdout
           cp target/independent-peer-ci/installed/consumer-clippy.stderr target/independent-peer-ci/clippy.stderr
+          cp target/independent-peer-ci/installed/importer target/independent-peer-ci/importer
+          cp target/independent-peer-ci/installed/importer-build.stdout target/independent-peer-ci/importer-build.stdout
+          cp target/independent-peer-ci/installed/importer-build.stderr target/independent-peer-ci/importer-build.stderr
+          cp target/independent-peer-ci/installed/importer-clippy.stdout target/independent-peer-ci/importer-clippy.stdout
+          cp target/independent-peer-ci/installed/importer-clippy.stderr target/independent-peer-ci/importer-clippy.stderr
       - name: Build and lint the public bootstrap importer
+        if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
         run: |
           export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-importer"
           importer_manifest=research/continuity-identity-candidate/Cargo.toml

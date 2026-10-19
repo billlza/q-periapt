@@ -24,6 +24,7 @@ from rust_sdk_msrv import validate_report
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "research/continuity-openssl-peer/native"
 NAME = "q-periapt-independent-peer-counterpart"
+IMPORTER = "import_bootstrap_bundle"
 PRODUCTS = tuple(name for name in sdk.CONSUMER_CRATES if name != "q-periapt-rustls")
 VERSIONS = dict.fromkeys(PRODUCTS, sdk.VERSION) | {package.NAME: package.VERSION}
 
@@ -186,9 +187,17 @@ def build(args: argparse.Namespace) -> dict:
         run([*cargo, "build", "--release", "--locked", "--offline", "-j", "2"], "consumer-build", consumer)
         run([*cargo, "clippy", "--release", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
             "consumer-clippy", consumer)
+        example = ["--release", "--locked", "--offline", "-p", package.NAME, "--example", IMPORTER, "-j", "2"]
+        run([*cargo, "build", *example], "importer-build", consumer)
+        run([*cargo, "clippy", *example, "--", "-D", "warnings"], "importer-clippy", consumer)
         binary = outside / "consumer-build/release" / NAME
         sdk.copy(binary, output / "counterpart"); (output / "counterpart").chmod(0o700)
         result["native_sha256"] = sdk.snapshot(binary).sha256
+        importer = outside / "consumer-build/release/examples" / IMPORTER
+        sdk.copy(importer, output / "importer"); (output / "importer").chmod(0o700)
+        result["importer_sha256"] = sdk.snapshot(importer).sha256
+        sdk.require(sdk.snapshot(consumer / "Cargo.lock").data == original,
+                    "installed importer changed the original lockfile")
         sdk.verify_consumed_sources(consumer, args.report.parent, cohort["crates"], names=PRODUCTS)
         package.verify_candidate_files(destination, candidate)
         package.verify_candidate_archive(output, record)
@@ -213,7 +222,7 @@ def main() -> None:
     parser.add_argument("--cargo-home", type=Path, help="explicit registry cache without configuration or credentials")
     args = parser.parse_args(); args.report = args.report.resolve(strict=True)
     result = build(args)
-    print(json.dumps({k: result[k] for k in ("completed", "native_sha256", "runtime_qualified")}))
+    print(json.dumps({k: result[k] for k in ("completed", "native_sha256", "importer_sha256", "runtime_qualified")}))
 
 
 if __name__ == "__main__":
