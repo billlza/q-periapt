@@ -11,6 +11,15 @@ const INBOX: TableDefinition<&[u8], &[u8]> = TableDefinition::new("reference_inb
 const SCHEMA: &[u8] = b"qperiapt-reference-inbox/1";
 const MAX_DELIVERIES: u64 = 1024;
 
+fn transaction(database: &redb::Database) -> Result<redb::WriteTransaction> {
+    let mut tx = database.begin_write()?;
+    tx.set_durability(redb::Durability::Immediate)?;
+    // The shared protected-file opener only admits unclean two-phase images.
+    // Immediate alone leaves crash recovery using a different slot-selection rule.
+    tx.set_two_phase_commit(true);
+    Ok(tx)
+}
+
 pub struct Mailbox {
     database: redb::Database,
     journal: [u8; 32],
@@ -21,8 +30,7 @@ impl Mailbox {
             return Err("Inbox requires the original journal identity".into());
         }
         let database = provision_private_database(path, |database| -> Result<()> {
-            let mut tx = database.begin_write()?;
-            tx.set_durability(redb::Durability::Immediate)?;
+            let tx = transaction(database)?;
             {
                 let mut meta = tx.open_table(META)?;
                 meta.insert("schema", SCHEMA)?;
@@ -81,8 +89,7 @@ impl Mailbox {
             return Err("Inbox delivery bounds".into());
         }
         let key = [session.as_slice(), delivery.message_id().as_bytes()].concat();
-        let mut tx = self.database.begin_write()?;
-        tx.set_durability(redb::Durability::Immediate)?;
+        let tx = transaction(&self.database)?;
         {
             let mut inbox = tx.open_table(INBOX)?;
             let old = inbox.get(key.as_slice())?.map(|v| v.value().to_vec());

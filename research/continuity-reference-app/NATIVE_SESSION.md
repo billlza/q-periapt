@@ -15,7 +15,9 @@ delivery and a complete bidirectional network service remain separate work.
 
 The reference application's effect is to retain a received plaintext message in
 a private redb inbox. Message contents and deduplication by session/message ID
-commit in one Immediate transaction. Only after that succeeds may the SDK mark
+commit in one Immediate, two-phase transaction, as required by the shared
+protected-store recovery contract. Immediate durability alone does not select
+that recovery rule. Only after that succeeds may the SDK mark
 consumption and release its acknowledgement. An exact retry preserves the bytes;
 a conflicting original ID fails. The inbox holds at most 1,024 deliveries of at
 most 16 KiB each. Capacity failure does not acknowledge the message.
@@ -35,6 +37,12 @@ expectation and attempt ordinary open through the same invocation.
 The inbox is host application data under private filesystem permissions. Its
 plaintext storage and any exported delivery are outside SDK encryption and erasure
 guarantees. This contract does not extend to arbitrary external business effects.
+
+An unclean inbox written by the earlier prototype without two-phase commits is
+still refused before redb recovery. Do not edit its header bits, fall back to a
+stock redb opener, or recreate it. The corrected writer prevents that condition;
+it does not repair such an old image. Clean original inboxes retain schema 1 and
+can be opened normally; subsequent writes use the required commit protocol.
 
 ## Public inputs and one exchange
 
@@ -93,7 +101,13 @@ input object for the original `EnrollmentClient.prepare`, which repeats live
 authorization and persistent owner checks.
 
 The qualification workload generates explicit test authorities, uses real OS time,
-restarts the native process for each exchange, checks exact handshake/data retries,
-reads the committed inbox effect, and exchanges data after one PQ rekey. It does
+restarts the native process for each exchange, and checks exact handshake/data retries.
+An isolated `inbox-crash-probe` example delegates to the same public owner and
+Mailbox implementations and stops at three points: before host effect commit,
+after host effect commit but before SDK consumption, and after SDK consumption
+but before response export. The controller checks a live process and exact
+PID/stage marker, sends SIGKILL, reads the expected effect state, and retries the
+same ciphertext/ID through the ordinary production CLI. The probe is not built
+into product entry points. The workload then exchanges data after one PQ rekey. It does
 not modify the real user account, grant a new device expiry, demonstrate physical
 power-loss recovery, or prove secrecy recovery from a prior compromise.

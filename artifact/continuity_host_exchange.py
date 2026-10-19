@@ -179,6 +179,7 @@ def main():
     parser.add_argument('--sdk-authority', type=Path, required=True)
     parser.add_argument('--native-device', type=Path, required=True)
     parser.add_argument('--native-session', type=Path, required=True)
+    parser.add_argument('--crash-probe', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     print(json.dumps(qualify(args), indent=2))

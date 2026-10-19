@@ -251,6 +251,10 @@ an explicit test issuer supplies approvals. At real OS time, the workload checks
 publication signatures/proofs and independent pins, three-flight establishment,
 authenticated consumption after a durable native inbox write, exact response
 replay across native process restarts, and one PQ rekey followed by new-epoch
-delivery. This profile uses a file carrier and independent-to-native data flow;
+delivery. It also kills an isolated native probe before host commit, after host
+commit before SDK consumption, and after SDK consumption before response export.
+All three cases retry the original ciphertext/ID through the ordinary CLI. The
+recovery gate still refuses old unclean images written without two-phase commits.
+This profile uses a file carrier and independent-to-native data flow;
 it does not substitute for bidirectional network deployment or the original real
 account's complete lifecycle. See the [native session guide](../continuity-reference-app/NATIVE_SESSION.md).

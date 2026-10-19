@@ -16,7 +16,7 @@ import sys
 import time
 
 parser = argparse.ArgumentParser(description=__doc__)
-for name in ('native-device','native-session','implementation-root','provider-root','output'):
+for name in ('native-device','native-session','crash-probe','implementation-root','provider-root','output'):
     parser.add_argument('--'+name,type=Path,required=True)
 args = parser.parse_args()
 implementation = args.implementation_root.resolve(strict=True)
@@ -31,13 +31,15 @@ from qperiapt_continuity_reference.publication import Publication
 from qperiapt_continuity_reference.wire import require
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from native_exchange_fixture import Issuer,b64,save,wire
+from native_exchange_cuts import exercise as crash_cuts
 
 root = args.output.resolve(); root.mkdir(mode=0o700)
 issuer = Issuer(root)
 commands, refusals = [], []
 device = args.native_device.resolve(strict=True)
 session_cli = args.native_session.resolve(strict=True)
-native_hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli)}
+crash_probe = args.crash_probe.resolve(strict=True)
+native_hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}
 
 
 def run(argv, label, *, success=True, json_output=True):
@@ -127,12 +129,14 @@ try:
            'responder':{'current':current,'device':list(native_offer.intent.device),'generation':1}}
     save(root/'peer-trust.json',trust)
     run([session_cli,'provision-inbox',root/'inbox.redb',b64(bytes(accepted['journal']))],'native-inbox')
+    with (root/'inbox.redb').open('rb') as file: inbox_header=file.read(10)
+    require(len(inbox_header)==10 and inbox_header[9]&4!=0,'new inbox omitted two-phase commit')
     run([session_cli,'read-inbox',root/'inbox.redb',b64(os.urandom(32)),b64(os.urandom(32)),
          b64(os.urandom(32)),root/'wrong-inbox-output.bin'],'wrong-inbox-journal',success=False)
     require(not (root/'wrong-inbox-output.bin').exists(),'wrong inbox journal released data')
     client.prepare(session_dir,publication.inputs(pins,issuer.policy.materials,certificate,issuer.roster),int(time.time()))
 
-    def exchange(label, operation, request, *, inbox=None, trust_path=None, success=True):
+    def make_invocation(label, operation, request, *, inbox=None, trust_path=None):
         target=root/(label+'-output'); target.mkdir(mode=0o700)
         save(root/(label+'.request'),request)
         invocation={'schema':'qperiapt-native-exchange/1','device_directory':str(native_dir),
@@ -143,7 +147,12 @@ try:
             'operation':operation,'request':str(root/(label+'.request')),'inbox':str(inbox or root/'inbox.redb'),
             'output_directory':str(target)}
         save(root/(label+'.json'),invocation)
-        run([session_cli,'exchange',root/(label+'.json')],label,success=success)
+        return root/(label+'.json')
+
+    def exchange(label, operation, request, *, inbox=None, trust_path=None, success=True):
+        invocation=make_invocation(label,operation,request,inbox=inbox,trust_path=trust_path)
+        target=root/(label+'-output')
+        run([session_cli,'exchange',invocation],label,success=success)
         if success: return (target/'response.bin').read_bytes()
         require(not (target/'response.bin').exists(),'rejected request released output')
 
@@ -173,6 +182,8 @@ try:
         require(child.status(message)=='Acknowledged','delivery was not authenticated')
         run([session_cli,'read-inbox',root/'inbox.redb',b64(bytes(accepted['journal'])),b64(session),b64(message),root/'received.bin'],'read-delivery')
         require((root/'received.bin').read_bytes()==plaintext,'host effect differs')
+        kills=crash_cuts(child,session,bytes(accepted['journal']),root,crash_probe,session_cli,
+            make_invocation,exchange,run,commands,frame,pair,payload,b64)
         target, control=child.start_rekey_control(1,now=int(time.time()))
         attempts=0
         while control is not None:
@@ -189,12 +200,13 @@ try:
         ack=exchange('epoch-one-message',operation,frame(3,pair(ad,next_wire)))
         child.accept_acknowledgement(payload(ack,131),now=int(time.time()))
         require(child.status(next_message)=='Acknowledged','epoch-one delivery was not authenticated')
-    require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli)}==native_hashes,'native executable changed')
-    report={'schema_version':1,'kind':'qperiapt.native_reference_exchange','completed':True,
+    require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}==native_hashes,'native executable changed')
+    report={'schema_version':2,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':native_hashes,'commands':commands,'refusals':refusals,
+            'process_kills':kills,
             'provider':provider.__version__,'implementation':str(implementation/'qperiapt_continuity_reference/publication.py'),
             'confirmed_epoch':target,'control_exchanges':attempts,'clock':'actual OS time',
-            'scope':'Explicit test authority; separate original native and independent owners, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, exact bootstrap/data replay and one PQ rekey. File carrier, no deployed network or real account action.'}
+            'scope':'Explicit test authority; separate original native and independent owners, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, exact original retry and one PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
     save(root/'RESULT.json',report); print(json.dumps(report))
 finally:
     client.close()

@@ -1,17 +1,28 @@
 """Installed public-advertisement consumer and native owned exchange boundary."""
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 from continuity_independent_python import PACKAGE, require
+import hashlib
+
+CUT_STAGES = ('before-effect','after-effect','after-consumption')
+CUT_LABELS = tuple('cut-'+stage for stage in CUT_STAGES)
 
 LABELS = ('native-key','native-begin','native-request','native-accept','native-prepare',
           'native-publication-id','native-publish','native-inbox','wrong-inbox-journal','missing-inbox',
           'initial','initial-retry','final','final-retry','message','message-retry',
-          'read-delivery','control-1','control-2','epoch-one-message')
+          'read-delivery') + tuple(label+suffix for label in CUT_LABELS for suffix in ('','-inspect','-retry','-readback')) + (
+          'control-1','control-2','epoch-one-message')
 REFUSALS = ('wrong-directory','wrong-responder','manifest-signature','membership-proof',
-            'publication-cannot-select-root','journal-correlation','duplicate-json','wrong-inbox-journal','missing-inbox')
+            'publication-cannot-select-root','journal-correlation','duplicate-json','wrong-inbox-journal','missing-inbox',
+            'cut-before-effect-inspect')
+
+
+def expected_exit(label):
+    if label in CUT_LABELS: return -9
+    return 1 if label in ('missing-inbox','wrong-inbox-journal','cut-before-effect-inspect') else 0
 
 
 def verify(observed, binaries, application):
-    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 1
+    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 2
             and observed.get('kind') == 'qperiapt.native_reference_exchange'
             and observed.get('completed') is True, 'native exchange report schema/completion')
     require(observed.get('native_sha256') == binaries
@@ -25,21 +36,35 @@ def verify(observed, binaries, application):
     for label, command in zip(LABELS,commands):
         require(type(command) is dict and set(command) == {'label','exit'}
                 and command['label'] == label and type(command['exit']) is int
-                and command['exit'] == (1 if label in ('missing-inbox','wrong-inbox-journal') else 0), 'native exchange command result: '+label)
+                and command['exit'] == expected_exit(label), 'native exchange command result: '+label)
     require(observed.get('refusals') == list(REFUSALS), 'native exchange refusal inventory')
+    kills=observed.get('process_kills')
+    require(type(kills) is list and len(kills)==3,'native inbox crash inventory')
+    pids=set()
+    for stage,kill in zip(CUT_STAGES,kills):
+        require(type(kill) is dict and set(kill)=={'stage','pid','exit','marker_sha256','inbox_flags'}
+                and kill['stage']==stage and type(kill['pid']) is int and kill['pid']>0
+                and kill['pid'] not in pids and type(kill['exit']) is int and kill['exit']==-9,
+                'native inbox crash observation differs')
+        require(type(kill['inbox_flags']) is int and 0<=kill['inbox_flags']<=255 and kill['inbox_flags']&4!=0,
+                'native inbox two-phase recovery flag absent')
+        pids.add(kill['pid'])
+        require(kill['marker_sha256']==hashlib.sha256(f'{kill["pid"]} {stage}\n'.encode()).hexdigest(),
+                'native inbox crash marker differs')
 
 
 def qualify(args, reference, application, provider, outside, output, snapshot, run):
     device = args.native_device.resolve(strict=True)
     session = args.native_session.resolve(strict=True)
+    probe = args.crash_probe.resolve(strict=True)
     binaries = {str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
-                for path in (device,session)}
-    for name in ('native_exchange.py','native_exchange_fixture.py'):
+                for path in (device,session,probe)}
+    for name in ('native_exchange.py','native_exchange_fixture.py','native_exchange_cuts.py'):
         (outside/name).write_bytes(snapshot(reference/'tests'/name).data)
     private = outside/'private-native-exchange'
     import sys
     execution = run([sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),
-                     '--native-device',str(device),'--native-session',str(session),
+                     '--native-device',str(device),'--native-session',str(session),'--crash-probe',str(probe),
                      '--implementation-root',str(application),'--provider-root',str(provider),
                      '--output',str(private)],'native-exchange')
     observed = parse_strict_json_bytes(execution.stdout,label='native owned exchange results')
@@ -49,6 +74,10 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
     public = output/'native-exchange-public'; public.mkdir()
     for name in ['RESULT.json',*[label+suffix for label in LABELS for suffix in ('.stdout','.stderr')]]:
         (public/name).write_bytes(snapshot(private/name).data)
+    for kill in observed['process_kills']:
+        name='cut-'+kill['stage']+'.ready'; marker=snapshot(private/name)
+        require(marker.sha256==kill['marker_sha256'],'native inbox retained marker differs')
+        (public/name).write_bytes(marker.data)
     require({str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
-             for path in (device,session)} == binaries, 'native exchange executable changed')
+             for path in (device,session,probe)} == binaries, 'native exchange executable changed')
     return observed

@@ -8,6 +8,10 @@ license = "Apache-2.0 OR MIT"
 description = "Independent host application for Continuity account and device lifecycle qualification"
 default-run = "q-periapt-continuity-reference-app"
 
+[[example]]
+name = "inbox-crash-probe"
+path = "tests/support/inbox_crash_probe.rs"
+
 [workspace]
 
 [dependencies]
