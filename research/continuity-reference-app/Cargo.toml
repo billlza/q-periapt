@@ -1,0 +1,38 @@
+[package]
+name = "q-periapt-continuity-reference-app"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+license = "Apache-2.0 OR MIT"
+description = "Independent host application for Continuity account and device lifecycle qualification"
+
+[workspace]
+
+[dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+base64 = "=0.22.1"
+getrandom = "=0.4.0"
+q-periapt-host-store = { version = "=0.2.0", path = "../../crates/q-periapt-host-store" }
+redb = "=4.3.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+webauthn-rs = "=0.5.5"
+
+[dev-dependencies]
+webauthn-authenticator-rs = { version = "=0.5.5", default-features = false, features = ["softpasskey"] }
+tower = { version = "0.5", features = ["util"] }
+tempfile = "=3.27.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+overflow-checks = true
+
+[lints.rust]
+unsafe_code = "forbid"
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
