@@ -4,14 +4,23 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import stat
 import sys
+from evidence_io import load_json_object_snapshot
 
 
 def main():
     application, provider, repository, expected, output = map(Path, sys.argv[1:])
     package = application / "qperiapt_continuity_reference"
-    required = json.loads(expected.read_text())
+    required = load_json_object_snapshot(
+        expected, maximum=64 * 1024, label="expected installed module hashes"
+    ).value
+    if (not {"__init__.py", "provider.py"} <= required.keys()
+            or any(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\.py", name) is None
+                   or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                   for name, digest in required.items())):
+        raise ValueError("expected installed module hashes have an invalid schema")
     if not (sys.flags.isolated and sys.flags.no_site and sys.flags.dont_write_bytecode
             and sys.pycache_prefix is not None):
         raise ValueError("installed probe requires isolated, no-site, no-bytecode execution")

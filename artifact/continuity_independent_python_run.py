@@ -130,6 +130,7 @@ def qualify(args: argparse.Namespace) -> dict:
             if not path.is_relative_to(SOURCE / PACKAGE):
                 copy(path, application / path.relative_to(SOURCE))
         copy(ROOT / "artifact/python_bootstrap.py", outside / "artifact/python_bootstrap.py")
+        copy(ROOT / "artifact/evidence_io.py", outside / "artifact/evidence_io.py")
         copy(ROOT / "artifact/continuity_independent_python_probe.py", outside / "probe.py")
         write_json(output / "EXPECTED_MODULES.json", expected)
         interpreter = [sys.executable, "-I", "-S", "-B", "-X", "pycache_prefix=" + str(cache),
