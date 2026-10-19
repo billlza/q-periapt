@@ -1,0 +1,42 @@
+{
+  "head": "39b1e465d098e8041a126089fc805cb0679f1eeb",
+  "host": "Apple Silicon / CPython3.14 / cryptography48.0.1 / OpenSSL4.0.1",
+  "wheel": {
+    "wheel": "qperiapt_continuity_reference-0.0.0-py3-none-any.whl",
+    "sha256": "749d0cb75306807f221acc53106a06e6c21602563c02e3306319a8776275b777",
+    "bytes": 99953
+  },
+  "capture": {
+    "bytes": 14448088,
+    "members": 1479,
+    "sha256": "3ce9f99d9cf5848c9e16c00d96484fbd46fd1e54d2c8dc649a5cce7acdf2453f"
+  },
+  "wheel_source_modules": 47,
+  "wheel_members": 52,
+  "pip_installed_files": 55,
+  "runtime_source_files": 99,
+  "registration": {
+    "local": {
+      "workers": 42,
+      "native_commands": 15,
+      "actual_SIGKILL": 10,
+      "negative_controls": 10,
+      "signed_witness_replies": 0,
+      "unique_challenges": 0,
+      "exact_recovery_queries": 0
+    },
+    "witness": {
+      "workers": 50,
+      "native_commands": 232,
+      "actual_SIGKILL": 11,
+      "negative_controls": 10,
+      "signed_witness_replies": 209,
+      "unique_challenges": 211,
+      "exact_recovery_queries": 6
+    }
+  },
+  "native_sha256": "60c66db3973b9e1d8aabc22e3a87345b49e0a6d5ea080b1e855c6bbaf1e553fa",
+  "final_wheel_binding": "registration-01 executed wheel01 with identical47 installed protocol/provider module bytes. Final wheel changes README metadata and ZIP timestamp only; final wheel separately installed and all47 modules loaded outside checkout. Registration is not described as a new run.",
+  "scope": "Actual pip-installed independent Python reference and installed native counterpart, outside sourcecheckout with isolated/no-site/no-bytecode processflags and privateemptycache. Fresh hash-pinned provider installation. Public signatures/original operation records replayed. Private state/lifetime assertions remain actual runtime observations, not a proof of erasure/PCS. Final wheel changes only README/RECORD and ZIPtimestamps; same47modulebytes, independently reinstalled/probed. No installedPython Linux CI, full nineteen namespace source lanes, sdist/deployed account authentication/crosshost/fullmultidevice orrelease admission yet.",
+  "failures": "Firstwheelreadback expected rawREADME without Flit appendednewline; WHEEL_READBACK_ATTEMPT01 records observedfailure and sizes. ExactFlit4.1.0 common.py453 behavior checked fromhashpinnedbackendwheel; nowrequires exactreadmeplusonenewline. Six boundarytests include changedsource withvalidRECORD,extraimporthook, wideneddependency andrewrittenREADME controls."
+}
