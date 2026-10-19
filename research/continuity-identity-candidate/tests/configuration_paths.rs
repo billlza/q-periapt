@@ -42,7 +42,9 @@ fn root() -> &'static Path {
 fn local_absolute_paths_are_admitted() {
     assert!(admit(&paths(root())).is_ok());
     #[cfg(windows)]
-    assert!(admit(&paths(Path::new(r"\\?\C:\private\configured"))).is_ok());
+    {
+        assert!(admit(&paths(Path::new(r"\\?\C:\private\configured"))).is_ok());
+    }
 }
 
 #[test]
