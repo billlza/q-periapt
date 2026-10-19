@@ -5,12 +5,16 @@ on:
     paths:
       - .github/workflows/reference-account.yml
       - research/continuity-reference-app/**
-      - crates/q-periapt-host-store/**
+      - crates/**
+      - research/continuity-identity-candidate/src/**
+      - research/continuity-identity-candidate/Cargo.toml
   pull_request:
     paths:
       - .github/workflows/reference-account.yml
       - research/continuity-reference-app/**
-      - crates/q-periapt-host-store/**
+      - crates/**
+      - research/continuity-identity-candidate/src/**
+      - research/continuity-identity-candidate/Cargo.toml
   workflow_dispatch:
 
 permissions:
@@ -62,7 +66,7 @@ jobs:
           rustc -vV > target/reference-account-ci/rustc.txt
           uname -a > target/reference-account-ci/host.txt
           pkg-config --modversion openssl > target/reference-account-ci/openssl.txt
-      - name: Verify account storage and software-authenticator boundaries
+      - name: Verify account, enrollment transactions and process recovery
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
         run: |

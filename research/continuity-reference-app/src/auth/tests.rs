@@ -5,9 +5,9 @@ use super::*;
 use std::{error::Error as StdError, os::unix::fs::PermissionsExt};
 use tempfile::TempDir;
 use webauthn_authenticator_rs::{softpasskey::SoftPasskey, WebauthnAuthenticator};
-type Result<T = ()> = std::result::Result<T, Box<dyn StdError>>;
-const ORIGIN: &str = "http://localhost:8087";
-fn service() -> Result<(TempDir, Service)> {
+pub(super) type Result<T = ()> = std::result::Result<T, Box<dyn StdError>>;
+pub(super) const ORIGIN: &str = "http://localhost:8087";
+pub(super) fn service() -> Result<(TempDir, Service)> {
     let directory = tempfile::Builder::new()
         .permissions(std::fs::Permissions::from_mode(0o700))
         .tempdir()?;
@@ -16,10 +16,10 @@ fn service() -> Result<(TempDir, Service)> {
     let webauthn = WebauthnBuilder::new("localhost", &Url::parse(ORIGIN)?)?.build()?;
     Ok((directory, Service::new(webauthn, store)))
 }
-fn authenticator() -> WebauthnAuthenticator<SoftPasskey> {
+pub(super) fn authenticator() -> WebauthnAuthenticator<SoftPasskey> {
     WebauthnAuthenticator::new(SoftPasskey::new(true))
 }
-fn register(
+pub(super) fn register(
     service: &mut Service,
     device: &mut WebauthnAuthenticator<SoftPasskey>,
     name: &str,
@@ -28,7 +28,7 @@ fn register(
     let credential = device.do_registration(Url::parse(ORIGIN)?, options)?;
     Ok(service.finish_registration(&id, credential, None)?)
 }
-fn login(
+pub(super) fn login(
     service: &mut Service,
     device: &mut WebauthnAuthenticator<SoftPasskey>,
     name: &str,

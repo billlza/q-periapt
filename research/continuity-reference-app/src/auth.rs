@@ -16,6 +16,7 @@ const CEREMONY_TTL: Duration = Duration::from_secs(180);
 const SESSION_TTL: Duration = Duration::from_secs(900);
 const MAX_PENDING: usize = 128;
 const MAX_SESSIONS: usize = 128;
+mod enrollment;
 struct Pending {
     deadline: Instant,
     operation: Operation,
@@ -331,5 +332,7 @@ fn valid_name(name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(test)]
+mod enrollment_tests;
 #[cfg(test)]
 mod tests;

@@ -14,6 +14,7 @@ axum = { version = "=0.8.9", default-features = false, features = ["http1", "jso
 base64 = "=0.22.1"
 getrandom = "=0.4.0"
 q-periapt-host-store = { version = "=0.2.0", path = "../../crates/q-periapt-host-store" }
+q-periapt-continuity-identity-candidate = { path = "../continuity-identity-candidate" }
 redb = "=4.3.0"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"

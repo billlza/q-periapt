@@ -12,12 +12,15 @@ consumer's real account login and device authorization path. It uses
 belongs to this application; no WebAuthn or HTTP dependency is added to the
 cryptographic core.
 
-The current implementation provides account creation, explicit login, adding a
-second Passkey, logout and reopening the original account database. **Device
-registration approval and Continuity issuance are not connected yet.** A login
-session is not a device credential or permission to send Continuity traffic.
+The HTTP application provides account creation, explicit login, adding a second
+Passkey, logout and reopening the original account database. Its private Rust
+service now also provides root preparation, explicit device approval, transactional
+issuance, exact original-response recovery and an enrollment suspension fence.
+**These enrollment methods are not connected to HTTP/browser controls or an
+installed independent client yet.** A login session is not a device credential
+or permission to send Continuity traffic.
 
-The next integration follows the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
+The implementation and remaining integration follow the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
 It binds original requests, explicit approval, complete membership and durable
 response recovery; the document distinguishes requirements from implemented behavior.
 
@@ -56,6 +59,22 @@ Do not reset an existing account database to recover an interrupted operation.
 
 ## Authentication boundary
 
+Enrollment is disabled in schema 1. A host administrator may explicitly run
+`enable-enrollment` with the existing database path, unchanged origin and the
+base64url-encoded 32-byte family from the application's trusted policy setup.
+This atomic schema-2 upgrade retains all accounts and credential associations.
+Ordinary `serve` never performs that upgrade. The user's existing local account
+database has not been upgraded as part of the implementation tests.
+
+The service's invitation API requires a caller-retained random request ID. Retry
+that same ID after an uncertain reply, even if the host operation ID was lost.
+The local profile uses five-minute approval deadlines and one-hour credentials;
+these are reference-host choices, not SDK requirements. It bounds active devices
+at 32, pending invitations per account at 8 and retained operations at 512 in the
+database. Closed operations retain their identities; no automatic history
+deletion recovers capacity. Root suspension stops new/pending issuance, not
+already issued device traffic. Device revocation/replacement remains to integrate.
+
 - Challenges remain on the server, expire after three minutes, and are consumed
   once before verification. Browser cookies contain only random lookup tokens.
 - New accounts are committed before registration succeeds. Concurrent registration
@@ -88,12 +107,22 @@ cargo clippy --locked --all-targets \
   --manifest-path research/continuity-reference-app/Cargo.toml -- -D warnings
 ```
 
-The tests use the upstream **software test authenticator**, which makes real
+The authentication tests use the upstream **software test authenticator**, which makes real
 WebAuthn signatures but simulates the user-verification flag. They exercise
 challenge replay, wrong origins, expiration, account registration races, original
 session binding when adding a credential, account persistence, and the HTTP
 boundary. They do not substitute for a real browser/authenticator ceremony,
 deployed TLS, installed SDK device enrollment or the full 0.2.0 lifecycle.
+
+Enrollment tests use actual native SDK-generated requests, controlled root
+signers and signature/roster verification at the current host time. They cover
+two devices, conflicting complete-roster predecessors, wrong accounts/requests,
+explicit upgrade, missing original keys and retained results under suspension.
+Ten real child-process SIGKILL boundaries cover schema upgrade, root first use,
+invitation creation and issuance commit. A separate test exercises actual
+loopback TCP. This is local component evidence, not installed cross-host or
+physical-device acceptance. The child entrypoint is a test dispatcher and does
+not count as another recovery scenario.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

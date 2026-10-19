@@ -13,12 +13,17 @@ pub enum Error {
     AccountNotRegistered,
     Conflict(&'static str),
     Capacity,
+    IssuerUnavailable,
     Internal,
 }
 impl Error {
     pub fn internal(context: &'static str, error: impl std::fmt::Display) -> Self {
         eprintln!("{context}: {error}");
         Self::Internal
+    }
+    pub(crate) fn issuer_key(context: &'static str, error: impl std::fmt::Display) -> Self {
+        eprintln!("{context}: {error}");
+        Self::IssuerUnavailable
     }
 }
 impl std::fmt::Display for Error {
@@ -53,6 +58,10 @@ impl IntoResponse for Error {
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Operation failed; retained state must be reconciled",
+            ),
+            Self::IssuerUnavailable => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Original issuer key unavailable; reconcile its retained state",
             ),
         };
         (status, Json(Failure { error })).into_response()

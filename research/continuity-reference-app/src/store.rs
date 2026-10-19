@@ -4,7 +4,7 @@ use crate::error::Error;
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use webauthn_rs::prelude::{Passkey, Uuid};
 
 const CONFIG: TableDefinition<&str, &str> = TableDefinition::new("configuration");
@@ -12,6 +12,7 @@ const ACCOUNTS: TableDefinition<&str, &[u8]> = TableDefinition::new("accounts");
 const OWNERS: TableDefinition<&[u8], &str> = TableDefinition::new("credential_owners");
 const MAX_ACCOUNTS: u64 = 1024;
 const MAX_ACCOUNT_BYTES: usize = 64 * 1024;
+mod enrollment;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -25,6 +26,8 @@ pub struct Account {
 pub struct Store {
     db: Database,
     failed: bool,
+    path: PathBuf,
+    enrollment_family: Option<[u8; 32]>,
 }
 impl Store {
     pub fn provision(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -53,32 +56,41 @@ impl Store {
             tx.commit()
                 .map_err(|e| Error::internal("commit account initialization", e))
         })?;
-        Ok(Self { db, failed: false })
+        Ok(Self {
+            db,
+            failed: false,
+            path: path.into(),
+            enrollment_family: None,
+        })
     }
     pub fn open(path: &Path, origin: &str) -> Result<Self, Error> {
         let db = open_private_database(path)?;
-        {
+        let enrollment_family = {
             let tx = db
                 .begin_read()
                 .map_err(|e| Error::internal("read account database", e))?;
             let config = tx
                 .open_table(CONFIG)
                 .map_err(|e| Error::internal("read configuration", e))?;
-            for (key, value) in [("schema", "1"), ("origin", origin)] {
-                if config
-                    .get(key)
-                    .map_err(|e| Error::internal("read account binding", e))?
-                    .is_none_or(|saved| saved.value() != value)
-                {
-                    return Err(Error::Conflict("Account store schema or origin differs"));
-                }
+            if config
+                .get("origin")
+                .map_err(|e| Error::internal("read account binding", e))?
+                .is_none_or(|saved| saved.value() != origin)
+            {
+                return Err(Error::Conflict("Account store schema or origin differs"));
             }
             tx.open_table(ACCOUNTS)
                 .map_err(|e| Error::internal("open accounts", e))?;
             tx.open_table(OWNERS)
                 .map_err(|e| Error::internal("open credential owners", e))?;
-        }
-        Ok(Self { db, failed: false })
+            enrollment::admit_schema(&tx, &config)?
+        };
+        Ok(Self {
+            db,
+            failed: false,
+            path: path.into(),
+            enrollment_family,
+        })
     }
     fn alive(&self) -> Result<(), Error> {
         if self.failed {

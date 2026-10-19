@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-mod auth;
-mod error;
 mod http;
-mod store;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use error::Error;
+use q_periapt_continuity_reference_app::{auth, error, store};
 use std::{
     future::IntoFuture,
     net::{Ipv4Addr, SocketAddr},
@@ -14,10 +13,13 @@ use webauthn_rs::prelude::*;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().collect();
-    if args.len() != 4 {
-        return Err("Usage: q-periapt-continuity-reference-app <init|serve> <absolute-database-path> <http://localhost:port>".into());
+    if args.len() < 4 || args.len() > 5 {
+        return Err("Usage: q-periapt-continuity-reference-app <init|serve|enable-enrollment> <absolute-database-path> <http://localhost:port> [base64url-policy-family]".into());
     }
     let command = args[1].to_str().ok_or("Invalid command")?;
+    if args.len() != if command == "enable-enrollment" { 5 } else { 4 } {
+        return Err("Only enable-enrollment requires an explicit policy family".into());
+    }
     let path = PathBuf::from(&args[2]);
     if !path.is_absolute() {
         return Err("Database path must be absolute beneath an existing private directory".into());
@@ -68,9 +70,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        "enable-enrollment" => {
+            let family: [u8; 32] = URL_SAFE_NO_PAD.decode(args[4].to_str().ok_or("Invalid policy family")?)?
+                .try_into().map_err(|_| "Policy family must contain exactly 32 bytes")?;
+            let mut store = store::Store::open(&path, &canonical_origin)?;
+            store.enable_enrollment(family)?;
+            println!("Enrollment schema enabled; existing accounts and credentials retained.");
+        }
         _ => {
             return Err(
-                "Command must be init or serve; opening never creates a missing database".into(),
+                "Command must be init, serve or enable-enrollment; opening never creates a missing database".into(),
             )
         }
     }

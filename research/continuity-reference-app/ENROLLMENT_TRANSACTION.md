@@ -1,9 +1,10 @@
 # Host-authorized enrollment transaction
 
-Status: implementation contract for the independent reference consumer. The
-account application currently implements login and account persistence only.
-The transaction below, its transport and its installed-client qualification are
-**not implemented or qualified yet**. It does not define a new cryptographic
+Status: native reference-host transaction implemented and locally tested through
+its Rust service API. HTTP/browser enrollment controls, installed-client
+qualification, revocation and complete root/device replacement are **not
+connected or qualified yet**. The remaining requirements below stay open where
+the observations do not cover them. This does not define a new cryptographic
 protocol, require Passkeys in the SDK, or freeze a product ABI.
 
 ## Existing behavior and the missing boundary
@@ -65,6 +66,13 @@ display data, not a reusable authorization capability.
 
 ## Original operation binding
 
+The caller first retains a random request correlation ID. Invitation creation
+atomically indexes `(authenticated application account, request ID)` to the
+host-generated operation. This makes a lost first response recoverable before
+the caller has learned the host operation ID. A retry returns the original
+invitation without extending its deadline or granting new authority. A closed
+operation stays closed. The correlation ID is not authentication.
+
 Before asking a device to generate its request, the host retains a bounded
 enrollment invitation with the approved root and device description. Retaining
 an invitation does not itself approve an unknown device key. Approval of the
@@ -115,6 +123,13 @@ requires reopening the same database. It cannot return success, erase the
 pending operation, recreate the store or sign a replacement response to hide
 the uncertainty.
 
+A missing or rejected original root key is a separate issuer-scoped error.
+It refuses that issuer's signing and never generates replacement material, but
+does not disable unrelated account authentication or another issuer. Database
+commit uncertainty still disables the shared store owner until explicit reopen.
+The local regression first reproduced the overly broad store shutdown, then
+verified this isolation while retaining the failed key's original state.
+
 After a restart, the client authenticates again as the same application account
 and queries the original operation. A new session is allowed; an old cookie is
 not. An Approved operation must recheck current authorization before its first
@@ -142,8 +157,8 @@ does not imply a running database commit was cancelled.
 
 ## Integration order and required observations
 
-Implement the issuer adapter and its database transaction before adding browser
-controls. Keep transaction and recovery code separate from the HTTP handlers
+The issuer adapter and database transaction now precede browser integration.
+Keep transaction and recovery code separate from the HTTP handlers
 and Passkey ceremony state. Use the existing private-file backend and durability
 settings. Extending the real account database needs explicit schema admission
 and a tested upgrade preserving its existing accounts; do not reset the user's
@@ -175,7 +190,13 @@ Required fault and authorization observations include:
   evidence and fail explicitly. Process kill evidence is not a claim about
   hardware power-loss durability.
 
-These are acceptance requirements, not reported test passes. Real login and the
-current software-authenticator CI do not satisfy them. Deployment, installed
+The local Rust tests currently cover exact request binding, two-device roster
+issuance, conflicting predecessors, suspension, original-key loss, explicit
+schema upgrade and ten actual process kills across four commit/provisioning
+flows. The tests use software host authentication and native SDK request/signing
+owners. They do not yet cover installed clients, enrollment over the actual
+network, deployed host authorization, device revocation/replacement, injected
+filesystem synchronization failures or hardware power loss. Real login and the
+earlier account-only CI are not evidence for those operations. Deployment, installed
 independent endpoints, subsequent traffic/rekey/reconnect, retained-state
 security analysis and resource measurements remain part of the full goal.

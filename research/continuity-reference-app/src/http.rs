@@ -297,4 +297,56 @@ mod tests {
         assert!(cookie(&headers, SESSION)?.is_none());
         Ok(())
     }
+
+    #[tokio::test]
+    async fn actual_loopback_tcp_preserves_authentication_boundary(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::io::{Read, Write};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let host = format!("localhost:{}", address.port());
+        let origin = format!("http://{host}");
+        let temp = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()?;
+        let store = Store::provision(&temp.path().canonicalize()?.join("accounts.redb"), &origin)?;
+        let webauthn = WebauthnBuilder::new("localhost", &Url::parse(&origin)?)?.build()?;
+        let state = Shared::new(Service::new(webauthn, store), origin, host.clone());
+        let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router(state))
+                .with_graceful_shutdown(async move {
+                    if let Err(error) = stopped.await {
+                        eprintln!("TCP test shutdown sender: {error}");
+                    }
+                })
+                .await
+        });
+        let client = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<u8>> {
+            let mut socket =
+                std::net::TcpStream::connect_timeout(&address, Duration::from_secs(5))?;
+            socket.set_read_timeout(Some(Duration::from_secs(5)))?;
+            socket.set_write_timeout(Some(Duration::from_secs(5)))?;
+            write!(
+                socket,
+                "GET /api/me HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+            )?;
+            let mut bytes = Vec::new();
+            socket.take(65537).read_to_end(&mut bytes)?;
+            Ok(bytes)
+        })
+        .await;
+        let shutdown = stop.send(());
+        tokio::time::timeout(Duration::from_secs(5), server).await???;
+        shutdown.map_err(|_| "TCP server ended before shutdown")?;
+        let bytes = client??;
+        assert!(bytes.len() <= 65536);
+        let response = String::from_utf8(bytes)?;
+        assert!(response.starts_with("HTTP/1.1 401 "));
+        assert!(response
+            .to_ascii_lowercase()
+            .contains("cache-control: no-store\r\n"));
+        assert!(response.contains("Authentication required or ceremony invalid"));
+        Ok(())
+    }
 }
