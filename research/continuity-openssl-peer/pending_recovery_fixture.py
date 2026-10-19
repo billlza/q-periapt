@@ -6,12 +6,12 @@ import os
 from pathlib import Path
 import tempfile
 from fixture_inputs import load, load_witness_pin
-from peer.durable import owner_binding
-from peer.journal import Scope
-from peer.pending_recovery import PendingWriteRecovery
-from peer.pending_recovery_protocol import Proposal
-from peer.wire import SigningKey, ldh, require
-from peer.witness import Client, TcpTransport
+from qperiapt_continuity_reference.durable import owner_binding
+from qperiapt_continuity_reference.journal import Scope
+from qperiapt_continuity_reference.pending_recovery import PendingWriteRecovery
+from qperiapt_continuity_reference.pending_recovery_protocol import Proposal
+from qperiapt_continuity_reference.wire import SigningKey, ldh, require
+from qperiapt_continuity_reference.witness import Client, TcpTransport
 from run import Counterpart
 from session_driver import SessionDriver
 from signing_fixture import write

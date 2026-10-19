@@ -9,7 +9,7 @@ import signal
 import subprocess
 import time
 from worker_process import command as worker_command
-from peer.wire import require
+from qperiapt_continuity_reference.wire import require
 
 
 class SessionDriver:

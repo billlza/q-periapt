@@ -15,14 +15,14 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--cut'); parser.add_argument('--witness-address')
     args = parser.parse_args(); sys.path.append(str(Path(__file__).resolve().parent))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     load_provider(args.provider_root)
-    from peer.registration import Registration
-    from peer.registration_protocol import Intent
-    from peer.registration_inputs import Inputs
-    from peer.registered_owner import SESSION
-    from peer.private_files import private_regular
-    from peer.wire import require
+    from qperiapt_continuity_reference.registration import Registration
+    from qperiapt_continuity_reference.registration_protocol import Intent
+    from qperiapt_continuity_reference.registration_inputs import Inputs
+    from qperiapt_continuity_reference.registered_owner import SESSION
+    from qperiapt_continuity_reference.private_files import private_regular
+    from qperiapt_continuity_reference.wire import require
     fd = os.open(args.configuration, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
         private_regular(os.fstat(fd))
@@ -47,7 +47,7 @@ def main():
             raise RuntimeError('killed registration worker unexpectedly resumed')
     transport = None
     if args.witness_address is not None:
-        from peer.witness import TcpTransport
+        from qperiapt_continuity_reference.witness import TcpTransport
         host, port = args.witness_address.rsplit(':', 1); transport = TcpTransport((host, int(port)))
     owner = (Registration.provision(args.root, identity, key, intent, observer=observe) if action == 'provision' else
              Registration.open(args.root, identity, key, intent, recover_initial=action == 'recover_initial', observer=observe))
@@ -92,7 +92,7 @@ def main():
                 if action in ('status', 'rekey_progress', 'storage_format', 'rekey_request_status', 'closed_epoch_resolution_status', 'peer_authority_status'):
                     result = getattr(child, action)(*arguments)
                 else: result = getattr(child, action)(*arguments, now=now)
-        from peer.resolution import ResolutionReport
+        from qperiapt_continuity_reference.resolution import ResolutionReport
         def output(value):
             if isinstance(value, bytes): return value.hex()
             if isinstance(value, ResolutionReport): return value.public_record()

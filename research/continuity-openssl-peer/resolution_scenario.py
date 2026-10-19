@@ -6,10 +6,10 @@ import json
 
 from application_fixture import record
 from control_scenario import ControlScenario
-from peer.resolution import ciphertext_digest
-from peer.state_codec import encode, decode
-from peer.traffic import DOMAIN, message_id
-from peer.wire import Reader, ldh
+from qperiapt_continuity_reference.resolution import ciphertext_digest
+from qperiapt_continuity_reference.state_codec import encode, decode
+from qperiapt_continuity_reference.traffic import DOMAIN, message_id
+from qperiapt_continuity_reference.wire import Reader, ldh
 from traffic_checks import application
 
 
@@ -185,7 +185,7 @@ class ResolutionScenario(ControlScenario):
         self.advance(1, "pending-offer-3", 3)
         self.require(self.worker("report-during-control", "begin_closed_epoch_resolution", (bytes(8),)) == self.report, "cached report during control")
         self.unchanged_refusal("wrong-report-ID", "acknowledge_closed_epoch_resolution", (bytes(8), bytes([9]) * 32), "conflicting resolution")
-        from peer.durable import Session
+        from qperiapt_continuity_reference.durable import Session
         owner = Session.open(self.path, self.scope, self.key, self.context)
         try:
             before = (self.path / "head").read_bytes()

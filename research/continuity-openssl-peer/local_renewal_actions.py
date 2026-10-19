@@ -1,7 +1,7 @@
 """Process-harness calls for one original local credential renewal."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from peer.local_renewal import LocalRenewal
-from peer.wire import require
+from qperiapt_continuity_reference.local_renewal import LocalRenewal
+from qperiapt_continuity_reference.wire import require
 
 
 def run(action, arguments, now, path, scope, key, context, client, observer):
@@ -24,7 +24,7 @@ def run(action, arguments, now, path, scope, key, context, client, observer):
 
 
 def run_local(action, arguments, now, path, scope, key, context, observer):
-    from peer.local_credential import LocalCredentialRenewal
+    from qperiapt_continuity_reference.local_credential import LocalCredentialRenewal
     require(len(arguments) == (3 if action == "local_credential_stage" else 1),
             "local credential worker arguments")
     owner = LocalCredentialRenewal.open(path, scope, key, context, arguments[0], observer=observer)

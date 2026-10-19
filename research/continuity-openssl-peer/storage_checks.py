@@ -50,11 +50,11 @@ def main():
     args = arguments()
     provider = args.provider_root.resolve(strict=True)
     sys.path.append(str(Path(__file__).resolve().parent))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     cryptography, backend = load_provider(provider)
     from cryptography.exceptions import InvalidTag
-    from peer.journal import Journal, Scope, Conflict, MissingState
-    from peer.wire import require
+    from qperiapt_continuity_reference.journal import Journal, Scope, Conflict, MissingState
+    from qperiapt_continuity_reference.wire import require
     from worker_process import command as worker_command
 
     if args.worker:

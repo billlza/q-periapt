@@ -1,9 +1,9 @@
 """Genuine-grant and authenticated-state counterexamples, not alternate issuers."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
-from peer.renewal import verify
-from peer.state_codec import encode, decode
-from peer.wire import require
+from qperiapt_continuity_reference.renewal import verify
+from qperiapt_continuity_reference.state_codec import encode, decode
+from qperiapt_continuity_reference.wire import require
 
 
 def grant_controls(ctx, wire, operation, target, refuses):
@@ -23,7 +23,7 @@ def grant_controls(ctx, wire, operation, target, refuses):
     value=check();require(value.operation==operation,'grant original operation')
     # The certificate and target roster alone cannot authorize replacement of
     # an observed same-generation credential without the signed renewal grant.
-    from peer.identity_state import IdentityState
+    from qperiapt_continuity_reference.identity_state import IdentityState
     same_account=replace(ctx,devices=(ctx.devices[1],ctx.devices[1]))
     refuses('same-account-cannot-bypass-local-coordination',lambda:IdentityState.initial(same_account),'local account coordinator')
     initial=IdentityState.initial(ctx)
@@ -44,6 +44,6 @@ def stored_controls(owner,ctx,refuses):
                 state.format_version=version
                 refuses('authority-downgrade-'+str(version),lambda:encode(state),'requires snapshot version five')
         finally:state.format_version=prior
-        from peer.durable import Session
+        from qperiapt_continuity_reference.durable import Session
         derived=replace(ctx,current_peer=state.peer_authority)
         refuses('derived-peer-view-is-not-open-authority',lambda:Session._scope(derived,owner._journal.scope),'derived session authority')

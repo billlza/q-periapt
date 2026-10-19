@@ -1,8 +1,8 @@
 """Real Rust journal interoperability; Python traffic remains explicitly volatile."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from peer.bootstrap import Initiator
-from peer.traffic import message_id
-from peer.wire import require
+from qperiapt_continuity_reference.bootstrap import Initiator
+from qperiapt_continuity_reference.traffic import message_id
+from qperiapt_continuity_reference.wire import require
 
 
 def application(ad: bytes, payload: bytes) -> bytes:

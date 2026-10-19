@@ -3,10 +3,10 @@
 from dataclasses import replace
 import hashlib
 import os
-from peer.registration import Registration
-from peer.registration_inputs import Inputs
-from peer.registration_protocol import request_body
-from peer.wire import SigningKey, require
+from qperiapt_continuity_reference.registration import Registration
+from qperiapt_continuity_reference.registration_inputs import Inputs
+from qperiapt_continuity_reference.registration_protocol import request_body
+from qperiapt_continuity_reference.wire import SigningKey, require
 
 
 def before_accept(f):

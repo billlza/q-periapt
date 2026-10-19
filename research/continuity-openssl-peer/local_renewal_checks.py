@@ -11,9 +11,9 @@ import tempfile
 
 def exercise(args, label):
     from fixture_inputs import load, load_witness_pin
-    from peer.durable import owner_binding
-    from peer.journal import Scope
-    from peer.wire import SigningKey, require
+    from qperiapt_continuity_reference.durable import owner_binding
+    from qperiapt_continuity_reference.journal import Scope
+    from qperiapt_continuity_reference.wire import SigningKey, require
     from run import Counterpart
     from session_driver import SessionDriver
     from signing_fixture import write
@@ -206,11 +206,11 @@ def exercise(args, label):
 def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     args = arguments(); crypto, backend = load_provider(args.provider_root)
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     root = Path(__file__).resolve().parent
-    files = [*sorted((root / 'peer').glob('*.py')), *sorted(root.glob('*.py')),
+    files = [*sorted((root / 'qperiapt_continuity_reference').glob('*.py')), *sorted(root.glob('*.py')),
              *sorted((root / 'native/src').glob('*.rs')), root / 'native/Cargo.toml',
              root / 'native/Cargo.lock', root / 'requirements.txt']
     def sources():

@@ -14,12 +14,12 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ("provider-root","native","output"):p.add_argument("--"+name,type=Path,required=True)
     args=p.parse_args();peer=Path(__file__).resolve().parent;sys.path.append(str(peer))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto,backend=load_provider(args.provider_root)
-    from peer.wire import SigningKey,require
-    from peer.durable import Session,owner_binding
-    from peer.journal import Scope,MAX_STATE
-    from peer.traffic_codec import encode_traffic
+    from qperiapt_continuity_reference.wire import SigningKey,require
+    from qperiapt_continuity_reference.durable import Session,owner_binding
+    from qperiapt_continuity_reference.journal import Scope,MAX_STATE
+    from qperiapt_continuity_reference.traffic_codec import encode_traffic
     from fixture_inputs import load
     from run import Counterpart
     from traffic_checks import application
@@ -112,7 +112,7 @@ def main():
                     and not state.traffic.traffic(0)._outbox,'capacity resolution changed original counters')
         (output/'RESOLUTION.json').write_text(json.dumps(resolution,indent=2)+'\n')
         native.command('close',3,b'',1,b'closed');require(native.process.wait(timeout=5)==0,'native close')
-        sources=[*sorted((peer/'peer').glob('*.py')),*sorted(peer.glob('*.py')),*sorted((peer/'native/src').glob('*.rs')),peer/'native/Cargo.toml',peer/'native/Cargo.lock',peer/'requirements.txt']
+        sources=[*sorted((peer/'qperiapt_continuity_reference').glob('*.py')),*sorted(peer.glob('*.py')),*sorted((peer/'native/src').glob('*.rs')),peer/'native/Cargo.toml',peer/'native/Cargo.lock',peer/'requirements.txt']
         report={'scope':'Real two-epoch journal at its reserved-control capacity; no mocked state or weakened cap',
                 'full_size_outbox_messages':122,'signed_budget':1024,'admission':observation,
                 'exact_fit_plaintext_bytes':len(accepted),'exact_fit_committed_and_reopened':True,

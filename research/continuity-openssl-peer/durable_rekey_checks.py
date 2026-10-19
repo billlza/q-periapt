@@ -14,9 +14,9 @@ import zipfile
 
 class Scenario:
     def __init__(self, args, *, archived_version=1, send_budget=4):
-        from peer.wire import SigningKey, require
-        from peer.durable import Session, owner_binding
-        from peer.journal import Journal, Scope
+        from qperiapt_continuity_reference.wire import SigningKey, require
+        from qperiapt_continuity_reference.durable import Session, owner_binding
+        from qperiapt_continuity_reference.journal import Journal, Scope
         from fixture_inputs import load
         from run import Counterpart
         from session_driver import SessionDriver
@@ -57,8 +57,8 @@ class Scenario:
             self.old, self.old_codec_sha256 = load_version(self.private, archived_version)
         else:
             self.old_codec_sha256 = expected
-            self.old = types.ModuleType("peer.old_snapshot_fixture")
-            self.old.__package__ = "peer"
+            self.old = types.ModuleType("qperiapt_continuity_reference.old_snapshot_fixture")
+            self.old.__package__ = "qperiapt_continuity_reference"
             sys.modules[self.old.__name__] = self.old
             exec(compile(source, "archived-state-codec", "exec"), self.old.__dict__)
         original = self.old.State(self.old.Initiator(self.context, signer, 150))
@@ -76,7 +76,7 @@ class Scenario:
         return bytes.fromhex(self.worker(name, action, arguments, **options))
 
     def inspect(self, callback):
-        from peer.durable import Session
+        from qperiapt_continuity_reference.durable import Session
         owner = Session.open(self.path, self.scope, self.key, self.context)
         try:
             with owner._state() as (snapshot, state):
@@ -209,7 +209,7 @@ class Scenario:
         return offer,response,final,receipt
 
     def codec_controls(self):
-        from peer.state_codec import decode
+        from qperiapt_continuity_reference.state_codec import decode
         def control(snapshot,state):
             self.require(state.format_version==5 and state.peer_authority is None, "control fixture authority header")
             base=42+5817+4633+136+32
@@ -227,7 +227,7 @@ class Scenario:
         self.inspect(control)
 
     def close_before_release(self):
-        from peer.durable import Session
+        from qperiapt_continuity_reference.durable import Session
         from traffic_checks import application
         def observe(stage):
             if stage == "protocol:send-committed":
@@ -276,12 +276,12 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ("provider-root","native","output"):p.add_argument("--"+name,type=Path,required=True)
     args=p.parse_args();peer=Path(__file__).resolve().parent;sys.path.append(str(peer))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto,backend=load_provider(args.provider_root)
     scenario=Scenario(args)
     try:
         scenario.run()
-        sources=[*sorted((peer/"peer").glob("*.py")),*sorted(peer.glob("*.py")),*sorted((peer/"native/src").glob("*.rs")),peer/"native/Cargo.toml",peer/"native/Cargo.lock",peer/"requirements.txt"]
+        sources=[*sorted((peer/"qperiapt_continuity_reference").glob("*.py")),*sorted(peer.glob("*.py")),*sorted((peer/"native/src").glob("*.rs")),peer/"native/Cargo.toml",peer/"native/Cargo.lock",peer/"requirements.txt"]
         report={"scope":"Independent local-only multi-epoch journal recovery against a live native journal; no required witnesses, identity renewal or complete installation lifecycle",
                 "epochs":scenario.epochs,"checks":scenario.checks,"worker_operations":scenario.driver.operations,
                 "process_kills":sum("signal"in x for x in scenario.driver.operations),"native_commands":scenario.native.commands,

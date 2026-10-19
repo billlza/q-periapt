@@ -15,14 +15,14 @@ def main():
     args = parser.parse_args()
     peer = Path(__file__).resolve().parent
     sys.path.append(str(peer))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto, backend = load_provider(args.provider_root)
-    from peer.durable import Session
-    from peer.resolution import ciphertext_digest
+    from qperiapt_continuity_reference.durable import Session
+    from qperiapt_continuity_reference.resolution import ciphertext_digest
     from resolution_scenario import ResolutionScenario
     from signing_fixture import read
     from traffic_checks import application
-    sources = [*sorted((peer / "peer").glob("*.py")), *sorted(peer.glob("*.py")),
+    sources = [*sorted((peer / "qperiapt_continuity_reference").glob("*.py")), *sorted(peer.glob("*.py")),
                *sorted((peer / "native/src").glob("*.rs")), peer / "native/Cargo.toml", peer / "native/Cargo.lock", peer / "requirements.txt"]
     before = {str(p.relative_to(peer)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     native_hash = hashlib.sha256(args.native.read_bytes()).hexdigest()

@@ -17,10 +17,10 @@ def main():
     args = parser.parse_args()
     peer = Path(__file__).resolve().parent
     sys.path.append(str(peer))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto, backend = load_provider(args.provider_root)
     def inventory():
-        sources = [*sorted((peer / "peer").glob("*.py")), *sorted(peer.glob("*.py")),
+        sources = [*sorted((peer / "qperiapt_continuity_reference").glob("*.py")), *sorted(peer.glob("*.py")),
                    *sorted((peer / "native/src").glob("*.rs")), peer / "native/Cargo.toml",
                    peer / "native/Cargo.lock", peer / "requirements.txt"]
         return {str(p.relative_to(peer)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}

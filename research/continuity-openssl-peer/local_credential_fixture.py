@@ -5,10 +5,10 @@ import os
 from pathlib import Path
 import tempfile
 from fixture_inputs import load
-from peer.durable import Session, owner_binding
-from peer.journal import Scope
-from peer.local_credential import LocalCredentialRenewal
-from peer.wire import SigningKey, require
+from qperiapt_continuity_reference.durable import Session, owner_binding
+from qperiapt_continuity_reference.journal import Scope
+from qperiapt_continuity_reference.local_credential import LocalCredentialRenewal
+from qperiapt_continuity_reference.wire import SigningKey, require
 from run import Counterpart
 from session_driver import SessionDriver
 from signing_fixture import write
@@ -74,9 +74,9 @@ class Fixture:
 
     def check_codec(self, now):
         from dataclasses import replace
-        from peer.local_renewal import LocalRenewal
-        from peer.local_renewal_record import Expired
-        from peer.state_codec import encode, decode
+        from qperiapt_continuity_reference.local_renewal import LocalRenewal
+        from qperiapt_continuity_reference.local_renewal_record import Expired
+        from qperiapt_continuity_reference.state_codec import encode, decode
         owner = self.open_session()
         try:
             path = self.private / 'retained-authority-create'; path.mkdir(mode=0o700)

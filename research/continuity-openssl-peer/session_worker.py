@@ -21,13 +21,13 @@ def main():
     parser.add_argument("--witness-address")
     args = parser.parse_args()
     sys.path.append(str(Path(__file__).resolve().parent))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     load_provider(args.provider_root)
     from fixture_inputs import load_original
-    from peer.durable import Session
-    from peer.journal import Scope
-    from peer.resolution import ResolutionReport
-    from peer.wire import require
+    from qperiapt_continuity_reference.durable import Session
+    from qperiapt_continuity_reference.journal import Scope
+    from qperiapt_continuity_reference.resolution import ResolutionReport
+    from qperiapt_continuity_reference.wire import require
     with args.configuration.open("rb") as stream:
         private = stream.read(129)
     require(len(private) == 128, "private configuration shape")
@@ -79,8 +79,8 @@ def main():
         print(json.dumps({"result": result}))
         return
     if witness_pin is not None:
-        from peer.witness import Client, TcpTransport
-        from peer.witness_session import WitnessSession
+        from qperiapt_continuity_reference.witness import Client, TcpTransport
+        from qperiapt_continuity_reference.witness_session import WitnessSession
         from signing_fixture import read
         signer = read(args.signer)
         if action in ("witness_provision", "witness_genesis"):

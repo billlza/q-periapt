@@ -12,14 +12,14 @@ import tempfile
 
 def scenario(args, output, witnessed, *, reentrant=False):
     from cryptography.exceptions import InvalidSignature
-    from peer.durable import Session, owner_binding
-    from peer.journal import Journal, Scope
-    from peer.witness import Client, TcpTransport
-    from peer.witness_session import WitnessSession
-    from peer.witness_journal import WitnessJournal
-    from peer.renewal import verify
-    from peer.state_codec import decode
-    from peer.wire import SigningKey, require
+    from qperiapt_continuity_reference.durable import Session, owner_binding
+    from qperiapt_continuity_reference.journal import Journal, Scope
+    from qperiapt_continuity_reference.witness import Client, TcpTransport
+    from qperiapt_continuity_reference.witness_session import WitnessSession
+    from qperiapt_continuity_reference.witness_journal import WitnessJournal
+    from qperiapt_continuity_reference.renewal import verify
+    from qperiapt_continuity_reference.state_codec import decode
+    from qperiapt_continuity_reference.wire import SigningKey, require
     from fixture_inputs import load, load_witness_pin
     from run import Counterpart
     from session_driver import SessionDriver
@@ -175,16 +175,16 @@ def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments
     args=arguments()
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto,backend=load_provider(args.provider_root)
     root=Path(__file__).resolve().parent;output=args.output.resolve();output.mkdir()
     def inventory():
-        paths=[*sorted((root/'peer').glob('*.py')),*sorted(root.glob('*.py')),*sorted((root/'native/src').glob('*.rs')),root/'native/Cargo.toml',root/'native/Cargo.lock',root/'requirements.txt']
+        paths=[*sorted((root/'qperiapt_continuity_reference').glob('*.py')),*sorted(root.glob('*.py')),*sorted((root/'native/src').glob('*.rs')),root/'native/Cargo.toml',root/'native/Cargo.lock',root/'requirements.txt']
         return {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
     before=inventory();rows={}
     for name,witnessed,reentrant in [('local',False,False),('witness',True,False),('local-release',False,True),('witness-release',True,True)]:
         rows[name]=scenario(args,output/name,witnessed,reentrant=reentrant)
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     require(before==inventory(),'source closure changed')
     report={'source_files':before,'native_sha256':hashlib.sha256(args.native.read_bytes()).hexdigest(),
             'provider':{'cryptography':crypto.__version__,'openssl':backend.openssl_version_text()},

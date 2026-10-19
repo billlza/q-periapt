@@ -3,8 +3,8 @@
 import os
 import stat
 from cryptography.hazmat.primitives.asymmetric import ec, mldsa
-from peer.private_files import private_regular, sync_file
-from peer.wire import SigningKey, require
+from qperiapt_continuity_reference.private_files import private_regular, sync_file
+from qperiapt_continuity_reference.wire import SigningKey, require
 
 
 def write(path, signer):

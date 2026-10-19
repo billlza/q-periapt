@@ -3,9 +3,9 @@
 import hashlib
 
 from durable_rekey_checks import Scenario
-from peer.control import inspect
-from peer.state_codec import encode, decode
-from peer.traffic import message_id
+from qperiapt_continuity_reference.control import inspect
+from qperiapt_continuity_reference.state_codec import encode, decode
+from qperiapt_continuity_reference.traffic import message_id
 from signing_fixture import read
 from traffic_checks import application
 

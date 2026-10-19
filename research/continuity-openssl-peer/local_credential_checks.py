@@ -9,7 +9,7 @@ import sys
 
 def exercise(args, label):
     from local_credential_fixture import Fixture
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     from traffic_checks import application
     f = Fixture(args, label, short_roster=label == 'expired-roster', combined=label == 'combined')
     w, v = f.worker, f.value
@@ -154,11 +154,11 @@ def exercise(args, label):
 def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     args = arguments(); crypto, backend = load_provider(args.provider_root)
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     root = Path(__file__).resolve().parent
-    files = [*sorted((root / 'peer').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
+    files = [*sorted((root / 'qperiapt_continuity_reference').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
              root / 'native/Cargo.toml', root / 'native/Cargo.lock', root / 'requirements.txt']
     def sources():return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     source_files = sources(); args.output.mkdir()

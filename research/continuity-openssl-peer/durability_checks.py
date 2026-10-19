@@ -21,13 +21,13 @@ def main():
     peer_root = Path(__file__).resolve().parent
     provider = args.provider_root.resolve(strict=True)
     sys.path.append(str(peer_root))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     cryptography, backend = load_provider(provider)
     from fixture_inputs import load
-    from peer.durable import Session, owner_binding
-    from peer.journal import Scope
-    from peer.state_codec import decode
-    from peer.wire import SigningKey, require
+    from qperiapt_continuity_reference.durable import Session, owner_binding
+    from qperiapt_continuity_reference.journal import Scope
+    from qperiapt_continuity_reference.state_codec import decode
+    from qperiapt_continuity_reference.wire import SigningKey, require
     from run import Counterpart
     from traffic_checks import application
     output = args.output.resolve()
@@ -132,7 +132,7 @@ def main():
                 "consumption ACK replay differs")
         counterpart.command("close", 3, b"", 1, b"closed")
         require(counterpart.process.wait(timeout=5) == 0, "native close")
-        sources = [*sorted((peer_root / "peer").glob("*.py")), *sorted(peer_root.glob("*.py")),
+        sources = [*sorted((peer_root / "qperiapt_continuity_reference").glob("*.py")), *sorted(peer_root.glob("*.py")),
                    *sorted((peer_root / "native" / "src").glob("*.rs")), peer_root / "native/Cargo.toml",
                    peer_root / "native/Cargo.lock", peer_root / "requirements.txt"]
         report = {"scope": "Independent local-only bootstrap/epoch-zero persistence and process recovery against a live Rust journal; no rekey/witness/lifecycle or release qualification",

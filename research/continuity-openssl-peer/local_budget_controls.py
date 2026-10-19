@@ -3,13 +3,13 @@
 from dataclasses import replace
 import hashlib
 import importlib
-from peer.journal import Journal, LocalSessionJournal
-from peer.local_renewal_record import Record
-from peer.private_files import PrivateDirectory
-from peer.state_codec import encode, decode
-from peer.storage_budget import MAX_STATE, MAX_LOCAL_STATE, MAX_LOCAL_METADATA
-from peer.traffic_codec import encode_traffic
-from peer.wire import require
+from qperiapt_continuity_reference.journal import Journal, LocalSessionJournal
+from qperiapt_continuity_reference.local_renewal_record import Record
+from qperiapt_continuity_reference.private_files import PrivateDirectory
+from qperiapt_continuity_reference.state_codec import encode, decode
+from qperiapt_continuity_reference.storage_budget import MAX_STATE, MAX_LOCAL_STATE, MAX_LOCAL_METADATA
+from qperiapt_continuity_reference.traffic_codec import encode_traffic
+from qperiapt_continuity_reference.wire import require
 
 
 def inventory(state):

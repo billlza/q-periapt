@@ -1,7 +1,7 @@
 """Explicit test enrollment inputs; not an in-band trust discovery mechanism."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from peer.authority import DevicePin, Materials, Pins, authenticate
-from peer.wire import Reader, VerificationKey, require
+from qperiapt_continuity_reference.authority import DevicePin, Materials, Pins, authenticate
+from qperiapt_continuity_reference.wire import Reader, VerificationKey, require
 
 
 def read_public(directory, name):
@@ -36,7 +36,7 @@ def load(directory, admission_time, *, witness_pin=None):
 
 
 def load_original(directory, original_context, now, *, witness_pin=None):
-    from peer.bootstrap_bundle import BootstrapBundle
+    from qperiapt_continuity_reference.bootstrap_bundle import BootstrapBundle
     pins, materials = inputs(directory)
     bundle = BootstrapBundle.from_materials(materials)
     context = bundle.verify_original(pins, materials.sdk_document, materials.sdk_signature, materials.policy, now,
@@ -45,5 +45,5 @@ def load_original(directory, original_context, now, *, witness_pin=None):
 
 
 def load_witness_pin(directory):
-    from peer.witness import Pin
+    from qperiapt_continuity_reference.witness import Pin
     return Pin(read_public(directory, "pin-witness-id"), VerificationKey(read_public(directory, "pin-witness-key")))

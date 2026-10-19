@@ -10,7 +10,7 @@ import zipfile
 
 
 def load_version(private, version):
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     require(version in (2, 3, 4, 7), "archived peer version")
     checkpoint = {2: "20261018-independent-durable-rekey", 3: "20261018-independent-control",
                   4: "20261018-independent-witness", 7: "20261018-independent-local-credential"}[version]

@@ -126,13 +126,13 @@ class Counterpart:
 def main() -> None:
     args = arguments()
     sys.path.append(str(Path(__file__).resolve().parent))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     cryptography, backend = load_provider(args.provider_root)
     from cryptography.exceptions import InvalidSignature, InvalidTag
-    from peer.authority import authenticate
+    from qperiapt_continuity_reference.authority import authenticate
     from fixture_inputs import load as load_inputs, read_public
-    from peer.bootstrap import Initiator, digest
-    from peer.wire import ORDER, SigningKey, require
+    from qperiapt_continuity_reference.bootstrap import Initiator, digest
+    from qperiapt_continuity_reference.wire import ORDER, SigningKey, require
     require(sys.platform in ("darwin", "linux"), "this pipe harness requires POSIX")
     output = args.output.resolve()
     output.mkdir()
@@ -246,7 +246,7 @@ def main() -> None:
                           for name, module in tuple(sys.modules.items())
                           if name.startswith(("cryptography", "cffi", "_cffi_backend", "pycparser"))
                           and getattr(module, "__file__", None)}
-        sources = [*sorted((peer_root / "peer").glob("*.py")), *sorted(peer_root.glob("*.py")),
+        sources = [*sorted((peer_root / "qperiapt_continuity_reference").glob("*.py")), *sorted(peer_root.glob("*.py")),
                    *sorted((peer_root / "native" / "src").glob("*.rs")), peer_root / "native" / "Cargo.toml",
                    peer_root / "native" / "Cargo.lock", peer_root / "requirements.txt"]
         report = {"scope": "Independent volatile bootstrap/epoch-zero traffic and actual Rust journal; no independent durable state, rekey, witness, installed package or release claim",

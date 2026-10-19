@@ -7,10 +7,10 @@ from pathlib import Path
 import tempfile
 import time
 from fixture_inputs import load, load_witness_pin
-from peer.registration import Registration
-from peer.registration_protocol import Intent
-from peer.witness import TcpTransport
-from peer.wire import require
+from qperiapt_continuity_reference.registration import Registration
+from qperiapt_continuity_reference.registration_protocol import Intent
+from qperiapt_continuity_reference.witness import TcpTransport
+from qperiapt_continuity_reference.wire import require
 from run import Counterpart
 from session_driver import SessionDriver
 from witness_fixture import Bridge

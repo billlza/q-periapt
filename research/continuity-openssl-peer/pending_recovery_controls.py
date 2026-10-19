@@ -1,9 +1,9 @@
 """Distinct parser, authority and fresh-query guards for exact recovery."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
-from peer.pending_recovery_protocol import Proposal, INTENT_DOMAIN, METADATA_DOMAIN
-from peer.witness import Head
-from peer.wire import Reader, ldh, require
+from qperiapt_continuity_reference.pending_recovery_protocol import Proposal, INTENT_DOMAIN, METADATA_DOMAIN
+from qperiapt_continuity_reference.witness import Head
+from qperiapt_continuity_reference.wire import Reader, ldh, require
 
 
 def malformed(f, request):

@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
 import shutil
-from peer.local_renewal import LocalRenewal
-from peer.local_renewal_protocol import Proposal
-from peer.renewal import verify
-from peer.state_codec import encode, decode
-from peer.wire import require
-from peer.witness import Client, TcpTransport
-from peer.witness_session import WitnessSession
+from qperiapt_continuity_reference.local_renewal import LocalRenewal
+from qperiapt_continuity_reference.local_renewal_protocol import Proposal
+from qperiapt_continuity_reference.renewal import verify
+from qperiapt_continuity_reference.state_codec import encode, decode
+from qperiapt_continuity_reference.wire import require
+from qperiapt_continuity_reference.witness import Client, TcpTransport
+from qperiapt_continuity_reference.witness_session import WitnessSession
 
 
 class Controls:
@@ -37,7 +37,7 @@ class Controls:
 
     def grants(self, materials):
         operation, wire, target = materials; ctx = self.context
-        from peer.local_credential import LocalCredentialRenewal
+        from qperiapt_continuity_reference.local_credential import LocalCredentialRenewal
         self.refuses('required-policy-cannot-use-local-coordinator',
                      lambda: LocalCredentialRenewal.open(self.path, self.scope, self.key, ctx, operation),
                      'original local-only policy')

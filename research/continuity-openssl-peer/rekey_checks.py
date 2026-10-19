@@ -20,15 +20,15 @@ def main():
     args = parser.parse_args()
     peer = Path(__file__).resolve().parent
     sys.path.append(str(peer))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     cryptography, backend = load_provider(args.provider_root)
     from cryptography.exceptions import InvalidSignature, InvalidTag
     from fixture_inputs import load
-    from peer.bootstrap import Initiator
-    from peer.kem import HybridPrivate
-    from peer.rekey import RekeyScope, digest, genesis
-    from peer.traffic import VolatileTraffic, message_id
-    from peer.wire import SigningKey, require
+    from qperiapt_continuity_reference.bootstrap import Initiator
+    from qperiapt_continuity_reference.kem import HybridPrivate
+    from qperiapt_continuity_reference.rekey import RekeyScope, digest, genesis
+    from qperiapt_continuity_reference.traffic import VolatileTraffic, message_id
+    from qperiapt_continuity_reference.wire import SigningKey, require
     from run import Counterpart
     from traffic_checks import application
     output = args.output.resolve()
@@ -170,7 +170,7 @@ def main():
         refused("expired-traffic", lambda: traffic.next_id(200))
         command("close", 3, expected=b"closed")
         require(native.process.wait(timeout=5) == 0, "native close")
-        sources=[*sorted((peer/"peer").glob("*.py")),*sorted(peer.glob("*.py")),*sorted((peer/"native/src").glob("*.rs")),peer/"native/Cargo.toml",peer/"native/Cargo.lock",peer/"requirements.txt"]
+        sources=[*sorted((peer/"qperiapt_continuity_reference").glob("*.py")),*sorted(peer.glob("*.py")),*sorted((peer/"native/src").glob("*.rs")),peer/"native/Cargo.toml",peer/"native/Cargo.lock",peer/"requirements.txt"]
         report={"scope":"Independent volatile four-flight rekey computations and traffic versus actual Rust journal cutovers; independent durable rekey remains unimplemented",
                 "epochs":epochs,"native_commands":native.commands,"refusals":refusals,"native_journal_reopens":8,
                 "native_sha256":hashlib.sha256(args.native.read_bytes()).hexdigest(),

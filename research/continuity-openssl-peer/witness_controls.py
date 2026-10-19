@@ -4,8 +4,8 @@ import socket
 import threading
 import time
 
-from peer.wire import SigningKey, VerificationKey, MAX_U64, require
-from peer.witness import Client, Head, Operation, Pin, TcpTransport, verify
+from qperiapt_continuity_reference.wire import SigningKey, VerificationKey, MAX_U64, require
+from qperiapt_continuity_reference.witness import Client, Head, Operation, Pin, TcpTransport, verify
 
 
 def check_controls(pin, subject, signer, bridge, output, refuses):

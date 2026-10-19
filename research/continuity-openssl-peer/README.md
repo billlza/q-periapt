@@ -25,9 +25,9 @@ identity chains, exact roster heads, validity, key separation, the manifest and
 both leaf proofs. It constructs the canonical selection and role-ordered context
 before doing the policy-bound hybrid KEM and confirmation schedule.
 
-The protocol code is in `peer/wire.py`, `peer/authority.py`, `peer/kem.py`,
-`peer/bootstrap.py`, `peer/traffic.py`, and `peer/rekey.py`. The bounded runner and Rust test
-counterpart are separate.
+The protocol code is in `qperiapt_continuity_reference`, including `wire.py`,
+`authority.py`, `kem.py`, `bootstrap.py`, `traffic.py`, and `rekey.py`.
+The bounded runner and Rust test counterpart are separate.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
 fails. Bootstrap owner operations check the supplied trusted time. Close is idempotent
@@ -62,6 +62,55 @@ The controls exercise each signature component, malformed envelopes, pin and
 validity violations, invalid confirmation with valid signatures, exact replay,
 conflicting replay and closed owners. The native invalid-ciphertext control is
 re-signed with the real initiator key so it reaches KEM confirmation.
+
+### Install the Python reference
+
+`pyproject.toml` builds the unpublished `qperiapt-continuity-reference` wheel.
+Its import namespace is `qperiapt_continuity_reference`; the generic `peer`
+namespace is no longer used. The wheel contains the protocol and explicit
+provider loader, without the test issuer, native process driver or private
+fixtures. The reference version is `0.0.0`, with CPython 3.14 and the pinned
+provider below. Current qualification is for the stated POSIX profiles; the
+pure-Python wheel tag does not qualify other operating systems.
+
+From this directory, build in a dedicated virtual environment:
+
+```sh
+python3.14 -m venv /absolute/path/to/build-environment
+/absolute/path/to/build-environment/bin/python -I -m pip install \
+  --no-deps --require-hashes -r build-requirements.txt
+/absolute/path/to/build-environment/bin/python -I -m pip wheel \
+  --no-index --no-deps --no-build-isolation --wheel-dir /absolute/path/to/dist .
+```
+
+In a separate consumer environment, install the fixed provider requirements and
+the produced wheel:
+
+```sh
+python3.14 -m venv /absolute/path/to/consumer-environment
+/absolute/path/to/consumer-environment/bin/python -I -m pip install \
+  --no-deps --require-hashes -r requirements.txt
+/absolute/path/to/consumer-environment/bin/python -I -m pip install \
+  --no-index --no-deps /absolute/path/to/dist/qperiapt_continuity_reference-0.0.0-py3-none-any.whl
+```
+
+Select the provider before importing protocol modules:
+
+```python
+from pathlib import Path
+import sysconfig
+from qperiapt_continuity_reference.provider import load_provider
+
+load_provider(Path(sysconfig.get_path("platlib")))
+from qperiapt_continuity_reference.registration import Registration
+```
+
+`Registration` still requires the separately approved intent and protected local
+state described in [REGISTRATION.md](REGISTRATION.md). Installation does not
+choose trust roots or turn a received bundle into account authentication.
+The qualification consumer runs with `-I -S -B`, a private empty cache prefix,
+and explicit installed/provider directories; normal virtual-environment use
+does not by itself promise that stronger import-path isolation.
 
 ### Counterpart built from installed archives
 
@@ -117,7 +166,7 @@ the credentials, rosters and policy remain valid until 200. An authenticated sta
 ACK leaves the current higher floor unchanged. This is interoperability evidence
 for the root/traffic schedule, not merely agreement on the public session ID.
 
-`peer/traffic.py` is explicitly **volatile**: it does not supply commit-before-
+`qperiapt_continuity_reference/traffic.py` is explicitly **volatile**: it does not supply commit-before-
 release or independent persistence. `traffic_checks.py` contains the separate
 experiment driver. Rust enrollment, control framing and durable operations are
 separate modules. Private Rust fixture files stay outside the public artifact

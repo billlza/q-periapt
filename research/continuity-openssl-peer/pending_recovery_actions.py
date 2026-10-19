@@ -3,10 +3,10 @@
 import hashlib
 import os
 import re
-from peer.pending_recovery import PendingWriteRecovery
-from peer.pending_recovery_protocol import MAX_METADATA
-from peer.private_files import sync_file
-from peer.wire import require
+from qperiapt_continuity_reference.pending_recovery import PendingWriteRecovery
+from qperiapt_continuity_reference.pending_recovery_protocol import MAX_METADATA
+from qperiapt_continuity_reference.private_files import sync_file
+from qperiapt_continuity_reference.wire import require
 
 
 def file_path(directory, encoded):

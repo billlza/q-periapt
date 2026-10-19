@@ -13,23 +13,23 @@ def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments, Counterpart
     args = arguments()
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto, backend = load_provider(args.provider_root)
     provider = {"cryptography": crypto.__version__, "openssl": backend.openssl_version_text()}
     from cryptography.exceptions import InvalidSignature
     from fixture_inputs import load, load_witness_pin
-    from peer.bootstrap import Initiator
-    from peer.durable import Session, owner_binding
-    from peer.journal import Journal, Scope
-    from peer.witness import Client, TcpTransport, Operation, Head, verify
-    from peer.witness_session import WitnessSession
-    from peer.wire import SigningKey, require
+    from qperiapt_continuity_reference.bootstrap import Initiator
+    from qperiapt_continuity_reference.durable import Session, owner_binding
+    from qperiapt_continuity_reference.journal import Journal, Scope
+    from qperiapt_continuity_reference.witness import Client, TcpTransport, Operation, Head, verify
+    from qperiapt_continuity_reference.witness_session import WitnessSession
+    from qperiapt_continuity_reference.wire import SigningKey, require
     from signing_fixture import write
     from session_driver import SessionDriver
     from traffic_checks import application
     from witness_fixture import Bridge
     root = Path(__file__).resolve().parent
-    files = [*sorted((root/'peer').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root/'native/src').glob('*.rs')),
+    files = [*sorted((root/'qperiapt_continuity_reference').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root/'native/src').glob('*.rs')),
              root/'native/Cargo.toml', root/'native/Cargo.lock', root/'requirements.txt']
     sources = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     out = args.output.resolve(); out.mkdir(); (out/'native').mkdir()

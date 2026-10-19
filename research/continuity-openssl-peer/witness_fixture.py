@@ -5,7 +5,7 @@ import socket
 import threading
 import time
 
-from peer.wire import require
+from qperiapt_continuity_reference.wire import require
 
 
 class Bridge:

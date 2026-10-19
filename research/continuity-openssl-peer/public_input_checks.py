@@ -14,12 +14,12 @@ import tempfile
 
 def exercise(args, label):
     from fixture_inputs import load, load_witness_pin
-    from peer.bootstrap_bundle import BootstrapBundle, decode, MAX_BUNDLE
-    from peer.bootstrap import Initiator
-    from peer.durable import Session, owner_binding
-    from peer.journal import Scope
-    from peer.witness_session import WitnessSession
-    from peer.wire import SigningKey, digest, require
+    from qperiapt_continuity_reference.bootstrap_bundle import BootstrapBundle, decode, MAX_BUNDLE
+    from qperiapt_continuity_reference.bootstrap import Initiator
+    from qperiapt_continuity_reference.durable import Session, owner_binding
+    from qperiapt_continuity_reference.journal import Scope
+    from qperiapt_continuity_reference.witness_session import WitnessSession
+    from qperiapt_continuity_reference.wire import SigningKey, digest, require
     from cryptography.exceptions import InvalidSignature
     from run import Counterpart
     out = args.output / label; out.mkdir(); (out / 'native').mkdir()
@@ -123,11 +123,11 @@ def main():
     for name in ['provider-root', 'native', 'importer', 'output']: parser.add_argument('--' + name, type=Path, required=True)
     args = parser.parse_args(); args.output = args.output.resolve(); args.native = args.native.resolve(); args.importer = args.importer.resolve()
     sys.path.append(str(Path(__file__).resolve().parent))
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     crypto, backend = load_provider(args.provider_root)
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     root = Path(__file__).resolve().parent
-    files = [*sorted((root / 'peer').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
+    files = [*sorted((root / 'qperiapt_continuity_reference').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
              root / 'native/Cargo.toml', root / 'native/Cargo.lock', root / 'requirements.txt']
     def sources(): return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     source_files = sources(); native = hashlib.sha256(args.native.read_bytes()).hexdigest(); importer = hashlib.sha256(args.importer.read_bytes()).hexdigest()

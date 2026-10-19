@@ -10,8 +10,8 @@ import sys
 def exercise(args, label):
     from registration_fixture import Fixture
     from registration_controls import before_accept, before_prepare, lifetime, callback_close, missing_active
-    from peer.pending_recovery_protocol import Proposal
-    from peer.wire import require, ldh
+    from qperiapt_continuity_reference.pending_recovery_protocol import Proposal
+    from qperiapt_continuity_reference.wire import require, ldh
     from traffic_checks import application
     f = Fixture(args, label)
     try:
@@ -131,12 +131,12 @@ def exercise(args, label):
 def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments
-    from provider import load_provider
+    from qperiapt_continuity_reference.provider import load_provider
     args = arguments(); args.output = args.output.resolve(); args.native = args.native.resolve(); args.provider_root = args.provider_root.resolve()
     crypto, backend = load_provider(args.provider_root)
-    from peer.wire import require
+    from qperiapt_continuity_reference.wire import require
     root = Path(__file__).resolve().parent
-    files = [*sorted((root / 'peer').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
+    files = [*sorted((root / 'qperiapt_continuity_reference').glob('*.py')), *sorted(root.glob('*.py')), *sorted((root / 'native/src').glob('*.rs')),
              root / 'native/Cargo.toml', root / 'native/Cargo.lock', root / 'requirements.txt']
     def sources(): return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     source_files = sources(); native = hashlib.sha256(args.native.read_bytes()).hexdigest(); args.output.mkdir()

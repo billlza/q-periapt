@@ -4,8 +4,8 @@ import hashlib
 import json
 import os
 
-from peer.private_files import sync_file
-from peer.wire import require
+from qperiapt_continuity_reference.private_files import sync_file
+from qperiapt_continuity_reference.wire import require
 
 
 def record(path, session, role, report):
