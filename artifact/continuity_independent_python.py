@@ -11,6 +11,8 @@ import re
 import stat
 import zipfile
 
+from evidence_io import parse_strict_json_bytes
+
 PACKAGE = "qperiapt_continuity_reference"
 DIST = PACKAGE + "-0.0.0.dist-info"
 
@@ -78,3 +80,19 @@ def inspect_wheel(data: bytes, sources: dict[str, bytes], licenses: dict[str, by
         require(wheel.get_all(field) == [value], "reference wheel metadata differs: " + field)
     verify_record(files)
     return files
+
+
+def verify_installation(files: dict[str, bytes], wheel_files: dict[str, bytes], *, wheel_url: str, digest: str) -> None:
+    """Admit pip's three metadata additions, never editable or changed sources."""
+    require(re.fullmatch(r"[0-9a-f]{64}", digest) is not None, "reference wheel digest differs")
+    extras = {DIST + "/" + name for name in ("INSTALLER", "REQUESTED", "direct_url.json")}
+    require(set(files) == set(wheel_files) | extras, "reference installation inventory differs")
+    require(all(files[name] == body for name, body in wheel_files.items() if name != DIST + "/RECORD"),
+            "reference installed source or metadata differs")
+    require(files[DIST + "/INSTALLER"] == b"pip\n" and files[DIST + "/REQUESTED"] == b"",
+            "reference installer metadata differs")
+    origin = parse_strict_json_bytes(files[DIST + "/direct_url.json"], label="reference installation origin")
+    require(origin == {"url": wheel_url, "archive_info": {
+        "hash": "sha256=" + digest, "hashes": {"sha256": digest}}},
+        "reference installation origin differs")
+    verify_record(files)

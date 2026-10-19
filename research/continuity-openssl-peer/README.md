@@ -112,6 +112,17 @@ The qualification consumer runs with `-I -S -B`, a private empty cache prefix,
 and explicit installed/provider directories; normal virtual-environment use
 does not by itself promise that stronger import-path isolation.
 
+The CI consumer uses `artifact/continuity_independent_python_run.py` to inspect
+the wheel, install it with pip into a fresh directory outside the checkout, and
+run the existing registered-owner scenario there. Only the test harness and
+inventory inputs are copied; protocol modules must come from the wheel. The
+probe records every loaded module and checks isolated import paths. Installed
+files, original wheel, native binary and selected source bytes are checked again
+after execution. The helper uses the existing Git provenance boundary and
+requires an ordinary checkout with a real `.git` directory. Failed states stay
+available for diagnosis; a missing or failed installation is never treated as
+a successful source-tree run.
+
 ### Counterpart built from installed archives
 
 The native fixture can also be built outside the checkout from a separately

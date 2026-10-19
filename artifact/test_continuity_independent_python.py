@@ -2,16 +2,29 @@ import base64
 import csv
 import hashlib
 import io
+import json
 import unittest
 import zipfile
 
-from continuity_independent_python import DIST, PACKAGE, inspect_wheel
+from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation
 
 
 class WheelBoundaryTests(unittest.TestCase):
     sources = {"__init__.py": b'"""Reference package."""\n', "wire.py": b"VALUE = 1\n"}
     licenses = {"LICENSE-APACHE": b"Apache text\n", "LICENSE-MIT": b"MIT text\n"}
     readme = b"Reference scope.\n"
+
+    @staticmethod
+    def record(files):
+        record = io.StringIO(newline="")
+        writer = csv.writer(record)
+        for name, body in files.items():
+            if name == DIST + "/RECORD":
+                continue
+            digest = base64.urlsafe_b64encode(hashlib.sha256(body).digest()).rstrip(b"=").decode()
+            writer.writerow([name, "sha256=" + digest, str(len(body))])
+        writer.writerow([DIST + "/RECORD", "", ""])
+        return record.getvalue().encode()
 
     def wheel(self, mutate=lambda files: None):
         files = {PACKAGE + "/" + n: b for n, b in self.sources.items()}
@@ -24,13 +37,7 @@ class WheelBoundaryTests(unittest.TestCase):
             "License-File: LICENSE-MIT\n\n").encode() + self.readme + b"\n"
         files[DIST + "/WHEEL"] = b"Wheel-Version: 1.0\nGenerator: flit 4.1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
         mutate(files)
-        record = io.StringIO(newline="")
-        writer = csv.writer(record)
-        for name, body in files.items():
-            digest = base64.urlsafe_b64encode(hashlib.sha256(body).digest()).rstrip(b"=").decode()
-            writer.writerow([name, "sha256=" + digest, str(len(body))])
-        writer.writerow([DIST + "/RECORD", "", ""])
-        files[DIST + "/RECORD"] = record.getvalue().encode()
+        files[DIST + "/RECORD"] = self.record(files)
         output = io.BytesIO()
         with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
             for name, body in files.items():
@@ -76,3 +83,34 @@ class WheelBoundaryTests(unittest.TestCase):
                 archive.writestr(name, body)
         with self.assertRaisesRegex(ValueError, "RECORD content"):
             inspect_wheel(output.getvalue(), self.sources, self.licenses, self.readme)
+
+    def installed(self, mutate=lambda files: None):
+        wheel = self.wheel()
+        with zipfile.ZipFile(io.BytesIO(wheel)) as archive:
+            original = {name: archive.read(name) for name in archive.namelist()}
+        files = dict(original)
+        digest = hashlib.sha256(wheel).hexdigest()
+        url = "file:///private/reference.whl"
+        files[DIST + "/INSTALLER"] = b"pip\n"
+        files[DIST + "/REQUESTED"] = b""
+        files[DIST + "/direct_url.json"] = json.dumps({"url": url, "archive_info": {
+            "hash": "sha256=" + digest, "hashes": {"sha256": digest}}}).encode()
+        mutate(files)
+        files[DIST + "/RECORD"] = self.record(files)
+        return files, original, url, digest
+
+    def test_pip_metadata_is_bound_to_selected_wheel(self):
+        files, original, url, digest = self.installed()
+        verify_installation(files, original, wheel_url=url, digest=digest)
+
+    def test_editable_install_is_not_a_wheel_consumer(self):
+        def change(files):
+            files[DIST + "/direct_url.json"] = b'{"url":"file:///checkout","dir_info":{"editable":true}}'
+        files, original, url, digest = self.installed(change)
+        with self.assertRaisesRegex(ValueError, "origin differs"):
+            verify_installation(files, original, wheel_url=url, digest=digest)
+
+    def test_valid_installed_record_does_not_authorize_source_change(self):
+        files, original, url, digest = self.installed(lambda f: f.update({PACKAGE + "/wire.py": b"VALUE = 2\n"}))
+        with self.assertRaisesRegex(ValueError, "installed source or metadata differs"):
+            verify_installation(files, original, wheel_url=url, digest=digest)
