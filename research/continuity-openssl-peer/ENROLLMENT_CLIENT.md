@@ -10,7 +10,9 @@ This is an unpublished reference consumer on Apple Silicon/macOS and Linux
 x86_64, using CPython 3.14 and the pinned OpenSSL provider. It is not the final
 0.2.0 product entry point. The API owns one registered child session and exposes
 its existing traffic, rekey, credential renewal and exact witnessed recovery
-operations. The CLI still exposes enrollment only. Policy updates, device/root
+operations. The separate [session CLI](SESSION_CLI.md) prepares an accepted
+client and exposes explicit TCP connect, delivery, status, resume and rekey.
+Policy updates, device/root
 replacement and multi-session coordination remain separate gaps. Do not treat
 `Accepted` as traffic authorization.
 

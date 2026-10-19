@@ -18,7 +18,9 @@ import time
 parser = argparse.ArgumentParser(description=__doc__)
 for name in ('native-device','native-session','native-outgoing','crash-probe','implementation-root','provider-root','output'):
     parser.add_argument('--'+name,type=Path,required=True)
-parser.add_argument('--network',action='store_true',help='Fresh bidirectional TCP workload instead of the file/crash workload')
+workload=parser.add_mutually_exclusive_group()
+workload.add_argument('--network',action='store_true',help='Fresh bidirectional TCP workload instead of the file/crash workload')
+workload.add_argument('--client-cli',action='store_true',help='Independent session CLI over actual TCP')
 args = parser.parse_args()
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0,str(implementation))
@@ -143,12 +145,25 @@ try:
     run([session_cli,'read-inbox',root/'inbox.redb',b64(os.urandom(32)),b64(os.urandom(32)),
          b64(os.urandom(32)),root/'wrong-inbox-output.bin'],'wrong-inbox-journal',success=False)
     require(not (root/'wrong-inbox-output.bin').exists(),'wrong inbox journal released data')
-    client.prepare(session_dir,publication.inputs(pins,issuer.policy.materials,certificate,issuer.roster),int(time.time()))
-
     native_inputs={'device_directory':str(native_dir),'wrapping_key':str(root/'native-wrap.key'),
         'invitation':str(root/'native-invitation.json'),'current_root':str(root/'current.json'),
         'policy_pins':str(root/'policy-pins.json'),'policy_materials':str(root/'policy-materials.json'),
         'witness_endpoint':'none','peer_trust':str(root/'peer-trust.json'),'bundle':str(root/'bundle.bin')}
+
+    if args.client_cli:
+        from independent_cli_flow import exercise as cli_flow
+        save(root/'client-wrap.key',key)
+        save(root/'client-issued.json',issuer.issued(client_invitation,certificate))
+        client.close()
+        report=cli_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
+                        session_cli,native_inputs,bytes(accepted['journal']),original_journal,run)
+        require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}==native_hashes,'native executable changed')
+        report.update(native_sha256=native_hashes,commands=commands,refusals=refusals,
+                      provider=provider.__version__,clock='actual OS time',
+                      implementation=str(implementation/'qperiapt_continuity_reference/session_cli.py'))
+        save(root/'RESULT.json',report);print(json.dumps(report));raise SystemExit(0)
+
+    client.prepare(session_dir,publication.inputs(pins,issuer.policy.materials,certificate,issuer.roster),int(time.time()))
 
     def make_invocation(label, operation, request, *, inbox=None, trust_path=None):
         target=root/(label+'-output'); target.mkdir(mode=0o700)
