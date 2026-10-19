@@ -11,10 +11,22 @@ on:
       - crates/q-periapt-backends/**
       - crates/q-periapt-sdk/**
       - crates/q-periapt-policy/**
+      - artifact/continuity_independent_package.py
+      - artifact/test_continuity_independent_package.py
   workflow_dispatch:
+    inputs:
+      sdk_run_id:
+        description: "Optional same-repository run containing rust-sdk-package"
+        type: string
+        default: ""
+      sdk_report_sha256:
+        description: "SHA-256 of that run's RUST_SDK_PACKAGE.json; required with sdk_run_id"
+        type: string
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 env:
   RUSTFLAGS: "-D warnings"
@@ -58,6 +70,15 @@ jobs:
           python-version: "3.14.7"
           check-latest: false
           update-environment: false
+      - name: Validate explicit SDK artifact selection
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_RUN_ID: ${{ inputs.sdk_run_id }}
+          SDK_REPORT_SHA256: ${{ inputs.sdk_report_sha256 }}
+        run: |
+          sh artifact/python-run.sh -c 'import os; from continuity_independent_package import validate_sdk_selection; validate_sdk_selection(os.environ["SDK_RUN_ID"], os.environ["SDK_REPORT_SHA256"])'
+          sh artifact/python-run.sh -m unittest discover -s artifact -p test_continuity_independent_package.py \
+            > target/independent-peer-ci/package-tests.stdout 2> target/independent-peer-ci/package-tests.stderr
       - name: Install the exact independent provider into an isolated directory
         env:
           PEER_PYTHON: ${{ steps.python.outputs.python-path }}
@@ -68,6 +89,7 @@ jobs:
             -r research/continuity-openssl-peer/requirements.txt \
             > target/independent-peer-ci/provider.stdout 2> target/independent-peer-ci/provider.stderr
       - name: Build and lint the real Rust counterpart
+        if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
         run: |
           export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
           manifest=research/continuity-openssl-peer/native/Cargo.toml
@@ -80,6 +102,34 @@ jobs:
             > target/independent-peer-ci/metadata.json
           rustc -vV > target/independent-peer-ci/rustc.txt
           cp "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" target/independent-peer-ci/counterpart
+      - name: Read the selected SDK package artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.sdk_run_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          run-id: ${{ inputs.sdk_run_id }}
+          github-token: ${{ github.token }}
+          path: target/independent-sdk-input
+      - name: Build and lint the counterpart from installed crates
+        if: github.event_name == 'workflow_dispatch' && inputs.sdk_run_id != ''
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_REPORT_SHA256: ${{ inputs.sdk_report_sha256 }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_independent_package.py \
+            --report target/independent-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --report-sha256 "$SDK_REPORT_SHA256" \
+            --toolchain-root "$(rustc --print sysroot)" \
+            --output target/independent-peer-ci/installed
+          cp target/independent-peer-ci/installed/counterpart target/independent-peer-ci/counterpart
+          cp target/independent-peer-ci/installed/consumer-metadata.stdout target/independent-peer-ci/metadata.json
+          cp target/independent-peer-ci/installed/rustc.stdout target/independent-peer-ci/rustc.txt
+          cp target/independent-peer-ci/installed/consumer-build.stdout target/independent-peer-ci/build.stdout
+          cp target/independent-peer-ci/installed/consumer-build.stderr target/independent-peer-ci/build.stderr
+          cp target/independent-peer-ci/installed/consumer-clippy.stdout target/independent-peer-ci/clippy.stdout
+          cp target/independent-peer-ci/installed/consumer-clippy.stderr target/independent-peer-ci/clippy.stderr
+      - name: Build and lint the public bootstrap importer
+        run: |
           export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-importer"
           importer_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo clippy --release --locked --manifest-path "$importer_manifest" --example import_bootstrap_bundle -- -D warnings \

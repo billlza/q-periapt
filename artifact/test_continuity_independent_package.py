@@ -24,6 +24,14 @@ def metadata(root):
 
 
 class IndependentPackageTests(unittest.TestCase):
+    def test_partial_or_malformed_ci_selection_cannot_fall_back_to_source_build(self):
+        self.assertFalse(installed.validate_sdk_selection("", ""))
+        self.assertTrue(installed.validate_sdk_selection("39129232908", "a" * 64))
+        for run, digest in [("39129232908", ""), ("", "a" * 64), ("0", "a" * 64),
+                            ("../run", "a" * 64), ("39129232908", "A" * 64), (True, "a" * 64)]:
+            with self.subTest(run=run, digest=digest), self.assertRaises(ValueError):
+                installed.validate_sdk_selection(run, digest)
+
     def test_complete_counterpart_setup_retains_lock_and_refuses_existing_state(self):
         with tempfile.TemporaryDirectory() as temp:
             consumer = Path(temp) / "counterpart"

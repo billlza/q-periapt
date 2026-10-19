@@ -90,6 +90,16 @@ has `runtime_qualified: false`; execution receipts must name that binary's hash.
 This archive boundary does not establish a deployed issuer, an independently
 installed Python distribution, a cross-host network carrier or release admission.
 
+Source qualification uses the SDK packaging provenance check and requires a clean
+ordinary checkout with a real `.git` directory. Linked worktrees should be copied
+to a clean checkout at the same commit for this entry point.
+
+The independent CI workflow accepts optional `sdk_run_id` and
+`sdk_report_sha256` dispatch inputs. Supplying both builds the counterpart from
+that same-repository SDK artifact before running the existing nineteen lanes;
+the report and crate bytes must still match current SDK sources. Supplying only
+one input fails. The default workflow retains direct-source qualification.
+
 ## Limits and next integration
 
 The second experiment transfers a confirmed root into independent epoch-zero

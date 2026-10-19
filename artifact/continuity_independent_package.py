@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import tomllib
@@ -25,6 +26,17 @@ SOURCE = ROOT / "research/continuity-openssl-peer/native"
 NAME = "q-periapt-independent-peer-counterpart"
 PRODUCTS = tuple(name for name in sdk.CONSUMER_CRATES if name != "q-periapt-rustls")
 VERSIONS = dict.fromkeys(PRODUCTS, sdk.VERSION) | {package.NAME: package.VERSION}
+
+
+def validate_sdk_selection(run_id: str, report_digest: str) -> bool:
+    """CI must select both an upstream run and its exact report, or neither."""
+    sdk.require(type(run_id) is str and type(report_digest) is str, "SDK selection must be text")
+    if run_id == report_digest == "":
+        return False
+    sdk.require(re.fullmatch(r"[1-9][0-9]{0,19}", run_id) is not None
+                and re.fullmatch(r"[0-9a-f]{64}", report_digest) is not None,
+                "installed SDK selection requires a run ID and SHA-256 report digest")
+    return True
 
 
 def installed_manifest(original: bytes) -> bytes:
