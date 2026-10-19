@@ -16,7 +16,9 @@ The [native device consumer](NATIVE_DEVICE.md) provides real-time CLI entry poin
 for original enrollment, accepted-credential extension, supported roster refresh,
 and recoverable public advertisement. It uses the SDK's existing controlled signer
 and storage owners with independently supplied host approval and policy pins.
-Peer connection serving and the full session CLI remain separate work.
+The [native session exchange](NATIVE_SESSION.md) consumes its publication through
+the independent implementation and serves owned bootstrap, durable inbox delivery
+and rekey control. A bidirectional network service remains separate work.
 
 This unpublished host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses

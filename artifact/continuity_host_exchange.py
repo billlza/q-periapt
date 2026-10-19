@@ -21,6 +21,7 @@ from continuity_independent_python import PACKAGE, inspect_wheel, require, verif
 from continuity_independent_python_run import installed_files
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
+from continuity_host_native_exchange import qualify as qualify_native_exchange
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
@@ -35,17 +36,16 @@ def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
     paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
-    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py',
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
                                                          '--', 'research/continuity-reference-app']).decode().splitlines()]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
-        '--', 'research/continuity-identity-candidate/src/crypto',
-        'research/continuity-identity-candidate/src/crypto.rs',
-        'research/continuity-identity-candidate/src/lib.rs',
+        '--', 'research/continuity-identity-candidate/src',
         'research/continuity-identity-candidate/Cargo.toml',
-        'research/continuity-identity-candidate/Cargo.lock']).decode().splitlines()]
+        'research/continuity-identity-candidate/Cargo.lock',
+        'crates', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']).decode().splitlines()]
     result = {}
     for path in paths:
         data = snapshot(path); name = path.relative_to(ROOT).as_posix()
@@ -80,7 +80,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':4, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':5, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -158,10 +158,11 @@ def qualify(args):
             destination = public / name; destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(snapshot(private / name).data)
         result['native_policy_publication'] = observed
+        result['native_exchange'] = qualify_native_exchange(args,REFERENCE,application,provider,outside,output,snapshot,run)
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs with real OpenSSL verification, witness test pin and SIGKILL recovery. No fixture SDK signing key. No real host/browser authorization, live consumer activation, authority replacement or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs, plus actual-time native publication to owned independent session, durable native inbox consumption and one PQ rekey. Native exchange uses explicit test authority and a file carrier. No real host/browser authorization, deployed network, authority replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise
@@ -176,6 +177,8 @@ def main():
     parser.add_argument('--provider-root', type=Path, required=True)
     parser.add_argument('--publisher', type=Path, required=True)
     parser.add_argument('--sdk-authority', type=Path, required=True)
+    parser.add_argument('--native-device', type=Path, required=True)
+    parser.add_argument('--native-session', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     print(json.dumps(qualify(args), indent=2))

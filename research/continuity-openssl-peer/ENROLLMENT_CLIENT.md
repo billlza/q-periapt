@@ -243,3 +243,14 @@ refuses retargeting after preparation and refuses use after the extended expiry.
 Installed receipt schema2 requires both local and required-witness profiles,
 including their selected native binary and installed client module identities.
 Later G of this extended bilateral session is a separate outstanding check.
+
+`continuity-reference-app/tests/native_exchange.py` connects the separately
+supplied native enrollment/session CLIs to the installed independent publication
+adapter and original client. Both endpoints generate their own controlled keys;
+an explicit test issuer supplies approvals. At real OS time, the workload checks
+publication signatures/proofs and independent pins, three-flight establishment,
+authenticated consumption after a durable native inbox write, exact response
+replay across native process restarts, and one PQ rekey followed by new-epoch
+delivery. This profile uses a file carrier and independent-to-native data flow;
+it does not substitute for bidirectional network deployment or the original real
+account's complete lifecycle. See the [native session guide](../continuity-reference-app/NATIVE_SESSION.md).

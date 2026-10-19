@@ -10,7 +10,11 @@ use serde::Serialize;
 use std::{net::SocketAddr, path::Path, time::Duration};
 
 mod admission;
+mod mailbox;
+mod peer;
 mod publication;
+pub use mailbox::Mailbox;
+pub use peer::{DeviceExpectation, ExchangeOperation, PeerTrust};
 pub use publication::{clock, Publication, PublicationPlan};
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

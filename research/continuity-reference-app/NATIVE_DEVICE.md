@@ -108,8 +108,9 @@ directory. The prepared artifact and inventory identities are reused; the tool
 does not export private keys.
 
 This entry point covers native first use, preinstallation extension, supported
-same-credential roster refresh and local public advertisement. A nonfixture peer
-connection server, full session CLI, later lifecycle coordination and legacy
+same-credential roster refresh and local public advertisement. The
+[session exchange CLI](NATIVE_SESSION.md) adds owned responder operations and a
+durable reference inbox. A bidirectional network service, later lifecycle coordination and legacy
 Accepted migration remain separate work. CLI tests use real subprocesses and OS
 time with explicitly generated test authority. The real user account and its
 device grants are not modified by those tests.

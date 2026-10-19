@@ -31,6 +31,12 @@ The [host enrollment exchange adapter](ENROLLMENT_EXCHANGE.md) accepts public
 invitations and issued results against separately supplied host, current-roster
 and signed-policy expectations using the original protected registration owner.
 The bounded runner and Rust test counterpart are separate.
+The [`publication` adapter](../continuity-reference-app/NATIVE_SESSION.md) also
+consumes public advertisements from the native enrollment CLI without a built-in
+issuer. It authenticates through the same independent verifier and prepares the
+original `EnrollmentClient`. The native reference session CLI serves bootstrap,
+durable inbox delivery and rekey control over a file carrier; bidirectional
+network serving remains open.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
 fails. Bootstrap owner operations check the supplied trusted time. Close is idempotent
