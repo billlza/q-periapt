@@ -1,0 +1,38 @@
+{
+  "head": "4cf7a202789843df7980ff7c3a9675f13749e62f",
+  "capture": {
+    "bytes": 6070788,
+    "members": 1455,
+    "sha256": "84c9a3c8449875299e6ab9f48da25acb20b9d2f0904500b19d1ada03a10c92cd"
+  },
+  "wheel_sha256": "fc684337e6e1ed9c97041263d8adc4a22532aabd3f534cb836b7d473be6db466",
+  "native_sha256": "60c66db3973b9e1d8aabc22e3a87345b49e0a6d5ea080b1e855c6bbaf1e553fa",
+  "source_files_verified": 111,
+  "module_files": 47,
+  "installed_files": 55,
+  "registration": {
+    "local": {
+      "workers": 42,
+      "native_commands": 15,
+      "actual_SIGKILL": 10,
+      "negative_controls": 10,
+      "signed_witness_replies": 0,
+      "unique_challenges": 0,
+      "exact_recovery_queries": 0
+    },
+    "witness": {
+      "workers": 50,
+      "native_commands": 232,
+      "actual_SIGKILL": 11,
+      "negative_controls": 10,
+      "signed_witness_replies": 209,
+      "unique_challenges": 211,
+      "exact_recovery_queries": 6
+    }
+  },
+  "elapsed_seconds": 58.799635124974884,
+  "quality": "16 packagehelper tests passed; actionlint and diffcheck passed. SC2155 assignment/export warning repaired without suppression. WholeCLI fromordinarycheckout andtwoindependent readbacks completedexit0.",
+  "CI_scope": "New30minute workflow adds hashpinnedFlitbuild and thisactualinstalledregistrationentrypoint. Previously measuredMaccohort1416seconds; localaddedentrypoint58.8seconds. No oldtests/guards removed. NewCI notyetobserved for thishead.",
+  "provider": "Explicit separatelypinned provider from the prior20261019-independent-python-install receipt; not installed from an ambient package index during thisCLI.",
+  "scope": "Actual new CLI from ordinary checkout; standard pip installed this exact source-bound wheel. All47 modules loaded outside checkout and installed files remained unchanged after92worker21kill registration. Public signatures/original-operation records replayed; private-state/lifetime assertions remain runtime observations. No deployed account authentication, cross-host carrier, physical erasure, PCS or release admission."
+}
