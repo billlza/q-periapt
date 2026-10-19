@@ -1,0 +1,35 @@
+{
+  "head": "83bb4b29a82e9eb2379a5df7b26bc01dd0669140",
+  "source_files": 37,
+  "capture": {
+    "bytes": 146699,
+    "members": 128,
+    "sha256": "a9f0304c6b68696fc9985dd2f960a5df55f432c515bf1579c005dbc1df7678c8"
+  },
+  "current_validation": {
+    "node_model_transport_tests": 16,
+    "node_test_substitutes": "Explicit HTTP/storage substitutes; not browser or SDK device admission",
+    "rust_debug_entries": 26,
+    "behavioral_rust_entries": 25,
+    "child_dispatcher_entries": 1,
+    "strict_clippy": "passed",
+    "strict_release_build": "passed",
+    "js_syntax_fmt_diff": "passed",
+    "workflow_lint": "actionlint-02 passed unchanged final workflow"
+  },
+  "earlier_release_suite": "26 Rust entries passed before final browser-only corrections; final host CI will run both profiles on its immutable head. Do not label that earlier suite as final browser behavior evidence.",
+  "browser_startup": {
+    "observed_utc": "2026-10-19T05:47:12.219667+00:00",
+    "url": "http://localhost:8093/",
+    "browser": "Chrome via CUA",
+    "tab": "952680275",
+    "title": "Local device enrollment example",
+    "initialized_root_text": "Read the current root and roster before selecting a new approval.",
+    "enrollment_visible": false,
+    "console_error_warning_entries": [],
+    "binary_sha256": "9e351ca6ebeb8083ab4d50ec1f505e82f1cb891fbd4f69080a1bc35af759b37e",
+    "scope": "Final strict release binary reopened the same original empty preview database. CUA reload verified anonymous page, initialized module text and hidden enrollment controls. No account creation, login, device grant, cookie extraction or installed-client ceremony. Original real-user localhost8087 service/database untouched. Preview server exited0 onSIGINT."
+  },
+  "red_green": "Two original model regressions failed: an unresolved stale reapproval blocked a distinct authorized decision for the same source; a separately selected reapproval proof was ignored. Both now pass while old attempt/request bytes remain retained. Native host independently rejects changed proof for an Approved source. New initial-device invitations still cannot replace an unresolved initial invitation.",
+  "scope": "Browser controls implemented for optional host. Exact u64, account/origin-bound records, proof pinned before submission, explicit source/successor selection, failed attempts retained, historical issuance separate from current observation. No new SDK/account dependency, user DB upgrade, full real-browser login/grant, installed independent-client live-policy admission, power-loss or release claim."
+}
