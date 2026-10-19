@@ -1,0 +1,164 @@
+name: Installed Continuity Android JNI
+
+# This focused cohort runs the same Android producer as ci.yml against an
+# explicitly pinned SDK artifact. It does not stand in for physical devices or
+# join older Swift/Kotlin partitions into a new six-partition coverage claim.
+on:
+  push:
+    paths:
+      - .github/workflows/continuity-android-installed.yml
+      - .github/continuity-android-installed.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CARGO_TERM_COLOR: never
+  RUSTFLAGS: "-D warnings"
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+
+jobs:
+  android:
+    name: continuity-installed-android-${{ matrix.profile }}
+    runs-on: macos-15
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [debug, release]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy, llvm-tools
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Select the exact SDK cohort and source
+        id: sdk
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = arm64
+          sh artifact/python-run.sh - <<'PYTHON'
+          from pathlib import Path
+          import os
+          from continuity_independent_package import validate_sdk_selection
+          from evidence_io import parse_strict_json_bytes
+          selection = parse_strict_json_bytes(Path(".github/continuity-android-installed.json").read_bytes(), label="Android SDK cohort")
+          if type(selection) is not dict or set(selection) != {"sdk_run_id", "sdk_report_sha256"}:
+              raise ValueError("Android SDK cohort must contain exactly one run and report digest")
+          if not validate_sdk_selection(selection["sdk_run_id"], selection["sdk_report_sha256"]):
+              raise ValueError("Android SDK cohort cannot be empty")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              for key, value in selection.items():
+                  stream.write(key + "=" + value + "\n")
+          PYTHON
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          run-id: ${{ steps.sdk.outputs.sdk_run_id }}
+          github-token: ${{ github.token }}
+          path: target/continuity-sdk-input
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Execute installed Android JNI owners against native Rust peers
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_REPORT_SHA256: ${{ steps.sdk.outputs.sdk_report_sha256 }}
+          CONTINUITY_BUILD_PROFILE: ${{ matrix.profile }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_package.py \
+            --report target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --report-sha256 "$SDK_REPORT_SHA256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --build-profile "$CONTINUITY_BUILD_PROFILE" \
+            --with-c-consumer --with-android-jni-consumer --android-java-home "$JAVA_HOME" \
+            --witness-openssl-prefix "$(brew --prefix openssl@3)" \
+            --output target/continuity-installed-swift
+          git diff --exit-code
+      - name: Retain native packages and selected public execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-installed-android-${{ matrix.profile }}
+          path: |
+            target/continuity-installed-swift/*.crate
+            target/continuity-installed-swift/continuity-android-classes.jar
+            target/continuity-installed-swift/android-jni-*.public
+            target/continuity-installed-swift/android-jni-*-inputs/**/*.public
+            target/continuity-installed-swift/android-jni-*-policy-credential-*/**
+            target/continuity-installed-swift/android-jni-*-joint-policy-*/**
+            target/continuity-installed-swift/android-jni-*-witness-joint-*/**
+            target/continuity-installed-swift/android-jni-*-joint-cycle-*/**
+            target/continuity-installed-swift/*.zip
+            target/continuity-installed-swift/*.json
+            target/continuity-installed-swift/*.stdout
+            target/continuity-installed-swift/*.stderr
+            target/continuity-installed-swift/*.events
+            target/continuity-installed-swift/debug-roster-renewal-public/**
+            target/continuity-installed-swift/release-roster-renewal-public/**
+            target/continuity-installed-swift/debug-device-replacement-public/**
+            target/continuity-installed-swift/release-device-replacement-public/**
+            target/continuity-installed-swift/debug-device-retirement-public/**
+            target/continuity-installed-swift/release-device-retirement-public/**
+            target/continuity-installed-swift/debug-enrollment-public/**
+            target/continuity-installed-swift/release-enrollment-public/**
+            target/continuity-installed-swift/debug-enrollment-reopen-public/**
+            target/continuity-installed-swift/release-enrollment-reopen-public/**
+            target/continuity-installed-swift/c-enrollment-public/**
+            target/continuity-installed-swift/configuration-public/**
+            target/continuity-installed-swift/managed-configuration-public/**
+            target/continuity-installed-swift/managed-credential-configuration-public/**
+            target/continuity-installed-swift/policy-credential-*-public/**
+            target/continuity-installed-swift/c-managed-public/**
+            target/continuity-installed-swift/peer-configuration-public/**
+            target/continuity-installed-swift/c-retirement-public/**
+            target/continuity-installed-swift/c-root-public/**
+            target/continuity-installed-swift/c-enrollment-witness-public/**
+            target/continuity-installed-swift/c-witnessed-renewal-public/**
+            target/continuity-installed-swift/c-witnessed-policy-expiry-public/**
+            target/continuity-installed-swift/c-witnessed-cancellation-public/**
+            target/continuity-installed-swift/c-witnessed-commit-error-public/**
+            target/continuity-installed-swift/c-opening-public/**
+            target/continuity-installed-swift/c-witness-public/**
+            target/continuity-installed-swift/c-witness-tls-public/**
+            target/continuity-installed-swift/c-witness-openssl-public/**
+            target/continuity-installed-swift/c-sync-fault-public/**
+            target/continuity-installed-swift/c-restore-public/**
+            target/continuity-installed-swift/c-restore-opening-public/**
+            target/continuity-installed-swift/c-device-public/**
+            target/continuity-installed-swift/c-device-witness-public/**
+            target/continuity-installed-swift/c-account-public/**
+            target/continuity-installed-swift/c-account-cleanup/**
+            target/continuity-installed-swift/c-account-witness-public/**
+            target/continuity-installed-swift/c-account-tls-public/**
+            target/continuity-installed-swift/c-account-tls-loss-public/**
+            target/continuity-installed-swift/c-own-account-tls-loss-public/**
+            target/continuity-installed-swift/c-account-delivery-public/**
+            target/continuity-installed-swift/c-own-account-delivery-public/**
+            target/continuity-installed-swift/c-setup-local-public/**
+            target/continuity-installed-swift/c-setup-witness-public/**
+            target/continuity-installed-swift/c-setup-fault-public/**
+            target/continuity-installed-swift/c-setup-io-public/**
+            target/continuity-installed-swift/c-setup-witness-fault-public/**
+            target/continuity-installed-swift/consumer-Cargo.lock
+            target/continuity-installed-swift/c-consumer-Cargo.lock
+          if-no-files-found: error
