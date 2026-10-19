@@ -1,0 +1,41 @@
+{
+  "head": "a62c9a69c2debccd8723e711450b07c9e2fd87a6",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "source_files": {
+    "research/continuity-reference-app/Cargo.toml": "24bc4b615755f5bb5469545ad261b7bb790c03a7a0fac96b3d9223d8b5c9167d",
+    "research/continuity-reference-app/Cargo.lock": "e54ca831d736d1e5cbec21ea5443f62112b93a06a4fb36e82ef246ef8e3b5616",
+    "research/continuity-reference-app/README.md": "f2dad69447ae05603e03c91c8f2354b39f367cad63bbb4ecc5d77fde6aa8ebfa",
+    "research/continuity-reference-app/web/index.html": "18bd2f8f9f90fa7c708df4c4512aaae3dfa872ba56889cc1c659d003163ca2b4",
+    "research/continuity-reference-app/web/app.css": "91c35357b764edbb713b508541d5c4522219a37697829d5489c948b475da2196",
+    "research/continuity-reference-app/web/app.js": "37a618798f1cca3a05be05a7f2c40da0d54ffb8bb52d05c7932e592cc815b755",
+    "research/continuity-reference-app/src/error.rs": "8f1ae952c94371b988f2d7c7d3ad9c264411660af1a95fc4c9aae0087b9f1e51",
+    "research/continuity-reference-app/src/store.rs": "b85c2d2f128fc92b02bf0db52dbb275699f5ff9db4b781ecfbd8c3cb864be13c",
+    "research/continuity-reference-app/src/auth.rs": "b5198d3996f74654e517a81164ec07851c6c55e0f033b5c9cdbb36ea72d566ae",
+    "research/continuity-reference-app/src/main.rs": "26fa32cd4f4fc15b39aea05f225133921e57d4a056a8b06879036b7f58ba4a27",
+    "research/continuity-reference-app/src/http.rs": "6102e43b0d9557a79dc9e3373563b8f758098426a68469a5acbfdf83f09a3f82",
+    "research/continuity-reference-app/src/auth/tests.rs": "a23e07d50a21dc02b95467999e6550ac345d78824c942b5b68c486f47179fcab",
+    ".github/workflows/reference-account.yml": "244e98764be814fcdffe4dad3f9f83e87154bb044d5d0be54c6c7b06406b63e0"
+  },
+  "binary_sha256": "b34fa7dd8e621ef3a483fb44e309cb6a046b28469ba38adfd924b6e3e9fdf714",
+  "validation": {
+    "tests": 8,
+    "test_log": "local/tests-04.stdout",
+    "strict_clippy": "local/clippy-03.stderr",
+    "build": "local/build-02.stderr",
+    "fmt": "cargo fmt --manifest-path research/continuity-reference-app/Cargo.toml -- --check passed",
+    "workflow": "actionlint passed"
+  },
+  "browser": "User created a real system Passkey in Chrome and logged in; signed-in UI with one credential observed. Owned server stopped and reopened the same private database with serve only; old session was invalid; user authenticated again with the original credential; signed-in UI observed again. No particular hardware/attestation claim.",
+  "first_user_attempt": "Immediate sign-in refusal without a registered matching account. The same unknown-account API path was captured before/after an explicit error-message correction; no automatic account creation or DB reset.",
+  "development_failures": "Initial compile omitted redb read traits; fixed. First four software-authenticator tests failed private-parent admission before crypto: tempfile defaultmode777&umask. Explicit700 test fixture and755negative control preserve product storage boundary. All original diagnostics retained.",
+  "privacy": "Screenshots and private account database stay local; no username, cookies, passkey material or biometric/PIN data is selected for the public capture.",
+  "scope": "Localhost-only independent host application built from source with SDK host-store dependency. WebAuthn synthetic regressions plus actual user-operated browser authentication and original account restart. Device enrollment/issuer integration, HTTPS deployment, installed application qualification, full multidevice lifecycle and release admission remain open.",
+  "capture": {
+    "bytes": 59790,
+    "members": 55,
+    "sha256": "d48e22334848b28ca2b47a0241743952b9b3c7e23a843e100ce1471d5c6a54c9"
+  }
+}
