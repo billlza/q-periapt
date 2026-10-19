@@ -79,6 +79,9 @@ def main(argv=None):
     refresh = commands.add_parser('refresh-roster', help='adopt current same-credential membership before child preparation')
     for name in ('current', 'policy-pins', 'policy-materials'):
         refresh.add_argument('--' + name, type=Path, required=True)
+    extension = commands.add_parser('adopt-extension', help='adopt an explicit same-key extension before child preparation')
+    for name in ('approved-enrollment', 'approved-extension', 'issued', 'current', 'policy-pins', 'policy-materials'):
+        extension.add_argument('--' + name, type=Path, required=True)
     args = parser.parse_args(argv)
     owner = None
     try:
@@ -109,6 +112,12 @@ def main(argv=None):
                                                read_file(args.policy_pins, 16384),
                                                read_file(args.policy_materials, 128 * 1024), now)
             result = {'phase':'Accepted', 'roster_checkpoint':checkpoint}
+        elif args.command == 'adopt-extension':
+            journal = owner.adopt_extension(read_file(args.approved_enrollment, 16384),
+                                            read_file(args.approved_extension, 2048), read_file(args.issued, 32768),
+                                            read_file(args.current, 128 * 1024), read_file(args.policy_pins, 16384),
+                                            read_file(args.policy_materials, 128 * 1024), now)
+            result = {'phase':'Accepted', 'journal':journal}
         else:
             result = owner.status()
         def public(value):

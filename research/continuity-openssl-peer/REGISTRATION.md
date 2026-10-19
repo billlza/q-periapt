@@ -62,8 +62,12 @@ It checks live signatures, validity and membership, refuses rollback or a
 different checkpoint at the same version, and preserves the original request
 and future journal ID. Retrying the same checkpoint makes no state write.
 Preparation fixes the child context, so refresh refuses after any child intent
-has committed. This transition does not renew expired credentials or policy;
-renewal of an accepted device before child preparation remains unimplemented.
+has committed. This transition does not renew expired credentials or policy.
+The reference-host `adopt_extension` transition described in
+[ENROLLMENT_CLIENT.md](ENROLLMENT_CLIENT.md) separately admits a same-key,
+explicitly approved extension and independently pinned current policy before any
+child intent. It preserves original admission and proof alongside a bounded
+successor record; the original future journal ID and signing owner stay fixed.
 
 The original bootstrap inputs are retained inside the authenticated encrypted
 registration. Reopening does not need the test issuer directory or a fabricated
@@ -103,6 +107,11 @@ public inputs to 112 KiB. Those inputs include sensitive account/device metadata
 they are not logged or automatically transmitted. The child wrapping key is derived
 under a separate registration/child-scope domain. Existing session formats and
 protocol cryptographic domains are unchanged.
+
+Explicit pre-child extension adoption selects `QPREGS02` with a 192-KiB ceiling,
+retaining the original `QPREGS01` admission and the latest successor separately.
+The old tag and limit remain unchanged for clients that have not adopted an
+extension. Old readers refuse the new tag; opening alone performs no upgrade.
 
 The registration configuration is local authenticated state kept outside session
 backups. It is not itself a rollback witness, including when its child requires a

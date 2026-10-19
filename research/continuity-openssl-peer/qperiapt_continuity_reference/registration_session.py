@@ -24,16 +24,18 @@ def selected(parent, image, context):
 def validate_context(parent, image, context):
     require(image.admission is not None and context.family == parent._intent.family, 'registered policy family differs')
     public = signer(image.seed).public(); local = context.devices[0]
-    parent._intent.admit_device(local, public)
-    certificate = image.admission.validate(parent._intent, public)
-    require(local.pin == image.admission.pin(parent._intent) and local.credential == certificate.digest
-            and context.policy_digest == image.admission.policy[8:], 'registration original context admission differs')
+    intent, admission = image.effective(parent._intent)
+    intent.admit_device(local, public)
+    certificate = admission.validate(intent, public)
+    require(local.pin == admission.pin(intent) and local.credential == certificate.digest
+            and context.policy_digest == admission.policy[8:], 'registration original context admission differs')
 
 
 def prepare(parent, path, inputs, now):
     require(parent._child is None, 'close borrowed child before registration maintenance')
     snapshot, image = parent._image()
     require(image.admission is not None and not image.active, 'registration is not pending child preparation')
+    _, admission = image.effective(parent._intent)
     original = parent._journal._admit().path
     require(path != original and not path.is_relative_to(original) and not original.is_relative_to(path),
             'registration and session directories must be separate')
@@ -43,14 +45,14 @@ def prepare(parent, path, inputs, now):
     finally: lease.close()
     if image.child is None:
         context = inputs.current(now); validate_context(parent, image, context)
-        normalized = Inputs(inputs.pins, replace(inputs.materials, initiator_credential=image.admission.certificate,
-                                                  initiator_roster=image.admission.roster), inputs.witness)
+        normalized = Inputs(inputs.pins, replace(inputs.materials, initiator_credential=admission.certificate,
+                                                  initiator_roster=admission.roster), inputs.witness)
         image.child = Child(path, context.digest, normalized)
         snapshot, image = parent._save(snapshot, image, 'child-intent-committed')
     else:
         context = inputs.original(image.child.context, now); validate_context(parent, image, context)
-        normalized = Inputs(inputs.pins, replace(inputs.materials, initiator_credential=image.admission.certificate,
-                                                  initiator_roster=image.admission.roster), inputs.witness)
+        normalized = Inputs(inputs.pins, replace(inputs.materials, initiator_credential=admission.certificate,
+                                                  initiator_roster=admission.roster), inputs.witness)
         require(image.child.path == path and image.child.inputs.encode() == normalized.encode(), 'different pending registration child')
     scope, key = selected(parent, image, context)
     lease = PrivateDirectory(path)

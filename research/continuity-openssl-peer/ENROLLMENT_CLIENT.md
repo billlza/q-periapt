@@ -92,10 +92,55 @@ rewriting state. Once child preparation has committed, this operation refuses
 to retarget its context or witness genesis.
 
 Roster refresh does not renew credentials or policy, undo revocation or replace
-an account root. An accepted device whose credential expires before child
-preparation currently has no complete renewal transition in this reference
-client. Keep its original state; restarting enrollment, changing the clock or
-using a newer roster cannot restore authorization.
+an account root. Keep expired clients' original state. The separate explicit
+extension adoption below handles the reference host's same-key extension;
+restarting enrollment, changing the clock or refreshing a roster cannot replace it.
+
+## Extension before a child is prepared
+
+The host must independently authorize and issue a credential extension. Retain
+its exact request and original issued-enrollment invitation, including any host
+reapproval successor. The initial invitation's operation ID is not necessarily
+the operation that issued the accepted credential. The response cannot choose
+either approval or the current trust inputs.
+
+```text
+... adopt-extension --approved-enrollment /absolute/issued-enrollment-invitation.json \
+  --approved-extension /absolute/approved-extension-request.json \
+  --issued /absolute/extension-response.json --current /absolute/current-membership.json \
+  --policy-pins /absolute/current-policy-pins.json --policy-materials /absolute/current-policy-materials.json
+```
+
+The API is `client.adopt_extension(approved_enrollment, approved_extension,
+issued, current, policy_pins, policy_materials, now)`. It requires the original
+root, device, generation, family and complete signing key, a strictly longer
+credential interval, the exact preceding adopted extension, and monotonic roster
+and policy checkpoints. The signed target credential, current membership and
+independently pinned policy must all be valid at `now`. Root issuance suspension
+does not revoke a previously issued result; current roster removal still refuses
+adoption. The existing signed policy determines any required witness.
+
+Adoption preserves the original configuration, invitation, proof, accepted
+credential and future journal ID. It records the latest extension separately in
+`QPREGS02`, bounded at 192 KiB; original `QPREGS01` records retain their 128-KiB
+limit and are not rewritten on open. Older readers reject the new tag. Reopening
+reconciles the exact journal transaction after an unknown result; retry the same
+approval and result. The public status reports the retained extension identity.
+Repeated adoption does not accumulate an unbounded list of old extensions.
+
+Only an accepted client with no prepared child may adopt an extension. Once
+preparation commits a child context, use its existing lifecycle operations.
+`request` still exports only the original time-bound proof and may refuse after
+its original interval ends; adoption authenticates that retained proof as history
+without making it a new authorization. A separate current policy is necessary
+when the old policy has expired. These transitions do not issue the existing
+retained-session grant G or authorize old traffic.
+
+The native enrollment equivalent, browser approval control and complete live
+host-to-peer recovery path remain open. Source tests establish adoption and
+fresh child preparation/initial-flight recovery using explicit signed fixtures;
+that is not a completed live-account session or native endpoint interchange
+after extension.
 
 ## Registered session and recovery API
 
@@ -124,7 +169,9 @@ Closing the client revokes existing children; a new client cannot revive them.
 An operation failure closes the owning client and releases its configuration
 lease. Reopen the original client explicitly. Reentrant close can withhold a
 result after durable commitment; resume that original operation after reopening.
-No stored format changes or new cryptographic domain are introduced here.
+The borrowed-session facade itself changes no session storage format or
+cryptographic domain; explicit pre-child adoption uses the registration format
+described above.
 
 ## Recovery and failure boundaries
 
@@ -167,10 +214,17 @@ real `SIGKILL` cuts, including a committed roster refresh. It also checks roster
 rollback/fork refusal and that refresh cannot change policy, restore revoked
 membership or extend credential validity. Every private fixture is retained
 outside public evidence.
-The installed qualification driver binds both test sources and all package
+The installed qualification driver binds all three test sources and all package
 modules to Git, installs the wheel outside the checkout, and checks installed
-bytes before and after both suites. This establishes the stated local behavior,
+bytes before and after the suites. This establishes the stated local behavior,
 not real host authorization, physical-device acceptance or the full lifecycle.
+
+`tests/enrollment_extension.py` covers explicit approval, expired original
+credentials, current policy, monotonic checkpoints, signing-key/revocation
+refusal, repeated adoption, CLI subprocesses, two real SIGKILL cuts and original
+history preservation. A signed peer fixture exercises actual child preparation
+and exact initial-flight replay after reopen; it does not complete a native peer
+handshake after extension.
 
 `enrollment_session_checks.py` additionally drives real native issuance, traffic,
 rekey, same-key renewal and exact pending recovery through the public client API

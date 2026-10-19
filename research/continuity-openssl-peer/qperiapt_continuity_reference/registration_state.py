@@ -6,9 +6,11 @@ from cryptography.hazmat.primitives.asymmetric import ec, mldsa
 from .identity import DevicePin, credential, roster
 from .registration_inputs import Inputs
 from .registration_protocol import authenticate_request
+from .enrollment_extension import ExtensionApproval, monotonic, verify_history
 from .wire import Reader, SigningKey, digest, require
 
 MAX_IMAGE = 128 * 1024
+MAX_EXTENDED_IMAGE = 192 * 1024
 PHASES = ('Preparing', 'Requested', 'Accepted', 'Prepared', 'Active')
 
 
@@ -79,6 +81,44 @@ class Child:
         return cls(Path(take_blob(r, 4096).decode('utf-8')), r.take(32), Inputs.decode(take_blob(r, 112 * 1024)))
 
 
+@dataclass(frozen=True)
+class Extension:
+    approval: ExtensionApproval
+    previous_until: int
+    previous_checkpoint: bytes
+    previous_policy: bytes
+    issued_checkpoint: bytes
+    issued_roster: bytes
+    admission: Admission
+
+    def validate(self, intent, public, original):
+        require(original is not None and self.admission.journal == original.journal,
+                'extension changes original journal identity')
+        require(intent.validity.end <= self.previous_until < self.approval.until
+                and (self.approval.previous is None) == (self.previous_until == intent.validity.end),
+                'extension predecessor validity or original lineage')
+        monotonic(self.previous_checkpoint, original.checkpoint, 'extension original roster')
+        monotonic(self.approval.predecessor, self.previous_checkpoint, 'extension approved roster')
+        monotonic(self.admission.checkpoint, self.issued_checkpoint, 'extension current roster')
+        monotonic(self.previous_policy, original.policy, 'extension original policy')
+        monotonic(self.admission.policy, self.previous_policy, 'extension policy')
+        granted, cert = verify_history(self.approval, self.admission.certificate, self.issued_roster,
+                                       self.issued_checkpoint, intent)
+        require(cert.key == public, 'extension changes original signing key')
+        self.admission.validate(granted, public)
+        return granted
+
+    def wire(self):
+        return (blob(self.approval.wire(), 2048) + self.previous_until.to_bytes(8, 'big')
+                + self.previous_checkpoint + self.previous_policy + self.issued_checkpoint
+                + blob(self.issued_roster, 8192) + self.admission.wire())
+
+    @classmethod
+    def read(cls, r):
+        return cls(ExtensionApproval.from_trusted(take_blob(r, 2048)), r.integer(8), r.take(40), r.take(40),
+                   r.take(40), take_blob(r, 8192), Admission.read(r))
+
+
 @dataclass(repr=False)
 class Image:
     identity: bytes
@@ -87,6 +127,12 @@ class Image:
     admission: Admission | None = None
     child: Child | None = None
     active: bool = False
+    extension: Extension | None = None
+
+    def effective(self, intent):
+        if self.extension is None: return intent, self.admission
+        granted = self.extension.validate(intent, signer(self.seed).public(), self.admission)
+        return granted, self.extension.admission
 
     def phase(self):
         return 4 if self.active else (3 if self.child is not None else (2 if self.admission is not None else (1 if self.request else 0)))
@@ -97,25 +143,31 @@ class Image:
         if self.request: require(authenticate_request(intent, self.request) == (self.identity, public), 'registration stored original request')
         if self.admission is not None:
             require(bool(self.request), 'admission without original request'); self.admission.validate(intent, public)
+        granted, admission = self.effective(intent)
         if self.child is not None:
-            require(self.admission is not None, 'installation without admission')
+            require(admission is not None, 'installation without admission')
             p = self.child.inputs.pins
-            require(p.initiator == self.admission.pin(intent) and p.policy_version.to_bytes(8, 'big') + p.policy_digest == self.admission.policy,
+            require(p.initiator == admission.pin(granted) and p.policy_version.to_bytes(8, 'big') + p.policy_digest == admission.policy,
                     'installation original independent pins differ')
-            require(self.child.inputs.materials.initiator_credential == self.admission.certificate
-                    and self.child.inputs.materials.initiator_roster == self.admission.roster, 'installation original signed admission differs')
+            require(self.child.inputs.materials.initiator_credential == admission.certificate
+                    and self.child.inputs.materials.initiator_roster == admission.roster, 'installation original signed admission differs')
         require(not self.active or self.child is not None, 'active registration lacks original installation')
-        wire = b'QPREGS01' + self.identity + self.seed + bytes([self.phase()]) + blob(self.request, 8192)
+        wire = (b'QPREGS01' if self.extension is None else b'QPREGS02') + self.identity + self.seed + bytes([self.phase()]) + blob(self.request, 8192)
         if self.admission is not None: wire += self.admission.wire()
+        if self.extension is not None: wire += self.extension.wire()
         if self.child is not None: wire += self.child.wire()
-        require(len(wire) <= MAX_IMAGE, 'registration image capacity')
+        require(len(wire) <= (MAX_IMAGE if self.extension is None else MAX_EXTENDED_IMAGE), 'registration image capacity')
         return wire
 
     @classmethod
     def decode(cls, wire, intent):
-        require(type(wire) is bytes and len(wire) <= MAX_IMAGE, 'registration image capacity')
-        r = Reader(wire); require(r.take(8) == b'QPREGS01', 'registration state schema')
+        require(type(wire) is bytes and len(wire) <= MAX_EXTENDED_IMAGE, 'registration image capacity')
+        r = Reader(wire); tag = r.take(8)
+        require(tag in (b'QPREGS01', b'QPREGS02') and (tag != b'QPREGS01' or len(wire) <= MAX_IMAGE), 'registration state schema')
         identity, seed, phase, request = r.take(32), r.take(64), r.integer(1), take_blob(r, 8192)
         require(phase <= 4 and bool(request) == (phase >= 1), 'registration phase')
-        value = cls(identity, seed, request, Admission.read(r) if phase >= 2 else None, Child.read(r) if phase >= 3 else None, phase == 4)
+        require(tag != b'QPREGS02' or phase >= 2, 'extension without accepted registration')
+        original = Admission.read(r) if phase >= 2 else None
+        extension = Extension.read(r) if tag == b'QPREGS02' else None
+        value = cls(identity, seed, request, original, Child.read(r) if phase >= 3 else None, phase == 4, extension)
         r.finish(); require(value.encode(intent) == wire, 'registration state canonical encoding'); return value

@@ -236,8 +236,9 @@ signed roster in the same immediate two-phase transaction as the exact response.
 No old operation is rewritten. The new schema is enabled explicitly; old readers
 refuse it. Exact retries return retained history even after expiry or suspension;
 they do not grant current use. This operation does not issue G, alter protocol
-policy or update a client journal. Native and independent preinstallation
-adoption and the browser control remain separate implementation work.
+policy or update a client journal. The independent client has a separate
+pre-child adoption API; the native enrollment equivalent, browser control and
+complete live host/peer recovery path remain open.
 
 The local Rust tests currently cover exact request binding, two-device roster
 issuance, conflicting predecessors, original-key reapproval, suspension,

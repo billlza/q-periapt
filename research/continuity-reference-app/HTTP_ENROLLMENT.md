@@ -58,7 +58,9 @@ The new certificate and roster are committed together before their exact respons
 is released. Retrying after a socket disconnect or fresh login returns those
 bytes, including after later roster changes. Obtain current root/roster separately
 before consumer admission. This endpoint supplies no G grant, client transition
-or policy extension. Its browser control and full client adoption remain open.
+or policy extension. Independent-client adoption is described in
+[ENROLLMENT_CLIENT.md](../continuity-openssl-peer/ENROLLMENT_CLIENT.md); the native
+equivalent, browser control and full live recovery path remain open.
 
 ## Recovery and authority
 

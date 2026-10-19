@@ -33,7 +33,7 @@ def snapshot(path):
 
 def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
-    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'pyproject.toml', 'README.md',
+    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
     paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
@@ -102,7 +102,7 @@ def qualify(args):
         installed = installed_files(application)
         verify_installation(installed, files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         (output / 'INSTALLED_FILES.json').write_text(json.dumps({n:hashlib.sha256(b).hexdigest() for n,b in installed.items()}, indent=2)+'\n')
-        for label, class_name in (('exchange', 'ExchangeChecks'), ('client', 'ClientChecks')):
+        for label, class_name in (('exchange', 'ExchangeChecks'), ('client', 'ClientChecks'), ('extension', 'ExtensionChecks')):
             test = snapshot(SOURCE / ('tests/enrollment_' + label + '.py'))
             harness = outside / ('enrollment_' + label + '.py'); harness.write_bytes(test.data)
             expected = sorted(node.name for node in ast.walk(ast.parse(test.data))

@@ -104,8 +104,10 @@ retargeted retry is refused. Exact committed retries remain historical results.
 This is a host issuance boundary, not complete renewal. It does not issue the
 retained-session grant G, update a client installation, extend protocol policy or
 authorize old traffic. Replacing the certificate changes its roster membership
-commitment; callers must coordinate consumers explicitly. The browser extension
-control and accepted-but-unprepared client adoption remain to integrate. Do not
+commitment; callers must coordinate consumers explicitly. The independent
+[client adoption API](../continuity-openssl-peer/ENROLLMENT_CLIENT.md) handles
+accepted-but-unprepared state separately. The native enrollment equivalent,
+browser extension control and complete live recovery path remain open. Do not
 reset an expired client's original state or substitute this response for G.
 
 The service's invitation API requires a caller-retained random request ID. Retry

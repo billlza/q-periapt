@@ -54,7 +54,7 @@ class ClientChecks(unittest.TestCase):
         return {str(p.relative_to(self.client_path)):hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in self.client_path.rglob('*') if p.is_file()}
 
-    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False, membership=None):
+    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False, membership=None, extension=None):
         self.cut_count += 1
         marker = fixture.args.private_output / (self._testMethodName + '.cut-' + stage.replace(':','-') + str(self.cut_count))
         pid = os.fork()
@@ -87,6 +87,7 @@ class ClientChecks(unittest.TestCase):
                 if request: child.request(self.now)
                 if membership is not None:
                     child.refresh_roster(wire(membership), wire(self.policy_pins), wire(self.policy_materials), self.now)
+                if extension is not None: child.adopt_extension(*extension)
                 child.close()
             except BaseException:
                 os._exit(71)

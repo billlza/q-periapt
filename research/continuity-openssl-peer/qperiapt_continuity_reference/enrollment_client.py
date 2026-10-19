@@ -178,6 +178,26 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def adopt_extension(self, approved_enrollment, approved_extension, issued, current,
+                        policy_pins, policy_materials, now):
+        """Explicit same-key extension before selecting any child installation."""
+        try:
+            from .enrollment_extension import ExtensionApproval, IssuedExtension
+            self._alive()
+            enrollment = HostInvitation.decode(approved_enrollment, self._authority)
+            self._original.same_device(enrollment)
+            approval = ExtensionApproval.from_trusted(approved_extension)
+            received = IssuedExtension.decode(issued)
+            require(approval.enrollment == enrollment.operation and received.revision == self._authority.revision,
+                    'extension differs from independently approved enrollment or root revision')
+            membership = CurrentMembership.from_trusted(current, self._authority)
+            policy = PolicyInputs.from_trusted(policy_pins, policy_materials)
+            result = self._registration.adopt_extension(approval, received, membership.wire, membership.pin(enrollment), policy, now)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def prepare(self, path, inputs, now):
         """Prepare or recover the same accepted child with independent trust inputs."""
         try:

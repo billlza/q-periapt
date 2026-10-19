@@ -82,6 +82,11 @@ class Registration:
             result = {'phase': PHASES[image.phase()], 'signing_id': image.identity,
                       'public_key': signer(image.seed).public().raw,
                       'journal': None if image.admission is None else image.admission.journal}
+            if image.extension is not None:
+                approved = image.extension.approval
+                result['credential_extension'] = {'request_id':approved.identity, 'enrollment':approved.enrollment,
+                    'previous_extension':approved.previous, 'valid_until':approved.until,
+                    'roster_checkpoint':image.extension.admission.checkpoint, 'policy_checkpoint':image.extension.admission.policy}
             self._alive(); return result
         except BaseException: self._close_after_error(); raise
 
@@ -102,16 +107,13 @@ class Registration:
     def accept(self, certificate, roster, pin, policy_pins, policy_materials, now, *, witness_pin=None):
         try:
             snapshot, image = self._image(); require(bool(image.request), 'registration request not committed')
+            require(image.extension is None, 'registration already adopted a credential extension')
             public = signer(image.seed).public()
             require(self._intent.verify_request(image.request, now) == (image.identity, public), 'registration original request')
             policy = authenticate_policy(policy_pins, policy_materials, now, witness_pin=witness_pin)
             require(policy.family == self._intent.family, 'registration approved policy family differs')
             device = verify_device(pin, certificate, roster, policy.family, now); self._intent.admit_device(device, public)
-            require(not public.shares_component(policy_pins.policy_root) and public.raw[:1952] != policy_pins.sdk_root,
-                    'registration device/policy key separation')
-            if witness_pin is not None:
-                require(not witness_pin.key.shares_component(public) and not witness_pin.key.shares_component(self._intent.root),
-                        'registration witness/device/account key separation')
+            self._check_policy_keys(public, policy_pins, witness_pin)
             policy_head = policy.version.to_bytes(8, 'big') + policy.digest
             if image.admission is not None:
                 previous = image.admission.validate(self._intent, public)
@@ -123,6 +125,20 @@ class Registration:
             self._alive(); return image.admission.journal
         except BaseException: self._close_after_error(); raise
 
+    def _check_policy_keys(self, public, policy_pins, witness_pin):
+        require(not public.shares_component(policy_pins.policy_root) and public.raw[:1952] != policy_pins.sdk_root,
+                'registration device/policy key separation')
+        if witness_pin is not None:
+            require(not witness_pin.key.shares_component(public) and not witness_pin.key.shares_component(self._intent.root),
+                    'registration witness/device/account key separation')
+
+    @coordinated
+    def adopt_extension(self, approval, issued, roster, pin, policy, now):
+        try:
+            from .registration_extension import adopt
+            return adopt(self, approval, issued, roster, pin, policy, now)
+        except BaseException: self._close_after_error(); raise
+
     @coordinated
     def refresh_roster(self, roster, pin, policy_pins, policy_materials, now, *, witness_pin=None):
         """Adopt a current same-credential roster before an original child exists."""
@@ -130,21 +146,24 @@ class Registration:
             snapshot, image = self._image()
             require(image.admission is not None, 'registration is not accepted')
             require(image.child is None and not image.active, 'registration child was already prepared')
+            intent, admission = image.effective(self._intent)
             policy = authenticate_policy(policy_pins, policy_materials, now, witness_pin=witness_pin)
-            require(policy.family == self._intent.family
-                    and policy.version.to_bytes(8, 'big') + policy.digest == image.admission.policy,
+            require(policy.family == intent.family
+                    and policy.version.to_bytes(8, 'big') + policy.digest == admission.policy,
                     'roster refresh cannot change the admitted policy')
             public = signer(image.seed).public()
-            device = verify_device(pin, image.admission.certificate, roster, policy.family, now)
-            self._intent.admit_device(device, public)
-            previous = image.admission.pin(self._intent)
+            device = verify_device(pin, admission.certificate, roster, policy.family, now)
+            intent.admit_device(device, public)
+            previous = admission.pin(intent)
             require(pin.roster_version >= previous.roster_version, 'roster checkpoint cannot roll back')
             if pin.roster_version == previous.roster_version:
                 require(pin.checkpoint() == previous.checkpoint(), 'different roster at the retained version')
                 self._alive(); return previous.checkpoint()
-            image.admission = replace(image.admission, checkpoint=pin.checkpoint(), roster=roster)
+            updated = replace(admission, checkpoint=pin.checkpoint(), roster=roster)
+            if image.extension is None: image.admission = updated
+            else: image.extension = replace(image.extension, admission=updated)
             _, image = self._save(snapshot, image, 'roster-refreshed')
-            self._alive(); return image.admission.checkpoint
+            self._alive(); return image.effective(self._intent)[1].checkpoint
         except BaseException: self._close_after_error(); raise
 
     @coordinated
