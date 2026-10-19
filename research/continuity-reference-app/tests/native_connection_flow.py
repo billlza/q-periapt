@@ -52,7 +52,7 @@ def exercise(client,path,identity,key,session,prior_ack,exchange,refusals):
         def call(request,deadline,cancellation):
             require(deadline>time.monotonic() and not cancellation.is_cancelled(),'carrier invocation expired')
             requests[label]=request
-            return exchange(label,op,request)
+            return exchange(label,op,request,deadline=deadline)
         return call
 
     message=connection.next_id(Run())
@@ -107,7 +107,10 @@ def exercise(client,path,identity,key,session,prior_ack,exchange,refusals):
     message=connection.next_id(Run()); reached=[]
     def late(_request,deadline,_cancellation):
         reached.append(True)
-        while time.monotonic()<=deadline: time.sleep(min(.02,deadline-time.monotonic()+.001))
+        while True:
+            remaining=deadline-time.monotonic()
+            if remaining<=0: break
+            time.sleep(min(.02,remaining))
         return prior_ack
     expect('facade-deadline',TimeoutError,lambda:connection.deliver(message,b'expired invocation',ad,late,Run(5)))
     require(reached==[True],'deadline test did not reach the late carrier'); reopen()

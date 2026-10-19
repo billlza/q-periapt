@@ -44,8 +44,10 @@ crash_probe = args.crash_probe.resolve(strict=True)
 native_hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}
 
 
-def run(argv, label, *, success=True, json_output=True):
-    result = subprocess.run([str(x) for x in argv],capture_output=True,timeout=60)
+def run(argv, label, *, success=True, json_output=True, deadline=None):
+    remaining=60 if deadline is None else min(60,deadline-time.monotonic())
+    require(remaining>0,'native carrier invocation expired')
+    result = subprocess.run([str(x) for x in argv],capture_output=True,timeout=remaining)
     save(root/(label+'.stdout'),result.stdout); save(root/(label+'.stderr'),result.stderr)
     commands.append({'label':label,'exit':result.returncode})
     require((result.returncode == 0) == success,'native result differs: '+label+': '+result.stderr.decode())
@@ -151,10 +153,10 @@ try:
         save(root/(label+'.json'),invocation)
         return root/(label+'.json')
 
-    def exchange(label, operation, request, *, inbox=None, trust_path=None, success=True):
+    def exchange(label, operation, request, *, inbox=None, trust_path=None, success=True, deadline=None):
         invocation=make_invocation(label,operation,request,inbox=inbox,trust_path=trust_path)
         target=root/(label+'-output')
-        run([session_cli,'exchange',invocation],label,success=success)
+        run([session_cli,'exchange',invocation],label,success=success,deadline=deadline)
         if success: return (target/'response.bin').read_bytes()
         require(not (target/'response.bin').exists(),'rejected request released output')
 
