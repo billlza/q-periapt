@@ -112,6 +112,11 @@ pub enum EnrollmentStatus {
         current: RootInfo,
     },
     Closed,
+    /// Historical transition to a separately approved successor operation.
+    /// Query that exact successor; this observation grants no current permission.
+    Reapproved {
+        successor: Invitation,
+    },
 }
 
 pub(crate) fn now() -> Result<u64, Error> {

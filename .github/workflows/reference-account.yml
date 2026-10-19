@@ -79,6 +79,8 @@ jobs:
             > target/reference-account-ci/clippy.stdout 2> target/reference-account-ci/clippy.stderr
           cargo build --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/build.stdout 2> target/reference-account-ci/build.stderr
+          cargo test --locked --release --manifest-path "$manifest" \
+            > target/reference-account-ci/release-tests.stdout 2> target/reference-account-ci/release-tests.stderr
           shasum -a 256 "$CARGO_TARGET_DIR/release/q-periapt-continuity-reference-app" \
             > target/reference-account-ci/binary.sha256
           cp research/continuity-reference-app/Cargo.lock target/reference-account-ci/Cargo.lock

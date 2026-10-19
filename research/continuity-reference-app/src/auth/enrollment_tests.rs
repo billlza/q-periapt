@@ -12,6 +12,13 @@ fn reopen(path: &Path) -> Result<Service> {
     ))
 }
 fn request(path: &Path, invitation: &Invitation) -> Result<(sdk::EnrollmentPaths, Vec<u8>)> {
+    request_at(path, invitation, crate::enrollment::now()?)
+}
+fn request_at(
+    path: &Path,
+    invitation: &Invitation,
+    trusted_time: u64,
+) -> Result<(sdk::EnrollmentPaths, Vec<u8>)> {
     let dir = path.join(URL_SAFE_NO_PAD.encode(invitation.operation));
     fs::DirBuilder::new().mode(0o700).create(&dir)?;
     drop(sdk::JournalKey::provision(&dir.join("wrap.key"))?);
@@ -26,7 +33,7 @@ fn request(path: &Path, invitation: &Invitation) -> Result<(sdk::EnrollmentPaths
         )?,
     )?;
     let mut owner = sdk::DeviceEnrollment::provision(paths.clone(), invitation.intent()?)?;
-    let wire = owner.request(crate::enrollment::now()?)?;
+    let wire = owner.request(trusted_time)?;
     owner.close();
     Ok((paths, wire))
 }
@@ -203,6 +210,8 @@ fn root_suspension_fences_pending_approval_but_preserves_historical_result() -> 
 }
 
 mod crash;
+mod reapproval;
+mod reapproval_crash;
 
 #[test]
 fn admitted_root_never_regenerates_a_missing_wrapping_key() -> Result {

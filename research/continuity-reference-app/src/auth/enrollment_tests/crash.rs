@@ -22,13 +22,21 @@ impl Drop for Worker {
         }
     }
 }
-enum Work {
+pub(super) type ReapprovalInput = (
+    [u8; 32],
+    [u8; 32],
+    Option<crate::enrollment::Checkpoint>,
+    Vec<u8>,
+);
+pub(super) enum Work {
     Root,
     Issue([u8; 32]),
     Invite([u8; 32]),
     Upgrade,
+    ReapprovalUpgrade,
+    Reapprove(ReapprovalInput),
 }
-fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>> {
+pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>> {
     let marker = path.join(format!("{boundary}.marker"));
     assert!(!marker.exists());
     let mut command = Command::new(std::env::current_exe()?);
@@ -50,7 +58,10 @@ fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>> {
         )?));
     command
         .env_remove("QPERIAPT_ISSUER_OPERATION")
-        .env_remove("QPERIAPT_ISSUER_REQUEST");
+        .env_remove("QPERIAPT_ISSUER_REQUEST")
+        .env_remove("QPERIAPT_ISSUER_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_REAPPROVAL_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_REAPPROVAL_INPUT");
     match work {
         Work::Root => {}
         Work::Issue(id) => {
@@ -61,6 +72,14 @@ fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>> {
         }
         Work::Upgrade => {
             command.env("QPERIAPT_ISSUER_UPGRADE", "1");
+        }
+        Work::ReapprovalUpgrade => {
+            command.env("QPERIAPT_ISSUER_REAPPROVAL_UPGRADE", "1");
+        }
+        Work::Reapprove(input) => {
+            let file = path.join("reapproval-input.json");
+            fs::write(&file, serde_json::to_vec(&input)?)?;
+            command.env("QPERIAPT_ISSUER_REAPPROVAL_INPUT", file);
         }
     }
     let mut child = Worker(command.spawn()?);
@@ -92,7 +111,13 @@ fn issuer_child() -> Result {
     let path = std::path::PathBuf::from(path);
     let mut store = Store::open(&path.join("accounts.redb"), ORIGIN)?;
     let account = store.account("alice")?.ok_or("original fixture account")?;
-    if std::env::var_os("QPERIAPT_ISSUER_UPGRADE").is_some() {
+    if std::env::var_os("QPERIAPT_ISSUER_REAPPROVAL_UPGRADE").is_some() {
+        store.enable_enrollment_reapproval()?;
+    } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_REAPPROVAL_INPUT") {
+        let (previous, request_id, predecessor, request): ReapprovalInput =
+            serde_json::from_slice(&fs::read(file)?)?;
+        store.reapprove_enrollment(&account, previous, request_id, predecessor, &request)?;
+    } else if std::env::var_os("QPERIAPT_ISSUER_UPGRADE").is_some() {
         store.enable_enrollment([42; 32])?;
     } else if let Some(id) = std::env::var_os("QPERIAPT_ISSUER_OPERATION") {
         let id: [u8; 32] = URL_SAFE_NO_PAD
@@ -172,7 +197,7 @@ fn root_first_use_reconciles_four_real_process_kills_without_replacing_published
             assert_eq!(root.public_key, observed);
         }
         for (file, bytes) in original_files {
-            assert_eq!(fs::read(file)?, bytes, "a published original key changed");
+            assert!(fs::read(file)? == bytes, "a published original key changed");
         }
         assert!(root.roster.is_none());
     }

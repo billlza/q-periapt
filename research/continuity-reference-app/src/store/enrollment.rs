@@ -7,11 +7,13 @@ use redb::{ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefiniti
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod operations;
+mod reapproval;
 mod root;
 const ROOTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_roots");
 const OPERATIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_operations");
 const SIGNERS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_signers");
 const REQUESTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_requests");
+const REAPPROVALS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_reapprovals");
 const MAX_OPERATIONS: u64 = 512;
 const MAX_RECORD: usize = 128 * 1024;
 const MAX_ROOT: usize = 1024 * 1024;
@@ -71,7 +73,7 @@ enum Phase {
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
     config: &redb::ReadOnlyTable<&str, &str>,
-) -> Result<Option<[u8; 32]>, Error> {
+) -> Result<(Option<[u8; 32]>, bool), Error> {
     let schema = config
         .get("schema")
         .map_err(db_error)?
@@ -83,6 +85,7 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
+    let reapproval = schema.value() == "3";
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -90,7 +93,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" => {
+        "2" | "3" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -100,6 +103,9 @@ pub(super) fn admit_schema(
                 SIGNERS.name(),
                 REQUESTS.name(),
             ]);
+            if reapproval {
+                expected.push(REAPPROVALS.name());
+            }
             let saved = config
                 .get("enrollment_family")
                 .map_err(db_error)?
@@ -129,7 +135,7 @@ pub(super) fn admit_schema(
     {
         return Err(Error::Internal);
     }
-    Ok(family)
+    Ok((family, reapproval))
 }
 
 impl Store {
@@ -259,6 +265,14 @@ impl Root {
         }
     }
     fn admits(&self, invitation: &Invitation, family: [u8; 32]) -> Result<(), Error> {
+        self.admits_authority(invitation, family)?;
+        let info = self.info(family)?;
+        if info.roster.as_ref().map(|r| r.checkpoint) != invitation.predecessor {
+            return Err(Error::Conflict("Original roster predecessor changed"));
+        }
+        Ok(())
+    }
+    fn admits_authority(&self, invitation: &Invitation, family: [u8; 32]) -> Result<(), Error> {
         let info = self.info(family)?;
         if info.suspended
             || info.revision != invitation.root_revision
@@ -268,11 +282,19 @@ impl Root {
         {
             return Err(Error::Conflict("Original root authorization changed"));
         }
-        if info.roster.as_ref().map(|r| r.checkpoint) != invitation.predecessor {
-            return Err(Error::Conflict("Original roster predecessor changed"));
-        }
         Ok(())
     }
+}
+fn signer_scope(
+    account: &Account,
+    root: &Root,
+    request: &sdk::VerifiedEnrollmentRequest,
+) -> Vec<u8> {
+    let mut key = Vec::with_capacity(96);
+    key.extend_from_slice(&account.application_id);
+    key.extend_from_slice(&root.signing_id);
+    key.extend_from_slice(request.identity().as_bytes());
+    key
 }
 fn transaction(db: &redb::Database) -> Result<redb::WriteTransaction, Error> {
     let mut tx = db.begin_write().map_err(db_error)?;

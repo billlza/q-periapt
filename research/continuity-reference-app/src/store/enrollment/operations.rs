@@ -144,9 +144,7 @@ impl Store {
             let intent = op.invitation.intent().map_err(db_error)?;
             let verified = sdk::VerifiedEnrollmentRequest::verify(request, &intent, now()?)
                 .map_err(|_| Error::Invalid("Request does not prove the approved device intent"))?;
-            let mut key = account.application_id.to_vec();
-            key.extend_from_slice(&root.signing_id);
-            key.extend_from_slice(verified.identity().as_bytes());
+            let key = signer_scope(account, &root, &verified);
             let tx = transaction(&store.db)?;
             {
                 let mut index = tx.open_table(SIGNERS).map_err(db_error)?;
@@ -268,6 +266,9 @@ impl Store {
         self.action(|store| {
             store.authorized(account)?;
             let op = store.operation(account, id)?;
+            if let Some(successor) = store.reapproved_successor(account, &op)? {
+                return Ok(EnrollmentStatus::Reapproved { successor });
+            }
             Ok(match op.phase {
                 Phase::Invited => EnrollmentStatus::Invited {
                     invitation: op.invitation,
@@ -288,6 +289,11 @@ impl Store {
         self.action(|store| {
             store.authorized(account)?;
             let mut op = store.operation(account, id)?;
+            if store.reapproved_successor(account, &op)?.is_some() {
+                return Err(Error::Conflict(
+                    "Cancel the explicit successor approval, not its history",
+                ));
+            }
             if matches!(op.phase, Phase::Issued { .. }) {
                 return Err(Error::Conflict(
                     "Issued enrollment requires device revocation",

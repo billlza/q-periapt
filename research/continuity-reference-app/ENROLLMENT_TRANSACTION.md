@@ -80,7 +80,7 @@ actual request binds all of the following:
 
 - A host-generated operation ID, authenticated application-account ID and the
   host's current root/authorization revision.
-- The original request bytes, their exact digest, signing-owner identity and
+- The exact original request bytes, signing-owner identity and
   both device public-key components.
 - The exact independently selected device ID, generation, policy family and
   finite credential validity interval.
@@ -107,6 +107,35 @@ an HTTP timeout does not establish that the old operation did not commit.
 | Approved | Exact request and complete change approved; no result released | Recheck current authorization and commit that original change |
 | Issued | Exact credential, complete roster and result retained atomically | Recover the same result; separately observe current authority |
 | Closed | This unissued operation was explicitly cancelled or invalidated | Return its terminal disposition; never revive it implicitly |
+| Reapproved | The old decision is closed with a retained link to an explicitly approved successor | Query that exact successor; never silently retarget the old operation |
+
+Schema 3 adds explicit pre-issuance reapproval. Its separate upgrade preserves
+all schema-2 rows and private files; schema-2 cancelled records cannot recover
+request bodies they never retained. Reapproval accepts only Invited or Approved
+operations. For Approved, the incoming bytes must equal the original approval;
+for Invited, a fresh proof against the original independently selected device
+intent is required. Root, application, family, device ID/generation and credential
+interval are unchanged. The successor uses exactly the key proved by the retained
+request; an Approved source also preserves its previously approved key. An
+unapproved invitation alone never established a device-key identity. The caller independently approves the
+current complete roster checkpoint and retains a fresh request correlation ID.
+
+One transaction closes the old decision, records its prior phase and exact
+request, advances its signer reservation, and publishes the approved successor
+and correlation index. There is no intermediate state permitting both decisions
+to issue. Retries recover the original successor even if it subsequently became
+historical; they do not extend deadlines, change the selected roster or follow a
+later transition automatically. Explicit cancellation targets the successor;
+cancelling the old history cannot silently cancel a newer decision. Issued or
+explicitly cancelled operations are not reapproval sources.
+
+The new five-minute host-approval deadline is capped by the original credential
+end time. Reapproval can refresh an expired host decision while the credential
+interval is still current; it cannot extend expired credential validity. This
+distinction preserves the native SDK's immutable original enrollment request.
+An expired unissued credential requires a separate authorized transition, still
+outside this method. Exact request bytes are retained and compared directly;
+no parallel digest field is needed for this binding.
 
 The issuer transaction rechecks the current application/root revision,
 authorization, approval deadline and predecessor roster. It verifies the exact
@@ -191,8 +220,9 @@ Required fault and authorization observations include:
   hardware power-loss durability.
 
 The local Rust tests currently cover exact request binding, two-device roster
-issuance, conflicting predecessors, suspension, original-key loss, explicit
-schema upgrade and ten actual process kills across four commit/provisioning
+issuance, conflicting predecessors, original-key reapproval, suspension,
+original-key loss, explicit schema upgrades and fourteen actual process kills
+across six commit/provisioning
 flows. The tests use software host authentication and native SDK request/signing
 owners. They do not yet cover installed clients, enrollment over the actual
 network, deployed host authorization, device revocation/replacement, injected

@@ -66,6 +66,23 @@ This atomic schema-2 upgrade retains all accounts and credential associations.
 Ordinary `serve` never performs that upgrade. The user's existing local account
 database has not been upgraded as part of the implementation tests.
 
+`enable-reapproval` explicitly upgrades an enabled schema-2 store to schema 3,
+using the same database path and origin. Opening either version remains read-only
+with respect to schema. This adds retained approval transitions without rewriting
+old enrollment rows or key files. Older readers refuse schema 3 explicitly.
+
+If an unissued invitation loses a roster race or its host approval expires,
+`reapprove_enrollment` takes the original operation, exact signed request, a new
+caller-retained correlation ID and the independently selected current roster
+checkpoint. It preserves the original device key, metadata and credential
+interval, closes the old decision and atomically creates an approved successor.
+Querying the old operation reports that exact successor. An uncertain reply is
+retried with the same arguments; it never silently follows a later successor.
+Explicitly cancelled or already-issued decisions cannot be reapproved. A
+schema-2 cancelled record lacks the original request and remains terminal after
+upgrade. Expired credentials need a separate authorized replacement/renewal flow,
+which this pre-issuance reapproval method does not provide.
+
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.
 The local profile uses five-minute approval deadlines and one-hour credentials;
@@ -103,6 +120,7 @@ Credential/roster publication must survive unknown response outcomes.
 
 ```sh
 cargo test --locked --manifest-path research/continuity-reference-app/Cargo.toml
+cargo test --locked --release --manifest-path research/continuity-reference-app/Cargo.toml
 cargo clippy --locked --all-targets \
   --manifest-path research/continuity-reference-app/Cargo.toml -- -D warnings
 ```
@@ -118,11 +136,20 @@ Enrollment tests use actual native SDK-generated requests, controlled root
 signers and signature/roster verification at the current host time. They cover
 two devices, conflicting complete-roster predecessors, wrong accounts/requests,
 explicit upgrade, missing original keys and retained results under suspension.
-Ten real child-process SIGKILL boundaries cover schema upgrade, root first use,
-invitation creation and issuance commit. A separate test exercises actual
+Fourteen real child-process SIGKILL boundaries cover both schema upgrades, root
+first use, invitation creation, reapproval and issuance commit. Tests reopen the
+original client and check that its signing files and request bytes survive a
+roster conflict and a newly authorized decision. Synthetic historical-time
+fixtures test expiry rejection; they are not real-time expiry measurements.
+A separate test exercises actual
 loopback TCP. This is local component evidence, not installed cross-host or
 physical-device acceptance. The child entrypoint is a test dispatcher and does
 not count as another recovery scenario.
+
+The same transaction suite runs in debug and release configurations. The
+reference account binary still exposes only account HTTP routes; release tests
+therefore execute the enrollment library directly instead of treating a linked
+or successfully built executable as enrollment-runtime evidence.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

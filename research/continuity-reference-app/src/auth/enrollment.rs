@@ -1,11 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::Service;
 use crate::{
-    enrollment::{EnrollmentStatus, Invitation, RootInfo},
+    enrollment::{Checkpoint, EnrollmentStatus, Invitation, RootInfo},
     error::Error,
 };
 
 impl Service {
+    pub fn reapprove_enrollment(
+        &mut self,
+        token: &str,
+        previous: [u8; 32],
+        request_id: [u8; 32],
+        predecessor: Option<Checkpoint>,
+        request: &[u8],
+    ) -> Result<Invitation, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.reapprove_enrollment(
+            &account,
+            previous,
+            request_id,
+            predecessor,
+            request,
+        )?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
     pub fn prepare_enrollment_root(&mut self, token: &str) -> Result<RootInfo, Error> {
         let account = self.authenticated(token)?;
         let result = self.store.prepare_enrollment_root(&account)?;
