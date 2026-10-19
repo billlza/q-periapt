@@ -106,6 +106,15 @@ struct Origin {
     roster: Vec<u8>,
     checkpoint: RosterCheckpoint,
 }
+impl LocalRenewal {
+    pub(super) fn installation_origin(&self) -> (&[u8], &[u8], RosterCheckpoint) {
+        (
+            &self.origin.certificate,
+            &self.origin.roster,
+            self.origin.checkpoint,
+        )
+    }
+}
 struct Pending {
     operation: CredentialRenewalId,
     statement: [u8; 32],
@@ -539,6 +548,7 @@ impl DeviceEnrollment {
         &self,
         image: &Image,
     ) -> Result<VerifiedDevice, DurableError> {
+        self.validate_preparation(image)?;
         let Phase::Accepted {
             request, admission, ..
         } = &image.phase
@@ -558,9 +568,8 @@ impl DeviceEnrollment {
                 admission.checkpoint,
             )?
         };
-        self.intent.verify_device(&original)?;
-        let at = original.description.validity.from();
-        let proof = VerifiedEnrollmentRequest::verify(request, &self.intent, at)?;
+        self.installation_intent(image)?.verify_device(&original)?;
+        let proof = authenticate_enrollment_proof(request, &self.intent)?;
         if proof.identity != image.identity || proof.public != original.key {
             return Err(DurableError::Conflict);
         }

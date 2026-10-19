@@ -198,7 +198,7 @@ impl DeviceEnrollment {
         let original = self.original_device_metadata(image)?;
         let target =
             self.historical_device_metadata(&admission.certificate, &r.roster, r.scope.target)?;
-        self.intent.verify_device(&target)?;
+        self.installation_intent(image)?.verify_device(&target)?;
         if target.credential_digest() != original.credential_digest() || target.key != original.key
         {
             return Err(DurableError::Conflict);
@@ -294,7 +294,7 @@ impl DeviceEnrollment {
         let mut image = self.image()?;
         image.check_time_floor(now)?;
         let (original, id) = self.roster_witness_scope(&image, original_policy)?;
-        self.intent.verify_device(target)?;
+        self.installation_intent(&image)?.verify_device(target)?;
         if target.credential_digest() != original.credential_digest() || target.key != original.key
         {
             return Err(DurableError::Conflict);

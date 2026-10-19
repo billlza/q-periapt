@@ -48,6 +48,64 @@ permits a different accepted credential/roster/policy to replace this transactio
 Equivalent signatures over the same accepted credential body may read back the
 original acceptance; they do not replace its stored bytes or journal ID.
 
+## Fresh credential extension before installation
+
+An accepted credential can expire before the first installation is selected.
+`adopt_credential_extension` admits an independently authorized same-key extension
+for that case. It is a new admission of the original device, not retained-session
+credential renewal (G). It cannot recover an already selected installation or
+renew an existing session.
+
+The host retains an `EnrollmentExtensionApproval` containing the exact operation,
+last adopted extension (or explicitly none), approved predecessor roster and new
+finite expiry. Supply the root-issued certificate, its historical issuance roster
+and checkpoint, a separately current roster/`AccountPin`, and a live independently
+verified policy. The original root, device ID, generation, family, start time and
+both signing-key components must match. Validity must strictly increase; policy
+and roster checkpoints cannot roll back or fork at the same version. The issuance
+must follow the approved predecessor, and current membership must still authorize
+that exact certificate. A held private key or an expired registration proof alone
+cannot grant the extension.
+
+The transaction retains the original intent, signed request, controlled signing
+key, original admission and future journal identity. It saves the effective
+first-installation admission separately. Exact operation retries authenticate
+current authority and return the retained result without replacing its bytes;
+another extension must name the last adopted operation. After an uncertain commit,
+reopen the same enrollment and retry the same approval. Errors close the owner.
+No child is created by adoption. `prepare` and `activate` subsequently use the
+extended first-installation credential. Required witness enrollment remains a
+separate authorization. Later G binds this actual first installed credential.
+
+`preparation_status` distinguishes positively tracked `Unprepared` from
+`Selected` and historical `Untracked`. New acceptance records no prior child
+selection; preparation persists selection before creating any child. Once selected,
+even loss of every child file cannot enable retargeting. Older Accepted records
+cannot establish this history from file absence and refuse extension with
+`Suspended`; their original preparation/activation path remains available.
+Explicit reconciliation for those older records is still an open migration task.
+
+`QPENST19` wraps this metadata under the existing enrollment authentication and
+original path/intent binding, with a 192 KiB bound. Older formats retain their
+24/128 KiB bounds. Reading does not upgrade records. Once ordinary activation
+permanently records selection, a marker without an extension is redundant and is
+removed in that same transaction. Extension history remains through activation,
+roster maintenance and G. The latest extension and original admission are retained
+with bounded storage rather than an unbounded chain of previous extensions.
+This is an unpublished candidate format; older readers must refuse it. It does
+not introduce a stable foreign ABI or qualify installed or physical-device flows.
+
+Focused native tests cover expired original credential and policy followed by
+fresh admission, actual installation activation and subsequent G; required-witness
+admission without a local fallback; consecutive extensions and exact retries;
+wrong-key, revoked-member and policy-fork refusal; missing children after recorded
+selection; legacy-format refusal without losing its ordinary activation path;
+configuration sync faults; authenticated malformed records; and two real process
+kills after extension/selection commits. These use explicit logical clocks and
+real signing/storage implementations. They do not establish a complete independent
+peer session after extension, network behavior, physical power-loss safety or a
+legacy Accepted migration.
+
 ## Installation and restart
 
 | Enrollment status | Next action and meaning |

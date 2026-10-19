@@ -24,6 +24,13 @@ const TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_enr
 const REQUEST_BODY: usize = 8 + 32 + 32 + 16 + 8 + 16 + 32 + PUBLIC_KEY_BYTES;
 const MAX_IMAGE: usize = 24 * 1024;
 const MAX_RENEWAL_IMAGE: usize = 128 * 1024;
+const MAX_PREINSTALLATION_IMAGE: usize = 192 * 1024;
+mod preinstallation;
+use preinstallation::Preparation;
+pub use preinstallation::{
+    EnrollmentExtensionApproval, EnrollmentExtensionInputs, EnrollmentExtensionStatus,
+    EnrollmentPreparationStatus,
+};
 mod account_authority;
 mod account_root;
 pub use account_root::{AccountRootEnrollmentRecovery, AccountRootEnrollmentState};
@@ -95,30 +102,11 @@ impl VerifiedEnrollmentRequest {
     /// Authenticate bounded qperiapt-enrollment/1 bytes against independent inputs.
     pub fn verify(wire: &[u8], intent: &EnrollmentIntent, now: u64) -> Result<Self, Error> {
         intent.description.validity.check(now)?;
-        let (body, signature) = open_envelope(wire)?;
-        if body.len() != REQUEST_BODY {
-            return Err(Error::Encoding);
-        }
-        let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPENRQ01" {
-            return Err(Error::Encoding);
-        }
-        let identity = SigningKeyId::from_trusted_state(d.array()?)?;
-        let mut expected = Vec::new();
-        intent.encode(&mut expected);
-        if d.take(expected.len())? != expected {
-            return Err(Error::Scope);
-        }
-        let public = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
-        d.finish()?;
-        if public.shares_component(&intent.root) {
-            return Err(Error::Scope);
-        }
-        public.verify(Purpose::EnrollmentRequest, body, signature)?;
+        let proof = authenticate_enrollment_proof(wire, intent)?;
         Ok(Self {
             intent: intent.clone(),
-            identity,
-            public,
+            identity: proof.identity,
+            public: proof.public,
         })
     }
     /// Original precommitted signing-owner identity, suitable for scoped request deduplication.
@@ -129,6 +117,39 @@ impl VerifiedEnrollmentRequest {
     pub fn public_key(&self) -> &PublicKey {
         &self.public
     }
+}
+
+// Signature and exact historical scope only. This private result cannot be
+// passed to RootSigningKey::issue_enrollment as current authorization.
+struct EnrollmentProof {
+    identity: SigningKeyId,
+    public: PublicKey,
+}
+fn authenticate_enrollment_proof(
+    wire: &[u8],
+    intent: &EnrollmentIntent,
+) -> Result<EnrollmentProof, Error> {
+    let (body, signature) = open_envelope(wire)?;
+    if body.len() != REQUEST_BODY {
+        return Err(Error::Encoding);
+    }
+    let mut d = Decoder::new(body);
+    if d.array::<8>()? != *b"QPENRQ01" {
+        return Err(Error::Encoding);
+    }
+    let identity = SigningKeyId::from_trusted_state(d.array()?)?;
+    let mut expected = Vec::new();
+    intent.encode(&mut expected);
+    if d.take(expected.len())? != expected {
+        return Err(Error::Scope);
+    }
+    let public = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
+    d.finish()?;
+    if public.shares_component(&intent.root) {
+        return Err(Error::Scope);
+    }
+    public.verify(Purpose::EnrollmentRequest, body, signature)?;
+    Ok(EnrollmentProof { identity, public })
 }
 impl RootSigningKey {
     /// Issue the exact approved credential after authenticating the enrollment
@@ -221,12 +242,39 @@ pub enum EnrollmentStatus {
     /// supply a valid snapshot for this credential. No owner may be released.
     RosterResolved(RosterRefreshResolution),
 }
+#[derive(Clone)]
 struct Admission {
     certificate: Vec<u8>,
     roster: Vec<u8>,
     checkpoint: RosterCheckpoint,
     policy: [u8; 32],
     journal: JournalIdentity,
+}
+impl Admission {
+    fn encode(&self, out: &mut Vec<u8>) -> Result<(), DurableError> {
+        field(out, &self.certificate)?;
+        field(out, &self.roster)?;
+        out.extend_from_slice(&self.checkpoint.version().to_be_bytes());
+        out.extend_from_slice(&self.checkpoint.digest());
+        out.extend_from_slice(&self.policy);
+        out.extend_from_slice(self.journal.as_bytes());
+        Ok(())
+    }
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, DurableError> {
+        let certificate = take(d)?;
+        let roster = take(d)?;
+        let checkpoint = RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?;
+        let policy = d.array()?;
+        crate::codec::nonzero(&policy)?;
+        let journal = JournalIdentity::from_trusted_state(d.array()?)?;
+        Ok(Self {
+            certificate,
+            roster,
+            checkpoint,
+            policy,
+            journal,
+        })
+    }
 }
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum AdmissionPhase {
@@ -256,6 +304,7 @@ struct Image {
     roster_resolution: Option<roster_resolution::RetainedRosterResolution>,
     policy_witness: Option<policy_renewal::WitnessPolicy>,
     roster_witness: Option<roster_refresh::WitnessRoster>,
+    preparation: Option<Preparation>,
 }
 impl Image {
     fn require_roster_retired(&self) -> Result<(), DurableError> {
@@ -412,6 +461,7 @@ impl DeviceEnrollment {
             roster_resolution: None,
             policy_witness: None,
             roster_witness: None,
+            preparation: None,
         };
         let bytes = encode(&key, binding, &image)?;
         let database = store
@@ -517,6 +567,7 @@ impl DeviceEnrollment {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
             let image = load(&active.database, &active.key, self.binding)?;
+            self.validate_preparation(&image)?;
             self.validate_roster_resolution(&image)?;
             self.validate_witness_roster(&image)?;
             self.validate_policy_pending(&image)?;
@@ -643,6 +694,13 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<JournalIdentity, DurableError> {
         let mut image = self.image_without_policy_renewal()?;
+        if image
+            .preparation
+            .as_ref()
+            .is_some_and(|p| p.extension.is_some())
+        {
+            return Err(DurableError::Conflict);
+        }
         if image.renewal.is_some() {
             return Err(DurableError::Conflict);
         }
@@ -673,6 +731,11 @@ impl DeviceEnrollment {
             return Ok(admission.journal);
         }
         let journal = JournalIdentity::generate()?;
+        for path in self.paths.installation.files() {
+            if !self.storage.missing(path).await? {
+                return Err(DurableError::Conflict);
+            }
+        }
         image.phase = Phase::Accepted {
             request: request.clone(),
             admission: Admission {
@@ -684,6 +747,7 @@ impl DeviceEnrollment {
             },
             stage: AdmissionPhase::Accepted,
         };
+        image.preparation = Some(Preparation::new(policy.checkpoint()));
         self.save(&image)?;
         Ok(journal)
     }
@@ -739,6 +803,7 @@ impl DeviceEnrollment {
                 .refresh_renewed_roster(image, previous, roster, pin, policy, now)
                 .await;
         }
+        let expected_intent = self.installation_intent(&image)?;
         let Phase::Accepted {
             request,
             admission,
@@ -761,8 +826,8 @@ impl DeviceEnrollment {
         // The old roster may be expired. The authenticated enrollment record
         // supplies its expected identity, never a renewed authorization grant.
         let device = pin.verify_device(&admission.certificate, roster, now)?;
-        self.intent.verify_device(&device)?;
-        let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
+        expected_intent.verify_device(&device)?;
+        let original = authenticate_enrollment_proof(request, &self.intent)?;
         if original.identity != image.identity || original.public != device.key {
             return Err(DurableError::Conflict);
         }
@@ -824,11 +889,11 @@ impl DeviceEnrollment {
             self.intent.description.family,
         )?;
         let device = pin.verify_device(&admission.certificate, &admission.roster, now)?;
-        let original = VerifiedEnrollmentRequest::verify(request, &self.intent, now)?;
+        let original = authenticate_enrollment_proof(request, &self.intent)?;
         if original.identity != image.identity || original.public != device.key {
             return Err(DurableError::Conflict);
         }
-        self.intent.verify_device(&device)?;
+        self.installation_intent(image)?.verify_device(&device)?;
         self.signer(image.identity, false)
             .await?
             .check_device(&device)?;
@@ -904,7 +969,7 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<InstallationPreparation, DurableError> {
-        let image = self.image_without_policy_renewal()?;
+        let mut image = self.image_without_policy_renewal()?;
         if !matches!(
             image.phase,
             Phase::Accepted {
@@ -915,6 +980,7 @@ impl DeviceEnrollment {
             return Err(Error::State.into());
         }
         let device = self.admitted(&image, policy, now).await?;
+        self.select_installation(&mut image)?;
         self.installation(&image, &device, policy, now, true)
             .await?
             .prepare(self.key().await?, &device, policy, now)
@@ -978,6 +1044,7 @@ impl DeviceEnrollment {
         }
         let device = self.admitted(&image, policy, now).await?;
         let signer = self.signer(image.identity, false).await?;
+        self.select_installation(&mut image)?;
         let mut installation = self
             .installation(&image, &device, policy, now, false)
             .await?;
@@ -994,6 +1061,18 @@ impl DeviceEnrollment {
                 }
             }
             *stage = AdmissionPhase::Activating;
+            // Activating is itself a permanent selection boundary. When no
+            // extension was adopted, the extra preinstallation marker has no
+            // remaining purpose; retain the established legacy state contract.
+            // Extension history must remain because it defines the installation's
+            // original credential while the enrollment intent stays immutable.
+            if image
+                .preparation
+                .as_ref()
+                .is_some_and(|p| p.extension.is_none())
+            {
+                image.preparation = None;
+            }
             self.save(&image)?;
         } else if matches!(
             *stage,
@@ -1316,6 +1395,11 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
         wrapper.extend_from_slice(&bytes);
         bytes = wrapper;
     }
+    if image.preparation.is_some() {
+        let mut wrapper = b"QPENST19".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -1337,12 +1421,7 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
                 AdmissionPhase::RosterResolved { .. } => 6,
             });
             field(&mut bytes, request)?;
-            field(&mut bytes, &admission.certificate)?;
-            field(&mut bytes, &admission.roster)?;
-            bytes.extend_from_slice(&admission.checkpoint.version().to_be_bytes());
-            bytes.extend_from_slice(&admission.checkpoint.digest());
-            bytes.extend_from_slice(&admission.policy);
-            bytes.extend_from_slice(admission.journal.as_bytes());
+            admission.encode(&mut bytes)?;
             if let AdmissionPhase::Refreshing { previous } = stage {
                 bytes.extend_from_slice(&previous.version().to_be_bytes());
                 bytes.extend_from_slice(&previous.digest());
@@ -1378,10 +1457,15 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
     if let Some(r) = &image.roster_witness {
         r.encode(&mut bytes)?;
     }
+    if let Some(preparation) = &image.preparation {
+        preparation.encode(&mut bytes)?;
+    }
     let mut mac = auth(key)?;
     mac.update(&bytes);
     bytes.extend_from_slice(&mac.finalize().into_bytes());
-    let limit = if image.renewal.is_some()
+    let limit = if image.preparation.is_some() {
+        MAX_PREINSTALLATION_IMAGE
+    } else if image.renewal.is_some()
         || image.policy_pending.is_some()
         || image.policy_completed.is_some()
         || image.policy_resolution.is_some()
@@ -1473,7 +1557,7 @@ fn read_snapshot(
     })
 }
 fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Image, DurableError> {
-    if wire.len() < 105 || wire.len() > MAX_RENEWAL_IMAGE {
+    if wire.len() < 105 || wire.len() > MAX_PREINSTALLATION_IMAGE {
         return Err(DurableError::Corrupt);
     }
     let (body, tag) = wire.split_at(wire.len() - 32);
@@ -1483,6 +1567,15 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
+    let has_preparation = tag == *b"QPENST19";
+    if !has_preparation && wire.len() > MAX_RENEWAL_IMAGE {
+        return Err(DurableError::Corrupt);
+    }
+    let tag = if has_preparation {
+        d.array::<8>()?
+    } else {
+        tag
+    };
     let credential_after_policy = tag == *b"QPENST18";
     let tag = if credential_after_policy {
         d.array::<8>()?
@@ -1523,7 +1616,8 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         && tag != *b"QPENST11"
         && tag != *b"QPENST12")
         || d.array::<32>()? != binding
-        || (!has_roster_witness
+        || (!has_preparation
+            && !has_roster_witness
             && !has_policy_witness
             && !has_roster_resolution
             && !has_resolution
@@ -1538,21 +1632,11 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         [1] => Phase::Requested(take(&mut d)?),
         [phase @ 2..=6] => {
             let request = take(&mut d)?;
-            let certificate = take(&mut d)?;
-            let roster = take(&mut d)?;
-            let checkpoint = RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?;
-            let policy = d.array()?;
-            crate::codec::nonzero(&policy)?;
-            let journal = JournalIdentity::from_trusted_state(d.array()?)?;
+            let admission = Admission::decode(&mut d)?;
+            let checkpoint = admission.checkpoint;
             Phase::Accepted {
                 request,
-                admission: Admission {
-                    certificate,
-                    roster,
-                    checkpoint,
-                    policy,
-                    journal,
-                },
+                admission,
                 stage: match phase {
                     2 => AdmissionPhase::Accepted,
                     3 => AdmissionPhase::Activating,
@@ -1673,6 +1757,11 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     } else {
         None
     };
+    let preparation = if has_preparation {
+        Some(Preparation::decode(&mut d)?)
+    } else {
+        None
+    };
     d.finish()?;
     let image = Image {
         identity,
@@ -1685,6 +1774,7 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         roster_resolution,
         policy_witness,
         roster_witness,
+        preparation,
     };
     image.validate_policy_phase()?;
     if image.witnessed_credential_after_policy() != credential_after_policy {

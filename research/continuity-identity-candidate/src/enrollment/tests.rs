@@ -4,6 +4,8 @@ use super::*;
 mod policy_continuation;
 #[path = "policy_renewal_tests.rs"]
 mod policy_renewal;
+#[path = "preinstallation_tests.rs"]
+mod preinstallation;
 #[path = "renewal_tests.rs"]
 pub(super) mod renewal;
 #[path = "roster_tests.rs"]
@@ -563,7 +565,26 @@ pub(super) fn after_roster_journal_commit() {
 }
 
 pub(super) fn after_commit(bytes: &[u8]) {
-    if bytes.get(72) == Some(&4) {
+    preinstallation::after_commit(bytes);
+    // Versioned wrappers precede the fixed binding/signing-ID header. Observe
+    // the actual phase rather than a byte inside that ID after a format upgrade.
+    let mut offset = 0;
+    while bytes.get(offset..offset + 8).is_some_and(|tag| {
+        [
+            b"QPENST13",
+            b"QPENST14",
+            b"QPENST15",
+            b"QPENST16",
+            b"QPENST17",
+            b"QPENST18",
+            b"QPENST19",
+        ]
+        .contains(&tag.try_into().expect("tag"))
+    }) {
+        offset += 8;
+    }
+    let observed = bytes.get(offset + 72);
+    if observed == Some(&4) {
         CLOSE_POLICY_AFTER_ACTIVE.with(|pending| {
             if let Some(policy) = pending.borrow_mut().take() {
                 std::thread::spawn(move || policy.close())
@@ -579,7 +600,7 @@ pub(super) fn after_commit(bytes: &[u8]) {
         .expect("phase")
         .parse()
         .expect("number");
-    if bytes.get(72) != Some(&phase) {
+    if observed != Some(&phase) {
         return;
     }
     use std::io::Write;

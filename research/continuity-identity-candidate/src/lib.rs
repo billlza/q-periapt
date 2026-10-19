@@ -62,8 +62,9 @@ pub use cancellation::Cancellation;
 pub use durable::retired_report as retired_device;
 pub use enrollment::{
     AccountRootEnrollmentRecovery, AccountRootEnrollmentState, CredentialRenewalRequest,
-    CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentIntent, EnrollmentPaths,
-    EnrollmentRecovery, EnrollmentStatus, ManagedAccountRootAdoption,
+    CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentExtensionApproval,
+    EnrollmentExtensionInputs, EnrollmentExtensionStatus, EnrollmentIntent, EnrollmentPaths,
+    EnrollmentPreparationStatus, EnrollmentRecovery, EnrollmentStatus, ManagedAccountRootAdoption,
     ManagedAccountRootReplacement, ManagedAccountRootTransition, PolicyRenewalAbandonment,
     PolicyRenewalRequest, PolicyRenewalStatus, RetiredDeviceEnrollment, RosterRefreshOutcome,
     RosterRefreshResolution, SigningFileErasureState, VerifiedEnrollmentRequest,
