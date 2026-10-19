@@ -9,6 +9,7 @@ directional cutovers, aggregate unconfirmed send budget and retained history.
 from __future__ import annotations
 
 import hmac
+from dataclasses import dataclass
 
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
@@ -17,6 +18,18 @@ from .kem import hkdf as expand
 from .wire import MAX_U64, Reader, ldh, require
 
 DOMAIN = b"Q-PERIAPT-CONTINUITY-MESSAGES-CANDIDATE/v2/"
+
+
+@dataclass(frozen=True,repr=False)
+class PendingDelivery:
+    message: bytes
+    plaintext: bytes
+
+
+@dataclass(frozen=True)
+class PreviouslyConsumed:
+    """Original ID was consumed; replacement wire/plaintext is not authenticated."""
+    message: bytes
 
 
 def commitment(label: bytes, value: bytes, ad: bytes) -> bytes:
@@ -110,7 +123,7 @@ class VolatileTraffic:
                 "send capacity or signed budget")
         return None
 
-    def receive(self, wire: bytes, ad: bytes, now: int) -> tuple[bytes, bytes]:
+    def _receive_header(self, wire, ad, now):
         self._admit(now)
         require(109 <= len(wire) <= 16493 and len(ad) <= 1024, "received message capacity")
         reader = Reader(wire)
@@ -122,6 +135,26 @@ class VolatileTraffic:
         require(size <= 16384, "received plaintext capacity")
         ciphertext = reader.take(size + 16)
         reader.finish()
+        return index,identity,ciphertext
+
+    def receive(self, wire: bytes, ad: bytes, now: int) -> tuple[bytes, bytes]:
+        return self._receive_candidate(wire,ad,self._receive_header(wire,ad,now))
+
+    def receive_delivery(self, wire, ad, now):
+        header=self._receive_header(wire,ad,now); index,identity,_ciphertext=header
+        require(index<self._context.send_budget,'received signed budget')
+        require(self._receive_limit is None or index<self._receive_limit,'closed receiving epoch')
+        # The authenticated local prefix is historical consumption only. Its
+        # erased keys/commitments cannot authenticate replacement input bytes.
+        if index<self._receive_floor: return PreviouslyConsumed(identity)
+        if index in self._inbox:
+            previous,plaintext=self._inbox[index]
+            require(commitment(b'receive-intent',wire,ad)==previous,'conflicting received input')
+            if plaintext is None: return PreviouslyConsumed(identity)
+        return PendingDelivery(*self._receive_candidate(wire,ad,header))
+
+    def _receive_candidate(self,wire,ad,header):
+        index,identity,ciphertext=header
         require(index >= self._receive_floor, "retired receive")
         require(self._receive_limit is None or index < self._receive_limit, "closed receiving epoch")
         receipt = commitment(b"receive-intent", wire, ad)

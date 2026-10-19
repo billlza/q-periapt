@@ -98,6 +98,13 @@ class EpochState:
         require(epoch <= self.receiving, "unadmitted traffic epoch")
         return self.operational_traffic(epoch).receive(wire, ad, now)
 
+    def receive_delivery(self, wire, ad, now):
+        self.admit(now)
+        require(109<=len(wire)<=16493,'received message capacity')
+        epoch=int.from_bytes(wire[41:49],'big')
+        require(epoch<=self.receiving,'unadmitted traffic epoch')
+        return self.operational_traffic(epoch).receive_delivery(wire,ad,now)
+
     def consume(self, identity, now):
         self.admit(now)
         return self.for_id(identity, 2).consume(identity, now)

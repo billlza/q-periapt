@@ -8,8 +8,10 @@ OS time. It contains no fixture issuer or clock override.
 
 The file carrier lets a host submit and recover an exact exchange without giving
 the carrier private keys or treating its response as authentication. This is not
-a network listener or the distinct TLS-bound `QPCNET01` carrier. Native outgoing
-delivery and a complete bidirectional network service remain separate work.
+a network listener or the distinct TLS-bound `QPCNET01` carrier.
+[Native outgoing operations](NATIVE_OUTGOING.md) now use the same owned session
+through a bounded private-file carrier. A deployed bidirectional network service
+remains separate work.
 
 ## Host-owned inbox
 

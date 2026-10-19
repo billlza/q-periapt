@@ -16,7 +16,7 @@ from .resolution_owner import ResolutionOwner
 from .peer_owner import PeerOwner
 from .identity_state import admit_local, local_binding
 from .local_authority_control import admit_snapshot
-from .traffic import message_id
+from .traffic import message_id, PendingDelivery
 from .wire import ldh, require
 
 
@@ -232,6 +232,22 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 self._journal.update(snapshot.digest, payload)
             state.traffic.admit(now)
             self._observe("protocol:receive-committed")
+            return result
+
+    @locked
+    def receive_delivery(self, wire: bytes, ad: bytes, now: int):
+        """Commit new authenticated input, or reconcile historical consumption.
+
+        PreviouslyConsumed releases no plaintext and does not authenticate the
+        current replacement bytes below the retained consumption prefix.
+        """
+        with self._state(now=now) as (snapshot,state):
+            require(state.traffic is not None and state.pending is None,'traffic absent or send reserved')
+            result=state.traffic.receive_delivery(wire,ad,now)
+            payload=encode(state)
+            if payload!=snapshot.payload: self._journal.update(snapshot.digest,payload)
+            state.traffic.admit(now)
+            self._observe('protocol:receive-committed' if isinstance(result,PendingDelivery) else 'protocol:consumption-replayed')
             return result
 
     @locked

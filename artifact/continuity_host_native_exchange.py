@@ -14,35 +14,47 @@ CONNECTION_BOUNDS = ('zero-timeout','negative-timeout','boolean-timeout','nan-ti
 CONNECTION_LABELS = ('facade-pending-resume','facade-lost-ack','facade-lost-resume','facade-forged-resume',
                      'facade-cancel','facade-cancel-resume','facade-timeout-resume','facade-close-resume',
                      'facade-control-limited','facade-control-1','facade-control-2','facade-epoch-two','facade-read-delivery')
+INBOUND_LABELS = ('inbound-next-empty','inbound-empty','inbound-next-before','inbound-before','inbound-before-status',
+    'inbound-before-retry','inbound-next-after','inbound-after','inbound-after-retry','inbound-next-lost',
+    'inbound-lost','inbound-lost-status','inbound-lost-retry','inbound-next-gap','inbound-gap','inbound-next-later',
+    'inbound-later','inbound-gap-retry','inbound-later-status','inbound-next-cancel','inbound-cancel',
+    'inbound-cancel-retry','inbound-next-false','inbound-false','inbound-false-retry','inbound-rekey',
+    'inbound-next-epoch-three','inbound-epoch-three','duplex-return','duplex-read-delivery')
+INBOUND_INTERRUPTS = ('inbound-before','inbound-after','inbound-lost','inbound-cancel','inbound-false')
+INBOUND_EVENTS = ('empty-and-consumed-prefix','pending-effect-recovery','effect-deduplication-after-error',
+    'consumed-response-loss','out-of-order-consumed-commitment','cancel-after-effect','explicit-consumer-result',
+    'native-driven-rekey-and-delivery')
 
 LABELS = ('native-key','native-begin','native-request','native-accept','native-prepare',
           'native-publication-id','native-publish','native-inbox','wrong-inbox-journal','missing-inbox',
           'initial','initial-retry','final','final-retry','message','message-retry',
           'read-delivery') + tuple(label+suffix for label in CUT_LABELS for suffix in ('','-inspect','-retry','-readback')) + (
-          'control-1','control-2','epoch-one-message') + CONNECTION_LABELS
+          'control-1','control-2','epoch-one-message') + CONNECTION_LABELS + INBOUND_LABELS
 REFUSALS = ('wrong-directory','wrong-responder','manifest-signature','membership-proof',
             'publication-cannot-select-root','journal-correlation','duplicate-json','wrong-inbox-journal','missing-inbox',
             'unrecorded-connection','forged-ready','wrong-ready-session','forged-connect-ready','confirmation-close-during-write',
             'conflicting-ready-retry','closed-confirmed-owner',
             'cut-before-effect-inspect','facade-reentrant-operation','facade-lost-ack','facade-closed-owner',
             'facade-conflicting-submission','facade-forged-ack','facade-cancelled-result','facade-deadline',
-            'facade-reentrant-close','facade-false-control','facade-exchange-limit','facade-close-error')
+            'facade-reentrant-close','facade-false-control','facade-exchange-limit','facade-close-error',
+            'inbound-consumed-direction','inbound-consumed-session','inbound-malformed-frame','inbound-legacy-receive-retired',
+            'inbound-before-receiver','inbound-after-receiver','inbound-retained-commitment','inbound-cancel-receiver','inbound-false-receiver')
 
 
 def expected_exit(label):
-    if label in CUT_LABELS: return -9
+    if label in CUT_LABELS or label in INBOUND_INTERRUPTS: return -9
     return 1 if label in ('missing-inbox','wrong-inbox-journal','cut-before-effect-inspect') else 0
 
 
 def verify(observed, binaries, application):
-    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 4
+    require(type(observed.get('schema_version')) is int and observed['schema_version'] == 5
             and observed.get('kind') == 'qperiapt.native_reference_exchange'
             and observed.get('completed') is True, 'native exchange report schema/completion')
     require(observed.get('native_sha256') == binaries
             and observed.get('implementation') == str(application / PACKAGE / 'publication.py')
             and observed.get('provider') == '48.0.1', 'native exchange implementation differs')
-    require(type(observed.get('confirmed_epoch')) is int and observed['confirmed_epoch'] == 2
-            and type(observed.get('control_exchanges')) is int and observed['control_exchanges'] == 5
+    require(type(observed.get('confirmed_epoch')) is int and observed['confirmed_epoch'] == 3
+            and type(observed.get('control_exchanges')) is int and observed['control_exchanges'] == 8
             and observed.get('clock') == 'actual OS time', 'native exchange completion differs')
     commands = observed.get('commands')
     require(type(commands) is list and len(commands) == len(LABELS), 'native exchange command inventory')
@@ -87,21 +99,41 @@ def verify(observed, binaries, application):
             'owned connection operation evidence differs')
     for name,value in (('schema_version',1),('confirmed_epoch',2),('control_exchanges',3),('native_commands',12)):
         require(type(flow[name]) is int and flow[name]==value,'owned connection operation count: '+name)
+    inbound=observed.get('inbound_operations')
+    require(type(inbound) is dict and set(inbound)=={'schema_version','complete','events','interruptions',
+        'effect_rows','consumer_calls','confirmed_epoch','control_exchanges','host_storage'}
+        and inbound['complete'] is True and inbound['events']==list(INBOUND_EVENTS)
+        and inbound['host_storage']=='SQLite FULL test host; process failure only, no physical power-loss claim',
+        'inbound operation evidence differs')
+    for name,value in (('schema_version',1),('effect_rows',9),('consumer_calls',11),('confirmed_epoch',3),('control_exchanges',3)):
+        require(type(inbound[name]) is int and inbound[name]==value,'inbound operation count: '+name)
+    interrupted=inbound['interruptions']
+    require(type(interrupted) is list and len(interrupted)==5,'inbound interruption inventory')
+    for label,cut in zip(INBOUND_INTERRUPTS,interrupted):
+        require(type(cut) is dict and set(cut)=={'label','pid','exit','marker_sha256','request_sha256'}
+            and cut['label']==label and type(cut['pid']) is int and cut['pid']>0 and cut['pid'] not in pids
+            and type(cut['exit']) is int and cut['exit']==-9,'inbound interruption differs')
+        pids.add(cut['pid'])
+        require(cut['marker_sha256']==hashlib.sha256(f'{cut["pid"]} {label}\n'.encode()).hexdigest(),
+                'inbound interruption marker differs')
+        require(type(cut['request_sha256']) is str and len(cut['request_sha256'])==64
+                and all(c in '0123456789abcdef' for c in cut['request_sha256']),'inbound request digest shape')
 
 
 def qualify(args, reference, application, provider, outside, output, snapshot, run):
     device = args.native_device.resolve(strict=True)
     session = args.native_session.resolve(strict=True)
     probe = args.crash_probe.resolve(strict=True)
+    outgoing = args.native_outgoing.resolve(strict=True)
     binaries = {str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
-                for path in (device,session,probe)}
+                for path in (device,session,probe,outgoing)}
     for name in ('native_exchange.py','native_exchange_fixture.py','native_exchange_cuts.py','native_connection_checks.py',
-                 'native_connection_flow.py'):
+                 'native_connection_flow.py','native_inbound_flow.py','native_outgoing_driver.py'):
         (outside/name).write_bytes(snapshot(reference/'tests'/name).data)
     private = outside/'private-native-exchange'
     import sys
     execution = run([sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),
-                     '--native-device',str(device),'--native-session',str(session),'--crash-probe',str(probe),
+                     '--native-device',str(device),'--native-session',str(session),'--crash-probe',str(probe),'--native-outgoing',str(outgoing),
                      '--implementation-root',str(application),'--provider-root',str(provider),
                      '--output',str(private)],'native-exchange')
     observed = parse_strict_json_bytes(execution.stdout,label='native owned exchange results')
@@ -119,6 +151,12 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
         name='confirmation-'+kill['stage'].replace(':','-')+'.ready'; marker=snapshot(private/name)
         require(marker.sha256==kill['marker_sha256'],'connection confirmation retained marker differs')
         (public/name).write_bytes(marker.data)
+    for cut in observed['inbound_operations']['interruptions']:
+        name=cut['label']+'.ready'; marker=snapshot(private/name)
+        require(marker.sha256==cut['marker_sha256'],'inbound retained interruption differs')
+        request=snapshot(private/(cut['label']+'-requests')/'001.request')
+        require(request.sha256==cut['request_sha256'],'inbound retained request differs')
+        (public/name).write_bytes(marker.data); (public/(cut['label']+'.request')).write_bytes(request.data)
     require({str(path):read_regular_snapshot(path,maximum=128*1024**2,label='native exchange executable').sha256
-             for path in (device,session,probe)} == binaries, 'native exchange executable changed')
+             for path in (device,session,probe,outgoing)} == binaries, 'native exchange executable changed')
     return observed

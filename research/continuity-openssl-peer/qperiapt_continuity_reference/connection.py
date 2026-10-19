@@ -11,6 +11,7 @@ from enum import Enum
 from . import connection_wire as wire
 from .connection_run import Run, ExchangeLimit
 from .control import inspect
+from .traffic import PendingDelivery, PreviouslyConsumed
 from .wire import MAX_U64, require
 
 
@@ -149,6 +150,40 @@ class Connection:
                 else:
                     require(body[:1]==b'\1' and inspect(body[1:])[1]==target,'connection control response target')
                     epoch,output=self._child.receive_rekey_control(body[1:],now=run.now())
+
+    def serve_message(self,request,consumer,run):
+        """Consume authenticated input, or replay only original consumption ACK.
+
+        consumer(session, message, plaintext) must atomically commit its effect
+        and deduplication before returning None. Errors/unknown effects must raise.
+        Host copies of plaintext are outside SDK erasure and encryption guarantees.
+        """
+        with self._operation(run):
+            require(callable(consumer),'connection application consumer')
+            ad,ciphertext=wire.split(wire.payload(request,wire.MESSAGE)); self._admit(run)
+            delivery=self._child.receive_delivery(ciphertext,ad,run.now())
+            if isinstance(delivery,PendingDelivery):
+                self._admit(run)
+                result=consumer(self._identity,delivery.message,delivery.plaintext)
+                self._alive(); run.check(); require(result is None,'application consumer did not confirm durable commit')
+                self._admit(run); self._child.consume(delivery.message,run.now())
+            else:
+                require(isinstance(delivery,PreviouslyConsumed),'unknown connection delivery disposition')
+            self._admit(run)
+            proof=self._child.acknowledgement_for_epoch(int.from_bytes(delivery.message[:8],'big'),run.now())
+            self._admit(run); return wire.frame(wire.ACK,proof)
+
+    def serve_control(self,request,run):
+        """Authenticate one peer control flight and replay only original output."""
+        with self._operation(run):
+            control=wire.payload(request,wire.CONTROL); target=inspect(control)[1]; self._admit(run)
+            epoch,output=self._child.receive_rekey_control(control,now=run.now())
+            require(epoch==target,'received control target differs')
+            if output is None: body=b'\0'
+            else:
+                epoch,output=self._child.replay_rekey_control(output,run.now())
+                require(epoch==target,'response control target differs'); body=b'\1'+output
+            self._admit(run); return wire.frame(wire.CONTROL_REPLY,body)
 
     def __enter__(self):
         with self._parent._lock: self._alive(); return self

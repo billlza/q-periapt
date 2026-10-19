@@ -7,7 +7,7 @@ SIGNING = frozenset({'prepare_rekey_offer', 'respond_rekey_offer', 'accept_rekey
                      'prepare_rekey_request', 'respond_rekey_request', 'advance_rekey_control',
                      'receive_rekey_control', 'start_rekey_control'})
 SESSION = SIGNING | frozenset({'initial', 'finish', 'activate', 'next_id', 'send', 'resume', 'receive', 'consume',
-    'connection_identity',
+    'connection_identity', 'receive_delivery',
     'acknowledgement', 'accept_acknowledgement', 'status', 'upgrade_format', 'storage_format',
     'acknowledgement_for_epoch', 'accept_rekey_receipt', 'rekey_outbox', 'rekey_progress', 'rekey_request_status',
     'replay_rekey_control', 'begin_closed_epoch_resolution', 'acknowledge_closed_epoch_resolution',

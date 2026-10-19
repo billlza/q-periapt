@@ -239,8 +239,8 @@ contract. A carrier supplies neither identity nor commit evidence. It must bound
 its own allocations and honor the original absolute monotonic deadline and
 one-way cancellation while blocked. Synchronous callbacks cannot be forcibly
 interrupted; late results are rejected and the owner is closed. The included
-interface is carrier-independent; a deployed bidirectional network service and
-an independent inbound application-consumption adapter remain separate work.
+interface is carrier-independent; a deployed bidirectional network service
+remains separate work.
 
 Each `Run` lasts more than zero and at most 120 seconds, uses real OS time by
 default, and can receive a trusted host `clock` and `Cancellation` token.
@@ -267,6 +267,32 @@ Allowance exhaustion closes the owner and retains the same target for recovery.
 The unsigned empty carrier marker is accepted only if the local authenticated
 state already proves that target completed. Neither completion nor an ACK
 establishes fresh peer liveness or secrecy recovery from prior compromise.
+
+`connection.serve_message(request, consumer, run)` handles the opposite application
+direction on this original confirmed session. It authenticates and commits a new
+inbox entry before invoking `consumer(session_id, message_id, plaintext)`. The
+consumer must atomically commit its actual effect and deduplication by that ID,
+then return `None`; errors and unknown outcomes must raise. A false return value
+does not count as success. Only afterward does the connection durably consume
+the message and release its authenticated ACK. A callback can run again after an
+unknown result, so host deduplication is required. Stored host plaintext remains
+outside SDK encryption and erasure guarantees.
+
+For an already consumed ID, the connection returns the authenticated consumption
+prefix without calling the consumer again. Below the prefix, old keys and input
+commitments have been erased: this is historical consumption of the original ID,
+not authentication or delivery of replacement bytes in the current request.
+Bounded framing, session/direction identity, signed budget, admitted epoch and
+receive cutover still apply. For out-of-order consumption still in the inbox,
+the retained input commitment must also match. The lower-level
+`receive_delivery` exposes explicit `PendingDelivery`/`PreviouslyConsumed`
+dispositions; existing `receive` keeps its refusal of consumed plaintext replay.
+No new session format or acknowledgement domain is introduced.
+
+`connection.serve_control(request, run)` authenticates one peer rekey flight and
+returns the original committed response or the carrier completion marker.
+Together with `rekey`, it supports either proposer role after establishment.
+Neither server method admits a new bootstrap through a confirmed session.
 
 ## Original storage recovery
 

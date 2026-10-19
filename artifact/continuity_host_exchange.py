@@ -162,7 +162,7 @@ def qualify(args):
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs, plus actual-time native publication to owned independent session, durable native inbox consumption and one PQ rekey. Native exchange uses explicit test authority and a file carrier. No real host/browser authorization, deployed network, authority replacement or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs, plus actual-time owned bidirectional sessions, durable application consumption/replay and three PQ rekeys. Native exchange uses explicit test authority and a bounded file carrier. No real host/browser authorization, deployed network, authority replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise
@@ -179,6 +179,7 @@ def main():
     parser.add_argument('--sdk-authority', type=Path, required=True)
     parser.add_argument('--native-device', type=Path, required=True)
     parser.add_argument('--native-session', type=Path, required=True)
+    parser.add_argument('--native-outgoing', type=Path, required=True)
     parser.add_argument('--crash-probe', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()

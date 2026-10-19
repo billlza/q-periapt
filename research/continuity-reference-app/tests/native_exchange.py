@@ -16,7 +16,7 @@ import sys
 import time
 
 parser = argparse.ArgumentParser(description=__doc__)
-for name in ('native-device','native-session','crash-probe','implementation-root','provider-root','output'):
+for name in ('native-device','native-session','native-outgoing','crash-probe','implementation-root','provider-root','output'):
     parser.add_argument('--'+name,type=Path,required=True)
 args = parser.parse_args()
 implementation = args.implementation_root.resolve(strict=True)
@@ -34,6 +34,9 @@ from native_exchange_fixture import Issuer,b64,save,wire
 from native_exchange_cuts import exercise as crash_cuts
 from native_connection_checks import exercise as connection_checks
 from native_connection_flow import exercise as connection_flow
+from native_inbound_flow import exercise as inbound_flow
+from qperiapt_continuity_reference.connection import Consumption
+from qperiapt_continuity_reference.connection_run import Run
 
 root = args.output.resolve(); root.mkdir(mode=0o700)
 issuer = Issuer(root)
@@ -41,7 +44,8 @@ commands, refusals = [], []
 device = args.native_device.resolve(strict=True)
 session_cli = args.native_session.resolve(strict=True)
 crash_probe = args.crash_probe.resolve(strict=True)
-native_hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}
+outgoing = args.native_outgoing.resolve(strict=True)
+native_hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}
 
 
 def run(argv, label, *, success=True, json_output=True, deadline=None):
@@ -217,15 +221,25 @@ try:
     run([session_cli,'read-inbox',root/'inbox.redb',b64(bytes(accepted['journal'])),b64(session),b64(last_message),
          root/'facade-received.bin'],'facade-read-delivery')
     require((root/'facade-received.bin').read_bytes()==last_plaintext,'owned connection host effect differs')
-    require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe)}==native_hashes,'native executable changed')
-    report={'schema_version':4,'kind':'qperiapt.native_reference_exchange','completed':True,
+    client,inbound=inbound_flow(client,client_dir,client_id,key,session,root,outgoing,run,commands,refusals)
+    with client.reopen_connection(Run()) as connection:
+        message=connection.next_id(Run()); body=b'independent return after native-driven rekey'
+        def carrier(request,deadline,_cancel):
+            return exchange('duplex-return',{'operation':'message','session':list(session)},request,deadline=deadline)
+        require(connection.deliver(message,body,b'duplex',carrier,Run()) is Consumption.CONFIRMED,'reverse epoch-three delivery')
+    run([session_cli,'read-inbox',root/'inbox.redb',b64(bytes(accepted['journal'])),b64(session),b64(message),
+         root/'duplex-received.bin'],'duplex-read-delivery')
+    require((root/'duplex-received.bin').read_bytes()==body,'duplex host effect differs')
+    require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}==native_hashes,'native executable changed')
+    report={'schema_version':5,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':native_hashes,'commands':commands,'refusals':refusals,
             'process_kills':kills,
             'connection_confirmation':confirmation,
             'connection_operations':flow,
+            'inbound_operations':inbound,
             'provider':provider.__version__,'implementation':str(implementation/'qperiapt_continuity_reference/publication.py'),
-            'confirmed_epoch':flow['confirmed_epoch'],'control_exchanges':attempts+flow['control_exchanges'],'clock':'actual OS time',
-            'scope':'Explicit test authority; separate original native and independent owners, authenticated peer confirmation retained across two SIGKILL cuts, native subprocess restart per exchange, durable host inbox effect and authenticated consumption, three SIGKILL cuts around effect/SDK consumption, owned delivery cancellation/deadline/lost-ACK recovery and bounded recovery of a second PQ rekey. File carrier, no physical power-loss, deployed network or real account action.'}
+            'confirmed_epoch':inbound['confirmed_epoch'],'control_exchanges':attempts+flow['control_exchanges']+inbound['control_exchanges'],'clock':'actual OS time',
+            'scope':'Explicit test authority; separate original native and independent owners, bidirectional owned delivery and three PQ rekeys, durable host effects and consumed-prefix reconciliation, five original store/effect SIGKILL cuts plus five interrupted native senders around independent consumption/reply loss. Bounded file carrier; no physical power-loss, deployed network or real account action.'}
     save(root/'RESULT.json',report); print(json.dumps(report))
 finally:
     client.close()

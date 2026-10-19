@@ -4,16 +4,17 @@ import hashlib
 from pathlib import Path
 import unittest
 from continuity_host_native_exchange import (CUT_STAGES, CONFIRMATION_CUTS, LABELS, REFUSALS,
-                                             CONNECTION_EVENTS, CONNECTION_BOUNDS, expected_exit, verify)
+                                             CONNECTION_EVENTS, CONNECTION_BOUNDS, INBOUND_EVENTS, INBOUND_INTERRUPTS,
+                                             expected_exit, verify)
 
 
 class NativeExchangeReceiptTests(unittest.TestCase):
     def setUp(self):
-        self.binaries={'/native/device':'a'*64,'/native/session':'b'*64,'/tests/crash-probe':'c'*64}
+        self.binaries={'/native/device':'a'*64,'/native/session':'b'*64,'/tests/crash-probe':'c'*64,'/native/outgoing':'d'*64}
         self.application=Path('/installed')
-        self.valid={'schema_version':4,'kind':'qperiapt.native_reference_exchange','completed':True,
+        self.valid={'schema_version':5,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':self.binaries.copy(),'implementation':'/installed/qperiapt_continuity_reference/publication.py',
-            'provider':'48.0.1','confirmed_epoch':2,'control_exchanges':5,'clock':'actual OS time',
+            'provider':'48.0.1','confirmed_epoch':3,'control_exchanges':8,'clock':'actual OS time',
             'commands':[{'label':name,'exit':expected_exit(name)} for name in LABELS],
             'refusals':list(REFUSALS),'process_kills':[
                 {'stage':stage,'pid':i+100,'exit':-9,'inbox_flags':6,'marker_sha256':hashlib.sha256(f'{i+100} {stage}\n'.encode()).hexdigest()}
@@ -24,7 +25,13 @@ class NativeExchangeReceiptTests(unittest.TestCase):
                         f'{i+200} client-device:registration-store:{stage}\n'.encode()).hexdigest()}
                     for i,stage in enumerate(CONFIRMATION_CUTS)]},
             'connection_operations':{'schema_version':1,'complete':True,'confirmed_epoch':2,'control_exchanges':3,
-                'native_commands':12,'events':list(CONNECTION_EVENTS),'boundary_checks':list(CONNECTION_BOUNDS)}}
+                'native_commands':12,'events':list(CONNECTION_EVENTS),'boundary_checks':list(CONNECTION_BOUNDS)},
+            'inbound_operations':{'schema_version':1,'complete':True,'confirmed_epoch':3,'control_exchanges':3,
+                'effect_rows':9,'consumer_calls':11,'events':list(INBOUND_EVENTS),
+                'host_storage':'SQLite FULL test host; process failure only, no physical power-loss claim',
+                'interruptions':[{'label':label,'pid':i+300,'exit':-9,'request_sha256':'e'*64,
+                    'marker_sha256':hashlib.sha256(f'{i+300} {label}\n'.encode()).hexdigest()}
+                    for i,label in enumerate(INBOUND_INTERRUPTS)]}}
         verify(self.valid,self.binaries,self.application)
 
     def reject(self, change):
@@ -73,6 +80,18 @@ class NativeExchangeReceiptTests(unittest.TestCase):
         self.reject(lambda r:r['connection_operations'].update(confirmed_epoch=True))
         self.reject(lambda r:r['connection_operations'].update(control_exchanges=2))
         self.reject(lambda r:r['connection_operations'].update(complete=False))
+
+    def test_inbound_effect_counts_missing_sender_or_unverified_interruptions_are_rejected(self):
+        self.reject(lambda r:r.update(schema_version=4))
+        self.reject(lambda r:r['native_sha256'].pop('/native/outgoing'))
+        self.reject(lambda r:r.pop('inbound_operations'))
+        self.reject(lambda r:r['inbound_operations'].update(effect_rows=11))
+        self.reject(lambda r:r['inbound_operations'].update(consumer_calls=9))
+        self.reject(lambda r:r['inbound_operations']['events'].pop())
+        self.reject(lambda r:r['inbound_operations']['interruptions'].pop())
+        self.reject(lambda r:r['inbound_operations']['interruptions'][0].update(exit=0))
+        self.reject(lambda r:r['inbound_operations']['interruptions'][0].update(pid=100))
+        self.reject(lambda r:r['inbound_operations']['interruptions'][0].update(request_sha256='invalid'))
 
 
 if __name__=='__main__': unittest.main()
