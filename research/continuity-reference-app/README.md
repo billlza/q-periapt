@@ -6,6 +6,11 @@ Q-Periapt account service. An embedding application retains its own authenticati
 and device-authorization policy; it can also use independently administered trust
 provisioning where that matches its deployment model.
 
+The separate [local policy publisher](POLICY_PUBLISHER.md) uses a controlled
+protocol-policy signer and independently supplied signed SDK policy inputs.
+Its CLI has no account-login dependency. Issuance and public export are separate
+from consumer activation and authenticated trust provisioning.
+
 This unpublished host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses
 `webauthn-rs 0.5.5` for Passkey registration and authentication. Authentication

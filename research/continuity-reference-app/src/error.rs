@@ -34,7 +34,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 impl From<q_periapt_host_store::filesystem::PrivateDatabaseError> for Error {
     fn from(value: q_periapt_host_store::filesystem::PrivateDatabaseError) -> Self {
-        Self::internal("private account database", value)
+        Self::internal("private host database", value)
     }
 }
 #[derive(Serialize)]

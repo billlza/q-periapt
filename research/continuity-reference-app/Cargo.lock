@@ -1399,8 +1399,12 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "getrandom 0.4.0",
+ "q-periapt-backends",
  "q-periapt-continuity-identity-candidate",
  "q-periapt-host-store",
+ "q-periapt-policy",
+ "q-periapt-sdk",
+ "q-periapt-sig",
  "redb",
  "serde",
  "serde_json",
@@ -1410,6 +1414,7 @@ dependencies = [
  "uuid",
  "webauthn-authenticator-rs",
  "webauthn-rs",
+ "zeroize",
 ]
 
 [[package]]

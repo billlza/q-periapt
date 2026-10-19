@@ -3,4 +3,5 @@
 pub mod auth;
 pub mod enrollment;
 pub mod error;
+pub mod policy_publisher;
 pub mod store;

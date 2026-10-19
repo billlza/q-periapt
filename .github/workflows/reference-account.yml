@@ -121,6 +121,7 @@ jobs:
         env:
           PEER_PYTHON: ${{ steps.python.outputs.python-path }}
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          POLICY_PUBLISHER: ${{ runner.temp }}/reference-account-build/release/q-periapt-policy-publisher
         run: |
           "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/reference-wheel-build"
           "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip install \
@@ -141,6 +142,7 @@ jobs:
           sh artifact/python-run.sh artifact/continuity_host_exchange.py \
             --wheel "$RUNNER_TEMP/reference-wheel/qperiapt_continuity_reference-0.0.0-py3-none-any.whl" \
             --provider-root "$RUNNER_TEMP/reference-provider" \
+            --publisher "$POLICY_PUBLISHER" \
             --output target/reference-account-ci/exchange \
             > target/reference-account-ci/exchange.stdout 2> target/reference-account-ci/exchange.stderr
           git diff --exit-code

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Run the new host-exchange boundary from a source-bound installed reference wheel.
+"""Qualify installed enrollment and native policy-publication boundaries.
 
-This reuses the existing wheel/installation verifiers. It does not invoke the
-fixture native issuer, replay the unchanged full protocol suite, or claim host
-login/native interoperability from the independent test issuers.
+This reuses the existing wheel/installation verifiers. The real native operator
+CLI consumes explicit test SDK authority; the independent OpenSSL verifier checks
+its outputs. User/device authorization and operational SDK root issuance remain
+separate requirements.
 """
 from __future__ import annotations
 import argparse
@@ -23,6 +24,7 @@ from git_provenance import git_commit, run_git_bytes
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
+REFERENCE = ROOT / 'research/continuity-reference-app'
 
 
 def snapshot(path):
@@ -36,6 +38,8 @@ def inputs(commit):
     paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
+    paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
+                                                         '--', 'research/continuity-reference-app']).decode().splitlines()]
     result = {}
     for path in paths:
         data = snapshot(path); name = path.relative_to(ROOT).as_posix()
@@ -61,14 +65,17 @@ def qualify(args):
     outside = Path(tempfile.mkdtemp(prefix='qperiapt-host-exchange-')).resolve()
     require(not outside.is_relative_to(ROOT), 'installed consumer must be outside checkout')
     application = outside / 'installed'
+    publisher_path = args.publisher.resolve(strict=True)
+    publisher = read_regular_snapshot(publisher_path, maximum=128 * 1024**2, label='native policy publisher')
     captured = output / (PACKAGE + '-0.0.0-py3-none-any.whl')
     captured.write_bytes(wheel.data)
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':2, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':3, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
-              'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside)}
+              'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
+              'publisher_binary_sha256_producer_observation':publisher.sha256}
 
     def run(command, label):
         with contextlib.chdir(outside):
@@ -104,10 +111,37 @@ def qualify(args):
                 require((name + ' (__main__.' + class_name + '.' + name + ') ... ok').encode() in execution.stderr,
                         'missing executed ' + label + ' test: ' + name)
             result.update({label + '_test_names':expected, label + '_execution':observed})
+        interop = outside / 'policy_interop.py'
+        interop.write_bytes(snapshot(REFERENCE / 'tests/policy_interop.py').data)
+        private = outside / 'private-native-policy'
+        execution = run([sys.executable, '-I', '-S', '-B', str(interop), '--publisher', str(publisher_path),
+                         '--implementation-root', str(application), '--provider-root', str(provider),
+                         '--output', str(private)], 'native-policy')
+        observed = parse_strict_json_bytes(execution.stdout, label='native policy publication results')
+        require(observed['completed'] is True and observed['native_sha256'] == publisher.sha256
+                and observed['commands'] == 13 and observed['expected_refusals'] == 4
+                and observed['policy_versions'] == [1,2,3] and observed['provider'] == '48.0.1'
+                and observed['independent_implementation'] == str(application / PACKAGE / 'enrollment_exchange.py'),
+                'native policy publication results differ')
+        require(read_regular_snapshot(publisher_path, maximum=128 * 1024**2, label='native policy publisher').sha256
+                == publisher.sha256, 'native publisher changed during qualification')
+        public = output / 'native-policy-public'; public.mkdir()
+        names = ['COMMANDS.json', 'RESULT.json']
+        labels = ('init', 'prepare', 'authority', 'refuse-anchor-fields', 'issue-first', 'retrieve-first', 'retry-first',
+                  'refuse-overwrite', 'refuse-retarget', 'issue-witnessed', 'issue-disabled',
+                  'refuse-issued-cancel', 'original-after-updates')
+        names += [label + suffix for label in labels for suffix in ('.stdout','.stderr')]
+        for folder in ('export-first', 'export-retrieved', 'export-retry', 'export-witnessed',
+                       'export-disabled', 'export-original-after-updates'):
+            names += [folder + '/' + name for name in ('authority.json','policy-pins.json','policy-materials.json')]
+        for name in names:
+            destination = public / name; destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(snapshot(private / name).data)
+        result['native_policy_publication'] = observed
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client, CLI processes and SIGKILL recovery with real OpenSSL signatures/journals and explicit test issuers; no native host/browser authorization or deployed policy-publisher admission.')
+                      scope='Installed independent adapter/client and native protected protocol-publisher CLI with real OpenSSL verification, explicit test SDK authority/witness pin and SIGKILL recovery; no real host/browser authorization, operational SDK root issuer or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise
@@ -120,6 +154,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wheel', type=Path, required=True)
     parser.add_argument('--provider-root', type=Path, required=True)
+    parser.add_argument('--publisher', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     print(json.dumps(qualify(args), indent=2))
