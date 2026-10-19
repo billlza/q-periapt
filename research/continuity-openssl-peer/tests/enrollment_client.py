@@ -115,6 +115,22 @@ class ClientChecks(unittest.TestCase):
         self.assertEqual(self.state(), before)
         self.client = self.reopen()
 
+    def test_configuration_cleanup_error_releases_outer_client_lease(self):
+        self.client = self.begin()
+        original = self.client.status()
+        close_configuration = self.client._configuration.close
+        def fail_after_configuration_cleanup():
+            close_configuration()
+            raise OSError('injected error after real configuration cleanup')
+        self.client._configuration.close = fail_after_configuration_cleanup
+        with self.assertRaisesRegex(OSError, 'after real configuration cleanup'):
+            self.client.close()
+        with self.assertRaisesRegex(ValueError, 'closed enrollment client'):
+            self.client.status()
+        # A fresh owner must acquire all original leases despite that error.
+        self.client = self.reopen()
+        self.assertEqual(self.client.status(), original)
+
     def test_ready_missing_device_state_is_never_recreated(self):
         self.client = self.begin(); self.client.request(self.now); self.client.close()
         original = self.client_path / 'registration/head'
