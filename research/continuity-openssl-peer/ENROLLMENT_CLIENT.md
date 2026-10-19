@@ -136,11 +136,13 @@ without making it a new authorization. A separate current policy is necessary
 when the old policy has expired. These transitions do not issue the existing
 retained-session grant G or authorize old traffic.
 
-The native enrollment equivalent, browser approval control and complete live
-host-to-peer recovery path remain open. Source tests establish adoption and
-fresh child preparation/initial-flight recovery using explicit signed fixtures;
-that is not a completed live-account session or native endpoint interchange
-after extension.
+The [native enrollment candidate](../continuity-identity-candidate/ENROLLMENT.md#fresh-credential-extension-before-installation)
+also supports this transition for positively tracked Unprepared records; legacy
+Accepted records still require explicit history reconciliation. The installed
+independent client now completes a native durable handshake, bidirectional
+traffic, PQ rekey and owner reopen after extension in both local and witnessed
+fixtures. Browser approval control and the complete live host-to-peer recovery
+path remain open; fixture authorization and clocks do not establish those claims.
 
 ## Registered session and recovery API
 
@@ -233,3 +235,11 @@ callback closure after commitment, outer-directory admission and original
 ciphertext across reopen/renewal. Its clocks and issuer are explicit test inputs.
 The installed-wheel driver runs this suite against the exact selected native
 counterpart; this still does not qualify a live account's complete session path.
+
+`enrollment_extension_session.py` covers the additional native interchange after
+both the original credential and policy expire at fixture time160. Both peers
+bootstrap at210 and exchange traffic/rekey at220. It preserves original issuance,
+refuses retargeting after preparation and refuses use after the extended expiry.
+Installed receipt schema2 requires both local and required-witness profiles,
+including their selected native binary and installed client module identities.
+Later G of this extended bilateral session is a separate outstanding check.
