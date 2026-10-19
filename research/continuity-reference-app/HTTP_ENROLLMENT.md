@@ -59,8 +59,10 @@ is released. Retrying after a socket disconnect or fresh login returns those
 bytes, including after later roster changes. Obtain current root/roster separately
 before consumer admission. This endpoint supplies no G grant, client transition
 or policy extension. Independent-client adoption is described in
-[ENROLLMENT_CLIENT.md](../continuity-openssl-peer/ENROLLMENT_CLIENT.md); the native
-equivalent, browser control and full live recovery path remain open.
+[ENROLLMENT_CLIENT.md](../continuity-openssl-peer/ENROLLMENT_CLIENT.md), the native
+equivalent in [NATIVE_DEVICE.md](NATIVE_DEVICE.md), and the explicit browser
+preparation/approval/recovery controls in [BROWSER_ENROLLMENT.md](BROWSER_ENROLLMENT.md).
+The complete live account-to-session recovery path remains separately qualified.
 
 ## Recovery and authority
 

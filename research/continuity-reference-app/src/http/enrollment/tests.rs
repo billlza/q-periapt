@@ -87,6 +87,14 @@ async fn http_enrollment_requires_host_auth_and_recovers_exact_response_after_re
             "/enrollment.mjs",
             include_bytes!("../../../web/enrollment.mjs").as_slice(),
         ),
+        (
+            "/extension-model.mjs",
+            include_bytes!("../../../web/extension-model.mjs").as_slice(),
+        ),
+        (
+            "/extension.mjs",
+            include_bytes!("../../../web/extension.mjs").as_slice(),
+        ),
     ] {
         let reply = alice.get(&server, url).await?.checked(200)?;
         assert_eq!(

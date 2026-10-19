@@ -54,6 +54,30 @@ independent trust channel and policy; it cannot authenticate itself.
 The independent package's [exchange adapter](../continuity-openssl-peer/ENROLLMENT_EXCHANGE.md)
 consumes these public formats without browser cookies or account-login dependencies.
 
+## Same-device credential renewal
+
+After selecting an Issued operation and reading its current root/roster, choose
+the original credential or a specific completed renewal, then enter the new
+expiry in **UTC**. Prepare saves a new correlation, the selected roster and exact
+expiry locally; it sends no issuance request. Review the displayed device,
+generation, predecessor, expiry and request fingerprint before approving.
+
+Approve/recover submits the retained request to `/extend-credential`. A timeout
+or lost response leaves its original correlation available. Select and retry
+that exact request, including after its deadline or a later roster: the host may
+already have committed it. The browser does not choose a newer predecessor or
+silently extend the expiry. A rejected stale request remains in history; a new
+decision requires a separately prepared and explicitly approved request.
+
+Save the reviewed request and exact returned result separately, then obtain the
+current root/roster observation. Independently provision these to the original
+device together with live signed policy. The independent `adopt-extension` and
+[native `extend`](NATIVE_DEVICE.md) commands accept this same transaction.
+Successful issuance preserves the original device keys and enrollment history;
+it is not protocol-policy renewal, a G grant or retained-session permission.
+The host must explicitly enable schema 4 with `enable-credential-extension`
+before accepting a new renewal. The browser cannot upgrade that database.
+
 ## Browser storage and concurrency
 
 Recovery records contain public invitation/request metadata and correlation
@@ -75,6 +99,14 @@ browser observations are not a power-loss durability promise. Clearing or
 rolling back browser storage is not a supported device-recovery procedure;
 retain backups and the actual original device store. The host's database remains
 the authoritative transaction history.
+
+Reading existing schema-1 browser records does not rewrite them. Preparing the
+first renewal, or explicitly importing schema-2 records, upgrades the payload
+under the same account-bound cache key while retaining all original operations.
+Schema 2 adds immutable renewal requests and optional byte-exact responses;
+older pages refuse that schema. Backups include both kinds, share the existing
+512-record/4-MiB bound, and reject conflicting histories rather than overwriting
+them. These public recovery records contain no device private key or login cookie.
 
 Records are bounded at 512 operations and 4 MiB, imported device requests at 8192
 bytes and HTTP responses at 256 KiB. Quota exhaustion is an error, not a reason

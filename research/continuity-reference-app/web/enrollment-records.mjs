@@ -49,6 +49,31 @@ function row(value, application) {
   if (value.invitation !== null) invitation(value.invitation, application, value.request_id);
   if (value.kind === 'reapprove' && value.invitation === null) require(value.request !== null, 'Pending reapproval has no original proof');
 }
+export function extensionRequest(value) {
+  fields(value, 'request_id enrollment previous_extension predecessor valid_until');
+  id(value.request_id); id(value.enrollment); integer(value.valid_until, true);
+  require(BigInt(value.valid_until) < 18446744073709551615n, 'Extension expiry must be finite');
+  if (value.previous_extension !== null) {
+    id(value.previous_extension); require(!equal(value.previous_extension, value.request_id), 'Extension cannot precede itself');
+  }
+  checkpoint(value.predecessor); require(value.predecessor !== null, 'Extension requires a selected roster');
+  require(BigInt(value.predecessor.version) < 18446744073709551615n, 'Roster version exhausted');
+}
+export function extensionResponse(text, request, revision) {
+  require(typeof text === 'string' && new TextEncoder().encode(text).length <= 128 * 1024, 'Extension response exceeds bound');
+  const value = parse(text); fields(value, 'request root_revision certificate roster checkpoint');
+  extensionRequest(value.request); integer(value.root_revision, true);
+  require(equal(value.request, request) && value.root_revision === revision, 'Extension response changed the original request or root');
+  unbase64(value.certificate, 65536); unbase64(value.roster, 65536); checkpoint(value.checkpoint);
+  require(value.checkpoint !== null && BigInt(value.checkpoint.version) === BigInt(request.predecessor.version) + 1n, 'Extension successor checkpoint differs');
+  return text;
+}
+function extension(value, operations) {
+  fields(value, 'request root_revision response'); extensionRequest(value.request); integer(value.root_revision, true);
+  const source = operations.find(r => r.invitation && equal(r.invitation.operation, value.request.enrollment));
+  require(source && source.invitation.root_revision === value.root_revision, 'Extension has no original enrollment/root');
+  if (value.response !== null) extensionResponse(value.response, value.request, value.root_revision);
+}
 export class Records {
   constructor(storage, origin, application) {
     require(unbase64(application, 32).length === 32, 'Invalid application identity');
@@ -56,13 +81,28 @@ export class Records {
     this.key = `qpc-reference-enrollment/1/${application}`;
   }
   validate(value) {
-    fields(value, 'schema origin application operations');
-    require(value.schema === 1 && value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
+    fields(value, value?.schema === 2 ? 'schema origin application operations extensions' : 'schema origin application operations');
+    require((value.schema === 1 || value.schema === 2) && value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
     require(Array.isArray(value.operations) && value.operations.length <= MAX_RECORDS, 'Recovery record capacity');
+    const extensions = value.schema === 2 ? value.extensions : [];
+    require(Array.isArray(extensions) && value.operations.length + extensions.length <= MAX_RECORDS, 'Recovery record capacity');
     const seen = new Set();
     for (const operation of value.operations) {
       row(operation, this.application); const key = base64(operation.request_id);
       require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
+    }
+    for (const item of extensions) {
+      extension(item, value.operations); const key = base64(item.request.request_id);
+      require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
+      const previous = item.request.previous_extension;
+      if (previous !== null) {
+        const source = extensions.find(r => equal(r.request.request_id, previous));
+        require(source && source.response !== null && equal(source.request.enrollment, item.request.enrollment)
+          && source.root_revision === item.root_revision && BigInt(item.request.valid_until) > BigInt(source.request.valid_until), 'Extension predecessor is absent or conflicts');
+      } else {
+        const source = value.operations.find(r => r.invitation && equal(r.invitation.operation, item.request.enrollment));
+        require(BigInt(item.request.valid_until) > BigInt(source.invitation.valid_until), 'Extension must increase original validity');
+      }
     }
     return value;
   }
@@ -93,12 +133,38 @@ export class Records {
     const value = this.read(), at = value.operations.findIndex(r => equal(r.request_id, operation.request_id));
     require(at >= 0, 'Original recovery record missing'); value.operations[at] = operation; this.save(value); return operation;
   }
+  extensions() { const value = this.read(); return value.schema === 2 ? value.extensions : []; }
+  findExtension(key) {
+    const value = this.extensions().find(r => base64(r.request.request_id) === key);
+    require(value, 'Select an existing extension request'); return value;
+  }
+  addExtension(item) {
+    const value = this.read();
+    // Only this explicit preparation/import upgrades the payload. Reads leave
+    // schema-1 bytes untouched, and the cache key stays bound to the same account.
+    this.save({...value, schema: 2, extensions: [...(value.schema === 2 ? value.extensions : []), item]});
+  }
+  completeExtension(key, response) {
+    const value = this.read(); require(value.schema === 2, 'Original extension records absent');
+    const row = value.extensions.find(r => base64(r.request.request_id) === key);
+    require(row, 'Original extension request missing'); extensionResponse(response, row.request, row.root_revision);
+    require(row.response === null || row.response === response, 'Host changed the original extension result');
+    row.response = response; this.save(value);
+  }
   merge(text) {
     const imported = this.decode(text), value = this.read();
     for (const operation of imported.operations) {
       const original = value.operations.find(r => equal(r.request_id, operation.request_id));
       if (original) require(equal(original, operation), 'Imported record conflicts with original retained state');
       else value.operations.push(operation);
+    }
+    if (imported.schema === 2) {
+      if (value.schema === 1) { value.schema = 2; value.extensions = []; }
+      for (const item of imported.extensions) {
+        const original = value.extensions.find(r => equal(r.request.request_id, item.request.request_id));
+        if (original) require(equal(original, item), 'Imported extension conflicts with original retained state');
+        else value.extensions.push(item);
+      }
     }
     this.save(value);
   }
