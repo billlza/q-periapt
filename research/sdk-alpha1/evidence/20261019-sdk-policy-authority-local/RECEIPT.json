@@ -1,0 +1,44 @@
+{
+  "source_commit": "e13efcaf23d38fb88ea52fd9aefa79724b6967e2",
+  "capture": {
+    "bytes": 471568,
+    "members": 297,
+    "sha256": "a17ac38a4cf589aa1e23bd4efb23f5e0bd3cd80b6481e912cdfedd78021892dc"
+  },
+  "checks": {
+    "native_crypto_entries": 16,
+    "native_crypto_behavioral": 14,
+    "native_crypto_child_dispatchers": 2,
+    "reference_debug_entries": 42,
+    "reference_release_entries": 42,
+    "reference_behavioral": 39,
+    "reference_child_dispatchers": 3,
+    "new_sdk_authority_process_kill_cuts": 8,
+    "native_library_clippy": true,
+    "reference_all_target_clippy": true,
+    "fmt": true,
+    "actionlint": true,
+    "installed_adapter": 8,
+    "installed_client": 16,
+    "operator_commands": 24,
+    "expected_refusals": 7,
+    "sdk_versions": [
+      1,
+      2
+    ],
+    "protocol_versions": [
+      1,
+      2,
+      3
+    ],
+    "source_inputs": 134,
+    "wheel_modules": 50,
+    "wheel_sha256": "871783809873fda1e39382cad60a7735d30009f67410dd920057e4ea673397c9"
+  },
+  "binaries_producer_observation": {
+    "sdk_authority_sha256": "2833f61747591eecad6bf14db6c3b06d6ca409aff43acbfa7dd4724fd449fe5c",
+    "protocol_publisher_sha256": "ab0bfb99912296535412334a3a3fac9b6c783dff97df0bdcc8955748a65b2c90"
+  },
+  "first_attempt": "Three native signer tests initially stopped before key creation because the fixture directory was0755. Failed empty directories and output were retained; the fixture now explicitly uses0700. No production admission guard changed. Subsequent focused and16-entry crypto checks passed.",
+  "scope": "Native protected SDK-root issuer and protocol publisher, exact SDK policy inputs, installed independent OpenSSL verification. No fixture SDK private key in the CLI flow. Historical public signatures reverified without clock overrides. Local operator trust is assumed; no live consumer activation, root recovery/replacement, real user/device authorization, deployed witness, secure erasure, power-loss, PCS or full0.2.0 admission."
+}

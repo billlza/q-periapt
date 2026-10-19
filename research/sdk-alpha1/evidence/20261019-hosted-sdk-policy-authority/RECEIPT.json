@@ -1,0 +1,316 @@
+{
+  "source_commit": "e13efcaf23d38fb88ea52fd9aefa79724b6967e2",
+  "run": 39237096750,
+  "platforms": [
+    {
+      "platform": "ubuntu-24.04",
+      "head": "e13efcaf23d38fb88ea52fd9aefa79724b6967e2",
+      "run": 39237096750,
+      "job": 118008698057,
+      "artifact": 12180032988,
+      "artifact_sha256": "sha256:ae004d36b7c167739cf2ca9ae18171e79463405ffa609a263b8a64ab94702448",
+      "artifact_bytes": 378519,
+      "members": 137,
+      "independent_exchange": {
+        "native_policy_publication": {
+          "commands": 24,
+          "expected_refusals": 7,
+          "public_files": 88,
+          "sdk_publications": [
+            {
+              "version": 1,
+              "document_sha3_256": "5d74e165e5dacf84b487e12cdb88e30103c4606339d90ebe674ec5f70614faca",
+              "signature_verified": true
+            },
+            {
+              "version": 2,
+              "document_sha3_256": "f4c2fdb04effce30abb561653fa3bb657212a8d9e384132f9e4e4ebbd8575a42",
+              "signature_verified": true
+            }
+          ],
+          "sdk_authority_sha256_producer_observation": "89c5a060b888126533a0e03dd4a929f0732f0e7fe9c97a623dbbfd8c289cfa14",
+          "historical_publications": [
+            {
+              "version": 1,
+              "digest": "f4f417058ce1839835efa6d5066dd126badde6c90b884ff8edff6fbb2cd566e2",
+              "dual_signature": true,
+              "sdk_signature": true
+            },
+            {
+              "version": 2,
+              "digest": "ab0b8f26cf09b6427be2b27f42963389711dac3f1c1be9f90067a2dc2cbe2dba",
+              "dual_signature": true,
+              "sdk_signature": true
+            },
+            {
+              "version": 3,
+              "digest": "084a77a1dd0b2edf09903c7a006bfbd0ee5eb4ab2bef14ea880ab94b72531de8",
+              "dual_signature": true,
+              "sdk_signature": true
+            }
+          ],
+          "native_sha256_producer_observation": "821285ee6e11f97fa7a7f40a54be25462faad83ad3f6a8bc00524cdb06d551d3",
+          "readback_provider": "48.0.1",
+          "readback_openssl": "OpenSSL 4.0.1 9 Jun 2026",
+          "scope": "Historical signatures and original operation/export consistency only; no clock override or live activation, and no authentication of the operator trust channel."
+        },
+        "wheel_sha256": "871783809873fda1e39382cad60a7735d30009f67410dd920057e4ea673397c9",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 16,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 134
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "actual_sdk_signature_and_exact_pin_are_required",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "cancelled_sdk_intent_keeps_its_operation_and_allocated_version",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "expired_pending_intent_requires_explicit_cancellation_and_keeps_version",
+        "explicit_disable_witness_separation_and_missing_choices",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "historical_result_survives_missing_signer_but_new_issuance_does_not",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "lost_sdk_private_files_preserve_public_history_and_refuse_new_signing",
+        "native_sdk_publication_bootstraps_the_separate_protocol_publisher",
+        "original_policy_key_creation_survives_four_process_cuts",
+        "original_publication_reopen_and_monotonic_versions",
+        "original_publication_survives_three_commit_cuts",
+        "policy_publisher_child",
+        "private_sdk_states_reject_unknown_fields_and_missing_cursor",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "sdk_authority_child",
+        "sdk_publication_recovers_three_process_cuts_without_retargeting_original",
+        "sdk_publications_keep_exact_original_bytes_and_never_jump_versions",
+        "sdk_root_creation_recovers_four_process_cuts_with_original_file_identity",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "native_signer_test_names": [
+        "all_signing_roles_reopen_exact_keys_and_cannot_cross_roles_or_identities",
+        "encrypted_owner_rejects_every_byte_change_lengths_and_inconsistent_material",
+        "exact_sdk_signature_reopens_and_closed_capability_cannot_sign",
+        "invalid_or_too_strong_sdk_documents_never_obtain_a_signature",
+        "missing_partial_linked_or_public_files_never_create_replacement_keys",
+        "process_loss_recovers_protected_signer_and_finishes_the_actual_peer_handshake",
+        "protected_signer_response_crash_child",
+        "provisioning_process_loss_never_releases_an_owner_before_file_commit",
+        "restored_device_owner_replays_exact_reserved_signature",
+        "sdk_file_cannot_be_used_by_other_roles_or_replaced_on_reopen",
+        "signer_retirement_metadata_checks_keep_exclusive_lock",
+        "signer_retirement_partial_headers_and_io_boundaries_never_return_success",
+        "signer_retirement_refuses_modified_ciphertext_and_unrelated_report",
+        "signer_retirement_refuses_substituted_file_even_with_identical_ciphertext",
+        "signer_retirement_roundtrip_is_terminal_and_platform_separated",
+        "signing_provision_crash_child"
+      ],
+      "binary_sha256_producer_observation": "1555866003d8b97e85fc12dcd0803011589493ea708c14fdaf2d1472220736fc",
+      "scope": "Terminal Rust debug/release42 entries (39 behavioral and3 child dispatchers), native signer16 entries (14 behavioral and2 dispatchers), browser model17 tests, strict Clippy/build, installed independent adapter8/client16 and native publisher CLI24 commands/7 refusals. Historical public SDK and dual protocol signatures independently reverified without backdating activation. Protected native SDK and protocol signers; witness pin remains a test input. No real user/device authorization, live consumer activation, authority replacement, full lifecycle, power-loss, erasure, PCS or release admission."
+    },
+    {
+      "platform": "macos-15",
+      "head": "e13efcaf23d38fb88ea52fd9aefa79724b6967e2",
+      "run": 39237096750,
+      "job": 118008697656,
+      "artifact": 12180790143,
+      "artifact_sha256": "sha256:7daa25a353c7b7a0295f403548d89c0cd39ca2a7268670e50515232e7196bc01",
+      "artifact_bytes": 379143,
+      "members": 137,
+      "independent_exchange": {
+        "native_policy_publication": {
+          "commands": 24,
+          "expected_refusals": 7,
+          "public_files": 88,
+          "sdk_publications": [
+            {
+              "version": 1,
+              "document_sha3_256": "5d74e165e5dacf84b487e12cdb88e30103c4606339d90ebe674ec5f70614faca",
+              "signature_verified": true
+            },
+            {
+              "version": 2,
+              "document_sha3_256": "f4c2fdb04effce30abb561653fa3bb657212a8d9e384132f9e4e4ebbd8575a42",
+              "signature_verified": true
+            }
+          ],
+          "sdk_authority_sha256_producer_observation": "bc9ebf2ba161aa973735a40128bad2f927fbdabbc304c1140c8d92f0eaeefe51",
+          "historical_publications": [
+            {
+              "version": 1,
+              "digest": "fa3cdc94cff3c59dc2733c52dfee8470a261f407ea0dc2bbab2f32c72c35cdcb",
+              "dual_signature": true,
+              "sdk_signature": true
+            },
+            {
+              "version": 2,
+              "digest": "d76f9cbcb370a8b9423df720c958cfe57394313ba3c46ff0f8cc98b9001a600d",
+              "dual_signature": true,
+              "sdk_signature": true
+            },
+            {
+              "version": 3,
+              "digest": "64808d77327108acbe650af734296b88a3e5b662ba887fc084b63f0774dabe1c",
+              "dual_signature": true,
+              "sdk_signature": true
+            }
+          ],
+          "native_sha256_producer_observation": "085411f8ccca4395d350e4664970cb95b17588eb02d687fec74394480c67e92f",
+          "readback_provider": "48.0.1",
+          "readback_openssl": "OpenSSL 4.0.1 9 Jun 2026",
+          "scope": "Historical signatures and original operation/export consistency only; no clock override or live activation, and no authentication of the operator trust channel."
+        },
+        "wheel_sha256": "871783809873fda1e39382cad60a7735d30009f67410dd920057e4ea673397c9",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 16,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 134
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "actual_sdk_signature_and_exact_pin_are_required",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "cancelled_sdk_intent_keeps_its_operation_and_allocated_version",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "expired_pending_intent_requires_explicit_cancellation_and_keeps_version",
+        "explicit_disable_witness_separation_and_missing_choices",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "historical_result_survives_missing_signer_but_new_issuance_does_not",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "lost_sdk_private_files_preserve_public_history_and_refuse_new_signing",
+        "native_sdk_publication_bootstraps_the_separate_protocol_publisher",
+        "original_policy_key_creation_survives_four_process_cuts",
+        "original_publication_reopen_and_monotonic_versions",
+        "original_publication_survives_three_commit_cuts",
+        "policy_publisher_child",
+        "private_sdk_states_reject_unknown_fields_and_missing_cursor",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "sdk_authority_child",
+        "sdk_publication_recovers_three_process_cuts_without_retargeting_original",
+        "sdk_publications_keep_exact_original_bytes_and_never_jump_versions",
+        "sdk_root_creation_recovers_four_process_cuts_with_original_file_identity",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "native_signer_test_names": [
+        "all_signing_roles_reopen_exact_keys_and_cannot_cross_roles_or_identities",
+        "encrypted_owner_rejects_every_byte_change_lengths_and_inconsistent_material",
+        "exact_sdk_signature_reopens_and_closed_capability_cannot_sign",
+        "invalid_or_too_strong_sdk_documents_never_obtain_a_signature",
+        "missing_partial_linked_or_public_files_never_create_replacement_keys",
+        "process_loss_recovers_protected_signer_and_finishes_the_actual_peer_handshake",
+        "protected_signer_response_crash_child",
+        "provisioning_process_loss_never_releases_an_owner_before_file_commit",
+        "restored_device_owner_replays_exact_reserved_signature",
+        "sdk_file_cannot_be_used_by_other_roles_or_replaced_on_reopen",
+        "signer_retirement_metadata_checks_keep_exclusive_lock",
+        "signer_retirement_partial_headers_and_io_boundaries_never_return_success",
+        "signer_retirement_refuses_modified_ciphertext_and_unrelated_report",
+        "signer_retirement_refuses_substituted_file_even_with_identical_ciphertext",
+        "signer_retirement_roundtrip_is_terminal_and_platform_separated",
+        "signing_provision_crash_child"
+      ],
+      "binary_sha256_producer_observation": "d317c3596eb5ef871a370d6b27845d5e3a525b780c4176af5e2bad6afcf461fb",
+      "scope": "Terminal Rust debug/release42 entries (39 behavioral and3 child dispatchers), native signer16 entries (14 behavioral and2 dispatchers), browser model17 tests, strict Clippy/build, installed independent adapter8/client16 and native publisher CLI24 commands/7 refusals. Historical public SDK and dual protocol signatures independently reverified without backdating activation. Protected native SDK and protocol signers; witness pin remains a test input. No real user/device authorization, live consumer activation, authority replacement, full lifecycle, power-loss, erasure, PCS or release admission."
+    }
+  ],
+  "capture": {
+    "bytes": 783968,
+    "members": 150,
+    "sha256": "b97a4744acd9929ef822fa703e2ff5391364ee471967038fd968afd8a6daf39a"
+  },
+  "scope": "Terminal reference CI for protected native SDK and protocol authorities at e13efcaf on Apple Silicon/macOS and Linux x86_64. Each137-member artifact checked against134 exact source inputs. Rust42 entries in debug/release, native signing16 entries, Node17, installed adapter8/client16 and operator24 commands/7 refusals. Two SDK and three protocol publications independently reverified. No fixture SDK signing key in CLI flow; witness remains a test pin. Local operator trust assumed; no real user/device authorization, live consumer activation, authority replacement, full lifecycle or release admission. Other e13efcaf CI workflows are separate."
+}
