@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Native publisher CLI to the selected independent OpenSSL verifier.
 
-The SDK authority and witness pin are explicit test fixtures. The native tool
-creates its own protected protocol signer. No account/device authorization or
+Both native tools create their own protected signers through their operator CLIs.
+The witness pin is an explicit test fixture. No account/device authorization or
 real witness service is inferred from these public policy checks.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -18,6 +18,7 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--publisher', type=Path, required=True)
+parser.add_argument('--sdk-authority', type=Path, required=True)
 parser.add_argument('--implementation-root', type=Path, required=True)
 parser.add_argument('--provider-root', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
@@ -33,11 +34,14 @@ from qperiapt_continuity_reference.wire import SigningKey
 assert Path(enrollment_exchange.__file__).resolve().is_relative_to(implementation)
 publisher = args.publisher.resolve(strict=True)
 native_digest = hashlib.sha256(publisher.read_bytes()).hexdigest()
+sdk_authority = args.sdk_authority.resolve(strict=True)
+sdk_digest = hashlib.sha256(sdk_authority.read_bytes()).hexdigest()
 root = args.output
 assert root.is_absolute() and not root.exists()
 root.mkdir(mode=0o700)
 inputs = root / 'private-inputs'; inputs.mkdir(mode=0o700)
 database = root / 'publisher.redb'
+sdk_database = root / 'sdk-authority.redb'
 b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
 encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
 commands = []
@@ -52,14 +56,16 @@ def directory(name):
     path = root / name; path.mkdir(mode=0o700); return path
 
 identity = b64(os.urandom(32))
+sdk_identity = b64(os.urandom(32))
 
-def run(label, operation, *values, success=True):
-    command = [str(publisher), operation, str(database), identity, *map(str, values)]
+def run(label, operation, *values, success=True, sdk=False):
+    command = [str(sdk_authority if sdk else publisher), operation,
+               str(sdk_database if sdk else database), sdk_identity if sdk else identity, *map(str, values)]
     result = subprocess.run(command, capture_output=True, timeout=60, check=False)
     assert len(result.stdout) <= 256 * 1024 and len(result.stderr) <= 256 * 1024
     (root / (label + '.stdout')).write_bytes(result.stdout)
     (root / (label + '.stderr')).write_bytes(result.stderr)
-    commands.append({'label':label,'argv':command,'exit':result.returncode})
+    commands.append({'label':label,'tool':'sdk' if sdk else 'protocol','argv':command,'exit':result.returncode})
     (root / 'COMMANDS.json').write_bytes(encode(commands))
     assert (result.returncode == 0) is success, (label, result.stderr.decode())
     if success:
@@ -77,14 +83,45 @@ def check(path):
     return pins, materials, verified
 
 try:
-    # This SDK policy is test authority, not an operational SDK root provisioner.
-    sdk_key = mldsa.MLDSA65PrivateKey.generate()
+    sdk_root_info = run('sdk-init', 'init', sdk=True)
+    assert sdk_root_info['allocated_version'] == 0 and sdk_root_info['pending'] is None
+    assert run('sdk-prepare', 'prepare', sdk=True) == sdk_root_info
+    assert run('sdk-authority', 'authority', sdk=True) == sdk_root_info
     document = b'schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile="ContextBound"\nallowed_kems=["ML-KEM-768","X25519"]\nallowed_sigs=["ML-DSA-65"]\ndeprecated=[]\n'
-    sdk_root = sdk_key.public_key().public_bytes_raw()
-    state = (1).to_bytes(4, 'big') + hashlib.sha3_256(document).digest()
-    signature = sdk_key.sign(b'Q-PERIAPT-SIGNED-POLICY/v1' + len(document).to_bytes(8, 'big') + document)
-    authority = run('init', 'init', save('sdk-root', sdk_root), save('sdk-state', state),
-                    save('sdk-document', document), save('sdk-signature', signature))
+    sdk_document = save('sdk-request-v1.toml', document)
+    jump = save('sdk-request-max.toml', document.replace(b'policy_version=1', b'policy_version=4294967295'))
+    sdk_refused = directory('sdk-export-refused-version')
+    assert 'next allocated version' in run('sdk-refuse-version', 'issue', b64(os.urandom(32)), jump,
+                                           sdk_refused, sdk=True, success=False)
+    assert not list(sdk_refused.iterdir())
+    sdk_operation = b64(os.urandom(32)); sdk_first = directory('sdk-export-first')
+    sdk_issued = run('sdk-issue-first', 'issue', sdk_operation, sdk_document, sdk_first, sdk=True)
+
+    def sdk_check(path, issued, expected_version):
+        values = {name:(path/name).read_bytes() for name in ('sdk-root','sdk-state','sdk-document','sdk-signature')}
+        assert issued['version'] == expected_version
+        assert b64(values['sdk-root']) == sdk_root_info['root'] == issued['input']['root']
+        assert values['sdk-state'] == expected_version.to_bytes(4,'big') + hashlib.sha3_256(values['sdk-document']).digest()
+        assert issued['input'] == {name.removeprefix('sdk-'):b64(value) for name,value in values.items()}
+        message = b'Q-PERIAPT-SIGNED-POLICY/v1' + len(values['sdk-document']).to_bytes(8,'big') + values['sdk-document']
+        mldsa.MLDSA65PublicKey.from_public_bytes(values['sdk-root']).verify(values['sdk-signature'], message)
+        return values
+
+    original_sdk = sdk_check(sdk_first, sdk_issued, 1)
+    sdk_root, state = original_sdk['sdk-root'], original_sdk['sdk-state']
+    assert original_sdk['sdk-document'] == document
+    for label, name, operation_name in [('sdk-retrieve-first','sdk-export-retrieved','result'),
+                                         ('sdk-retry-first','sdk-export-retry','issue')]:
+        destination = directory(name)
+        parameters = [sdk_operation, sdk_document, destination] if operation_name == 'issue' else [sdk_operation,destination]
+        assert run(label, operation_name, *parameters, sdk=True) == sdk_issued
+        assert sdk_check(destination, sdk_issued, 1) == original_sdk
+    sdk_second_document = save('sdk-request-v2.toml', document.replace(b'policy_version=1',b'policy_version=2'))
+    sdk_retarget = directory('sdk-export-refused-retarget')
+    assert 'Original SDK policy document differs' in run('sdk-refuse-retarget','issue',sdk_operation,
+                sdk_second_document,sdk_retarget,sdk=True,success=False)
+    assert not list(sdk_retarget.iterdir())
+    authority = run('init', 'init', *[sdk_first/name for name in ('sdk-root','sdk-state','sdk-document','sdk-signature')])
     assert authority['sdk_root'] == b64(sdk_root) and authority['sdk_state'] == b64(state)
     assert run('prepare', 'prepare') == authority and run('authority', 'authority') == authority
     now = int(time.time())
@@ -141,13 +178,22 @@ try:
     assert run('original-after-updates', 'result', operation, historical) == issued
     assert (historical/'policy-pins.json').read_bytes() == pins1
     assert (historical/'policy-materials.json').read_bytes() == materials1
+    sdk_second_path = directory('sdk-export-second')
+    sdk_second = run('sdk-issue-second','issue',b64(os.urandom(32)),sdk_second_document,sdk_second_path,sdk=True)
+    sdk_check(sdk_second_path,sdk_second,2)
+    sdk_historical = directory('sdk-export-original-after-updates')
+    assert run('sdk-original-after-updates','result',sdk_operation,sdk_historical,sdk=True) == sdk_issued
+    assert sdk_check(sdk_historical,sdk_issued,1) == original_sdk
+    assert 'Issued SDK policy cannot be cancelled' in run('sdk-refuse-issued-cancel','cancel',sdk_operation,sdk=True,success=False)
     assert hashlib.sha256(publisher.read_bytes()).hexdigest() == native_digest
+    assert hashlib.sha256(sdk_authority.read_bytes()).hexdigest() == sdk_digest
     result = {'completed':True, 'native_sha256':native_digest, 'commands':len(commands),
+              'sdk_authority_sha256':sdk_digest, 'sdk_policy_versions':[1,2],
               'expected_refusals':sum(c['exit'] != 0 for c in commands), 'policy_versions':[1,2,3],
               'provider':provider.__version__, 'openssl':backend.openssl_version_text(),
               'independent_implementation':str(Path(enrollment_exchange.__file__).resolve()),
               'private_state_retained':str(root),
-              'scope':'Native protected protocol publisher CLI to independent verifier with explicit test SDK authority/witness pin; no real user/device authorization, witness service or operational SDK root issuer.'}
+              'scope':'Native SDK authority and protocol publisher CLIs to independent OpenSSL verifier with an explicit witness test pin. No fixture SDK signing key. Local operator trust, no real user/device authorization, witness service, live consumer activation or authority replacement.'}
     (root/'RESULT.json').write_bytes(encode(result)); print(json.dumps(result))
 except BaseException as error:
     (root/'FAILURE.json').write_bytes(encode({'completed':False,'error':type(error).__name__+': '+str(error),'private_state_retained':str(root)}))

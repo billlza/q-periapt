@@ -144,6 +144,8 @@ pub use bootstrap_bundle::{
     BootstrapBundle, BootstrapMaterials, BootstrapRequirements, ExpectedDevice,
     SessionReopenRequest, MAX_BOOTSTRAP_BUNDLE_BYTES,
 };
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use crypto::SdkPolicySigningKey;
 pub use crypto::{
     AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,
     PUBLIC_KEY_BYTES,

@@ -2,9 +2,9 @@
 """Qualify installed enrollment and native policy-publication boundaries.
 
 This reuses the existing wheel/installation verifiers. The real native operator
-CLI consumes explicit test SDK authority; the independent OpenSSL verifier checks
-its outputs. User/device authorization and operational SDK root issuance remain
-separate requirements.
+CLIs create independent SDK and protocol signing owners; the installed OpenSSL
+implementation checks their public outputs. User/device authorization, consumer
+activation and authority replacement remain separate requirements.
 """
 from __future__ import annotations
 import argparse
@@ -40,6 +40,12 @@ def inputs(commit):
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
                                                          '--', 'research/continuity-reference-app']).decode().splitlines()]
+    paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
+        '--', 'research/continuity-identity-candidate/src/crypto',
+        'research/continuity-identity-candidate/src/crypto.rs',
+        'research/continuity-identity-candidate/src/lib.rs',
+        'research/continuity-identity-candidate/Cargo.toml',
+        'research/continuity-identity-candidate/Cargo.lock']).decode().splitlines()]
     result = {}
     for path in paths:
         data = snapshot(path); name = path.relative_to(ROOT).as_posix()
@@ -67,15 +73,18 @@ def qualify(args):
     application = outside / 'installed'
     publisher_path = args.publisher.resolve(strict=True)
     publisher = read_regular_snapshot(publisher_path, maximum=128 * 1024**2, label='native policy publisher')
+    sdk_authority_path = args.sdk_authority.resolve(strict=True)
+    sdk_authority = read_regular_snapshot(sdk_authority_path, maximum=128 * 1024**2, label='native SDK authority')
     captured = output / (PACKAGE + '-0.0.0-py3-none-any.whl')
     captured.write_bytes(wheel.data)
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':3, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':4, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
-              'publisher_binary_sha256_producer_observation':publisher.sha256}
+              'publisher_binary_sha256_producer_observation':publisher.sha256,
+              'sdk_authority_binary_sha256_producer_observation':sdk_authority.sha256}
 
     def run(command, label):
         with contextlib.chdir(outside):
@@ -115,25 +124,36 @@ def qualify(args):
         interop.write_bytes(snapshot(REFERENCE / 'tests/policy_interop.py').data)
         private = outside / 'private-native-policy'
         execution = run([sys.executable, '-I', '-S', '-B', str(interop), '--publisher', str(publisher_path),
+                         '--sdk-authority', str(sdk_authority_path),
                          '--implementation-root', str(application), '--provider-root', str(provider),
                          '--output', str(private)], 'native-policy')
         observed = parse_strict_json_bytes(execution.stdout, label='native policy publication results')
         require(observed['completed'] is True and observed['native_sha256'] == publisher.sha256
-                and observed['commands'] == 13 and observed['expected_refusals'] == 4
+                and observed['commands'] == 24 and observed['expected_refusals'] == 7
+                and observed['sdk_authority_sha256'] == sdk_authority.sha256
+                and observed['sdk_policy_versions'] == [1,2]
                 and observed['policy_versions'] == [1,2,3] and observed['provider'] == '48.0.1'
                 and observed['independent_implementation'] == str(application / PACKAGE / 'enrollment_exchange.py'),
                 'native policy publication results differ')
         require(read_regular_snapshot(publisher_path, maximum=128 * 1024**2, label='native policy publisher').sha256
                 == publisher.sha256, 'native publisher changed during qualification')
+        require(read_regular_snapshot(sdk_authority_path, maximum=128 * 1024**2, label='native SDK authority').sha256
+                == sdk_authority.sha256, 'native SDK authority changed during qualification')
         public = output / 'native-policy-public'; public.mkdir()
         names = ['COMMANDS.json', 'RESULT.json']
         labels = ('init', 'prepare', 'authority', 'refuse-anchor-fields', 'issue-first', 'retrieve-first', 'retry-first',
                   'refuse-overwrite', 'refuse-retarget', 'issue-witnessed', 'issue-disabled',
                   'refuse-issued-cancel', 'original-after-updates')
+        labels += ('sdk-init', 'sdk-prepare', 'sdk-authority', 'sdk-refuse-version', 'sdk-issue-first',
+                   'sdk-retrieve-first', 'sdk-retry-first', 'sdk-refuse-retarget', 'sdk-issue-second',
+                   'sdk-original-after-updates', 'sdk-refuse-issued-cancel')
         names += [label + suffix for label in labels for suffix in ('.stdout','.stderr')]
         for folder in ('export-first', 'export-retrieved', 'export-retry', 'export-witnessed',
                        'export-disabled', 'export-original-after-updates'):
             names += [folder + '/' + name for name in ('authority.json','policy-pins.json','policy-materials.json')]
+        for folder in ('sdk-export-first','sdk-export-retrieved','sdk-export-retry','sdk-export-second',
+                       'sdk-export-original-after-updates'):
+            names += [folder + '/' + name for name in ('sdk-root','sdk-state','sdk-document','sdk-signature')]
         for name in names:
             destination = public / name; destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(snapshot(private / name).data)
@@ -141,7 +161,7 @@ def qualify(args):
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected protocol-publisher CLI with real OpenSSL verification, explicit test SDK authority/witness pin and SIGKILL recovery; no real host/browser authorization, operational SDK root issuer or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs with real OpenSSL verification, witness test pin and SIGKILL recovery. No fixture SDK signing key. No real host/browser authorization, live consumer activation, authority replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise
@@ -155,6 +175,7 @@ def main():
     parser.add_argument('--wheel', type=Path, required=True)
     parser.add_argument('--provider-root', type=Path, required=True)
     parser.add_argument('--publisher', type=Path, required=True)
+    parser.add_argument('--sdk-authority', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     print(json.dumps(qualify(args), indent=2))

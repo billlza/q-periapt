@@ -1,58 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Local operator tool; authentication/pinning is supplied by the embedding host.
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_continuity_reference_app::policy_publisher::{Publisher, Request, SdkInput};
-use q_periapt_host_store::filesystem::{
-    open_private_file, open_private_parent, publish_private_bytes,
-};
-use serde::Serialize;
+use q_periapt_host_store::filesystem::publish_private_bytes;
 use std::{
-    ffi::OsString,
-    io::Read,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[path = "../operator_io.rs"]
+mod operator_io;
+use operator_io::{export_directory, identifier, print, read};
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = "Usage: q-periapt-policy-publisher <init|prepare|authority|issue|result|cancel> <absolute-db> <base64url-publisher-id> [arguments]\ninit: <sdk-root-file> <sdk-state-file> <sdk-document-file> <sdk-signature-file>\nissue: <base64url-operation-id> <request-json> <existing-empty-private-export-dir>\nresult: <base64url-operation-id> <existing-empty-private-export-dir>\ncancel: <base64url-operation-id>\nAll input files must be private regular files. No account login or clock override.";
 
-fn identifier(value: &OsString) -> Result<[u8; 32]> {
-    let text = value.to_str().ok_or("Identity is not UTF-8")?;
-    let bytes = URL_SAFE_NO_PAD.decode(text)?;
-    if URL_SAFE_NO_PAD.encode(&bytes) != text {
-        return Err("Noncanonical identifier".into());
-    }
-    let result: [u8; 32] = bytes
-        .try_into()
-        .map_err(|_| "Identity must contain 32 bytes")?;
-    if result == [0; 32] {
-        return Err("Identity must be nonzero".into());
-    }
-    Ok(result)
-}
-fn read(path: &Path, maximum: usize) -> Result<Vec<u8>> {
-    let mut file = open_private_file(path, false)?;
-    let before = file.metadata()?;
-    if before.len() == 0 || before.len() > maximum as u64 {
-        return Err("Input file size exceeds bound".into());
-    }
-    let mut bytes = Vec::new();
-    (&mut file)
-        .take((maximum + 1) as u64)
-        .read_to_end(&mut bytes)?;
-    let after = file.metadata()?;
-    if bytes.len() != before.len() as usize
-        || before.len() != after.len()
-        || before.modified()? != after.modified()?
-    {
-        return Err("Input changed while reading".into());
-    }
-    Ok(bytes)
-}
-fn print<T: Serialize>(value: &T) -> Result<()> {
-    println!("{}", serde_json::to_string(value)?);
-    Ok(())
-}
 fn export(owner: &Publisher, operation: [u8; 32], directory: &Path) -> Result<()> {
     export_directory(directory)?;
     let (pins, materials) = owner.export(operation)?;
@@ -71,17 +32,6 @@ fn export(owner: &Publisher, operation: [u8; 32], directory: &Path) -> Result<()
         &serde_json::to_vec(&owner.authority()?)?,
     )?;
     print(&owner.result(operation)?)
-}
-fn export_directory(directory: &Path) -> Result<()> {
-    open_private_parent(&directory.join("policy-pins.json"))?;
-    if let Some(entry) = std::fs::read_dir(directory)?.next() {
-        entry?;
-        return Err(
-            "Export directory must be empty; retain partial exports and select a new directory"
-                .into(),
-        );
-    }
-    Ok(())
 }
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();

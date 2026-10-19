@@ -13,6 +13,8 @@ use std::fmt;
 use zeroize::Zeroize;
 
 mod persistence;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+mod sdk_policy;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub(crate) use persistence::browser_retirement::SigningFilePlan;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -22,6 +24,8 @@ pub(crate) use persistence::retirement::{
     inject as inject_signer_io, IoFault as SignerIoFault, IoStage as SignerIoStage,
 };
 pub use persistence::SigningKeyId;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use sdk_policy::SdkPolicySigningKey;
 
 const CLASSIC_PUBLIC_BYTES: usize = 33;
 const CLASSIC_SIGNATURE_BYTES: usize = 64;

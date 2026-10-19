@@ -35,7 +35,7 @@ fn all_signing_roles_reopen_exact_keys_and_cannot_cross_roles_or_identities() {
             assert!(!disk
                 .windows(PUBLIC_KEY_BYTES)
                 .any(|window| window == public.encode()));
-            for role in [1, 2, 3, 4].into_iter().filter(|r| *r != $role) {
+            for role in [1, 2, 3, 4, 5].into_iter().filter(|r| *r != $role) {
                 assert!(matches!(
                     open(&file, &wrapping, id, role),
                     Err(DurableError::Conflict)

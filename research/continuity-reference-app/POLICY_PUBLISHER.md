@@ -13,7 +13,9 @@ signature implementation. SDK policy trust is supplied independently by the
 host: an expected SDK root, exact trusted SDK state, signed document and signature.
 The tool verifies them with the real SDK before retaining them. An incoming
 distribution bundle cannot establish trust in its own root. This tool does not
-generate an SDK root or replace the host's SDK policy authority.
+generate an SDK root or replace the host's SDK policy authority. The separate
+[SDK policy authority](SDK_AUTHORITY.md) can generate and retain an operator's
+SDK root and export the four inputs through its own recoverable ledger.
 
 The current independent consumer supports SDK schema 1 with `min_nist_level=3`,
 `default_profile="ContextBound"`, `allowed_kems=["ML-KEM-768","X25519"]`,
@@ -125,11 +127,11 @@ or storage upgrade is not yet implemented. Local commit ordering does not provid
 an attacker-resistant rollback witness. The wrapping key and signing file must
 remain protected; no hardware-keystore or cryptographic-erasure claim is made.
 
-SDK root issuance, SDK/policy-authority replacement, host activation/distribution,
+SDK/policy-authority replacement, host activation/distribution,
 actual browser-authorized independent device enrollment, full session CLI and the
 remaining 0.2.0 release requirements remain separate work. The current qualification
-uses explicit test SDK authority and witness pins; neither is a deployed authority
-or a running witness service.
+uses the native SDK authority CLI and a witness test pin. It does not establish
+a deployed consumer trust channel or a running witness service.
 
 ## Checks
 
@@ -139,9 +141,9 @@ publication cuts and pending-expiry/cancellation. Private test directories and
 failed diagnostics are retained. The child dispatcher is counted separately from
 behavioral tests.
 
-`tests/policy_interop.py` runs the actual CLI with independently generated OpenSSL
-SDK test signatures, then checks its native protocol-policy signatures using the
-selected independent implementation. It verifies exact re-export/retry, immutable
+`tests/policy_interop.py` runs both actual operator CLIs. It creates the SDK root
+through the native protected signer, then checks SDK and protocol-policy signatures
+using the selected independent OpenSSL implementation. It verifies exact re-export/retry, immutable
 requests, version progression, required-witness binding, disabled-bootstrap refusal
 and independent pin/material mismatch. Contradictory anchor fields are rejected
 before signing or allocating a version. Installed-wheel qualification is separate
