@@ -1,0 +1,71 @@
+{
+  "head": "c891e32a874d76f14a8e8e6247517282dfefb77d",
+  "run": 39190947340,
+  "source_files": {
+    ".github/workflows/reference-account.yml": "244e98764be814fcdffe4dad3f9f83e87154bb044d5d0be54c6c7b06406b63e0",
+    "research/continuity-reference-app/Cargo.lock": "e54ca831d736d1e5cbec21ea5443f62112b93a06a4fb36e82ef246ef8e3b5616",
+    "research/continuity-reference-app/Cargo.toml": "24bc4b615755f5bb5469545ad261b7bb790c03a7a0fac96b3d9223d8b5c9167d",
+    "research/continuity-reference-app/README.md": "f2dad69447ae05603e03c91c8f2354b39f367cad63bbb4ecc5d77fde6aa8ebfa",
+    "research/continuity-reference-app/src/auth.rs": "b5198d3996f74654e517a81164ec07851c6c55e0f033b5c9cdbb36ea72d566ae",
+    "research/continuity-reference-app/src/auth/tests.rs": "a23e07d50a21dc02b95467999e6550ac345d78824c942b5b68c486f47179fcab",
+    "research/continuity-reference-app/src/error.rs": "8f1ae952c94371b988f2d7c7d3ad9c264411660af1a95fc4c9aae0087b9f1e51",
+    "research/continuity-reference-app/src/http.rs": "6102e43b0d9557a79dc9e3373563b8f758098426a68469a5acbfdf83f09a3f82",
+    "research/continuity-reference-app/src/main.rs": "26fa32cd4f4fc15b39aea05f225133921e57d4a056a8b06879036b7f58ba4a27",
+    "research/continuity-reference-app/src/store.rs": "b85c2d2f128fc92b02bf0db52dbb275699f5ff9db4b781ecfbd8c3cb864be13c",
+    "research/continuity-reference-app/web/app.css": "91c35357b764edbb713b508541d5c4522219a37697829d5489c948b475da2196",
+    "research/continuity-reference-app/web/app.js": "37a618798f1cca3a05be05a7f2c40da0d54ffb8bb52d05c7932e592cc815b755",
+    "research/continuity-reference-app/web/index.html": "18bd2f8f9f90fa7c708df4c4512aaae3dfa872ba56889cc1c659d003163ca2b4"
+  },
+  "readbacks": [
+    {
+      "platform": "ubuntu-24.04",
+      "head": "c891e32a874d76f14a8e8e6247517282dfefb77d",
+      "run": 39190947340,
+      "job": 117863397550,
+      "artifact": 12160196998,
+      "artifact_sha256": "sha256:132a52b9e54c935e7354f1b99ef184ed6c0497f80d19ecaa348e17046774f278",
+      "artifact_bytes": 22520,
+      "members": 14,
+      "test_names": [
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "binary_sha256_producer_observation": "2cf7ff9a2db19239e2b6050c860eec657f6d3cb7fe0c08206de6beaf7c740894",
+      "scope": "Terminal fmt, eight software-authenticator/storage/HTTP tests, strict all-target clippy and release build. No executable was exported or executed here; no hardware, deployed HTTPS or device-enrollment qualification."
+    },
+    {
+      "platform": "macos-15",
+      "head": "c891e32a874d76f14a8e8e6247517282dfefb77d",
+      "run": 39190947340,
+      "job": 117863397450,
+      "artifact": 12159564684,
+      "artifact_sha256": "sha256:13bbee331760a62d0ab77333890127af7ea70d370ab06a70baf52c6c0cec7f21",
+      "artifact_bytes": 22518,
+      "members": 14,
+      "test_names": [
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "binary_sha256_producer_observation": "f8504df79f5961625ae7a615745ff82a7e9212c23d442d9455d2fa466f964216",
+      "scope": "Terminal fmt, eight software-authenticator/storage/HTTP tests, strict all-target clippy and release build. No executable was exported or executed here; no hardware, deployed HTTPS or device-enrollment qualification."
+    }
+  ],
+  "capture": {
+    "bytes": 139432,
+    "members": 55,
+    "sha256": "7d26abd62e313755edb19f3a3ea8892059e276b24160d18b13631e469dcb7185"
+  },
+  "scope": "Exact terminal hosted outputs and original artifact digests. Eight tests per supported host use a software authenticator. This is not device enrollment, hardware authentication, deployed service, installed application or release qualification. The source snapshot contains the app and workflow; SDK dependency sources remain identified by the exact Git commit. Build binary hashes are producer observations; executable bytes were not exported."
+}

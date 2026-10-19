@@ -17,6 +17,10 @@ second Passkey, logout and reopening the original account database. **Device
 registration approval and Continuity issuance are not connected yet.** A login
 session is not a device credential or permission to send Continuity traffic.
 
+The next integration follows the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
+It binds original requests, explicit approval, complete membership and durable
+response recovery; the document distinguishes requirements from implemented behavior.
+
 ## Run locally
 
 Use the pinned Rust 1.98.1 toolchain. The nested Cargo workspace and its committed
