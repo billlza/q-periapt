@@ -7,7 +7,8 @@ package binding for the historical codec. The old archived source paths remain
 unchanged. A standard Flit wheel now carries only the reference implementation,
 provider loader, licenses and package metadata.
 
-A hash-pinned build backend produced two identical prototype wheels. Standard
+A hash-pinned build backend produced two identical prototype wheels under the
+recorded `SOURCE_DATE_EPOCH`. Standard
 pip installed the reference and a fresh pinned provider outside the checkout.
 The isolated consumer admitted all 47 modules from that installation, with no
 source checkout in its import path, no site loading or bytecode, and a private

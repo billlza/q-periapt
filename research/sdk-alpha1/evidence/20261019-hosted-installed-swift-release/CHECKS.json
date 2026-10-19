@@ -1,0 +1,39 @@
+{
+  "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+  "run": 39129232908,
+  "captures": {
+    "swift-release": {
+      "bytes": 26306225,
+      "members": 8309,
+      "sha256": "77348051f0a831b75236a1a9f5955cc2bab6fe012ba72a9b88473fb5b2c353b5",
+      "artifact": 12156822939,
+      "artifact_bytes": 152932590,
+      "artifact_digest": "sha256:538fad6fb90b7aac6cffe98cf99aa5b4d6b5d5eef060aa2102706f7cc7aacb85",
+      "contracts": 14,
+      "package_files": 294
+    }
+  },
+  "scope": "Exact shipped foreign package bytes and original public client/server/recovery,account delivery/TLS/witness/unknown outcome and root lifecycle readers replayed. Same-host shared native engine; original execution and private authentication remain producer observations. No rerun of uploaded binaries, independent cryptographic signature implementation, physical-device test, full remaining foreign contract replay or six-partition release admission.",
+  "public_reader_sources": 43,
+  "source_files_verified_against_Git_per_partition": 1132,
+  "original_artifacts": "Full terminal ZIPs remain locally retained with GitHub IDs/digests. These captures contain selected public records, actual consumer packages, original readers and relevant trace outputs; not complete terminal ZIPs or all producer checks.",
+  "full_run": {
+    "run": 39129232908,
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "status": "completed",
+    "conclusion": "success",
+    "successful_jobs": 55
+  },
+  "receipt_coverage": {
+    "capture": {
+      "bytes": 6094829,
+      "members": 51,
+      "sha256": "1603c50cb06b5a3d817f004b978cf95f7ad7fb9574b3c77e483a6ab5a66e7925"
+    },
+    "artifact": 12157012294,
+    "artifact_digest": "sha256:0ab44e4e399b6a0713e0db861f3fe76b8f59049e76903be556a80e53a53f9953",
+    "exact_six_partition_join_replayed": true,
+    "reader_modules": 14,
+    "scope": "Original same-source six-partition receipt join independently replayed from exact downloaded manifests and1132Git-verified source identities. This verifies receipt coverage, not every retained scenario transcript. OldAndroid archives still omit50required public files perprofile; this join does not repair or waive that full-public-readback gap. No device, independent implementation orrelease admission."
+  }
+}
