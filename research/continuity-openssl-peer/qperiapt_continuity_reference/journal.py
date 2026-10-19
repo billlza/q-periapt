@@ -63,6 +63,7 @@ class Snapshot:
 class Journal:
     image_overhead = 128
     max_payload = MAX_STATE
+    reserved_creation = False
 
     def __init__(self, path: Path, scope: Scope, wrapping_key: bytes, validate, observer=None):
         require(type(wrapping_key) is bytes and len(wrapping_key) == 32, "wrapping key size")
@@ -83,6 +84,8 @@ class Journal:
         try:
             if any(owner._directory.read(name) is not None for name in ("head", "intent", "authority")):
                 raise Conflict("existing state is not new creation")
+            if owner.reserved_creation and owner._directory.read_initial_intent() is not None:
+                raise Conflict("existing initial intent requires original creation recovery")
             snapshot = owner._commit(0, bytes(32), initial)
             return owner, snapshot
         except BaseException:
@@ -152,6 +155,16 @@ class Journal:
         if creation and head is not None and head.revision != 1:
             raise Conflict("creation reader cannot admit an advanced store")
         pending = directory.read("intent")
+        if pending is None and head is None and creation and self.reserved_creation:
+            pending = directory.read_initial_intent()
+            if pending is not None:
+                revision, prior, _target, result = self._decode_intent(pending)
+                if revision != 0 or prior != bytes(32) or result.revision != 1:
+                    raise Conflict("not the original creation transition")
+                # Authenticate the complete original transaction before making
+                # it formal. Reuse its reserved slot and exact bytes; do not
+                # generate a new image or inspect other staging files.
+                directory.publish("intent", pending, fixed_slot="initial-intent")
         if pending is None:
             if head is None:
                 raise MissingState("no original creation intent")
@@ -184,7 +197,8 @@ class Journal:
         # Ensure both staged publications fit before making an irrevocable
         # exact-target intent. Recoveries still retain all failed staging files.
         directory.quota(len(intent) + len(target), 2)
-        directory.publish("intent", intent)
+        directory.publish("intent", intent,
+                          fixed_slot="initial-intent" if revision == 0 and self.reserved_creation else None)
         directory.publish("head", target)
         directory.remove_intent()
         return self._decode(target)

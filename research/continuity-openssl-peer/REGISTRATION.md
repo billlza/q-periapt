@@ -41,9 +41,19 @@ values independently before accepting a device's proof of possession.
 
 `Registration.open` only opens existing original state. The explicit
 `recover_initial=True` option reconciles a revision-one initial creation intent;
-it cannot open advanced registration as first use. A prepared-but-unpublished
+it cannot open advanced registration as first use. New device creation reserves
+`.stage-initial-intent` for the original sealed transaction. If the process stops
+after that complete record is synced but before its formal rename, the creation
+reader authenticates its MAC, expected scope, revision-zero predecessor and
+revision-one target before publishing exactly those bytes. Partial or corrupted
+records fail without replacement. No directory search selects an older random
+staging file, and an ordinary active reader never uses this creation slot.
+Session/configuration journals keep their existing creation contract. This is
+process-recovery evidence, not a newly established power-loss guarantee.
+
+A prepared-but-unpublished
 child can complete its original creation. An Active registration never recreates
-missing child state. No private staging orphan is selected as a key or deleted
+missing child state. No arbitrary staging orphan is selected as a key or deleted
 automatically. Expired inputs cannot authorize a new child creation.
 
 The original bootstrap inputs are retained inside the authenticated encrypted

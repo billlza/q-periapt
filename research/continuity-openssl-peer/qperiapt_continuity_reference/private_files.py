@@ -76,8 +76,15 @@ class PrivateDirectory:
         require(self.fd is not None, "closed store directory")
 
     def read(self, name: str) -> bytes | None:
-        require(self.fd is not None, "closed store directory")
         require(name in ("head", "intent", "authority"), "unknown formal record")
+        return self._read(name)
+
+    def read_initial_intent(self) -> bytes | None:
+        # One reserved original-creation slot, never a directory/orphan search.
+        return self._read(".stage-initial-intent")
+
+    def _read(self, name: str) -> bytes | None:
+        require(self.fd is not None, "closed store directory")
         try:
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=self.fd)
         except FileNotFoundError:
@@ -124,7 +131,8 @@ class PrivateDirectory:
             self._publish_fixed(name, ".stage-head", value)
             return
         if fixed_slot is not None:
-            require(name == "authority" and fixed_slot in tuple("authority-" + str(i) for i in range(6)),
+            require((name == "authority" and fixed_slot in tuple("authority-" + str(i) for i in range(6)))
+                    or (name == "intent" and fixed_slot == "initial-intent"),
                     "unknown reserved publication slot")
             self._publish_fixed(name, ".stage-" + fixed_slot, value)
             return

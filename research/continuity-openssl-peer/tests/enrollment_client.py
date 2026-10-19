@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import enrollment_exchange as fixture
 from qperiapt_continuity_reference import enrollment_client as implementation
 from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
-from qperiapt_continuity_reference.journal import MissingState
+from qperiapt_continuity_reference.journal import Journal, MissingState, Conflict
+from qperiapt_continuity_reference.registration import Registration
 from cryptography.exceptions import InvalidTag
 
 wire = fixture.wire
@@ -32,7 +33,7 @@ class ClientChecks(unittest.TestCase):
         fixture.ExchangeChecks.setUp(self)
         self.client_path = fixture.args.private_output / (self._testMethodName + '.client')
         self.client_path.mkdir(mode=0o700)
-        self.client = None
+        self.client = None; self.cut_count = 0
 
     def tearDown(self):
         if self.client is not None: self.client.close()
@@ -53,8 +54,9 @@ class ClientChecks(unittest.TestCase):
         return {str(p.relative_to(self.client_path)):hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in self.client_path.rglob('*') if p.is_file()}
 
-    def kill_at(self, stage, occurrence=1, *, request=False):
-        marker = fixture.args.private_output / (self._testMethodName + '.cut-' + stage.replace(':','-') + str(occurrence))
+    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False):
+        self.cut_count += 1
+        marker = fixture.args.private_output / (self._testMethodName + '.cut-' + stage.replace(':','-') + str(self.cut_count))
         pid = os.fork()
         if pid == 0:
             count = 0
@@ -70,12 +72,18 @@ class ClientChecks(unittest.TestCase):
                 if intent.exists():
                     raw = intent.read_bytes(); target = raw[52:52+int.from_bytes(raw[48:52], 'big')]
                 elif head.exists(): target = head.read_bytes()
+                elif observed == 'client-device:registration-store:stage-synced:intent':
+                    # This is a test observation of the write being killed, not
+                    # a production rule for discovering arbitrary staging files.
+                    candidates = list(directory.glob('.stage-*'))
+                    if len(candidates) != 1: os._exit(73)
+                    raw = candidates[0].read_bytes(); target = raw[52:52+int.from_bytes(raw[48:52], 'big')]
                 with os.fdopen(os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as out:
                     json.dump({'stage':observed, 'target':None if target is None else hashlib.sha256(target).hexdigest()}, out)
                     out.flush(); os.fsync(out.fileno())
                 os.kill(os.getpid(), signal.SIGKILL)
             try:
-                child = self.reopen(cut) if request else self.begin(cut)
+                child = self.reopen(cut) if request or open_existing else self.begin(cut)
                 if request: child.request(self.now)
                 child.close()
             except BaseException:
@@ -147,12 +155,82 @@ class ClientChecks(unittest.TestCase):
         self.client.close(); self.client = self.reopen()
         self.assertEqual(self.client.request(self.now), proof)
 
-    def test_unpublished_first_device_intent_is_preserved_without_new_identity(self):
+    def test_synced_initial_device_intent_recovers_exact_original_identity(self):
+        marker = self.kill_at('client-device:registration-store:stage-synced:intent')
+        self.client = self.reopen()
+        self.assertEqual(hashlib.sha256((self.client_path / 'registration/head').read_bytes()).hexdigest(), marker['target'])
+        proof = self.client.request(self.now)
+        self.client.close(); self.client = self.reopen()
+        self.assertEqual(self.client.request(self.now), proof)
+
+    def test_corrupt_reserved_creation_is_rejected_before_publication(self):
         self.kill_at('client-device:registration-store:stage-synced:intent')
+        path = self.client_path / 'registration/.stage-initial-intent'
+        original = path.read_bytes()
+        retained = fixture.args.private_output / (self._testMethodName + '.original-intent')
+        with os.fdopen(os.open(retained, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as out: out.write(original)
+        path.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
         before = self.state()
-        self.assertTrue(any('/.stage-' in name for name in before))
+        with self.assertRaisesRegex(ValueError, 'write-intent authentication'): self.reopen()
+        self.assertEqual(self.state(), before)
+
+    def test_truncated_reserved_creation_is_retained_without_new_key(self):
+        self.kill_at('client-device:registration-store:stage-synced:intent')
+        path = self.client_path / 'registration/.stage-initial-intent'
+        retained = fixture.args.private_output / (self._testMethodName + '.original-intent')
+        original = path.read_bytes(); path.rename(retained)
+        with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as out: out.write(original[:64])
+        before = self.state()
+        with self.assertRaisesRegex(ValueError, 'write-intent capacity'): self.reopen()
+        self.assertEqual(self.state(), before)
+
+    def test_arbitrary_authenticated_orphan_is_not_selected(self):
+        self.kill_at('client-device:registration-store:stage-synced:intent')
+        path = self.client_path / 'registration/.stage-initial-intent'
+        path.rename(path.with_name('.stage-unknown-original'))
+        before = self.state()
         with self.assertRaises(MissingState): self.reopen()
         self.assertEqual(self.state(), before)
+
+    def registration_id(self):
+        config = Journal.open(self.client_path / 'configuration', implementation.scope(self.local_id),
+                              self.key, implementation.Configuration.read)
+        try: return implementation.Configuration.read(config.read().payload).registration
+        finally: config.close()
+
+    def test_reserved_creation_cannot_change_scope_or_wrapping_key(self):
+        self.kill_at('client-device:registration-store:stage-synced:intent')
+        original_id = self.registration_id(); before = self.state()
+        for identity, key in ((original_id, bytes(32)), (bytes([9])*32, self.key)):
+            with self.assertRaisesRegex(ValueError, 'write-intent authentication'):
+                Registration.open(self.client_path / 'registration', identity, key, self.offer.intent, recover_initial=True)
+            self.assertEqual(self.state(), before)
+        with self.assertRaisesRegex(Conflict, 'initial intent requires original creation recovery'):
+            Registration.provision(self.client_path / 'registration', original_id, self.key, self.offer.intent)
+        self.assertEqual(self.state(), before)
+        self.client = self.reopen()
+
+    def test_ready_owner_and_creation_reader_reject_reserved_advanced_transition(self):
+        self.client = self.begin(); self.client.close()
+        self.kill_at('client-device:registration-store:committed:intent', request=True)
+        directory = self.client_path / 'registration'
+        (directory / 'head').rename(fixture.args.private_output / (self._testMethodName + '.original-head'))
+        (directory / 'intent').rename(directory / '.stage-initial-intent')
+        original_id = self.registration_id(); before = self.state()
+        with self.assertRaises(MissingState): self.reopen()
+        with self.assertRaisesRegex(Conflict, 'not the original creation transition'):
+            Registration.open(directory, original_id, self.key, self.offer.intent, recover_initial=True)
+        self.assertEqual(self.state(), before)
+
+    def test_repeated_creation_recovery_kills_keep_one_exact_reserved_target(self):
+        original = self.kill_at('client-device:registration-store:stage-synced:intent')
+        before = self.state()
+        for _ in range(3):
+            current = self.kill_at('client-device:registration-store:stage-synced:intent', open_existing=True)
+            self.assertEqual(current['target'], original['target'])
+            self.assertEqual(self.state(), before)
+        self.client = self.reopen()
+        self.assertEqual(hashlib.sha256((self.client_path / 'registration/head').read_bytes()).hexdigest(), original['target'])
 
     def test_configuration_without_original_device_intent_stays_explicit_failure(self):
         self.kill_at('client-config:committed:removal')

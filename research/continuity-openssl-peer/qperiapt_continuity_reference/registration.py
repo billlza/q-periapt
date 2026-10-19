@@ -11,6 +11,12 @@ from .registration_state import Admission, Image, PHASES, seed_from, signer
 from .wire import SigningKey, require
 
 
+class RegistrationJournal(Journal):
+    # Opt in only for original device creation. Session/configuration journals
+    # retain their existing publication/discovery contract.
+    reserved_creation = True
+
+
 class Registration:
     def __init__(self, journal, key, intent, observer):
         self._journal, self._key, self._intent, self._observer = journal, key, intent, observer
@@ -34,12 +40,12 @@ class Registration:
     def provision(cls, path, registration_id, key, intent, *, observer=None):
         # First use is explicit. A missing/failed open never selects this method.
         value = Image(os.urandom(32), seed_from(SigningKey()))
-        journal = Journal.create(path, intent.scope(registration_id), key, value.encode(intent), cls._validator(intent), cls._store_observer(observer))
+        journal = RegistrationJournal.create(path, intent.scope(registration_id), key, value.encode(intent), cls._validator(intent), cls._store_observer(observer))
         return cls(journal, key, intent, observer)
 
     @classmethod
     def open(cls, path, registration_id, key, intent, *, recover_initial=False, observer=None):
-        journal = Journal.open(path, intent.scope(registration_id), key, cls._validator(intent), creation=recover_initial, observer=cls._store_observer(observer))
+        journal = RegistrationJournal.open(path, intent.scope(registration_id), key, cls._validator(intent), creation=recover_initial, observer=cls._store_observer(observer))
         return cls(journal, key, intent, observer)
 
     def _alive(self):

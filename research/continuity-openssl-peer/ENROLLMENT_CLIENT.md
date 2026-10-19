@@ -85,22 +85,29 @@ It reopens the configuration and original device, then completes a pending
 configuration readiness commit. A missing initial configuration head can be
 recovered only from its authenticated original revision-zero intent. A missing
 device head can be recovered from the original creation intent only while the
-configuration is still preparing. An established client cannot switch back to
-first use.
+configuration is still preparing. New device creation also has one fixed
+`.stage-initial-intent` slot: a complete authenticated initial transaction there
+can finish its original publication after a process interruption. Its scope,
+MAC, revision-zero predecessor and revision-one target are checked before any
+publication. Partial/corrupted contents and other staging filenames are never
+selected. An established client cannot switch back to first use.
 
-Real process-kill tests cover original device-intent publication, configuration
-readiness-intent publication and request commitment. They compare the recovered
+Real process-kill tests cover synced initial device intent before rename,
+formal device-intent publication, configuration readiness-intent publication and
+request commitment. Repeated kills during initial publication recovery retain
+one exact slot without allocating another orphan. Tests compare the recovered
 encrypted device image with the exact target retained before the kill, then
 check the original signed request and acceptance across reopen.
 
 There is an explicit unresolved first-use boundary: if the process stops before
-the original device creation intent is formally published, no discoverable
-original device journal exists. `open` fails with `MissingState`; it does not
-promote an arbitrary staging file or generate a replacement key. Likewise, a
-configuration committed before device creation cannot itself recreate a device.
-The tests retain these failed directories. No device proof has been exported at
-these cuts, but this client does not yet provide an authorized abandonment or
-restart transition for them. Do not erase them to make recovery appear to pass.
+any complete original device creation record is available, configuration alone
+cannot recreate that device. Missing records fail with `MissingState`; truncated
+or invalid records fail validation. Older random-name staging files are retained
+but cannot be discovered through this new reserved-slot contract. No device proof
+has been exported at these cuts, but this client does not yet provide an
+authorized abandonment or restart transition for them. Do not erase them to
+make recovery appear to pass. Existing formally published journals keep the same
+format and reopen normally; no silent migration of incomplete old attempts occurs.
 
 ## Verification
 
