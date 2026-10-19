@@ -36,21 +36,19 @@ pub(super) async fn bounded<T>(
     operation: impl Future<Output = io::Result<T>>,
 ) -> io::Result<T> {
     check(deadline, cancel)?;
-    let result = tokio::select! {
+    tokio::select! {
         biased;
         _=cancelled(cancel)=>Err(io::ErrorKind::Interrupted.into()),
         value=tokio::time::timeout_at(tokio::time::Instant::from_std(deadline),operation)=>
             value.map_err(|_|io::Error::from(io::ErrorKind::TimedOut))?,
-    };
-    check(deadline, cancel)?;
-    result
+    }
 }
 pub(super) async fn read(
     stream: &mut TcpStream,
     deadline: Instant,
     cancel: &sdk::Cancellation,
 ) -> io::Result<Vec<u8>> {
-    bounded(deadline, cancel, async {
+    let frame = bounded(deadline, cancel, async {
         let mut header = [0; 4];
         stream.read_exact(&mut header).await?;
         let length = u32::from_be_bytes(header) as usize;
@@ -59,7 +57,10 @@ pub(super) async fn read(
         stream.read_exact(&mut frame).await?;
         Ok(frame)
     })
-    .await
+    .await?;
+    // Read bytes are still local: cancellation/expiry must prevent owner admission.
+    check(deadline, cancel)?;
+    Ok(frame)
 }
 pub(super) async fn write(
     stream: &mut TcpStream,
@@ -68,6 +69,9 @@ pub(super) async fn write(
     cancel: &sdk::Cancellation,
 ) -> io::Result<()> {
     size(frame.len())?;
+    // Once a complete write succeeds, those bytes have left our control. Do not
+    // relabel that observation as failure if shutdown arrives before accounting.
+    // Cancellation before/during I/O still interrupts it; this proves no peer ACK.
     bounded(deadline, cancel, async {
         stream
             .write_all(&(frame.len() as u32).to_be_bytes())

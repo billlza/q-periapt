@@ -19,6 +19,31 @@ use tokio::{
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const FRAME: &[u8] = b"QPCXCH01\x01x";
 
+#[tokio::test]
+async fn completed_socket_write_remains_observable_when_shutdown_arrives() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let mut sender = TcpStream::connect(address).await?;
+    let (mut receiver, _) = listener.accept().await?;
+    let stop = sdk::Cancellation::default();
+    let result = super::framing::bounded(Instant::now() + Duration::from_secs(2), &stop, async {
+        sender.write_all(FRAME).await?;
+        // The peer can trigger shutdown after seeing the complete bytes,
+        // before the server resumes its response-accounting continuation.
+        stop.cancel();
+        Ok(())
+    })
+    .await;
+    let mut received = vec![0; FRAME.len()];
+    tokio::time::timeout(Duration::from_secs(1), receiver.read_exact(&mut received)).await??;
+    assert_eq!(received, FRAME);
+    assert!(
+        result.is_ok(),
+        "completed I/O was relabelled as cancellation: {result:?}"
+    );
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn incomplete_connections_do_not_hold_all_read_slots() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
