@@ -1,0 +1,34 @@
+{
+  "source_commit": "85a18e75d7605d217e3bb0dcffcdb922b032b6e8",
+  "capture": {
+    "file": "capture.tar.gz",
+    "bytes": 239624,
+    "members": 137,
+    "sha256": "a40a60e430ff52655a9db3d4b2ff26d899048d4779b9abffdb155f0b804c9e66"
+  },
+  "native_binary_sha256_producer_observation": "78cb06f2f80b619fecc0f020a2fac80f6ae741c8d1e70e8587a6b2d53c795211",
+  "local_checks": {
+    "rust_debug_entries": 34,
+    "rust_release_entries": 34,
+    "rust_behavioral_tests": 32,
+    "rust_child_dispatchers": 2,
+    "publisher_process_kill_cuts": 8,
+    "strict_clippy": true,
+    "fmt": true,
+    "actionlint": true,
+    "installed_client_tests": 16,
+    "installed_adapter_tests": 8,
+    "cli_commands": 13,
+    "expected_cli_refusals": 4,
+    "public_signature_readback_versions": [
+      1,
+      2,
+      3
+    ],
+    "source_input_files": 112,
+    "wheel_modules": 50,
+    "wheel_sha256": "a6f176979eba169147ae9fb87f832b90f8950b09fb8cbc71e04ca1ea929c676f"
+  },
+  "retained_state_regression": "Old CLI accepted extra witness fields on local_only. Fixed CLI refuses a fresh operation on the same retained database; original issued version4 and all original public exports remain byte-identical. No state recreation or clock override.",
+  "scope": "Native protected protocol-policy publisher and installed independent verification, with explicit test SDK authority/witness pin. No operational SDK root issuer, real host/device authorization, consumer activation, power-loss recovery, secure erasure, PCS or full lifecycle/release admission. Private fixture state and original failed binary remain outside this public capture."
+}
