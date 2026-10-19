@@ -220,11 +220,34 @@ Required fault and authorization observations include:
   evidence and fail explicitly. Process kill evidence is not a claim about
   hardware power-loss durability.
 
+Schema 4 additionally retains explicit same-key credential extensions in a
+bounded table (512 results per database), keyed by account and caller-retained
+request identity. Every request selects the original enrollment, exact prior
+issuance, current roster predecessor and finite target expiry. A fresh extension
+requires current membership of that exact prior certificate; historical signed
+issuance authenticates an expired predecessor without treating it as live
+permission. The current roster may have a disjoint validity interval, so the
+historical verifier uses the predecessor issuance's own signed roster. The
+account's current authoritative member set is checked separately.
+
+The root's existing credential-extension primitive preserves the complete device
+key, generation, family and validity start. The host replaces the member and
+signed roster in the same immediate two-phase transaction as the exact response.
+No old operation is rewritten. The new schema is enabled explicitly; old readers
+refuse it. Exact retries return retained history even after expiry or suspension;
+they do not grant current use. This operation does not issue G, alter protocol
+policy or update a client journal. Native and independent preinstallation
+adoption and the browser control remain separate implementation work.
+
 The local Rust tests currently cover exact request binding, two-device roster
 issuance, conflicting predecessors, original-key reapproval, suspension,
 original-key loss, explicit schema upgrades and fourteen actual process kills
-across six commit/provisioning
-flows. The tests use software host authentication and native SDK request/signing
+across six original commit/provisioning flows. Credential extension adds four
+SIGKILL cuts around schema-4 admission and atomic certificate/roster/result
+commit. Its HTTP check loses a response body and reopens the same server state.
+An explicit historical-signature fixture checks an expired credential with a
+disjoint current roster; it is not an elapsed-time production experiment.
+The tests use software host authentication and native SDK request/signing
 owners. They do not yet cover installed clients, enrollment over the actual
 network, deployed host authorization, device revocation/replacement, injected
 filesystem synchronization failures or hardware power loss. Real login and the

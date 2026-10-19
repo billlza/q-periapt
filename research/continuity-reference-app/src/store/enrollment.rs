@@ -6,6 +6,7 @@ use q_periapt_continuity_identity_candidate as sdk;
 use redb::{ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+mod extension;
 mod operations;
 mod reapproval;
 mod root;
@@ -14,6 +15,7 @@ const OPERATIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollme
 const SIGNERS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_signers");
 const REQUESTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_requests");
 const REAPPROVALS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_reapprovals");
+const EXTENSIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_extensions");
 const MAX_OPERATIONS: u64 = 512;
 const MAX_RECORD: usize = 128 * 1024;
 const MAX_ROOT: usize = 1024 * 1024;
@@ -73,7 +75,7 @@ enum Phase {
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
     config: &redb::ReadOnlyTable<&str, &str>,
-) -> Result<(Option<[u8; 32]>, bool), Error> {
+) -> Result<(Option<[u8; 32]>, bool, bool), Error> {
     let schema = config
         .get("schema")
         .map_err(db_error)?
@@ -85,7 +87,8 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let reapproval = schema.value() == "3";
+    let extensions = schema.value() == "4";
+    let reapproval = matches!(schema.value(), "3" | "4");
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -93,7 +96,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" => {
+        "2" | "3" | "4" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -105,6 +108,9 @@ pub(super) fn admit_schema(
             ]);
             if reapproval {
                 expected.push(REAPPROVALS.name());
+            }
+            if extensions {
+                expected.push(EXTENSIONS.name());
             }
             let saved = config
                 .get("enrollment_family")
@@ -135,7 +141,7 @@ pub(super) fn admit_schema(
     {
         return Err(Error::Internal);
     }
-    Ok((family, reapproval))
+    Ok((family, reapproval, extensions))
 }
 
 impl Store {

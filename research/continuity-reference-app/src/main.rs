@@ -14,7 +14,7 @@ use webauthn_rs::prelude::*;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().collect();
     if args.len() < 4 || args.len() > 5 {
-        return Err("Usage: q-periapt-continuity-reference-app <init|serve|enable-enrollment|enable-reapproval> <absolute-database-path> <http://localhost:port> [base64url-policy-family]".into());
+        return Err("Usage: q-periapt-continuity-reference-app <init|serve|enable-enrollment|enable-reapproval|enable-credential-extension> <absolute-database-path> <http://localhost:port> [base64url-policy-family]".into());
     }
     let command = args[1].to_str().ok_or("Invalid command")?;
     if args.len() != if command == "enable-enrollment" { 5 } else { 4 } {
@@ -82,9 +82,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             store.enable_enrollment_reapproval()?;
             println!("Reapproval schema enabled; original enrollment decisions retained.");
         }
+        "enable-credential-extension" => {
+            let mut store = store::Store::open(&path, &canonical_origin)?;
+            store.enable_enrollment_extensions()?;
+            println!("Credential extension schema enabled; original records retained.");
+        }
         _ => {
             return Err(
-                "Command must be init, serve, enable-enrollment or enable-reapproval; opening never creates a missing database".into(),
+                "Command must be init, serve, enable-enrollment, enable-reapproval or enable-credential-extension; opening never creates a missing database".into(),
             )
         }
     }

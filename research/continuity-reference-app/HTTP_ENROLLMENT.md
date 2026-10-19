@@ -35,13 +35,30 @@ a browser adapter must not round them through JavaScript `Number`.
 | POST `/status` | `operation` | Invited, Approved, Issued, Closed or Reapproved |
 | POST `/cancel` | `operation` | 204 after explicitly closing an unissued operation |
 | POST `/reapprove` | `previous`, `request_id`, `predecessor`, `request` | Original approved successor, preserving the device intent and proof |
+| POST `/extend-credential` | `request_id`, `enrollment`, `previous_extension`, `predecessor`, `valid_until` | Exact committed same-key certificate/roster extension JSON bytes |
 
 `predecessor` must be present: null for an explicitly selected empty roster,
 otherwise the independently selected
 current `{version, digest}` checkpoint. All endpoints use the existing service
 authorization and transaction implementation. The adapter does not create roots
 on reads, enable schemas, choose correlations, advance clocks or re-sign an
-issued result. The existing explicit schema-2/3 upgrades are still required.
+issued result. The existing explicit schema-2/3 upgrades are still required;
+credential extension additionally requires the explicit schema-4 upgrade.
+
+For `/extend-credential`, `enrollment` selects the original issued operation.
+`previous_extension` must be present: null selects its original issuance;
+otherwise it identifies an exact prior extension from that same account and
+enrollment. `predecessor` is a non-null current roster checkpoint, and
+`valid_until` is the explicitly approved finite expiry. Keep every field fixed
+on retry. The account login authorizes this operation; an old possession proof
+alone does not. Current member, root suspension and checkpoint checks precede
+new issuance. Original enrollment results are never rewritten.
+
+The new certificate and roster are committed together before their exact response
+is released. Retrying after a socket disconnect or fresh login returns those
+bytes, including after later roster changes. Obtain current root/roster separately
+before consumer admission. This endpoint supplies no G grant, client transition
+or policy extension. Its browser control and full client adoption remain open.
 
 ## Recovery and authority
 

@@ -96,6 +96,41 @@ pub struct IssuedEnrollment {
     pub checkpoint: Checkpoint,
 }
 
+/// Explicit host approval for a same-key validity extension. Retain this exact
+/// request before submission. It is not a device possession proof or a G grant.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialExtensionRequest {
+    pub request_id: [u8; 32],
+    pub enrollment: [u8; 32],
+    /// None selects the original issued enrollment; otherwise select an exact
+    /// extension request ID from this same account and original enrollment.
+    #[serde(deserialize_with = "selected_extension")]
+    pub previous_extension: Option<[u8; 32]>,
+    pub predecessor: Checkpoint,
+    pub valid_until: u64,
+}
+
+fn selected_extension<'de, D: serde::Deserializer<'de>>(
+    value: D,
+) -> Result<Option<[u8; 32]>, D::Error> {
+    Option::<[u8; 32]>::deserialize(value)
+}
+
+/// Exact committed certificate/roster result. Independent current root, roster
+/// and policy verification still belongs to the consumer.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct IssuedCredentialExtension {
+    pub request: CredentialExtensionRequest,
+    pub root_revision: u64,
+    #[serde(with = "wire")]
+    pub certificate: Vec<u8>,
+    #[serde(with = "wire")]
+    pub roster: Vec<u8>,
+    pub checkpoint: Checkpoint,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "state", deny_unknown_fields)]
 pub enum EnrollmentStatus {

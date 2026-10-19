@@ -10,7 +10,7 @@ use axum::{
     Json, Router,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use q_periapt_continuity_reference_app::enrollment::Checkpoint;
+use q_periapt_continuity_reference_app::enrollment::{Checkpoint, CredentialExtensionRequest};
 use serde::Deserialize;
 
 pub(super) fn routes() -> Router<Shared> {
@@ -24,6 +24,7 @@ pub(super) fn routes() -> Router<Shared> {
         .route("/api/enrollment/status", post(status))
         .route("/api/enrollment/cancel", post(cancel))
         .route("/api/enrollment/reapprove", post(reapprove))
+        .route("/api/enrollment/extend-credential", post(extend_credential))
 }
 
 #[derive(Deserialize)]
@@ -147,6 +148,18 @@ async fn issue(
         .await?;
     // Return the exact durably committed response, including after an unknown
     // outcome. Parsing and serializing it here would weaken byte-exact recovery.
+    Ok(([(header::CONTENT_TYPE, "application/json")], original).into_response())
+}
+
+async fn extend_credential(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<CredentialExtensionRequest>,
+) -> Result<Response, Error> {
+    let token = session(&headers)?;
+    let original = state
+        .call(move |s| s.extend_enrollment_credential(&token, &request))
+        .await?;
     Ok(([(header::CONTENT_TYPE, "application/json")], original).into_response())
 }
 async fn status(

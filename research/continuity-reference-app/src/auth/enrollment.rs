@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::Service;
 use crate::{
-    enrollment::{Checkpoint, EnrollmentStatus, Invitation, RootInfo},
+    enrollment::{Checkpoint, CredentialExtensionRequest, EnrollmentStatus, Invitation, RootInfo},
     error::Error,
 };
 
 impl Service {
+    pub fn extend_enrollment_credential(
+        &mut self,
+        token: &str,
+        request: &CredentialExtensionRequest,
+    ) -> Result<Vec<u8>, Error> {
+        let account = self.authenticated(token)?;
+        let response = self.store.extend_enrollment_credential(&account, request)?;
+        self.authenticated(token)?;
+        Ok(response)
+    }
     pub fn reapprove_enrollment(
         &mut self,
         token: &str,

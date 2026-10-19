@@ -91,6 +91,23 @@ schema-2 cancelled record lacks the original request and remains terminal after
 upgrade. Expired credentials need a separate authorized replacement/renewal flow,
 which this pre-issuance reapproval method does not provide.
 
+`enable-credential-extension` explicitly upgrades schema 3 to schema 4. The
+authenticated `extend_enrollment_credential` transaction can then extend the
+same device key/generation through the existing SDK root-signing primitive. The
+caller selects an original issued enrollment, its exact predecessor issuance,
+the current roster checkpoint, a retained request ID and the new finite expiry.
+It atomically replaces that member's certificate and roster and retains the exact
+response. It preserves original enrollment/account records and never creates a
+new device key. A suspended root, removed member, changed predecessor or
+retargeted retry is refused. Exact committed retries remain historical results.
+
+This is a host issuance boundary, not complete renewal. It does not issue the
+retained-session grant G, update a client installation, extend protocol policy or
+authorize old traffic. Replacing the certificate changes its roster membership
+commitment; callers must coordinate consumers explicitly. The browser extension
+control and accepted-but-unprepared client adoption remain to integrate. Do not
+reset an expired client's original state or substitute this response for G.
+
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.
 The local profile uses five-minute approval deadlines and one-hour credentials;
@@ -144,7 +161,7 @@ Enrollment tests use actual native SDK-generated requests, controlled root
 signers and signature/roster verification at the current host time. They cover
 two devices, conflicting complete-roster predecessors, wrong accounts/requests,
 explicit upgrade, missing original keys and retained results under suspension.
-Fourteen real child-process SIGKILL boundaries cover both schema upgrades, root
+Fourteen original child-process SIGKILL boundaries cover the first two schema upgrades, root
 first use, invitation creation, reapproval and issuance commit. Tests reopen the
 original client and check that its signing files and request bytes survive a
 roster conflict and a newly authorized decision. Synthetic historical-time

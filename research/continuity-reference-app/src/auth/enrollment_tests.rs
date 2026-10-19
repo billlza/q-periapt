@@ -210,6 +210,7 @@ fn root_suspension_fences_pending_approval_but_preserves_historical_result() -> 
 }
 
 mod crash;
+mod extension;
 mod reapproval;
 mod reapproval_crash;
 
