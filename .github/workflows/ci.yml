@@ -91,9 +91,22 @@ jobs:
           test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
           java -version
           javac -version
-      - run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v
+      - name: Exercise all artifact tooling
+        shell: bash
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          mkdir -p target/artifact-tooling-checks
+          git rev-parse HEAD > target/artifact-tooling-checks/source-commit.txt
+          sh artifact/python-run.sh -c 'import sys; print(sys.version)' > target/artifact-tooling-checks/python.txt
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v 2>&1 | tee target/artifact-tooling-checks/tests.log
+      - name: Preserve artifact tooling results including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: artifact-tooling-checks
+          path: target/artifact-tooling-checks/
+          if-no-files-found: error
       - name: Exact SDK source and historical evidence boundary
         env:
           QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}

@@ -32,10 +32,10 @@ class RustProfileTests(unittest.TestCase):
                 data = b"pub fn operation() {}\n"
                 (root / "src/lib.rs").write_bytes(data)
                 source = {"src/lib.rs": hashlib.sha256(data).hexdigest()}
-                locks = [f"workspace-{i}/Cargo.lock" for i in range(6)]
+                locks = list(profile_module.WORKSPACE_LOCKFILES)
                 for lock in locks:
                     path = root / lock
-                    path.parent.mkdir()
+                    path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text("version = 4\n")
                 sysroot = root / "sysroot"
                 (sysroot / "lib/rustlib/src/rust/library").mkdir(parents=True)
@@ -101,9 +101,27 @@ class RustProfileTests(unittest.TestCase):
         native = compiler_commands(root, "native")
         self.assertEqual(compiler_commands(root, "macos"), native)
         self.assertEqual({label for label, _cwd, _args in native},
-                         {"workspace", "engine", "spqr", "whole-kem", "continuity-c", "sdk-rust"})
+                         {"workspace", "engine", "independent-peer", "reference-account",
+                          "spqr", "whole-kem", "continuity-c", "sdk-rust"})
+        for label, relative in (("independent-peer", "research/continuity-openssl-peer/native"),
+                                ("reference-account", "research/continuity-reference-app")):
+            self.assertIn((label, root / relative, ["--all-targets", "--all-features"]), native)
+            self.assertNotIn(label, {name for name, _cwd, _args in wasm})
         with self.assertRaisesRegex(ValueError, "unknown"):
             compiler_commands(root, "unexpected")
+
+    def test_workspace_lock_inventory_rejects_missing_added_and_substituted_roots(self) -> None:
+        expected = profile_module.WORKSPACE_LOCKFILES
+        with mock.patch.object(profile_module, "run_git_bytes", return_value="\n".join(expected).encode()):
+            self.assertEqual(profile_module.tracked_lockfiles(Path("/source")), expected)
+        changed = [expected[:index] + expected[index + 1:] for index in range(len(expected))]
+        changed.extend((expected + ("unreviewed/Cargo.lock",), expected + (expected[-1],),
+                        expected[:-1] + ("unreviewed/Cargo.lock",)))
+        for paths in changed:
+            with self.subTest(paths=paths), mock.patch.object(
+                    profile_module, "run_git_bytes", return_value="\n".join(paths).encode()):
+                with self.assertRaisesRegex(ValueError, "workspace lock inventory differs"):
+                    profile_module.tracked_lockfiles(Path("/source"))
 
     def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -27,6 +27,16 @@ TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown
 VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
 COMPILER = "1.98.1"
+WORKSPACE_LOCKFILES = (
+    "Cargo.lock",
+    "fuzz/Cargo.lock",
+    "research/continuity-identity-candidate/Cargo.lock",
+    "research/continuity-openssl-peer/native/Cargo.lock",
+    "research/continuity-reference-app/Cargo.lock",
+    "research/continuity-spqr-reference/Cargo.lock",
+    "research/continuity-whole-kem-reference/Cargo.lock",
+    "research/hqc-fips207-candidate/Cargo.lock",
+)
 
 
 def profile_host(profile: str) -> str:
@@ -85,11 +95,19 @@ def compiler_commands(root: Path, profile: str):
         ("workspace", root, ["--workspace", "--all-targets", "--features",
                               "q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration"]),
         ("engine", root / consumers.CANDIDATE, ["--all-targets", "--all-features"]),
+        ("independent-peer", root / "research/continuity-openssl-peer/native", ["--all-targets", "--all-features"]),
+        ("reference-account", root / "research/continuity-reference-app", ["--all-targets", "--all-features"]),
         ("spqr", root / "research/continuity-spqr-reference", ["--all-targets"]),
         ("whole-kem", root / "research/continuity-whole-kem-reference", ["--all-targets"]),
         *[(label, root / path, ["--all-targets", "--all-features"])
           for label, path in consumers.CONSUMERS.items()],
     ]
+
+
+def tracked_lockfiles(root: Path) -> tuple[str, ...]:
+    locks = tuple(run_git_bytes(root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines())
+    sdk.require(locks == WORKSPACE_LOCKFILES, "tracked workspace lock inventory differs")
+    return locks
 
 
 def validate_sarif(data: object, profile: str) -> None:
@@ -198,8 +216,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
         sdk.require(b"wasm32" in targets, "clang does not support the WASM target")
         run.environment["CC_wasm32_unknown_unknown"] = clang
     install_metadata_adapter(run, sysroot, run.configuration.compiler_host)
-    locks = run_git_bytes(run.root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines()
-    sdk.require(len(locks) == 6, "tracked workspace lock inventory differs")
+    locks = tracked_lockfiles(run.root)
     lock_hashes = {path: sdk.snapshot(run.root / path).sha256 for path in locks}
     for index, lock in enumerate(locks):
         manifest = (run.root / lock).with_name("Cargo.toml")

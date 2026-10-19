@@ -129,11 +129,18 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-725 tracked `.rs` files to be successfully extracted. Each profile requires zero
+764 tracked `.rs` files to be successfully extracted. Each profile requires zero
 extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
 inconsistencies, and source format arguments without an expression or data-flow
 node, together with non-vacuous macro and format-argument sentinels. Path and type
 inference consistency categories remain complete, self-reconciling telemetry.
+
+Native Linux and Apple Silicon profiles also compile the optional reference
+account application and independent peer's native counterpart, including their
+test targets. Their two retained lockfiles join the explicit eight-workspace
+lock inventory. Updating this inventory does not establish a successful CodeQL
+analysis; current-source extraction, macro coverage and query results are still
+required.
 
 The full macro census preserves entity multiplicity and raw unresolved counts.
 Each profile binds actual compiler source dependencies from the depfiles selected

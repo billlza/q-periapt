@@ -1739,6 +1739,12 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "research/continuity-identity-candidate/src/crypto/sdk_policy.rs",
+            "research/continuity-identity-candidate/src/crypto/sdk_policy/tests.rs",
+            "research/continuity-reference-app/src/auth.rs",
+            "research/continuity-reference-app/src/http/enrollment.rs",
+            "research/continuity-reference-app/src/sdk_authority/operations.rs",
+            "research/continuity-reference-app/src/store/enrollment/reapproval.rs",
             "research/continuity-openssl-peer/native/src/fixture.rs",
             "research/continuity-openssl-peer/native/src/journal.rs",
             "research/continuity-openssl-peer/native/src/resolution.rs",
