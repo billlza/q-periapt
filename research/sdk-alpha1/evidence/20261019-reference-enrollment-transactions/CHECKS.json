@@ -1,0 +1,38 @@
+{
+  "head": "697e15a83265fd4061d9187221b49256bb495b2b",
+  "source_files": 22,
+  "capture": {
+    "bytes": 103022,
+    "members": 93,
+    "sha256": "85edc7f89ea8d0622da82dfbd896848a7dc214ce9af48ed9419d100cee021d11"
+  },
+  "tests": {
+    "passed": 18,
+    "child_dispatcher_included": 1,
+    "behavioral_tests": 17,
+    "sigkill_boundaries": 10,
+    "log": "local/tests-06.stdout",
+    "actual_tcp": true,
+    "host": "macOS arm64"
+  },
+  "strict_clippy": "local/clippy-03.stderr",
+  "strict_release": "local/build-04.stderr",
+  "release_flags": "-D warnings; same-toolchain root/lib in per-command DYLD_LIBRARY_PATH",
+  "release_execution": {
+    "binary_sha256": "7700cd40dc489783ae1b2722798a7c861b38bc64e8e4762ede8b04b9590d6fa6",
+    "binary_bytes": 3954016,
+    "same_original_database_inode": true,
+    "init_or_upgrade_executed": false,
+    "exit_code": 0,
+    "observation": {
+      "status": 401,
+      "cache_control": "no-store"
+    },
+    "scope": "Final -Dwarnings release binary, original schema2 CLI fixture reopened without init/upgrade/reset, actual loopback TCP anonymous401, clean SIGINT. No real-user database, enrollment HTTP or installed-client qualification."
+  },
+  "workflow": "actionlint passed",
+  "format": "cargo fmt check passed",
+  "failure_record": "local/FAILURES.json",
+  "dependency_review": "local/LOCK_REVIEW.json",
+  "scope": "Optional native reference-host Rust API and explicit schema CLI. Actual SDK-generated requests, controlled signers and complete rosters; software host authentication. Not enrollment over HTTP/browser, installed independent clients, deployed HTTPS, device revocation/full root replacement, filesystem sync fault injection, hardware power-loss or full0.2.0 qualification. SDK source/wire/ABI unchanged; SDK dependency source is identified by Git head, not duplicated in this capture."
+}
